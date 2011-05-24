@@ -39,7 +39,7 @@ CLIENTS_SHEET_COLUMNS = u'Client_ID,Propagation_Channels,Notes'.split(',')
 Client = namedtuple(u'Client', CLIENTS_SHEET_COLUMNS)
 
 HOSTS_SHEET_NAME = u'Hosts'
-HOSTS_SHEET_COLUMNS = u'IP_Address,SSH_Username,SSH_Password,Notes'.split(',')
+HOSTS_SHEET_COLUMNS = u'IP_Address,SSH_Username,SSH_Password,SSH_Host_Key,Notes'.split(',')
 Host = namedtuple(u'Host', HOSTS_SHEET_COLUMNS)
 
 SERVERS_SHEET_NAME = u'Servers'
