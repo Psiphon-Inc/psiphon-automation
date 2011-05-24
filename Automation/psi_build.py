@@ -100,11 +100,12 @@ if __name__ == "__main__":
         embedded_values_tempfile = store_to_temporary_file(EMBEDDED_VALUES_FILENAME)
 
         for sponsor in sponsors:
-            for client in clients:
 
-                # copy sponsor banner image file from Data to Client source tree
-                banner_source_path = os.path.join(BANNER_ROOT, sponsor.Banner_Filename)
-                shutil.copyfile(banner_source_path, BANNER_FILENAME)
+            # copy sponsor banner image file from Data to Client source tree
+            banner_source_path = os.path.join(BANNER_ROOT, sponsor.Banner_Filename)
+            shutil.copyfile(banner_source_path, BANNER_FILENAME)
+
+            for client in clients:
 
                 # overwrite embedded values source file
                 write_embedded_values(
