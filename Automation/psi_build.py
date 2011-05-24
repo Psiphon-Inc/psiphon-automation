@@ -46,8 +46,8 @@ def build_client():
     with open('build.cmd', 'w') as file:
         file.write('call "%s" x86\n' % (visual_studio_env_batch_filename,))
         file.write('msbuild %s /t:Rebuild /p:Configuration=Release' % (CLIENT_SOLUTION_FILENAME,))
-    if not subprocess.call('build.cmd'):
-        raise  Exception('build failed')
+    if 0 != subprocess.call('build.cmd'):
+        raise Exception('build failed')
 
 
 def write_embedded_values(client_id, sponsor_id, client_version, embedded_server_list):
