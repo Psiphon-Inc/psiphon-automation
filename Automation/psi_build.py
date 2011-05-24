@@ -117,8 +117,6 @@ if __name__ == "__main__":
                 # build
                 build_client()
 
-                # TODO: code signing
-
                 # rename and copy executable to Builds folder
                 # e.g., Builds/psiphonv-3A885577DD84EF13-8BB28C1A8E8A9ED9.exe
                 if not os.path.exists(BUILDS_ROOT):
