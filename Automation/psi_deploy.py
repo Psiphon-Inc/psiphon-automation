@@ -18,3 +18,8 @@
 #
 
 # TODO: script to deploy latest configuration to all servers
+
+# for each server in db:
+#   if missing cert, generate and write to db
+#   subset_db = db subset with only info required by server
+#   ssh to server and put sub_db
