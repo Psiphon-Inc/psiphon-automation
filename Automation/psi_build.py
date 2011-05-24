@@ -22,6 +22,7 @@ import shutil
 import subprocess
 import textwrap
 import tempfile
+import time
 import traceback
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join('..', 'Data')))
@@ -46,7 +47,7 @@ def build_client():
         file.write('call "%s" x86\n' % (visual_studio_env_batch_filename,))
         file.write('msbuild %s /t:Rebuild /p:Configuration=Release' % (CLIENT_SOLUTION_FILENAME,))
     if not subprocess.call('build.cmd'):
-        raise 'build failed'
+        raise  Exception('build failed')
 
 
 def write_embedded_values(client_id, sponsor_id, client_version, embedded_server_list):
@@ -128,7 +129,12 @@ if __name__ == "__main__":
 
         # attempt to restore original source files
         try:
-            shutil.copyfile(banner_tempfile.name, BANNER_FILENAME)
-            shutil.copyfile(embedded_values_tempfile.name, EMBEDDED_VALUES_FILENAME)
+            def restore_from_temporary_file(temporary_file, filename):
+                with open(filename, 'w') as file:
+                    temporary_file.seek(0)
+                    file.write(temporary_file.read())
+            restore_from_temporary_file(banner_tempfile, BANNER_FILENAME)
+            restore_from_temporary_file(embedded_values_tempfile, EMBEDDED_VALUES_FILENAME)
         except:
+            traceback.print_exc()
             pass
