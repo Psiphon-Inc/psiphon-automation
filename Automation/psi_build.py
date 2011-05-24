@@ -33,6 +33,9 @@ BANNER_ROOT = os.path.join(os.path.abspath('..'), 'Data', 'Banners')
 CLIENT_SOLUTION_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient.sln')
 VISUAL_STUDIO_ENV_BATCH_FILENAME = 'C:\\Program Files\\Microsoft Visual Studio 10.0\\VC\\vcvarsall.bat'
 VISUAL_STUDIO_ENV_BATCH_FILENAME_x86 = 'C:\\Program Files (x86)\\Microsoft Visual Studio 10.0\\VC\\vcvarsall.bat'
+SIGN_TOOL_FILENAME = 'C:\\Program Files\\Microsoft SDKs\\Windows\\v7.1\\Bin\\signtool.exe'
+SIGN_TOOL_FILENAME_x86 = 'C:\\Program Files (x86)\\Microsoft SDKs\\Windows\\v7.1\\Bin\\signtool.exe'
+CODE_SIGNING_PFX_FILENAME = os.path.join(os.path.abspath('..'), 'Data', 'CodeSigning', 'test-code-sigining-package.pfx')
 BANNER_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', 'banner.bmp')
 EMBEDDED_VALUES_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', 'embeddedvalues.h')
 EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, 'Release', 'psiphony.exe')
@@ -43,9 +46,16 @@ def build_client():
     visual_studio_env_batch_filename = VISUAL_STUDIO_ENV_BATCH_FILENAME
     if not os.path.isfile(visual_studio_env_batch_filename):
         visual_studio_env_batch_filename = VISUAL_STUDIO_ENV_BATCH_FILENAME_x86
+    signtool_filename = SIGN_TOOL_FILENAME
+    if not os.path.isfile(signtool_filename):
+        signtool_filename = SIGN_TOOL_FILENAME_x86
+    # TODO: delete build.cmd
     with open('build.cmd', 'w') as file:
         file.write('call "%s" x86\n' % (visual_studio_env_batch_filename,))
-        file.write('msbuild %s /t:Rebuild /p:Configuration=Release' % (CLIENT_SOLUTION_FILENAME,))
+        file.write('msbuild %s /t:Rebuild /p:Configuration=Release\n' % (CLIENT_SOLUTION_FILENAME,))
+        file.write('"%s" sign /f %s %s\n' % (signtool_filename,
+                                             CODE_SIGNING_PFX_FILENAME,
+                                             EXECUTABLE_FILENAME))
     if 0 != subprocess.call('build.cmd'):
         raise Exception('build failed')
 
