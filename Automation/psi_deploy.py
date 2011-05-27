@@ -24,3 +24,32 @@
 #   subset_db = db subset with only info required by server
 #   ssh to server and put sub_db
 #   also copy all required client builds
+
+import paramiko
+import base64
+import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join('..', 'Data')))
+import psi_db
+
+
+SSH_PORT = 22
+
+
+def connect_to_host(ip_address, ssh_username, ssh_password, ssh_host_key):
+    ssh = paramiko.SSHClient()
+    key_type, key_data = ssh_host_key.split(' ')
+    ssh.get_host_keys().add(ip_address, key_type, paramiko.RSAKey(data=base64.b64decode(key_data)))
+    ssh.connect(ip_address, SSH_PORT, ssh_username, ssh_password)
+    (_, output, _) = ssh.exec_command('ls')
+    print output.read()
+
+
+if __name__ == "__main__":
+    hosts = psi_db.get_hosts()
+    for host in hosts:
+        connect_to_host(
+            host.IP_Address,
+            host.SSH_Username,
+            host.SSH_Password,
+            host.SSH_Host_Key)
