@@ -124,7 +124,7 @@ if __name__ == "__main__":
                 write_embedded_values(
                     client.Client_ID,
                     sponsor.Sponsor_ID,
-                    versions[0].Client_Version,
+                    max([versions[i].Client_Version for i in range(len(versions))]),
                     psi_db.get_encoded_server_list(client.Client_ID))
 
                 # build
