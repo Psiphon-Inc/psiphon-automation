@@ -32,7 +32,8 @@ except ImportError:
     pass
 
 
-DB_FILENAME = os.path.join(os.path.dirname(__file__), 'psi_db.xls')
+DB_FILENAME = 'psi_db.xls'
+DB_PATH = os.path.join(os.path.dirname(__file__), DB_FILENAME)
 
 CLIENTS_SHEET_NAME = u'Clients'
 CLIENTS_SHEET_COLUMNS = u'Client_ID,Propagation_Channels,Notes'.split(',')
@@ -67,7 +68,7 @@ get_versions = lambda : read_data(VERSIONS_SHEET_NAME, VERSIONS_SHEET_COLUMNS, V
 
 
 def read_data(sheet_name, expected_columns, tupletype):
-    xls = xlrd.open_workbook(DB_FILENAME)
+    xls = xlrd.open_workbook(DB_PATH)
     sheet = xls.sheet_by_name(sheet_name)
     assert([cell.value for cell in sheet.row(0)] == expected_columns)
     data = []
@@ -218,6 +219,15 @@ def handshake(client_ip_address, client_id, sponsor_id, client_version):
 
 def embed(client_id):
     return get_encoded_server_list(client_id)
+
+
+def set_db_root(root_path):
+    global DB_PATH
+    DB_PATH = os.path.join(root_path, DB_FILENAME)
+
+
+def get_db_path():
+    return DB_PATH
 
 
 if __name__ == "__main__":

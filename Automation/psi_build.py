@@ -25,13 +25,17 @@ import tempfile
 import time
 import traceback
 import sys
+
 sys.path.insert(0, os.path.abspath(os.path.join('..', 'Data')))
 import psi_db
+
+
+#==== Build File Locations  ===================================================
 
 SOURCE_ROOT = os.path.join(os.path.abspath('..'), 'Client')
 BANNER_ROOT = os.path.join(os.path.abspath('..'), 'Data', 'Banners')
 CLIENT_SOLUTION_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient.sln')
-CODE_SIGNING_PFX_FILENAME = os.path.join(os.path.abspath('..'), 'Data', 'CodeSigning', 'test-code-sigining-package.pfx')
+CODE_SIGNING_PFX_FILENAME = os.path.join(os.path.abspath('..'), 'Data', 'CodeSigning', 'test-code-signing-package.pfx')
 BANNER_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', 'banner.bmp')
 EMBEDDED_VALUES_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', 'embeddedvalues.h')
 EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, 'Release', 'psiphony.exe')
@@ -42,6 +46,15 @@ VISUAL_STUDIO_ENV_BATCH_FILENAME_x86 = 'C:\\Program Files (x86)\\Microsoft Visua
 
 SIGN_TOOL_FILENAME = 'C:\\Program Files\\Microsoft SDKs\\Windows\\v7.1\\Bin\\signtool.exe'
 
+# if psi_build_config.py exists, load it and use psi_build_config.DATA_ROOT as the data root dir
+
+if os.path.isfile('psi_data_config.py'):
+    import psi_data_config
+    psi_db.set_db_root(psi_data_config.DATA_ROOT)
+    BANNER_ROOT = os.path.join(psi_data_config.DATA_ROOT, 'Banners')
+    CODE_SIGNING_PFX_FILENAME = os.path.join(psi_data_config.DATA_ROOT, 'CodeSigning', 'test-code-signing-package.pfx')
+
+#==============================================================================
 
 
 def build_client():

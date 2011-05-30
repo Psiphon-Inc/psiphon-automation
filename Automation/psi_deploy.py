@@ -17,39 +17,76 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-# TODO: script to deploy latest configuration to all servers
-
-# for each server in db:
-#   if missing cert, generate and write to db
-#   subset_db = db subset with only info required by server
-#   ssh to server and put sub_db
-#   also copy all required client builds
-
-import paramiko
-import base64
 import os
+import posixpath
 import sys
+
+import psi_ssh
+
 sys.path.insert(0, os.path.abspath(os.path.join('..', 'Data')))
 import psi_db
 
+sys.path.insert(0, os.path.abspath(os.path.join('..', 'Server')))
+import psi_config
 
-SSH_PORT = 22
 
+#==== Deploy File Locations  ==================================================
 
-def connect_to_host(ip_address, ssh_username, ssh_password, ssh_host_key):
-    ssh = paramiko.SSHClient()
-    key_type, key_data = ssh_host_key.split(' ')
-    ssh.get_host_keys().add(ip_address, key_type, paramiko.RSAKey(data=base64.b64decode(key_data)))
-    ssh.connect(ip_address, SSH_PORT, ssh_username, ssh_password)
-    (_, output, _) = ssh.exec_command('ls')
-    print output.read()
+HOST_SOURCE_ROOT = '/opt/PsiphonV'
+HOST_IP_DOWN_DIR = '/etc/ppp/ip-down.d'
+
+BUILDS_ROOT = os.path.join('.', 'Builds')
+
+SOURCE_FILES = [
+    ('Data', ['psi_db.py']),
+    ('Server', ['psi_config.py', 'psi_psk.py', 'psi_web.py'])
+]
+
+# if psi_build_config.py exists, load it and use psi_build_config.DATA_ROOT as the data root dir
+
+if os.path.isfile('psi_data_config.py'):
+    import psi_data_config
+    psi_db.set_db_root(psi_data_config.DATA_ROOT)
+
+#==============================================================================
 
 
 if __name__ == "__main__":
+
+    # Deploy to each host
+
     hosts = psi_db.get_hosts()
     for host in hosts:
-        connect_to_host(
-            host.IP_Address,
-            host.SSH_Username,
-            host.SSH_Password,
-            host.SSH_Host_Key)
+        ssh = psi_ssh.SSH(
+                host.IP_Address, host.SSH_Username,
+                host.SSH_Password, host.SSH_Host_Key)
+
+        # Copy server source code
+        
+        for (dir, filenames) in SOURCE_FILES:
+            ssh.exec_command('mkdir -p %s' % (posixpath.join(HOST_SOURCE_ROOT, dir),))
+            for filename in filenames:        
+                ssh.put_file(os.path.join(os.path.abspath('..'), dir, filename),
+                             posixpath.join(HOST_SOURCE_ROOT, dir, filename))
+
+        ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', 'psi-ip-down'),
+                     posixpath.join(HOST_IP_DOWN_DIR, 'psi-ip-down'))
+        ssh.exec_command('chmod +x %s' % (os.path.join(HOST_IP_DOWN_DIR, 'psi-ip-down'),))
+
+        # Copy data file
+
+        # TODO: to minimize impact of host compromise, only send subset of servers
+        # that host must know about for discovery
+
+        local_path = psi_db.get_db_path()
+        filename = os.path.split(local_path)[1]
+        ssh.put_file(local_path,
+                     posixpath.join(HOST_SOURCE_ROOT, 'Data', filename))
+
+        # Copy client builds
+
+        ssh.exec_command('mkdir -p %s' % (psi_config.UPGRADE_DOWNLOAD_PATH,))
+
+        for filename in os.listdir(BUILDS_ROOT):
+            ssh.put_file(os.path.join(BUILDS_ROOT, filename),
+                         posixpath.join(psi_config.UPGRADE_DOWNLOAD_PATH, filename))
