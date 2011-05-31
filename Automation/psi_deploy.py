@@ -34,6 +34,7 @@ import psi_config
 
 HOST_SOURCE_ROOT = '/opt/PsiphonV'
 HOST_IP_DOWN_DIR = '/etc/ppp/ip-down.d'
+HOST_INIT_DIR = '/etc/init.d'
 
 BUILDS_ROOT = os.path.join('.', 'Builds')
 
@@ -69,9 +70,19 @@ if __name__ == "__main__":
                 ssh.put_file(os.path.join(os.path.abspath('..'), dir, filename),
                              posixpath.join(HOST_SOURCE_ROOT, dir, filename))
 
+        ssh.exec_command('chmod +x %s' % (posixpath.join(HOST_SOURCE_ROOT, 'Server', 'psi_web.py'),))
+
+        remote_ip_down_file_path = posixpath.join(HOST_IP_DOWN_DIR, 'psi-ip-down')
         ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', 'psi-ip-down'),
-                     posixpath.join(HOST_IP_DOWN_DIR, 'psi-ip-down'))
-        ssh.exec_command('chmod +x %s' % (os.path.join(HOST_IP_DOWN_DIR, 'psi-ip-down'),))
+                     remote_ip_down_file_path)
+        ssh.exec_command('chmod +x %s' % (remote_ip_down_file_path,))
+
+        remote_init_file_path = posixpath.join(HOST_INIT_DIR, 'psiphonv')
+        ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', 'psi-init'),
+                     remote_init_file_path)
+        ssh.exec_command('chmod +x %s' % (remote_init_file_path,))
+        ssh.exec_command('%s restart' % (remote_init_file_path,))
+        ssh.exec_command('update-rc.d %s defaults' % ('psiphonv',))
 
         # Copy data file
 
