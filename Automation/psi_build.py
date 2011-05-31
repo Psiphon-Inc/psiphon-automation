@@ -45,6 +45,7 @@ VISUAL_STUDIO_ENV_BATCH_FILENAME = 'C:\\Program Files\\Microsoft Visual Studio 1
 VISUAL_STUDIO_ENV_BATCH_FILENAME_x86 = 'C:\\Program Files (x86)\\Microsoft Visual Studio 10.0\\VC\\vcvarsall.bat'
 
 SIGN_TOOL_FILENAME = 'C:\\Program Files\\Microsoft SDKs\\Windows\\v7.1\\Bin\\signtool.exe'
+SIGN_TOOL_FILENAME_ALT = 'C:\\Program Files\\Microsoft SDKs\\Windows\\v7.0A\\Bin\\signtool.exe'
 
 # if psi_build_config.py exists, load it and use psi_build_config.DATA_ROOT as the data root dir
 
@@ -61,11 +62,14 @@ def build_client():
     visual_studio_env_batch_filename = VISUAL_STUDIO_ENV_BATCH_FILENAME
     if not os.path.isfile(visual_studio_env_batch_filename):
         visual_studio_env_batch_filename = VISUAL_STUDIO_ENV_BATCH_FILENAME_x86
+    signtool_filename = SIGN_TOOL_FILENAME
+    if not os.path.isfile(signtool_filename):
+        signtool_filename = SIGN_TOOL_FILENAME_ALT
     # TODO: delete build.cmd
     with open('build.cmd', 'w') as file:
         file.write('call "%s" x86\n' % (visual_studio_env_batch_filename,))
         file.write('msbuild %s /t:Rebuild /p:Configuration=Release\n' % (CLIENT_SOLUTION_FILENAME,))
-        file.write('"%s" sign /f %s %s\n' % (SIGN_TOOL_FILENAME,
+        file.write('"%s" sign /f %s %s\n' % (signtool_filename,
                                              CODE_SIGNING_PFX_FILENAME,
                                              EXECUTABLE_FILENAME))
     if 0 != subprocess.call('build.cmd'):
