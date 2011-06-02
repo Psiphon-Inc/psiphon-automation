@@ -63,6 +63,7 @@ if __name__ == "__main__":
                 host.IP_Address, host.SSH_Username,
                 host.SSH_Password, host.SSH_Host_Key)
 
+
         # Copy server source code
         
         for (dir, filenames) in SOURCE_FILES:
@@ -82,8 +83,11 @@ if __name__ == "__main__":
         ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', 'psi-init'),
                      remote_init_file_path)
         ssh.exec_command('chmod +x %s' % (remote_init_file_path,))
-        ssh.exec_command('%s restart' % (remote_init_file_path,))
         ssh.exec_command('update-rc.d %s defaults' % ('psiphonv',))
+
+        # Stop server, if running, before replacing data file (command may fail)
+
+        ssh.exec_command('%s stop' % (remote_init_file_path,))
 
         # Copy data file
 
@@ -98,6 +102,10 @@ if __name__ == "__main__":
                          posixpath.join(HOST_SOURCE_ROOT, 'Data', psi_db.DB_FILENAME))
         finally:
             os.remove(file.name)
+
+        # Restart  server after both source code and data file updated
+
+        ssh.exec_command('%s restart' % (remote_init_file_path,))
 
         # Copy client builds
 

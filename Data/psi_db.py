@@ -17,8 +17,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import xlrd
-import xlwt
 import binascii
 import os
 import sys
@@ -28,6 +26,15 @@ import datetime
 import socket
 import struct
 import traceback
+
+import xlrd
+
+# Server doesn't need write module
+try:
+    import xlwt
+except ImportError:
+    pass
+
 try:
     import GeoIP
 except ImportError:
