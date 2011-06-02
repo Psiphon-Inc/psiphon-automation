@@ -18,9 +18,11 @@
 #
 
 import xlrd
+import xlwt
 import binascii
 import os
 import sys
+import tempfile
 from collections import namedtuple
 import datetime
 import socket
@@ -40,11 +42,11 @@ CLIENTS_SHEET_COLUMNS = u'Client_ID,Propagation_Channels,Notes'.split(',')
 Client = namedtuple(u'Client', CLIENTS_SHEET_COLUMNS)
 
 HOSTS_SHEET_NAME = u'Hosts'
-HOSTS_SHEET_COLUMNS = u'IP_Address,SSH_Username,SSH_Password,SSH_Host_Key,Notes'.split(',')
+HOSTS_SHEET_COLUMNS = u'Host_ID,IP_Address,SSH_Username,SSH_Password,SSH_Host_Key,Notes'.split(',')
 Host = namedtuple(u'Host', HOSTS_SHEET_COLUMNS)
 
 SERVERS_SHEET_NAME = u'Servers'
-SERVERS_SHEET_COLUMNS = u'IP_Address,Web_Server_Port,Web_Server_Secret,Web_Server_Certificate,Web_Server_Private_Key,Discovery_Client_ID,Discovery_Time_Start,Discovery_Time_End,Notes'.split(',')
+SERVERS_SHEET_COLUMNS = u'Host_ID,IP_Address,Web_Server_Port,Web_Server_Secret,Web_Server_Certificate,Web_Server_Private_Key,Discovery_Client_ID,Discovery_Time_Start,Discovery_Time_End,Notes'.split(',')
 Server = namedtuple(u'Server', SERVERS_SHEET_COLUMNS)
 
 SPONSORS_SHEET_NAME = u'Sponsors'
@@ -137,7 +139,7 @@ def test_get_encoded_server_list():
     # embedded case, known client ID
     assert(len(get_encoded_server_list('3A885577DD84EF13')) == 1)
     # discovery case
-    week1 = datetime.datetime(2011, 06, 16)
+    week1 = datetime.datetime(2011, 05, 16)
     assert(len(get_encoded_server_list('3A885577DD84EF13', '127.0.0.1', discovery_date=week1)) == 1)
     assert(len(get_encoded_server_list('3A885577DD84EF13', '127.0.0.2', discovery_date=week1)) == 1)
     # different IP address buckets
@@ -221,6 +223,93 @@ def embed(client_id):
     return get_encoded_server_list(client_id)
 
 
+def make_file_for_host(host_id, filename, discovery_date=datetime.datetime.now()):
+    # Create a compartmentalized spreadsheet with only the information needed by a particular host
+    # - always omit Notes column
+    # - client sheet includes only clients that may connect to servers on this host
+    # - OMIT host sheet
+    # - servers sheet includes only servers for client IDs in filtered client sheet
+    #   (which is more than just servers on this host, due to cross-host discovery) 
+    #   also, omit non-propagation servers not on this host whose discovery time period has elapsed
+    #   also, omit propagation servers not on this host
+    #   (not on this host --> because servers on this host still need to run, even if not discoverable)
+    # - OMIT sponsors sheet
+    # - send entire Home Pages sheet
+    # - send entire Versions sheet
+
+    wb = xlwt.Workbook()
+
+    # TODO: atomic reads
+
+    clients = get_clients()
+    servers = get_servers()
+    home_pages = get_home_pages()
+    versions = get_versions()
+
+    date_style = xlwt.easyxf(num_format_str='YYYY-MM-DD')
+
+    servers_on_host = filter(lambda x : x.Host_ID == host_id, servers)
+    discovery_client_ids_on_host = set([server.Discovery_Client_ID for server in servers_on_host])
+
+    ws = wb.add_sheet(CLIENTS_SHEET_NAME)
+    for i, value in enumerate(CLIENTS_SHEET_COLUMNS):
+        ws.write(0, i, value)
+    i = 1
+    for client in clients:
+        if client.Client_ID in discovery_client_ids_on_host:
+            ws.write(i, 0, client.Client_ID)
+            ws.write(i, 1, '') # Propagation_Channel
+            ws.write(i, 2, '') # Notes
+            i += 1
+
+    ws = wb.add_sheet(SERVERS_SHEET_NAME)
+    for i, value in enumerate(SERVERS_SHEET_COLUMNS):
+        ws.write(0, i, value)
+    i = 1
+    for server in servers:
+        if (server.Discovery_Client_ID in discovery_client_ids_on_host and
+                not(server.Discovery_Time_Start and server.Host_ID != host_id and server.Discovery_Time_End <= discovery_date) and
+                not(server.Discovery_Time_Start is None and server.Host_ID != host_id)):
+            ws.write(i, 0, '') # Host_ID
+            ws.write(i, 1, server.IP_Address)
+            ws.write(i, 2, server.Web_Server_Port)
+            ws.write(i, 3, server.Web_Server_Secret)
+            ws.write(i, 4, server.Web_Server_Certificate)
+            ws.write(i, 5, server.Web_Server_Private_Key)
+            ws.write(i, 6, server.Discovery_Client_ID)
+            ws.write(i, 7, server.Discovery_Time_Start, date_style)
+            ws.write(i, 8, server.Discovery_Time_End, date_style)
+            ws.write(i, 9, '') # Notes
+            i += 1
+
+    ws = wb.add_sheet(HOME_PAGES_SHEET_NAME)
+    for i, value in enumerate(HOME_PAGES_SHEET_COLUMNS):
+        ws.write(0, i, value)
+    for i, home_page in enumerate(home_pages):
+        ws.write(i+1, 0, home_page.Sponsor_ID)
+        ws.write(i+1, 1, home_page.Region)
+        ws.write(i+1, 2, home_page.Home_Page_URL)
+        ws.write(i+1, 3, '') # Notes
+
+    ws = wb.add_sheet(VERSIONS_SHEET_NAME)
+    for i, value in enumerate(VERSIONS_SHEET_COLUMNS):
+        ws.write(0, i, value)
+    for i, version in enumerate(versions):
+        ws.write(i+1, 0, version.Client_Version)
+        ws.write(i+1, 1, '') # Notes
+
+    wb.save(filename)
+
+
+def test_make_file_for_host():
+    hosts = get_hosts()
+    week1 = datetime.datetime(2011, 05, 16)
+    for host in hosts:
+        file = tempfile.NamedTemporaryFile(delete=False)
+        make_file_for_host(host.Host_ID, file.name, discovery_date=week1)
+        print file.name
+        
+
 def set_db_root(root_path):
     global DB_PATH
     DB_PATH = os.path.join(root_path, DB_FILENAME)
@@ -237,6 +326,7 @@ if __name__ == "__main__":
         test_get_encoded_server_list()
         test_get_sponsor_home_pages()
         test_get_upgrade()
+        test_make_file_for_host()
     except Exception as e:
         print 'Failed'
         traceback.print_exc()

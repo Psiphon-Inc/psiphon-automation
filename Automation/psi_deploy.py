@@ -18,6 +18,7 @@
 #
 
 import os
+import tempfile
 import posixpath
 import sys
 
@@ -89,10 +90,14 @@ if __name__ == "__main__":
         # TODO: to minimize impact of host compromise, only send subset of servers
         # that host must know about for discovery
 
-        local_path = psi_db.get_db_path()
-        filename = os.path.split(local_path)[1]
-        ssh.put_file(local_path,
-                     posixpath.join(HOST_SOURCE_ROOT, 'Data', filename))
+        file = tempfile.NamedTemporaryFile(delete=False)
+        try:
+            psi_db.make_file_for_host(host.Host_ID, file.name)
+            file.close()
+            ssh.put_file(file.name,
+                         posixpath.join(HOST_SOURCE_ROOT, 'Data', psi_db.DB_FILENAME))
+        finally:
+            os.remove(file.name)
 
         # Copy client builds
 
