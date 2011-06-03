@@ -40,6 +40,7 @@ BANNER_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', 'banner.bmp')
 EMBEDDED_VALUES_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', 'embeddedvalues.h')
 EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, 'Release', 'psiphony.exe')
 BUILDS_ROOT = os.path.join('.', 'Builds')
+BUILD_FILENAME_TEMPLATE = 'psiphon-%s-%s.exe'
 
 VISUAL_STUDIO_ENV_BATCH_FILENAME = 'C:\\Program Files\\Microsoft Visual Studio 10.0\\VC\\vcvarsall.bat'
 VISUAL_STUDIO_ENV_BATCH_FILENAME_x86 = 'C:\\Program Files (x86)\\Microsoft Visual Studio 10.0\\VC\\vcvarsall.bat'
@@ -138,13 +139,13 @@ if __name__ == "__main__":
                 build_client()
 
                 # rename and copy executable to Builds folder
-                # e.g., Builds/psiphonv-3A885577DD84EF13-8BB28C1A8E8A9ED9.exe
+                # e.g., Builds/psiphon-3A885577DD84EF13-8BB28C1A8E8A9ED9.exe
                 if not os.path.exists(BUILDS_ROOT):
                     os.makedirs(BUILDS_ROOT)
                 build_destination_path = os.path.join(
                                             BUILDS_ROOT,
-                                            'psiphon-%s-%s.exe' % (client.Client_ID,
-                                                                   sponsor.Sponsor_ID))
+                                            BUILD_FILENAME_TEMPLATE % (client.Client_ID,
+                                                                       sponsor.Sponsor_ID))
                 shutil.copyfile(EXECUTABLE_FILENAME, build_destination_path)
 
         print 'psi_build: SUCCESS'

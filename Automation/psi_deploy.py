@@ -17,12 +17,14 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import os
+import re
 import tempfile
+import os
 import posixpath
 import sys
 
 import psi_ssh
+import psi_build
 
 sys.path.insert(0, os.path.abspath(os.path.join('..', 'Data')))
 import psi_db
@@ -90,9 +92,9 @@ if __name__ == "__main__":
         ssh.exec_command('%s stop' % (remote_init_file_path,))
 
         # Copy data file
-
-        # TODO: to minimize impact of host compromise, only send subset of servers
-        # that host must know about for discovery
+        # We upload a compartmentalized version of the master file
+        # containing only the client IDs and confidential server
+        # information required by each host.
 
         file = tempfile.NamedTemporaryFile(delete=False)
         try:
@@ -101,16 +103,27 @@ if __name__ == "__main__":
             ssh.put_file(file.name,
                          posixpath.join(HOST_SOURCE_ROOT, 'Data', psi_db.DB_FILENAME))
         finally:
-            os.remove(file.name)
+            try:
+                os.remove(file.name)
+            except:
+                pass
 
         # Restart  server after both source code and data file updated
 
         ssh.exec_command('%s restart' % (remote_init_file_path,))
 
         # Copy client builds
+        # As above, we only upload the builds for Client IDs that
+        # need to be known for the host.
 
         ssh.exec_command('mkdir -p %s' % (psi_config.UPGRADE_DOWNLOAD_PATH,))
 
+        # Match 'psiphon-<Client ID>-<Sponsor ID>.exe' with specific client ID and any sponsor ID
+        discovery_client_ids_on_host = psi_db.get_discovery_client_ids_for_host(host.Host_ID)
+        filename_pattern = psi_build.BUILD_FILENAME_TEMPLATE % ('([0-9,A-F]+)', '([0-9,A-F]+)')
+
         for filename in os.listdir(BUILDS_ROOT):
-            ssh.put_file(os.path.join(BUILDS_ROOT, filename),
-                         posixpath.join(psi_config.UPGRADE_DOWNLOAD_PATH, filename))
+            match = re.match(filename_pattern, filename)
+            if match and match.groups()[0] in discovery_client_ids_on_host:
+                ssh.put_file(os.path.join(BUILDS_ROOT, filename),
+                             posixpath.join(psi_config.UPGRADE_DOWNLOAD_PATH, filename))

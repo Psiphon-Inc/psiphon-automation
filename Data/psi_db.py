@@ -230,6 +230,12 @@ def embed(client_id):
     return get_encoded_server_list(client_id)
 
 
+def get_discovery_client_ids_for_host(host_id, discovery_date=datetime.datetime.now()):
+    servers = get_servers()
+    servers_on_host = filter(lambda x : x.Host_ID == host_id, servers)
+    return set([server.Discovery_Client_ID for server in servers_on_host])
+
+
 def make_file_for_host(host_id, filename, discovery_date=datetime.datetime.now()):
     # Create a compartmentalized spreadsheet with only the information needed by a particular host
     # - always omit Notes column
@@ -255,8 +261,7 @@ def make_file_for_host(host_id, filename, discovery_date=datetime.datetime.now()
 
     date_style = xlwt.easyxf(num_format_str='YYYY-MM-DD')
 
-    servers_on_host = filter(lambda x : x.Host_ID == host_id, servers)
-    discovery_client_ids_on_host = set([server.Discovery_Client_ID for server in servers_on_host])
+    discovery_client_ids_on_host = get_discovery_client_ids_for_host(host_id)
 
     ws = wb.add_sheet(CLIENTS_SHEET_NAME)
     for i, value in enumerate(CLIENTS_SHEET_COLUMNS):
