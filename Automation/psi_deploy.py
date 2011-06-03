@@ -119,11 +119,11 @@ if __name__ == "__main__":
         ssh.exec_command('mkdir -p %s' % (psi_config.UPGRADE_DOWNLOAD_PATH,))
 
         # Match 'psiphon-<Client ID>-<Sponsor ID>.exe' with specific client ID and any sponsor ID
-        filename_pattern = psi_build.BUILD_FILENAME_TEMPLATE % ('([0-9,A-F]+)', '([0-9,A-F]+)')
+        filename_pattern = re.compile(psi_build.BUILD_FILENAME_TEMPLATE % ('([0-9,A-F]+)', '([0-9,A-F]+)'))
         discovery_client_ids_on_host = psi_db.get_discovery_client_ids_for_host(host.Host_ID)
 
         for filename in os.listdir(BUILDS_ROOT):
-            match = re.match(filename_pattern, filename)
+            match = filename_pattern.match(filename)
             if match and match.groups()[0] in discovery_client_ids_on_host:
                 ssh.put_file(os.path.join(BUILDS_ROOT, filename),
                              posixpath.join(psi_config.UPGRADE_DOWNLOAD_PATH, filename))
