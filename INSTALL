@@ -9,9 +9,12 @@ SUPPORTED PLATFORMS
 ...
 
 
-SOURCE DIRECTORY LAYOUT
+DEPENDENCIES
 --------------------------
 
+client build
+
+server
 ...
 
 
