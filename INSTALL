@@ -1,24 +1,299 @@
--------------------------
-Psiphon INSTALL
--------------------------
+--------------------------------------------------------------------------------
+Psiphon Circumvention Tool INSTALL
+--------------------------------------------------------------------------------
 
 
-SUPPORTED PLATFORMS
---------------------------
+Supported Platforms
+--------------------------------------------------------------------------------
 
 ...
 
 
-DEPENDENCIES
---------------------------
 
-client build
+Windows Client Installation
+--------------------------------------------------------------------------------
 
-server
-...
+Dependencies
+- Microsoft Visual Studio Express 10
+- Microsoft Platform SDK
 
 
-INSTALLATION
---------------------------
+Python setup
+------------
 
-...[server setup, etc.]...
+2.6+
+http://www.python.org/download/releases/2.6/
+easy_install xlrd xlwrt paramiko
+
+
+Authenticode code signing setup
+-------------------------------
+
+Install Windows Platform SDK
+(e.g., http://msdn.microsoft.com/en-us/windows/bb980924)
+
+MakeCert
+
+(see: http://msdn.microsoft.com/en-us/library/ff548693%28v=vs.85%29.aspx)
+
+e.g.,
+
+"C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\makecert
+.exe" -r -sv key.pvk -n "CN=PsiphonV" cert.spc
+
+
+pvk2pfx
+
+(see: http://social.msdn.microsoft.com/forums/en-US/csharpgeneral/thread/82ebe395-73d5-4c1c-8e41-7e042239a1c5)
+
+e.g.,
+
+"C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\pvk2pfx.
+exe" -pvk key.pvk -spc cert.spc -pfx psiphonv.pfx
+
+signtool
+
+e.g.,
+
+
+"C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\signtool
+.exe" sign /f psiphonv.pfx psiphon.exe
+
+Build
+-----
+
+...[psi-build.py]...
+
+
+Android Client Installation
+--------------------------------------------------------------------------------
+
+[TODO]
+
+
+Server Installation
+--------------------------------------------------------------------------------
+
+Dependencies
+- Debian 6.0 (squeeze)
+
+
+1. Get Openswan, xl2tp, and python packages
+-------------------------------------------
+
+apt-get update
+apt-get install -y openswan
+apt-get install -y xl2tpd
+apt-get install -y python-setuptools python-dev
+easy_install cherrypy webob xlrd portalocker netifaces
+
+
+2. Patch Openswan
+-----------------
+
+apt-get install openswan-modules-source
+{Edit modules/openswan/linux/include/openswan/ipsec_param.h in /usr/src/openswan-modules.tar.bz2:
+ set IPSEC_NUM_IF 20 or however number of interfaces are needed
+see: http://comments.gmane.org/gmane.network.openswan.user/15675}
+modules-assistant
+PREPARE
+SELECT openswan-modules
+BUILD
+INSTALL
+
+
+3. Configure an instance of xl2tpd per external IP address
+----------------------------------------------------------
+
+We [may] have to run multiple xl2tpd instances, one per public IP address, due to an issue described here: https://lists.openswan.org/pipermail/users/2011-February/020143.html
+Monitor for a fix here: http://www.xelerance.com/wp-content/uploads/software/xl2tpd/CHANGES
+
+[TODO: will be scripted as part of deploy script]
+
+/etc/xl2tpd/xl2tpd<n>.conf:
+
+  [global]
+  listen-addr = <server IP address n>
+
+  [lns default]
+  ip range = 10.<n>.0.2-10.<n>.255.254
+  local ip = 10.<n>.0.1
+  require chap = yes
+  refuse pap = yes
+  require authentication = yes
+  name = PsiphonV
+  pppoptfile = /etc/ppp/options.xl2tpd
+  length bit = yes
+
+/etc/init.d/xl2tpd:
+
+  case "$1" in
+    start)
+          echo -n "Starting $DESC: "
+          test -d /var/run/xl2tpd<n> || mkdir -p /var/run/xl2tpd<n>
+          start-stop-daemon --start --quiet --pidfile $PIDFILE.<n> \
+                  --exec $DAEMON -- -c /etc/xl2tpd/xl2tpd<n>.conf \
+                  -p $PIDFILE.<n> -C /var/run/xl2tpd1/l2tp-control \
+                  $DAEMON_OPTS
+          echo "$NAME.<n>."
+          ;;
+    stop)
+          echo -n "Stopping $DESC: "
+          start-stop-daemon --oknodo --stop --quiet --pidfile $PIDFILE.<n> \
+                  --exec $DAEMON
+          echo "$NAME.<n>."
+          ;;
+    restart)
+          $0 stop
+          sleep 1
+          $0 start
+          ;;
+   *)
+          N=/etc/init.d/$NAME
+          echo "Usage: $N {start|stop|restart}" >&2
+          exit 1
+          ;;
+  esac
+
+
+5. Configure static configuration files
+---------------------------------------
+
+/etc/ppp/options.xl2tpd:
+
+  ipcp-accept-local
+  ipcp-accept-remote
+  ms-dns 8.8.8.8
+  noccp
+  auth
+  crtscts
+  idle 1800
+  mtu 1410
+  mru 1410
+  nodefaultroute
+  debug
+  lock
+  proxyarp
+  connect-delay 5000
+
+/etc/ppp/chap-secrets:
+
+  *       *       password        *
+
+/etc/ipsec.secrets:
+
+  <empty file>
+
+Add to /etc/sysctl.conf:
+
+  net.ipv4.ip_forward=1
+
+
+6. Test L2TP/IPSec
+------------------
+
+  /etc/init.d/ipsec restart
+  /etc/init.d/xl2tpd restart
+
+
+7. Configure firewall
+---------------------
+
+iptables-rules:
+
+  *filter
+  -A INPUT -i lo -j ACCEPT
+  -A INPUT -d 127.0.0.0/8 -i ! lo -j REJECT --reject-with icmp-port-unreachable
+  -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+  -A INPUT -s <source-IP-address-for-ssh-access> -p tcp -m state --state NEW -m tcp --dport 22 -j ACCEPT
+  -A INPUT -p tcp -m state --state NEW -m tcp --dport 80 -j ACCEPT
+  -A INPUT -p esp -j ACCEPT
+  -A INPUT -p ah -j ACCEPT
+  -A INPUT -p udp --dport 500 -j ACCEPT
+  -A INPUT -p udp --dport 4500 -j ACCEPT
+  -A INPUT -i ipsec+ -p udp -m udp --dport l2tp -j ACCEPT
+  -A INPUT -j REJECT --reject-with icmp-port-unreachable
+  COMMIT
+
+  *nat
+  <one line for each xl2tpd instance>
+  -A POSTROUTING -s 10.<n>.0.0/16 -o eth+ -j MASQUERADE
+  COMMIT
+
+[TODO: firewall clients from each other]
+
+/etc/network/if-up.d/firewall (chmod +x):
+
+  #!/bin/sh
+
+  iptables-restore < /etc/iptables.rules
+
+
+8. Configure logging
+--------------------
+
+(1) Log VPN disconnect (for session duration stats) (done by psi_deploy.py)
+
+cp psi-ip-down /etc/ppp/ip-down.d
+chmod +x /etc/ppp/ip-down.d/psi-ip-down
+
+(2) Direct all psiphonv logs to psiphonv.log and turn off all VPN logging (xl2tpd and pluto) that logs client IP addresses. See: http://wiki.rsyslog.com/index.php/Filtering_by_program_name.
+
+Add to /etc/rsyslog.conf (IMPORTANT: put new rules at the top of the rules section):
+
+  ###############
+  #### RULES ####
+  ###############
+
+  if $programname == 'psiphonv' then /var/log/psiphonv.log
+  if $programname == 'psiphonv' then ~
+  if $programname == 'xl2tpd' then /dev/null
+  if $programname == 'xl2tpd' then ~
+  if $programname == 'pluto' then /dev/null
+  if $programname == 'pluto' then ~
+
+(3) Rotate psiphonv.log
+
+Add to /etc/logrotate.d/rsyslog:
+
+  /var/log/psiphonv.log
+
+
+9. Configure GeoIP lookup
+-------------------------
+
+cd /root
+
+wget http://geolite.maxmind.com/download/geoip/api/c/GeoIP.tar.gz
+tar xvf GeoIP.tar.gz
+cd GeoIP
+[apt-get install zlib1g-dev]
+./configure
+make
+make check
+make install
+
+[TODO: check again for latest-version Python download URL]
+
+cd ..
+wget http://geolite.maxmind.com/download/geoip/api/python/GeoIP-Python-1.2.5.tar.gz
+tar xvf GeoIP-Python-1.2.5.tar.gz
+cd GeoIP-Python-1.2.5
+[apt-get install gcc]
+[apt-get install python-dev]
+python setup.py build
+python setup.py install
+
+
+Network Configuration
+--------------------------------------------------------------------------------
+
+...[psi_xls guide]...
+
+
+Build and Deploy
+--------------------------------------------------------------------------------
+
+...[build script]...
+
+....[deploy script]...
