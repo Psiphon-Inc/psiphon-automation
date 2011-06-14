@@ -3,79 +3,131 @@ Psiphon Circumvention Tool INSTALL
 --------------------------------------------------------------------------------
 
 
-Supported Platforms
+Contents
 --------------------------------------------------------------------------------
 
-...
+Overview
+Build/Deploy Host Installation
+Debian Server Host Installation
+Network Database Configuration
 
 
+Overview
+--------------------------------------------------------------------------------
 
-Windows Client Installation
+A Psiphon system consists of:
+
+- A database of network assets. Currently, this is stored in spreadsheet form
+in Data/psi_db.xls.
+
+- A number of server hosts. A host consists of one or more servers. In our
+terminology, a server is a single instance of the server software behind a
+single IP address.
+
+- A set client builds.
+
+- A build/deploy host.
+
+The build/deploy host is set up manually. Part of each server host setup is also
+performed manually. The build script is used to create client executables on
+the build/deploy host and from the same host a deploy script completes the
+server hosts installs or updates server hosts with new information.
+
+
+Build/Deploy Host Installation
 --------------------------------------------------------------------------------
 
 Dependencies
-- Microsoft Visual Studio Express 10
-- Microsoft Platform SDK
-
-
-Python setup
 ------------
 
-2.6+
-http://www.python.org/download/releases/2.6/
-easy_install xlrd xlwrt paramiko
+- Windows XP/Vista/7
+- Microsoft Visual Studio Express 10
+- Microsoft Platform SDK
+- Python 2.6+ and modules
 
 
-Authenticode code signing setup
--------------------------------
+1. Python setup
+---------------
 
-Install Windows Platform SDK
-(e.g., http://msdn.microsoft.com/en-us/windows/bb980924)
+- Download and install Python 2.6+:
 
-MakeCert
+  http://www.python.org/download/releases/2.6/
 
-(see: http://msdn.microsoft.com/en-us/library/ff548693%28v=vs.85%29.aspx)
+- Download and install the corresponding version of setup tools:
 
-e.g.,
+  http://pypi.python.org/pypi/setuptools#downloads
 
-"C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\makecert
-.exe" -r -sv key.pvk -n "CN=PsiphonV" cert.spc
+- Install additional modules:
 
-
-pvk2pfx
-
-(see: http://social.msdn.microsoft.com/forums/en-US/csharpgeneral/thread/82ebe395-73d5-4c1c-8e41-7e042239a1c5)
-
-e.g.,
-
-"C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\pvk2pfx.
-exe" -pvk key.pvk -spc cert.spc -pfx psiphonv.pfx
-
-signtool
-
-e.g.,
+  easy_install xlrd xlwrt paramiko
 
 
-"C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\signtool
-.exe" sign /f psiphonv.pfx psiphon.exe
+2. Windows Client Build Setup
+-----------------------------
 
-Build
------
+- Install Microsoft Visual Studio 10
 
-...[psi-build.py]...
+- Install Windows Platform SDK
+
+  http://msdn.microsoft.com/en-us/windows/bb980924
+
+- Authenticode code signing setup
+
+Psiphon includes support for authenticode signing of the client builds. Code
+signing is performed by the automated build script using keys found in the
+Data/CodeSigning subdirectory of the source tree. The include keys are for
+test purposes only. For production use, obtain a code signing certificate from
+a commercial CA.
+
+To manually test the individual code signing commands:
+
+- Create a new test signing key:
+"<Path to SDK>\Bin\makecert.exe" -r -sv key.pvk -n "CN=MyCN" cert.spc
+"<Path to SDK>\Bin\pvk2pfx.exe" -pvk key.pvk -spc cert.spc -pfx MyPFX.pfx
+
+- Sign an executable:
+"<Path to SDK>\Bin\signtool.exe" sign /f MyPFX.pfx psiphon.exe
+
+- Review tool paths in Automation/psi_build.py and adjust if required.
 
 
-Android Client Installation
---------------------------------------------------------------------------------
+4. Android Client Build Setup
+-----------------------------
 
 [TODO]
 
 
-Server Installation
+5. Build
+--------
+
+- Invoke the build script
+
+  cd Automation
+  python psi_build.py
+
+Outputs are in Automation/Builds. There is one client per Sponsor ID and
+Client ID. For more information on these values, see the design paper and see
+the section below on configuring the network database.
+
+If building new clients, invoke the deploy script to upload the builds to the
+hosts in your network database for automatic client upgrade.
+
+- Invoke the deploy script
+
+  cd Automation
+  python psi_deploy.py
+
+
+Debian Server Host Installation
 --------------------------------------------------------------------------------
 
 Dependencies
+------------
+
 - Debian 6.0 (squeeze)
+- Openswan 2.6.32 with KLIPS kernel module
+- xl2tp 1.2.8
+- Python 2.6+ and modules
 
 
 1. Get Openswan, xl2tp, and python packages
@@ -88,13 +140,19 @@ apt-get install -y python-setuptools python-dev
 easy_install cherrypy webob xlrd portalocker netifaces
 
 
-2. Patch Openswan
------------------
+2. Get, patch and install Openswan KLIPS kernel module
+------------------------------------------------------
+
+NOTE: We're using KLIPS in place of NETKEY as only KLIPS passed both tests:
+- Multiple clients behind the same NAT can connect
+- Multiple clients behind different NATs with the same local IP can connect
 
 apt-get install openswan-modules-source
-{Edit modules/openswan/linux/include/openswan/ipsec_param.h in /usr/src/openswan-modules.tar.bz2:
- set IPSEC_NUM_IF 20 or however number of interfaces are needed
-see: http://comments.gmane.org/gmane.network.openswan.user/15675}
+
+Edit modules/openswan/linux/include/openswan/ipsec_param.h in /usr/src/openswan-modules.tar.bz2:
+Set IPSEC_NUM_IF 20 or however number of interfaces are needed
+(See: http://comments.gmane.org/gmane.network.openswan.user/15675)
+
 modules-assistant
 PREPARE
 SELECT openswan-modules
@@ -105,10 +163,12 @@ INSTALL
 3. Configure an instance of xl2tpd per external IP address
 ----------------------------------------------------------
 
-We [may] have to run multiple xl2tpd instances, one per public IP address, due to an issue described here: https://lists.openswan.org/pipermail/users/2011-February/020143.html
-Monitor for a fix here: http://www.xelerance.com/wp-content/uploads/software/xl2tpd/CHANGES
+We run multiple xl2tpd instances, one per public IP address, due to an issue
+described here:
+https://lists.openswan.org/pipermail/users/2011-February/020143.html
+(Monitor for a fix here: http://www.xelerance.com/wp-content/uploads/software/xl2tpd/CHANGES)
 
-[TODO: will be scripted as part of deploy script]
+[TODO: we will script creation and upload of these confs as part of deploy script]
 
 /etc/xl2tpd/xl2tpd<n>.conf:
 
@@ -220,7 +280,7 @@ iptables-rules:
   -A POSTROUTING -s 10.<n>.0.0/16 -o eth+ -j MASQUERADE
   COMMIT
 
-[TODO: firewall clients from each other]
+[TODO: add rules to firewall clients from each other]
 
 /etc/network/if-up.d/firewall (chmod +x):
 
@@ -237,7 +297,9 @@ iptables-rules:
 cp psi-ip-down /etc/ppp/ip-down.d
 chmod +x /etc/ppp/ip-down.d/psi-ip-down
 
-(2) Direct all psiphonv logs to psiphonv.log and turn off all VPN logging (xl2tpd and pluto) that logs client IP addresses. See: http://wiki.rsyslog.com/index.php/Filtering_by_program_name.
+(2) Direct all psiphonv logs to psiphonv.log and turn off all VPN logging
+(xl2tpd and pluto) that logs client IP addresses.
+See: http://wiki.rsyslog.com/index.php/Filtering_by_program_name.
 
 Add to /etc/rsyslog.conf (IMPORTANT: put new rules at the top of the rules section):
 
@@ -285,15 +347,65 @@ python setup.py build
 python setup.py install
 
 
-Network Configuration
+10. Add host and servers to network database
+--------------------------------------------
+
+See the section below on Network Database Configuration.
+
+- Add an entry for the host, including a name (Host ID), IP address, and
+root-privilege SSH user credentials and host public key. This information is
+used by the deploy script to connect to each host and upload configuration
+information.
+
+- Add an entry for each server on the host, including IP address, web server
+authentication information, and discovery schedule.
+
+[TODO: script to generate web server secret, certificate and private key]
+
+
+11. Invoke the deploy script
+----------------------------
+
+Run this step on the build/deploy machine.
+
+- Invoke the deploy script
+
+  cd Automation
+  python psi_deploy.py
+
+For each host in the database, this script:
+
+a. Uploads the latest web server source code and any additional source code and
+generated configuration.
+
+b. Uploads a subset of the database consisting of server info the host must be
+prepared to issue for discovery; home page information; and server credentials.
+
+c. Upload new client builds for automatic upgrade.
+
+
+Network Database Configuration
 --------------------------------------------------------------------------------
 
-...[psi_xls guide]...
+The network database schema and design is described in the design document.
 
+[TODO: ensure database is described in design document]
 
-Build and Deploy
---------------------------------------------------------------------------------
+The database is represented as a spreadsheet. There's an example spreadsheet
+in the source tree here: Data/psi_db.xls. As this is a critical infomation
+asset containing all authentication information for hosts and servers and
+enumerating all IP addresses, in production this file is to be protected.
 
-...[build script]...
+We recommend storing it in encrypted form only and mounting it temporarily
+in a location accessible by the build/deploy host as required.
 
-....[deploy script]...
+To override the default location of the database spreadsheet:
+
+- Create a python source file:
+
+  Automation/psi_data_config.py
+
+- In this file, set DATA_ROOT to point to the directory containing the
+real spreadsheet; for example:
+
+  DATA_ROOT = 'C:\MyPsiphonData'
