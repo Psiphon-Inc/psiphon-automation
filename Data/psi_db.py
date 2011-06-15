@@ -125,7 +125,10 @@ def get_encoded_server_list(client_id, client_ip_address=None, discovery_date=da
                    server.Discovery_Time_Start <= discovery_date < server.Discovery_Time_End)]
         # number of IP Address buckets is number of matching servers, so just
         # give the client the one server in their bucket
-        # TODO: consider more than one server per bucket
+        # NOTE: when there are many servers, we could return more than one per bucket. For example,
+        # with 4 matching servers, we could make 2 buckets of 2. But if we have that many servers,
+        # it would be better to mix in an additional strategy instead of discovering extra servers
+        # for no additional "effort".
         bucket_count = len(servers)
         if bucket_count == 0:
             return []
@@ -155,10 +158,13 @@ def test_get_encoded_server_list():
 
 
 def get_region(client_ip_address):
-    # TODO: city database
-    # file = '/usr/local/share/GeoIP/GeoIPCity.dat'
-    #return GeoIP.open(file,GeoIP.GEOIP_MEMORY_CACHE).record_by_name(client_ip_address)['country_code']
     try:
+        # NOTE: if the commercial "city" database is available, swap in
+        # the following lines to use it instead:
+        #
+        # file = '/usr/local/share/GeoIP/GeoIPCity.dat'
+        # return GeoIP.open(file, GeoIP.GEOIP_MEMORY_CACHE).record_by_name(client_ip_address)['country_code']
+        #
         return GeoIP.new(GeoIP.GEOIP_MEMORY_CACHE).country_code_by_name(client_ip_address)
     except NameError:
         return 'None'
@@ -252,7 +258,9 @@ def make_file_for_host(host_id, filename, discovery_date=datetime.datetime.now()
 
     wb = xlwt.Workbook()
 
-    # TODO: atomic reads
+    # NOTE: in the present implementation, the following reads are non-atomic as each
+    # function call re-reads the spreadsheet. This isn't an issue at the moment since
+    # the deploy step is invoked manually.
 
     clients = get_clients()
     servers = get_servers()

@@ -68,16 +68,19 @@ def build_client():
     signtool_filename = SIGN_TOOL_FILENAME
     if not os.path.isfile(signtool_filename):
         signtool_filename = SIGN_TOOL_FILENAME_ALT
-    # TODO: delete build.cmd
-    with open('build.cmd', 'w') as file:
+    command_filename = 'build.cmd'
+    with open(command_filename, 'w') as file:
         file.write('call "%s" x86\n' % (visual_studio_env_batch_filename,))
         file.write('msbuild %s /t:Rebuild /p:Configuration=Release\n' % (CLIENT_SOLUTION_FILENAME,))
         file.write('"%s" %s\n' % (UPX_FILENAME, EXECUTABLE_FILENAME))
         file.write('"%s" sign /f %s %s\n' % (signtool_filename,
                                              CODE_SIGNING_PFX_FILENAME,
                                              EXECUTABLE_FILENAME))
-    if 0 != subprocess.call('build.cmd'):
-        raise Exception('build failed')
+    try:
+        if 0 != subprocess.call(command_filename):
+            raise Exception('build failed')
+    finally:
+        os.remove(command_filename)
 
 
 def write_embedded_values(client_id, sponsor_id, client_version, embedded_server_list):
@@ -88,7 +91,8 @@ def write_embedded_values(client_id, sponsor_id, client_version, embedded_server
 
         static const char* SPONSOR_ID = "%s";
 
-        // TODO: put this in resources instead
+        // NOTE: if we put this in resources instead/as well, it would show up
+        //       in Explorer properties tab, etc.
         static const char* CLIENT_VERSION = "%s";
 
         static const char* EMBEDDED_SERVER_LIST = "%s";
