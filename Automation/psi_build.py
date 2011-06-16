@@ -38,7 +38,7 @@ CLIENT_SOLUTION_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient.sln')
 CODE_SIGNING_PFX_FILENAME = os.path.join(os.path.abspath('..'), 'Data', 'CodeSigning', 'test-code-signing-package.pfx')
 BANNER_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', 'banner.bmp')
 EMBEDDED_VALUES_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', 'embeddedvalues.h')
-EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, 'Release', 'psiphony.exe')
+EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, 'Release', 'psiphon.exe')
 BUILDS_ROOT = os.path.join('.', 'Builds')
 BUILD_FILENAME_TEMPLATE = 'psiphon-%s-%s.exe'
 
