@@ -19,6 +19,7 @@
 
 import binascii
 import os
+import shutil
 import sys
 import tempfile
 from collections import namedtuple
@@ -29,9 +30,10 @@ import traceback
 
 import xlrd
 
-# Server doesn't need write module
+# Server doesn't need write modules
 try:
     import xlwt
+    import xlutils.copy
 except ImportError:
     pass
 
@@ -53,7 +55,7 @@ HOSTS_SHEET_COLUMNS = u'Host_ID,IP_Address,SSH_Username,SSH_Password,SSH_Host_Ke
 Host = namedtuple(u'Host', HOSTS_SHEET_COLUMNS)
 
 SERVERS_SHEET_NAME = u'Servers'
-SERVERS_SHEET_COLUMNS = u'Host_ID,IP_Address,Web_Server_Port,Web_Server_Secret,Web_Server_Certificate,Web_Server_Private_Key,Discovery_Client_ID,Discovery_Time_Start,Discovery_Time_End,Notes'.split(',')
+SERVERS_SHEET_COLUMNS = u'Server_ID,Host_ID,IP_Address,Web_Server_Port,Web_Server_Secret,Web_Server_Certificate,Web_Server_Private_Key,Discovery_Client_ID,Discovery_Time_Start,Discovery_Time_End,Notes'.split(',')
 Server = namedtuple(u'Server', SERVERS_SHEET_COLUMNS)
 
 SPONSORS_SHEET_NAME = u'Sponsors'
@@ -68,16 +70,27 @@ VERSIONS_SHEET_NAME = u'Versions'
 VERSIONS_SHEET_COLUMNS = u'Client_Version,Notes'.split(',')
 Version = namedtuple(u'Version', VERSIONS_SHEET_COLUMNS)
 
-get_clients = lambda : read_data(CLIENTS_SHEET_NAME, CLIENTS_SHEET_COLUMNS, Client)
-get_hosts = lambda : read_data(HOSTS_SHEET_NAME, HOSTS_SHEET_COLUMNS, Host)
-get_servers = lambda : read_data(SERVERS_SHEET_NAME, SERVERS_SHEET_COLUMNS, Server)
-get_sponsors = lambda : read_data(SPONSORS_SHEET_NAME, SPONSORS_SHEET_COLUMNS, Sponsor)
-get_home_pages = lambda : read_data(HOME_PAGES_SHEET_NAME, HOME_PAGES_SHEET_COLUMNS, Home_Page)
-get_versions = lambda : read_data(VERSIONS_SHEET_NAME, VERSIONS_SHEET_COLUMNS, Version)
+SCHEMA = {
+    CLIENTS_SHEET_NAME : (CLIENTS_SHEET_COLUMNS, Client),
+    HOSTS_SHEET_NAME : (HOSTS_SHEET_COLUMNS, Host),
+    SERVERS_SHEET_NAME : (SERVERS_SHEET_COLUMNS, Server),
+    SPONSORS_SHEET_NAME : (SPONSORS_SHEET_COLUMNS, Sponsor),
+    HOME_PAGES_SHEET_NAME : (HOME_PAGES_SHEET_COLUMNS, Home_Page),
+    VERSIONS_SHEET_NAME : (VERSIONS_SHEET_COLUMNS, Version),
+}
+
+get_clients = lambda : read_data(CLIENTS_SHEET_NAME)
+get_hosts = lambda : read_data(HOSTS_SHEET_NAME)
+get_servers = lambda : read_data(SERVERS_SHEET_NAME)
+get_sponsors = lambda : read_data(SPONSORS_SHEET_NAME)
+get_home_pages = lambda : read_data(HOME_PAGES_SHEET_NAME)
+get_versions = lambda : read_data(VERSIONS_SHEET_NAME)
+update_servers = lambda(updates) : update_data(SERVERS_SHEET_NAME, updates)
 
 
-def read_data(sheet_name, expected_columns, tupletype):
-    xls = xlrd.open_workbook(DB_PATH)
+def read_data(sheet_name, spreadsheet_path=DB_PATH):
+    expected_columns, tupletype = SCHEMA[sheet_name]
+    xls = xlrd.open_workbook(spreadsheet_path)
     sheet = xls.sheet_by_name(sheet_name)
     assert([cell.value for cell in sheet.row(0)] == expected_columns)
     data = []
@@ -96,6 +109,86 @@ def read_data(sheet_name, expected_columns, tupletype):
                 assert(False)
         data.append(tupletype(*values))
     return data
+
+
+def update_data(sheet_name, update_values, spreadsheet_path=DB_PATH):
+    # Update values in the specified sheet.
+    #
+    # This function reads the existing spreadsheet, updates cells, and writes
+    # a new copy of the spreasheet, Using xlrd object to read and locate cells
+    # and xlwt to write new values.
+    #
+    # Each update specifies a target row by a key column value and a set of
+    # new values for other columns in that row.
+    #
+    expected_columns, _ = SCHEMA[sheet_name]
+    original_xls = xlrd.open_workbook(spreadsheet_path)
+    original_sheet = original_xls.sheet_by_name(sheet_name)
+    assert([cell.value for cell in original_sheet.row(0)] == expected_columns)
+    # Compute sheet index from original as xlwt doesn't offer lookup by name
+    sheet_index = original_xls.sheet_names().index(sheet_name)
+    xls = xlutils.copy.copy(original_xls)
+    sheet = xls.get_sheet(sheet_index)
+    for row_key, row_updates in update_values:
+        # Find target row index using original (xlrt) as xlwt is write only
+        key_column, key_value = row_key
+        key_column_index = expected_columns.index(key_column)
+        unicode_key_value = key_value.decode()
+        column_values = [cell.value for cell in original_sheet.col_slice(key_column_index)]
+        row_index = column_values.index(unicode_key_value)
+        # Update columns in target row
+        for update_column, update_value in row_updates:
+            update_column_index = expected_columns.index(update_column)
+            unicode_update_value = update_value.decode()
+            sheet.write(row_index, update_column_index, unicode_update_value)
+    xls.save(spreadsheet_path)
+
+
+def test_update_data():
+    # NOTE: expects test data as defined in psi_db.xls
+    TEST_DB_PATH = 'test.xls'
+    shutil.copy(DB_PATH, TEST_DB_PATH)
+    try:
+        updates = []
+
+        updates.append(
+            ((u'IP_Address', '192.168.1.109'),
+             [(u'Server_ID', 'engual malet uplore'),
+              (u'Web_Server_Secret', '0123456789')]))
+
+        updates.append(
+            ((u'IP_Address', '192.168.1.151'),
+             [(u'Server_ID', 'hareware zinink randowser'),
+              (u'Web_Server_Secret', '9876543210')]))
+
+        update_data(SERVERS_SHEET_NAME,
+                    updates,
+                    spreadsheet_path=TEST_DB_PATH)
+
+        # Unchanged host sheet
+        hosts = read_data(HOSTS_SHEET_NAME,
+                          spreadsheet_path=TEST_DB_PATH)
+
+        assert(hosts[0].Host_ID == 'Cartman')
+
+        servers = read_data(SERVERS_SHEET_NAME,
+                            spreadsheet_path=TEST_DB_PATH)
+
+        # Unchanged server row
+        assert(servers[0].Server_ID == 'ubunix electrows uplore')
+        assert(servers[0].IP_Address == '192.168.1.250')
+        assert(servers[0].Web_Server_Secret == 'FEDCBA9876543210')
+
+        # Changed server rows
+        assert(servers[3].Server_ID == 'engual malet uplore')
+        assert(servers[3].IP_Address == '192.168.1.109')
+        assert(servers[3].Web_Server_Secret == '0123456789')
+        assert(servers[6].Server_ID == 'hareware zinink randowser')
+        assert(servers[6].IP_Address == '192.168.1.151')
+        assert(servers[6].Web_Server_Secret == '9876543210')
+
+    finally:
+        os.remove(TEST_DB_PATH)
 
 
 def validate_data():
@@ -248,7 +341,7 @@ def make_file_for_host(host_id, filename, discovery_date=datetime.datetime.now()
     # - client sheet includes only clients that may connect to servers on this host
     # - OMIT host sheet
     # - servers sheet includes only servers for client IDs in filtered client sheet
-    #   (which is more than just servers on this host, due to cross-host discovery) 
+    #   (which is more than just servers on this host, due to cross-host discovery)
     #   also, omit non-propagation servers not on this host whose discovery time period has elapsed
     #   also, omit propagation servers not on this host
     #   (not on this host --> because servers on this host still need to run, even if not discoverable)
@@ -328,7 +421,7 @@ def test_make_file_for_host():
         file = tempfile.NamedTemporaryFile(delete=False)
         make_file_for_host(host.Host_ID, file.name, discovery_date=week1)
         print file.name
-        
+
 
 def set_db_root(root_path):
     global DB_PATH
@@ -347,6 +440,7 @@ if __name__ == "__main__":
         test_get_sponsor_home_pages()
         test_get_upgrade()
         test_make_file_for_host()
+        test_update_data()
     except Exception as e:
         print 'Failed'
         traceback.print_exc()
