@@ -22,6 +22,7 @@ import random
 import sys
 import textwrap
 import tempfile
+import binascii
 from OpenSSL import crypto
 
 import psi_ssh
@@ -43,8 +44,8 @@ if os.path.isfile('psi_data_config.py'):
 WEB_SERVER_SECRET_BYTE_LENGTH = 32
 SERVER_ID_WORD_LENGTH = 3
 SSL_CERTIFICATE_KEY_TYPE = crypto.TYPE_RSA
-SSL_KEY_SIZE = 2048
-SSL_DIGEST_TYPE = 'sha1'
+SSL_CERTIFICATE_KEY_SIZE = 2048
+SSL_CERTIFICATE_DIGEST_TYPE = 'sha1'
 SSL_CERTIFICATE_VALIDITY = (60*60*24*365*10) # 10 years
 
 
@@ -223,7 +224,7 @@ def make_ipsec_secrets_file_command():
 
     
 def generate_web_server_secret():
-    return os.urandom(WEB_SERVER_SECRET_BYTE_LENGTH)
+    return binascii.hexlify(os.urandom(WEB_SERVER_SECRET_BYTE_LENGTH))
     
     
 def generate_server_id():    
@@ -259,7 +260,7 @@ morer              applory            pyte               mareshat
     
 def generate_self_signed_certificate():
     key_pair = crypto.PKey()
-    key_pair.generate_key(SSL_KEY_TYPE, SSL_KEY_SIZE)
+    key_pair.generate_key(SSL_CERTIFICATE_KEY_TYPE, SSL_CERTIFICATE_KEY_SIZE)
     request = crypto.X509Req()
     #
     # TODO: generate a random, yet plausible DN
@@ -269,7 +270,7 @@ def generate_self_signed_certificate():
     #    setattr(subject, key, value)
     #
     request.set_pubkey(key_pair)
-    request.sign(key_pair, SSL_DIGEST_TYPE)
+    request.sign(key_pair, SSL_CERTIFICATE_DIGEST_TYPE)
     certificate = crypto.X509()
     certificate.set_version(2)
     certificate.set_serial_number(0)
@@ -278,7 +279,7 @@ def generate_self_signed_certificate():
     certificate.set_issuer(request.get_subject())
     certificate.set_subject(request.get_subject())
     certificate.set_pubkey(request.get_pubkey())
-    certificate.sign(key_pair, SSL_DIGEST_TYPE)
+    certificate.sign(key_pair, SSL_CERTIFICATE_DIGEST_TYPE)
     return (crypto.dump_privatekey(crypto.FILETYPE_PEM, key_pair),
             crypto.dump_certificate(crypto.FILETYPE_PEM, certificate))
 
@@ -352,19 +353,19 @@ if __name__ == "__main__":
 
         server_database_updates = []
 
-        for server in [server for server in host_servers\
-                       if server.Server_ID is None or
-                          server.Web_Server_Secret is None or
-                          server.Web_Server_Certificate is None or
-                          server.Web_Server_Private_Key is None]:
+        for server in host_servers:
 
-            existing_ids = [server.Server_ID for server in psi_db.get_servers()]
-            while True:
-                server_id = generate_server_id()
-                if not server_id in existing_ids:
-                    break
+            server_id = server.Server_ID
+            if server_id is None:
+                existing_ids = [existing_server.Server_ID for existing_server in psi_db.get_servers()]
+                while True:
+                    server_id = generate_server_id()
+                    if not server_id in existing_ids:
+                        break
 
-            web_server_secret = generate_web_server_secret()
+            web_server_secret = server.Web_Server_Secret
+            if web_server_secret is None:
+                web_server_secret = generate_web_server_secret()
 
             # Generated output is PEM, e.g.,
             #
@@ -373,9 +374,12 @@ if __name__ == "__main__":
             #
             # We strip the BEGIN/END lines in the database format.
 
-            key_pem, cert_pem = generate_self_signed_certificate()
-            key = key_pem.split('\n')[1]
-            cert = cert.pem.split('\n')[1]
+            cert = server.Web_Server_Certificate
+            key = server.Web_Server_Private_Key
+            if cert is None or key is None:
+                key_pem, cert_pem = generate_self_signed_certificate()
+                key = key_pem.split('\n')[1]
+                cert = cert_pem.split('\n')[1]
 
             # Reference update rows by IP address
             server_database_updates.append(
