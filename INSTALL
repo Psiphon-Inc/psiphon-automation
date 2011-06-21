@@ -91,14 +91,20 @@ To manually test the individual code signing commands:
 - Review tool paths in Automation/psi_build.py and adjust if required.
 
 
-4. Android Client Build Setup
+3. Android Client Build Setup
 -----------------------------
 
 [TODO]
 
 
-5. Build
---------
+4. Server Install
+-----------------
+
+See the section below on Debian Server Host Installation.
+
+
+5. Client Build
+---------------
 
 - Invoke the build script
 
@@ -130,6 +136,46 @@ Dependencies
 - Python 2.6+ and modules
 
 
+0. Configure firewall and IP forwarding
+------------------------------------
+
+/etc/iptables.rules:
+
+  *filter
+  -A INPUT -i lo -j ACCEPT
+  -A INPUT -d 127.0.0.0/8 -i ! lo -j REJECT --reject-with icmp-port-unreachable
+  -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+  -A INPUT -s <source-IP-address-for-ssh-access> -p tcp -m state --state NEW -m tcp --dport 22 -j ACCEPT
+  -A INPUT -p tcp -m state --state NEW -m tcp --dport 80 -j ACCEPT
+  -A INPUT -p esp -j ACCEPT
+  -A INPUT -p ah -j ACCEPT
+  -A INPUT -p udp --dport 500 -j ACCEPT
+  -A INPUT -p udp --dport 4500 -j ACCEPT
+  -A INPUT -i ipsec+ -p udp -m udp --dport l2tp -j ACCEPT
+  -A INPUT -j REJECT --reject-with icmp-port-unreachable
+  -A FORWARD -s 10.0.0.0/8 -d 10.0.0.0/8 -j DROP
+  COMMIT
+
+  *nat
+  -A POSTROUTING -s 10.0.0.0/8 -o eth+ -j MASQUERADE
+  COMMIT
+
+/etc/network/if-up.d/firewall (chmod +x):
+
+  #!/bin/sh
+
+  iptables-restore < /etc/iptables.rules
+
+Add to or uncomment in /etc/sysctl.conf:
+
+  net.ipv4.ip_forward=1
+
+Enable the firewall and IP forwarding:
+
+  /etc/network/if-up.d/firewall
+  /etc/init.d/procps start
+
+
 1. Get Openswan, xl2tp, and python packages
 -------------------------------------------
 
@@ -153,22 +199,72 @@ Edit modules/openswan/linux/include/openswan/ipsec_param.h in /usr/src/openswan-
 Set IPSEC_NUM_IF 20 or however number of interfaces are needed
 (See: http://comments.gmane.org/gmane.network.openswan.user/15675)
 
-modules-assistant
+module-assistant
 PREPARE
 SELECT openswan-modules
 BUILD
 INSTALL
 
 
-3. Configure an instance of xl2tpd per external IP address
-----------------------------------------------------------
+3. Configure GeoIP lookup
+-------------------------
+
+cd /root
+
+wget http://geolite.maxmind.com/download/geoip/api/c/GeoIP.tar.gz
+tar xvf GeoIP.tar.gz
+cd GeoIP
+[apt-get install zlib1g-dev]
+./configure
+make
+make check
+make install
+
+[TODO: check again for latest-version Python download URL]
+
+cd ..
+wget http://geolite.maxmind.com/download/geoip/api/python/GeoIP-Python-1.2.5.tar.gz
+tar xvf GeoIP-Python-1.2.5.tar.gz
+cd GeoIP-Python-1.2.5
+[apt-get install gcc]
+[apt-get install python-dev]
+python setup.py build
+python setup.py install
+
+
+4. Add host and servers to network database
+-------------------------------------------
+
+See the section below on Network Database Configuration.
+
+- Add an entry for the host, including a name (Host_ID), IP address, and
+root-privilege SSH user credentials and host public key. This information is
+used by the install and deploy script to connect to each host and upload
+configuration information.
+
+- Add an entry for each server on the host, including IP address, web server
+port, discovery Client ID and discovery schedule.
+
+- The install script will generate and fill in the web server secret, certificate
+and private key.
+
+
+5. Run psi_install.py
+---------------------
+
+  cd Automation
+  python psi_deploy.py
+
+The following subitems are performed by this script:
+
+
+5.1 Configure an instance of xl2tpd per external IP address
+-----------------------------------------------------------
 
 We run multiple xl2tpd instances, one per public IP address, due to an issue
 described here:
 https://lists.openswan.org/pipermail/users/2011-February/020143.html
 (Monitor for a fix here: http://www.xelerance.com/wp-content/uploads/software/xl2tpd/CHANGES)
-
-[TODO: we will script creation and upload of these confs as part of deploy script]
 
 /etc/xl2tpd/xl2tpd<n>.conf:
 
@@ -184,6 +280,27 @@ https://lists.openswan.org/pipermail/users/2011-February/020143.html
   name = PsiphonV
   pppoptfile = /etc/ppp/options.xl2tpd
   length bit = yes
+
+/etc/ppp/options.xl2tpd:
+
+  ipcp-accept-local
+  ipcp-accept-remote
+  ms-dns 8.8.8.8
+  noccp
+  auth
+  crtscts
+  idle 1800
+  mtu 1410
+  mru 1410
+  nodefaultroute
+  debug
+  lock
+  proxyarp
+  connect-delay 5000
+
+/etc/ppp/chap-secrets:
+
+  *       *       password        *
 
 /etc/init.d/xl2tpd:
 
@@ -219,73 +336,15 @@ https://lists.openswan.org/pipermail/users/2011-February/020143.html
 5. Configure static configuration files
 ---------------------------------------
 
-/etc/ppp/options.xl2tpd:
-
-  ipcp-accept-local
-  ipcp-accept-remote
-  ms-dns 8.8.8.8
-  noccp
-  auth
-  crtscts
-  idle 1800
-  mtu 1410
-  mru 1410
-  nodefaultroute
-  debug
-  lock
-  proxyarp
-  connect-delay 5000
-
-/etc/ppp/chap-secrets:
-
-  *       *       password        *
-
 /etc/ipsec.secrets:
 
   <empty file>
-
-Add to /etc/sysctl.conf:
-
-  net.ipv4.ip_forward=1
-
 
 6. Test L2TP/IPSec
 ------------------
 
   /etc/init.d/ipsec restart
   /etc/init.d/xl2tpd restart
-
-
-7. Configure firewall
----------------------
-
-iptables-rules:
-
-  *filter
-  -A INPUT -i lo -j ACCEPT
-  -A INPUT -d 127.0.0.0/8 -i ! lo -j REJECT --reject-with icmp-port-unreachable
-  -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
-  -A INPUT -s <source-IP-address-for-ssh-access> -p tcp -m state --state NEW -m tcp --dport 22 -j ACCEPT
-  -A INPUT -p tcp -m state --state NEW -m tcp --dport 80 -j ACCEPT
-  -A INPUT -p esp -j ACCEPT
-  -A INPUT -p ah -j ACCEPT
-  -A INPUT -p udp --dport 500 -j ACCEPT
-  -A INPUT -p udp --dport 4500 -j ACCEPT
-  -A INPUT -i ipsec+ -p udp -m udp --dport l2tp -j ACCEPT
-  -A INPUT -j REJECT --reject-with icmp-port-unreachable
-  -A FORWARD -s 10.0.0.0/8 -d 10.0.0.0/8 -j DROP
-  COMMIT
-
-  *nat
-  <one line for each xl2tpd instance>
-  -A POSTROUTING -s 10.<n>.0.0/16 -o eth+ -j MASQUERADE
-  COMMIT
-
-/etc/network/if-up.d/firewall (chmod +x):
-
-  #!/bin/sh
-
-  iptables-restore < /etc/iptables.rules
 
 
 8. Configure logging
@@ -320,47 +379,6 @@ Add to /etc/logrotate.d/rsyslog:
   /var/log/psiphonv.log
 
 
-9. Configure GeoIP lookup
--------------------------
-
-cd /root
-
-wget http://geolite.maxmind.com/download/geoip/api/c/GeoIP.tar.gz
-tar xvf GeoIP.tar.gz
-cd GeoIP
-[apt-get install zlib1g-dev]
-./configure
-make
-make check
-make install
-
-[TODO: check again for latest-version Python download URL]
-
-cd ..
-wget http://geolite.maxmind.com/download/geoip/api/python/GeoIP-Python-1.2.5.tar.gz
-tar xvf GeoIP-Python-1.2.5.tar.gz
-cd GeoIP-Python-1.2.5
-[apt-get install gcc]
-[apt-get install python-dev]
-python setup.py build
-python setup.py install
-
-
-10. Add host and servers to network database
---------------------------------------------
-
-See the section below on Network Database Configuration.
-
-- Add an entry for the host, including a name (Host ID), IP address, and
-root-privilege SSH user credentials and host public key. This information is
-used by the deploy script to connect to each host and upload configuration
-information.
-
-- Add an entry for each server on the host, including IP address, web server
-authentication information, and discovery schedule.
-
-[TODO: script to generate web server secret, certificate and private key]
-
 
 11. Invoke the deploy script
 ----------------------------
@@ -391,7 +409,7 @@ The network database schema and design is described in the design document.
 [TODO: ensure database is described in design document]
 
 The database is represented as a spreadsheet. There's an example spreadsheet
-in the source tree here: Data/psi_db.xls. As this is a critical infomation
+in the source tree here: Data/psi_db.xls. As this is a critical information
 asset containing all authentication information for hosts and servers and
 enumerating all IP addresses, in production this file is to be protected.
 
@@ -408,3 +426,6 @@ To override the default location of the database spreadsheet:
 real spreadsheet; for example:
 
   DATA_ROOT = 'C:\MyPsiphonData'
+
+[TODO: mention code signing cert too]
+
