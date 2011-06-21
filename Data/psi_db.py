@@ -88,7 +88,10 @@ get_versions = lambda : read_data(VERSIONS_SHEET_NAME)
 update_servers = lambda(updates) : update_data(SERVERS_SHEET_NAME, updates)
 
 
-def read_data(sheet_name, spreadsheet_path=DB_PATH):
+def read_data(sheet_name, spreadsheet_path=None):
+    if spreadsheet_path is None:
+        spreadsheet_path = get_db_path()
+        
     expected_columns, tupletype = SCHEMA[sheet_name]
     xls = xlrd.open_workbook(spreadsheet_path)
     sheet = xls.sheet_by_name(sheet_name)
@@ -111,7 +114,10 @@ def read_data(sheet_name, spreadsheet_path=DB_PATH):
     return data
 
 
-def update_data(sheet_name, update_values, spreadsheet_path=DB_PATH):
+def update_data(sheet_name, update_values, spreadsheet_path=None):
+    if spreadsheet_path is None:
+        spreadsheet_path = get_db_path()
+
     # Update values in the specified sheet.
     #
     # This function reads the existing spreadsheet, updates cells, and writes
