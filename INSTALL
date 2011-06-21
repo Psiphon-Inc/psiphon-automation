@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------------
-Psiphon Circumvention Tool INSTALL
+Psiphon Circumvention System INSTALL
 --------------------------------------------------------------------------------
 
 
@@ -131,13 +131,13 @@ Dependencies
 ------------
 
 - Debian 6.0 (squeeze)
-- Openswan 2.6.32 with KLIPS kernel module
-- xl2tp 1.2.8
+- Openswan 2.6.30 source code with KLIPS kernel module
+- xl2tp 1.2.6
 - Python 2.6+ and modules
 
 
 0. Configure firewall and IP forwarding
-------------------------------------
+---------------------------------------
 
 /etc/iptables.rules:
 
@@ -191,20 +191,27 @@ easy_install cherrypy webob xlrd portalocker netifaces
 NOTE: We're using KLIPS in place of NETKEY as only KLIPS passed both tests:
 - Multiple clients behind the same NAT can connect
 - Multiple clients behind different NATs with the same local IP can connect
+
 NOTE2: We're compiling from source and backporting the following commit:
   http://git.openswan.org/cgi-bin/gitweb.cgi?p=openswan.git/.git;a=commit;h=b19ed5a79d0957fb50ac939559860d287cf762da
 This is because it seems that versions that include this change have regressed to
 not work well with multiple interfaces with names like ethx:y
+We have to do this because we have multiple IP addresses per host.
+The first patch described below allows more than 2 IP addresses per host.
+The second patch described below allows more than 10 IP addresses per host.
 
 apt-get install -y libgmp3-dev
 wget http://openswan.org/download/openswan-2.6.30.tar.gz
 tar zxvf openswan-2.6.30.tar.gz
 cd openswan-2.6.30
   (See: http://comments.gmane.org/gmane.network.openswan.user/15675)
-  Edit linux/include/openswan/ipsec_param.h:
+
+Edit linux/include/openswan/ipsec_param.h:
   Set IPSEC_NUM_IF 20 or however number of interfaces are needed
+
   (See: http://git.openswan.org/cgi-bin/gitweb.cgi?p=openswan.git/.git;a=commitdiff;h=b19ed5a79d0957fb50ac939559860d287cf762da)
-  Edit lib/libipsecconf/virtif.c:
+
+Edit lib/libipsecconf/virtif.c:
   Change the function valid_str() to the following:
     static int valid_str(const char * const str, unsigned int * const pn, char ** const pphys)
     {
@@ -245,10 +252,12 @@ cd openswan-2.6.30
         if (pphys) *pphys = pequal + 1;
         return 1;
     }
-  Edit programs/_startklips/_startklips.in:
+
+Edit programs/_startklips/_startklips.in:
   Apply the following diff:
     -       $devprefix[0-9])        ;;
     +       $devprefix[0-9]*)       ;;
+
 make programs install
 make KERNELSRC=/lib/modules/`uname -r`/build module minstall
   Edit /etc/init.d/ipsec: set Default-Start: 2 3 4 5
@@ -303,7 +312,7 @@ and private key.
 ---------------------
 
   cd Automation
-  python psi_deploy.py
+  python psi_install.py
 
 The following subitems are performed by this script:
 
@@ -495,8 +504,6 @@ Network Database Configuration
 
 The network database schema and design is described in the design document.
 
-[TODO: ensure database is described in design document]
-
 The database is represented as a spreadsheet. There's an example spreadsheet
 in the source tree here: Data/psi_db.xls. As this is a critical information
 asset containing all authentication information for hosts and servers and
@@ -516,4 +523,3 @@ real spreadsheet; for example:
 
   DATA_ROOT = 'C:\MyPsiphonData'
 
-[TODO: mention code signing cert too]
