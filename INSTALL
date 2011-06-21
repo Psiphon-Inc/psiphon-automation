@@ -9,7 +9,7 @@ Contents
 Overview
 Build/Deploy Host Installation
 Debian Server Host Installation
-Network Database Configuration 
+Network Database Configuration
 
 
 Overview
@@ -59,7 +59,7 @@ Dependencies
 
 - Install additional modules:
 
-  easy_install xlrd xlwrt paramiko
+  easy_install xlrd xlwrt xlutils paramiko pyOpenSSL
 
 
 2. Windows Client Build Setup
@@ -428,4 +428,3 @@ real spreadsheet; for example:
   DATA_ROOT = 'C:\MyPsiphonData'
 
 [TODO: mention code signing cert too]
-
