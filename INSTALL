@@ -204,6 +204,7 @@ apt-get install -y libgmp3-dev
 wget http://openswan.org/download/openswan-2.6.30.tar.gz
 tar zxvf openswan-2.6.30.tar.gz
 cd openswan-2.6.30
+
   (See: http://comments.gmane.org/gmane.network.openswan.user/15675)
 
 Edit linux/include/openswan/ipsec_param.h:
@@ -291,7 +292,38 @@ python setup.py build
 python setup.py install
 
 
-4. Add host and servers to network database
+4. Configure logging
+--------------------
+
+(1) Direct all psiphonv logs to psiphonv.log and turn off all VPN logging
+(xl2tpd and pluto) that logs client IP addresses.
+See: http://wiki.rsyslog.com/index.php/Filtering_by_program_name.
+
+Add to /etc/rsyslog.conf (IMPORTANT: put new rules at the top of the rules section):
+
+  ###############
+  #### RULES ####
+  ###############
+
+  if $programname == 'psiphonv' then /var/log/psiphonv.log
+  if $programname == 'psiphonv' then ~
+  if $programname == 'xl2tpd' then /dev/null
+  if $programname == 'xl2tpd' then ~
+  if $programname == 'pluto' then /dev/null
+  if $programname == 'pluto' then ~
+
+Restart rsyslogd:
+
+  /etc/init.d/rsyslog restart
+
+(2) Rotate psiphonv.log
+
+Add to /etc/logrotate.d/rsyslog:
+
+  /var/log/psiphonv.log
+
+
+5. Add host and servers to network database
 -------------------------------------------
 
 See the section below on Network Database Configuration.
@@ -308,7 +340,7 @@ port, discovery Client ID and discovery schedule.
 and private key.
 
 
-5. Run psi_install.py
+6. Run psi_install.py
 ---------------------
 
   cd Automation
@@ -317,7 +349,7 @@ and private key.
 The following subitems are performed by this script:
 
 
-5.1 Configure IPSec
+6.1 Configure IPSec
 -------------------
 
 We configure multiple connections, one per public IP address.
@@ -363,7 +395,7 @@ We configure multiple connections, one per public IP address.
   <empty file>
 
 
-5.2 Configure an instance of xl2tpd per external IP address
+6.2 Configure an instance of xl2tpd per external IP address
 -----------------------------------------------------------
 
 We run multiple xl2tpd instances, one per public IP address, due to an issue
@@ -438,57 +470,17 @@ https://lists.openswan.org/pipermail/users/2011-February/020143.html
   esac
 
 
-5.3. Restart L2TP/IPSec
+6.3. Restart L2TP/IPSec
 ------------------
 
   /etc/init.d/ipsec restart
   /etc/init.d/xl2tpd restart
 
 
-8. Configure logging
---------------------
-
-(1) Log VPN disconnect (for session duration stats) (done by psi_deploy.py)
-
-cp psi-ip-down /etc/ppp/ip-down.d
-chmod +x /etc/ppp/ip-down.d/psi-ip-down
-
-(2) Direct all psiphonv logs to psiphonv.log and turn off all VPN logging
-(xl2tpd and pluto) that logs client IP addresses.
-See: http://wiki.rsyslog.com/index.php/Filtering_by_program_name.
-
-Add to /etc/rsyslog.conf (IMPORTANT: put new rules at the top of the rules section):
-
-  ###############
-  #### RULES ####
-  ###############
-
-  if $programname == 'psiphonv' then /var/log/psiphonv.log
-  if $programname == 'psiphonv' then ~
-  if $programname == 'xl2tpd' then /dev/null
-  if $programname == 'xl2tpd' then ~
-  if $programname == 'pluto' then /dev/null
-  if $programname == 'pluto' then ~
-
-(3) Rotate psiphonv.log
-
-Add to /etc/logrotate.d/rsyslog:
-
-  /var/log/psiphonv.log
-
-
-
-11. Invoke the deploy script
+6.4. Invoke the deploy script
 ----------------------------
 
-Run this step on the build/deploy machine.
-
-- Invoke the deploy script
-
-  cd Automation
-  python psi_deploy.py
-
-For each host in the database, this script:
+This script:
 
 a. Uploads the latest web server source code and any additional source code and
 generated configuration.
