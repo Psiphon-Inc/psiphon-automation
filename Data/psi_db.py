@@ -202,7 +202,7 @@ def validate_data():
         get_versions()]
 
 
-def get_encoded_server_list(client_id, client_ip_address=None, discovery_date=datetime.datetime.now()):
+def get_encoded_server_list(client_id, client_ip_address=None, logger=None, discovery_date=datetime.datetime.now()):
     if not client_ip_address:
         # embedded server list
         # output all servers for client ID with no discovery date
@@ -227,6 +227,10 @@ def get_encoded_server_list(client_id, client_ip_address=None, discovery_date=da
             return []
         bucket = struct.unpack('!L',socket.inet_aton(client_ip_address))[0] % bucket_count
         servers = [servers[bucket]]
+    # optional logger (used by server to log each server IP address disclosed)
+    if logger:
+        for server in servers:
+            logger(server.IP_Address)
     return [binascii.hexlify('%s %s %s %s' %
                          (server.IP_Address,
                           server.Web_Server_Port,
@@ -258,8 +262,12 @@ def get_region(client_ip_address):
         # file = '/usr/local/share/GeoIP/GeoIPCity.dat'
         # return GeoIP.open(file, GeoIP.GEOIP_MEMORY_CACHE).record_by_name(client_ip_address)['country_code']
         #
-        return GeoIP.new(GeoIP.GEOIP_MEMORY_CACHE).country_code_by_name(client_ip_address)
+        region = GeoIP.new(GeoIP.GEOIP_MEMORY_CACHE).country_code_by_name(client_ip_address)
+        if region is None:
+            region = 'None'
+        return region
     except NameError:
+        # Handle the case where the GeoIP module isn't installed
         return 'None'
 
 
@@ -312,7 +320,7 @@ def test_get_upgrade():
     assert(get_upgrade('2') is None)
 
 
-def handshake(client_ip_address, client_id, sponsor_id, client_version):
+def handshake(client_ip_address, client_id, sponsor_id, client_version, logger=None):
     output = []
     homepage_urls = get_sponsor_home_pages(sponsor_id, client_ip_address)
     for homepage_url in homepage_urls:
@@ -320,7 +328,7 @@ def handshake(client_ip_address, client_id, sponsor_id, client_version):
     upgrade_client_version = get_upgrade(client_version)
     if upgrade_client_version:
         output.append('Upgrade: %s' % (upgrade_client_version,))
-    for encoded_server_entry in get_encoded_server_list(client_id, client_ip_address):
+    for encoded_server_entry in get_encoded_server_list(client_id, client_ip_address, logger=logger):
         output.append('Server: %s' % (encoded_server_entry,))
     return output
 
@@ -384,15 +392,16 @@ def make_file_for_host(host_id, filename, discovery_date=datetime.datetime.now()
                 not(server.Discovery_Time_Start and server.Host_ID != host_id and server.Discovery_Time_End <= discovery_date) and
                 not(server.Discovery_Time_Start is None and server.Host_ID != host_id)):
             ws.write(i, 0, '') # Host_ID
-            ws.write(i, 1, server.IP_Address)
-            ws.write(i, 2, server.Web_Server_Port)
-            ws.write(i, 3, server.Web_Server_Secret)
-            ws.write(i, 4, server.Web_Server_Certificate)
-            ws.write(i, 5, server.Web_Server_Private_Key)
-            ws.write(i, 6, server.Discovery_Client_ID)
-            ws.write(i, 7, server.Discovery_Time_Start, date_style)
-            ws.write(i, 8, server.Discovery_Time_End, date_style)
-            ws.write(i, 9, '') # Notes
+            ws.write(i, 1, server.Server_ID)
+            ws.write(i, 2, server.IP_Address)
+            ws.write(i, 3, server.Web_Server_Port)
+            ws.write(i, 4, server.Web_Server_Secret)
+            ws.write(i, 5, server.Web_Server_Certificate)
+            ws.write(i, 6, server.Web_Server_Private_Key)
+            ws.write(i, 7, server.Discovery_Client_ID)
+            ws.write(i, 8, server.Discovery_Time_Start, date_style)
+            ws.write(i, 9, server.Discovery_Time_End, date_style)
+            ws.write(i, 10, '') # Notes
             i += 1
 
     ws = wb.add_sheet(HOME_PAGES_SHEET_NAME)
