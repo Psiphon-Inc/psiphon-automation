@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------------
-Psiphon Circumvention Tool INSTALL
+Psiphon Circumvention System INSTALL
 --------------------------------------------------------------------------------
 
 
@@ -131,13 +131,13 @@ Dependencies
 ------------
 
 - Debian 6.0 (squeeze)
-- Openswan 2.6.32 with KLIPS kernel module
-- xl2tp 1.2.8
+- Openswan 2.6.30 source code with KLIPS kernel module
+- xl2tp 1.2.6
 - Python 2.6+ and modules
 
 
 0. Configure firewall and IP forwarding
-------------------------------------
+---------------------------------------
 
 /etc/iptables.rules:
 
@@ -176,34 +176,94 @@ Enable the firewall and IP forwarding:
   /etc/init.d/procps start
 
 
-1. Get Openswan, xl2tp, and python packages
+1. Get xl2tp, and python packages
 -------------------------------------------
 
 apt-get update
-apt-get install -y openswan
 apt-get install -y xl2tpd
 apt-get install -y python-setuptools python-dev
 easy_install cherrypy webob xlrd portalocker netifaces
 
 
-2. Get, patch and install Openswan KLIPS kernel module
-------------------------------------------------------
+2. Get, patch and install Openswan and the KLIPS kernel module
+--------------------------------------------------------------
 
 NOTE: We're using KLIPS in place of NETKEY as only KLIPS passed both tests:
 - Multiple clients behind the same NAT can connect
 - Multiple clients behind different NATs with the same local IP can connect
 
-apt-get install openswan-modules-source
+NOTE2: We're compiling from source and backporting the following commit:
+  http://git.openswan.org/cgi-bin/gitweb.cgi?p=openswan.git/.git;a=commit;h=b19ed5a79d0957fb50ac939559860d287cf762da
+This is because it seems that versions that include this change have regressed to
+not work well with multiple interfaces with names like ethx:y
+We have to do this because we have multiple IP addresses per host.
+The first patch described below allows more than 2 IP addresses per host.
+The second patch described below allows more than 10 IP addresses per host.
 
-Edit modules/openswan/linux/include/openswan/ipsec_param.h in /usr/src/openswan-modules.tar.bz2:
-Set IPSEC_NUM_IF 20 or however number of interfaces are needed
-(See: http://comments.gmane.org/gmane.network.openswan.user/15675)
+apt-get install -y libgmp3-dev
+wget http://openswan.org/download/openswan-2.6.30.tar.gz
+tar zxvf openswan-2.6.30.tar.gz
+cd openswan-2.6.30
 
-module-assistant
-PREPARE
-SELECT openswan-modules
-BUILD
-INSTALL
+  (See: http://comments.gmane.org/gmane.network.openswan.user/15675)
+
+Edit linux/include/openswan/ipsec_param.h:
+  Set IPSEC_NUM_IF 20 or however number of interfaces are needed
+
+  (See: http://git.openswan.org/cgi-bin/gitweb.cgi?p=openswan.git/.git;a=commitdiff;h=b19ed5a79d0957fb50ac939559860d287cf762da)
+
+Edit lib/libipsecconf/virtif.c:
+  Change the function valid_str() to the following:
+    static int valid_str(const char * const str, unsigned int * const pn, char ** const pphys)
+    {
+        char *pequal = NULL;
+        char *pnum_start = NULL;
+        char numeric[5] = {'\0'};
+        char ch = '\0';
+        unsigned int i = 0;
+        if (!str) return 0;
+        if (strlen(str)<8) return 0;
+    
+        /* Check if the string has an = sign */
+        pequal = strchr(str,'=');
+        if (!pequal) return 0;
+    
+        /* Where does the device number start ? */
+        pnum_start = strstr(str,"ipsec");
+        if (!pnum_start) {
+            pnum_start = strstr(str,"mast");
+            if (!pnum_start) return 0;
+            else pnum_start += (sizeof("mast") - 1);
+        }
+        else pnum_start += (sizeof("ipsec") - 1);
+    
+        /* Is there a device number ? */
+        if (pequal == pnum_start) return 0;
+    
+        /* Is there enough room to store the device number ? */
+        if ((pequal - pnum_start) >= sizeof(numeric)) return 0;
+    
+        /* Copy only digit characters */
+        while ( '=' != (ch = pnum_start[i]) ) {
+            if (ch < '0' || ch > '9') return 0;
+            numeric[i++] = ch;
+        }
+    
+        if (pn) *pn = atoi(numeric);
+        if (pphys) *pphys = pequal + 1;
+        return 1;
+    }
+
+Edit programs/_startklips/_startklips.in:
+  Apply the following diff:
+    -       $devprefix[0-9])        ;;
+    +       $devprefix[0-9]*)       ;;
+
+make programs install
+make KERNELSRC=/lib/modules/`uname -r`/build module minstall
+  Edit /etc/init.d/ipsec: set Default-Start: 2 3 4 5
+update-rc.d ipsec defaults
+reboot
 
 
 3. Configure GeoIP lookup
@@ -232,7 +292,38 @@ python setup.py build
 python setup.py install
 
 
-4. Add host and servers to network database
+4. Configure logging
+--------------------
+
+(1) Direct all psiphonv logs to psiphonv.log and turn off all VPN logging
+(xl2tpd and pluto) that logs client IP addresses.
+See: http://wiki.rsyslog.com/index.php/Filtering_by_program_name.
+
+Add to /etc/rsyslog.conf (IMPORTANT: put new rules at the top of the rules section):
+
+  ###############
+  #### RULES ####
+  ###############
+
+  if $programname == 'psiphonv' then /var/log/psiphonv.log
+  if $programname == 'psiphonv' then ~
+  if $programname == 'xl2tpd' then /dev/null
+  if $programname == 'xl2tpd' then ~
+  if $programname == 'pluto' then /dev/null
+  if $programname == 'pluto' then ~
+
+Restart rsyslogd:
+
+  /etc/init.d/rsyslog restart
+
+(2) Rotate psiphonv.log
+
+Add to /etc/logrotate.d/rsyslog:
+
+  /var/log/psiphonv.log
+
+
+5. Add host and servers to network database
 -------------------------------------------
 
 See the section below on Network Database Configuration.
@@ -249,16 +340,62 @@ port, discovery Client ID and discovery schedule.
 and private key.
 
 
-5. Run psi_install.py
+6. Run psi_install.py
 ---------------------
 
   cd Automation
-  python psi_deploy.py
+  python psi_install.py
 
 The following subitems are performed by this script:
 
 
-5.1 Configure an instance of xl2tpd per external IP address
+6.1 Configure IPSec
+-------------------
+
+We configure multiple connections, one per public IP address.
+
+/etc/ipsec.conf:
+
+  # /etc/ipsec.conf - Openswan IPsec configuration file
+
+  version 2.0     # conforms to second version of ipsec.conf specification
+
+  # basic configuration
+  config setup
+          interfaces=”ipsec0=eth0 <ipsec1=eth1 …>”
+          # NAT-TRAVERSAL support, see README.NAT-Traversal
+          nat_traversal=yes
+          # exclude networks used on server side by adding %v4:!a.b.c.0/24
+          virtual_private=%v4:10.0.0.0/8,%v4:192.168.0.0/16,%v4:172.16.0.0/12
+          # OE is now off by default. Uncomment and change to on, to enable.
+          oe=off
+          # which IPsec stack to use. auto will try netkey, then klips then mast
+          protostack=klips
+
+  conn L2TP-PSK-<n>-NAT
+          rightsubnet=vhost:%priv
+          also=L2TP-PSK-<n>-noNAT
+
+  conn L2TP-PSK-<n>-noNAT
+          left=<server n IP address>
+          leftprotoport=17/1701
+          right=%any
+          rightprotoport=17/0
+          authby=secret
+          pfs=no
+          auto=add
+          keyingtries=3
+          rekey=no
+          ikelifetime=8h
+          keylife=1h
+          type=transport
+
+/etc/ipsec.secrets:
+
+  <empty file>
+
+
+6.2 Configure an instance of xl2tpd per external IP address
 -----------------------------------------------------------
 
 We run multiple xl2tpd instances, one per public IP address, due to an issue
@@ -333,64 +470,17 @@ https://lists.openswan.org/pipermail/users/2011-February/020143.html
   esac
 
 
-5. Configure static configuration files
----------------------------------------
-
-/etc/ipsec.secrets:
-
-  <empty file>
-
-6. Test L2TP/IPSec
+6.3. Restart L2TP/IPSec
 ------------------
 
   /etc/init.d/ipsec restart
   /etc/init.d/xl2tpd restart
 
 
-8. Configure logging
---------------------
-
-(1) Log VPN disconnect (for session duration stats) (done by psi_deploy.py)
-
-cp psi-ip-down /etc/ppp/ip-down.d
-chmod +x /etc/ppp/ip-down.d/psi-ip-down
-
-(2) Direct all psiphonv logs to psiphonv.log and turn off all VPN logging
-(xl2tpd and pluto) that logs client IP addresses.
-See: http://wiki.rsyslog.com/index.php/Filtering_by_program_name.
-
-Add to /etc/rsyslog.conf (IMPORTANT: put new rules at the top of the rules section):
-
-  ###############
-  #### RULES ####
-  ###############
-
-  if $programname == 'psiphonv' then /var/log/psiphonv.log
-  if $programname == 'psiphonv' then ~
-  if $programname == 'xl2tpd' then /dev/null
-  if $programname == 'xl2tpd' then ~
-  if $programname == 'pluto' then /dev/null
-  if $programname == 'pluto' then ~
-
-(3) Rotate psiphonv.log
-
-Add to /etc/logrotate.d/rsyslog:
-
-  /var/log/psiphonv.log
-
-
-
-11. Invoke the deploy script
+6.4. Invoke the deploy script
 ----------------------------
 
-Run this step on the build/deploy machine.
-
-- Invoke the deploy script
-
-  cd Automation
-  python psi_deploy.py
-
-For each host in the database, this script:
+This script:
 
 a. Uploads the latest web server source code and any additional source code and
 generated configuration.
@@ -405,8 +495,6 @@ Network Database Configuration
 --------------------------------------------------------------------------------
 
 The network database schema and design is described in the design document.
-
-[TODO: ensure database is described in design document]
 
 The database is represented as a spreadsheet. There's an example spreadsheet
 in the source tree here: Data/psi_db.xls. As this is a critical information
@@ -427,4 +515,3 @@ real spreadsheet; for example:
 
   DATA_ROOT = 'C:\MyPsiphonData'
 
-[TODO: mention code signing cert too]
