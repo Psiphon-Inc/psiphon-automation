@@ -56,6 +56,8 @@ if os.path.isfile('psi_data_config.py'):
 
 def deploy(host):
 
+    print 'deploy to host %s...' % (host.Host_ID,)
+
     ssh = psi_ssh.SSH(
             host.IP_Address, host.SSH_Username,
             host.SSH_Password, host.SSH_Host_Key)
