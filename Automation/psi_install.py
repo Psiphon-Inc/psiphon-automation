@@ -70,7 +70,7 @@ def make_xl2tpd_config_file_command(server_index, ip_address):
         ''' % (ip_address, server_index, server_index, server_index))
 
     return 'echo "%s" > /etc/xl2tpd/xl2tpd%d.conf' % (
-        file_contents.replace('\n', '\\\n'), server_index)
+        file_contents, server_index)
 
         
 def make_xl2tpd_options_file_command():
@@ -92,13 +92,13 @@ def make_xl2tpd_options_file_command():
         ''')
 
     return 'echo "%s" > /etc/ppp/options.xl2tpd' % (
-        file_contents.replace('\n', '\\\n'),)
+        file_contents,)
 
         
 def make_xl2tpd_chap_secrets_file_command():
     file_contents = '*   *   password    *'
     return 'echo "%s" > /etc/ppp/chap-secrets' % (
-        file_contents.replace('\n', '\\\n'),)
+        file_contents,)
 
         
 # This file is written to disk then copied to the remote server.  We had
@@ -216,7 +216,7 @@ def make_ipsec_config_file_connection_command(server_index, ip_address):
             keylife=1h
             type=transport
         ''' % (server_index, server_index, server_index, ip_address))
-    return 'echo "%s" >> /etc/ipsec.conf' % (file_contents.replace('\n', '\\\n'),)
+    return 'echo "%s" >> /etc/ipsec.conf' % (file_contents,)
 
         
 def make_ipsec_secrets_file_command():
@@ -283,9 +283,7 @@ def generate_self_signed_certificate():
     return (crypto.dump_privatekey(crypto.FILETYPE_PEM, key_pair),
             crypto.dump_certificate(crypto.FILETYPE_PEM, certificate))
 
-    return 'echo "%s" >> /etc/ipsec.conf' % (file_contents.replace('\n', '\\\n'),)
-
-    
+            
 #==============================================================================
     
 
@@ -323,7 +321,7 @@ if __name__ == "__main__":
         file.write(make_ipsec_config_file_base_contents(len(host_servers)))
         file.close()
         ssh.put_file(file.name, '/etc/ipsec.conf')
-        os.unlink(file.name)
+        os.remove(file.name)
 
         for index, server in enumerate(host_servers):
             ssh.exec_command(make_ipsec_config_file_connection_command(index, server.IP_Address))
