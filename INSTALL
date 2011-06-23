@@ -61,6 +61,10 @@ Dependencies
 
   easy_install xlrd xlwrt xlutils paramiko pyOpenSSL
 
+[NOTE: you may require Visual C++ 2008 to build Python modules
+ (http://mail.python.org/pipermail/python-list/2010-April/1242706.html).
+ Alternatively, you may use MinGW.]
+
 
 2. Windows Client Build Setup
 -----------------------------
