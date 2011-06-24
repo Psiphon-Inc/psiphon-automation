@@ -220,7 +220,7 @@ def make_ipsec_config_file_connection_command(server_index, ip_address):
 
         
 def make_ipsec_secrets_file_command():
-    return 'echo "" > /etc/ipsec.secrets'
+    return 'echo "" > /etc/ipsec.secrets && chmod 666 /etc/ipsec.secrets'
 
     
 def generate_web_server_secret():
