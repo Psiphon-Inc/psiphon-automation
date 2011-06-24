@@ -145,9 +145,9 @@ case "$1" in
         echo -n "Starting $DESC: "
 ''' + ''.join(['''
         test -d /var/run/xl2tpd%d || mkdir -p /var/run/xl2tpd%d
-        start-stop-daemon --start --quiet --pidfile $PIDFILE.%d --exec $DAEMON -- -c /etc/xl2tpd/xl2tpd%d.conf -p $PIDFILE.%d -C /var/run/xl2tpd1/l2tp-control $DAEMON_OPTS
+        start-stop-daemon --start --quiet --pidfile $PIDFILE.%d --exec $DAEMON -- -c /etc/xl2tpd/xl2tpd%d.conf -p $PIDFILE.%d -C /var/run/xl2tpd%d/l2tp-control $DAEMON_OPTS
         echo "$NAME.%d."
-''' % (i,i,i,i,i,i) for i in range(server_count)]) + '''
+''' % (i,i,i,i,i,i,i) for i in range(server_count)]) + '''
         ;;
     stop)
         echo -n "Stopping $DESC: "
