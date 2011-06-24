@@ -150,7 +150,7 @@ Dependencies
   -A INPUT -d 127.0.0.0/8 -i ! lo -j REJECT --reject-with icmp-port-unreachable
   -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
   -A INPUT -s <source-IP-address-for-ssh-access> -p tcp -m state --state NEW -m tcp --dport 22 -j ACCEPT
-  -A INPUT -p tcp -m state --state NEW -m tcp --dport 80 -j ACCEPT
+  -A INPUT -p tcp -m state --state NEW -m tcp --dport 8080 -j ACCEPT
   -A INPUT -p esp -j ACCEPT
   -A INPUT -p ah -j ACCEPT
   -A INPUT -p udp --dport 500 -j ACCEPT
@@ -180,8 +180,19 @@ Enable the firewall and IP forwarding:
   /etc/init.d/procps start
 
 
+0.1. Install and configure sudo
+-------------------------------
+
+apt-get update
+apt-get install sudo
+visudo
+
+Add the following line under "User privilege specification" below the root entry:
+  www-data ALL=NOPASSWD: /usr/sbin/ipsec auto --rereadsecrets
+
+
 1. Get xl2tp, and python packages
--------------------------------------------
+---------------------------------
 
 apt-get update
 apt-get install -y xl2tpd
@@ -394,7 +405,7 @@ We configure multiple connections, one per public IP address.
           keylife=1h
           type=transport
 
-/etc/ipsec.secrets:
+/etc/ipsec.secrets (chmod 666):
 
   <empty file>
 
