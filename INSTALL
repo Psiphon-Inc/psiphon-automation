@@ -140,7 +140,7 @@ Dependencies
 - Python 2.6+ and modules
 
 
-0. Configure firewall and IP forwarding
+1. Configure firewall and IP forwarding
 ---------------------------------------
 
 /etc/iptables.rules:
@@ -149,7 +149,7 @@ Dependencies
   -A INPUT -i lo -j ACCEPT
   -A INPUT -d 127.0.0.0/8 -i ! lo -j REJECT --reject-with icmp-port-unreachable
   -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
-  -A INPUT -s <source-IP-address-for-ssh-access> -p tcp -m state --state NEW -m tcp --dport 22 -j ACCEPT
+  -A INPUT -p tcp -m state --state NEW -m tcp --dport 22 -j ACCEPT
   -A INPUT -p tcp -m state --state NEW -m tcp --dport 8080 -j ACCEPT
   -A INPUT -p esp -j ACCEPT
   -A INPUT -p ah -j ACCEPT
@@ -180,7 +180,16 @@ Enable the firewall and IP forwarding:
   /etc/init.d/procps start
 
 
-0.1. Install and configure sudo
+2. Install fail2ban
+---------------------
+
+apt-get install fail2ban
+
+As management SSH access is open to any source IP address, we recommend
+installing fail2ban to defend against brute-force SSH login attempts.
+
+
+3. Install and configure sudo
 -------------------------------
 
 apt-get update
@@ -191,7 +200,7 @@ Add the following line under "User privilege specification" below the root entry
   www-data ALL=NOPASSWD: /usr/sbin/ipsec auto --rereadsecrets
 
 
-1. Get xl2tp, and python packages
+4. Get xl2tp, and python packages
 ---------------------------------
 
 apt-get update
@@ -200,7 +209,7 @@ apt-get install -y python-setuptools python-dev
 easy_install cherrypy webob xlrd portalocker netifaces
 
 
-2. Get, patch and install Openswan and the KLIPS kernel module
+5. Get, patch and install Openswan and the KLIPS kernel module
 --------------------------------------------------------------
 
 NOTE: We're using KLIPS in place of NETKEY as only KLIPS passed both tests:
@@ -281,7 +290,7 @@ update-rc.d ipsec defaults
 reboot
 
 
-3. Configure GeoIP lookup
+6. Configure GeoIP lookup
 -------------------------
 
 cd /root
@@ -307,7 +316,7 @@ python setup.py build
 python setup.py install
 
 
-4. Configure logging
+7. Configure logging
 --------------------
 
 (1) Direct all psiphonv logs to psiphonv.log and turn off all VPN logging
@@ -338,7 +347,7 @@ Add to /etc/logrotate.d/rsyslog:
   /var/log/psiphonv.log
 
 
-5. Add host and servers to network database
+8. Add host and servers to network database
 -------------------------------------------
 
 See the section below on Network Database Configuration.
@@ -355,8 +364,10 @@ port, discovery Client ID and discovery schedule.
 and private key.
 
 
-6. Run psi_install.py
+9. Run psi_install.py
 ---------------------
+
+On the build host:
 
   cd Automation
   python psi_install.py
@@ -364,7 +375,7 @@ and private key.
 The following subitems are performed by this script:
 
 
-6.1 Configure IPSec
+9.1 Configure IPSec
 -------------------
 
 We configure multiple connections, one per public IP address.
@@ -410,7 +421,7 @@ We configure multiple connections, one per public IP address.
   <empty file>
 
 
-6.2 Configure an instance of xl2tpd per external IP address
+9.2 Configure an instance of xl2tpd per external IP address
 -----------------------------------------------------------
 
 We run multiple xl2tpd instances, one per public IP address, due to an issue
@@ -485,14 +496,14 @@ https://lists.openswan.org/pipermail/users/2011-February/020143.html
   esac
 
 
-6.3. Restart L2TP/IPSec
-------------------
+9.3 Restart L2TP/IPSec
+----------------------
 
   /etc/init.d/ipsec restart
   /etc/init.d/xl2tpd restart
 
 
-6.4. Invoke the deploy script
+10. Invoke the deploy script
 ----------------------------
 
 This script:
