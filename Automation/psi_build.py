@@ -56,7 +56,7 @@ if os.path.isfile('psi_data_config.py'):
     import psi_data_config
     psi_db.set_db_root(psi_data_config.DATA_ROOT)
     BANNER_ROOT = os.path.join(psi_data_config.DATA_ROOT, 'Banners')
-    CODE_SIGNING_PFX_FILENAME = os.path.join(psi_data_config.DATA_ROOT, 'CodeSigning', 'test-code-signing-package.pfx')
+    CODE_SIGNING_PFX_FILENAME = os.path.join(psi_data_config.DATA_ROOT, 'CodeSigning', psi_data_config.CODE_SIGNING_PACKAGE_FILENAME)
 
 #==============================================================================
 

@@ -238,11 +238,11 @@ Edit lib/libipsecconf/virtif.c:
         unsigned int i = 0;
         if (!str) return 0;
         if (strlen(str)<8) return 0;
-    
+
         /* Check if the string has an = sign */
         pequal = strchr(str,'=');
         if (!pequal) return 0;
-    
+
         /* Where does the device number start ? */
         pnum_start = strstr(str,"ipsec");
         if (!pnum_start) {
@@ -251,19 +251,19 @@ Edit lib/libipsecconf/virtif.c:
             else pnum_start += (sizeof("mast") - 1);
         }
         else pnum_start += (sizeof("ipsec") - 1);
-    
+
         /* Is there a device number ? */
         if (pequal == pnum_start) return 0;
-    
+
         /* Is there enough room to store the device number ? */
         if ((pequal - pnum_start) >= sizeof(numeric)) return 0;
-    
+
         /* Copy only digit characters */
         while ( '=' != (ch = pnum_start[i]) ) {
             if (ch < '0' || ch > '9') return 0;
             numeric[i++] = ch;
         }
-    
+
         if (pn) *pn = atoi(numeric);
         if (pphys) *pphys = pequal + 1;
         return 1;
@@ -526,7 +526,8 @@ To override the default location of the database spreadsheet:
   Automation/psi_data_config.py
 
 - In this file, set DATA_ROOT to point to the directory containing the
-real spreadsheet; for example:
+real spreadsheet; also set the filename for the Authenticode code signing
+certificate (still located under Data/CodeSigning); for example:
 
   DATA_ROOT = 'C:\MyPsiphonData'
-
+  CODE_SIGNING_PACKAGE_FILENAME = 'MyAuthenticode.pfx'

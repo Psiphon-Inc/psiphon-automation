@@ -72,7 +72,7 @@ def make_xl2tpd_config_file_command(server_index, ip_address):
     return 'echo "%s" > /etc/xl2tpd/xl2tpd%d.conf' % (
         file_contents, server_index)
 
-        
+
 def make_xl2tpd_options_file_command():
     file_contents = textwrap.dedent('''
         ipcp-accept-local
@@ -94,13 +94,13 @@ def make_xl2tpd_options_file_command():
     return 'echo "%s" > /etc/ppp/options.xl2tpd' % (
         file_contents,)
 
-        
+
 def make_xl2tpd_chap_secrets_file_command():
     file_contents = '*   *   password    *'
     return 'echo "%s" > /etc/ppp/chap-secrets' % (
         file_contents,)
 
-        
+
 # This file is written to disk then copied to the remote server.  We had
 # problems echoing it out to a file in an ssh command, probably because of all
 # the special characters.  It's OK to write this to disk locally, because there
@@ -173,13 +173,13 @@ exit 0
 
     return file_contents
 
-    
+
 def make_ipsec_config_file_base_contents(server_count):
     file_contents = '''
 # /etc/ipsec.conf - Openswan IPsec configuration file
-        
+
 version 2.0     # conforms to second version of ipsec.conf specification
-        
+
 # basic configuration
 config setup
     interfaces="''' + ' '.join(['ipsec%d=eth%s' % (i, i if i == 0 else '0:%d' % (i,)) for i in range(server_count)]) + '''"
@@ -192,16 +192,16 @@ config setup
     # Which IPsec stack to use. auto will try netkey, then klips then mast
     protostack=klips
 '''
-        
+
     return file_contents
 
-    
+
 def make_ipsec_config_file_connection_command(server_index, ip_address):
     file_contents = textwrap.dedent('''
         conn L2TP-PSK-%d-NAT
             rightsubnet=vhost:%%priv
             also=L2TP-PSK-%d-noNAT
-            
+
         conn L2TP-PSK-%d-noNAT
             left=%s
             leftprotoport=17/1701
@@ -218,16 +218,16 @@ def make_ipsec_config_file_connection_command(server_index, ip_address):
         ''' % (server_index, server_index, server_index, ip_address))
     return 'echo "%s" >> /etc/ipsec.conf' % (file_contents,)
 
-        
+
 def make_ipsec_secrets_file_command():
     return 'echo "" > /etc/ipsec.secrets && chmod 666 /etc/ipsec.secrets'
 
-    
+
 def generate_web_server_secret():
     return binascii.hexlify(os.urandom(WEB_SERVER_SECRET_BYTE_LENGTH))
-    
-    
-def generate_server_id():    
+
+
+def generate_server_id():
     WORDS = '''
 multion            moding             addrer             hactrogram
 emaging            keyboot            forsonic           trogram
@@ -257,7 +257,7 @@ morer              applory            pyte               mareshat
 '''.split()
     return ' '.join([random.choice(WORDS) for _ in range(SERVER_ID_WORD_LENGTH)])
 
-    
+
 def generate_self_signed_certificate():
     key_pair = crypto.PKey()
     key_pair.generate_key(SSL_CERTIFICATE_KEY_TYPE, SSL_CERTIFICATE_KEY_SIZE)
@@ -283,9 +283,9 @@ def generate_self_signed_certificate():
     return (crypto.dump_privatekey(crypto.FILETYPE_PEM, key_pair),
             crypto.dump_certificate(crypto.FILETYPE_PEM, certificate))
 
-            
+
 #==============================================================================
-    
+
 
 if __name__ == "__main__":
 
@@ -325,9 +325,9 @@ if __name__ == "__main__":
 
         for index, server in enumerate(host_servers):
             ssh.exec_command(make_ipsec_config_file_connection_command(index, server.IP_Address))
-        
+
         ssh.exec_command(make_ipsec_secrets_file_command())
-        
+
         # Generate and upload xl2tpd config files and init script
         for index, server in enumerate(host_servers):
             ssh.exec_command(make_xl2tpd_config_file_command(index, server.IP_Address))
@@ -392,5 +392,3 @@ if __name__ == "__main__":
 
         # Deploy will upload web server source database data and client builds
         psi_deploy.deploy(host)
-
-        
