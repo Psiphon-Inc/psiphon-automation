@@ -221,4 +221,5 @@ if __name__ == "__main__":
         for host in hosts:
             pull_stats(db, host)
     finally:
+        db.commit()
         db.close()
