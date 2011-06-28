@@ -387,6 +387,8 @@ if __name__ == "__main__":
                   (u'Web_Server_Certificate', cert),
                   (u'Web_Server_Private_Key', key)]))
 
+        ssh.close()
+
         # Update server rows in database
         psi_db.update_servers(server_database_updates)
 

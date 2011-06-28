@@ -123,6 +123,7 @@ def deploy(host):
         if match and match.groups()[0] in discovery_client_ids_on_host:
             ssh.put_file(os.path.join(BUILDS_ROOT, filename),
                          posixpath.join(psi_config.UPGRADE_DOWNLOAD_PATH, filename))
+    ssh.close()
 
 
 if __name__ == "__main__":

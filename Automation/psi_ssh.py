@@ -38,20 +38,30 @@ class SSH(object):
         self.ssh.get_host_keys().add(self.ip_address, key_type, paramiko.RSAKey(data=base64.b64decode(key_data)))
         self.ssh.connect(ip_address, SSH_PORT, ssh_username, ssh_password)
 
+    def close(self):
+        self.ssh.close()
+
     def exec_command(self, command_line):
         (_, output, _) = self.ssh.exec_command(command_line)
         out = output.read()
-        print 'SSH %s: %s %s' % (self.ip_address, command_line, out)
+        print 'SSH %s: %s %s' % (self.ip_address, command_line[0:20]+'...', out)
         return out
 
+    def list_dir(self, remote_path):
+        print 'SSH %s: list dir %s' % (self.ip_address, remote_path)
+        sftp = self.ssh.open_sftp()
+        list = sftp.listdir(remote_path)
+        sftp.close()
+        return list
+
     def put_file(self, local_path, remote_path):
-        print 'SSH %s: put %s %s' % (self.ip_address, local_path, remote_path)
+        print 'SSH %s: put file %s %s' % (self.ip_address, local_path, remote_path)
         sftp = self.ssh.open_sftp()
         sftp.put(local_path, remote_path)
         sftp.close()
 
     def get_file(self, remote_path, local_path):
-        print 'SSH %s: get %s %s' % (self.ip_address, local_path, remote_path)
+        print 'SSH %s: get file %s %s' % (self.ip_address, local_path, remote_path)
         sftp = self.ssh.open_sftp()
         sftp.get(remote_path, local_path)
         sftp.close()
