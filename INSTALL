@@ -336,6 +336,13 @@ Add to /etc/rsyslog.conf (IMPORTANT: put new rules at the top of the rules secti
   if $programname == 'pluto' then /dev/null
   if $programname == 'pluto' then ~
 
+Enable RFC 3339 compatible high resolution timestamp logging format as required
+for stats processing.
+
+In /etc/rsyslog.conf, ensure this line is commented out:
+
+    #$ActionFileDefaultTemplate RSYSLOG_TraditionalFileFormat
+
 Restart rsyslogd:
 
   /etc/init.d/rsyslog restart
