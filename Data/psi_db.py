@@ -91,7 +91,7 @@ update_servers = lambda(updates) : update_data(SERVERS_SHEET_NAME, updates)
 def read_data(sheet_name, spreadsheet_path=None):
     if spreadsheet_path is None:
         spreadsheet_path = get_db_path()
-        
+
     expected_columns, tupletype = SCHEMA[sheet_name]
     xls = xlrd.open_workbook(spreadsheet_path)
     sheet = xls.sheet_by_name(sheet_name)
@@ -128,7 +128,7 @@ def update_data(sheet_name, update_values, spreadsheet_path=None):
     # new values for other columns in that row.
     #
     expected_columns, _ = SCHEMA[sheet_name]
-    original_xls = xlrd.open_workbook(spreadsheet_path)
+    original_xls = xlrd.open_workbook(spreadsheet_path, formatting_info=True)
     original_sheet = original_xls.sheet_by_name(sheet_name)
     assert([cell.value for cell in original_sheet.row(0)] == expected_columns)
     # Compute sheet index from original as xlwt doesn't offer lookup by name
