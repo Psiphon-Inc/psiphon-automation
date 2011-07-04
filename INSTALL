@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------------
-Psiphon Circumvention System INSTALL
+Psiphon 3 Circumvention System INSTALL
 --------------------------------------------------------------------------------
 
 
@@ -15,7 +15,7 @@ Network Database Configuration
 Overview
 --------------------------------------------------------------------------------
 
-A Psiphon system consists of:
+A Psiphon 3 system consists of:
 
 - A database of network assets. Currently, this is stored in spreadsheet form
 in Data/psi_db.xls.
