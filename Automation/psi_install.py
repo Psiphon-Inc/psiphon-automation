@@ -370,14 +370,15 @@ if __name__ == "__main__":
             # '-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEAvAmIPX5kzPz...
             #  EZ3bCbVPQNP6ZnC6EONGuGTDgTTU30\n-----END RSA PRIVATE KEY-----\n'
             #
-            # We strip the BEGIN/END lines in the database format.
+            # We strip the BEGIN/END lines and remove newlines in the database
+            # format.
 
             cert = server.Web_Server_Certificate
             key = server.Web_Server_Private_Key
             if cert is None or key is None:
                 key_pem, cert_pem = generate_self_signed_certificate()
-                key = key_pem.split('\n')[1]
-                cert = cert_pem.split('\n')[1]
+                key = ''.join(key_pem.split('\n')[1:-2])
+                cert = ''.join(cert_pem.split('\n')[1:-2])
 
             # Reference update rows by IP address
             server_database_updates.append(
