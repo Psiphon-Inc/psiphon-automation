@@ -104,7 +104,7 @@ def read_data(sheet_name, spreadsheet_path=None):
             if type(row[j].value) == float: # assume it's a date
                 values.append(
                     datetime.datetime(*xlrd.xldate_as_tuple(row[j].value, 0)))
-            elif type(row[j].value) == str or len(row[j].value) == 0: # empty value
+            elif type(row[j].value) == str or len(row[j].value.strip()) == 0: # empty/blank value
                 values.append(None)
             elif type(row[j].value) == unicode: # string value
                 values.append(row[j].value.encode('utf-8'))
@@ -346,7 +346,7 @@ def embed(propagation_channel_id):
 def get_discovery_propagation_channel_ids_for_host(host_id, discovery_date=datetime.datetime.now()):
     servers = get_servers()
     servers_on_host = filter(lambda x : x.Host_ID == host_id, servers)
-    return set([server.Discovery_Propagation_Channel_ID for server in servers_on_host])
+    return set([server.Discovery_Propagation_Channel_ID for server in servers_on_host if server.Discovery_Propagation_Channel_ID])
 
 
 def make_file_for_host(host_id, filename, discovery_date=datetime.datetime.now()):
