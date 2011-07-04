@@ -89,7 +89,7 @@ def deploy(host):
 
     # Copy data file
     # We upload a compartmentalized version of the master file
-    # containing only the client IDs and confidential server
+    # containing only the propagation channel IDs and confidential server
     # information required by each host.
 
     file = tempfile.NamedTemporaryFile(delete=False)
@@ -114,13 +114,13 @@ def deploy(host):
 
     ssh.exec_command('mkdir -p %s' % (psi_config.UPGRADE_DOWNLOAD_PATH,))
 
-    # Match 'psiphon-<Client ID>-<Sponsor ID>.exe' with specific client ID and any sponsor ID
+    # Match 'psiphon-<Client ID>-<Sponsor ID>.exe' with specific propagation channel ID and any sponsor ID
     filename_pattern = re.compile(psi_build.BUILD_FILENAME_TEMPLATE % ('([0-9,A-F]+)', '([0-9,A-F]+)'))
-    discovery_client_ids_on_host = psi_db.get_discovery_client_ids_for_host(host.Host_ID)
+    discovery_propagation_channel_ids_on_host = psi_db.get_discovery_propagation_channel_ids_for_host(host.Host_ID)
 
     for filename in os.listdir(BUILDS_ROOT):
         match = filename_pattern.match(filename)
-        if match and match.groups()[0] in discovery_client_ids_on_host:
+        if match and match.groups()[0] in discovery_propagation_channel_ids_on_host:
             ssh.put_file(os.path.join(BUILDS_ROOT, filename),
                          posixpath.join(psi_config.UPGRADE_DOWNLOAD_PATH, filename))
     ssh.close()

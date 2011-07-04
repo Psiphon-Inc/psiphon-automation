@@ -46,16 +46,16 @@ except ImportError:
 DB_FILENAME = 'psi_db.xls'
 DB_PATH = os.path.join(os.path.dirname(__file__), DB_FILENAME)
 
-CLIENTS_SHEET_NAME = u'Clients'
-CLIENTS_SHEET_COLUMNS = u'Client_ID,Propagation_Channels,Notes'.split(',')
-Client = namedtuple(u'Client', CLIENTS_SHEET_COLUMNS)
+PROPAGATION_CHANNELS_SHEET_NAME = u'Propagation_Channels'
+PROPAGATION_CHANNELS_SHEET_COLUMNS = u'Propagation_Channel_ID,Notes'.split(',')
+Propagation_Channel = namedtuple(u'Propagation_Channel', PROPAGATION_CHANNELS_SHEET_COLUMNS)
 
 HOSTS_SHEET_NAME = u'Hosts'
 HOSTS_SHEET_COLUMNS = u'Host_ID,IP_Address,SSH_Username,SSH_Password,SSH_Host_Key,Notes'.split(',')
 Host = namedtuple(u'Host', HOSTS_SHEET_COLUMNS)
 
 SERVERS_SHEET_NAME = u'Servers'
-SERVERS_SHEET_COLUMNS = u'Server_ID,Host_ID,IP_Address,Web_Server_Port,Web_Server_Secret,Web_Server_Certificate,Web_Server_Private_Key,Discovery_Client_ID,Discovery_Time_Start,Discovery_Time_End,Notes'.split(',')
+SERVERS_SHEET_COLUMNS = u'Server_ID,Host_ID,IP_Address,Web_Server_Port,Web_Server_Secret,Web_Server_Certificate,Web_Server_Private_Key,Discovery_Propagation_Channel_ID,Discovery_Time_Start,Discovery_Time_End,Notes'.split(',')
 Server = namedtuple(u'Server', SERVERS_SHEET_COLUMNS)
 
 SPONSORS_SHEET_NAME = u'Sponsors'
@@ -71,7 +71,7 @@ VERSIONS_SHEET_COLUMNS = u'Client_Version,Notes'.split(',')
 Version = namedtuple(u'Version', VERSIONS_SHEET_COLUMNS)
 
 SCHEMA = {
-    CLIENTS_SHEET_NAME : (CLIENTS_SHEET_COLUMNS, Client),
+    PROPAGATION_CHANNELS_SHEET_NAME : (PROPAGATION_CHANNELS_SHEET_COLUMNS, Propagation_Channel),
     HOSTS_SHEET_NAME : (HOSTS_SHEET_COLUMNS, Host),
     SERVERS_SHEET_NAME : (SERVERS_SHEET_COLUMNS, Server),
     SPONSORS_SHEET_NAME : (SPONSORS_SHEET_COLUMNS, Sponsor),
@@ -79,7 +79,7 @@ SCHEMA = {
     VERSIONS_SHEET_NAME : (VERSIONS_SHEET_COLUMNS, Version),
 }
 
-get_clients = lambda : read_data(CLIENTS_SHEET_NAME)
+get_propagation_channels = lambda : read_data(PROPAGATION_CHANNELS_SHEET_NAME)
 get_hosts = lambda : read_data(HOSTS_SHEET_NAME)
 get_servers = lambda : read_data(SERVERS_SHEET_NAME)
 get_sponsors = lambda : read_data(SPONSORS_SHEET_NAME)
@@ -158,12 +158,12 @@ def test_update_data():
         updates = []
 
         updates.append(
-            ((u'IP_Address', '192.168.1.109'),
+            ((u'IP_Address', '192.168.1.60'),
              [(u'Server_ID', 'engual malet uplore'),
               (u'Web_Server_Secret', '0123456789')]))
 
         updates.append(
-            ((u'IP_Address', '192.168.1.151'),
+            ((u'IP_Address', '192.168.1.63'),
              [(u'Server_ID', 'hareware zinink randowser'),
               (u'Web_Server_Secret', '9876543210')]))
 
@@ -181,17 +181,17 @@ def test_update_data():
                             spreadsheet_path=TEST_DB_PATH)
 
         # Unchanged server row
-        assert(servers[0].Server_ID == 'ubunix electrows uplore')
-        assert(servers[0].IP_Address == '192.168.1.250')
+        assert(servers[0].Server_ID == 'accense supg sourite')
+        assert(servers[0].IP_Address == '192.168.1.66')
         assert(servers[0].Web_Server_Secret == 'FEDCBA9876543210')
 
         # Changed server rows
-        assert(servers[3].Server_ID == 'engual malet uplore')
-        assert(servers[3].IP_Address == '192.168.1.109')
-        assert(servers[3].Web_Server_Secret == '0123456789')
-        assert(servers[6].Server_ID == 'hareware zinink randowser')
-        assert(servers[6].IP_Address == '192.168.1.151')
-        assert(servers[6].Web_Server_Secret == '9876543210')
+        assert(servers[1].Server_ID == 'engual malet uplore')
+        assert(servers[1].IP_Address == '192.168.1.60')
+        assert(servers[1].Web_Server_Secret == '0123456789')
+        assert(servers[4].Server_ID == 'hareware zinink randowser')
+        assert(servers[4].IP_Address == '192.168.1.63')
+        assert(servers[4].Web_Server_Secret == '9876543210')
 
     finally:
         os.remove(TEST_DB_PATH)
@@ -200,7 +200,7 @@ def test_update_data():
 def validate_data():
     # read all sheets; if no exception thrown, is valid data
     return [
-        get_clients(),
+        get_propagation_channels(),
         get_hosts(),
         get_servers(),
         get_sponsors(),
@@ -208,17 +208,17 @@ def validate_data():
         get_versions()]
 
 
-def get_encoded_server_list(client_id, client_ip_address=None, logger=None, discovery_date=datetime.datetime.now()):
+def get_encoded_server_list(propagation_channel_id, client_ip_address=None, logger=None, discovery_date=datetime.datetime.now()):
     if not client_ip_address:
         # embedded server list
-        # output all servers for client ID with no discovery date
+        # output all servers for propagation channel ID with no discovery date
         servers = [server for server in get_servers()
-                   if server.Discovery_Client_ID == client_id and not server.Discovery_Time_Start]
+                   if server.Discovery_Propagation_Channel_ID == propagation_channel_id and not server.Discovery_Time_Start]
     else:
         # discovery case
-        # count servers for client ID to be discovered in current date range
+        # count servers for propagation channel ID to be discovered in current date range
         servers = [server for server in get_servers()
-                   if server.Discovery_Client_ID == client_id and (
+                   if server.Discovery_Propagation_Channel_ID == propagation_channel_id and (
                    server.Discovery_Time_Start is not None and
                    server.Discovery_Time_End is not None and
                    server.Discovery_Time_Start <= discovery_date < server.Discovery_Time_End)]
@@ -247,9 +247,9 @@ def get_encoded_server_list(client_id, client_ip_address=None, logger=None, disc
 
 def test_get_encoded_server_list():
     # NOTE: expects test data as defined in psi_db.xls
-    # unknown client ID
+    # unknown propagation channel ID
     assert(len(get_encoded_server_list('')) == 0)
-    # embedded case, known client ID
+    # embedded case, known propagation channel ID
     assert(len(get_encoded_server_list('3A885577DD84EF13')) == 1)
     # discovery case
     week1 = datetime.datetime(2011, 05, 16)
@@ -326,7 +326,7 @@ def test_get_upgrade():
     assert(get_upgrade('2') is None)
 
 
-def handshake(client_ip_address, client_id, sponsor_id, client_version, logger=None):
+def handshake(client_ip_address, propagation_channel_id, sponsor_id, client_version, logger=None):
     output = []
     homepage_urls = get_sponsor_home_pages(sponsor_id, client_ip_address)
     for homepage_url in homepage_urls:
@@ -334,27 +334,27 @@ def handshake(client_ip_address, client_id, sponsor_id, client_version, logger=N
     upgrade_client_version = get_upgrade(client_version)
     if upgrade_client_version:
         output.append('Upgrade: %s' % (upgrade_client_version,))
-    for encoded_server_entry in get_encoded_server_list(client_id, client_ip_address, logger=logger):
+    for encoded_server_entry in get_encoded_server_list(propagation_channel_id, client_ip_address, logger=logger):
         output.append('Server: %s' % (encoded_server_entry,))
     return output
 
 
-def embed(client_id):
-    return get_encoded_server_list(client_id)
+def embed(propagation_channel_id):
+    return get_encoded_server_list(propagation_channel_id)
 
 
-def get_discovery_client_ids_for_host(host_id, discovery_date=datetime.datetime.now()):
+def get_discovery_propagation_channel_ids_for_host(host_id, discovery_date=datetime.datetime.now()):
     servers = get_servers()
     servers_on_host = filter(lambda x : x.Host_ID == host_id, servers)
-    return set([server.Discovery_Client_ID for server in servers_on_host])
+    return set([server.Discovery_Propagation_Channel_ID for server in servers_on_host])
 
 
 def make_file_for_host(host_id, filename, discovery_date=datetime.datetime.now()):
     # Create a compartmentalized spreadsheet with only the information needed by a particular host
     # - always omit Notes column
-    # - client sheet includes only clients that may connect to servers on this host
+    # - propagation channel sheet includes only channel IDs that may connect to servers on this host
     # - OMIT host sheet
-    # - servers sheet includes only servers for client IDs in filtered client sheet
+    # - servers sheet includes only servers for propagation channel IDs in filtered propagation channel sheet
     #   (which is more than just servers on this host, due to cross-host discovery)
     #   also, omit non-propagation servers not on this host whose discovery time period has elapsed
     #   also, omit propagation servers not on this host
@@ -369,24 +369,23 @@ def make_file_for_host(host_id, filename, discovery_date=datetime.datetime.now()
     # function call re-reads the spreadsheet. This isn't an issue at the moment since
     # the deploy step is invoked manually.
 
-    clients = get_clients()
+    propagation_channels = get_propagation_channels()
     servers = get_servers()
     home_pages = get_home_pages()
     versions = get_versions()
 
     date_style = xlwt.easyxf(num_format_str='YYYY-MM-DD')
 
-    discovery_client_ids_on_host = get_discovery_client_ids_for_host(host_id)
+    discovery_propagation_channel_ids_on_host = get_discovery_propagation_channel_ids_for_host(host_id)
 
-    ws = wb.add_sheet(CLIENTS_SHEET_NAME)
-    for i, value in enumerate(CLIENTS_SHEET_COLUMNS):
+    ws = wb.add_sheet(PROPAGATION_CHANNELS_SHEET_NAME)
+    for i, value in enumerate(PROPAGATION_CHANNELS_SHEET_COLUMNS):
         ws.write(0, i, value)
     i = 1
-    for client in clients:
-        if client.Client_ID in discovery_client_ids_on_host:
-            ws.write(i, 0, client.Client_ID)
-            ws.write(i, 1, '') # Propagation_Channel
-            ws.write(i, 2, '') # Notes
+    for channel in propagation_channels:
+        if channel.Propagation_Channel_ID in discovery_propagation_channel_ids_on_host:
+            ws.write(i, 0, channel.Propagation_Channel_ID)
+            ws.write(i, 1, '') # Notes
             i += 1
 
     ws = wb.add_sheet(SERVERS_SHEET_NAME)
@@ -394,7 +393,7 @@ def make_file_for_host(host_id, filename, discovery_date=datetime.datetime.now()
         ws.write(0, i, value)
     i = 1
     for server in servers:
-        if (server.Discovery_Client_ID in discovery_client_ids_on_host and
+        if (server.Discovery_Propagation_Channel_ID in discovery_propagation_channel_ids_on_host and
                 not(server.Discovery_Time_Start and server.Host_ID != host_id and server.Discovery_Time_End <= discovery_date) and
                 not(server.Discovery_Time_Start is None and server.Host_ID != host_id)):
             ws.write(i, 0, '') # Host_ID
@@ -404,7 +403,7 @@ def make_file_for_host(host_id, filename, discovery_date=datetime.datetime.now()
             ws.write(i, 4, server.Web_Server_Secret)
             ws.write(i, 5, server.Web_Server_Certificate)
             ws.write(i, 6, server.Web_Server_Private_Key)
-            ws.write(i, 7, server.Discovery_Client_ID)
+            ws.write(i, 7, server.Discovery_Propagation_Channel_ID)
             ws.write(i, 8, server.Discovery_Time_Start, date_style)
             ws.write(i, 9, server.Discovery_Time_End, date_style)
             ws.write(i, 10, '') # Notes

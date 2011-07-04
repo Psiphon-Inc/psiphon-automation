@@ -83,11 +83,11 @@ def build_client():
         os.remove(command_filename)
 
 
-def write_embedded_values(client_id, sponsor_id, client_version, embedded_server_list):
+def write_embedded_values(propagation_channel_id, sponsor_id, client_version, embedded_server_list):
     template = textwrap.dedent('''
         #pragma once
 
-        static const char* CLIENT_ID = "%s";
+        static const char* PROPAGATION_CHANNEL_ID = "%s";
 
         static const char* SPONSOR_ID = "%s";
 
@@ -98,7 +98,7 @@ def write_embedded_values(client_id, sponsor_id, client_version, embedded_server
         static const char* EMBEDDED_SERVER_LIST = "%s";
         ''')
     with open(EMBEDDED_VALUES_FILENAME, 'w') as file:
-        file.write(template % (client_id,
+        file.write(template % (propagation_channel_id,
                                sponsor_id,
                                client_version,
                                '\\n'.join(embedded_server_list)))
@@ -109,7 +109,7 @@ if __name__ == "__main__":
     try:
         psi_db.validate_data()
         sponsors = psi_db.get_sponsors()
-        clients = psi_db.get_clients()
+        propagation_channels = psi_db.get_propagation_channels()
         versions = psi_db.get_versions()
 
         # store original files for restore after script
@@ -130,14 +130,14 @@ if __name__ == "__main__":
             banner_source_path = os.path.join(BANNER_ROOT, sponsor.Banner_Filename)
             shutil.copyfile(banner_source_path, BANNER_FILENAME)
 
-            for client in clients:
+            for channel in propagation_channels:
 
                 # overwrite embedded values source file
                 write_embedded_values(
-                    client.Client_ID,
+                    channel.Propagation_Channel_ID,
                     sponsor.Sponsor_ID,
                     max([versions[i].Client_Version for i in range(len(versions))]),
-                    psi_db.get_encoded_server_list(client.Client_ID))
+                    psi_db.get_encoded_server_list(channel.Propagation_Channel_ID))
 
                 # build
                 build_client()
@@ -148,7 +148,7 @@ if __name__ == "__main__":
                     os.makedirs(BUILDS_ROOT)
                 build_destination_path = os.path.join(
                                             BUILDS_ROOT,
-                                            BUILD_FILENAME_TEMPLATE % (client.Client_ID,
+                                            BUILD_FILENAME_TEMPLATE % (channel.Propagation_Channel_ID,
                                                                        sponsor.Sponsor_ID))
                 shutil.copyfile(EXECUTABLE_FILENAME, build_destination_path)
 
