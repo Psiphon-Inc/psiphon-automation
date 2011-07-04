@@ -353,6 +353,31 @@ Add to /etc/logrotate.d/rsyslog:
 
   /var/log/psiphonv.log
 
+(3) Set up fprobe-ulog
+
+apt-get install fprobe-ulog nfdump
+
+Edit /etc/default/fprobe-ulog:
+
+  INTERFACE="eth:100"
+  FLOW_COLLECTOR="localhost:9995"
+  OTHER_ARGS="-B4096 -r2 -q10000 -t10000:10000000"
+
+Edit /etc/default/nfdump:
+
+  DAEMON_ARGS="-D -b 127.0.0.1 -l $DATA_BASE_DIR -S 1 -P $PIDFILE"
+  nfcapd_start=yes
+
+Add the following line to the filter section in /etc/iptables.rules:
+
+  -A FORWARD -s 10.0.0.0/8 -j ULOG --ulog-qthreshold 50 --ulog-cprange 48
+
+Restart the firewall and fprobe-ulog services:
+
+  /etc/network/if-up.d/firewall
+  invoke-rc.d fprobe-ulog restart
+  invoke-rc.d nfdump restart
+
 
 8. Add host and servers to network database
 -------------------------------------------
