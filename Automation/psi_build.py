@@ -125,6 +125,18 @@ def write_embedded_values(propagation_channel_id, sponsor_id, client_version,
 if __name__ == "__main__":
 
     try:
+        # Helper: store original files for restore after script
+        # (to minimize chance of checking values into source control)
+        def store_to_temporary_file(filename):
+            temporary_file = tempfile.NamedTemporaryFile()
+            with open(filename, 'r') as file:
+                temporary_file.write(file.read())
+                temporary_file.flush()
+            return temporary_file
+
+        banner_tempfile = store_to_temporary_file(BANNER_FILENAME)
+        embedded_values_tempfile = store_to_temporary_file(EMBEDDED_VALUES_FILENAME)
+
         psi_db.validate_data()
         versions = psi_db.get_versions()
         latest_version_number = max([versions[i].Client_Version for i in range(len(versions))])
@@ -182,18 +194,6 @@ if __name__ == "__main__":
 
         sponsors = psi_db.get_sponsors()
         propagation_channels = psi_db.get_propagation_channels()
-
-        # Helper: store original files for restore after script
-        # (to minimize chance of checking values into source control)
-        def store_to_temporary_file(filename):
-            temporary_file = tempfile.NamedTemporaryFile()
-            with open(filename, 'r') as file:
-                temporary_file.write(file.read())
-                temporary_file.flush()
-            return temporary_file
-
-        banner_tempfile = store_to_temporary_file(BANNER_FILENAME)
-        embedded_values_tempfile = store_to_temporary_file(EMBEDDED_VALUES_FILENAME)
 
         for sponsor in sponsors:
 
