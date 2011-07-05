@@ -208,6 +208,14 @@ def validate_data():
         get_versions()]
 
 
+def get_encoded_server_entry(server):
+    return binascii.hexlify('%s %s %s %s' % (
+                                server.IP_Address,
+                                server.Web_Server_Port,
+                                server.Web_Server_Secret,
+                                server.Web_Server_Certificate))
+
+
 def get_encoded_server_list(propagation_channel_id, client_ip_address=None, logger=None, discovery_date=datetime.datetime.now()):
     if not client_ip_address:
         # embedded server list
@@ -237,12 +245,7 @@ def get_encoded_server_list(propagation_channel_id, client_ip_address=None, logg
     if logger:
         for server in servers:
             logger(server.IP_Address)
-    return [binascii.hexlify('%s %s %s %s' %
-                         (server.IP_Address,
-                          server.Web_Server_Port,
-                          server.Web_Server_Secret,
-                          server.Web_Server_Certificate))
-            for server in servers]
+    return [get_encoded_server_entry(server) for server in servers]
 
 
 def test_get_encoded_server_list():
@@ -347,6 +350,12 @@ def get_discovery_propagation_channel_ids_for_host(host_id, discovery_date=datet
     servers = get_servers()
     servers_on_host = filter(lambda x : x.Host_ID == host_id, servers)
     return set([server.Discovery_Propagation_Channel_ID for server in servers_on_host if server.Discovery_Propagation_Channel_ID])
+
+
+def get_egress_ip_address_for_server(server):
+    # egress IP address is host's IP address
+    hosts = get_hosts()
+    return filter(lambda x : x.Host_ID == server.Host_ID, hosts)[0].IP_Address
 
 
 def make_file_for_host(host_id, filename, discovery_date=datetime.datetime.now()):

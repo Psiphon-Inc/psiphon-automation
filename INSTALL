@@ -59,7 +59,7 @@ Dependencies
 
 - Install additional modules:
 
-  easy_install xlrd xlwrt xlutils paramiko pyOpenSSL
+  easy_install xlrd xlwrt xlutils paramiko pyOpenSSL pywin32
 
 [NOTE: you may require Visual C++ 2008, NOT 2010, to build Python modules
  (http://mail.python.org/pipermail/python-list/2010-April/1242706.html).
