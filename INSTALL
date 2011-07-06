@@ -197,7 +197,8 @@ apt-get install sudo
 visudo
 
 Add the following line under "User privilege specification" below the root entry:
-  www-data ALL=NOPASSWD: /usr/sbin/ipsec auto --rereadsecrets
+  www-data ALL=NOPASSWD: /usr/local/sbin/ipsec auto --rereadsecrets
+Confirm that the path to ipsec is correct.
 
 
 4. Get xl2tp, and python packages
