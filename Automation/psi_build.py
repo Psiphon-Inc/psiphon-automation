@@ -149,7 +149,8 @@ if __name__ == "__main__":
         servers = psi_db.get_servers()
 
         for server in servers:
-            if (not server.Web_Server_Secret or
+            if (not server.Discovery_Propagation_Channel_ID or
+                not server.Web_Server_Secret or
                 not server.Web_Server_Certificate or
                 not server.Web_Server_Private_Key):
                 # Server is not installed
