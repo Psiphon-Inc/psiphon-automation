@@ -168,7 +168,7 @@ def pull_stats(db, host):
                         if (not match or
                             not LOG_EVENT_TYPE_SCHEMA.has_key(match.group(3))):
                             # SSL errors are common, so don't alert
-                            if line.find('SSL') == -1:
+                            if line.find('SSL') == -1 and line.find('Started server for') == -1:
                                 err = 'unexpected log line pattern: %s' % (line,)
                                 print err
                             continue
