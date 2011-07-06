@@ -180,7 +180,7 @@ if __name__ == "__main__":
                                                        server.Host_ID)
 
             proc = subprocess.Popen([EXECUTABLE_FILENAME])
-            time.sleep(10)
+            time.sleep(15)
 
             egress_ip_address = urllib2.urlopen(CHECK_IP_ADDRESS_URL).read().split('\n')[0]
 
