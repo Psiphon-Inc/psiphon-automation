@@ -109,12 +109,12 @@ def deploy(host):
     ssh.exec_command('%s restart' % (remote_init_file_path,))
 
     # Copy client builds
-    # As above, we only upload the builds for Client IDs that
+    # As above, we only upload the builds for Propagation Channel IDs that
     # need to be known for the host.
 
     ssh.exec_command('mkdir -p %s' % (psi_config.UPGRADE_DOWNLOAD_PATH,))
 
-    # Match 'psiphon-<Client ID>-<Sponsor ID>.exe' with specific propagation channel ID and any sponsor ID
+    # Match 'psiphon-<Propagation Channel ID>-<Sponsor ID>.exe' with specific propagation channel ID and any sponsor ID
     filename_pattern = re.compile(psi_build.BUILD_FILENAME_TEMPLATE % ('([0-9,A-F]+)', '([0-9,A-F]+)'))
     discovery_propagation_channel_ids_on_host = psi_db.get_discovery_propagation_channel_ids_for_host(host.Host_ID)
 

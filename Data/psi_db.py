@@ -394,7 +394,7 @@ def make_file_for_host(host_id, filename, discovery_date=datetime.datetime.now()
     for channel in propagation_channels:
         if channel.Propagation_Channel_ID in discovery_propagation_channel_ids_on_host:
             ws.write(i, 0, channel.Propagation_Channel_ID)
-            ws.write(i, 1, '') # Notes
+            ws.write(i, 1, '') # Notes, not needed
             i += 1
 
     ws = wb.add_sheet(SERVERS_SHEET_NAME)
@@ -405,8 +405,8 @@ def make_file_for_host(host_id, filename, discovery_date=datetime.datetime.now()
         if (server.Discovery_Propagation_Channel_ID in discovery_propagation_channel_ids_on_host and
                 not(server.Discovery_Time_Start and server.Host_ID != host_id and server.Discovery_Time_End <= discovery_date) and
                 not(server.Discovery_Time_Start is None and server.Host_ID != host_id)):
-            ws.write(i, 0, '') # Host_ID
-            ws.write(i, 1, server.Server_ID)
+            ws.write(i, 0, server.Server_ID)
+            ws.write(i, 1, '') # Host_ID, not needed
             ws.write(i, 2, server.IP_Address)
             ws.write(i, 3, server.Web_Server_Port)
             ws.write(i, 4, server.Web_Server_Secret)
@@ -415,7 +415,7 @@ def make_file_for_host(host_id, filename, discovery_date=datetime.datetime.now()
             ws.write(i, 7, server.Discovery_Propagation_Channel_ID)
             ws.write(i, 8, server.Discovery_Time_Start, date_style)
             ws.write(i, 9, server.Discovery_Time_End, date_style)
-            ws.write(i, 10, '') # Notes
+            ws.write(i, 10, '') # Notes, not needed
             i += 1
 
     ws = wb.add_sheet(HOME_PAGES_SHEET_NAME)
@@ -425,14 +425,14 @@ def make_file_for_host(host_id, filename, discovery_date=datetime.datetime.now()
         ws.write(i+1, 0, home_page.Sponsor_ID)
         ws.write(i+1, 1, home_page.Region)
         ws.write(i+1, 2, home_page.Home_Page_URL)
-        ws.write(i+1, 3, '') # Notes
+        ws.write(i+1, 3, '') # Notes, not needed
 
     ws = wb.add_sheet(VERSIONS_SHEET_NAME)
     for i, value in enumerate(VERSIONS_SHEET_COLUMNS):
         ws.write(0, i, value)
     for i, version in enumerate(versions):
         ws.write(i+1, 0, version.Client_Version)
-        ws.write(i+1, 1, '') # Notes
+        ws.write(i+1, 1, '') # Notes, not needed
 
     wb.save(filename)
 

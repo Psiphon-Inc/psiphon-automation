@@ -25,6 +25,7 @@ import re
 import textwrap
 import gzip
 import sqlite3
+import traceback
 
 import psi_ssh
 
@@ -111,6 +112,21 @@ LOG_EVENT_TYPE_SCHEMA = {
                          'client_vpn_ip_address'),
     'disconnected' :    ('client_vpn_ip_address',)}
 
+# Additional stat tables that don't correspond to log line entries. Currently
+# this is the session table, which is populated in post-processing that links
+# connected and disconnected events.
+
+ADDITIONAL_TABLES_SCHEMA = {
+    'session' :         ('host_id',
+                         'server_id',
+                         'client_region',
+                         'propagation_channel_id',
+                         'sponsor_id',
+                         'client_version',
+                         'client_vpn_ip_address',
+                         'session_start_timestamp',
+                         'session_end_timestamp')}
+
 
 def init_stats_db(db):
 
@@ -119,8 +135,12 @@ def init_stats_db(db):
     # table columns and transparently handles the uniqueness logic -- duplicate
     # log lines are discarded. SQLite automatically creates an index for this.
 
-    for (event_type, event_fields) in LOG_EVENT_TYPE_SCHEMA.items():
-        field_names = LOG_ENTRY_COMMON_FIELDS + event_fields
+    for (event_type, event_fields) in LOG_EVENT_TYPE_SCHEMA.items() + ADDITIONAL_TABLES_SCHEMA.items():
+        # (Note: won't work right if ADDITIONAL_TABLES_SCHEMA has key in LOG_EVENT_TYPE_SCHEMA)
+        if LOG_EVENT_TYPE_SCHEMA.has_key(event_type):
+            field_names = LOG_ENTRY_COMMON_FIELDS + event_fields
+        else:
+            field_names = event_fields
         command = textwrap.dedent('''
             create table if not exists %s
                 (%s,
@@ -168,7 +188,7 @@ def pull_stats(db, host):
                         if (not match or
                             not LOG_EVENT_TYPE_SCHEMA.has_key(match.group(3))):
                             # SSL errors are common, so don't alert
-                            if line.find('SSL') == -1:
+                            if line.find('SSL') == -1 and line.find('Started server for') == -1:
                                 err = 'unexpected log line pattern: %s' % (line,)
                                 print err
                             continue
@@ -205,6 +225,44 @@ def pull_stats(db, host):
                 os.remove(temp_file.name)
     ssh.close()
 
+    # Post-processing
+    # Populate the session table. For each connection, create a session. Some
+    # connections will have no end time, depending on when the logs are pulled.
+    # Find the end time by selecting the 'disconnected' event with the same
+    # host_id and client_vpn_ip_address soonest after the connected timestamp.
+
+    # Note: this order of operations -- deleting all the sessions -- is to avoid
+    # duplicate session entries in the case where a previous pull created
+    # sessions with no end.
+
+    db.execute('delete from session')
+
+    field_names = ADDITIONAL_TABLES_SCHEMA['session']
+    cursor = db.cursor()
+    cursor.execute('select * from connected')
+    for row in cursor:
+
+        # Check for a corresponding disconnected event
+        # Timestamp is string field, but ISO 8601 format has the
+        # lexicographical order we want.
+        disconnected_row = db.execute(textwrap.dedent('''
+                    select timestamp from disconnected
+                    where timestamp > ?
+                    and host_id = ?
+                    and client_vpn_ip_address = ?
+                    order by timestamp asc limit 1'''), [row[0], row[1], row[7]]).fetchone()
+        session_end_timestamp = disconnected_row[0] if disconnected_row else None
+
+        command = 'insert into session (%s) values (%s)' % (
+            ', '.join(field_names),
+            ', '.join(['?']*len(field_names)))
+        # Note: dependent on column orders in schema definitions
+        connected_field_names = LOG_ENTRY_COMMON_FIELDS + LOG_EVENT_TYPE_SCHEMA['connected']
+        assert(connected_field_names[0] == 'timestamp' and
+               connected_field_names[1] == 'host_id' and
+               connected_field_names[7] == 'client_vpn_ip_address')
+        db.execute(command, list(row[1:])+[row[0], session_end_timestamp])
+
 
 if __name__ == "__main__":
 
@@ -220,6 +278,8 @@ if __name__ == "__main__":
         hosts = psi_db.get_hosts()
         for host in hosts:
             pull_stats(db, host)
+    except:
+        traceback.print_exc()
     finally:
         db.commit()
         db.close()
