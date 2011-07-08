@@ -78,6 +78,7 @@ def make_xl2tpd_options_file_command():
         ipcp-accept-local
         ipcp-accept-remote
         ms-dns 8.8.8.8
+        ms-dns 8.8.4.4
         noccp
         auth
         crtscts
