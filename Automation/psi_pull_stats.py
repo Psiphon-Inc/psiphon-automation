@@ -108,8 +108,7 @@ LOG_EVENT_TYPE_SCHEMA = {
                          'client_region',
                          'propagation_channel_id',
                          'sponsor_id',
-                         'client_version',
-                         'client_vpn_ip_address'),
+                         'client_version'),
     'disconnected' :    ('client_vpn_ip_address',)}
 
 # Additional stat tables that don't correspond to log line entries. Currently
