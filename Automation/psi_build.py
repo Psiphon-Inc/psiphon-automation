@@ -122,8 +122,101 @@ def write_embedded_values(propagation_channel_id, sponsor_id, client_version,
                                (1 if ignore_system_server_list else 0)))
 
 
-if __name__ == "__main__":
+def __test_servers(latest_version_number):
+    # Build test clients, one per server. We set the IGNORE_SYSTEM_SERVER_LIST
+    # flag so running these clients will exclusively test the target server.
+    # These clients should not be distributed as they contain server IP
+    # addresses that may not be scheduled for discovery yet.
 
+    servers = psi_db.get_servers()
+    failures = []
+
+    for server in servers:
+        if (not server.Discovery_Propagation_Channel_ID or
+            not server.Web_Server_Secret or
+            not server.Web_Server_Certificate or
+            not server.Web_Server_Private_Key):
+            # Server is not installed
+            continue
+
+        # Overwrite embedded values source file. Using invalid (blank)
+        # propagation channel and sponsor IDs, so handshake will not
+        # perform discovery or return home pages -- at this time, these
+        # test clients are primarily to test the establishment of a VPN
+        # connection.
+        write_embedded_values(
+            '0', # Propagation_Channel_ID
+            '0', # Sponsor_ID
+            latest_version_number,
+            [psi_db.get_encoded_server_entry(server)],
+            ignore_system_server_list=True)
+
+        # build
+        build_client()
+
+        # test:
+        # - spawn client process, which starts the VPN
+        # - sleep 5 seconds, which allows time to establish connection
+        # - determine egress IP address and assert it matches host IP address
+        # - post WM_CLOSE to gracefully shut down the client and its connection
+        print 'Testing server %s on host %s...' % (server.IP_Address,
+                                                   server.Host_ID)
+
+        proc = subprocess.Popen([EXECUTABLE_FILENAME])
+        time.sleep(15)
+
+        egress_ip_address = urllib2.urlopen(CHECK_IP_ADDRESS_URL).read().split('\n')[0]
+
+        win32ui.FindWindow(None, APPLICATION_TITLE).PostMessage(win32con.WM_CLOSE)
+        proc.wait()
+
+        # signal client to close before asserting
+        expected_egress_ip_address = psi_db.get_egress_ip_address_for_server(server)
+
+        if egress_ip_address != expected_egress_ip_address:
+            failures.append((server.IP_Address, egress_ip_address, expected_egress_ip_address))
+
+    if failures:
+        raise Exception(str(failures))
+
+
+def __build_clients(latest_version_number):
+    # Build one client per propagation channel and sponsor
+
+    sponsors = psi_db.get_sponsors()
+    propagation_channels = psi_db.get_propagation_channels()
+
+    for sponsor in sponsors:
+
+        # copy sponsor banner image file from Data to Client source tree
+        banner_source_path = os.path.join(BANNER_ROOT, sponsor.Banner_Filename)
+        shutil.copyfile(banner_source_path, BANNER_FILENAME)
+
+        for channel in propagation_channels:
+
+            # overwrite embedded values source file
+            write_embedded_values(
+                channel.Propagation_Channel_ID,
+                sponsor.Sponsor_ID,
+                latest_version_number,
+                psi_db.get_encoded_server_list(channel.Propagation_Channel_ID))
+
+            # build
+            build_client()
+
+            # rename and copy executable to Builds folder
+            # e.g., Builds/psiphon-3A885577DD84EF13-8BB28C1A8E8A9ED9.exe
+            if not os.path.exists(BUILDS_ROOT):
+                os.makedirs(BUILDS_ROOT)
+            build_destination_path = os.path.join(
+                                        BUILDS_ROOT,
+                                        BUILD_FILENAME_TEMPLATE % (channel.Propagation_Channel_ID,
+                                                                   sponsor.Sponsor_ID))
+            shutil.copyfile(EXECUTABLE_FILENAME, build_destination_path)
+
+
+def do_build(build_func):
+    # build boilerplate: protect source code files, etc.
     try:
         # Helper: store original files for restore after script
         # (to minimize chance of checking values into source control)
@@ -141,88 +234,7 @@ if __name__ == "__main__":
         versions = psi_db.get_versions()
         latest_version_number = max([versions[i].Client_Version for i in range(len(versions))])
 
-        # Build test clients, one per server. We set the IGNORE_SYSTEM_SERVER_LIST
-        # flag so running these clients will exclusively test the target server.
-        # These clients should not be distributed as they contain server IP
-        # addresses that may not be scheduled for discovery yet.
-
-        servers = psi_db.get_servers()
-
-        for server in servers:
-            if (not server.Discovery_Propagation_Channel_ID or
-                not server.Web_Server_Secret or
-                not server.Web_Server_Certificate or
-                not server.Web_Server_Private_Key):
-                # Server is not installed
-                continue
-
-            # Overwrite embedded values source file. Using invalid (blank)
-            # propagation channel and sponsor IDs, so handshake will not
-            # perform discovery or return home pages -- at this time, these
-            # test clients are primarily to test the establishment of a VPN
-            # connection.
-            write_embedded_values(
-                '0', # Propagation_Channel_ID
-                '0', # Sponsor_ID
-                latest_version_number,
-                [psi_db.get_encoded_server_entry(server)],
-                ignore_system_server_list=True)
-
-            # build
-            build_client()
-
-            # test:
-            # - spawn client process, which starts the VPN
-            # - sleep 5 seconds, which allows time to establish connection
-            # - determine egress IP address and assert it matches host IP address
-            # - post WM_CLOSE to gracefully shut down the client and its connection
-            print 'Testing server %s on host %s...' % (server.IP_Address,
-                                                       server.Host_ID)
-
-            proc = subprocess.Popen([EXECUTABLE_FILENAME])
-            time.sleep(15)
-
-            egress_ip_address = urllib2.urlopen(CHECK_IP_ADDRESS_URL).read().split('\n')[0]
-
-            win32ui.FindWindow(None, APPLICATION_TITLE).PostMessage(win32con.WM_CLOSE)
-            proc.wait()
-
-            # signal client to close before asserting
-            expected_egress_ip_address = psi_db.get_egress_ip_address_for_server(server)
-            assert(egress_ip_address == expected_egress_ip_address)
-
-        # Build actual propagation clients
-
-        sponsors = psi_db.get_sponsors()
-        propagation_channels = psi_db.get_propagation_channels()
-
-        for sponsor in sponsors:
-
-            # copy sponsor banner image file from Data to Client source tree
-            banner_source_path = os.path.join(BANNER_ROOT, sponsor.Banner_Filename)
-            shutil.copyfile(banner_source_path, BANNER_FILENAME)
-
-            for channel in propagation_channels:
-
-                # overwrite embedded values source file
-                write_embedded_values(
-                    channel.Propagation_Channel_ID,
-                    sponsor.Sponsor_ID,
-                    latest_version_number,
-                    psi_db.get_encoded_server_list(channel.Propagation_Channel_ID))
-
-                # build
-                build_client()
-
-                # rename and copy executable to Builds folder
-                # e.g., Builds/psiphon-3A885577DD84EF13-8BB28C1A8E8A9ED9.exe
-                if not os.path.exists(BUILDS_ROOT):
-                    os.makedirs(BUILDS_ROOT)
-                build_destination_path = os.path.join(
-                                            BUILDS_ROOT,
-                                            BUILD_FILENAME_TEMPLATE % (channel.Propagation_Channel_ID,
-                                                                       sponsor.Sponsor_ID))
-                shutil.copyfile(EXECUTABLE_FILENAME, build_destination_path)
+        build_func(latest_version_number)
 
         print 'psi_build: SUCCESS'
 
@@ -242,3 +254,15 @@ if __name__ == "__main__":
             restore_from_temporary_file(embedded_values_tempfile, EMBEDDED_VALUES_FILENAME)
         except:
             pass
+
+
+def test_servers():
+    do_build(__test_servers)
+
+
+def build_clients():
+    do_build(__build_clients)
+
+
+if __name__ == "__main__":
+    build_clients()

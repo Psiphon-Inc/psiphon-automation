@@ -133,3 +133,7 @@ if __name__ == "__main__":
     hosts = psi_db.get_hosts()
     for host in hosts:
         deploy(host)
+
+    # Connect to each server to ensure its correctly configured
+    # NOTE: currently this uses the Windows client, so only runs on Windows
+    psi_build.test_servers()
