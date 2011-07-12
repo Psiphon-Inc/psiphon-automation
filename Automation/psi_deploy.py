@@ -136,4 +136,9 @@ if __name__ == "__main__":
 
     # Connect to each server to ensure its correctly configured
     # NOTE: currently this uses the Windows client, so only runs on Windows
-    psi_build.test_servers()
+    do_test = True
+    for arg in sys.argv:
+        if arg == '--no-test':
+            do_test = False
+    if do_test:
+        psi_build.test_servers()
