@@ -268,13 +268,13 @@ def get_region(client_ip_address):
         # Use the commercial "city" database is available
         city_db_filename = '/usr/local/share/GeoIP/GeoIPCity.dat'
         if os.path.isfile(city_db_filename):
-            return GeoIP.open(city_db_filename,
-                              GeoIP.GEOIP_MEMORY_CACHE).record_by_name(client_ip_address)['country_code']
+            region = GeoIP.open(city_db_filename,
+                                GeoIP.GEOIP_MEMORY_CACHE).record_by_name(client_ip_address)['country_code']
         else:
             region = GeoIP.new(GeoIP.GEOIP_MEMORY_CACHE).country_code_by_name(client_ip_address)
-            if region is None:
-                region = 'None'
-            return region
+        if region is None:
+            region = 'None'
+        return region
     except NameError:
         # Handle the case where the GeoIP module isn't installed
         return 'None'
