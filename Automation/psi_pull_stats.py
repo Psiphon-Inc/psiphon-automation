@@ -150,7 +150,7 @@ def init_stats_db(db):
         db.execute(command)
 
 
-def pull_stats(db, host):
+def pull_stats(db, error_file, host):
 
     print 'pull stats from host %s...' % (host.Host_ID,)
 
@@ -186,10 +186,8 @@ def pull_stats(db, host):
                         match = line_re.match(line)
                         if (not match or
                             not LOG_EVENT_TYPE_SCHEMA.has_key(match.group(3))):
-                            # SSL errors are common, so don't alert
-                            if line.find('SSL') == -1 and line.find('Started server for') == -1:
-                                err = 'unexpected log line pattern: %s' % (line,)
-                                print err
+                            err = 'unexpected log line pattern: %s' % (line,)
+                            error_file.write(err + '\n')
                             continue
                         timestamp = match.group(1)
                         host_id = match.group(2)
@@ -198,7 +196,7 @@ def pull_stats(db, host):
                         event_fields = LOG_EVENT_TYPE_SCHEMA[event_type]
                         if len(event_values) != len(event_fields):
                             err = 'invalid log line fields %s' % (line,)
-                            print err
+                            error_file.write(err + '\n')
                             continue
                         field_names = LOG_ENTRY_COMMON_FIELDS + event_fields
                         field_values = [timestamp, host_id] + event_values
@@ -224,7 +222,8 @@ def pull_stats(db, host):
                 os.remove(temp_file.name)
     ssh.close()
 
-    # Post-processing
+
+def reconstruct_sessions(db):
     # Populate the session table. For each connection, create a session. Some
     # connections will have no end time, depending on when the logs are pulled.
     # Find the end time by selecting the 'disconnected' event with the same
@@ -269,6 +268,9 @@ if __name__ == "__main__":
         os.makedirs(STATS_ROOT)
     db = sqlite3.connect(STATS_DB_FILENAME)
 
+    # Note: truncating error file
+    error_file = open('pull_stats.err', 'w')
+    
     try:
         init_stats_db(db)
 
@@ -276,9 +278,15 @@ if __name__ == "__main__":
 
         hosts = psi_db.get_hosts()
         for host in hosts:
-            pull_stats(db, host)
+            pull_stats(db, error_file, host)
+
+        # Compute sessions from connected/disconnected records
+            
+        reconstruct_sessions(db)
+
     except:
         traceback.print_exc()
     finally:
+        error_file.close()
         db.commit()
         db.close()
