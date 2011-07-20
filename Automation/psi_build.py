@@ -79,9 +79,9 @@ def build_client():
     if not os.path.isfile(signtool_filename):
         signtool_filename = SIGN_TOOL_FILENAME_ALT
     commands = [
-        'msbuild %s /t:Rebuild /p:Configuration=Release\n' % (CLIENT_SOLUTION_FILENAME,),
-        '"%s" %s\n' % (UPX_FILENAME, EXECUTABLE_FILENAME),
-        '"%s" sign /f %s %s\n' % (signtool_filename,
+        'msbuild "%s" /t:Rebuild /p:Configuration=Release\n' % (CLIENT_SOLUTION_FILENAME,),
+        '"%s" "%s"\n' % (UPX_FILENAME, EXECUTABLE_FILENAME),
+        '"%s" sign /f "%s" %s\n' % (signtool_filename,
                                              CODE_SIGNING_PFX_FILENAME,
                                              EXECUTABLE_FILENAME)]
     command_filename = 'build.cmd'
