@@ -104,6 +104,12 @@ LOG_EVENT_TYPE_SCHEMA = {
                          'sponsor_id',
                          'client_version',
                          'client_vpn_ip_address'),
+    'failed' :          ('server_id',
+                         'client_region',
+                         'propagation_channel_id',
+                         'sponsor_id',
+                         'client_version',
+                         'error_code'),
     'download' :        ('server_id',
                          'client_region',
                          'propagation_channel_id',
@@ -270,7 +276,7 @@ if __name__ == "__main__":
 
     # Note: truncating error file
     error_file = open('pull_stats.err', 'w')
-    
+
     try:
         init_stats_db(db)
 
@@ -281,7 +287,7 @@ if __name__ == "__main__":
             pull_stats(db, error_file, host)
 
         # Compute sessions from connected/disconnected records
-            
+
         reconstruct_sessions(db)
 
     except:
