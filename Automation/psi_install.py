@@ -318,7 +318,10 @@ if __name__ == "__main__":
         host_servers = [server for server in psi_db.get_servers()\
                         if server.Host_ID == host.Host_ID]
 
+        #
         # Generate and upload ipsec config files
+        #
+
         file = tempfile.NamedTemporaryFile(delete=False)
         file.write(make_ipsec_config_file_base_contents(len(host_servers)))
         file.close()
@@ -330,7 +333,10 @@ if __name__ == "__main__":
 
         ssh.exec_command(make_ipsec_secrets_file_command())
 
+        #
         # Generate and upload xl2tpd config files and init script
+        #
+
         for index, server in enumerate(host_servers):
             ssh.exec_command(make_xl2tpd_config_file_command(index, server.IP_Address))
 
@@ -344,12 +350,17 @@ if __name__ == "__main__":
         ssh.put_file(file.name, '/etc/init.d/xl2tpd')
         os.remove(file.name)
 
+        #
         # Restart the IPSec and xl2tpd services
+        #
+
         ssh.exec_command('/etc/init.d/ipsec restart')
         ssh.exec_command('/etc/init.d/xl2tpd restart')
 
+        #
         # Generate unique server alias and web server credentials
         # Values are stored in updated database; upload happens in deploy below
+        #
 
         server_database_updates = []
 
