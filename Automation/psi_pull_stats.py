@@ -167,8 +167,9 @@ def pull_stats(db, error_file, host):
     line_re = re.compile(LOG_LINE_PATTERN)
 
     ssh = psi_ssh.SSH(
-            host.IP_Address, host.SSH_Username,
-            host.SSH_Password, host.SSH_Host_Key)
+            host.IP_Address, host.SSH_Port,
+            host.SSH_Username, host.SSH_Password,
+            host.SSH_Host_Key)
 
     # Download each log file from the host, parse each line and insert
     # log entries into database.

@@ -26,17 +26,16 @@ sys.path.insert(0, os.path.abspath(os.path.join('..', 'Data')))
 import psi_db
 
 
-SSH_PORT = 22
-
-
 class SSH(object):
 
-    def __init__(self, ip_address, ssh_username, ssh_password, ssh_host_key):
+    def __init__(self, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key):
         self.ssh = paramiko.SSHClient()
         self.ip_address = ip_address
+        ssh_port = int(ssh_port)
         key_type, key_data = ssh_host_key.split(' ')
-        self.ssh.get_host_keys().add(self.ip_address, key_type, paramiko.RSAKey(data=base64.b64decode(key_data)))
-        self.ssh.connect(ip_address, SSH_PORT, ssh_username, ssh_password)
+        key_host_name = '[%s]:%d' % (ip_address, ssh_port)
+        self.ssh.get_host_keys().add(key_host_name, key_type, paramiko.RSAKey(data=base64.b64decode(key_data)))
+        self.ssh.connect(ip_address, ssh_port, ssh_username, ssh_password)
 
     def close(self):
         self.ssh.close()

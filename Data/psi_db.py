@@ -51,11 +51,11 @@ PROPAGATION_CHANNELS_SHEET_COLUMNS = u'Propagation_Channel_ID,Notes'.split(',')
 Propagation_Channel = namedtuple(u'Propagation_Channel', PROPAGATION_CHANNELS_SHEET_COLUMNS)
 
 HOSTS_SHEET_NAME = u'Hosts'
-HOSTS_SHEET_COLUMNS = u'Host_ID,IP_Address,SSH_Username,SSH_Password,SSH_Host_Key,Notes'.split(',')
+HOSTS_SHEET_COLUMNS = u'Host_ID,IP_Address,SSH_Port,SSH_Username,SSH_Password,SSH_Host_Key,Notes'.split(',')
 Host = namedtuple(u'Host', HOSTS_SHEET_COLUMNS)
 
 SERVERS_SHEET_NAME = u'Servers'
-SERVERS_SHEET_COLUMNS = u'Server_ID,Host_ID,IP_Address,Web_Server_Port,Web_Server_Secret,Web_Server_Certificate,Web_Server_Private_Key,Discovery_Propagation_Channel_ID,Discovery_Time_Start,Discovery_Time_End,Notes'.split(',')
+SERVERS_SHEET_COLUMNS = u'Server_ID,Host_ID,IP_Address,Discovery_Propagation_Channel_ID,Discovery_Time_Start,Discovery_Time_End,Web_Server_Port,Web_Server_Secret,Web_Server_Certificate,Web_Server_Private_Key,SSH_Port,SSH_Username,SSH_Password,SSH_Host_Key,Notes'.split(',')
 Server = namedtuple(u'Server', SERVERS_SHEET_COLUMNS)
 
 SPONSORS_SHEET_NAME = u'Sponsors'
@@ -329,16 +329,35 @@ def test_get_upgrade():
     assert(get_upgrade('2') is None)
 
 
-def handshake(client_ip_address, propagation_channel_id, sponsor_id, client_version, logger=None):
+def handshake(server_ip_address, client_ip_address, propagation_channel_id, sponsor_id, client_version, logger=None):
+    # Handshake output is a series of Name:Value lines returned to the client
     output = []
+
+    # Give client a set of landing pages to open when connection established
     homepage_urls = get_sponsor_home_pages(sponsor_id, client_ip_address)
     for homepage_url in homepage_urls:
         output.append('Homepage: %s' % (homepage_url,))
+
+    # Tell client if an upgrade is available
     upgrade_client_version = get_upgrade(client_version)
     if upgrade_client_version:
         output.append('Upgrade: %s' % (upgrade_client_version,))
+
+    # Discovery
     for encoded_server_entry in get_encoded_server_list(propagation_channel_id, client_ip_address, logger=logger):
         output.append('Server: %s' % (encoded_server_entry,))
+
+    # VPN relay protocol info
+    # Note: this is added in the handshake handler in psi_web
+    # output.append(psi_psk.set_psk(self.server_ip_address))
+
+    # SSH relay protocol info
+    server = filter(lambda x : x.IP_Address == server_ip_address, get_servers())
+    if server and server.SSH_Host_Key:
+        output.append('SSHPort: %s' % (server.SSH_Port,))
+        output.append('SSHUsername: %s' % (server.SSH_Username,))
+        output.append('SSHPassword: %s' % (server.SSH_Password,))
+        output.append('SSHHostKey: %s' % (server.SSH_Host_Key,))
     return output
 
 
@@ -408,14 +427,18 @@ def make_file_for_host(host_id, filename, discovery_date=datetime.datetime.now()
             ws.write(i, 0, server.Server_ID)
             ws.write(i, 1, '') # Host_ID, not needed
             ws.write(i, 2, server.IP_Address)
-            ws.write(i, 3, server.Web_Server_Port)
-            ws.write(i, 4, server.Web_Server_Secret)
-            ws.write(i, 5, server.Web_Server_Certificate)
-            ws.write(i, 6, server.Web_Server_Private_Key)
-            ws.write(i, 7, server.Discovery_Propagation_Channel_ID)
-            ws.write(i, 8, server.Discovery_Time_Start, date_style)
-            ws.write(i, 9, server.Discovery_Time_End, date_style)
-            ws.write(i, 10, '') # Notes, not needed
+            ws.write(i, 3, server.Discovery_Propagation_Channel_ID)
+            ws.write(i, 4, server.Discovery_Time_Start, date_style)
+            ws.write(i, 5, server.Discovery_Time_End, date_style)
+            ws.write(i, 6, server.Web_Server_Port)
+            ws.write(i, 7, server.Web_Server_Secret)
+            ws.write(i, 8, server.Web_Server_Certificate)
+            ws.write(i, 9, server.Web_Server_Private_Key)
+            ws.write(i, 10, server.SSH_Port)
+            ws.write(i, 11, server.SSH_Username)
+            ws.write(i, 12, server.SSH_Password)
+            ws.write(i, 13, server.SSH_Host_Key)
+            ws.write(i, 14, '') # Notes, not needed
             i += 1
 
     ws = wb.add_sheet(HOME_PAGES_SHEET_NAME)

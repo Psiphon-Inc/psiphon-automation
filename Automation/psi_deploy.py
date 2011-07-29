@@ -59,8 +59,9 @@ def deploy(host):
     print 'deploy to host %s...' % (host.Host_ID,)
 
     ssh = psi_ssh.SSH(
-            host.IP_Address, host.SSH_Username,
-            host.SSH_Password, host.SSH_Host_Key)
+            host.IP_Address, host.SSH_Port,
+            host.SSH_Username, host.SSH_Password,
+            host.SSH_Host_Key)
 
     # Copy server source code
 

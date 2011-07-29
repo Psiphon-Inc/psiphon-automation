@@ -312,8 +312,9 @@ if __name__ == "__main__":
 
     for host in unconfigured_hosts:
         ssh = psi_ssh.SSH(
-                host.IP_Address, host.SSH_Username,
-                host.SSH_Password, host.SSH_Host_Key)
+                host.IP_Address, host.SSH_Port,
+                host.SSH_Username, host.SSH_Password,
+                host.SSH_Host_Key)
 
         host_servers = [server for server in psi_db.get_servers()\
                         if server.Host_ID == host.Host_ID]
