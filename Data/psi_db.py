@@ -357,6 +357,8 @@ def handshake(server_ip_address, client_ip_address, propagation_channel_id, spon
         output.append('SSHPort: %s' % (server.SSH_Port,))
         output.append('SSHUsername: %s' % (server.SSH_Username,))
         output.append('SSHPassword: %s' % (server.SSH_Password,))
+        key_type, host_key = server.SSH_Host_Key.split(' ')
+        assert(key_type == 'ssh-rsa')
         output.append('SSHHostKey: %s' % (server.SSH_Host_Key,))
     return output
 
