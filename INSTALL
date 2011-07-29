@@ -140,16 +140,33 @@ Dependencies
 - Python 2.6+ and modules
 
 
-1. Configure firewall and IP forwarding
----------------------------------------
+1. Configure SSH, firewall and IP forwarding
+--------------------------------------------
 
-/etc/iptables.rules:
+Update the SSH configuration to bind to only one IP address and to use port 2222
+(or another port of your choice, but pay attention to the firewall rules below).
+Configure it so that only root may login through SSH.
+
+Modify /etc/ssh/sshd_config:
+
+  Port 2222
+  ListenAddress x.x.x.x 
+  ...
+  AllowUsers root
+  ...
+
+Restart ssh:
+
+  /etc/init.d/ssh restart
+
+Create /etc/iptables.rules:
 
   *filter
   -A INPUT -i lo -j ACCEPT
   -A INPUT -d 127.0.0.0/8 -i ! lo -j REJECT --reject-with icmp-port-unreachable
   -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
   -A INPUT -p tcp -m state --state NEW -m tcp --dport 22 -j ACCEPT
+  -A INPUT -p tcp -m state --state NEW -m tcp --dport 2222 -j ACCEPT
   -A INPUT -p tcp -m state --state NEW -m tcp --dport 8080 -j ACCEPT
   -A INPUT -p esp -j ACCEPT
   -A INPUT -p ah -j ACCEPT
@@ -164,7 +181,7 @@ Dependencies
   -A POSTROUTING -s 10.0.0.0/8 -o eth+ -j MASQUERADE
   COMMIT
 
-/etc/network/if-up.d/firewall (chmod +x):
+Create /etc/network/if-up.d/firewall (chmod +x):
 
   #!/bin/sh
 
@@ -180,9 +197,11 @@ Enable the firewall and IP forwarding:
   /etc/init.d/procps start
 
 
-2. Install fail2ban
----------------------
+2. Install xinetd, fail2ban
+---------------------------
 
+apt-get update
+apt-get install xinetd
 apt-get install fail2ban
 
 As management SSH access is open to any source IP address, we recommend
@@ -385,8 +404,8 @@ Restart the firewall and fprobe-ulog services:
 
 See the section below on Network Database Configuration.
 
-- Add an entry for the host, including a name (Host_ID), IP address, and
-root-privilege SSH user credentials and host public key. This information is
+- Add an entry for the host, including a name (Host_ID), IP address, SSH port,
+and root-privilege SSH user credentials and host public key. This information is
 used by the install and deploy script to connect to each host and upload
 configuration information.
 
