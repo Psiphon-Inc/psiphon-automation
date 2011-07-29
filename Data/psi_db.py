@@ -352,14 +352,14 @@ def handshake(server_ip_address, client_ip_address, propagation_channel_id, spon
     # output.append(psi_psk.set_psk(self.server_ip_address))
 
     # SSH relay protocol info
-    server = filter(lambda x : x.IP_Address == server_ip_address, get_servers())
+    server = filter(lambda x : x.IP_Address == server_ip_address, get_servers())[0]
     if server and server.SSH_Host_Key:
         output.append('SSHPort: %s' % (server.SSH_Port,))
         output.append('SSHUsername: %s' % (server.SSH_Username,))
         output.append('SSHPassword: %s' % (server.SSH_Password,))
         key_type, host_key = server.SSH_Host_Key.split(' ')
         assert(key_type == 'ssh-rsa')
-        output.append('SSHHostKey: %s' % (server.SSH_Host_Key,))
+        output.append('SSHHostKey: %s' % (host_key,))
     return output
 
 
