@@ -225,6 +225,51 @@ def make_ipsec_secrets_file_command():
     return 'echo "" > /etc/ipsec.secrets && chmod 666 /etc/ipsec.secrets'
 
 
+def make_sshd_config_file_command(server_index, ssh_user):
+    file_contents = textwrap.dedent('''
+        AllowUsers %s
+        HostKey /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%d
+        PrintLastLog no
+        PrintMotd no
+        UseDNS no
+        UsePAM yes
+        ''' % (ssh_user, server_index))
+
+    return 'echo "%s" > /etc/ssh/sshd_config.psiphon_ssh_%d' % (
+        file_contents, server_index)
+
+
+def make_xinetd_config_file_command(ip_addresses):
+
+    defaults_section = textwrap.dedent('''
+        defaults
+        {
+        
+        }
+        ''')
+    
+    ssh_service_section_template = textwrap.dedent('''
+        service ssh
+        {
+            id              = psiphon_ssh.%d
+            bind            = %s
+            socket_type     = stream
+            protocol        = tcp
+            wait            = no
+            user            = root
+            group           = nogroup
+            server          = /usr/sbin/sshd
+            server_args     = -i -4 -f /etc/ssh/sshd_config.psiphon_ssh_%d
+        }
+        ''')
+
+    file_contents = defaults_section + '\n'.join(
+        [ssh_service_section_template % (index, ip_address, index)
+         for index, ip_address in enumerate(ip_addresses)])
+
+    return 'echo "%s" > /etc/xinetd.conf' % (file_contents,)
+
+
 def generate_web_server_secret():
     return binascii.hexlify(os.urandom(WEB_SERVER_SECRET_BYTE_LENGTH))
 
@@ -303,7 +348,10 @@ if __name__ == "__main__":
                             if server.Server_ID is None or
                                server.Web_Server_Secret is None or
                                server.Web_Server_Certificate is None or
-                               server.Web_Server_Private_Key is None]
+                               server.Web_Server_Private_Key is None or
+                               server.SSH_Username is None or
+                               server.SSH_Password is None or
+                               server.SSH_Host_Key is None]
 
     unconfigured_host_ids = set([server.Host_ID for server in unconfigured_servers])
 
@@ -359,6 +407,53 @@ if __name__ == "__main__":
         ssh.exec_command('/etc/init.d/xl2tpd restart')
 
         #
+        # Generate and upload sshd_config files and xinetd.conf
+        #
+        
+        new_ssh_credentials = {}
+        new_ssh_host_keys = {}
+        for index, server in enumerate(host_servers):
+            # Generate SSH credentials and SSH host key here because we need to create them
+            # on the server and use them in the sshd_config files.
+            # They will be updated in the database below.
+            ssh_username = server.SSH_Username
+            ssh_password = server.SSH_Password
+            ssh_host_key = server.SSH_Host_Key
+            if ssh_username is None or ssh_password is None:
+                ssh_username = 'psiphon_ssh_%s' % (binascii.hexlify(os.urandom(8)),)
+                ssh_password = binascii.hexlify(os.urandom(32))
+                new_ssh_credentials[server.IP_Address] = (ssh_username, ssh_password)
+            if ssh_host_key is None:
+                ssh.exec_command('rm /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%d' % (index,))
+                ssh.exec_command('ssh-keygen -t rsa -N \"\" -f /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%d' % (index,))
+                try:
+                    # TODO: use temp dir?
+                    ssh.get_file('/etc/ssh/ssh_host_rsa_key.psiphon_ssh_%d.pub' % (index,), 'ssh_host_key')
+                    with open('ssh_host_key') as file:
+                        key = file.read()
+                finally:
+                    os.remove('ssh_host_key')
+                # expected format: ssh-rsa <base64> username@host
+                # output format: ssh-rsa <base64>
+                ssh_host_key = ' '.join(key.split(' ')[:2])
+                new_ssh_host_keys[server.IP_Address] = ssh_host_key
+
+            # NOTE unconditionally attempt to create the user.  It's OK if it fails because
+            #      the user already exists
+            ssh.exec_command('useradd -d /dev/null -s /bin/false %s && echo \"%s:%s\"|chpasswd' % (ssh_username, ssh_username, ssh_password))
+            ssh.exec_command(make_sshd_config_file_command(index, ssh_username))
+            # NOTE we do not write the ssh host key back to the server because it is generated
+            #      on the server in the first place.
+        
+        ssh.exec_command(make_xinetd_config_file_command([server.IP_Address for server in host_servers]))
+        
+        #
+        # Restart the xinetd service
+        #
+
+        ssh.exec_command('/etc/init.d/xinetd restart')
+
+        #
         # Generate unique server alias and web server credentials
         # Values are stored in updated database; upload happens in deploy below
         #
@@ -394,13 +489,27 @@ if __name__ == "__main__":
                 key = ''.join(key_pem.split('\n')[1:-2])
                 cert = ''.join(cert_pem.split('\n')[1:-2])
 
+            # If a new set of SSH credentials or SSH host key has been created
+            # for this server, we need to get it out of new_ssh_credentials and 
+            # update the server record
+            ssh_username = server.SSH_Username
+            ssh_password = server.SSH_Password
+            ssh_host_key = server.SSH_Host_Key
+            if new_ssh_credentials.has_key(server.IP_Address):
+                ssh_username, ssh_password = new_ssh_credentials[server.IP_Address]
+            if new_ssh_host_keys.has_key(server.IP_Address):
+                ssh_host_key = new_ssh_host_keys[server.IP_Address]
+            
             # Reference update rows by IP address
             server_database_updates.append(
                 ((u'IP_Address', server.IP_Address),
                  [(u'Server_ID', server_id),
                   (u'Web_Server_Secret', web_server_secret),
                   (u'Web_Server_Certificate', cert),
-                  (u'Web_Server_Private_Key', key)]))
+                  (u'Web_Server_Private_Key', key),
+                  (u'SSH_Username', ssh_username),
+                  (u'SSH_Password', ssh_password),
+                  (u'SSH_Host_Key', ssh_host_key)]))
 
         ssh.close()
 
@@ -410,5 +519,5 @@ if __name__ == "__main__":
         # Deploy will upload web server source database data and client builds
         psi_deploy.deploy(host)
 
-        # Test handshake and VPN connection to each server
-        psi_test.test_servers()
+    # Test handshake and VPN connection to each server
+    psi_test.test_servers()
