@@ -96,8 +96,12 @@ def build_client():
             os.remove(command_filename)
 
 
-def write_embedded_values(propagation_channel_id, sponsor_id, client_version,
-                          embedded_server_list, ignore_system_server_list=False):
+def write_embedded_values(propagation_channel_id,
+                          sponsor_id,
+                          client_version,
+                          embedded_server_list,
+                          ignore_system_server_list=False,
+                          ignore_vpn_relay=False):
     template = textwrap.dedent('''
         #pragma once
 
@@ -113,13 +117,64 @@ def write_embedded_values(propagation_channel_id, sponsor_id, client_version,
 
         // When this flag is set, only the embedded server list is used. This is for testing only.
         static const int IGNORE_SYSTEM_SERVER_LIST = %d;
+
+        // When this flag is set, VPN relay is skipped. This is for testing only.
+        static const int IGNORE_VPN_RELAY = %d;
         ''')
     with open(EMBEDDED_VALUES_FILENAME, 'w') as file:
         file.write(template % (propagation_channel_id,
                                sponsor_id,
                                client_version,
                                '\\n'.join(embedded_server_list),
-                               (1 if ignore_system_server_list else 0)))
+                               (1 if ignore_system_server_list else 0),
+                               (1 if ignore_vpn_relay else 0)))
+
+
+def __test_server(server, latest_version_number, mode):
+
+    # Overwrite embedded values source file. Using invalid (blank)
+    # propagation channel and sponsor IDs, so handshake will not
+    # perform discovery or return home pages -- at this time, these
+    # test clients are primarily to test the establishment of a VPN
+    # connection.
+    write_embedded_values(
+        '0', # Propagation_Channel_ID
+        '0', # Sponsor_ID
+        latest_version_number,
+        [psi_db.get_encoded_server_entry(server)],
+        ignore_system_server_list=True,
+        ignore_vpn_relay=(True if mode == 'ssh' else False))
+
+    # build
+    build_client()
+
+    # test:
+    # - spawn client process, which starts the VPN
+    # - sleep 5 seconds, which allows time to establish connection
+    # - determine egress IP address and assert it matches host IP address
+    # - post WM_CLOSE to gracefully shut down the client and its connection
+    print 'Testing server %s on host %s mode %s...' % (server.IP_Address,
+                                                       server.Host_ID,
+                                                       mode)
+
+    proc = subprocess.Popen([EXECUTABLE_FILENAME])
+    time.sleep(15)
+
+    # In VPN mode, all traffic is routed through the proxy. In SSH mode, the
+    # urlib2 ProxyHandler picks up the Windows Internet Settings and uses the
+    # HTTP Proxy that is set by the client.
+    egress_ip_address = urllib2.urlopen(CHECK_IP_ADDRESS_URL).read().split('\n')[0]
+
+    win32ui.FindWindow(None, APPLICATION_TITLE).PostMessage(win32con.WM_CLOSE)
+    proc.wait()
+
+    # signal client to close before asserting
+    expected_egress_ip_address = psi_db.get_egress_ip_address_for_server(server)
+
+    if egress_ip_address != expected_egress_ip_address:
+        return (mode, server.IP_Address, egress_ip_address, expected_egress_ip_address)
+
+    return None
 
 
 def __test_servers(latest_version_number):
@@ -139,42 +194,16 @@ def __test_servers(latest_version_number):
             # Server is not installed
             continue
 
-        # Overwrite embedded values source file. Using invalid (blank)
-        # propagation channel and sponsor IDs, so handshake will not
-        # perform discovery or return home pages -- at this time, these
-        # test clients are primarily to test the establishment of a VPN
-        # connection.
-        write_embedded_values(
-            '0', # Propagation_Channel_ID
-            '0', # Sponsor_ID
-            latest_version_number,
-            [psi_db.get_encoded_server_entry(server)],
-            ignore_system_server_list=True)
+        # Always test VPN relay
+        failure = __test_server(server, latest_version_number, 'vpn')
+        if failure:
+            failures.append(failure)
 
-        # build
-        build_client()
-
-        # test:
-        # - spawn client process, which starts the VPN
-        # - sleep 5 seconds, which allows time to establish connection
-        # - determine egress IP address and assert it matches host IP address
-        # - post WM_CLOSE to gracefully shut down the client and its connection
-        print 'Testing server %s on host %s...' % (server.IP_Address,
-                                                   server.Host_ID)
-
-        proc = subprocess.Popen([EXECUTABLE_FILENAME])
-        time.sleep(15)
-
-        egress_ip_address = urllib2.urlopen(CHECK_IP_ADDRESS_URL).read().split('\n')[0]
-
-        win32ui.FindWindow(None, APPLICATION_TITLE).PostMessage(win32con.WM_CLOSE)
-        proc.wait()
-
-        # signal client to close before asserting
-        expected_egress_ip_address = psi_db.get_egress_ip_address_for_server(server)
-
-        if egress_ip_address != expected_egress_ip_address:
-            failures.append((server.IP_Address, egress_ip_address, expected_egress_ip_address))
+        # Test SSH relay if configured
+        if server.SSH_Host_Key:
+            failure = __test_server(server, latest_version_number, 'ssh')
+            if failure:
+                failures.append(failure)
 
     if failures:
         raise Exception(str(failures))
