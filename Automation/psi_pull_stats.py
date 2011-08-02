@@ -103,19 +103,22 @@ LOG_EVENT_TYPE_SCHEMA = {
                          'propagation_channel_id',
                          'sponsor_id',
                          'client_version',
-                         'client_vpn_ip_address'),
+                         'relay_protocol',
+                         'session_id'),
     'failed' :          ('server_id',
                          'client_region',
                          'propagation_channel_id',
                          'sponsor_id',
                          'client_version',
+                         'relay_protocol',
                          'error_code'),
     'download' :        ('server_id',
                          'client_region',
                          'propagation_channel_id',
                          'sponsor_id',
                          'client_version'),
-    'disconnected' :    ('client_vpn_ip_address',)}
+    'disconnected' :    ('relay_protocol',
+                         'session_id')}
 
 # Additional stat tables that don't correspond to log line entries. Currently
 # this is the session table, which is populated in post-processing that links
@@ -128,7 +131,8 @@ ADDITIONAL_TABLES_SCHEMA = {
                          'propagation_channel_id',
                          'sponsor_id',
                          'client_version',
-                         'client_vpn_ip_address',
+                         'relay_protocol',
+                         'session_id',
                          'session_start_timestamp',
                          'session_end_timestamp')}
 
@@ -234,7 +238,7 @@ def reconstruct_sessions(db):
     # Populate the session table. For each connection, create a session. Some
     # connections will have no end time, depending on when the logs are pulled.
     # Find the end time by selecting the 'disconnected' event with the same
-    # host_id and client_vpn_ip_address soonest after the connected timestamp.
+    # host_id and session_id soonest after the connected timestamp.
 
     # Note: this order of operations -- deleting all the sessions -- is to avoid
     # duplicate session entries in the case where a previous pull created
@@ -254,8 +258,10 @@ def reconstruct_sessions(db):
                     select timestamp from disconnected
                     where timestamp > ?
                     and host_id = ?
-                    and client_vpn_ip_address = ?
-                    order by timestamp asc limit 1'''), [row[0], row[1], row[7]]).fetchone()
+                    and session_id = ?
+                    and relay_protocol = ?
+                    order by timestamp asc limit 1'''),
+                    [row[0], row[1], row[7], row[8]]).fetchone()
         session_end_timestamp = disconnected_row[0] if disconnected_row else None
 
         command = 'insert into session (%s) values (%s)' % (
@@ -265,7 +271,7 @@ def reconstruct_sessions(db):
         connected_field_names = LOG_ENTRY_COMMON_FIELDS + LOG_EVENT_TYPE_SCHEMA['connected']
         assert(connected_field_names[0] == 'timestamp' and
                connected_field_names[1] == 'host_id' and
-               connected_field_names[7] == 'client_vpn_ip_address')
+               connected_field_names[8] == 'session_id')
         db.execute(command, list(row[1:])+[row[0], session_end_timestamp])
 
 
