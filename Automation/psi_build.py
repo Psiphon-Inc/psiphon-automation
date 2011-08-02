@@ -163,6 +163,7 @@ def __test_server(server, latest_version_number, mode):
     # In VPN mode, all traffic is routed through the proxy. In SSH mode, the
     # urlib2 ProxyHandler picks up the Windows Internet Settings and uses the
     # HTTP Proxy that is set by the client.
+    urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler()))
     egress_ip_address = urllib2.urlopen(CHECK_IP_ADDRESS_URL).read().split('\n')[0]
 
     win32ui.FindWindow(None, APPLICATION_TITLE).PostMessage(win32con.WM_CLOSE)
