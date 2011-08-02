@@ -233,6 +233,7 @@ def make_sshd_config_file_command(server_index, ssh_user):
         PrintMotd no
         UseDNS no
         UsePAM yes
+        LogLevel ERROR
         ''' % (ssh_user, server_index))
 
     return 'echo "%s" > /etc/ssh/sshd_config.psiphon_ssh_%d' % (
@@ -244,10 +245,10 @@ def make_xinetd_config_file_command(ip_addresses):
     defaults_section = textwrap.dedent('''
         defaults
         {
-        
+
         }
         ''')
-    
+
     ssh_service_section_template = textwrap.dedent('''
         service ssh
         {
@@ -409,7 +410,7 @@ if __name__ == "__main__":
         #
         # Generate and upload sshd_config files and xinetd.conf
         #
-        
+
         new_ssh_credentials = {}
         new_ssh_host_keys = {}
         for index, server in enumerate(host_servers):
@@ -444,9 +445,9 @@ if __name__ == "__main__":
             ssh.exec_command(make_sshd_config_file_command(index, ssh_username))
             # NOTE we do not write the ssh host key back to the server because it is generated
             #      on the server in the first place.
-        
+
         ssh.exec_command(make_xinetd_config_file_command([server.IP_Address for server in host_servers]))
-        
+
         #
         # Restart the xinetd service
         #
@@ -490,7 +491,7 @@ if __name__ == "__main__":
                 cert = ''.join(cert_pem.split('\n')[1:-2])
 
             # If a new set of SSH credentials or SSH host key has been created
-            # for this server, we need to get it out of new_ssh_credentials and 
+            # for this server, we need to get it out of new_ssh_credentials and
             # update the server record
             ssh_username = server.SSH_Username
             ssh_password = server.SSH_Password
@@ -499,7 +500,7 @@ if __name__ == "__main__":
                 ssh_username, ssh_password = new_ssh_credentials[server.IP_Address]
             if new_ssh_host_keys.has_key(server.IP_Address):
                 ssh_host_key = new_ssh_host_keys[server.IP_Address]
-            
+
             # Reference update rows by IP address
             server_database_updates.append(
                 ((u'IP_Address', server.IP_Address),
