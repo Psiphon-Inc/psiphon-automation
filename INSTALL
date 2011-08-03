@@ -398,6 +398,15 @@ Restart the firewall and fprobe-ulog services:
   invoke-rc.d fprobe-ulog restart
   invoke-rc.d nfdump restart
 
+(4) (Optional) Create a user capable of collecting logs
+
+  useradd -g adm -d /var/log <unique user name>
+
+Add this user to the list of users in AllowUsers in /etc/ssh/sshd_config.
+
+Note: it is a good idea to use a unique user name and a strong randomly
+generated password for this user on each host.
+
 
 8. Add host and servers to network database
 -------------------------------------------
