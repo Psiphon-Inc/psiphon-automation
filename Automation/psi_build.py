@@ -262,7 +262,7 @@ def do_build(build_func):
 
         psi_db.validate_data()
         versions = psi_db.get_versions()
-        latest_version_number = max([versions[i].Client_Version for i in range(len(versions))])
+        latest_version_number = max([int(versions[i].Client_Version) for i in range(len(versions))])
 
         build_func(latest_version_number)
 
