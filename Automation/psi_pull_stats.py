@@ -258,8 +258,8 @@ def reconstruct_sessions(db):
                     select timestamp from disconnected
                     where timestamp > ?
                     and host_id = ?
-                    and session_id = ?
                     and relay_protocol = ?
+                    and session_id = ?
                     order by timestamp asc limit 1'''),
                     [row[0], row[1], row[7], row[8]]).fetchone()
         session_end_timestamp = disconnected_row[0] if disconnected_row else None
