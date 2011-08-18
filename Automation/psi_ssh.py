@@ -53,6 +53,13 @@ class SSH(object):
         sftp.close()
         return list
 
+    def stat_file(self, remote_path):
+        print 'SSH %s: stat file %s' % (self.ip_address, remote_path)
+        sftp = self.ssh.open_sftp()
+        attributes = sftp.lstat(remote_path)
+        sftp.close()
+        return attributes
+
     def put_file(self, local_path, remote_path):
         print 'SSH %s: put file %s %s' % (self.ip_address, local_path, remote_path)
         sftp = self.ssh.open_sftp()
