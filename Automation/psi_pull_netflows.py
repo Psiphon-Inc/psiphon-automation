@@ -53,7 +53,7 @@ def pull_dir(ssh, remote_path, local_path):
 
     # Recursively copy the contents of remote_path to local_path
     try:
-        remote_entries = ssh.list_dir(remote_path)
+        remote_entries = ssh.list_dir_attributes(remote_path)
     except IOError:
         # Possible the directory doesn't exist.  Can't do anything
         # about it anyways.
@@ -66,17 +66,16 @@ def pull_dir(ssh, remote_path, local_path):
         # won't be valid since this file always changes.  We don't
         # need this file anyways since we collect netflows regularly
         # and we'll get it the next time around.
-        if entry == 'nfcapd.current':
+        if entry.filename == 'nfcapd.current':
             continue
 
-        remote_entry_path = posixpath.join(remote_path, entry)
-        remote_entry_stat = ssh.stat_file(remote_entry_path)
-        local_entry_path = os.path.join(local_path, entry)
+        remote_entry_path = posixpath.join(remote_path, entry.filename)
+        local_entry_path = os.path.join(local_path, entry.filename)
         local_entry_stat = None
         if os.path.exists(local_entry_path):
             local_entry_stat = os.stat(local_entry_path)
  
-        if stat.S_ISDIR(remote_entry_stat.st_mode):
+        if stat.S_ISDIR(entry.st_mode):
             # Create the directory locally if it does not already exist
             if not os.path.exists(local_entry_path):
                 os.mkdir(local_entry_path)
@@ -86,7 +85,7 @@ def pull_dir(ssh, remote_path, local_path):
         else:
             # Copy the file if we don't have a local copy
             # or if the remote version is bigger than the local copy
-            if not local_entry_stat or local_entry_stat.st_size < remote_entry_stat.st_size:
+            if not local_entry_stat or local_entry_stat.st_size < entry.st_size:
                 ssh.get_file(remote_entry_path, local_entry_path)
 
 
