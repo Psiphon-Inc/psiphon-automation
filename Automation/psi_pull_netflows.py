@@ -34,7 +34,7 @@ HOST_NETFLOW_DIR = '/var/cache/nfdump'
 NETFLOWS_ROOT = os.path.abspath(os.path.join('..', 'Data', 'Netflows'))
 
 # if psi_build_config.py exists, load it and use psi_build_config.DATA_ROOT as the data root dir
-# TODO: Support an alternate path in psi_data_config.py for netflows
+# TODO: Support an alternate path in psi_data_config.py for netflows?
 
 if os.path.isfile('psi_data_config.py'):
     import psi_data_config
@@ -89,7 +89,9 @@ def pull_dir(ssh, remote_path, local_path):
                 ssh.get_file(remote_entry_path, local_entry_path)
 
 
-def pull_netflows(remote_host):
+def pull_netflows(host):
+
+    print 'pull netflows from host %s...' % (host.Host_ID,)
 
     host_netflows_root = os.path.join(NETFLOWS_ROOT, host.Host_ID)
     if not os.path.exists(host_netflows_root):
@@ -99,6 +101,12 @@ def pull_netflows(remote_host):
                       host.SSH_Username, host.SSH_Password, host.SSH_Host_Key)
 
     pull_dir(ssh, HOST_NETFLOW_DIR, host_netflows_root)
+
+    ssh.close()
+
+    output_csv_path = host_netflows_root + '.csv'
+    os.system('TZ=GMT nfdump -q -R %s -o csv > %s' % (host_netflows_root, output_csv_path))
+    return output_csv_path
 
 
 if __name__ == "__main__":

@@ -26,8 +26,13 @@ import textwrap
 import gzip
 import sqlite3
 import traceback
+import csv
+import datetime
+import collections
+import bisect
 
 import psi_ssh
+from psi_pull_netflows import pull_netflows
 
 sys.path.insert(0, os.path.abspath(os.path.join('..', 'Data')))
 import psi_db
@@ -134,7 +139,21 @@ ADDITIONAL_TABLES_SCHEMA = {
                          'relay_protocol',
                          'session_id',
                          'session_start_timestamp',
-                         'session_end_timestamp')}
+                         'session_end_timestamp'),
+    'outbound' :        ('host_id',
+                         'server_id',
+                         'client_region',
+                         'propagation_channel_id',
+                         'sponsor_id',
+                         'client_version',
+                         'relay_protocol',
+                         'session_id',
+                         'day',
+                         'domain',
+                         'protocol',
+                         'port',
+                         'flow_count',
+                         'outbound_byte_count')}
 
 
 def init_stats_db(db):
@@ -234,6 +253,14 @@ def pull_stats(db, error_file, host):
     ssh.close()
 
 
+def iso8601_to_utc(timestamp):
+    localized_datetime = datetime.datetime.strptime(timestamp[:24], '%Y-%m-%dT%H:%M:%S.%f')
+    timezone_delta = datetime.timedelta(
+                                hours = int(timestamp[-6:-3]),
+                                minutes = int(timestamp[-2:]))
+    return (localized_datetime - timezone_delta).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+
+
 def reconstruct_sessions(db):
     # Populate the session table. For each connection, create a session. Some
     # connections will have no end time, depending on when the logs are pulled.
@@ -275,7 +302,151 @@ def reconstruct_sessions(db):
         assert(connected_field_names[0] == 'timestamp' and
                connected_field_names[1] == 'host_id' and
                connected_field_names[8] == 'session_id')
-        db.execute(command, list(row[1:])+[row[0], session_end_timestamp])
+        # Note: We convert timestamps here to UTC to ease matching of outbound statistics
+        #       (and any other records that may not have consistent timezone info) to sessions.
+        session_start_utc = iso8601_to_utc(row[0])
+        session_end_utc = iso8601_to_utc(session_end_timestamp) if session_end_timestamp else None
+        db.execute(command, list(row[1:])+[session_start_utc, session_end_utc])
+
+
+def process_vpn_outbound_stats(db, error_file, csv_file, host_id):
+
+    print 'processing vpn outbound stats from host %s...' % (host_id,)
+
+    # CSV format
+    #
+    # HEADER:
+    # ts,te,td,sa,da,
+    # sp,dp,pr,flg,fwd,stos,ipkt,ibyt,opkt,obyt,in,out,
+    # sas,das,smk,dmk,dtos,dir,nh,nhb,svln,dvln,ismc,odmc,idmc,osmc,
+    # mpls1,mpls2,mpls3,mpls4,mpls5,mpls6,mpls7,mpls8,mpls9,mpls10,ra,eng
+    #
+    # SAMPLE ROW:
+    # 2011-07-04 16:09:14,2011-07-04 16:09:14,0.351,10.1.0.2,208.69.58.58,
+    # 4046,80,TCP,.AP.SF,0,0,6,686,0,0,117,100,
+    # 0,0,0,0,0,0,0.0.0.0,0.0.0.0,0,0,00:00:00:00:00:00,00:00:00:00:00:00,00:00:00:00:00:00,00:00:00:00:00:00,
+    # 0-0-0,0-0-0,0-0-0,0-0-0,0-0-0,0-0-0,0-0-0,0-0-0,0-0-0,0-0-0,0.0.0.0,0/0
+    #
+    # Note that there is no timezone info given in ts and te.  These timestamps
+    # are reported in UTC.
+    #
+    # To compare netflow timestamps (which don't have millisecond resolution)
+    # to session timestamps, we truncate the session timestamps milliseconds
+    # and timezone info.
+    # There is a small chance that multiple sessions will occur on the same
+    # session_id (client vpn ip address) in the same second so that a flow
+    # occuring in a single second will match both sessions.
+    # TODO: investigate nf_dump -o extended millisecond resolution
+
+
+    #****#
+    SessionInfo = collections.namedtuple('SessionInfo', 'client_region, host_id, session_id, session_start_timestamp, session_end_timestamp')
+    cursor = db.execute(
+        textwrap.dedent(
+        '''select
+           client_region, host_id, session_id, substr(session_start_timestamp,1,19), substr(session_end_timestamp,1,19)
+           from session
+           where relay_protocol = 'VPN'
+           and host_id = '%s'
+           order by substr(session_end_timestamp,1,19) asc''' % (host_id,)))
+
+    class Index:
+        def __init__(self):
+            self.keys = []
+            self.data = []
+
+    session_index1 = collections.defaultdict(Index)
+
+    for row in cursor:
+        session_info = SessionInfo(*row)
+        key = session_info.host_id + session_info.session_id
+        index = session_index1[key]
+        index.keys.append(session_info.session_end_timestamp)
+        index.data.append(session_info)
+
+    # http://docs.python.org/library/bisect.html#searching-sorted-lists
+    def find_ge(a, x):
+        'Find leftmost item greater than or equal to x'
+        array_index = bisect.bisect_left(a, x)
+        if array_index != len(a):
+            return array_index
+        return None
+
+    def find_session1(host_id, session_id, flow_end_timestamp):
+        key = host_id + session_id
+        host_sessions = session_index1.get(key)
+        if not host_sessions:
+            return None
+        # http://docs.python.org/library/bisect.html#other-examples
+        array_index = find_ge(host_sessions.keys, flow_end_timestamp)
+        return host_sessions.data[array_index] if array_index else None
+
+    #@@@@#
+    cursor = db.execute(
+        textwrap.dedent(
+        '''select
+           client_region, host_id, session_id, substr(session_start_timestamp,1,19), substr(session_end_timestamp,1,19)
+           from session
+           where relay_protocol = 'VPN'
+           and host_id = '%s'
+           order by substr(session_start_timestamp,1,19) asc''' % (host_id,)))
+
+    session_start_index = collections.defaultdict(Index)
+
+    for row in cursor:
+        session_info = SessionInfo(*row)
+        key = session_info.host_id + session_info.session_id
+        index = session_start_index[key]
+        index.keys.append(session_info.session_start_timestamp)
+        index.data.append(session_info)
+
+    def find_latest_starting_session(host_id, session_id):
+        key = host_id + session_id
+        host_sessions = session_start_index.get(key)
+        if not host_sessions:
+            return None
+        return host_sessions.data[-1]
+    #@@@@#
+    #****#
+
+    db.execute("delete from outbound where relay_protocol = 'VPN' and host_id = '%s'" % (host_id,))
+
+    hits = 0;
+    misses = 0;
+
+    def to_iso8601(timestamp, tweak_seconds = 0):
+        utc_datetime = datetime.datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
+        tweak_delta = datetime.timedelta(seconds=tweak_seconds)
+        return (utc_datetime + tweak_delta).strftime('%Y-%m-%dT%H:%M:%S')
+
+    outbound_reader = csv.reader(csv_file)
+    for row in outbound_reader:
+        # Stop reading at the Summary row
+        if 'Summary' in row:
+            break
+
+        # Skip blank rows
+        if not len(row):
+            continue
+
+        # First find the earliest session that ends after the netflow end timestamp.
+        session = find_session1(host_id, row[3], to_iso8601(row[1]))
+
+        if not session:
+            # If we couldn't find a session end timestamp on or after the netflow end timestamp,
+            # then the netflow must belong to the latest (or currently active) session.
+            session = find_latest_starting_session(host_id, row[3])
+
+        if not session:
+            misses += 1;
+            err = 'no session for outbound netflow on host %s: %s' % (host_id, str(row))
+            error_file.write(err + '\n')
+            continue
+        else:
+            hits += 1;
+
+    print 'hits: ' + str(hits)
+    print 'misses: ' + str(misses)
 
 
 if __name__ == "__main__":
@@ -289,10 +460,10 @@ if __name__ == "__main__":
 
     try:
         init_stats_db(db)
+        hosts = psi_db.get_hosts()
 
         # Pull stats from each host
 
-        hosts = psi_db.get_hosts()
         for host in hosts:
             pull_stats(db, error_file, host)
 
@@ -300,9 +471,17 @@ if __name__ == "__main__":
 
         reconstruct_sessions(db)
 
+        # Pull netflows from each host and process them
+
+        for host in hosts:
+            csv_file_path = pull_netflows(host)
+            with open(csv_file_path, 'rb') as vpn_outbound_stats_csv:
+                process_vpn_outbound_stats(db, error_file, vpn_outbound_stats_csv, host.Host_ID)
+
     except:
         traceback.print_exc()
     finally:
         error_file.close()
         db.commit()
         db.close()
+
