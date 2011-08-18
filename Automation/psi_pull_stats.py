@@ -414,10 +414,8 @@ def process_vpn_outbound_stats(db, error_file, csv_file, host_id):
     hits = 0;
     misses = 0;
 
-    def to_iso8601(timestamp, tweak_seconds = 0):
-        utc_datetime = datetime.datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
-        tweak_delta = datetime.timedelta(seconds=tweak_seconds)
-        return (utc_datetime + tweak_delta).strftime('%Y-%m-%dT%H:%M:%S')
+    def to_iso8601(timestamp):
+        return datetime.datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S').strftime('%Y-%m-%dT%H:%M:%S')
 
     outbound_reader = csv.reader(csv_file)
     for row in outbound_reader:
