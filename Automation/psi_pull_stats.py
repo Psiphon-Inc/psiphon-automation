@@ -254,6 +254,9 @@ def reconstruct_sessions(db):
         # Check for a corresponding disconnected event
         # Timestamp is string field, but ISO 8601 format has the
         # lexicographical order we want.
+        # The timestamp string also includes a timezone, and the
+        # lexicographical compare still works because we are only
+        # comparing records from the same host (ie. same timezone).
         disconnected_row = db.execute(textwrap.dedent('''
                     select timestamp from disconnected
                     where timestamp > ?
