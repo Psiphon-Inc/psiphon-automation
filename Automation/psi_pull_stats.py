@@ -32,6 +32,7 @@ import collections
 import bisect
 import dns.reversename
 import dns.resolver
+import cPickle
 
 import psi_ssh
 from psi_pull_netflows import pull_netflows
@@ -313,10 +314,20 @@ def reconstruct_sessions(db):
 
 class ReverseDNS(object):
 
+    CACHE_FILE_NAME = os.path.join(STATS_ROOT, 'dns_cache')
+
     def __init__(self):
         # NOTE: cache size isn't limited
-        self.cache = {}
-    
+        try:
+            with open(self.CACHE_FILE_NAME, 'rb') as cache_file:
+                self.cache = cPickle.load(cache_file)
+        except:
+            self.cache = {}
+
+    def __del__(self):
+        with open(self.CACHE_FILE_NAME, 'wb') as cache_file:
+            cPickle.dump(self.cache, cache_file)
+
     def get_domain(self, ip_address):
         cached_result = self.cache.get(ip_address)
         if cached_result:
@@ -329,7 +340,7 @@ class ReverseDNS(object):
             # Strip trailing .
             hostname = hostname.rstrip('.')
             # TODO: use master domain suffix list to identify the part of the domain
-            # of interest and stip the extra prefix e.g., strip to just facebook.com
+            # of interest and strip the extra prefix e.g., strip to just facebook.com
             # See the list of suffixes: http://mxr.mozilla.org/mozilla-central/source/netwerk/dns/effective_tld_names.dat?raw=1
             # There are many different cases such as bbc.co.uk where we cannot
             # simply take the last two labels.
@@ -445,8 +456,12 @@ def process_vpn_outbound_stats(db, error_file, csv_file, host_id, dns_cache):
     # occuring in a single second will match both sessions.
     # TODO: investigate nf_dump -o extended millisecond resolution
 
+    # In-memory counters to avoid millions of database writes
+    outbound_rows = {}
+
     outbound_reader = csv.reader(csv_file)
     for row in outbound_reader:
+
         # Stop reading at the Summary row
         if 'Summary' in row:
             break
@@ -475,31 +490,19 @@ def process_vpn_outbound_stats(db, error_file, csv_file, host_id, dns_cache):
             field_values = list(session)[0:-2] + [
                             row[0][0:10], domain, row[7], row[6], '1', row[14]]
 
+        key = ','.join(field_values[0:-2])
+        existing_row = outbound_rows.get(key)
+        if existing_row:
+            existing_row[-2] = str(int(existing_row[-2]) + int(field_values[-2])) # flow_count
+            existing_row[-1] = str(int(existing_row[-1]) + int(field_values[-1])) # outbound_byte_count
+        else:
+            outbound_rows[key] = field_values
+
+    for key, field_values in outbound_rows.iteritems():
         field_names = ADDITIONAL_TABLES_SCHEMA['outbound']
-        matching_record = db.execute(textwrap.dedent(
-            '''
-            select flow_count, outbound_byte_count from outbound
-            where host_id = ?
-            and server_id = ?
-            and client_region = ?
-            and propagation_channel_id = ?
-            and sponsor_id = ?
-            and client_version = ?
-            and relay_protocol = ?
-            and session_id = ?
-            and day = ?
-            and domain = ?
-            and protocol = ?
-            and port = ?
-            '''), field_values[0:-2]).fetchone()
-
-        if matching_record:
-            field_values[-2] = str(int(matching_record[0]) + 1)
-            field_values[-1] = str(int(matching_record[1]) + int(row[14]))
-
-        command = 'insert or replace into outbound (%s) values (%s)' % (
-            ', '.join(field_names),
-            ', '.join(['?']*len(field_names)))
+        command = 'insert into outbound (%s) values (%s)' % (
+                  ', '.join(field_names),
+                  ', '.join(['?']*len(field_names)))
         db.execute(command, field_values)
 
 
