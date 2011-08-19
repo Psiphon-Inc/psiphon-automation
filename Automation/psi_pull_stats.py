@@ -30,6 +30,9 @@ import csv
 import datetime
 import collections
 import bisect
+import dns.reversename
+import dns.resolver
+import dns.exception
 
 import psi_ssh
 from psi_pull_netflows import pull_netflows
@@ -309,7 +312,38 @@ def reconstruct_sessions(db):
         db.execute(command, list(row[1:])+[session_start_utc, session_end_utc])
 
 
-class SessionIndex:
+class ReverseDNS(object):
+
+    def __init__(self):
+        # NOTE: cache size isn't limited
+        self.cache = {}
+    
+    def get_domain(self, ip_address):
+        cached_result = self.cache.get(ip_address)
+        if cached_result:
+            return cached_result
+        try:
+            # Construct the ip-addr form; e.g., '192.168.1.1.in-addr.arpa.'
+            in_addr = dns.reversename.from_address(ip_address)
+            # Output looks like 'www-11-01-snc2.facebook.com.'
+            hostname = str(dns.resolver.query(in_addr, 'PTR')[0])
+            # Strip trailing .
+            hostname = hostname.rstrip('.')
+            # TODO: use master domain suffix list to identify the part of the domain
+            # of interest and stip the extra prefix e.g., strip to just facebook.com
+            # See the list of suffixes: http://mxr.mozilla.org/mozilla-central/source/netwerk/dns/effective_tld_names.dat?raw=1
+            # There are many different cases such as bbc.co.uk where we cannot
+            # simply take the last two labels.
+            # labels = hostname.split('.')
+            self.cache[ip_address] = hostname
+            return hostname
+        except dns.exception:
+            pass
+        self.cache[ip_address] = ip_address
+        return ip_address
+
+
+class SessionIndex(object):
 
     def __init__(self, db, host_id):
 
