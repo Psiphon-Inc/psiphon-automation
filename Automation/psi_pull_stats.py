@@ -309,9 +309,83 @@ def reconstruct_sessions(db):
         db.execute(command, list(row[1:])+[session_start_utc, session_end_utc])
 
 
+class SessionIndex:
+
+    def __init__(self, db, host_id):
+
+        SessionInfo = collections.namedtuple(
+            'SessionInfo',
+            'host_id, server_id, client_region, propagation_channel_id, sponsor_id, '+
+            'client_version, relay_protocol, session_id, '+
+            'session_start_timestamp, session_end_timestamp')
+
+        class SortedArrayIndex:
+            def __init__(self):
+                self.keys = []
+                self.data = []
+
+        self.session_end_index = collections.defaultdict(SortedArrayIndex)
+        self.session_start_index = collections.defaultdict(SortedArrayIndex)
+
+        for sort_field, output_index in [
+            ('session_end_timestamp', self.session_end_index),
+            ('session_start_timestamp', self.session_start_index)]:
+
+            cursor = db.execute(
+                textwrap.dedent(
+                '''select
+                   host_id, server_id, client_region, propagation_channel_id, sponsor_id,
+                   client_version, relay_protocol, session_id,
+                   substr(session_start_timestamp,1,19), substr(session_end_timestamp,1,19)
+                   from session
+                   where host_id = ? and relay_protocol == 'VPN'
+                   order by substr(%s,1,19) asc''' % sort_field),
+                [host_id])
+
+            for row in cursor:
+                session_info = SessionInfo(*row)
+                sorted_array_index = output_index[session_info.session_id]
+                sorted_array_index.keys.append(getattr(session_info,sort_field))
+                sorted_array_index.data.append(session_info)
+
+    def find_session_ending_on_or_after(self, session_id, flow_end_timestamp):
+
+        # bisect usage from:
+        # http://docs.python.org/library/bisect.html#searching-sorted-lists
+        # http://docs.python.org/library/bisect.html#other-examples
+
+        def find_ge(a, x):
+            'Find leftmost item greater than or equal to x'
+            array_index = bisect.bisect_left(a, x)
+            if array_index != len(a):
+                return array_index
+            return None
+
+        sessions = self.session_end_index.get(session_id)
+        if not sessions:
+            return None
+        array_index = find_ge(sessions.keys, flow_end_timestamp)
+        return sessions.data[array_index] if array_index else None
+
+    def find_latest_started_session(self, session_id):
+        sessions = self.session_start_index.get(session_id)
+        if not sessions:
+            return None
+        return sessions.data[-1]
+
+
 def process_vpn_outbound_stats(db, error_file, csv_file, host_id):
 
     print 'processing vpn outbound stats from host %s...' % (host_id,)
+
+    # Create an in-memory index for fast lookup of session start/end used
+    # to map flows to sessions (to get region, prop channel etc. attributes)
+    session_index = SessionIndex(db, host_id)
+
+    db.execute("delete from outbound where relay_protocol = 'VPN' and host_id = '%s'" % (host_id,))
+
+    def to_iso8601(timestamp):
+        return datetime.datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S').strftime('%Y-%m-%dT%H:%M:%S')
 
     # CSV format
     #
@@ -338,84 +412,9 @@ def process_vpn_outbound_stats(db, error_file, csv_file, host_id):
     # occuring in a single second will match both sessions.
     # TODO: investigate nf_dump -o extended millisecond resolution
 
-
-    #****#
-    SessionInfo = collections.namedtuple('SessionInfo', 'client_region, host_id, session_id, session_start_timestamp, session_end_timestamp')
-    cursor = db.execute(
-        textwrap.dedent(
-        '''select
-           client_region, host_id, session_id, substr(session_start_timestamp,1,19), substr(session_end_timestamp,1,19)
-           from session
-           where relay_protocol = 'VPN'
-           and host_id = '%s'
-           order by substr(session_end_timestamp,1,19) asc''' % (host_id,)))
-
-    class Index:
-        def __init__(self):
-            self.keys = []
-            self.data = []
-
-    session_index1 = collections.defaultdict(Index)
-
-    for row in cursor:
-        session_info = SessionInfo(*row)
-        key = session_info.host_id + session_info.session_id
-        index = session_index1[key]
-        index.keys.append(session_info.session_end_timestamp)
-        index.data.append(session_info)
-
-    # http://docs.python.org/library/bisect.html#searching-sorted-lists
-    def find_ge(a, x):
-        'Find leftmost item greater than or equal to x'
-        array_index = bisect.bisect_left(a, x)
-        if array_index != len(a):
-            return array_index
-        return None
-
-    def find_session1(host_id, session_id, flow_end_timestamp):
-        key = host_id + session_id
-        host_sessions = session_index1.get(key)
-        if not host_sessions:
-            return None
-        # http://docs.python.org/library/bisect.html#other-examples
-        array_index = find_ge(host_sessions.keys, flow_end_timestamp)
-        return host_sessions.data[array_index] if array_index else None
-
-    #@@@@#
-    cursor = db.execute(
-        textwrap.dedent(
-        '''select
-           client_region, host_id, session_id, substr(session_start_timestamp,1,19), substr(session_end_timestamp,1,19)
-           from session
-           where relay_protocol = 'VPN'
-           and host_id = '%s'
-           order by substr(session_start_timestamp,1,19) asc''' % (host_id,)))
-
-    session_start_index = collections.defaultdict(Index)
-
-    for row in cursor:
-        session_info = SessionInfo(*row)
-        key = session_info.host_id + session_info.session_id
-        index = session_start_index[key]
-        index.keys.append(session_info.session_start_timestamp)
-        index.data.append(session_info)
-
-    def find_latest_starting_session(host_id, session_id):
-        key = host_id + session_id
-        host_sessions = session_start_index.get(key)
-        if not host_sessions:
-            return None
-        return host_sessions.data[-1]
-    #@@@@#
-    #****#
-
-    db.execute("delete from outbound where relay_protocol = 'VPN' and host_id = '%s'" % (host_id,))
-
+    # TEMP
     hits = 0;
     misses = 0;
-
-    def to_iso8601(timestamp):
-        return datetime.datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S').strftime('%Y-%m-%dT%H:%M:%S')
 
     outbound_reader = csv.reader(csv_file)
     for row in outbound_reader:
@@ -428,12 +427,12 @@ def process_vpn_outbound_stats(db, error_file, csv_file, host_id):
             continue
 
         # First find the earliest session that ends after the netflow end timestamp.
-        session = find_session1(host_id, row[3], to_iso8601(row[1]))
+        session = session_index.find_session_ending_on_or_after(row[3], to_iso8601(row[1]))
 
         if not session:
             # If we couldn't find a session end timestamp on or after the netflow end timestamp,
             # then the netflow must belong to the latest (or currently active) session.
-            session = find_latest_starting_session(host_id, row[3])
+            session = session_index.find_latest_started_session(row[3])
 
         if not session:
             misses += 1;
@@ -443,6 +442,7 @@ def process_vpn_outbound_stats(db, error_file, csv_file, host_id):
         else:
             hits += 1;
 
+    # TEMP
     print 'hits: ' + str(hits)
     print 'misses: ' + str(misses)
 
@@ -482,4 +482,3 @@ if __name__ == "__main__":
         error_file.close()
         db.commit()
         db.close()
-
