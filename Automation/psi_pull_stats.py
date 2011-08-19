@@ -412,10 +412,6 @@ def process_vpn_outbound_stats(db, error_file, csv_file, host_id):
     # occuring in a single second will match both sessions.
     # TODO: investigate nf_dump -o extended millisecond resolution
 
-    # TEMP
-    hits = 0;
-    misses = 0;
-
     outbound_reader = csv.reader(csv_file)
     for row in outbound_reader:
         # Stop reading at the Summary row
@@ -435,16 +431,41 @@ def process_vpn_outbound_stats(db, error_file, csv_file, host_id):
             session = session_index.find_latest_started_session(row[3])
 
         if not session:
-            misses += 1;
             err = 'no session for outbound netflow on host %s: %s' % (host_id, str(row))
             error_file.write(err + '\n')
-            continue
+            # See CSV format above
+            field_values = [host_id, '0', '0', '0', '0', '0', '0', row[], 
+                            row[0][0:10], row[4], row[7], row[6], '1', row[14]]
         else:
-            hits += 1;
+            field_values = list(session)[0:-2] + [
+                            row[0][0:10], row[4], row[7], row[6], '1', row[14]]
 
-    # TEMP
-    print 'hits: ' + str(hits)
-    print 'misses: ' + str(misses)
+        field_names = ADDITIONAL_TABLES_SCHEMA['outbound']
+        matching_record = db.execute(textwrap.dedent(
+            '''
+            select flow_count, outbound_byte_count from outbound
+            where host_id = ?
+            and server_id = ?
+            and client_region = ?
+            and propagation_channel_id = ?
+            and sponsor_id = ?
+            and client_version = ?
+            and relay_protocol = ?
+            and session_id = ?
+            and day = ?
+            and domain = ?
+            and protocol = ?
+            and port = ?
+            '''), field_values[0:-2]).fetchone()
+
+        if matching_record:
+            field_values[-2] = str(int(matching_record[0][0]) + 1)
+            field_values[-1] = str(int(matching_record[0][1]) + int(row[14]))
+
+        command += 'insert or replace into outbound (%s) values (%s)' % (
+            ', '.join(field_names),
+            ', '.join(['?']*len(field_names)))
+        db.execute(command, field_values)
 
 
 if __name__ == "__main__":
