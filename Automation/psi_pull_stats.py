@@ -32,7 +32,6 @@ import collections
 import bisect
 import dns.reversename
 import dns.resolver
-import dns.exception
 
 import psi_ssh
 from psi_pull_netflows import pull_netflows
@@ -337,7 +336,7 @@ class ReverseDNS(object):
             # labels = hostname.split('.')
             self.cache[ip_address] = hostname
             return hostname
-        except dns.exception:
+        except (dns.resolver.Timeout, dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers):
             pass
         self.cache[ip_address] = ip_address
         return ip_address
@@ -408,7 +407,7 @@ class SessionIndex(object):
         return sessions.data[-1]
 
 
-def process_vpn_outbound_stats(db, error_file, csv_file, host_id):
+def process_vpn_outbound_stats(db, error_file, csv_file, host_id, dns_cache):
 
     print 'processing vpn outbound stats from host %s...' % (host_id,)
 
@@ -464,15 +463,17 @@ def process_vpn_outbound_stats(db, error_file, csv_file, host_id):
             # then the netflow must belong to the latest (or currently active) session.
             session = session_index.find_latest_started_session(row[3])
 
+        # See CSV format above
+        domain = dns_cache.get_domain(row[4])
+
         if not session:
             err = 'no session for outbound netflow on host %s: %s' % (host_id, str(row))
             error_file.write(err + '\n')
-            # See CSV format above
-            field_values = [host_id, '0', '0', '0', '0', '0', '0', row[], 
-                            row[0][0:10], row[4], row[7], row[6], '1', row[14]]
+            field_values = [host_id, '0', '0', '0', '0', '0', '0', row[3], 
+                            row[0][0:10], domain, row[7], row[6], '1', row[14]]
         else:
             field_values = list(session)[0:-2] + [
-                            row[0][0:10], row[4], row[7], row[6], '1', row[14]]
+                            row[0][0:10], domain, row[7], row[6], '1', row[14]]
 
         field_names = ADDITIONAL_TABLES_SCHEMA['outbound']
         matching_record = db.execute(textwrap.dedent(
@@ -493,10 +494,10 @@ def process_vpn_outbound_stats(db, error_file, csv_file, host_id):
             '''), field_values[0:-2]).fetchone()
 
         if matching_record:
-            field_values[-2] = str(int(matching_record[0][0]) + 1)
-            field_values[-1] = str(int(matching_record[0][1]) + int(row[14]))
+            field_values[-2] = str(int(matching_record[0]) + 1)
+            field_values[-1] = str(int(matching_record[1]) + int(row[14]))
 
-        command += 'insert or replace into outbound (%s) values (%s)' % (
+        command = 'insert or replace into outbound (%s) values (%s)' % (
             ', '.join(field_names),
             ', '.join(['?']*len(field_names)))
         db.execute(command, field_values)
@@ -526,10 +527,11 @@ if __name__ == "__main__":
 
         # Pull netflows from each host and process them
 
+        dns_cache = ReverseDNS()
         for host in hosts:
             csv_file_path = pull_netflows(host)
             with open(csv_file_path, 'rb') as vpn_outbound_stats_csv:
-                process_vpn_outbound_stats(db, error_file, vpn_outbound_stats_csv, host.Host_ID)
+                process_vpn_outbound_stats(db, error_file, vpn_outbound_stats_csv, host.Host_ID, dns_cache)
 
     except:
         traceback.print_exc()
