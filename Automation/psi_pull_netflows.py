@@ -44,10 +44,11 @@ if os.path.isfile('psi_data_config.py'):
 
 #==============================================================================
 
-# We assume that files in the netflow directory are never overwritten.
 # Our approach to efficiently maintaining a copy of the remote netflow
 # directory is to copy only files that we don't already have, or that
 # are larger than the version that we already have.
+# We assume that files in the netflow directory are appended to only and
+# that new data doesn't overwrite old data and leave the file size unchanged.
 
 def pull_dir(ssh, remote_path, local_path):
 
