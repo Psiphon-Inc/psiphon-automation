@@ -317,6 +317,7 @@ class ReverseDNS(object):
     CACHE_FILE_NAME = os.path.join(STATS_ROOT, 'dns_cache')
 
     def __init__(self):
+        self.resolve_count = 0
         # NOTE: cache size isn't limited
         try:
             with open(self.CACHE_FILE_NAME, 'rb') as cache_file:
@@ -337,6 +338,9 @@ class ReverseDNS(object):
             in_addr = dns.reversename.from_address(ip_address)
             # Output looks like 'www-11-01-snc2.facebook.com.'
             hostname = str(dns.resolver.query(in_addr, 'PTR')[0])
+            self.resolve_count += 1
+            if self.resolve_count % 1000 == 0:
+                print 'ReverseDNS: query ' + str(self.resolve_count)
             # Strip trailing .
             hostname = hostname.rstrip('.')
             # TODO: use master domain suffix list to identify the part of the domain
@@ -484,7 +488,7 @@ def process_vpn_outbound_stats(db, error_file, csv_file, host_id, dns_cache):
         if not session:
             err = 'no session for outbound netflow on host %s: %s' % (host_id, str(row))
             error_file.write(err + '\n')
-            field_values = [host_id, '0', '0', '0', '0', '0', '0', row[3], 
+            field_values = [host_id, '0', '0', '0', '0', '0', 'VPN', row[3], 
                             row[0][0:10], domain, row[7], row[6], '1', row[14]]
         else:
             field_values = list(session)[0:-2] + [
@@ -498,12 +502,11 @@ def process_vpn_outbound_stats(db, error_file, csv_file, host_id, dns_cache):
         else:
             outbound_rows[key] = field_values
 
-    for key, field_values in outbound_rows.iteritems():
-        field_names = ADDITIONAL_TABLES_SCHEMA['outbound']
-        command = 'insert into outbound (%s) values (%s)' % (
-                  ', '.join(field_names),
-                  ', '.join(['?']*len(field_names)))
-        db.execute(command, field_values)
+    field_names = ADDITIONAL_TABLES_SCHEMA['outbound']
+    command = 'insert into outbound (%s) values (%s)' % (
+              ', '.join(field_names),
+              ', '.join(['?']*len(field_names)))
+    db.executemany(command, outbound_rows.itervalues())
 
 
 if __name__ == "__main__":
