@@ -339,7 +339,7 @@ class ReverseDNS(object):
             # Output looks like 'www-11-01-snc2.facebook.com.'
             hostname = str(dns.resolver.query(in_addr, 'PTR')[0])
             self.resolve_count += 1
-            if self.resolve_count % 1000 == 0:
+            if self.resolve_count % 100 == 0:
                 print 'ReverseDNS: query ' + str(self.resolve_count)
             # Strip trailing .
             hostname = hostname.rstrip('.')
@@ -489,10 +489,10 @@ def process_vpn_outbound_stats(db, error_file, csv_file, host_id, dns_cache):
             err = 'no session for outbound netflow on host %s: %s' % (host_id, str(row))
             error_file.write(err + '\n')
             field_values = [host_id, '0', '0', '0', '0', '0', 'VPN', row[3], 
-                            row[0][0:10], domain, row[7], row[6], '1', row[14]]
+                            row[0][0:10], domain, row[7], row[6], '1', str(int(row[12]) + int(row[14]))]
         else:
             field_values = list(session)[0:-2] + [
-                            row[0][0:10], domain, row[7], row[6], '1', row[14]]
+                            row[0][0:10], domain, row[7], row[6], '1', str(int(row[12]) + int(row[14]))]
 
         key = ','.join(field_values[0:-2])
         existing_row = outbound_rows.get(key)
