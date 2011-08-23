@@ -21,6 +21,9 @@ import os
 import posixpath
 import sys
 import stat
+import pexpect
+import base64
+import hashlib
 
 import psi_ssh
 sys.path.insert(0, os.path.abspath(os.path.join('..', 'Data')))
@@ -90,6 +93,15 @@ def pull_dir(ssh, remote_path, local_path):
                 ssh.get_file(remote_entry_path, local_entry_path)
 
 
+# Get the RSA key fingerprint from the host's SSH_Host_Key
+# Based on:
+# http://stackoverflow.com/questions/6682815/deriving-an-ssh-fingerprint-from-a-public-key-in-python
+def ssh_fingerprint(host_key):
+    base64_key = base64.b64decode(host_key.split(' ')[1])
+    md5_hash = hashlib.md5(base64_key).hexdigest()
+    return ':'.join(a + b for a, b in zip(md5_hash[::2], md5_hash[1::2]))
+
+
 def pull_netflows(host):
 
     print 'pull netflows from host %s...' % (host.Host_ID,)
@@ -98,12 +110,17 @@ def pull_netflows(host):
     if not os.path.exists(host_netflows_root):
         os.makedirs(host_netflows_root)
 
-    ssh = psi_ssh.SSH(host.IP_Address, host.SSH_Port,
-                      host.SSH_Username, host.SSH_Password, host.SSH_Host_Key)
-
-    pull_dir(ssh, HOST_NETFLOW_DIR, host_netflows_root)
-
-    ssh.close()
+    # Use rsync instead of the pull_dir implementation above as rsync is more efficient
+    rsync = pexpect.spawn('rsync -ae "ssh -p %s -l %s" %s:%s/ %s' %
+                    (host.SSH_Port, host.SSH_Username,
+                     host.IP_Address, HOST_NETFLOW_DIR, host_netflows_root))
+    prompt = rsync.expect([ssh_fingerprint(host.SSH_Host_Key), 'password:'])
+    if prompt == 0:
+        rsync.sendline('yes')
+        rsync.expect('password:')
+        rsync.sendline(host.SSH_Password)
+    else:
+        rsync.sendline(host.SSH_Password)
 
     output_csv_path = host_netflows_root + '.csv'
     os.system('TZ=GMT nfdump -q -R %s -o csv > %s' % (host_netflows_root, output_csv_path))

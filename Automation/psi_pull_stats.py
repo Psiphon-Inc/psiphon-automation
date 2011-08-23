@@ -532,12 +532,13 @@ if __name__ == "__main__":
         reconstruct_sessions(db)
 
         # Pull netflows from each host and process them
-
-        dns_cache = ReverseDNS()
-        for host in hosts:
-            csv_file_path = pull_netflows(host)
-            with open(csv_file_path, 'rb') as vpn_outbound_stats_csv:
-                process_vpn_outbound_stats(db, error_file, vpn_outbound_stats_csv, host.Host_ID, dns_cache)
+        # Avoid doing this on Windows, where nfdump is not available
+        if os.name == 'posix':
+            dns_cache = ReverseDNS()
+            for host in hosts:
+                csv_file_path = pull_netflows(host)
+                with open(csv_file_path, 'rb') as vpn_outbound_stats_csv:
+                    process_vpn_outbound_stats(db, error_file, vpn_outbound_stats_csv, host.Host_ID, dns_cache)
 
     except:
         traceback.print_exc()
