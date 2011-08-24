@@ -216,7 +216,7 @@ def get_encoded_server_entry(server):
                                 server.Web_Server_Certificate))
 
 
-def get_encoded_server_list(propagation_channel_id, client_ip_address=None, logger=None, discovery_date=datetime.datetime.now()):
+def get_encoded_server_list(propagation_channel_id, client_ip_address=None, logger=None, discovery_date=None):
     if not client_ip_address:
         # embedded server list
         # output all servers for propagation channel ID with no discovery date
@@ -224,6 +224,8 @@ def get_encoded_server_list(propagation_channel_id, client_ip_address=None, logg
                    if server.Discovery_Propagation_Channel_ID == propagation_channel_id and not server.Discovery_Time_Start]
     else:
         # discovery case
+        if not discovery_date:
+            discovery_date = datetime.datetime.now()
         # count servers for propagation channel ID to be discovered in current date range
         servers = [server for server in get_servers()
                    if server.Discovery_Propagation_Channel_ID == propagation_channel_id and (
