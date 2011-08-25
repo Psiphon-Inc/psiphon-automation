@@ -30,9 +30,11 @@ import csv
 import datetime
 import collections
 import bisect
-import dns.reversename
-import dns.resolver
-import cPickle
+import pexpect
+import base64
+import hashlib
+import socket
+import time
 
 import psi_ssh
 from psi_pull_netflows import pull_netflows
@@ -41,7 +43,7 @@ sys.path.insert(0, os.path.abspath(os.path.join('..', 'Data')))
 import psi_db
 
 
-#==== Log File Configuration  ==================================================
+#==== Syslog File Configuration  ===============================================
 
 HOST_LOG_DIR = '/var/log'
 HOST_LOG_FILENAME_PATTERN = 'psiphonv*.log*'
@@ -49,13 +51,31 @@ HOST_LOG_FILENAME_PATTERN = 'psiphonv*.log*'
 STATS_ROOT = os.path.abspath(os.path.join('..', 'Data', 'Stats'))
 STATS_DB_FILENAME = os.path.join(STATS_ROOT, 'stats.db')
 
-# if psi_build_config.py exists, load it and use psi_build_config.DATA_ROOT as the data root dir
+
+#==== Netflow Files Configuration  ============================================
+
+HOST_NETFLOW_DIR = '/var/cache/nfdump'
+
+NETFLOWS_ROOT = os.path.abspath(os.path.join('..', 'Data', 'Netflows'))
+
+
+#==== DNS pcap File Configuration  =============================================
+
+HOST_DNS_PCAPS_DIR = '/var/cache/dns-pcaps'
+
+DNS_PCAPS_ROOT = os.path.abspath(os.path.join('..', 'Data', 'dns-pcaps'))
+
+
+# if psi_build_config.py exists, load it and use psi_build_config.DATA_ROOT
+# as the data root dir
 
 if os.path.isfile('psi_data_config.py'):
     import psi_data_config
     psi_db.set_db_root(psi_data_config.DATA_ROOT)
     STATS_ROOT = os.path.join(psi_data_config.DATA_ROOT, 'Stats')
     STATS_DB_FILENAME = os.path.join(STATS_ROOT, 'stats.db')
+    NETFLOWS_ROOT = os.path.join(psi_data_config.DATA_ROOT, 'Netflows')
+    DNS_PCAPS_ROOT = os.path.join(psi_data_config.DATA_ROOT, 'dns-pcaps')
 
 
 #==============================================================================
@@ -312,49 +332,148 @@ def reconstruct_sessions(db):
         db.execute(command, list(row[1:])+[session_start_utc, session_end_utc])
 
 
-class ReverseDNS(object):
+# Get the RSA key fingerprint from the host's SSH_Host_Key
+# Based on:
+# http://stackoverflow.com/questions/6682815/deriving-an-ssh-fingerprint-from-a-public-key-in-python
+def ssh_fingerprint(host_key):
+    base64_key = base64.b64decode(host_key.split(' ')[1])
+    md5_hash = hashlib.md5(base64_key).hexdigest()
+    return ':'.join(a + b for a, b in zip(md5_hash[::2], md5_hash[1::2]))
 
-    CACHE_FILE_NAME = os.path.join(STATS_ROOT, 'dns_cache')
 
-    def __init__(self):
-        self.resolve_count = 0
-        # NOTE: cache size isn't limited
-        try:
-            with open(self.CACHE_FILE_NAME, 'rb') as cache_file:
-                self.cache = cPickle.load(cache_file)
-        except:
-            self.cache = {}
+def sync_directory(host, source_root, dest_root):
 
-    def __del__(self):
-        with open(self.CACHE_FILE_NAME, 'wb') as cache_file:
-            cPickle.dump(self.cache, cache_file)
+    print 'sync %s from host %s to local %s...' % (
+                source_root, host.Host_ID, dest_root)
+
+    dest_root_for_host = os.path.join(dest_root, host.Host_ID)
+    if not os.path.exists(dest_root_for_host):
+        os.makedirs(dest_root_for_host)
+    
+    # Log files on the host (source) are rotated, so we use the default rsync
+    # configuration that does not delete files on the dest that are not
+    # present on the source.
+
+    rsync = pexpect.spawn('rsync -ae "ssh -p %s -l %s" %s:%s/ %s' %
+                    (host.SSH_Port, host.SSH_Username,
+                     host.IP_Address, source_root, dest_root_for_host))
+    prompt = rsync.expect([ssh_fingerprint(host.SSH_Host_Key), 'password:'])
+    if prompt == 0:
+        rsync.sendline('yes')
+        rsync.expect('password:')
+        rsync.sendline(host.SSH_Password)
+    else:
+        rsync.sendline(host.SSH_Password)
+
+    rsync.wait()
+
+    return dest_root_for_host
+
+
+def pull_dns_pcaps(host):
+
+    print 'pull DNS pcaps from host %s...' % (host.Host_ID,)
+
+    return sync_directory(host, HOST_DNS_PCAPS_DIR, DNS_PCAPS_ROOT)
+
+
+class DomainLookup(object):
+
+    # Use DNS pcap data to map IP addresess to domains. This is used to map
+    # netflow destination addresses to domains.
+    #
+    # We found reverse DNS lookups to be inadequate for this purpose:
+    # too slow, too many failed lookups, IPs used to host many
+    # domains, reverse lookups loses context (e.g. youtube.com --> IP -->
+    # [random prefix].google.com)
+    #
+    # So instead we record all actual DNS requests and responses and use
+    # this to build a more accurate database.
+    # The recording is performed on each host using tcpdump:
+    #
+    # tcpdump -w 'dnspcap_%Y%m%d-%H%M%S.pcap' -G 360 -z gzip -n -i eth0 port 53
+    #
+    # The set of pcap files is downloaded to the stats host which builds
+    # the DomainLookup index.
+    # There is no PII in the captured DNS data. Futhermore, the pcaps don't
+    # map to netflows or SSH sessions, so we use include the DNS traffic
+    # timestamps in our index and assume that for each netflow, the domain
+    # corresponding to the destination IP address is the most recent DNS
+    # response before the flow stat (not always the case, but a reasonable
+    # approximation).
+
+    Entry = collections.namedtuple('Entry', 'timestamp, domain')
+
+    def __init__(self, dns_pcaps_root):
+
+        # Build domain lookup index. Run each raw data file through tcpdump to
+        # parse protocol. Example output lines:
+        # REQUEST:  1314288801.731017 IP 64.34.96.34.64338 > 8.8.4.4.53: 55087+ A? m.twitter.com. (31)
+        # RESPONSE: 1314288801.744304 IP 8.8.4.4.53 > 64.34.96.34.64338: 55087 3/0/0 CNAME mobile.twitter.com., A 199.59.149.240, A 199.59.148.96 (84)
+        # Multiple requests and responses are interleaved in the output, so we
+        # need to match them up using the IDs e.g., (55087+, 55087)
+        
+        TIMESTAMP_FIELD = 0
+        ID_FIELD = 5
+        DOMAIN_FIELD = 7
+        DNS_REPORD_TYPE_FIELD = 6
+        FIRST_RECORD_FIELD = 7
+
+        self.index = collections.defaultdict(list)
+        pending_requests = {}
+        for item in os.listdir(dns_pcaps_root):
+            path = os.path.join(dns_pcaps_root, item)
+            if os.path.isfile(path):
+                if path.endswith('.gz'):
+                    proc = os.popen('gunzip -c %s | tcpdump -r - -tt' % (path,), 'r')
+                else:
+                    proc = os.popen('tcpdump -r %s -tt' % (path,), 'r')                    
+                while True:
+                    line = proc.readline()
+                    if not line:
+                        break
+                    fields = line.split(' ')
+                    timestamp = time.gmtime(float(fields[TIMESTAMP_FIELD]))
+                    id = fields[ID_FIELD]
+                    if id[-1] == '+' and fields[DNS_REPORD_TYPE_FIELD] == 'A?':
+                        domain = fields[DOMAIN_FIELD].rstrip('.')
+                        pending_requests[id[:-1]] = domain
+                    else:
+                        domain = pending_requests.get(id)
+                        # Note: domain could be None if DNS capture starts
+                        # in the middle of a request
+                        if domain:
+                            for i in range(FIRST_RECORD_FIELD+1, len(fields), 2):
+                                dns_record_type = fields[i-1]
+                                if dns_record_type == 'A':
+                                    # Sanity check: should be valid IP address
+                                    ip_address = fields[i].rstrip(',')
+                                    socket.inet_aton(ip_address)
+                                    self.index[ip_address].append(
+                                        DomainLookup.Entry(timestamp, domain))
+                            del pending_requests[id]
+        # Ensure entries for each IP address are sorted by response timestamp
+        for ip_address, entries in self.index.iteritems():
+            entries.sort(key=lambda x:x.timestamp)
+            print ip_address, entries
 
     def get_domain(self, ip_address):
-        cached_result = self.cache.get(ip_address)
-        if cached_result:
-            return cached_result
-        try:
-            # Construct the ip-addr form; e.g., '192.168.1.1.in-addr.arpa.'
-            in_addr = dns.reversename.from_address(ip_address)
-            # Output looks like 'www-11-01-snc2.facebook.com.'
-            hostname = str(dns.resolver.query(in_addr, 'PTR')[0])
-            self.resolve_count += 1
-            if self.resolve_count % 1000 == 0:
-                print 'ReverseDNS: query ' + str(self.resolve_count)
-            # Strip trailing .
-            hostname = hostname.rstrip('.')
-            # TODO: use master domain suffix list to identify the part of the domain
-            # of interest and strip the extra prefix e.g., strip to just facebook.com
-            # See the list of suffixes: http://mxr.mozilla.org/mozilla-central/source/netwerk/dns/effective_tld_names.dat?raw=1
-            # There are many different cases such as bbc.co.uk where we cannot
-            # simply take the last two labels.
-            # labels = hostname.split('.')
-            self.cache[ip_address] = hostname
-            return hostname
-        except (dns.resolver.Timeout, dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers):
-            pass
-        self.cache[ip_address] = ip_address
-        return ip_address
+        entries = self.index[ip_address]
+        if not entries:
+            return ip_address
+        # TODO: find most recent before flow start
+        return entries[-1].domain
+
+
+def pull_netflows(host):
+
+    print 'pull netflows from host %s...' % (host.Host_ID,)
+
+    dest_root_for_host = sync_directory(host, HOST_NETFLOW_DIR, NETFLOWS_ROOT)
+
+    output_csv_path = dest_root_for_host + '.csv'
+    os.system('TZ=GMT nfdump -q -R %s -o csv > %s' % (dest_root_for_host, output_csv_path))
+    return output_csv_path
 
 
 class SessionIndex(object):
@@ -422,7 +541,7 @@ class SessionIndex(object):
         return sessions.data[-1]
 
 
-def process_vpn_outbound_stats(db, error_file, csv_file, host_id, dns_cache):
+def process_vpn_outbound_stats(db, error_file, host_id, dns, csv_file):
 
     print 'processing vpn outbound stats from host %s...' % (host_id,)
 
@@ -534,11 +653,16 @@ if __name__ == "__main__":
         # Pull netflows from each host and process them
         # Avoid doing this on Windows, where nfdump is not available
         if os.name == 'posix':
-            dns_cache = ReverseDNS()
             for host in hosts:
+
                 csv_file_path = pull_netflows(host)
+
+                # Construct domain lookup with data for current host only
+                dns = DomainLookup(pull_dns_pcaps(host))
+
                 with open(csv_file_path, 'rb') as vpn_outbound_stats_csv:
-                    process_vpn_outbound_stats(db, error_file, vpn_outbound_stats_csv, host.Host_ID, dns_cache)
+                    process_vpn_outbound_stats(
+                        db, error_file, host.Host_ID, dns, vpn_outbound_stats_csv)
 
     except:
         traceback.print_exc()
