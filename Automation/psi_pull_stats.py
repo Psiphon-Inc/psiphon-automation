@@ -408,8 +408,8 @@ class DomainLookup(object):
 
         # Build domain lookup index. Run each raw data file through tcpdump to
         # parse protocol. Example output lines:
-        # REQUEST:  1314288801.731017 IP 64.34.96.34.64338 > 8.8.4.4.53: 55087+ A? m.twitter.com. (31)
-        # RESPONSE: 1314288801.744304 IP 8.8.4.4.53 > 64.34.96.34.64338: 55087 3/0/0 CNAME mobile.twitter.com., A 199.59.149.240, A 199.59.148.96 (84)
+        # REQUEST:  1314288801.731017 IP 1.2.3.4.64338 > 8.8.4.4.53: 55087+ A? m.twitter.com. (31)
+        # RESPONSE: 1314288801.744304 IP 8.8.4.4.53 > 1.2.3.4.64338: 55087 3/0/0 CNAME mobile.twitter.com., A 199.59.149.240, A 199.59.148.96 (84)
         # Multiple requests and responses are interleaved in the output, so we
         # need to match them up using the IDs e.g., (55087+, 55087)
         
@@ -602,7 +602,7 @@ def process_vpn_outbound_stats(db, error_file, host_id, dns, csv_file):
             session = session_index.find_latest_started_session(row[3])
 
         # See CSV format above
-        domain = dns_cache.get_domain(row[4])
+        domain = dns.get_domain(row[4])
 
         if not session:
             err = 'no session for outbound netflow on host %s: %s' % (host_id, str(row))
