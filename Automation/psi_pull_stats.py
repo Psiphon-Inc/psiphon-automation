@@ -416,7 +416,7 @@ class DomainLookup(object):
         TIMESTAMP_FIELD = 0
         ID_FIELD = 5
         DOMAIN_FIELD = 7
-        DNS_REPORD_TYPE_FIELD = 6
+        DNS_RECORD_TYPE_FIELD = 6
         FIRST_RECORD_FIELD = 7
 
         self.index = collections.defaultdict(list)
@@ -435,7 +435,7 @@ class DomainLookup(object):
                     fields = line.split(' ')
                     timestamp = time.gmtime(float(fields[TIMESTAMP_FIELD]))
                     id = fields[ID_FIELD]
-                    if id[-1] == '+' and fields[DNS_REPORD_TYPE_FIELD] == 'A?':
+                    if id[-1] == '+' and fields[DNS_RECORD_TYPE_FIELD] == 'A?':
                         domain = fields[DOMAIN_FIELD].rstrip('.')
                         pending_requests[id[:-1]] = domain
                     else:
