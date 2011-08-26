@@ -447,6 +447,7 @@ class DomainLookup(object):
                                 dns_record_type = fields[i-1]
                                 if dns_record_type == 'A':
                                     # Sanity check: should be valid IP address
+                                    # TODO: try...except socket.error around this block?
                                     ip_address = fields[i].rstrip(',')
                                     socket.inet_aton(ip_address)
                                     self.index[ip_address].append(
