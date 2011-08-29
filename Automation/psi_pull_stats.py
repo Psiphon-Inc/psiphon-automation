@@ -30,14 +30,14 @@ import csv
 import datetime
 import collections
 import bisect
-import pexpect
 import base64
 import hashlib
 import socket
 import time
+if os.name == 'posix':
+    import pexpect
 
 import psi_ssh
-from psi_pull_netflows import pull_netflows
 
 sys.path.insert(0, os.path.abspath(os.path.join('..', 'Data')))
 import psi_db
