@@ -197,11 +197,12 @@ Enable the firewall and IP forwarding:
   /etc/init.d/procps start
 
 
-2. Install xinetd, fail2ban
----------------------------
+2. Install xinetd, tcpdump, fail2ban
+------------------------------------
 
 apt-get update
 apt-get install xinetd
+apt-get install tcpdump
 apt-get install fail2ban
 
 As management SSH access is open to any source IP address, we recommend

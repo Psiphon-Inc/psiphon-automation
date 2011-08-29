@@ -109,6 +109,16 @@ def deploy(host):
 
     ssh.exec_command('%s restart' % (remote_init_file_path,))
 
+    # Copy DNS capture init script and restart it
+
+    remote_init_file_path = posixpath.join(HOST_INIT_DIR, 'psi-dns-capture')
+    ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', 'psi-dns-capture'),
+                 remote_init_file_path)
+    ssh.exec_command('chmod +x %s' % (remote_init_file_path,))
+    ssh.exec_command('update-rc.d %s defaults' % ('psi-dns-capture',))
+
+    ssh.exec_command('%s restart' % (remote_init_file_path,))
+
     # Copy client builds
     # As above, we only upload the builds for Propagation Channel IDs that
     # need to be known for the host.
