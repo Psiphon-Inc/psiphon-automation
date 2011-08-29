@@ -275,6 +275,7 @@ def reconstruct_sessions(db):
     # sessions with no end.
 
     db.execute('delete from session')
+    db.execute('vacuum')
 
     field_names = ADDITIONAL_TABLES_SCHEMA['session']
     cursor = db.cursor()
@@ -431,6 +432,7 @@ def process_vpn_outbound_stats(db, error_file, csv_file, host_id, dns_cache):
     session_index = SessionIndex(db, host_id)
 
     db.execute("delete from outbound where relay_protocol = 'VPN' and host_id = '%s'" % (host_id,))
+    db.execute("vacuum")
 
     def to_iso8601(timestamp):
         return datetime.datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S').strftime('%Y-%m-%dT%H:%M:%S')
