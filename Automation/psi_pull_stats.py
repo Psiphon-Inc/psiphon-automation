@@ -457,7 +457,6 @@ class DomainLookup(object):
         # Ensure entries for each IP address are sorted by response timestamp
         for ip_address, entries in self.index.iteritems():
             entries.sort(key=lambda x:x.timestamp)
-            print ip_address, entries
 
     def get_domain(self, ip_address):
         entries = self.index[ip_address]
