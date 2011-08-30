@@ -434,7 +434,9 @@ class DomainLookup(object):
                     if not line:
                         break
                     fields = line.split(' ')
-                    timestamp = time.gmtime(float(fields[TIMESTAMP_FIELD]))
+                    # Store timestamp as an iso8601 formatted string in UTC so that it can be easily
+                    # compared to netflow timestamps
+                    timestamp = datetime.datetime.utcfromtimestamp(float(fields[TIMESTAMP_FIELD])).strftime('%Y-%m-%dT%H:%M:%S')
                     id = fields[ID_FIELD]
                     if id[-1] == '+' and fields[DNS_RECORD_TYPE_FIELD] == 'A?':
                         domain = fields[DOMAIN_FIELD].rstrip('.')
@@ -448,7 +450,6 @@ class DomainLookup(object):
                                 dns_record_type = fields[i-1]
                                 if dns_record_type == 'A':
                                     # Sanity check: should be valid IP address
-                                    # TODO: try...except socket.error around this block?
                                     ip_address = fields[i].rstrip(',')
                                     socket.inet_aton(ip_address)
                                     self.index[ip_address].append(
@@ -458,12 +459,17 @@ class DomainLookup(object):
         for ip_address, entries in self.index.iteritems():
             entries.sort(key=lambda x:x.timestamp)
 
-    def get_domain(self, ip_address):
+    def get_domain(self, ip_address, request_timestamp):
         entries = self.index[ip_address]
         if not entries:
             return ip_address
-        # TODO: find most recent before flow start
-        return entries[-1].domain
+        # Find the most recent entry before the request timestamp
+        # If the flow start is before the first entry, still return the first entry
+        for value in entries.itervalues():
+            domain = value.domain
+            if value.timestamp > request_timestamp:
+                break
+        return domain
 
 
 def pull_netflows(host):
@@ -604,7 +610,7 @@ def process_vpn_outbound_stats(db, error_file, host_id, dns, csv_file):
             session = session_index.find_latest_started_session(row[3])
 
         # See CSV format above
-        domain = dns.get_domain(row[4])
+        domain = dns.get_domain(row[4], to_iso8601(row[1]))
 
         if not session:
             err = 'no session for outbound netflow on host %s: %s' % (host_id, str(row))
@@ -666,6 +672,9 @@ if __name__ == "__main__":
                     process_vpn_outbound_stats(
                         db, error_file, host.Host_ID, dns, vpn_outbound_stats_csv)
 
+    except socket.error:
+        # If the DomainLookup throws this error, we need to notice it.
+        db.execute("delete from outbound")
     except:
         traceback.print_exc()
     finally:
