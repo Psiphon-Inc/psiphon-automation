@@ -426,9 +426,9 @@ class DomainLookup(object):
             path = os.path.join(dns_pcaps_root, item)
             if os.path.isfile(path):
                 if path.endswith('.gz'):
-                    proc = os.popen('gunzip -c %s | tcpdump -r - -tt' % (path,), 'r')
+                    proc = os.popen('gunzip -c %s | /usr/sbin/tcpdump -r - -tt' % (path,), 'r')
                 else:
-                    proc = os.popen('tcpdump -r %s -tt' % (path,), 'r')                    
+                    proc = os.popen('/usr/sbin/tcpdump -r %s -tt' % (path,), 'r')                    
                 while True:
                     line = proc.readline()
                     if not line:
