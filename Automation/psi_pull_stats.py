@@ -465,7 +465,7 @@ class DomainLookup(object):
             return ip_address
         # Find the most recent entry before the request timestamp
         # If the flow start is before the first entry, still return the first entry
-        for value in entries.itervalues():
+        for value in entries:
             domain = value.domain
             if value.timestamp > request_timestamp:
                 break
