@@ -34,7 +34,6 @@ import base64
 import hashlib
 import socket
 import time
-import cPickle
 if os.name == 'posix':
     import pexpect
 
@@ -403,39 +402,17 @@ class DomainLookup(object):
     # corresponding to the destination IP address is the most recent DNS
     # response before the flow stat (not always the case, but a reasonable
     # approximation).
-    
-    CACHE_FILE_NAME = os.path.join(STATS_ROOT, 'DomainLookup.dat')
 
     Entry = collections.namedtuple('Entry', 'timestamp, domain')
 
-
     def __init__(self, dns_pcaps_root):
-        try:
-            with open(self.CACHE_FILE_NAME, 'rb') as cache_file:
-                (self.index, self.files_processed) = cPickle.load(cache_file)
-        except:
-            self.index = collections.defaultdict(list)
-            self.files_processed = {}
-        merge_dumps_into_index(dns_pcaps_root)
 
-
-    def __del__(self):
-        with open(self.CACHE_FILE_NAME, 'wb') as cache_file:
-            cPickle.dump((self.index, self.files_processed), cache_file)
-
-
-    def merge_dumps_into_index(self, dns_pcaps_root):
         # Build domain lookup index. Run each raw data file through tcpdump to
         # parse protocol. Example output lines:
         # REQUEST:  1314288801.731017 IP 1.2.3.4.64338 > 8.8.4.4.53: 55087+ A? m.twitter.com. (31)
         # RESPONSE: 1314288801.744304 IP 8.8.4.4.53 > 1.2.3.4.64338: 55087 3/0/0 CNAME mobile.twitter.com., A 199.59.149.240, A 199.59.148.96 (84)
         # Multiple requests and responses are interleaved in the output, so we
         # need to match them up using the IDs e.g., (55087+, 55087)
-        #
-        # Maintains a persistent list of files processed to the index can
-        # be serialized and quickly updated. To cover the case where a file
-        # has extra data added to it, the processed list also stores the file
-        # size at processing time.
         
         TIMESTAMP_FIELD = 0
         ID_FIELD = 5
@@ -443,17 +420,15 @@ class DomainLookup(object):
         DNS_RECORD_TYPE_FIELD = 6
         FIRST_RECORD_FIELD = 7
 
+        self.index = collections.defaultdict(list)
         pending_requests = {}
         for item in os.listdir(dns_pcaps_root):
             path = os.path.join(dns_pcaps_root, item)
-            file_size = os.stat(path).st_size
-            if os.path.isfile(path) and (
-                    not self.files_processed.has_key(path)
-                    or self.files_processed[path] != file_size):
+            if os.path.isfile(path):
                 if path.endswith('.gz'):
-                    proc = os.popen('gunzip -c %s | /usr/sbin/tcpdump -r - -tt' % (path,), 'r')
+                    proc = os.popen('gunzip -c %s | /usr/sbin/tcpdump -n -r - -tt' % (path,), 'r')
                 else:
-                    proc = os.popen('/usr/sbin/tcpdump -r %s -tt' % (path,), 'r')
+                    proc = os.popen('/usr/sbin/tcpdump -n -r %s -tt' % (path,), 'r')                    
                 while True:
                     line = proc.readline()
                     if not line:
@@ -480,10 +455,8 @@ class DomainLookup(object):
                                     self.index[ip_address].append(
                                         DomainLookup.Entry(timestamp, domain))
                             del pending_requests[id]
-                # Note: storing absolute file path
-                self.files_processed[path] = file_size
         # Ensure entries for each IP address are sorted by response timestamp
-        # Also removes duplicate entries
+        # Also remove duplicates
         for entries in self.index.itervalues():
             entries = list(set(entries))
             entries.sort(key=lambda x:x.timestamp)
