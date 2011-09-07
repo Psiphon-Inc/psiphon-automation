@@ -201,10 +201,9 @@ Enable the firewall and IP forwarding:
 --------------------------------------------------
 
 apt-get update
-apt-get install xinetd
-apt-get install tcpdump
-apt-get install wondershaper
-apt-get install fail2ban
+apt-get upgrade
+apt-get dist-upgrade
+apt-get install -y xinetd tcpdump wondershaper fail2ban
 
 As management SSH access is open to any source IP address, we recommend
 installing fail2ban to defend against brute-force SSH login attempts.
@@ -246,7 +245,7 @@ We have to do this because we have multiple IP addresses per host.
 The first patch described below allows more than 2 IP addresses per host.
 The second patch described below allows more than 10 IP addresses per host.
 
-apt-get install -y libgmp3-dev
+apt-get install -y build-essential bison flex libgmp3-dev
 wget http://openswan.org/download/openswan-2.6.30.tar.gz
 tar zxvf openswan-2.6.30.tar.gz
 cd openswan-2.6.30
