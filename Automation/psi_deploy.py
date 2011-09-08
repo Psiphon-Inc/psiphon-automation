@@ -106,7 +106,7 @@ def deploy(host):
         except:
             pass
 
-    # Restart  server after both source code and data file updated
+    # Restart server after both source code and data file updated
 
     ssh.exec_command('%s restart' % (remote_init_file_path,))
 
