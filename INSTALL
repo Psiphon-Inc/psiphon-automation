@@ -245,6 +245,11 @@ We have to do this because we have multiple IP addresses per host.
 The first patch described below allows more than 2 IP addresses per host.
 The second patch described below allows more than 10 IP addresses per host.
 
+NOTE3: For Linode, follow these steps to use the kernel supplied by the linux distribution:
+  http://library.linode.com/linode-platform/custom-instances/pv-grub-howto#sph_debian-6-squeeze
+Also install linux-headers-2.6-xen-686
+
+
 apt-get install -y build-essential bison flex libgmp3-dev
 wget http://openswan.org/download/openswan-2.6.30.tar.gz
 tar zxvf openswan-2.6.30.tar.gz
