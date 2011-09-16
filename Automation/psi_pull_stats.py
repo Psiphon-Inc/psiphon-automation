@@ -72,7 +72,7 @@ DNS_PCAPS_ROOT = os.path.abspath(os.path.join('..', 'Data', 'dns-pcaps'))
 if os.path.isfile('psi_data_config.py'):
     import psi_data_config
     psi_db.set_db_root(psi_data_config.DATA_ROOT)
-    STATS_ROOT = os.path.join(psi_data_config.DATA_ROOT, 'Stats')
+    STATS_ROOT = os.path.join(psi_data_config.DATA_ROOT, '..', 'Stats')
     STATS_DB_FILENAME = os.path.join(STATS_ROOT, 'stats.db')
     NETFLOWS_ROOT = os.path.join(psi_data_config.DATA_ROOT, 'Netflows')
     DNS_PCAPS_ROOT = os.path.join(psi_data_config.DATA_ROOT, 'dns-pcaps')
