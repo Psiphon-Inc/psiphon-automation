@@ -48,7 +48,7 @@ import psi_db
 HOST_LOG_DIR = '/var/log'
 HOST_LOG_FILENAME_PATTERN = 'psiphonv*.log*'
 
-STATS_ROOT = os.path.abspath(os.path.join('..', 'Data', 'Stats'))
+STATS_ROOT = os.path.abspath(os.path.join('..', 'Stats'))
 STATS_DB_FILENAME = os.path.join(STATS_ROOT, 'stats.db')
 
 
