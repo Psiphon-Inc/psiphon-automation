@@ -49,6 +49,8 @@ DOWNLOAD_SITE_CONTENT_ROOT = os.path.join('.', 'DownloadSite')
 if os.path.isfile('psi_data_config.py'):
     import psi_data_config
     psi_db.set_db_root(psi_data_config.DATA_ROOT)
+    sys.path.insert(0, os.path.abspath(os.path.join(psi_data_config.DATA_ROOT, 'Cloud')))
+    import psi_cloud_credentials
 
 #==============================================================================
 
@@ -57,7 +59,9 @@ def publish_s3_download(propagation_channel):
 
     # Connect to AWS
 
-    s3 = boto.s3.connection.S3Connection(psi_data_config.EC2_ACCESS_ID, psi_data_config.EC2_SECRET_KEY)
+    s3 = boto.s3.connection.S3Connection(
+                psi_cloud_credentials.EC2_ACCESS_ID,
+                psi_cloud_credentials.EC2_SECRET_KEY)
 
     # Create an S3 download site for each Propagation Channel ID/Sponsor ID build that is found
     
