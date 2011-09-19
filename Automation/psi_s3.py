@@ -55,13 +55,80 @@ if os.path.isfile('psi_data_config.py'):
 #==============================================================================
 
 
-def publish_s3_download(propagation_channel):
+def publish_s3_download(build_filename):
 
     # Connect to AWS
 
     s3 = boto.s3.connection.S3Connection(
                 psi_cloud_credentials.EC2_ACCESS_ID,
                 psi_cloud_credentials.EC2_SECRET_KEY)
+
+    # Seed with /dev/urandom (http://docs.python.org/library/random.html#random.seed)
+    random.seed()
+    
+    # TODO: select location at random
+    location = random.choice([
+                    boto.s3.connection.Location.APNortheast,
+                    boto.s3.connection.Location.APSoutheast,
+                    boto.s3.connection.Location.EU,
+                    boto.s3.connection.Location.USWest,
+                    boto.s3.connection.Location.DEFAULT]) # DEFAULT = USEast
+    # Use default location
+    location = boto.s3.connection.Location.DEFAULT
+
+    print 'selected location: %s' % (location,)
+                    
+    # Generate random bucket ID
+    # Note: S3 bucket names can't contain uppercase letters or most symbols
+    # Format: XXXX-XXXX-XXXX. Each segment has about 20 bits of entropy
+    # (http://en.wikipedia.org/wiki/Password_strength#Random_passwords)
+    bucket_id = '-'.join(
+        [''.join([random.choice(string.lowercase + string.digits)
+                 for j in range(4)])
+         for i in range(3)])
+    
+    # Create new bucket
+    # TODO: retry on boto.exception.S3CreateError: S3Error[409]: Conflict
+    bucket = s3.create_bucket(bucket_id, location=location)
+
+    try:
+        def progress(complete, total):
+            sys.stdout.write('.')
+            sys.stdout.flush()
+        
+        # Upload the download site static content. This include the download page in
+        # each available language and the associated images.
+        # The download URLs will be the main page referenced by language, for example:
+        # https://s3.amazonaws.com/[bucket_id]/en.html
+        for name in os.listdir(DOWNLOAD_SITE_CONTENT_ROOT):
+            path = os.path.join(DOWNLOAD_SITE_CONTENT_ROOT, name)
+            if os.path.isfile(path):
+                key = bucket.new_key(name)
+                key.set_contents_from_filename(path, cb=progress)
+                key.close()
+        
+        # Upload the specific Propagation Channel/Spondor build as "psiphon3.exe"
+    
+        key = bucket.new_key(DOWNLOAD_SITE_BUILD_FILENAME)
+        path = os.path.join(BUILDS_ROOT, build_filename)
+        key.set_contents_from_filename(path, cb=progress)
+        key.close()
+    except:
+        # TODO: delete all keys
+        #print 'upload failed, deleting bucket %s' % (bucket_id,)
+        #bucket.delete()
+        raise
+
+    print ' done'
+    
+    # Make the whole bucket public now that it's uploaded
+    bucket.disable_logging()
+    bucket.make_public(recursive=True)
+
+    print 'download URL: https://s3.amazonaws.com/%s/en.html' % (bucket_id)
+
+
+def publish_s3_downloads(propagation_channel):
 
     # Create an S3 download site for each Propagation Channel ID/Sponsor ID build that is found
     
@@ -72,74 +139,21 @@ def publish_s3_download(propagation_channel):
         match = filename_pattern.match(filename)
         if match:
             sponsor_id = match.groups()[1]
-
             print 'publish S3 download site for propagation channel %s, sponsor %s...' % (
                         propagation_channel.Propagation_Channel_ID,
                         sponsor_id)
-
-            # Seed with /dev/urandom (http://docs.python.org/library/random.html#random.seed)
-            random.seed()
-            
-            # TODO: select location at random
-            location = random.choice([
-                            boto.s3.connection.Location.APNortheast,
-                            boto.s3.connection.Location.APSoutheast,
-                            boto.s3.connection.Location.EU,
-                            boto.s3.connection.Location.USWest])
-            # Use default location
-            location = boto.s3.connection.Location.DEFAULT
-
-            print 'selected location: %s' % (location,)
-                            
-            # Generate random bucket ID
-            # Note: S3 bucket names can't contain uppercase letters or most symbols
-            # Format: XXXX-XXXX-XXXX. Each segment has about 20 bits of entropy
-            # (http://en.wikipedia.org/wiki/Password_strength#Random_passwords)
-            bucket_id = '-'.join(
-                [''.join([random.choice(string.lowercase + string.digits)
-                         for j in range(4)])
-                 for i in range(3)])
-    
-            # Create new bucket
-            # TODO: retry on boto.exception.S3CreateError: S3Error[409]: Conflict
-            bucket = s3.create_bucket(bucket_id, location=location)
-
-            def progress(complete, total):
-                sys.stdout.write('.')
-                sys.stdout.flush()
-            
-            # Upload the download site static content. This include the download page in
-            # each available language and the associated images.
-            # The download URLs will be the main page referenced by language, for example:
-            # https://s3.amazonaws.com/[bucket_id]/en.html
-            for name in os.listdir(DOWNLOAD_SITE_CONTENT_ROOT):
-                path = os.path.join(DOWNLOAD_SITE_CONTENT_ROOT, name)
-                if os.path.isfile(path):
-                    key = bucket.new_key(name)
-                    key.set_contents_from_filename(path, cb=progress)
-                    key.close()
-            
-            # Upload the specific Propagation Channel/Spondor build as "psiphon3.exe"
-
-            key = bucket.new_key(DOWNLOAD_SITE_BUILD_FILENAME)
-            path = os.path.join(BUILDS_ROOT, filename)
-            key.set_contents_from_filename(path, cb=progress)
-            key.close()
-
-            print ' done'
-            
-            # Make the whole bucket public now that it's uploaded
-            bucket.disable_logging()
-            bucket.make_public(recursive=True)
-
-            print 'download URL: https://s3.amazonaws.com/%s/en.html' % (bucket_id)
+            publish_s3_download(filename)
 
 
 if __name__ == "__main__":
+
+    # TODO: logging for location debugging
+    #import logging
+    #logging.basicConfig(filename="boto.log", level=logging.DEBUG)
 
     # Setup S3 download for each propagation channel
     # Assumes builds for each channel have been created
 
     propagation_channels = psi_db.get_propagation_channels()
     for propagation_channel in propagation_channels:
-        publish_s3_download(propagation_channel)
+        publish_s3_downloads(propagation_channel)
