@@ -387,6 +387,9 @@ if __name__ == "__main__":
         # Generate and upload xl2tpd config files and init script
         #
 
+        # Stop the default instance first
+        ssh.exec_command('/etc/init.d/xl2tpd stop')
+
         for index, server in enumerate(host_servers):
             ssh.exec_command(make_xl2tpd_config_file_command(index, server.IP_Address))
 
