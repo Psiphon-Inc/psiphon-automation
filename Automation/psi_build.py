@@ -224,6 +224,10 @@ def __build_clients(latest_version_number):
 
         for channel in propagation_channels:
 
+            # Skip this channel
+            if channel.Propagation_Channel_ID == 'FFFFFFFFFFFFFFFF':
+                continue
+                
             # overwrite embedded values source file
             write_embedded_values(
                 channel.Propagation_Channel_ID,
