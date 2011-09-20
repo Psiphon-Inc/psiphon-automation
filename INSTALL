@@ -413,6 +413,10 @@ Add this user to the list of users in AllowUsers in /etc/ssh/sshd_config.
 Note: it is a good idea to use a unique user name and a strong randomly
 generated password for this user on each host.
 
+Make sure that rsync is installed.
+
+  apt-get install rsync
+
 
 8. Add host and servers to network database
 -------------------------------------------
