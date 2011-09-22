@@ -41,6 +41,8 @@ BANNER_ROOT = os.path.join(os.path.abspath('..'), 'Data', 'Banners')
 CLIENT_SOLUTION_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient.sln')
 CODE_SIGNING_PFX_FILENAME = os.path.join(os.path.abspath('..'), 'Data', 'CodeSigning', 'test-code-signing-package.pfx')
 BANNER_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', 'banner.bmp')
+CUSTOM_EMAIL_BANNER = 'email.bmp'
+EMAIL_BANNER_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', 'email.bmp')
 EMBEDDED_VALUES_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', 'embeddedvalues.h')
 EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, 'Release', 'psiphon.exe')
 BUILDS_ROOT = os.path.join('.', 'Builds')
@@ -218,7 +220,12 @@ def __build_clients(latest_version_number):
 
     for sponsor in sponsors:
 
-        # copy sponsor banner image file from Data to Client source tree
+        # Copy custom email banner from Data to source tree
+        # (there's only one custom email banner for all sponsors)
+        banner_source_path = os.path.join(BANNER_ROOT, CUSTOM_EMAIL_BANNER)
+        shutil.copyfile(banner_source_path, EMAIL_BANNER_FILENAME)
+
+        # Copy sponsor banner image file from Data to Client source tree
         banner_source_path = os.path.join(BANNER_ROOT, sponsor.Banner_Filename)
         shutil.copyfile(banner_source_path, BANNER_FILENAME)
 
@@ -262,6 +269,7 @@ def do_build(build_func):
             return temporary_file
 
         banner_tempfile = store_to_temporary_file(BANNER_FILENAME)
+        email_banner_tempfile = store_to_temporary_file(EMAIL_BANNER_FILENAME)
         embedded_values_tempfile = store_to_temporary_file(EMBEDDED_VALUES_FILENAME)
 
         psi_db.validate_data()
@@ -285,6 +293,7 @@ def do_build(build_func):
                     temporary_file.seek(0)
                     file.write(temporary_file.read())
             restore_from_temporary_file(banner_tempfile, BANNER_FILENAME)
+            restore_from_temporary_file(email_banner_tempfile, EMAIL_BANNER_FILENAME)
             restore_from_temporary_file(embedded_values_tempfile, EMBEDDED_VALUES_FILENAME)
         except:
             pass
