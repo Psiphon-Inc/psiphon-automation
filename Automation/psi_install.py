@@ -27,7 +27,6 @@ from OpenSSL import crypto
 
 import psi_ssh
 import psi_deploy
-import psi_test
 
 sys.path.insert(0, os.path.abspath(os.path.join('..', 'Data')))
 import psi_db
@@ -522,6 +521,3 @@ if __name__ == "__main__":
 
         # Deploy will upload web server source database data and client builds
         psi_deploy.deploy(host)
-
-    # Test handshake and VPN connection to each server
-    psi_test.test_servers()
