@@ -263,7 +263,7 @@ def do_build(build_func):
         # (to minimize chance of checking values into source control)
         def store_to_temporary_file(filename):
             temporary_file = tempfile.NamedTemporaryFile()
-            with open(filename, 'r') as file:
+            with open(filename, 'rb') as file:
                 temporary_file.write(file.read())
                 temporary_file.flush()
             return temporary_file
@@ -289,7 +289,7 @@ def do_build(build_func):
         # attempt to restore original source files
         try:
             def restore_from_temporary_file(temporary_file, filename):
-                with open(filename, 'w') as file:
+                with open(filename, 'wb') as file:
                     temporary_file.seek(0)
                     file.write(temporary_file.read())
             restore_from_temporary_file(banner_tempfile, BANNER_FILENAME)
