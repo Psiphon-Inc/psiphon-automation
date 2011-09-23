@@ -113,18 +113,16 @@ def deploy(host):
     # Copy client builds
     # As above, we only upload the builds for Propagation Channel IDs that
     # need to be known for the host.
+    # UPDATE: Now we copy all builds.  We know that this breaks compartmentalization.
+    # However, we do not want to prevent an upgrade in the case where a user has
+    # downloaded from multiple propagation channels, and might therefore be connecting
+    # to a server from one propagation channel using a build from a different one.
 
     ssh.exec_command('mkdir -p %s' % (psi_config.UPGRADE_DOWNLOAD_PATH,))
 
-    # Match 'psiphon-<Propagation Channel ID>-<Sponsor ID>.exe' with specific propagation channel ID and any sponsor ID
-    filename_pattern = re.compile(psi_build.BUILD_FILENAME_TEMPLATE % ('([0-9,A-F]+)', '([0-9,A-F]+)'))
-    discovery_propagation_channel_ids_on_host = psi_db.get_discovery_propagation_channel_ids_for_host(host.Host_ID)
-
     for filename in os.listdir(BUILDS_ROOT):
-        match = filename_pattern.match(filename)
-        if match and match.groups()[0] in discovery_propagation_channel_ids_on_host:
-            ssh.put_file(os.path.join(BUILDS_ROOT, filename),
-                         posixpath.join(psi_config.UPGRADE_DOWNLOAD_PATH, filename))
+        ssh.put_file(os.path.join(BUILDS_ROOT, filename),
+                     posixpath.join(psi_config.UPGRADE_DOWNLOAD_PATH, filename))
 
     # Copy DNS capture init script and restart it
 
