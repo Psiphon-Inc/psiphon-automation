@@ -21,6 +21,8 @@ import os
 import sys
 import random
 import time
+import psi_ssh
+import linode.api
 
 sys.path.insert(0, os.path.abspath(os.path.join('..', 'Data')))
 import psi_db
@@ -40,8 +42,6 @@ if os.path.isfile('psi_data_config.py'):
     import psi_cloud_credentials
 
 #==============================================================================
-
-import linode.api
 
 
 def wait_while_condition(condition, max_wait_seconds, description):
@@ -94,12 +94,27 @@ def create_linode_configurations(linode_api, linode_id, disk_list):
     return bootstrap_config_id['ConfigID'], psiphon3_host_config_id['ConfigID']
     
 
+def start_linode(linode_api, linode_id, config_id):
+    boot_job_id = linode_api.linode_boot(LinodeID=linode_id, ConfigID=config_id)['JobID']
+    wait_while_condition(lambda: linode_api.linode_job_list(LinodeID=linode_id, JobID=boot_job_id)[0]['HOST_SUCCESS'] == '',
+                         60,
+                         'boot the linode')
+    assert(linode_api.linode_job_list(LinodeID=linode_id, JobID=boot_job_id)[0]['HOST_SUCCESS'] == 1)
+    
+    
+def pave_linode(ip_address, password):
+    ssh = psi_ssh.SSH(ip_address, 22, 'root', password, None)
+    # TODO...
+    
+    
 def deploy_server():
     linode_api = linode.api.Api(key=psi_cloud_credentials.LINODE_API_KEY)
     linode_id = create_linode(linode_api)
     disk_ids = create_linode_disks(linode_api, linode_id)
     bootstrap_config_id, psiphon3_host_config_id = create_linode_configurations(linode_api, linode_id, ','.join(disk_ids))
-
+    start_linode(linode_api, linode_id, bootstrap_config_id)
+    linode_ip_address = linode_api.linode_ip_list(LinodeID=linode_id)[0]['IPADDRESS']
+    
     
 if __name__ == "__main__":
     print deploy_server()

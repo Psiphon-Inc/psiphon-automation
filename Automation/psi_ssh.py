@@ -32,9 +32,12 @@ class SSH(object):
         self.ssh = paramiko.SSHClient()
         self.ip_address = ip_address
         ssh_port = int(ssh_port)
-        key_type, key_data = ssh_host_key.split(' ')
-        key_host_name = '[%s]:%d' % (ip_address, ssh_port)
-        self.ssh.get_host_keys().add(key_host_name, key_type, paramiko.RSAKey(data=base64.b64decode(key_data)))
+        if ssh_host_key == None:
+            self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        else:
+            key_type, key_data = ssh_host_key.split(' ')
+            key_host_name = '[%s]:%d' % (ip_address, ssh_port)
+            self.ssh.get_host_keys().add(key_host_name, key_type, paramiko.RSAKey(data=base64.b64decode(key_data)))
         self.ssh.connect(ip_address, ssh_port, ssh_username, ssh_password)
 
     def close(self):
