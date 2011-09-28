@@ -267,11 +267,14 @@ def test_get_encoded_server_list():
 
 def get_region(client_ip_address):
     try:
+        region = None
         # Use the commercial "city" database is available
         city_db_filename = '/usr/local/share/GeoIP/GeoIPCity.dat'
         if os.path.isfile(city_db_filename):
-            region = GeoIP.open(city_db_filename,
-                                GeoIP.GEOIP_MEMORY_CACHE).record_by_name(client_ip_address)['country_code']
+            record = GeoIP.open(city_db_filename,
+                                GeoIP.GEOIP_MEMORY_CACHE).record_by_name(client_ip_address)
+            if record:
+                region = record['country_code']
         else:
             region = GeoIP.new(GeoIP.GEOIP_MEMORY_CACHE).country_code_by_name(client_ip_address)
         if region is None:
