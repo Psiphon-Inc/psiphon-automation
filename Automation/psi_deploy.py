@@ -24,7 +24,6 @@ import posixpath
 import sys
 
 import psi_ssh
-import psi_build
 
 sys.path.insert(0, os.path.abspath(os.path.join('..', 'Data')))
 import psi_db
