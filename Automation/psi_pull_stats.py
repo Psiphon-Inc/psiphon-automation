@@ -235,39 +235,39 @@ def pull_stats(db, error_file, host):
                     file = gzip.open(temp_file.name)
                 else:
                     file = open(temp_file.name)
-                    for line in file.read().split('\n'):
-                        match = line_re.match(line)
-                        if (not match or
-                            not LOG_EVENT_TYPE_SCHEMA.has_key(match.group(3))):
-                            err = 'unexpected log line pattern: %s' % (line,)
-                            error_file.write(err + '\n')
-                            continue
-                        timestamp = match.group(1)
-                        host_id = match.group(2)
-                        event_type = match.group(3)
-                        event_values = match.group(4).split()
-                        event_fields = LOG_EVENT_TYPE_SCHEMA[event_type]
-                        if len(event_values) != len(event_fields):
-                            err = 'invalid log line fields %s' % (line,)
-                            error_file.write(err + '\n')
-                            continue
-                        field_names = LOG_ENTRY_COMMON_FIELDS + event_fields
-                        field_values = [timestamp, host_id] + event_values
-                        # Replace server IP addresses with server IDs in
-                        # stats to keep IP addresses confidental in reporting.
-                        assert(len(field_names) == len(field_values))
-                        for index, name in enumerate(field_names):
-                            if name.find('server_id') != -1:
-                                field_values[index] = server_ip_address_to_id[
-                                                        field_values[index]]
-                        # SQL injection note: the table name isn't parameterized
-                        # and comes from log file data, but it's implicitly
-                        # validated by hash table lookups
-                        command = 'insert into %s (%s) values (%s)' % (
-                            event_type,
-                            ', '.join(field_names),
-                            ', '.join(['?']*len(field_values)))
-                        db.execute(command, field_values)
+                for line in file.read().split('\n'):
+                    match = line_re.match(line)
+                    if (not match or
+                        not LOG_EVENT_TYPE_SCHEMA.has_key(match.group(3))):
+                        err = 'unexpected log line pattern: %s' % (line,)
+                        error_file.write(err + '\n')
+                        continue
+                    timestamp = match.group(1)
+                    host_id = match.group(2)
+                    event_type = match.group(3)
+                    event_values = match.group(4).split()
+                    event_fields = LOG_EVENT_TYPE_SCHEMA[event_type]
+                    if len(event_values) != len(event_fields):
+                        err = 'invalid log line fields %s' % (line,)
+                        error_file.write(err + '\n')
+                        continue
+                    field_names = LOG_ENTRY_COMMON_FIELDS + event_fields
+                    field_values = [timestamp, host_id] + event_values
+                    # Replace server IP addresses with server IDs in
+                    # stats to keep IP addresses confidental in reporting.
+                    assert(len(field_names) == len(field_values))
+                    for index, name in enumerate(field_names):
+                        if name.find('server_id') != -1:
+                            field_values[index] = server_ip_address_to_id[
+                                                    field_values[index]]
+                    # SQL injection note: the table name isn't parameterized
+                    # and comes from log file data, but it's implicitly
+                    # validated by hash table lookups
+                    command = 'insert into %s (%s) values (%s)' % (
+                        event_type,
+                        ', '.join(field_names),
+                        ', '.join(['?']*len(field_values)))
+                    db.execute(command, field_values)
             finally:
                 # Always delete temporary downloaded log file
                 if file:
