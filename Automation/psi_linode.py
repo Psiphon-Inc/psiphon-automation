@@ -123,7 +123,7 @@ def pave_linode(ip_address, password):
     ssh.exec_command('scp -P %d root@%s:%s /' % (psi_cloud_credentials.LINODE_BASE_SSH_PORT,
                                                  psi_cloud_credentials.LINODE_BASE_IP_ADDRESS,
                                                  psi_cloud_credentials.LINODE_BASE_TARBALL_PATH))
-    ssh.exec_command('tar xvpfj %s -C /' % (psi_cloud_credentials.LINODE_BASE_TARBALL_PATH,))
+    ssh.exec_command('tar xvpfj %s -C / &> /dev/null' % (psi_cloud_credentials.LINODE_BASE_TARBALL_PATH,))
     
     
 def refresh_credentials(ip_address, new_root_password, new_stats_password):
@@ -166,10 +166,10 @@ def deploy_server():
     new_stats_password = ''.join([random.choice(string.letters + string.digits) for i in range(16)])
     new_host_public_key = refresh_credentials(linode_ip_address, new_root_password, new_stats_password)
 
-    return linode_id, linode_ip_address, psi_cloud_credentials.LINODE_BASE_SSH_PORT,
-           'root', new_root_password,
-           psi_cloud_credentials.LINODE_BASE_STATS_USERNAME, new_stats_password,
-           new_host_public_key
+    return linode_id, linode_ip_address, psi_cloud_credentials.LINODE_BASE_SSH_PORT,\
+           'root', new_root_password,\
+           psi_cloud_credentials.LINODE_BASE_STATS_USERNAME, new_stats_password,\
+           ' '.join(new_host_public_key.split(' ')[:2])
     
     
 if __name__ == "__main__":
