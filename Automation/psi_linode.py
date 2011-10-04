@@ -68,10 +68,9 @@ def create_linode(linode_api):
     return new_node_id
 
 
-def create_linode_disks(linode_api, linode_id):
+def create_linode_disks(linode_api, linode_id, bootstrap_password):
     # DistributionID = 77: Debian 6
-    # TODO: random strong password
-    create_disk_job = linode_api.linode_disk_createfromdistribution(LinodeID=linode_id, DistributionID=77, rootPass='Password', Label='Psiphon 3 Disk Image', Size=40704)
+    create_disk_job = linode_api.linode_disk_createfromdistribution(LinodeID=linode_id, DistributionID=77, rootPass=bootstrap_password, Label='Psiphon 3 Disk Image', Size=40704)
     wait_while_condition(lambda: linode_api.linode_job_list(LinodeID=linode_id, JobID=create_disk_job['JobID'])[0]['HOST_SUCCESS'] == '',
                          120,
                          'create a disk from distribution')
@@ -95,26 +94,66 @@ def create_linode_configurations(linode_api, linode_id, disk_list):
     
 
 def start_linode(linode_api, linode_id, config_id):
-    boot_job_id = linode_api.linode_boot(LinodeID=linode_id, ConfigID=config_id)['JobID']
+    if config_id:
+        boot_job_id = linode_api.linode_boot(LinodeID=linode_id, ConfigID=config_id)['JobID']
+    else:
+        boot_job_id = linode_api.linode_boot(LinodeID=linode_id)['JobID']
     wait_while_condition(lambda: linode_api.linode_job_list(LinodeID=linode_id, JobID=boot_job_id)[0]['HOST_SUCCESS'] == '',
                          60,
                          'boot the linode')
     assert(linode_api.linode_job_list(LinodeID=linode_id, JobID=boot_job_id)[0]['HOST_SUCCESS'] == 1)
     
     
+def stop_linode(linode_api, linode_id):
+    shutdown_job_id = linode_api.linode_shutdown(LinodeID=linode_id)['JobID']
+    wait_while_condition(lambda: linode_api.linode_job_list(LinodeID=linode_id, JobID=shutdown_job_id)[0]['HOST_SUCCESS'] == '',
+                         60,
+                         'shutdown the linode')
+    assert(linode_api.linode_job_list(LinodeID=linode_id, JobID=shutdown_job_id)[0]['HOST_SUCCESS'] == 1)
+    
+    
 def pave_linode(ip_address, password):
     ssh = psi_ssh.SSH(ip_address, 22, 'root', password, None)
-    # TODO...
+    ssh.exec_command('mkdir -p /root/.ssh')
+    ssh.exec_command('echo "%s" > /root/.ssh/known_hosts' % (psi_cloud_credentials.LINODE_BASE_KNOWN_HOSTS_ENTRY,))
+    ssh.exec_command('echo "%s" > /root/.ssh/id_rsa' % (psi_cloud_credentials.LINODE_BASE_RSA_PRIVATE_KEY,))
+    ssh.exec_command('chmod 600 /root/.ssh/id_rsa')
+    ssh.exec_command('echo "%s" > /root/.ssh/id_rsa.pub' % (psi_cloud_credentials.LINODE_BASE_RSA_PUBLIC_KEY,))
+    ssh.exec_command('scp -P %d root@%s:%s /' % (psi_cloud_credentials.LINODE_BASE_SSH_PORT,
+                                                 psi_cloud_credentials.LINODE_BASE_IP_ADDRESS,
+                                                 psi_cloud_credentials.LINODE_BASE_TARBALL_PATH))
+    ssh.exec_command('tar xvpfj %s -C /' % (psi_cloud_credentials.LINODE_BASE_TARBALL_PATH,))
     
     
 def deploy_server():
     linode_api = linode.api.Api(key=psi_cloud_credentials.LINODE_API_KEY)
+    
+    # Power on the base image linode
+    start_linode(linode_api, psi_cloud_credentials.LINODE_BASE_ID, None)
+    
+    # Create a new linode
+    # TODO: random strong password
+    new_linode_password = 'Password'
     linode_id = create_linode(linode_api)
-    disk_ids = create_linode_disks(linode_api, linode_id)
+    disk_ids = create_linode_disks(linode_api, linode_id, new_linode_password)
     bootstrap_config_id, psiphon3_host_config_id = create_linode_configurations(linode_api, linode_id, ','.join(disk_ids))
     start_linode(linode_api, linode_id, bootstrap_config_id)
-    linode_ip_address = linode_api.linode_ip_list(LinodeID=linode_id)[0]['IPADDRESS']
     
+    # Wait a few seconds for SSH to be available
+    time.sleep(10)
+
+    # Clone the base linode
+    linode_ip_address = linode_api.linode_ip_list(LinodeID=linode_id)[0]['IPADDRESS']
+    pave_linode(linode_ip_address, new_linode_password)
+    stop_linode(linode_api, linode_id)
+    start_linode(linode_api, linode_id, psiphon3_host_config_id)
+    
+    # Power down the base image linode
+    stop_linode(linode_api, psi_cloud_credentials.LINODE_BASE_ID)
+
+    # TODO: change the new linode's credentials
+    # TODO: delete the authorized_keys file
+
     
 if __name__ == "__main__":
     print deploy_server()
