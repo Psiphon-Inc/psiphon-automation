@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# coding=utf-8
 #
 # Copyright (c) 2011, Psiphon Inc.
 # All rights reserved.
@@ -19,18 +20,18 @@
 
 def get_tweet_message(bucket_root_url):
     return '''English - {0}/en.html
-فارسی - x{0}/fa.html
+فارسی - {0}/fa.html
 Русский - {0}/ru.html
-Türkmençe -{0}/tk.html
+Türkmençe - {0}/tk.html
 中文 - {0}/zh.html
-العربي -  x{0}/ar.html
-ภาษาไทย -{0}/th.html'''.format(bucket_root_url)
+العربي - {0}/ar.html
+ภาษาไทย - {0}/th.html'''.format(bucket_root_url)
 
 def get_email_content(bucket_root_url):
     return 'Get Psiphon 3!', '''English - {0}/en.html
-فارسی - x{0}/fa.html
+فارسی - {0}/fa.html
 Русский - {0}/ru.html
-Türkmençe -{0}/tk.html
+Türkmençe - {0}/tk.html
 中文 - {0}/zh.html
-العربي -  x{0}/ar.html
-ภาษาไทย -{0}/th.html'''.format(bucket_root_url)
+العربي - {0}/ar.html
+ภาษาไทย - {0}/th.html'''.format(bucket_root_url)
