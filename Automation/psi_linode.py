@@ -140,7 +140,7 @@ def refresh_credentials(ip_address, new_root_password, new_stats_password):
     return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
 
     
-def deploy_server():
+def launch_new_server():
     linode_api = linode.api.Api(key=psi_cloud_credentials.LINODE_API_KEY)
     
     # Power on the base image linode
@@ -176,4 +176,4 @@ def deploy_server():
     
     
 if __name__ == "__main__":
-    print deploy_server()
+    print launch_new_server()

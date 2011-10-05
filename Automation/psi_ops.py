@@ -19,7 +19,9 @@
 
 import cPickle
 import time
+import pprint
 import psi_utils
+import psi_cms
 import psi_templates
 import psi_s3
 import psi_twitter
@@ -80,7 +82,7 @@ EmailServerAccount = psi_utils.record_type(
     'ssh_port, ssh_username, ssh_password, ssh_host_key')
 
 
-class PsiphonNetwork(psi_utils.PersistentObject):
+class PsiphonNetwork(psi_cms.PersistentObject):
 
     def __init__(self):
         self.version = '1.0'
@@ -99,6 +101,10 @@ class PsiphonNetwork(psi_utils.PersistentObject):
         self.server_deploy_required = False
         self.email_push_required = False
 
+    def __del__(self):
+        # prompt: deploy_req, email_req, save_required
+        pass
+
     def list_status(self):
         # output counts, requireds
         pass
@@ -112,19 +118,19 @@ class PsiphonNetwork(psi_utils.PersistentObject):
 
     def list_propagation_channels(self):
         for propagation_channel in self.propagation_channels:
-            self.list_propagation_channel(propagation_channel)
+            self.list_propagation_channel(propagation_channel.name)
 
     def list_propagation_channel(self, name):
-        # TODO: pretty print, print node details
-        print self.propagation_channels[name]
+        # TODO: custom print, associated server details
+        pprint.PrettyPrinter.pprint(self.propagation_channels[name])
 
     def list_sponsors(self):
         for sponsor in self.sponsors:
-            self.list_sponsor(sponsor)
+            self.list_sponsor(sponsor.name)
 
     def list_sponsor(self, name):
-        #...incl campagain mechanisms, logs
-        pass
+        # TODO: custom print, campaign mechanisms
+        pprint.PrettyPrinter.pprint(self.sponsors[name])
 
     def add_sponsor(self, name):
         id = self.__generate_id()
@@ -146,7 +152,7 @@ class PsiphonNetwork(psi_utils.PersistentObject):
         propagation_channel = self.propagation_channels[propagation_channel_name]
         propagation_mechanism_type = 'email-autoresponder'
         assert(propagation_mechanism_type in propagation_channel.propagation_mechanism_types)
-        #assert(email_account not in ...)
+        # TODO: assert(email_account not in ...)
         campaign = SponsorCampaign(propagation_channel.id,
                                    propagation_mechanism_type,
                                    EmailPropagationAccount(email_account))
@@ -171,7 +177,7 @@ class PsiphonNetwork(psi_utils.PersistentObject):
         propagation_channel = self.propagation_channels[propagation_channel_name]
 
         # Create a new cloud VPS
-        host = Host(*psi_linode.deploy_server())
+        host = Host(*psi_linode.launch_new_server(self.linode_account))
         host.log('created')
 
         # Install Psiphon 3 and generate configuration values
@@ -182,6 +188,9 @@ class PsiphonNetwork(psi_utils.PersistentObject):
                                             host.ssh_host_key)
 
         # Update database
+        
+        # TODO: FFFF-out
+        
         assert(host.hostname not in self.hosts)
         self.hosts[hostname] = host
         server = Server(server_config[0],
@@ -195,6 +204,10 @@ class PsiphonNetwork(psi_utils.PersistentObject):
         self.servers[server.id] = servers
 
         self.server_deploy_required = True
+
+        # Ensure new configuration is saved to CMS before deploying new
+        # server info to the network
+        self.save()
 
         # Do the server deploy before we propagate
         self.deploy_servers()
@@ -225,14 +238,28 @@ class PsiphonNetwork(psi_utils.PersistentObject):
             self.push_email()
 
     def list_servers(self):
-        pass
+        for server in self.servers:
+            self.list_server(server.id)
+
+    def list_server(self, id):
+        # TODO: custom print, campaign mechanisms
+        pprint.PrettyPrinter.pprint(self.servers[id])
 
     def test_servers(self, test_connections=False):
+        for server in self.servers:
+            self.test_server(server.id, test_connections)
+
+    def test_server(self, id, test_connections=False):
         pass
 
     def deploy_servers(self):
         # ...pass database subset into deploy
         # ...server.log('deployed')
+        for server in self.servers:
+            self.deploy_server(server.id)
+
+    def deploy_server(self, id):
+        
         pass
 
     def push_email(self):

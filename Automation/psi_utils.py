@@ -20,6 +20,7 @@
 import sys
 from textwrap import dedent
 from keyword import iskeyword
+import psi_cms
 
 
 # Adapted from:
@@ -167,31 +168,3 @@ def recordtype(typename, field_names, verbose=False, **default_kwds):
     if hasattr(sys, '_getframe') and sys.platform != 'cli':
         cls.__module__ = sys._getframe(1).f_globals['__name__']
     return cls
-
-
-# Adapted from:
-# http://code.activestate.com/recipes/521901-upgradable-pickles/
-
-class PersistentObject(object):
-
-    class_version = '0.0'
-
-    def __init__(self):
-        self.version = self.__class__.class_version
-
-    def save(self, filename):
-        with open(filename, 'wb') as file:
-            file.write(cPickle.dumps(self))
-
-    @staticmethod
-    def load(filename):
-        with open(filename, 'rb') as file:
-            obj = cPickle.loads(file.read())
-            if not hasattr(obj, 'version'):
-                obj.version = '0.0'
-            if obj.version != obj.class_version:
-                obj.upgrade()
-            returnobj
-
-    def upgrade(self):
-        pass 

@@ -132,6 +132,10 @@ hosts in your network database for automatic client upgrade.
   python psi_deploy.py
 
 
+TODO: document full automation
+- NOTE: the Linode automation script requires an Administrator shell
+
+
 Debian Server Host Installation
 --------------------------------------------------------------------------------
 
