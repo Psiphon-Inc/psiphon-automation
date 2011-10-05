@@ -114,8 +114,8 @@ def stop_linode(linode_api, linode_id):
     
     
 def pave_linode(ip_address, password):
-    # Note: using auto-add-policy for host's SSH public key here. There's a risk of man-in-the-middle.
-    # TODO: could we extract the initial host SSH public key from the Linode API?
+    # Note: using auto-add-policy for host's SSH public key here since we can't get it through the Linode API.
+    # There's a risk of man-in-the-middle.
     ssh = psi_ssh.SSH(ip_address, 22, 'root', password, None)
     ssh.exec_command('mkdir -p /root/.ssh')
     ssh.exec_command('echo "%s" > /root/.ssh/known_hosts' % (psi_cloud_credentials.LINODE_BASE_KNOWN_HOSTS_ENTRY,))
@@ -130,7 +130,8 @@ def pave_linode(ip_address, password):
     
 def refresh_credentials(ip_address, new_root_password, new_stats_password):
     ssh = psi_ssh.SSH(ip_address, psi_cloud_credentials.LINODE_BASE_SSH_PORT,
-                      'root', psi_cloud_credentials.LINODE_BASE_ROOT_PASSWORD, None)
+                      'root', psi_cloud_credentials.LINODE_BASE_ROOT_PASSWORD,
+                      psi_cloud_credentials.LINODE_BASE_HOST_PUBLIC_KEY)
     ssh.exec_command('echo "root:%s" | chpasswd' % (new_root_password,))
     ssh.exec_command('echo "%s:%s" | chpasswd' % (psi_cloud_credentials.LINODE_BASE_STATS_USERNAME, new_stats_password))
     ssh.exec_command('rm /etc/ssh/ssh_host_*')
