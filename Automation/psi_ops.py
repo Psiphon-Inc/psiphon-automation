@@ -20,6 +20,7 @@
 import cPickle
 import time
 import pprint
+import json
 import psi_utils
 import psi_cms
 import psi_templates
@@ -53,7 +54,7 @@ SponsorHomePage = psi_utils.record_type(
 
 SponsorCampaign = psi_utils.record_type(
     'SponsorCampaign',
-    'propagation_channel_id, propagation_mechanism_type, account')
+    'propagation_channel_id, propagation_mechanism_type, account, s3_bucket_root_url')
 
 Host = psi_utils.record_type(
     'Host',
@@ -65,21 +66,21 @@ Server = psi_utils.record_type(
     'web_server_port, web_server_secret, web_server_certificate, web_server_private_key, '+
     'ssh_port, ssh_username, ssh_password, ssh_host_key')
 
-Version = psi_utils.record_type(
-    'Version',
+ClientVersion = psi_utils.record_type(
+    'ClientVersion',
     'client_version, description')
 
 AwsAccount = psi_utils.record_type(
     'AwsAcount',
-    'id, access_id, secret_key')
+    'access_id, secret_key')
 
 LinodeAccount = psi_utils.record_type(
     'LinodeAccount',
-    'id, api_key')
+    'api_key')
 
 EmailServerAccount = psi_utils.record_type(
     'EmailServerAccount',
-    'ssh_port, ssh_username, ssh_password, ssh_host_key')
+    'ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key')
 
 
 class PsiphonNetwork(psi_cms.PersistentObject):
@@ -94,7 +95,7 @@ class PsiphonNetwork(psi_cms.PersistentObject):
         self.sponsors = {}
         self.hosts = {}
         self.servers = {}
-        self.versions = {}
+        self.client_versions = {}
         self.email_server_account = None
         self.aws_account = None
         self.linode_account = None
@@ -102,11 +103,11 @@ class PsiphonNetwork(psi_cms.PersistentObject):
         self.email_push_required = False
 
     def __del__(self):
-        # prompt: deploy_req, email_req, save_required
+        # TODO: prompt -- deploy_req, email_req, save_required
         pass
 
     def list_status(self):
-        # output counts, requireds
+        # TODO: output counts, requireds
         pass
 
     def add_propagation_channel(self, name, propagation_mechanism_types):
@@ -155,7 +156,8 @@ class PsiphonNetwork(psi_cms.PersistentObject):
         # TODO: assert(email_account not in ...)
         campaign = SponsorCampaign(propagation_channel.id,
                                    propagation_mechanism_type,
-                                   EmailPropagationAccount(email_account))
+                                   EmailPropagationAccount(email_account),
+                                   '')
         sponsor.campaigns.append(campaign)
         sponsor.log('add email campaign %s' % (email_account,))
         self.server_deploy_required = True
@@ -178,7 +180,6 @@ class PsiphonNetwork(psi_cms.PersistentObject):
 
         # Create a new cloud VPS
         host = Host(*psi_linode.launch_new_server(self.linode_account))
-        host.log('created')
 
         # Install Psiphon 3 and generate configuration values
         server_config = psi_install.install(host.ip_address,
@@ -199,7 +200,6 @@ class PsiphonNetwork(psi_cms.PersistentObject):
                         propagation_channel.id,
                         discovery_date_range,
                         *server_config[1:])
-        server.log('created')
         assert(server.id not in self.servers)
         self.servers[server.id] = servers
 
@@ -220,18 +220,22 @@ class PsiphonNetwork(psi_cms.PersistentObject):
                 if campaign.propagation_channel_id == propagation_channel.id:
                     if build_filename == None:
                         build_filename = psi_build.build(sponsor.id, propagation_channel.id)
-                    bucket_root_url = psi_s3.publish_s3_bucket(build_filename)
-                    campaign.log('published s3 bucket %s', (bucket_root_url,))
+                    s3_bucket_root_url = psi_s3.publish_s3_bucket(build_filename)
+                    campaign.log('published s3 bucket %s', (s3_bucket_root_url,))
                     if campaign.propagation_mechanism_type == 'twitter':
-                        message = psi_templates.get_tweet_message(bucket_root_url)
+                        message = psi_templates.get_tweet_message(s3_bucket_root_url)
                         psi_twitter.tweet(campaign.account, message)
                         campaign.log('tweeted')
                     elif campaign.propagation_mechanism_type == 'email-autoresponder':
-                        self.email_push_required = True
-                        campaign.log('email push scheduled')
+                        campaign.s3_bucket_root_url = s3_bucket_root_url
+                        if not self.email_push_required:
+                            self.email_push_required = True
+                            campaign.log('email push scheduled')
                     else:
                         print bucket_url
         propagation_channel.log('propagated')
+
+        # TODO: self.save()...?
 
         # Push an updated email config
         if self.email_push_required:
@@ -250,6 +254,7 @@ class PsiphonNetwork(psi_cms.PersistentObject):
             self.test_server(server.id, test_connections)
 
     def test_server(self, id, test_connections=False):
+        # TODO: psi_test
         pass
 
     def deploy_servers(self):
@@ -259,26 +264,58 @@ class PsiphonNetwork(psi_cms.PersistentObject):
             self.deploy_server(server.id)
 
     def deploy_server(self, id):
-        
+        # TODO: psi_deploy
         pass
 
     def push_email(self):
-        # generate config
-        # push to email server
-        # email_server.log('pushed')
-        pass
+        # Generate the email server config file, which is a JSON format
+        # mapping every request email to a response body containing
+        # download links.
+        # Currently, we generate the entire config file for any change.
+        
+        emails = []
+        for sponsor in self.sponsors:
+            for campaign in sponsor.campaigns:
+                if campaign.propagation_mechanism_type == 'email-autoresponder':
+                    subject, body = psi_templates.get_email_content(
+                                        campaign.s3_bucket_root_url)
+                    emails.append(
+                        campaign.account.email_address, subject, body)
 
-    def add_version(self):
-        pass
+        with tempfile.NamedTemporaryFile() as file:
+            file.write(json.dumps(emails))
+            ssh = psi_ssh.SSH(*self.email_server_account)
+            ssh.put_file(temp_file.name, EMAIL_SERVER_CONFIG_FILE_PATH)
+            self.email_server_account.log('pushed')
 
-    def set_email_server_account(self):
-        pass
+        self.email_push_required = False
+        # TODO: self.save()...?
 
-    def set_aws_account(self):
-        pass
+    def add_version(self, description):
+        next_version = 1
+        if len(self.client_versions) > 0:
+            next_version = int(self.client_versions[-1].client_version)+1
+        client_version = Client(str(next_version), description)
+        self.client_versions.add(client_version)
+        print 'latest version: %d' % (next_version,)
 
-    def set_linode_account(self):
-        pass
+    def set_email_server_account(self, ip_address, ssh_port,
+                                 ssh_username, ssh_password, ssh_host_key):
+        self.email_server_account.ip_address = ip_address
+        self.email_server_account.ssh_port = ssh_port
+        self.email_server_account.ssh_username = ssh_username
+        self.email_server_account.ssh_password = ssh_password
+        self.email_server_account.ssh_host_key = ssh_host_key
+        self.email_server_account.log('changed to %s' % (ip_address,))
+
+    def set_aws_account(self, access_id, secret_key):
+        self.aws_account.access_id = access_id
+        self.aws_account.secret_key = secret_key
+        self.aws_account.log('changed to %s' % (access_id,))
+
+    def set_linode_account(self, api_key):
+        self.linode_account.api_key = api_key
+        self.linode_account.log('changed to %s' % (api_key,))
 
 
 if __name__ == "__main__":

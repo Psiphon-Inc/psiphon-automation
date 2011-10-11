@@ -115,6 +115,7 @@ def recordtype(typename, field_names, verbose=False, **default_kwds):
             def __init__(self, %(argtxt)s):
                 %(inittxt)s
                 self.__log = []
+                self.log('created')
 
             def log(self, message):
                 self.__log.append((time.time(), message))
