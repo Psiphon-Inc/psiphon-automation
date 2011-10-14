@@ -19,6 +19,7 @@
 
 import cPickle
 import time
+import datetime
 import pprint
 import json
 import collections
@@ -42,53 +43,54 @@ PropagationMechanism = psi_utils.recordtype(
     'PropagationMechanism',
     'type')
 
-TwitterPropagationAccount = psi_utils.record_type(
+TwitterPropagationAccount = psi_utils.recordtype(
     'TwitterPropagationAccount',
     'name, consumer_key, consumer_secret, access_token_key, access_token_secret')
 
-EmailPropagationAccount = psi_utils.record_type(
+EmailPropagationAccount = psi_utils.recordtype(
     'EmailPropagationAccount',
     'email_address')
 
-Sponsor = psi_utils.record_type(
+Sponsor = psi_utils.recordtype(
     'Sponsor',
     'id, name, banner, home_pages, campaigns')
 
-SponsorHomePage = psi_utils.record_type(
+SponsorHomePage = psi_utils.recordtype(
     'SponsorHomePage',
     'region, url')
 
-SponsorCampaign = psi_utils.record_type(
+SponsorCampaign = psi_utils.recordtype(
     'SponsorCampaign',
     'propagation_channel_id, propagation_mechanism_type, account, s3_bucket_root_url')
 
-Host = psi_utils.record_type(
+Host = psi_utils.recordtype(
     'Host',
-    'id, hostname, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key')
+    'id, hostname, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key, '+
+    'stats_ssh_username, stats_ssh_password')
 
-Server = psi_utils.record_type(
+Server = psi_utils.recordtype(
     'Server',
     'id, host_id, ip_address, propagation_channel_id, discovery_date_range, '+
     'web_server_port, web_server_secret, web_server_certificate, web_server_private_key, '+
     'ssh_port, ssh_username, ssh_password, ssh_host_key')
 
-ClientVersion = psi_utils.record_type(
+ClientVersion = psi_utils.recordtype(
     'ClientVersion',
     'version, description')
 
-AwsAccount = psi_utils.record_type(
+AwsAccount = psi_utils.recordtype(
     'AwsAcount',
     'access_id, secret_key')
 
-LinodeAccount = psi_utils.record_type(
+LinodeAccount = psi_utils.recordtype(
     'LinodeAccount',
     'api_key')
 
-EmailServerAccount = psi_utils.record_type(
+EmailServerAccount = psi_utils.recordtype(
     'EmailServerAccount',
     'ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key')
 
-StatsServerAccount = psi_utils.record_type(
+StatsServerAccount = psi_utils.recordtype(
     'StatsServerAccount',
     'ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key')
 
@@ -96,6 +98,7 @@ StatsServerAccount = psi_utils.record_type(
 class PsiphonNetwork(psi_cms.PersistentObject):
 
     def __init__(self):
+        self.temp = LinodeAccount('key')
         self.__version = '1.0'
         self.__propagation_mechanisms = {
             'twitter' : PropagationMechanism('twitter'),
@@ -318,16 +321,16 @@ class PsiphonNetwork(psi_cms.PersistentObject):
         pass
 
     def deploy_servers(self):
-        # TODO:
-        # ...pass database subset into deploy
-        # ...server.log('deployed')
         for server in self.servers.itervalues():
             self.deploy_server(server.id)
+        # TODO:
         # ...make stats server subset db
         # ...push to stats server
 
     def deploy_server(self, id):
         # TODO: psi_deploy
+        # ...pass database subset into deploy
+        # ...server.log('deployed')
         pass
 
     def push_email(self):
@@ -554,6 +557,7 @@ class PsiphonNetwork(psi_cms.PersistentObject):
                 copy.servers[server.id] = Server(
                                             server.id,
                                             None, # Omit host_id
+                                            server.ip_address,
                                             server.propagation_channel_id,
                                             server.discovery_date_range,
                                             server.web_server_port,
@@ -585,8 +589,47 @@ class PsiphonNetwork(psi_cms.PersistentObject):
         return cPickle.dumps(copy)
 
     def compartmentalize_data_for_stats_server(self):
-        # TODO: full hosts copy, server(id, host_id, ip_address)
-        pass
+        # The stats server needs to be able to connect to all hosts and needs
+        # the information to replace server IPs with server IDs, sponsor IDs
+        # with names and propagation IDs with names
+        
+        copy = PsiphonNetwork()
+    
+        for host in self.hosts:
+            copy.hosts[copy_host.id] = Host(
+                                        host.id,
+                                        host.ip_address,
+                                        host.ssh_port,
+                                        '', # Omit: root ssh username
+                                        '', # Omit: root ssh password
+                                        host.ssh_host_key,
+                                        host.stats_ssh_username,
+                                        host.stats_ssh_password)
+
+        for server in self.servers:
+            copy.servers[server.id] = Server(
+                                        server.id,
+                                        server.host_id,
+                                        server.ip_address)
+                                        # Omit: propagation, web server, ssh info
+    
+        for propagation_channel in self.propagation_channels:
+            copy.propagation_channels[copy_propagation_channel.id] = Sponsor(
+                                        propagation_channel.id,
+                                        propagation_channel.name)
+                                        # Omit mechanism info
+
+        for sponsor in self.sponsors:
+            copy.sponsors[copy_sponsor.id] = Sponsor(
+                                        sponsor.id,
+                                        sponsor.name)
+                                        # Omit banner, home pages, campaigns
+
+        return cPickle.dumps(copy)
+
+
+def test():
+    psinet = PsiphonNetwork()
 
 
 if __name__ == "__main__":

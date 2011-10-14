@@ -18,6 +18,7 @@
 #
 
 import sys
+import datetime
 from textwrap import dedent
 from keyword import iskeyword
 import psi_cms
@@ -107,21 +108,23 @@ def recordtype(typename, field_names, verbose=False, **default_kwds):
     itertxt = '; '.join('yield self.%s' % f for f in field_names)
     eqtxt   = ' and '.join('self.%s==other.%s' % (f,f) for f in field_names)
     template = dedent('''
+        import datetime
+
         class %(typename)s(object):
             '%(typename)s(%(argtxt)s)'
 
-            __slots__  = %(field_names)r
+            __slots__  = %(field_names)r + ('logs',)
 
             def __init__(self, %(argtxt)s):
                 %(inittxt)s
-                self.__log = []
+                self.logs=[]
                 self.log('created')
 
             def log(self, message):
-                self.__log.append((time.time(), message))
+                self.logs.append((datetime.datetime.now(), message))
 
-            def get_log(self):
-                return self.__log
+            def get_logs(self):
+                return self.logs
 
             def __len__(self):
                 return %(numfields)d
