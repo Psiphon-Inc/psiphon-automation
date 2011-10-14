@@ -136,11 +136,11 @@ class PsiphonNetwork(psi_cms.PersistentObject):
 
     def list_propagation_channel(self, name):
         # TODO: custom print, associated server details
-        pprint.PrettyPrinter.pprint(slef.__get_propagation_channel_by_name(name))
+        pprint.PrettyPrinter().pprint(slef.__get_propagation_channel_by_name(name))
 
     def __get_propagation_channel_by_name(self, name):
-        propagation_channel = filter(lambda x:x.name == name,
-                                     self.__propagation_channels.itervalues())[0]
+        return filter(lambda x:x.name == name,
+                      self.__propagation_channels.itervalues())[0]
 
     def add_propagation_channel(self, name, propagation_mechanism_types):
         id = self.__generate_id()
@@ -150,16 +150,16 @@ class PsiphonNetwork(psi_cms.PersistentObject):
         self.__propagation_channels[id] = propagation_channel
 
     def list_sponsors(self):
-        for sponsor in self.__sponsors:
+        for sponsor in self.__sponsors.itervalues():
             self.list_sponsor(sponsor.name)
 
     def list_sponsor(self, name):
         # TODO: custom print, campaign mechanisms
-        pprint.PrettyPrinter.pprint(self.__get_sponsor_by_name(name))
+        pprint.PrettyPrinter().pprint(self.__get_sponsor_by_name(name))
 
     def __get_sponsor_by_name(self, name):
-        sponsor = filter(lambda x:x.name == name,
-                         self.__sponsors.itervalues())[0]
+        return filter(lambda x:x.name == name,
+                      self.__sponsors.itervalues())[0]
 
     def add_sponsor(self, name):
         id = self.__generate_id()
@@ -184,7 +184,8 @@ class PsiphonNetwork(psi_cms.PersistentObject):
         # TODO: assert(email_account not in ...)
         campaign = SponsorCampaign(propagation_channel.id,
                                    propagation_mechanism_type,
-                                   EmailPropagationAccount(email_account))
+                                   EmailPropagationAccount(email_account),
+                                   None)
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
             sponsor.log('add email campaign %s' % (email_account,))
@@ -208,7 +209,8 @@ class PsiphonNetwork(psi_cms.PersistentObject):
                                         twitter_account_consumer_key,
                                         twitter_account_consumer_secret,
                                         twitter_account_access_token_key,
-                                        twitter_account_access_token_secret))
+                                        twitter_account_access_token_secret),
+                                   None)
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
             sponsor.log('add email campaign %s' % (email_account,))
@@ -219,7 +221,7 @@ class PsiphonNetwork(psi_cms.PersistentObject):
         home_page = SponsorHomePage(region, url)
         if home_page not in sponsor.home_pages[region]:
             sponsor.home_pages[region].append(home_page)
-            sponsor.log('set home page %s for %s', (url, region))
+            sponsor.log('set home page %s for %s' % (url, region))
             self.__server_deploy_required = True
     
     def remove_sponsor_home_page(self, sponsor_name, region, url):
@@ -227,7 +229,7 @@ class PsiphonNetwork(psi_cms.PersistentObject):
         home_page = SponsorHomePage(region, url)
         if home_page in sponsor.home_pages[region]:
             sponsor.home_pages[region].remove(home_page)
-            sponsor.log('deleted home page %s for %s', (url, region))
+            sponsor.log('deleted home page %s for %s' % (url, region))
             self.__server_deploy_required = True
 
     def add_server(self, propagation_channel_name, discovery_date_range):
@@ -316,7 +318,7 @@ class PsiphonNetwork(psi_cms.PersistentObject):
 
     def list_server(self, id):
         # TODO: custom print, campaign mechanisms
-        pprint.PrettyPrinter.pprint(self.__servers[id])
+        pprint.PrettyPrinter().pprint(self.__servers[id])
 
     def test_servers(self, test_connections=False):
         for server in self.__servers.itervalues():
@@ -638,7 +640,6 @@ def test():
     psinet = PsiphonNetwork()
     psinet.add_propagation_channel('email-channel', ['email-autoresponder'])
     psinet.add_sponsor('sponsor1')
-    psinet.list_sponsors()
     psinet.set_sponsor_home_page('sponsor1', 'CA', 'http://psiphon.ca')
     psinet.add_sponsor_email_campaign('sponsor1', 'email-channel', 'get@psiphon.ca')
     psinet.list_sponsors()
