@@ -180,7 +180,7 @@ ADDITIONAL_TABLES_SCHEMA = {
 
 
 def iso8601_to_utc(timestamp):
-    localized_datetime = datetime.datetime.strptime(timestamp[:24], '%Y-%m-%dT%H:%M:%S.%f')
+    localized_datetime = datetime.datetime.strptime(timestamp[:26], '%Y-%m-%dT%H:%M:%S.%f')
     timezone_delta = datetime.timedelta(
                                 hours = int(timestamp[-6:-3]),
                                 minutes = int(timestamp[-2:]))
@@ -216,8 +216,8 @@ def init_stats_db(db):
         cursor = db.cursor()
         cursor.execute("select * from %s where timestamp not like '%%Z'" % (event_type,))
         for row in cursor:
-            db.execute("update %s set timestamp = '%s' where timestamp = '%s'" % (
-                        event_type, iso8601_to_utc(row[0]), row[0]))
+            db.execute('update %s set timestamp = ? where timestamp = ?' % (event_type,),
+                       [iso8601_to_utc(row[0]), row[0]])
 
 
 def pull_stats(db, error_file, host):
