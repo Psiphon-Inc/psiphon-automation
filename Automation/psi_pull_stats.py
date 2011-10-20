@@ -179,10 +179,18 @@ ADDITIONAL_TABLES_SCHEMA = {
                          'outbound_byte_count')}
 
 
+def iso8601_to_utc(timestamp):
+    localized_datetime = datetime.datetime.strptime(timestamp[:24], '%Y-%m-%dT%H:%M:%S.%f')
+    timezone_delta = datetime.timedelta(
+                                hours = int(timestamp[-6:-3]),
+                                minutes = int(timestamp[-2:]))
+    return (localized_datetime - timezone_delta).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+
+
 def init_stats_db(db):
 
     # Create (if doesn't exist) a database table for each event type with
-    # a column for every expected field. The primary key constaint includes all
+    # a column for every expected field. The primary key constraint includes all
     # table columns and transparently handles the uniqueness logic -- duplicate
     # log lines are discarded. SQLite automatically creates an index for this.
 
@@ -201,13 +209,15 @@ def init_stats_db(db):
             ', '.join(field_names))
         db.execute(command)
 
+    # "Upgrade" any records in the db that have timestamps specified in local time
+    # to specify the timestamps in UTC
 
-def iso8601_to_utc(timestamp):
-    localized_datetime = datetime.datetime.strptime(timestamp[:24], '%Y-%m-%dT%H:%M:%S.%f')
-    timezone_delta = datetime.timedelta(
-                                hours = int(timestamp[-6:-3]),
-                                minutes = int(timestamp[-2:]))
-    return (localized_datetime - timezone_delta).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+    for (event_type, event_fields) in LOG_EVENT_TYPE_SCHEMA.items():
+        cursor = db.cursor()
+        cursor.execute("select * from %s where timestamp not like '%%Z'" % (event_type,))
+        for row in cursor:
+            db.execute("update %s set timestamp = '%s' where timestamp = '%s'" % (
+                        event_type, iso8601_to_utc(row[0]), row[0]))
 
 
 def pull_stats(db, error_file, host):
@@ -296,7 +306,7 @@ def reconstruct_sessions(db, start_date):
     # First, delete all sessions that we are about to reconstruct. This
     # is to avoid duplicate session entries in the case where a previous pull created
     # sessions with no end.
-    db.execute("delete from session where session_start_timestamp > '%s'" % (start_date))
+    db.execute("delete from session where session_start_timestamp > '%s'" % (start_date,))
     db.execute('vacuum')
 
     # TODO: there may be sessions that started before start_date that don't have an end
@@ -307,7 +317,7 @@ def reconstruct_sessions(db, start_date):
 
     field_names = ADDITIONAL_TABLES_SCHEMA['session']
     cursor = db.cursor()
-    cursor.execute("select * from connected where timestamp > '%s'" % (start_date))
+    cursor.execute("select * from connected where timestamp > '%s'" % (start_date,))
     for row in cursor:
 
         # Check for a corresponding disconnected event
