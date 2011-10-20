@@ -419,7 +419,7 @@ class DomainLookup(object):
 
     Entry = collections.namedtuple('Entry', 'timestamp, domain')
 
-    def __init__(self, dns_pcaps_root):
+    def __init__(self, dns_pcaps_root, start_date):
 
         # Build domain lookup index. Run each raw data file through tcpdump to
         # parse protocol. Example output lines:
@@ -451,6 +451,9 @@ class DomainLookup(object):
                     # Store timestamp as an iso8601 formatted string in UTC so that it can be easily
                     # compared to netflow timestamps
                     timestamp = datetime.datetime.utcfromtimestamp(float(fields[TIMESTAMP_FIELD])).strftime('%Y-%m-%dT%H:%M:%S')
+                    # Skip this record if it happened before start_date
+                    if start_date > timestamp:
+                        continue
                     id = fields[ID_FIELD]
                     if id[-1] == '+' and fields[DNS_RECORD_TYPE_FIELD] == 'A?':
                         domain = fields[DOMAIN_FIELD].rstrip('.')
@@ -565,7 +568,7 @@ class SessionIndex(object):
         return sessions.data[-1]
 
 
-def process_vpn_outbound_stats(db, error_file, host_id, dns, csv_file):
+def process_vpn_outbound_stats(db, error_file, host_id, dns, csv_file, start_date):
 
     print 'processing vpn outbound stats from host %s...' % (host_id,)
 
@@ -573,7 +576,8 @@ def process_vpn_outbound_stats(db, error_file, host_id, dns, csv_file):
     # to map flows to sessions (to get region, prop channel etc. attributes)
     session_index = SessionIndex(db, host_id)
 
-    db.execute("delete from outbound where relay_protocol = 'VPN' and host_id = '%s'" % (host_id,))
+    db.execute("delete from outbound where relay_protocol = 'VPN' and host_id = '%s' and day >= '%s'" %
+               (host_id, start_date))
     db.execute('vacuum')
 
     def to_iso8601(timestamp):
@@ -616,6 +620,10 @@ def process_vpn_outbound_stats(db, error_file, host_id, dns, csv_file):
 
         # Skip blank rows
         if not len(row):
+            continue
+
+        # Skip flows before start_date
+        if start_date > row[0]:
             continue
 
         # First find the earliest session that ends after the netflow end timestamp.
@@ -666,7 +674,10 @@ if __name__ == "__main__":
     # data.  It is too time and memory consuming to attempt to process all
     # historical session and netflow data at once.  Processed statistics before
     # start_date will not be thrown out.
+    # dns_start_date is before start date because we want to consider dns requests
+    # that may have been cached by the client for a while.
     start_date = (datetime.datetime.utcnow() - datetime.timedelta(weeks=1)).strftime('%Y-%m-%d')
+    dns_start_date = (datetime.datetime.strptime(start_date, '%Y-%m-%d') - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
 
     try:
         init_stats_db(db)
@@ -689,15 +700,15 @@ if __name__ == "__main__":
                 csv_file_path = pull_netflows(host)
 
                 # Construct domain lookup with data for current host only
-                dns = DomainLookup(pull_dns_pcaps(host))
+                dns = DomainLookup(pull_dns_pcaps(host), dns_start_date)
 
                 with open(csv_file_path, 'rb') as vpn_outbound_stats_csv:
                     process_vpn_outbound_stats(
-                        db, error_file, host.Host_ID, dns, vpn_outbound_stats_csv)
+                        db, error_file, host.Host_ID, dns, vpn_outbound_stats_csv, start_date)
 
     except socket.error:
         # If the DomainLookup throws this error, we need to notice it.
-        db.execute('delete from outbound')
+        db.execute("delete from outbound where day >= '%s'" % (start_date,))
     except:
         traceback.print_exc()
     finally:
