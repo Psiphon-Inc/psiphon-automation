@@ -202,6 +202,14 @@ def init_stats_db(db):
         db.execute(command)
 
 
+def iso8601_to_utc(timestamp):
+    localized_datetime = datetime.datetime.strptime(timestamp[:24], '%Y-%m-%dT%H:%M:%S.%f')
+    timezone_delta = datetime.timedelta(
+                                hours = int(timestamp[-6:-3]),
+                                minutes = int(timestamp[-2:]))
+    return (localized_datetime - timezone_delta).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+
+
 def pull_stats(db, error_file, host):
 
     print 'pull stats from host %s...' % (host.Host_ID,)
@@ -242,7 +250,10 @@ def pull_stats(db, error_file, host):
                         err = 'unexpected log line pattern: %s' % (line,)
                         error_file.write(err + '\n')
                         continue
-                    timestamp = match.group(1)
+                    # Note: We convert timestamps here to UTC so that they can all be rationally compared without
+                    #       taking the timezone into consideration. This eases matching of outbound statistics
+                    #       (and any other records that may not have consistent timezone info) to sessions.
+                    timestamp = iso8601_to_utc(match.group(1))
                     host_id = match.group(2)
                     event_type = match.group(3)
                     event_values = match.group(4).split()
@@ -276,37 +287,23 @@ def pull_stats(db, error_file, host):
     ssh.close()
 
 
-def iso8601_to_utc(timestamp):
-    localized_datetime = datetime.datetime.strptime(timestamp[:24], '%Y-%m-%dT%H:%M:%S.%f')
-    timezone_delta = datetime.timedelta(
-                                hours = int(timestamp[-6:-3]),
-                                minutes = int(timestamp[-2:]))
-    return (localized_datetime - timezone_delta).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-
-
 def reconstruct_sessions(db, start_date):
     # Populate the session table. For each connection, create a session. Some
     # connections will have no end time, depending on when the logs are pulled.
     # Find the end time by selecting the 'disconnected' event with the same
     # host_id and session_id soonest after the connected timestamp.
 
-    # Note: this order of operations -- deleting all the sessions with no end time --
+    # First, delete all sessions that we are about to reconstruct. This
     # is to avoid duplicate session entries in the case where a previous pull created
     # sessions with no end.
-    # Note: this also discards sessions with no end time that started before start_date.
-    # These sessions will not be re-created.
-    # Note: right now we don't have end times for SSH sessions, so only delete VPN
-    # sessions with no end time.
-    # TODO: maybe we can accept duplicate sessions since sessions are only used to
-    # resolve a region to an outbound stat.
-    # TODO: all SSH sessions are being duplicated on each run
-
-    db.execute(textwrap.dedent('''
-                    delete from session
-                    where session_end_timestamp is null
-                    and relay_protocol = ?'''),
-                    [start_date, 'VPN'])
+    db.execute("delete from session where session_start_timestamp > '%s'" % (start_date))
     db.execute('vacuum')
+
+    # TODO: there may be sessions that started before start_date that don't have an end
+    # time.  We could iterate through each of those and try to find a new 'disconnected'
+    # event for each, updating each when we find an end time.
+    # This is not critical because sessions are used to map regions/sponsors/etc to
+    # outbound stats, and that mapping handles sessions without end times.
 
     field_names = ADDITIONAL_TABLES_SCHEMA['session']
     cursor = db.cursor()
@@ -337,11 +334,7 @@ def reconstruct_sessions(db, start_date):
         assert(connected_field_names[0] == 'timestamp' and
                connected_field_names[1] == 'host_id' and
                connected_field_names[8] == 'session_id')
-        # Note: We convert timestamps here to UTC to ease matching of outbound statistics
-        #       (and any other records that may not have consistent timezone info) to sessions.
-        session_start_utc = iso8601_to_utc(row[0])
-        session_end_utc = iso8601_to_utc(session_end_timestamp) if session_end_timestamp else None
-        db.execute(command, list(row[1:])+[session_start_utc, session_end_utc])
+        db.execute(command, list(row[1:])+[row[0], session_end_timestamp])
 
 
 # Get the RSA key fingerprint from the host's SSH_Host_Key
@@ -663,7 +656,7 @@ if __name__ == "__main__":
     # data.  It is too time and memory consuming to attempt to process all
     # historical session and netflow data at once.  Processed statistics before
     # start_date will not be thrown out.
-    start_date = (datetime.datetime.utcnow() - datetime.timedelta(weeks = 1)).strftime('%Y-%m-%d')
+    start_date = (datetime.datetime.utcnow() - datetime.timedelta(weeks=1)).strftime('%Y-%m-%d')
 
     try:
         init_stats_db(db)
