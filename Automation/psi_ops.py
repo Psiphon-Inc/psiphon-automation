@@ -29,6 +29,9 @@ import psi_cms
 import psi_templates
 import psi_s3
 import psi_twitter
+import psi_ops_install
+import psi_ops_deploy
+import psi_ops_build
 
 try:
     import GeoIP
@@ -66,12 +69,12 @@ SponsorCampaign = psi_utils.recordtype(
 
 Host = psi_utils.recordtype(
     'Host',
-    'id, hostname, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key, '+
+    'id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key, '+
     'stats_ssh_username, stats_ssh_password')
 
 Server = psi_utils.recordtype(
     'Server',
-    'id, host_id, ip_address, propagation_channel_id, discovery_date_range, '+
+    'id, host_id, ip_address, propagation_channel_id, is_embedded, discovery_date_range, '+
     'web_server_port, web_server_secret, web_server_certificate, web_server_private_key, '+
     'ssh_port, ssh_username, ssh_password, ssh_host_key')
 
@@ -114,11 +117,14 @@ class PsiphonNetwork(psi_cms.PersistentObject):
         self.__email_server_account = None
         self.__aws_account = None
         self.__linode_account = None
-        self.__server_deploy_required = False
-        self.__email_push_required = False
+        self.__deploy_implementation_required_for_hosts = set()
+        self.__deploy_data_required_for_all = False
+        self.__deploy_builds_required_for_campaigns = set()
+        self.__deploy_stats_config_required = False
+        self.__deploy_email_push_required = False
 
     def __del__(self):
-        # TODO: prompt -- deploy_req, email_req, save_required
+        # TODO... prompt -- deploy_req, save_required
         pass
 
     def list_status(self):
@@ -173,6 +179,10 @@ class PsiphonNetwork(psi_cms.PersistentObject):
         sponsor = self.__get_sponsor_by_name(name)
         sponsor.banner = banner
         sponsor.log('set banner')
+        for campaign in sponsor.campaigns:
+            self.__deploy_builds_required_for_campaigns.set(
+                (sponsor.id, campaign.propagation_channel_id))
+            campaign.log('marked for build and publish (new banner)')
 
     def add_sponsor_email_campaign(self, sponsor_name,
                                    propagation_channel_name,
@@ -189,7 +199,9 @@ class PsiphonNetwork(psi_cms.PersistentObject):
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
             sponsor.log('add email campaign %s' % (email_account,))
-            self.__server_deploy_required = True
+            self.__deploy_builds_required_for_campaigns.set(
+                    (sponsor.id, campaign.propagation_channel_id))
+            campaign.log('marked for build and publish (new campaign)')
 
     def add_sponsor_twitter_campaign(self, sponsor_name,
                                      propagation_channel_name,
@@ -213,8 +225,10 @@ class PsiphonNetwork(psi_cms.PersistentObject):
                                    None)
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
-            sponsor.log('add email campaign %s' % (email_account,))
-            self.__server_deploy_required = True
+            sponsor.log('add twitter campaign %s' % (email_account,))
+            self.__deploy_builds_required_for_campaigns.set(
+                    (sponsor.id, campaign.propagation_channel_id))
+            campaign.log('marked for build and publish (new campaign)')
 
     def set_sponsor_home_page(self, sponsor_name, region, url):
         sponsor = self.__get_sponsor_by_name(sponsor_name)
@@ -222,7 +236,8 @@ class PsiphonNetwork(psi_cms.PersistentObject):
         if home_page not in sponsor.home_pages[region]:
             sponsor.home_pages[region].append(home_page)
             sponsor.log('set home page %s for %s' % (url, region))
-            self.__server_deploy_required = True
+            self.__deploy_data_required_for_all = True
+            sponsor.log('marked all hosts for data deployment')
     
     def remove_sponsor_home_page(self, sponsor_name, region, url):
         sponsor = self.__get_sponsor_by_name(sponsor_name)
@@ -230,22 +245,40 @@ class PsiphonNetwork(psi_cms.PersistentObject):
         if home_page in sponsor.home_pages[region]:
             sponsor.home_pages[region].remove(home_page)
             sponsor.log('deleted home page %s for %s' % (url, region))
-            self.__server_deploy_required = True
+            self.__deploy_data_required_for_all = True
+            sponsor.log('marked all hosts for data deployment')
 
     def add_server(self, propagation_channel_name, discovery_date_range):
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
 
-        is_propagation_server = (discovery_date_range is None)
+        # Embedded servers (aka "propagation servers") are embedded in client
+        # builds, where as discovery servers are only revealed when clients
+        # connect to a server.
+        is_embedded_server = (discovery_date_range is None)
 
         # Create a new cloud VPS
         host = Host(*psi_linode.launch_new_server(self.__linode_account))
 
+        server = Server(None,
+                        host.id,
+                        host.ip_address,
+                        propagation_channel.id,
+                        is_embedded_server,
+                        discovery_date_range)
+
         # Install Psiphon 3 and generate configuration values
-        server_config = psi_install.install(host.ip_address,
-                                            host.ssh_port,
-                                            host.ssh_username,
-                                            host.ssh_password,
-                                            host.ssh_host_key)
+        # Here, we're assuming one server/IP address per host
+        existing_server_ids = [server.id for server in self.__servers]
+        psi_ops_install.install_host(host, [server], existing_server_ids)
+        host.log('install')
+
+        # Deploy will upload web server source database data and client builds
+        # (Only deploying for the new host, not broadcasting info yet...)
+        psi_ops_deploy.deploy_implementation(host)
+        psi_ops_deploy.deploy_data(
+                            host,
+                            self.__compartmentalize_data_for_host(host.id))
+        host.log('initial deployment')
 
         # Update database
 
@@ -254,63 +287,41 @@ class PsiphonNetwork(psi_cms.PersistentObject):
         # retain support for this in the data model and general functionality)
         assert(host.hostname not in self.__hosts)
         self.__hosts[hostname] = host
-        server = Server(server_config[0],
-                        host.id,
-                        host.ip_address,
-                        propagation_channel.id,
-                        discovery_date_range,
-                        *server_config[1:])
         assert(server.id not in self.__servers)
-        self.__servers[server.id] = servers
+        self.__servers[server.id] = server
 
-        # If it's a propagation server, FFFF-out old one (it's still run, but
-        # not embedded in builds or discovered)
-        if is_propagation_server:
+        # If it's a propagation server, stop embedding the old one (it's still
+        # active, but not embedded in builds or discovered)
+        if is_embedded_server:
             for server in self.__servers.itervalues():
                 if (server.propagation_channel_id == propagation_channel.id and
-                    server.discovery_date_range is None):
-                    server.propagation_channel_id = 'FFFFFFFF'
-                    server.log('FFFF\'d out')
+                    server.is_embedded_server):
+                    server.is_embedded_server = False
+                    server.log('unembedded')
 
-        self.__server_deploy_required = True
+        self.__deploy_data_required_for_all = True
+        self.__deploy_stats_config_required = True
+
+        # Unless the node is reserved for discovery, release it through
+        # the campaigns associated with the propagation channel
+        # TODO: recover from partially complete state...
+        if is_embedded_server:
+            for sponsor in self.__sponsors.itervalues():
+                for campaign in sponsor.campaigns:
+                    if campaign.propagation_channel_id == propagation_channel.id:
+                        self.__deploy_builds_required_for_campaigns.set(
+                                (sponsor.id, campaign.propagation_channel_id))
+                        campaign.log('marked for build and publish (new embedded server)')
 
         # Ensure new configuration is saved to CMS before deploying new
         # server info to the network
         self.save()
 
-        # Do the server deploy before we propagate
-        self.deploy_servers()
-
-        # Unless the node is reserved for discovery, release it through
-        # the campaigns associated with the propagation channel
-        # TODO: recover from partially complete state...
-        if is_propagation_server:
-            for sponsor in self.__sponsors.itervalues():
-                build_filename = None
-                for campaign in sponsor.campaigns:
-                    if campaign.propagation_channel_id == propagation_channel.id:
-                        if build_filename == None:
-                            build_filename = psi_build.build(sponsor.id, propagation_channel.id)
-                        s3_bucket_root_url = psi_s3.publish_s3_bucket(build_filename)
-                        campaign.log('published s3 bucket %s', (s3_bucket_root_url,))
-                        if campaign.propagation_mechanism_type == 'twitter':
-                            message = psi_templates.get_tweet_message(s3_bucket_root_url)
-                            psi_twitter.tweet(campaign.account, message)
-                            campaign.log('tweeted')
-                        elif campaign.propagation_mechanism_type == 'email-autoresponder':
-                            campaign.s3_bucket_root_url = s3_bucket_root_url
-                            if not self.__email_push_required:
-                                self.__email_push_required = True
-                                campaign.log('email push scheduled')
-                        else:
-                            print bucket_url
-            propagation_channel.log('propagated')
+        # This deploy will broadcast server info, propagate builds, and update
+        # the stats and email server
+        self.deploy()
 
         # TODO: self.save()...?
-
-        # Push an updated email config
-        if self.__email_push_required:
-            self.push_email()
 
     def list_servers(self):
         for server in self.__servers.itervalues():
@@ -328,20 +339,98 @@ class PsiphonNetwork(psi_cms.PersistentObject):
         # TODO: psi_test
         pass
 
-    def deploy_servers(self):
-        for server in self.__servers.itervalues():
-            self.deploy_server(server.id)
-        # TODO:
-        # ...make stats server subset db
-        # ...push to stats server
+    def deploy(self):
 
-    def deploy_server(self, id):
-        # TODO: psi_deploy
-        # ...pass database subset into deploy
-        # ...server.log('deployed')
-        pass
+        # Deploy as required:
+        #
+        # - Implementation to flagged hosts
+        # - Data to all hosts
+        # - Builds for required channels and sponsors
+        # - Email and stats server config
+        #
+        # NOTE: Order is important. Hosts get new implementation before
+        # new data, in case schema has changed; deploy new data before
+        # propagating builds so servers are prepared for clients
 
-    def push_email(self):
+        # Host implementation
+
+        for host_id in self.__deploy_implementation_required_for_hosts:
+            host = __self.hosts[host_id]
+            psi_ops_deploy.deploy_implementation(host)
+            host.log('deploy implementation')
+        self.__deploy_implementation_required_for_hosts.clear()
+
+        # Host data
+
+        if self.__deploy_data_required_for_all:
+            for host in __self.hosts.itervalues():
+                psi_ops_deploy.deploy_host(
+                                    host,
+                                    self.__compartmentalize_data_for_host(host.id))
+                host.log('deploy data')
+        self.__deploy_data_required_for_all = False
+
+        # Build and publish
+
+        build_filenames = {}
+        for target in self.__deploy_builds_required_for_campaigns:
+
+            # Build and upload to hosts
+                
+            if target not in build_filenames:
+                
+                # A sponsor may use the same propagation channel for multiple
+                # campaigns; we need only build and upload the client once.
+                build_filenames[target] = psi_ops_build.build(*target)
+                # Upload client builds
+                # We only upload the builds for Propagation Channel IDs that need to be known for the host.
+                # UPDATE: Now we copy all builds.  We know that this breaks compartmentalization.
+                # However, we do not want to prevent an upgrade in the case where a user has
+                # downloaded from multiple propagation channels, and might therefore be connecting
+                # to a server from one propagation channel using a build from a different one.
+                for host in self.__hosts:
+                    psi_ops_deploy.deploy_build(host, build_filename)
+            build_filename = build_filenames[target]
+
+            # Publish to propagation mechanisms
+
+            sponsor_id, propagation_channel_id = target
+            sponsor = self.__sponsors[sponsor_id]
+            campaign = filter(lambda x:x.propagation_channel_id == propagation_channel_id, sponsor.campaigns)[0]
+            s3_bucket_root_url = psi_s3.publish_s3_bucket(build_filename)
+            campaign.log('published s3 bucket %s', (s3_bucket_root_url,))
+            if campaign.propagation_mechanism_type == 'twitter':
+                message = psi_templates.get_tweet_message(s3_bucket_root_url)
+                psi_twitter.tweet(campaign.account, message)
+                campaign.log('tweeted')
+            elif campaign.propagation_mechanism_type == 'email-autoresponder':
+                campaign.s3_bucket_root_url = s3_bucket_root_url
+                if not self.__deploy_email_push_required:
+                    self.__deploy_email_push_required = True
+                    campaign.log('email push scheduled')
+
+        self.__deploy_builds_required_for_campaigns.clear()
+
+        # Email and stats server configs
+
+        if self.__deploy_stats_config_required:
+            self.push_stats_config()
+            self.__deploy_stats_config_required = False
+
+        if self.__email_push_required:
+            self.push_email()
+            self.__email_push_required = False
+
+        # TODO: self.save()...?
+
+    def push_stats_config(self):
+        with tempfile.NamedTemporaryFile() as file:
+            file.write(json.dumps(emails))
+            ssh = psi_ssh.SSH(*self.__stats_server_account)
+            ssh.put_file(temp_file.name, STATS_SERVER_CONFIG_FILE_PATH)
+            self.__stats_server_account.log('pushed')
+
+    def push_email_config(self):
         # Generate the email server config file, which is a JSON format
         # mapping every request email to a response body containing
         # download links.
@@ -353,6 +442,7 @@ class PsiphonNetwork(psi_cms.PersistentObject):
                 if campaign.propagation_mechanism_type == 'email-autoresponder':
                     subject, body = psi_templates.get_email_content(
                                         campaign.s3_bucket_root_url)
+                    campaign.log('configuring email')
                     emails.append(
                         campaign.account.email_address, subject, body)
 
@@ -362,17 +452,25 @@ class PsiphonNetwork(psi_cms.PersistentObject):
             ssh.put_file(temp_file.name, EMAIL_SERVER_CONFIG_FILE_PATH)
             self.__email_server_account.log('pushed')
 
-        self.__email_push_required = False
-        # TODO: self.save()...?
+    def add_server_version(self):
+        # Marks all hosts for re-deployment of server implementation
+        for host in self.__hosts:
+            self.__deploy_implementation_required_for_hosts.add(host.id)
+            host.log('marked for implementation deployment')
 
-    def add_version(self, description):
+    def add_client_version(self, description):
+        # Records the new version number to trigger upgrades
         next_version = 1
         if len(self.__client_versions) > 0:
             next_version = int(self.__client_versions[-1].version)+1
         client_version = Client(str(next_version), description)
         self.__client_versions.add(client_version)
-        print 'latest version: %d' % (next_version,)
-
+        # Mark deploy flag to rebuild and upload all clients
+        for sponsor in self.__sponsors.itervalues():
+            for campaign in sponsor.campaigns:
+                self.__deploy_builds_required_for_campaigns.set(
+                        (sponsor.id, campaign.propagation_channel_id))
+                campaign.log('marked for build and publish (upgraded client)')
 
     def set_aws_account(self, access_id, secret_key):
         self.__aws_account.access_id = access_id
@@ -525,20 +623,13 @@ class PsiphonNetwork(psi_cms.PersistentObject):
     def embed(self, propagation_channel_id):
         return get_encoded_server_list(propagation_channel_id)
     
-    def __get_discovery_propagation_channel_ids_for_host(self, host_id,
-                                                         discovery_date=datetime.datetime.now()):
-        servers_on_host = filter(lambda x : x.host_id == host_id, self.__servers)
-        # Servers with blank propagation channels are inactive
-        return set([server.propagation_channel_id for server in servers_on_host if server.propagation_channel_id])
-    
     # TODO...
     #def get_egress_ip_address_for_server(server):
     #    # egress IP address is host's IP address
     #    hosts = get_hosts()
     #    return filter(lambda x : x.Host_ID == server.Host_ID, hosts)[0].IP_Address
     
-    def compartmentalize_data_for_host(self, host_id, filename,
-                                       discovery_date=datetime.datetime.now()):
+    def __compartmentalize_data_for_host(self, host_id, discovery_date=datetime.datetime.now()):
         # Create a compartmentalized database with only the information needed by a particular host
         # - propagation channels includes only channel IDs that may connect to servers on this host
         # - servers data includes only servers for propagation channel IDs in filtered propagation channel sheet
@@ -551,7 +642,13 @@ class PsiphonNetwork(psi_cms.PersistentObject):
 
         copy = PsiphonNetwork()
 
-        for id in self.__get_discovery_propagation_channel_ids_for_host(host_id):
+        servers_on_host = filter(lambda x : x.host_id == host_id, self.__servers)
+        # Servers with blank propagation channels are inactive
+        discovery_propagation_channel_ids_for_host = set([server.propagation_channel_id
+                                                          for server in servers_on_host
+                                                          if server.propagation_channel_id])
+
+        for id in discovery_propagation_channel_ids_for_host:
             propagation_channel = self.__propagation_channels[id]
             copy.propagation_channels[propagation_channel.id] = PropagationChannel(
                                                                     propagation_channel.id,
@@ -559,9 +656,9 @@ class PsiphonNetwork(psi_cms.PersistentObject):
                                                                     None) # Omit mechanism type
 
         for server in self.__servers:
-            if (server.Discovery_Propagation_Channel_ID in discovery_propagation_channel_ids_on_host and
-                    not(server.Discovery_Time_Start and server.Host_ID != host_id and server.Discovery_Time_End <= discovery_date) and
-                    not(server.Discovery_Time_Start is None and server.Host_ID != host_id)):
+            if (server.propagation_channel_id in discovery_propagation_channel_ids_on_host and
+                    not(server.discovery_date_range and server.host_id != host_id and server.discovery_date_range[1] <= discovery_date) and
+                    not(server.is_embedded and server.host_id != host_id)):
                 copy.servers[server.id] = Server(
                                             server.id,
                                             None, # Omit host_id
@@ -596,7 +693,7 @@ class PsiphonNetwork(psi_cms.PersistentObject):
     
         return cPickle.dumps(copy)
 
-    def compartmentalize_data_for_stats_server(self):
+    def __compartmentalize_data_for_stats_server(self):
         # The stats server needs to be able to connect to all hosts and needs
         # the information to replace server IPs with server IDs, sponsor IDs
         # with names and propagation IDs with names

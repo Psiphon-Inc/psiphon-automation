@@ -122,6 +122,7 @@ def recordtype(typename, field_names, verbose=False, **default_kwds):
 
             def log(self, message):
                 self.logs.append((datetime.datetime.now(), message))
+                print '%(typename)s ' + self[__slots__[0]] + ' ' + message
 
             def get_logs(self):
                 return self.logs
