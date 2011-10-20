@@ -284,22 +284,33 @@ def iso8601_to_utc(timestamp):
     return (localized_datetime - timezone_delta).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
 
 
-def reconstruct_sessions(db):
+def reconstruct_sessions(db, start_date):
     # Populate the session table. For each connection, create a session. Some
     # connections will have no end time, depending on when the logs are pulled.
     # Find the end time by selecting the 'disconnected' event with the same
     # host_id and session_id soonest after the connected timestamp.
 
-    # Note: this order of operations -- deleting all the sessions -- is to avoid
-    # duplicate session entries in the case where a previous pull created
+    # Note: this order of operations -- deleting all the sessions with no end time --
+    # is to avoid duplicate session entries in the case where a previous pull created
     # sessions with no end.
+    # Note: this also discards sessions with no end time that started before start_date.
+    # These sessions will not be re-created.
+    # Note: right now we don't have end times for SSH sessions, so only delete VPN
+    # sessions with no end time.
+    # TODO: maybe we can accept duplicate sessions since sessions are only used to
+    # resolve a region to an outbound stat.
+    # TODO: all SSH sessions are being duplicated on each run
 
-    db.execute('delete from session')
+    db.execute(textwrap.dedent('''
+                    delete from session
+                    where session_end_timestamp is null
+                    and relay_protocol = ?'''),
+                    [start_date, 'VPN'])
     db.execute('vacuum')
 
     field_names = ADDITIONAL_TABLES_SCHEMA['session']
     cursor = db.cursor()
-    cursor.execute('select * from connected')
+    cursor.execute("select * from connected where timestamp > '%s'" % (start_date))
     for row in cursor:
 
         # Check for a corresponding disconnected event
@@ -648,6 +659,12 @@ if __name__ == "__main__":
     # Note: truncating error file
     error_file = open('pull_stats.err', 'w')
 
+    # start_date is the date that we want to start processing session and netflow
+    # data.  It is too time and memory consuming to attempt to process all
+    # historical session and netflow data at once.  Processed statistics before
+    # start_date will not be thrown out.
+    start_date = (datetime.datetime.utcnow() - datetime.timedelta(weeks = 1)).strftime('%Y-%m-%d')
+
     try:
         init_stats_db(db)
         hosts = psi_db.get_hosts()
@@ -659,7 +676,7 @@ if __name__ == "__main__":
 
         # Compute sessions from connected/disconnected records
 
-        reconstruct_sessions(db)
+        reconstruct_sessions(db, start_date)
 
         # Pull netflows from each host and process them
         # Avoid doing this on Windows, where nfdump is not available
