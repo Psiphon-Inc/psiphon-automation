@@ -107,6 +107,7 @@ def recordtype(typename, field_names, verbose=False, **default_kwds):
     inittxt = '; '.join('self.%s=%s' % (f,f) for f in field_names)
     itertxt = '; '.join('yield self.%s' % f for f in field_names)
     eqtxt   = ' and '.join('self.%s==other.%s' % (f,f) for f in field_names)
+    id_field_name = field_names[0]
     template = dedent('''
         import datetime
 
@@ -122,7 +123,7 @@ def recordtype(typename, field_names, verbose=False, **default_kwds):
 
             def log(self, message):
                 self.logs.append((datetime.datetime.now(), message))
-                print '%(typename)s ' + self[__slots__[0]] + ' ' + message
+                print '%(typename)s ' + self.%(id_field_name)s + ' ' + message
 
             def get_logs(self):
                 return self.logs

@@ -24,11 +24,14 @@ import datetime
 import pprint
 import json
 import collections
+import textwrap
+
 import psi_utils
 import psi_cms
 import psi_templates
-import psi_s3
-import psi_twitter
+# TEMP
+#import psi_s3
+#import psi_twitter
 import psi_ops_install
 import psi_ops_deploy
 import psi_ops_build
@@ -102,19 +105,19 @@ StatsServerAccount = psi_utils.recordtype(
 class PsiphonNetwork(psi_cms.PersistentObject):
 
     def __init__(self):
-        self.temp = LinodeAccount('key')
         self.__version = '1.0'
+        self.__sponsors = {}
         self.__propagation_mechanisms = {
             'twitter' : PropagationMechanism('twitter'),
             'email-autoresponder' : PropagationMechanism('email-autoresponder'),
             'download-widget' : PropagationMechanism('download-widget')
         }
         self.__propagation_channels = {}
-        self.__sponsors = {}
         self.__hosts = {}
         self.__servers = {}
         self.__client_versions = []
         self.__email_server_account = None
+        self.__stats_server_account = None
         self.__aws_account = None
         self.__linode_account = None
         self.__deploy_implementation_required_for_hosts = set()
@@ -127,22 +130,62 @@ class PsiphonNetwork(psi_cms.PersistentObject):
         # TODO... prompt -- deploy_req, save_required
         pass
 
-    def list_status(self):
-        # TODO: output counts, requireds
-        pass
+    def show_status(self, verbose=False):
+        print textwrap.dedent('''
+            Sponsors:            %d
+            Channels:            %d
+            Twitter Campaigns:   %d
+            Email Campaigns:     %d
+            Hosts:               %d
+            Servers:             %d
+            Email Server:        %s
+            Stats Server:        %s
+            Client Version:      %s %s
+            AWS Account:         %s
+            Linode Account:      %s
+            Deploys Pending:     Host Implementations    %d                              
+                                 Host Data               %s
+                                 Campaign Builds         %d
+                                 Stats Server Config     %s
+                                 Email Server Config     %s
+            ''') % (
+                len(self.__sponsors),
+                len(self.__propagation_channels),
+                sum([len(filter(lambda x:x.propagation_mechanism_type == 'twitter', sponsor.campaigns))
+                     for sponsor in self.__sponsors]),
+                sum([len(filter(lambda x:x.propagation_mechanism_type == 'email-autoresponder', sponsor.campaigns))
+                     for sponsor in self.__sponsors]),
+                len(self.__hosts),
+                len(self.__servers),
+                self.__email_server_account.ip_address if self.__email_server_account.ip_address else 'None',
+                self.__stats_server_account.ip_address if self.__stats_server_account.ip_address else 'None',
+                client_versions[-1].version if client_versions else 'None',
+                client_versions[-1].description if client_versions else '',
+                'Configured' if self.__aws_account else 'None',
+                'Configured' if self.__linode_account else 'None',
+                len(self.__deploy_implementation_required_for_hosts),
+                'Yes' if self.__deploy_data_required_for_all else 'No',
+                len(self.__deploy_builds_required_for_campaigns),
+                'Yes' if self.__deploy_stats_config_required else 'No',
+                'Yes' if self.__deploy_email_push_required else 'No')
 
+        if verbose:
+            # NOTE: this prints credentials to stdout
+            map(pprint.PrettyPrinter().pprint,
+                self.__sponsors.itervalues() +
+                self.__propagation_mechanisms.itervalues() +
+                self.__propagation_channels.itervalues() +
+                self.__hosts.itervalues() +
+                self.__servers.itervalues() +
+                [self.__email_server_account,
+                 self.__stats_server_account,
+                 self.__aws_account,
+                 self.__linode_account])
+                
     def __generate_id(self):
         count = 16
         chars = '0123456789ABCDEF'
         return ''.join([chars[ord(os.urandom(1))%len(chars)] for i in range(count)])
-
-    def list_propagation_channels(self):
-        for propagation_channel in self.propagation_channels:
-            self.list_propagation_channel(propagation_channel.name)
-
-    def list_propagation_channel(self, name):
-        # TODO: custom print, associated server details
-        pprint.PrettyPrinter().pprint(slef.__get_propagation_channel_by_name(name))
 
     def __get_propagation_channel_by_name(self, name):
         return filter(lambda x:x.name == name,
@@ -155,17 +198,12 @@ class PsiphonNetwork(psi_cms.PersistentObject):
         assert(not filter(lambda x:x.name == name, self.__propagation_channels.itervalues()))
         self.__propagation_channels[id] = propagation_channel
 
-    def list_sponsors(self):
-        for sponsor in self.__sponsors.itervalues():
-            self.list_sponsor(sponsor.name)
-
-    def list_sponsor(self, name):
-        # TODO: custom print, campaign mechanisms
-        pprint.PrettyPrinter().pprint(self.__get_sponsor_by_name(name))
-
     def __get_sponsor_by_name(self, name):
         return filter(lambda x:x.name == name,
                       self.__sponsors.itervalues())[0]
+
+    def get_sponsor(self, name):
+        return self.__get_sponsor_by_name(name)
 
     def add_sponsor(self, name):
         id = self.__generate_id()
@@ -199,7 +237,7 @@ class PsiphonNetwork(psi_cms.PersistentObject):
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
             sponsor.log('add email campaign %s' % (email_account,))
-            self.__deploy_builds_required_for_campaigns.set(
+            self.__deploy_builds_required_for_campaigns.add(
                     (sponsor.id, campaign.propagation_channel_id))
             campaign.log('marked for build and publish (new campaign)')
 
@@ -226,7 +264,7 @@ class PsiphonNetwork(psi_cms.PersistentObject):
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
             sponsor.log('add twitter campaign %s' % (email_account,))
-            self.__deploy_builds_required_for_campaigns.set(
+            self.__deploy_builds_required_for_campaigns.add(
                     (sponsor.id, campaign.propagation_channel_id))
             campaign.log('marked for build and publish (new campaign)')
 
@@ -309,7 +347,7 @@ class PsiphonNetwork(psi_cms.PersistentObject):
             for sponsor in self.__sponsors.itervalues():
                 for campaign in sponsor.campaigns:
                     if campaign.propagation_channel_id == propagation_channel.id:
-                        self.__deploy_builds_required_for_campaigns.set(
+                        self.__deploy_builds_required_for_campaigns.add(
                                 (sponsor.id, campaign.propagation_channel_id))
                         campaign.log('marked for build and publish (new embedded server)')
 
@@ -323,19 +361,11 @@ class PsiphonNetwork(psi_cms.PersistentObject):
 
         # TODO: self.save()...?
 
-    def list_servers(self):
+    def test_servers(self, test_relays=False):
         for server in self.__servers.itervalues():
-            self.list_server(server.id)
+            self.test_server(server.id, test_relays)
 
-    def list_server(self, id):
-        # TODO: custom print, campaign mechanisms
-        pprint.PrettyPrinter().pprint(self.__servers[id])
-
-    def test_servers(self, test_connections=False):
-        for server in self.__servers.itervalues():
-            self.test_server(server.id, test_connections)
-
-    def test_server(self, id, test_connections=False):
+    def test_server(self, id, test_relays=False):
         # TODO: psi_test
         pass
 
@@ -468,7 +498,7 @@ class PsiphonNetwork(psi_cms.PersistentObject):
         # Mark deploy flag to rebuild and upload all clients
         for sponsor in self.__sponsors.itervalues():
             for campaign in sponsor.campaigns:
-                self.__deploy_builds_required_for_campaigns.set(
+                self.__deploy_builds_required_for_campaigns.add(
                         (sponsor.id, campaign.propagation_channel_id))
                 campaign.log('marked for build and publish (upgraded client)')
 
@@ -739,8 +769,9 @@ def test():
     psinet.add_sponsor('sponsor1')
     psinet.set_sponsor_home_page('sponsor1', 'CA', 'http://psiphon.ca')
     psinet.add_sponsor_email_campaign('sponsor1', 'email-channel', 'get@psiphon.ca')
-    psinet.list_sponsors()
-    print cPickle.dumps(psinet)
+    # TEMP
+    return psinet
+    psinet.show_status()
 
 
 if __name__ == "__main__":
