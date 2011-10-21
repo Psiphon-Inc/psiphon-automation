@@ -1,20 +1,17 @@
-0. Used Ubuntu 11.10 Server 64-bit. AMI IDs can be found via here:
+= Setup =
+
+== OS ==
+
+# Used Ubuntu 11.10 Server 64-bit. AMI IDs can be found via here:
 https://help.ubuntu.com/community/EC2StartersGuide
 Security Group must allow port 25 (SMTP) through (and SSH, so configuration
 is possible.)
 
-1. OS updates
+# OS updates
 > sudo apt-get update
 > sudo apt-get upgrade
 
-2. Install postfix
-> sudo apt-get install postfix
-During installation:
-- Choose the "Internet Site option".
-- Set the system mail name to the public DNS name of the instance. When we're 
-  ready to go live, this will change to the real domain name.
-
-3. Create a limited-privilege user that will do most of the mail processing.
+# Create a limited-privilege user that will do most of the mail processing.
 Ref: http://www.cyberciti.biz/tips/howto-linux-shell-restricting-access.html
 Add "/usr/sbin/nologin" (sans quotes) to /etc/shells.
 > sudo useradd -s /usr/sbin/nologin email_responder
@@ -22,45 +19,104 @@ Add "/usr/sbin/nologin" (sans quotes) to /etc/shells.
 > sudo mkdir /home/mail_responder
 > sudo chown mail_responder:mail_responder /home/mail_responder
 
-4. Change aliases.
+# Create directory where the responder configuration file will go.
+> sudo mkdir /mail_responder_config
+TODO: Figure out what the write permissions should be on this directory.
+
+
+== Postfix ==
+
+# Install postfix
+> sudo apt-get install postfix
+During installation:
+- Choose the "Internet Site option".
+- Set the system mail name to the public DNS name of the instance. When we're 
+  ready to go live, this will change to the real domain name.
+
+# Change aliases.
 - Edit /etc/aliases to map postmaster to whatever the "normal" user is 
 (probably "ubuntu").
 - Reload aliases map: > sudo newaliases
 
-5. Add .forward file for "normal" (probably "ubuntu") user. In the file, put 
+# Add .forward file for "normal" (probably "ubuntu") user. In the file, put 
 the email address that error mail should go to.
 
-6. Edit /etc/postfix/main.cf
+# Edit /etc/postfix/main.cf
 - Change myhostname to be the public DNS name of the instance.
+- Change smtpd_use_tls to 'no'
 - Add these two lines to the end. The cause all email that doesn't correspond 
 to a real address to be forwarded to the mail_responder account (which will 
 then do the response processing).
 local_recipient_maps =
-luser_relay = mail_responder+$local
+luser_relay = mail_responder+$local@localhost
 
 (Note: If too much error email is being sent to the postmaster, we can also 
 add this line: 
 notify_classes = 
 )
 
-7. Restart postfix:
+# Reload postfix conf and restart:
+> sudo postfix reload
 > sudo /etc/init.d/postfix restart
 
-8. Copy mail_process.py, sendmail.py and forward to /home/mail_responder. 
+
+== Source files ==
+
+# Copy mail_process.py, sendmail.py and forward to /home/mail_responder. 
 Rename forward to .forward. Make sure the permissions are correct:
 > sudo chown mail_responder:mail_responder mail_process.py sendmail.py .forward
 
-9. Create directory where the responder configuration file will go.
-> sudo mkdir /mail_responder_config
-TODO: Figure out what the write permissions should be on this directory.
 
-999. The mail responder is now ready to go. A configuration file must be 
-present at /mail_responder_config/conf.json in order for anything to actually 
-happen.
+== Amazon SES == 
+
+# Install boto
+> sudo easy_install boto
+
+# Put AWS credentials into boto config file. Info here:
+http://code.google.com/p/boto/wiki/BotoConfig
+We've found that using ~/.boto doesn't work, so create /etc/boto.cfg and put
+these lines into it:
+    [Credentials]
+    aws_access_key_id = <your access key>
+    aws_secret_access_key = <your secret key>
+Ensure that the file is readable by the mail_responder user.
+
+
+= Configuration =
+
+# The /mail_responder_config/conf.json file contains the addresses that the
+  responder will respond to, and the message bodies that will sent back to 
+  those addresses. 
+
+# The file is in JSON format, with these fields:
+{"email_localpart": [["mimetype", "body"], ...], ...}
+
+For example:
+{
+"get+fa@example.com": 
+[
+    ["plain", "English - https://example.com/en.html\n\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html"], 
+    ["html", "<a href=\"https://example.com/en.html\">English - https://example.com/en.html</a><br>\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html<br>"]
+], 
+"getru": 
+[
+    ["plain", "English - https://example2.com/en.html\n\u0420\u0443\u0441\u0441\u043a\u0438\u0439 - https://example2.com/ru.html"]
+], 
+"getget": "Just a string"
+}
+
+# Things to notice about the format:
+ # The '@example.com' part of the email address is unnecessary. In fact, it 
+   will be ignored.
+ # The email body can be a just a string, which will be interpreted as 'plain'
+   mimetype, or an array of one or more tuples which are ["mimetype", "body"].
+   Mimetypes can be 'plain' or 'html' (so there's really no reason to specify
+   more than two).
+
+# NOTE: The *last* mimetype will be the one that's preferred by mail clients,
+  so you should put the 'html' body last.
 
 
 
 
-*** conf spec
 *** logging
-*** SES
