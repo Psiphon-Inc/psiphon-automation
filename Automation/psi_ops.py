@@ -28,10 +28,10 @@ import textwrap
 import itertools
 
 import psi_utils
-import psi_cms
 import psi_templates
-import psi_s3
-import psi_twitter
+import psi_ops_cms
+import psi_ops_s3
+import psi_ops_twitter
 import psi_ops_install
 import psi_ops_deploy
 import psi_ops_build
@@ -68,7 +68,7 @@ SponsorHomePage = psi_utils.recordtype(
 
 SponsorCampaign = psi_utils.recordtype(
     'SponsorCampaign',
-    'propagation_channel_id, propagation_mechanism_type, account, s3_bucket_root_url')
+    'propagation_channel_id, propagation_mechanism_type, account, s3_bucket_name')
 
 Host = psi_utils.recordtype(
     'Host',
@@ -102,7 +102,7 @@ StatsServerAccount = psi_utils.recordtype(
     'ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key')
 
 
-class PsiphonNetwork(psi_cms.PersistentObject):
+class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def __init__(self):
         self.__version = '1.0'
@@ -432,14 +432,14 @@ class PsiphonNetwork(psi_cms.PersistentObject):
             sponsor_id, propagation_channel_id = target
             sponsor = self.__sponsors[sponsor_id]
             campaign = filter(lambda x:x.propagation_channel_id == propagation_channel_id, sponsor.campaigns)[0]
-            s3_bucket_root_url = psi_s3.publish_s3_bucket(build_filename)
-            campaign.log('published s3 bucket %s', (s3_bucket_root_url,))
+            s3_bucket_name = psi_s3.publish_s3_bucket(self.__aws_account, build_filename)
+            campaign.log('published s3 bucket %s', (s3_bucket_name,))
             if campaign.propagation_mechanism_type == 'twitter':
-                message = psi_templates.get_tweet_message(s3_bucket_root_url)
+                message = psi_templates.get_tweet_message(s3_bucket_name)
                 psi_twitter.tweet(campaign.account, message)
                 campaign.log('tweeted')
             elif campaign.propagation_mechanism_type == 'email-autoresponder':
-                campaign.s3_bucket_root_url = s3_bucket_root_url
+                campaign.s3_bucket_name = s3_bucket_name
                 if not self.__deploy_email_push_required:
                     self.__deploy_email_push_required = True
                     campaign.log('email push scheduled')
@@ -476,7 +476,7 @@ class PsiphonNetwork(psi_cms.PersistentObject):
             for campaign in sponsor.campaigns:
                 if campaign.propagation_mechanism_type == 'email-autoresponder':
                     subject, body = psi_templates.get_email_content(
-                                        campaign.s3_bucket_root_url)
+                                        campaign.s3_bucket_name)
                     campaign.log('configuring email')
                     emails.append(
                         campaign.account.email_address, subject, body)
@@ -768,7 +768,7 @@ class PsiphonNetwork(psi_cms.PersistentObject):
         return cPickle.dumps(copy)
 
 
-def test():
+def unit_test():
     psinet = PsiphonNetwork()
     psinet.add_propagation_channel('email-channel', ['email-autoresponder'])
     psinet.add_sponsor('sponsor1')
@@ -777,5 +777,27 @@ def test():
     psinet.show_status(verbose=True)
 
 
+def create():
+    # Create a new network object and persist it
+    psinet = PsiphonNetwork()
+    psinet.save()
+
+
+def edit():
+    # Lock an existing network object, interact with it, then save changes
+    print 'loading...'
+    psinet = PsiphonNetwork.load()
+    import code
+    try:
+        code.InteractiveConsole(locals=locals()).interact(
+                'Psiphon 3 Console\n'+
+                '-----------------\n'+
+                'Interact with the \'psinet\' object...\n')
+    except SystemExit as e:
+        pass
+    print 'saving...'
+    psinet.save()
+
+
 if __name__ == "__main__":
-    test()
+    edit()

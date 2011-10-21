@@ -21,7 +21,6 @@ import sys
 import datetime
 from textwrap import dedent
 from keyword import iskeyword
-import psi_cms
 
 
 # Adapted from:
