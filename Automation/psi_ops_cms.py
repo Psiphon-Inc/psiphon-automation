@@ -107,7 +107,6 @@ def import_document(source_filename):
             -Description "%s" \
             -AddVersionIfExists \
             -KeepLocked \
-            -SecureDelete \
             -IgnoreKeyTrust' \
          % (psi_ops_config.CIPHERSHARE_USERNAME,
             psi_ops_config.CIPHERSHARE_PASSWORD,
@@ -136,28 +135,34 @@ class PersistentObject(object):
 
     def __init__(self):
         self.version = self.__class__.class_version
+        self.is_locked = False
 
-    def __del__(self):
-        unlock_document()
+    def release(self):
+        if self.is_locked:
+            unlock_document()
+            self.is_locked = False
 
     def save(self):
         with tempfile.NamedTemporaryFile(delete=False) as file:
             file.write(cPickle.dumps(self))
-        # import deletes the file
         import_document(file.name)
+        os.remove(file.name)
 
     @staticmethod
     def load():
-        with tempfile.NamedTemporaryFile() as file:
-            lock_document()
-            export_document(file.name)
-            file.seek(0)
+        obj = None
+        file = tempfile.NamedTemporaryFile(delete=False)
+        file.close()
+        lock_document()
+        export_document(file.name)
+        with open(file.name) as file:
             obj = cPickle.loads(file.read())
             if not hasattr(obj, 'version'):
                 obj.version = '0.0'
             if obj.version != obj.class_version:
                 obj.upgrade()
-            returnobj
+        obj.is_locked = True
+        return obj
 
     def upgrade(self):
         pass 

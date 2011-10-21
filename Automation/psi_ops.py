@@ -105,6 +105,7 @@ StatsServerAccount = psi_utils.recordtype(
 class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def __init__(self):
+        super(PsiphonNetwork, self).__init__()
         self.__version = '1.0'
         self.__sponsors = {}
         self.__propagation_mechanisms = {
@@ -125,10 +126,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__deploy_builds_required_for_campaigns = set()
         self.__deploy_stats_config_required = False
         self.__deploy_email_push_required = False
-
-    def __del__(self):
-        # TODO... prompt -- deploy_req, save_required
-        pass
 
     def show_status(self, verbose=False):
         # NOTE: verbose mode prints credentials to stdout
@@ -356,15 +353,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 (sponsor.id, campaign.propagation_channel_id))
                         campaign.log('marked for build and publish (new embedded server)')
 
-        # Ensure new configuration is saved to CMS before deploying new
-        # server info to the network
-        self.save()
-
         # This deploy will broadcast server info, propagate builds, and update
         # the stats and email server
         self.deploy()
 
-        # TODO: self.save()...?
 
     def test_servers(self, test_relays=False):
         for server in self.__servers.itervalues():
@@ -375,6 +367,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         pass
 
     def deploy(self):
+
+        # Ensure new server configuration is saved to CMS before deploying new
+        # server info to the network
+
+        # TODO: add need-save flag
+        self.save()
 
         # Deploy as required:
         #
@@ -456,7 +454,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.push_email()
             self.__email_push_required = False
 
-        # TODO: self.save()...?
+        # Ensure deploy flags and new propagation info (S3 bucket names)
+        # are stored to CMS
+
+        self.save()
 
     def push_stats_config(self):
         with tempfile.NamedTemporaryFile() as file:
@@ -797,6 +798,7 @@ def edit():
         pass
     print 'saving...'
     psinet.save()
+    psinet.release()
 
 
 if __name__ == "__main__":
