@@ -369,7 +369,7 @@ def sync_directory(host, source_root, dest_root):
     # configuration that does not delete files on the dest that are not
     # present on the source.
 
-    rsync = pexpect.spawn('rsync -ae "ssh -p %s -l %s" %s:%s/ %s' %
+    rsync = pexpect.spawn('rsync -ae "ssh -p %s -l %s" %s:%s/ "%s"' %
                     (host.SSH_Port, host.SSH_Username,
                      host.IP_Address, source_root, dest_root_for_host))
     prompt = rsync.expect([ssh_fingerprint(host.SSH_Host_Key), 'password:'])
@@ -440,9 +440,9 @@ class DomainLookup(object):
             path = os.path.join(dns_pcaps_root, item)
             if os.path.isfile(path):
                 if path.endswith('.gz'):
-                    proc = os.popen('gunzip -c %s | /usr/sbin/tcpdump -n -r - -tt' % (path,), 'r')
+                    proc = os.popen('gunzip -c "%s" | /usr/sbin/tcpdump -n -r - -tt' % (path,), 'r')
                 else:
-                    proc = os.popen('/usr/sbin/tcpdump -n -r %s -tt' % (path,), 'r')                    
+                    proc = os.popen('/usr/sbin/tcpdump -n -r "%s" -tt' % (path,), 'r')                    
                 while True:
                     line = proc.readline()
                     if not line:
@@ -499,7 +499,7 @@ def pull_netflows(host):
     dest_root_for_host = sync_directory(host, HOST_NETFLOW_DIR, NETFLOWS_ROOT)
 
     output_csv_path = dest_root_for_host + '.csv'
-    os.system('TZ=GMT nfdump -q -R %s -o csv > %s' % (dest_root_for_host, output_csv_path))
+    os.system('TZ=GMT nfdump -q -R "%s" -o csv > "%s"' % (dest_root_for_host, output_csv_path))
     return output_csv_path
 
 
