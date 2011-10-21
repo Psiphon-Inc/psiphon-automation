@@ -439,6 +439,10 @@ class DomainLookup(object):
         for item in os.listdir(dns_pcaps_root):
             path = os.path.join(dns_pcaps_root, item)
             if os.path.isfile(path):
+                # Skip this file if it was created before start_date
+                # Note the filename format specified above
+                if start_date > item[8:16]:
+                    continue
                 if path.endswith('.gz'):
                     proc = os.popen('gunzip -c "%s" | /usr/sbin/tcpdump -n -r - -tt' % (path,), 'r')
                 else:
@@ -451,9 +455,6 @@ class DomainLookup(object):
                     # Store timestamp as an iso8601 formatted string in UTC so that it can be easily
                     # compared to netflow timestamps
                     timestamp = datetime.datetime.utcfromtimestamp(float(fields[TIMESTAMP_FIELD])).strftime('%Y-%m-%dT%H:%M:%S')
-                    # Skip this record if it happened before start_date
-                    if start_date > timestamp:
-                        continue
                     id = fields[ID_FIELD]
                     if id[-1] == '+' and fields[DNS_RECORD_TYPE_FIELD] == 'A?':
                         domain = fields[DOMAIN_FIELD].rstrip('.')
@@ -505,7 +506,7 @@ def pull_netflows(host):
 
 class SessionIndex(object):
 
-    def __init__(self, db, host_id):
+    def __init__(self, db, host_id, start_date):
 
         SessionInfo = collections.namedtuple(
             'SessionInfo',
@@ -533,8 +534,9 @@ class SessionIndex(object):
                    substr(session_start_timestamp,1,19), substr(session_end_timestamp,1,19)
                    from session
                    where host_id = ? and relay_protocol == 'VPN'
+                   and (session_end_timestamp > ? or session_end_timestamp is null)
                    order by substr(%s,1,19) asc''' % sort_field),
-                [host_id])
+                [host_id, start_date])
 
             for row in cursor:
                 session_info = SessionInfo(*row)
@@ -574,7 +576,7 @@ def process_vpn_outbound_stats(db, error_file, host_id, dns, csv_file, start_dat
 
     # Create an in-memory index for fast lookup of session start/end used
     # to map flows to sessions (to get region, prop channel etc. attributes)
-    session_index = SessionIndex(db, host_id)
+    session_index = SessionIndex(db, host_id, start_date)
 
     db.execute("delete from outbound where relay_protocol = 'VPN' and host_id = '%s' and day >= '%s'" %
                (host_id, start_date))
@@ -676,8 +678,8 @@ if __name__ == "__main__":
     # start_date will not be thrown out.
     # dns_start_date is before start date because we want to consider dns requests
     # that may have been cached by the client for a while.
-    start_date = (datetime.datetime.utcnow() - datetime.timedelta(weeks=1)).strftime('%Y-%m-%d')
-    dns_start_date = (datetime.datetime.strptime(start_date, '%Y-%m-%d') - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+    start_date = (datetime.datetime.utcnow() - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+    dns_start_date = (datetime.datetime.strptime(start_date, '%Y-%m-%d') - datetime.timedelta(days=1)).strftime('%Y%m%d')
 
     try:
         init_stats_db(db)
@@ -705,6 +707,8 @@ if __name__ == "__main__":
                 with open(csv_file_path, 'rb') as vpn_outbound_stats_csv:
                     process_vpn_outbound_stats(
                         db, error_file, host.Host_ID, dns, vpn_outbound_stats_csv, start_date)
+
+                os.remove(csv_file_path)
 
     except socket.error:
         # If the DomainLookup throws this error, we need to notice it.
