@@ -72,6 +72,9 @@ Rename forward to .forward. Make sure the permissions are correct:
 # Install boto
 > sudo easy_install boto
 
+# It's best if the AWS user being used for the email sending is created through
+  the AWS IAM interface and has limited privileges.
+
 # Put AWS credentials into boto config file. Info here:
 http://code.google.com/p/boto/wiki/BotoConfig
 We've found that using ~/.boto doesn't work, so create /etc/boto.cfg and put
