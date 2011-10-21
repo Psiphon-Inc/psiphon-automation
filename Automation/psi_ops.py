@@ -25,13 +25,13 @@ import pprint
 import json
 import collections
 import textwrap
+import itertools
 
 import psi_utils
 import psi_cms
 import psi_templates
-# TEMP
-#import psi_s3
-#import psi_twitter
+import psi_s3
+import psi_twitter
 import psi_ops_install
 import psi_ops_deploy
 import psi_ops_build
@@ -131,6 +131,7 @@ class PsiphonNetwork(psi_cms.PersistentObject):
         pass
 
     def show_status(self, verbose=False):
+        # NOTE: verbose mode prints credentials to stdout
         print textwrap.dedent('''
             Sponsors:            %d
             Channels:            %d
@@ -152,15 +153,15 @@ class PsiphonNetwork(psi_cms.PersistentObject):
                 len(self.__sponsors),
                 len(self.__propagation_channels),
                 sum([len(filter(lambda x:x.propagation_mechanism_type == 'twitter', sponsor.campaigns))
-                     for sponsor in self.__sponsors]),
+                     for sponsor in self.__sponsors.itervalues()]),
                 sum([len(filter(lambda x:x.propagation_mechanism_type == 'email-autoresponder', sponsor.campaigns))
-                     for sponsor in self.__sponsors]),
+                     for sponsor in self.__sponsors.itervalues()]),
                 len(self.__hosts),
                 len(self.__servers),
-                self.__email_server_account.ip_address if self.__email_server_account.ip_address else 'None',
-                self.__stats_server_account.ip_address if self.__stats_server_account.ip_address else 'None',
-                client_versions[-1].version if client_versions else 'None',
-                client_versions[-1].description if client_versions else '',
+                self.__email_server_account.ip_address if self.__email_server_account else 'None',
+                self.__stats_server_account.ip_address if self.__stats_server_account else 'None',
+                self.__client_versions[-1].version if self.__client_versions else 'None',
+                self.__client_versions[-1].description if self.__client_versions else '',
                 'Configured' if self.__aws_account else 'None',
                 'Configured' if self.__linode_account else 'None',
                 len(self.__deploy_implementation_required_for_hosts),
@@ -168,19 +169,26 @@ class PsiphonNetwork(psi_cms.PersistentObject):
                 len(self.__deploy_builds_required_for_campaigns),
                 'Yes' if self.__deploy_stats_config_required else 'No',
                 'Yes' if self.__deploy_email_push_required else 'No')
-
         if verbose:
-            # NOTE: this prints credentials to stdout
-            map(pprint.PrettyPrinter().pprint,
-                self.__sponsors.itervalues() +
-                self.__propagation_mechanisms.itervalues() +
-                self.__propagation_channels.itervalues() +
-                self.__hosts.itervalues() +
-                self.__servers.itervalues() +
-                [self.__email_server_account,
-                 self.__stats_server_account,
-                 self.__aws_account,
-                 self.__linode_account])
+            def print_object(obj):
+                if not obj:
+                    return
+                # TODO: nicer printing of recordtype objects
+                pprint.PrettyPrinter().pprint(obj)
+                for log_time, log_message in obj.get_logs():
+                    print log_time.isoformat(), log_message
+                print '\n'
+            map(print_object,
+                itertools.chain(
+                    self.__sponsors.itervalues(),
+                    self.__propagation_channels.itervalues(),
+                    self.__hosts.itervalues(),
+                    self.__servers.itervalues(),
+                    self.__client_versions,
+                    [self.__email_server_account,
+                     self.__stats_server_account,
+                     self.__aws_account,
+                     self.__linode_account]))
                 
     def __generate_id(self):
         count = 16
@@ -201,9 +209,6 @@ class PsiphonNetwork(psi_cms.PersistentObject):
     def __get_sponsor_by_name(self, name):
         return filter(lambda x:x.name == name,
                       self.__sponsors.itervalues())[0]
-
-    def get_sponsor(self, name):
-        return self.__get_sponsor_by_name(name)
 
     def add_sponsor(self, name):
         id = self.__generate_id()
@@ -769,9 +774,7 @@ def test():
     psinet.add_sponsor('sponsor1')
     psinet.set_sponsor_home_page('sponsor1', 'CA', 'http://psiphon.ca')
     psinet.add_sponsor_email_campaign('sponsor1', 'email-channel', 'get@psiphon.ca')
-    # TEMP
-    return psinet
-    psinet.show_status()
+    psinet.show_status(verbose=True)
 
 
 if __name__ == "__main__":
