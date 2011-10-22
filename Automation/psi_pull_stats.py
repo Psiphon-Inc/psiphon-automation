@@ -492,14 +492,14 @@ class DomainLookup(object):
         return domain
 
 
-def pull_netflows(host):
+def pull_netflows(host, start_date):
 
     print 'pull netflows from host %s...' % (host.Host_ID,)
 
     dest_root_for_host = sync_directory(host, HOST_NETFLOW_DIR, NETFLOWS_ROOT)
 
     output_csv_path = dest_root_for_host + '.csv'
-    os.system('TZ=GMT nfdump -q -R "%s" -o csv > "%s"' % (dest_root_for_host, output_csv_path))
+    os.system('TZ=GMT nfdump -q -t %s -R "%s" -o csv > "%s"' % (start_date, dest_root_for_host, output_csv_path))
     return output_csv_path
 
 
@@ -677,6 +677,7 @@ if __name__ == "__main__":
     # dns_start_date is before start date because we want to consider dns requests
     # that may have been cached by the client for a while.
     start_date = (datetime.datetime.utcnow() - datetime.timedelta(weeks=1)).strftime('%Y-%m-%d')
+    netflows_start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y/%m/%d')
     dns_start_date = (datetime.datetime.strptime(start_date, '%Y-%m-%d') - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
 
     try:
@@ -697,7 +698,7 @@ if __name__ == "__main__":
         if os.name == 'posix':
             for host in hosts:
 
-                csv_file_path = pull_netflows(host)
+                csv_file_path = pull_netflows(host, netflows_start_date)
 
                 # Construct domain lookup with data for current host only
                 dns = DomainLookup(pull_dns_pcaps(host), dns_start_date)
