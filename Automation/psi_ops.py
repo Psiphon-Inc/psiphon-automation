@@ -27,6 +27,7 @@ import collections
 import textwrap
 import itertools
 
+import psi_linode
 import psi_utils
 import psi_templates
 import psi_ops_cms
@@ -72,7 +73,7 @@ SponsorCampaign = psi_utils.recordtype(
 
 Host = psi_utils.recordtype(
     'Host',
-    'id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key, '+
+    'id, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key, '+
     'stats_ssh_username, stats_ssh_password')
 
 Server = psi_utils.recordtype(
@@ -80,7 +81,8 @@ Server = psi_utils.recordtype(
     'id, host_id, ip_address, egress_ip_address, '+
     'propagation_channel_id, is_embedded, discovery_date_range, '+
     'web_server_port, web_server_secret, web_server_certificate, web_server_private_key, '+
-    'ssh_port, ssh_username, ssh_password, ssh_host_key')
+    'ssh_port, ssh_username, ssh_password, ssh_host_key',
+    default=None)
 
 ClientVersion = psi_utils.recordtype(
     'ClientVersion',
@@ -92,7 +94,10 @@ AwsAccount = psi_utils.recordtype(
 
 LinodeAccount = psi_utils.recordtype(
     'LinodeAccount',
-    'api_key')
+    'api_key, base_id, base_ip_address, base_ssh_port, '+
+    'base_root_password, base_stats_username, base_host_public_key, '+
+    'base_known_hosts_entry, base_rsa_private_key, base_rsa_public_key, '+
+    'base_tarball_path')
 
 EmailServerAccount = psi_utils.recordtype(
     'EmailServerAccount',
@@ -276,7 +281,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         home_page = SponsorHomePage(region, url)
         if home_page not in sponsor.home_pages[region]:
             sponsor.home_pages[region].append(home_page)
-            sponsor.log('set home page %s for %s' % (url, region))
+            sponsor.log('set home page %s for %s' % (url, region if region else 'All'))
             self.__deploy_data_required_for_all = True
             sponsor.log('marked all hosts for data deployment')
     
@@ -300,16 +305,20 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # connect to a server.
         is_embedded_server = (discovery_date_range is None)
 
-        # Create a new cloud VPS
-        host = Host(*psi_linode.launch_new_server(self.__linode_account))
+        print 'starting Linode process (~5 minutes)...'
 
-        server = Server(None,
-                        host.id,
-                        host.ip_address,
-                        host.ip_address,
-                        propagation_channel.id,
-                        is_embedded_server,
-                        discovery_date_range)
+        # Create a new cloud VPS
+        linode_info = psi_linode.launch_new_server(self.__linode_account)
+        host = Host(*linode_info)
+
+        server = Server(
+                    None,
+                    host.id,
+                    host.ip_address,
+                    host.ip_address,
+                    propagation_channel.id,
+                    is_embedded_server,
+                    discovery_date_range)
 
         # Install Psiphon 3 and generate configuration values
         # Here, we're assuming one server/IP address per host
@@ -330,8 +339,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Add new server (we also add a host; here, the host and server are
         # one-to-one, but legacy networks have many servers per host and we
         # retain support for this in the data model and general functionality)
-        assert(host.hostname not in self.__hosts)
-        self.__hosts[hostname] = host
+        assert(host.id not in self.__hosts)
+        self.__hosts[host.id] = host
         assert(server.id not in self.__servers)
         self.__servers[server.id] = server
 
@@ -340,8 +349,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if is_embedded_server:
             for server in self.__servers.itervalues():
                 if (server.propagation_channel_id == propagation_channel.id and
-                    server.is_embedded_server):
-                    server.is_embedded_server = False
+                    server.is_embedded):
+                    server.is_embedded = False
                     server.log('unembedded')
 
         self.__deploy_data_required_for_all = True
@@ -524,12 +533,17 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 campaign.log('marked for build and publish (upgraded client)')
 
     def set_aws_account(self, access_id, secret_key):
-        self.__aws_account.access_id = access_id
-        self.__aws_account.secret_key = secret_key
+        self.__aws_account = AwsAccount(access_id, secret_key)
         self.__aws_account.log('set to %s' % (access_id,))
 
-    def set_linode_account(self, api_key):
-        self.__linode_account.api_key = api_key
+    def set_linode_account(self, api_key, base_id, base_ip_address, base_ssh_port,
+                           base_root_password, base_stats_username, base_host_public_key,
+                           base_known_hosts_entry, base_rsa_private_key, base_rsa_public_key,
+                           base_tarball_path):
+        self.__linode_account = LinodeAccount(api_key, base_id, base_ip_address, base_ssh_port,
+                           base_root_password, base_stats_username, base_host_public_key,
+                           base_known_hosts_entry, base_rsa_private_key, base_rsa_public_key,
+                           base_tarball_path)
         self.__linode_account.log('set to %s' % (api_key,))
 
     def set_email_server_account(self, ip_address, ssh_port,
@@ -702,47 +716,47 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         for id in discovery_propagation_channel_ids_for_host:
             propagation_channel = self.__propagation_channels[id]
-            copy.propagation_channels[propagation_channel.id] = PropagationChannel(
+            copy.__propagation_channels[propagation_channel.id] = PropagationChannel(
                                                                     propagation_channel.id,
                                                                     None, # Omit name
                                                                     None) # Omit mechanism type
 
-        for server in self.__servers:
+        for server in self.__servers.itervalues():
             if (server.propagation_channel_id in discovery_propagation_channel_ids_on_host and
                     not(server.discovery_date_range and server.host_id != host_id and server.discovery_date_range[1] <= discovery_date) and
                     not(server.is_embedded and server.host_id != host_id)):
-                copy.servers[server.id] = Server(
-                                            server.id,
-                                            None, # Omit host_id
-                                            server.ip_address,
-                                            server.propagation_channel_id,
-                                            server.discovery_date_range,
-                                            server.web_server_port,
-                                            server.web_server_secret,
-                                            server.web_server_certificate,
-                                            server.web_server_private_key,
-                                            server.ssh_port,
-                                            server.ssh_username,
-                                            server.ssh_password,
-                                            server.ssh_host_key)
+                copy.__servers[server.id] = Server(
+                                                server.id,
+                                                None, # Omit host_id
+                                                server.ip_address,
+                                                server.propagation_channel_id,
+                                                server.discovery_date_range,
+                                                server.web_server_port,
+                                                server.web_server_secret,
+                                                server.web_server_certificate,
+                                                server.web_server_private_key,
+                                                server.ssh_port,
+                                                server.ssh_username,
+                                                server.ssh_password,
+                                                server.ssh_host_key)
     
-        for sponsor in self.__sponsors:
+        for sponsor in self.__sponsors.itervalues():
             copy_sponsor = Sponsor(
                                 sponsor.id,
                                 None, # Omit name
                                 None, # Omit banner
                                 collections.defaultdict(list),
                                 None) # Omit campaigns
-            for region, home_pages in sponsor.home_pages:
+            for region, home_pages in sponsor.home_pages.iteritems():
                 # Completely copy all home pages
                 copy_sponsor.home_pages[region].extend(home_pages)
-            copy.sponsors[copy_sponsor.id] = copy_sponsor
+            copy.__sponsors[copy_sponsor.id] = copy_sponsor
 
         for client_version in self.__client_versions:
-            copy.client_versions.append(Version(
+            copy.__client_versions.append(Version(
                                             client_version.version,
                                             None)) # Omit description
-    
+
         return cPickle.dumps(copy)
 
     def __compartmentalize_data_for_stats_server(self):
@@ -752,32 +766,32 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         
         copy = PsiphonNetwork()
     
-        for host in self.__hosts:
-            copy.hosts[copy_host.id] = Host(
-                                        host.id,
-                                        host.ip_address,
-                                        host.ssh_port,
-                                        '', # Omit: root ssh username
-                                        '', # Omit: root ssh password
-                                        host.ssh_host_key,
-                                        host.stats_ssh_username,
-                                        host.stats_ssh_password)
+        for host in self.__hosts.itervalues():
+            copy.__hosts[copy_host.id] = Host(
+                                            host.id,
+                                            host.ip_address,
+                                            host.ssh_port,
+                                            '', # Omit: root ssh username
+                                            '', # Omit: root ssh password
+                                            host.ssh_host_key,
+                                            host.stats_ssh_username,
+                                            host.stats_ssh_password)
 
-        for server in self.__servers:
-            copy.servers[server.id] = Server(
-                                        server.id,
-                                        server.host_id,
-                                        server.ip_address)
-                                        # Omit: propagation, web server, ssh info
+        for server in self.__servers.itervalues():
+            copy.__servers[server.id] = Server(
+                                            server.id,
+                                            server.host_id,
+                                            server.ip_address)
+                                            # Omit: propagation, web server, ssh info
     
-        for propagation_channel in self.__propagation_channels:
-            copy.propagation_channels[copy_propagation_channel.id] = Sponsor(
+        for propagation_channel in self.__propagation_channels.itervalues():
+            copy.__propagation_channels[copy_propagation_channel.id] = Sponsor(
                                         propagation_channel.id,
                                         propagation_channel.name)
                                         # Omit mechanism info
 
-        for sponsor in self.__sponsors:
-            copy.sponsors[copy_sponsor.id] = Sponsor(
+        for sponsor in self.__sponsors.itervalues():
+            copy.__sponsors[copy_sponsor.id] = Sponsor(
                                         sponsor.id,
                                         sponsor.name)
                                         # Omit banner, home pages, campaigns

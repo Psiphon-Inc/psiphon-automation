@@ -339,7 +339,7 @@ def install_host(host, servers, existing_server_ids):
     #
 
     file = tempfile.NamedTemporaryFile(delete=False)
-    file.write(make_ipsec_config_file_base_contents(len(host_servers)))
+    file.write(make_ipsec_config_file_base_contents(len(servers)))
     file.close()
     ssh.put_file(file.name, '/etc/ipsec.conf')
     os.remove(file.name)
@@ -366,7 +366,7 @@ def install_host(host, servers, existing_server_ids):
     ssh.exec_command(make_xl2tpd_chap_secrets_file_command())
 
     file = tempfile.NamedTemporaryFile(delete=False)
-    file.write(make_xl2tpd_initd_file_contents(len(server.ip_address)))
+    file.write(make_xl2tpd_initd_file_contents(len(servers)))
     file.close()
     ssh.put_file(file.name, '/etc/init.d/xl2tpd')
     os.remove(file.name)
@@ -407,8 +407,9 @@ def install_host(host, servers, existing_server_ids):
 
         # NOTE unconditionally attempt to create the user.  It's OK if it fails because
         #      the user already exists
-        ssh.exec_command('useradd -d /dev/null -s /bin/false %s && echo \"%s:%s\"|chpasswd' % (ssh_username, ssh_username, ssh_password))
-        ssh.exec_command(make_sshd_config_file_command(index, ssh_username))
+        ssh.exec_command('useradd -d /dev/null -s /bin/false %s && echo \"%s:%s\"|chpasswd' % (
+                            server.ssh_username, server.ssh_username, server.ssh_password))
+        ssh.exec_command(make_sshd_config_file_command(index, server.ssh_username))
         # NOTE we do not write the ssh host key back to the server because it is generated
         #      on the server in the first place.
 

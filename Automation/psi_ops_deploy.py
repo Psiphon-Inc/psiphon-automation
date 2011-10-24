@@ -114,6 +114,8 @@ def deploy_data(host, host_data):
 
     # Stop server, if running, before replacing data file (command may fail)
 
+    remote_init_file_path = posixpath.join(HOST_INIT_DIR, 'psiphonv')
+
     ssh.exec_command('%s stop' % (remote_init_file_path,))
 
     # Copy data file
@@ -126,7 +128,7 @@ def deploy_data(host, host_data):
         file.write(host_data)
         file.close()
         ssh.put_file(file.name,
-                     posixpath.join(HOST_SOURCE_ROOT, 'Data', psi_config.DATA_FILE_NAME))
+                     posixpath.join(HOST_SOURCE_ROOT, 'Automation', psi_config.DATA_FILE_NAME))
     finally:
         try:
             os.remove(file.name)

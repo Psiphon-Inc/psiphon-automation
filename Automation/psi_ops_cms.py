@@ -165,7 +165,7 @@ class PersistentObject(object):
         file.close()
         lock_document()
         export_document(file.name)
-        obj = load_from_file(file.name)
+        obj = PersistentObject.load_from_file(file.name)
         os.remove(file.name)
         obj.is_locked = True
         return obj
