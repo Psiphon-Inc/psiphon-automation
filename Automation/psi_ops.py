@@ -77,7 +77,8 @@ Host = psi_utils.recordtype(
 
 Server = psi_utils.recordtype(
     'Server',
-    'id, host_id, ip_address, propagation_channel_id, is_embedded, discovery_date_range, '+
+    'id, host_id, ip_address, egress_ip_address, '+
+    'propagation_channel_id, is_embedded, discovery_date_range, '+
     'web_server_port, web_server_secret, web_server_certificate, web_server_private_key, '+
     'ssh_port, ssh_username, ssh_password, ssh_host_key')
 
@@ -302,6 +303,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server = Server(None,
                         host.id,
                         host.ip_address,
+                        host.ip_address,
                         propagation_channel.id,
                         is_embedded_server,
                         discovery_date_range)
@@ -358,13 +360,23 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.deploy()
 
 
-    def test_servers(self, test_relays=False):
-        for server in self.__servers.itervalues():
-            self.test_server(server.id, test_relays)
+    def build_and_test(self, propagation_channel_id, sponsor_id, test=False):
+        sponsor = self.__sponsors[sponsor_id]
+        version = self.__client_versions[-1].version
+        encoded_server_list, expected_egress_ip_addresses = \
+                    self.__get_encoded_server_list(propagation_channel_id)
+        
+        # A sponsor may use the same propagation channel for multiple
+        # campaigns; we need only build and upload the client once.
+        return psi_ops_build.build(
+                        propagation_channel_id,
+                        sponsor_id,
+                        sponsor.banner,
+                        encoded_server_list,
+                        expected_egress_ip_addresses,
+                        version,
+                        test)
 
-    def test_server(self, id, test_relays=False):
-        # TODO: psi_test
-        pass
 
     def deploy(self):
 
@@ -414,7 +426,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 
                 # A sponsor may use the same propagation channel for multiple
                 # campaigns; we need only build and upload the client once.
-                build_filenames[target] = psi_ops_build.build(*target)
+                propagation_channel_id, sponsor_id = target
+                build_filenames[target] =  build_and_test(propagation_channel_id, sponsor_id)
+
                 # Upload client builds
                 # We only upload the builds for Propagation Channel IDs that need to be known for the host.
                 # UPDATE: Now we copy all builds.  We know that this breaks compartmentalization.
@@ -574,7 +588,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if event_logger:
             for server in servers:
                 event_logger(server.ip_address)
-        return [get_encoded_server_entry(server) for server in servers]
+        return ([server.egress_ip_address for server in servers],
+                [get_encoded_server_entry(server) for server in servers])
         
     def __get_region(self, client_ip_address):
         try:

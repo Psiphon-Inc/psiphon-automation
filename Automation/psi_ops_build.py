@@ -28,9 +28,7 @@ import sys
 import urllib2
 import win32ui
 import win32con
-
-sys.path.insert(0, os.path.abspath(os.path.join('..', 'Data')))
-import psi_db
+import _winreg
 
 
 #==== Build File Locations  ===================================================
@@ -56,6 +54,10 @@ SIGN_TOOL_FILENAME_ALT = 'C:\\Program Files\\Microsoft SDKs\\Windows\\v7.0A\\Bin
 
 UPX_FILENAME = '.\Tools\upx.exe'
 
+REGISTRY_ROOT_KEY = _winreg.HKEY_CURRENT_USER
+REGISTRY_PRODUCT_KEY = 'SOFTWARE\\Psiphon3'
+REGISTRY_IGNORE_VPN_VALUE = 'UserSkipVPN'
+
 # Check usage restrictions here before using this service:
 # http://www.whatismyip.com/faq/automation.asp
 CHECK_IP_ADDRESS_URL = 'http://automation.whatismyip.com/n09230945.asp'
@@ -64,7 +66,6 @@ CHECK_IP_ADDRESS_URL = 'http://automation.whatismyip.com/n09230945.asp'
 
 if os.path.isfile('psi_data_config.py'):
     import psi_data_config
-    psi_db.set_db_root(psi_data_config.DATA_ROOT)
     BANNER_ROOT = os.path.join(psi_data_config.DATA_ROOT, 'Banners')
     CODE_SIGNING_PFX_FILENAME = os.path.join(psi_data_config.DATA_ROOT, 'CodeSigning', psi_data_config.CODE_SIGNING_PACKAGE_FILENAME)
     CHECK_IP_ADDRESS_URL = psi_data_config.CHECK_IP_ADDRESS_URL
@@ -73,7 +74,7 @@ if os.path.isfile('psi_data_config.py'):
 #==============================================================================
 
 
-def build_client():
+def build_client_executable():
     visual_studio_env_batch_filename = VISUAL_STUDIO_ENV_BATCH_FILENAME
     if not os.path.isfile(visual_studio_env_batch_filename):
         visual_studio_env_batch_filename = VISUAL_STUDIO_ENV_BATCH_FILENAME_x86
@@ -132,24 +133,7 @@ def write_embedded_values(propagation_channel_id,
                                (1 if ignore_vpn_relay else 0)))
 
 
-def __test_server(server, latest_version_number, mode):
-
-    # Overwrite embedded values source file. Using invalid (blank)
-    # propagation channel and sponsor IDs, so handshake will not
-    # perform discovery or return home pages -- at this time, these
-    # test clients are primarily to test the establishment of a VPN
-    # connection.
-    write_embedded_values(
-        '0', # Propagation_Channel_ID
-        '0', # Sponsor_ID
-        latest_version_number,
-        [psi_db.get_encoded_server_entry(server)],
-        ignore_system_server_list=True,
-        ignore_vpn_relay=(True if mode == 'ssh' else False))
-
-    # build
-    build_client()
-
+def test_server(mode, expected_egress_ip_addresses):
     # test:
     # - spawn client process, which starts the VPN
     # - sleep 5 seconds, which allows time to establish connection
@@ -159,66 +143,58 @@ def __test_server(server, latest_version_number, mode):
                                                        server.Host_ID,
                                                        mode)
 
-    proc = subprocess.Popen([EXECUTABLE_FILENAME])
-    time.sleep(15)
+    restore_registry = False
 
-    # In VPN mode, all traffic is routed through the proxy. In SSH mode, the
-    # urlib2 ProxyHandler picks up the Windows Internet Settings and uses the
-    # HTTP Proxy that is set by the client.
-    urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler()))
-    egress_ip_address = urllib2.urlopen(CHECK_IP_ADDRESS_URL).read().split('\n')[0]
+    try:
+        if mode == 'ssh':
+            reg_key = _winreg.OpenKey(REGISTRY_ROOT_KEY, REGISTRY_PRODUCT_KEY)
+            ignore_vpn_value, ignore_vpn_type = _winreg.QueryValueEx(reg_key, REGISTRY_IGNORE_VPN_VALUE)
+            _winreg.SetValueEx(reg_key, REGISTRY_IGNORE_VPN_VALUE, None, _winreg.REG_DWORD, 1)
+            restore_registry = True
 
-    win32ui.FindWindow(None, APPLICATION_TITLE).PostMessage(win32con.WM_CLOSE)
-    proc.wait()
-
-    # signal client to close before asserting
-    expected_egress_ip_address = psi_db.get_egress_ip_address_for_server(server)
-
-    if egress_ip_address != expected_egress_ip_address:
-        return (mode, server.IP_Address, egress_ip_address, expected_egress_ip_address)
-
-    return None
-
-
-def __test_servers(latest_version_number):
-    # Build test clients, one per server. We set the IGNORE_SYSTEM_SERVER_LIST
-    # flag so running these clients will exclusively test the target server.
-    # These clients should not be distributed as they contain server IP
-    # addresses that may not be scheduled for discovery yet.
-
-    servers = psi_db.get_servers()
-    failures = []
-
-    for server in servers:
-        if (not server.Discovery_Propagation_Channel_ID or
-            not server.Web_Server_Secret or
-            not server.Web_Server_Certificate or
-            not server.Web_Server_Private_Key):
-            # Server is not installed
-            continue
-
-        # Always test VPN relay
-        failure = __test_server(server, latest_version_number, 'vpn')
-        if failure:
-            failures.append(failure)
-
-        # Test SSH relay if configured
-        if server.SSH_Host_Key:
-            failure = __test_server(server, latest_version_number, 'ssh')
-            if failure:
-                failures.append(failure)
-
-    if failures:
-        raise Exception(str(failures))
+        proc = subprocess.Popen([EXECUTABLE_FILENAME])
+        time.sleep(15)
+    
+        # In VPN mode, all traffic is routed through the proxy. In SSH mode, the
+        # urlib2 ProxyHandler picks up the Windows Internet Settings and uses the
+        # HTTP Proxy that is set by the client.
+        urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler()))
+        egress_ip_address = urllib2.urlopen(CHECK_IP_ADDRESS_URL).read().split('\n')[0]
+    
+        win32ui.FindWindow(None, APPLICATION_TITLE).PostMessage(win32con.WM_CLOSE)
+        proc.wait()
+        
+        if egress_ip_address not in expected_egress_ip_addresses:
+            raise Exception('Test FAILURE: %s %s %s %s' % (
+                                mode,
+                                server.IP_Address,
+                                egress_ip_address,
+                                expected_egress_ip_address))
+    finally:
+        if restore_registry:
+            _winreg.SetValueEx(reg_key, REGISTRY_IGNORE_VPN_VALUE, None, ignore_vpn_value, ignore_vpn_type)
 
 
-def __build_clients(latest_version_number):
-    # Build one client per propagation channel and sponsor
-
-    sponsors = psi_db.get_sponsors()
-    propagation_channels = psi_db.get_propagation_channels()
-
-    for sponsor in sponsors:
+def build_client(
+        propagation_channel_id,
+        sponsor_id,
+        banner,
+        encoded_server_list,
+        expected_egress_ip_addresses,
+        version,
+        test=False):
+    try:
+        # Helper: store original files for restore after script
+        # (to minimize chance of checking values into source control)
+        def store_to_temporary_file(filename):
+            temporary_file = tempfile.NamedTemporaryFile()
+            with open(filename, 'rb') as file:
+                temporary_file.write(file.read())
+                temporary_file.flush()
+            return temporary_file
+        banner_tempfile = store_to_temporary_file(BANNER_FILENAME)
+        email_banner_tempfile = store_to_temporary_file(EMAIL_BANNER_FILENAME)
+        embedded_values_tempfile = store_to_temporary_file(EMBEDDED_VALUES_FILENAME)
 
         # Copy custom email banner from Data to source tree
         # (there's only one custom email banner for all sponsors)
@@ -229,60 +205,38 @@ def __build_clients(latest_version_number):
         banner_source_path = os.path.join(BANNER_ROOT, sponsor.Banner_Filename)
         shutil.copyfile(banner_source_path, BANNER_FILENAME)
 
-        for channel in propagation_channels:
+        # overwrite embedded values source file
+        write_embedded_values(
+            propagation_channel_id,
+            sponsor_id,
+            version,
+            encoded_server_list)
 
-            # Skip this channel
-            if channel.Propagation_Channel_ID == 'FFFFFFFFFFFFFFFF':
-                continue
-                
-            # overwrite embedded values source file
-            write_embedded_values(
-                channel.Propagation_Channel_ID,
-                sponsor.Sponsor_ID,
-                latest_version_number,
-                psi_db.get_encoded_server_list(channel.Propagation_Channel_ID))
+        # build
+        build_client_executable()
 
-            # build
-            build_client()
+        # testing
+        if test:
+            test_server('vpn', expected_egress_ip_addresses)
+            test_server('ssh', expected_egress_ip_addresses)
 
-            # rename and copy executable to Builds folder
-            # e.g., Builds/psiphon-3A885577DD84EF13-8BB28C1A8E8A9ED9.exe
-            if not os.path.exists(BUILDS_ROOT):
-                os.makedirs(BUILDS_ROOT)
-            build_destination_path = os.path.join(
-                                        BUILDS_ROOT,
-                                        BUILD_FILENAME_TEMPLATE % (channel.Propagation_Channel_ID,
-                                                                   sponsor.Sponsor_ID))
-            shutil.copyfile(EXECUTABLE_FILENAME, build_destination_path)
+        # rename and copy executable to Builds folder
+        # e.g., Builds/psiphon-3A885577DD84EF13-8BB28C1A8E8A9ED9.exe
+        if not os.path.exists(BUILDS_ROOT):
+            os.makedirs(BUILDS_ROOT)
+        build_destination_path = os.path.join(
+                                    BUILDS_ROOT,
+                                    BUILD_FILENAME_TEMPLATE % (channel.Propagation_Channel_ID,
+                                                               sponsor.Sponsor_ID))
+        shutil.copyfile(EXECUTABLE_FILENAME, build_destination_path)
 
+        print 'Build: SUCCESS'
 
-def do_build(build_func):
-    # build boilerplate: protect source code files, etc.
-    try:
-        # Helper: store original files for restore after script
-        # (to minimize chance of checking values into source control)
-        def store_to_temporary_file(filename):
-            temporary_file = tempfile.NamedTemporaryFile()
-            with open(filename, 'rb') as file:
-                temporary_file.write(file.read())
-                temporary_file.flush()
-            return temporary_file
-
-        banner_tempfile = store_to_temporary_file(BANNER_FILENAME)
-        email_banner_tempfile = store_to_temporary_file(EMAIL_BANNER_FILENAME)
-        embedded_values_tempfile = store_to_temporary_file(EMBEDDED_VALUES_FILENAME)
-
-        psi_db.validate_data()
-        versions = psi_db.get_versions()
-        latest_version_number = max([int(versions[i].Client_Version) for i in range(len(versions))])
-
-        build_func(latest_version_number)
-
-        print 'psi_build: SUCCESS'
+        return build_destination_path
 
     except:
         traceback.print_exc()
-        print 'psi_build: FAIL'
+        print 'Build: FAILURE'
 
     finally:
 
@@ -297,15 +251,3 @@ def do_build(build_func):
             restore_from_temporary_file(embedded_values_tempfile, EMBEDDED_VALUES_FILENAME)
         except:
             pass
-
-
-def test_servers():
-    do_build(__test_servers)
-
-
-def build_clients():
-    do_build(__build_clients)
-
-
-if __name__ == "__main__":
-    build_clients()
