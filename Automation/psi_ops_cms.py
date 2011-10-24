@@ -149,18 +149,24 @@ class PersistentObject(object):
         os.remove(file.name)
 
     @staticmethod
+    def load_from_file(filename):
+        with open(filename) as file:
+            obj = cPickle.loads(file.read())
+            if not hasattr(obj, 'version'):
+                obj.version = '0.0'
+            if obj.version != obj.class_version:
+                obj.upgrade()
+        return obj
+
+    @staticmethod
     def load():
         obj = None
         file = tempfile.NamedTemporaryFile(delete=False)
         file.close()
         lock_document()
         export_document(file.name)
-        with open(file.name) as file:
-            obj = cPickle.loads(file.read())
-            if not hasattr(obj, 'version'):
-                obj.version = '0.0'
-            if obj.version != obj.class_version:
-                obj.upgrade()
+        obj = load_from_file(file.name)
+        os.remove(file.name)
         obj.is_locked = True
         return obj
 

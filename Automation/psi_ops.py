@@ -289,6 +289,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__deploy_data_required_for_all = True
             sponsor.log('marked all hosts for data deployment')
 
+    def get_server_by_ip_address(self, ip_address):
+        return filter(lambda x:x.ip_address == ip_address, self.__servers)
+
     def add_server(self, propagation_channel_name, discovery_date_range):
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
 
@@ -359,7 +362,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # the stats and email server
         self.deploy()
 
-
     def build_and_test(self, propagation_channel_id, sponsor_id, test=False):
         sponsor = self.__sponsors[sponsor_id]
         version = self.__client_versions[-1].version
@@ -376,7 +378,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         expected_egress_ip_addresses,
                         version,
                         test)
-
 
     def deploy(self):
 
@@ -591,7 +592,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return ([server.egress_ip_address for server in servers],
                 [get_encoded_server_entry(server) for server in servers])
         
-    def __get_region(self, client_ip_address):
+    def get_region(self, client_ip_address):
         try:
             region = None
             # Use the commercial "city" database is available
@@ -616,7 +617,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             return []
         sponsor = self.__sponsors[sponsor_id]
         if not region:
-            region = self.__get_region(client_ip_address)
+            region = self.get_region(client_ip_address)
         # case: lookup succeeded and corresponding region home page found
         sponsor_home_pages = [home_page.url for home_page in sponsor.home_pages[region].itervalues()]
         # case: lookup failed or no corresponding region home page found --> use default
