@@ -71,8 +71,9 @@ notify_classes =
 Source files
 ----------------------------------------
 
-* Copy mail_process.py, sendmail.py and forward to /home/mail_responder. 
-  Rename forward to .forward. Make sure the permissions are correct:
+* Copy mail_process.py, sendmail.py, mail_stats.py, and forward to 
+  /home/mail_responder. Rename forward to .forward. Make sure the permissions 
+  are correct:
     > sudo chown mail_responder:mail_responder mail_process.py sendmail.py .forward
 
 
@@ -101,6 +102,17 @@ Amazon SES
       aws_access_key_id = <your access key>
       aws_secret_access_key = <your secret key>
    Ensure that the file is readable by the mail_responder user.
+
+
+Stats
+----------------------------------------
+
+* mail_stats.py can be executed by a cron job to email basic statisitics to a 
+  desired email address. Edit that file so that RECIPIENT_ADDRESS and 
+  SENDER_ADDRESS meet your needs.
+
+* The emailing is done with the same SES code and credentials that the 
+  responder itself uses.
 
 
 Email Responder Configuration
@@ -145,4 +157,3 @@ Possible Issues
 
 * There is no In-Reply-To header being used, so, for example, Gmail's 
   conversation view is broken.
-  
