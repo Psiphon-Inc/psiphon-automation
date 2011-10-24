@@ -137,3 +137,12 @@ For example:
 
 * NOTE: The *last* mimetype will be the one that's preferred by mail clients,
   so you should put the 'html' body last.
+
+
+
+Possible Issues
+--------------------------------------------------------------------------------
+
+* There is no In-Reply-To header being used, so, for example, Gmail's 
+  conversation view is broken.
+  
