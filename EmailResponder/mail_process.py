@@ -14,13 +14,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-'''
-'''
 
 import sys
 import os
 import syslog
 import email
+import email.header
 import json
 import re
 
@@ -45,6 +44,9 @@ def get_email_localpart(email_address):
 
     # Bad address. 
     return False
+
+def decode_header(header_val):
+    return email.header.decode_header(header_val.decode('utf-8'))[0][0].decode('utf-8')
 
 
 class MailResponder:
@@ -124,7 +126,7 @@ class MailResponder:
 
         self._email = email.message_from_string(email_string)
 
-        self.requested_addr = self._email['To'].decode('utf-8')
+        self.requested_addr = decode_header(self._email['To'])
         if not self.requested_addr:
             syslog.syslog(syslog.LOG_INFO, 'No recip_addr')
             return False
@@ -151,12 +153,12 @@ class MailResponder:
             syslog.syslog(syslog.LOG_INFO, 'Bad recip_addr')
             return False
         
-        self._requester_addr = self._email['Return-Path'].decode('utf-8')
+        self._requester_addr = decode_header(self._email['Return-Path'])
         if not self._requester_addr:
             syslog.syslog(syslog.LOG_INFO, 'No sender_addr')
             return False
 
-        self._subject = self._email['Subject'].decode('utf-8')
+        self._subject = decode_header(self._email['Subject'])
 
         # Add 'Re:' to the subject
         self._subject = u'Re: %s' % self._subject
