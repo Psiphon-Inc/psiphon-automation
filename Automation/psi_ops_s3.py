@@ -26,6 +26,15 @@ import boto.s3.connection
 import boto.s3.key
 
 
+#==== Config  =================================================================
+
+DOWNLOAD_SITE_BUILD_FILENAME = 'psiphon3.exe'
+
+DOWNLOAD_SITE_CONTENT_ROOT = os.path.join('.', 'DownloadSite')
+
+#==============================================================================
+
+
 def publish_s3_download(aws_account, build_filename):
 
     # Connect to AWS
@@ -81,8 +90,7 @@ def publish_s3_download(aws_account, build_filename):
         # Upload the specific Propagation Channel/Spondor build as "psiphon3.exe"
     
         key = bucket.new_key(DOWNLOAD_SITE_BUILD_FILENAME)
-        path = os.path.join(BUILDS_ROOT, build_filename)
-        key.set_contents_from_filename(path, cb=progress)
+        key.set_contents_from_filename(build_filename, cb=progress)
         key.close()
     except:
         # TODO: delete all keys

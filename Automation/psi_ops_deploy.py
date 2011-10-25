@@ -144,7 +144,7 @@ def deploy_data(host, host_data):
 
 def deploy_builds(host, build_filename):
 
-    print 'deploy builds to host %s...' % (host.id,)
+    print 'deploy %s build to host %s...' % (build_filename, host.id,)
 
     ssh = psi_ssh.SSH(
             host.ip_address, host.ssh_port,
@@ -153,7 +153,9 @@ def deploy_builds(host, build_filename):
 
     ssh.exec_command('mkdir -p %s' % (psi_config.UPGRADE_DOWNLOAD_PATH,))
 
-    ssh.put_file(os.path.join(BUILDS_ROOT, build_filename),
-                 posixpath.join(psi_config.UPGRADE_DOWNLOAD_PATH, filename))
+    ssh.put_file(
+        build_filename,
+        posixpath.join(psi_config.UPGRADE_DOWNLOAD_PATH,
+                       os.path.split(build_filename)[1]))
 
     ssh.close()

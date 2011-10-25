@@ -59,7 +59,7 @@ Dependencies
 
 - Install additional modules:
 
-  easy_install xlrd xlwt xlutils paramiko pyOpenSSL pywin32
+  easy_install xlrd xlwt xlutils paramiko pyOpenSSL pywin32 jsonpickle
 
 [NOTE: you may require Visual C++ 2008, NOT 2010, to build Python modules
  (http://mail.python.org/pipermail/python-list/2010-April/1242706.html).
@@ -243,7 +243,7 @@ Confirm that the path to ipsec is correct.
 apt-get update
 apt-get install -y xl2tpd
 apt-get install -y python-setuptools python-dev
-easy_install cherrypy webob xlrd portalocker netifaces
+easy_install cherrypy webob xlrd portalocker netifaces jsonpickle
 
 
 5. Get, patch and install Openswan and the KLIPS kernel module

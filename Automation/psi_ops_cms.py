@@ -22,7 +22,7 @@ import sys
 import subprocess
 import shlex
 import tempfile
-import cPickle
+import jsonpickle
 
 
 if os.path.isfile('psi_data_config.py'):
@@ -144,14 +144,14 @@ class PersistentObject(object):
 
     def save(self):
         with tempfile.NamedTemporaryFile(delete=False) as file:
-            file.write(cPickle.dumps(self))
+            file.write(jsonpickle.encode(self))
         import_document(file.name)
         os.remove(file.name)
 
     @staticmethod
     def load_from_file(filename):
         with open(filename) as file:
-            obj = cPickle.loads(file.read())
+            obj = jsonpickle.decode(file.read())
             if not hasattr(obj, 'version'):
                 obj.version = '0.0'
             if obj.version != obj.class_version:

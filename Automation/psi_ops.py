@@ -18,7 +18,6 @@
 #
 
 import os
-import cPickle
 import time
 import datetime
 import pprint
@@ -26,6 +25,9 @@ import json
 import collections
 import textwrap
 import itertools
+import binascii
+import base64
+import jsonpickle
 
 import psi_linode
 import psi_utils
@@ -89,23 +91,27 @@ ClientVersion = psi_utils.recordtype(
     'version, description')
 
 AwsAccount = psi_utils.recordtype(
-    'AwsAcount',
-    'access_id, secret_key')
+    'AwsAccount',
+    'access_id, secret_key',
+    default=None)
 
 LinodeAccount = psi_utils.recordtype(
     'LinodeAccount',
     'api_key, base_id, base_ip_address, base_ssh_port, '+
     'base_root_password, base_stats_username, base_host_public_key, '+
     'base_known_hosts_entry, base_rsa_private_key, base_rsa_public_key, '+
-    'base_tarball_path')
+    'base_tarball_path',
+    default=None)
 
 EmailServerAccount = psi_utils.recordtype(
     'EmailServerAccount',
-    'ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key')
+    'ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key',
+    default=None)
 
 StatsServerAccount = psi_utils.recordtype(
     'StatsServerAccount',
-    'ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key')
+    'ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key',
+    default=None)
 
 
 class PsiphonNetwork(psi_ops_cms.PersistentObject):
@@ -123,10 +129,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__hosts = {}
         self.__servers = {}
         self.__client_versions = []
-        self.__email_server_account = None
-        self.__stats_server_account = None
-        self.__aws_account = None
-        self.__linode_account = None
+        self.__email_server_account = EmailServerAccount()
+        self.__stats_server_account = StatsServerAccount()
+        self.__aws_account = AwsAccount()
+        self.__linode_account = LinodeAccount()
         self.__deploy_implementation_required_for_hosts = set()
         self.__deploy_data_required_for_all = False
         self.__deploy_builds_required_for_campaigns = set()
@@ -221,13 +227,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def set_sponsor_banner(self, name, banner_filename):
         with open(banner_filename, 'rb') as file:
-            banner = file.read()
+            banner = base64.b64encode(file.read())
         sponsor = self.__get_sponsor_by_name(name)
         sponsor.banner = banner
         sponsor.log('set banner')
         for campaign in sponsor.campaigns:
             self.__deploy_builds_required_for_campaigns.set(
-                (sponsor.id, campaign.propagation_channel_id))
+                (campaign.propagation_channel_id, sponsor.id))
             campaign.log('marked for build and publish (new banner)')
 
     def add_sponsor_email_campaign(self, sponsor_name,
@@ -246,7 +252,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             sponsor.campaigns.append(campaign)
             sponsor.log('add email campaign %s' % (email_account,))
             self.__deploy_builds_required_for_campaigns.add(
-                    (sponsor.id, campaign.propagation_channel_id))
+                    (campaign.propagation_channel_id, sponsor.id))
             campaign.log('marked for build and publish (new campaign)')
 
     def add_sponsor_twitter_campaign(self, sponsor_name,
@@ -273,7 +279,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             sponsor.campaigns.append(campaign)
             sponsor.log('add twitter campaign %s' % (email_account,))
             self.__deploy_builds_required_for_campaigns.add(
-                    (sponsor.id, campaign.propagation_channel_id))
+                    (campaign.propagation_channel_id, sponsor.id))
             campaign.log('marked for build and publish (new campaign)')
 
     def set_sponsor_home_page(self, sponsor_name, region, url):
@@ -347,11 +353,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # If it's a propagation server, stop embedding the old one (it's still
         # active, but not embedded in builds or discovered)
         if is_embedded_server:
-            for server in self.__servers.itervalues():
-                if (server.propagation_channel_id == propagation_channel.id and
-                    server.is_embedded):
-                    server.is_embedded = False
-                    server.log('unembedded')
+            for other_server in self.__servers.itervalues():
+                if (other_server.propagation_channel_id == propagation_channel.id and
+                    other_server.id != server.id and
+                    other_server.is_embedded):
+                    other_server.is_embedded = False
+                    other_server.log('unembedded')
 
         self.__deploy_data_required_for_all = True
         self.__deploy_stats_config_required = True
@@ -364,7 +371,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 for campaign in sponsor.campaigns:
                     if campaign.propagation_channel_id == propagation_channel.id:
                         self.__deploy_builds_required_for_campaigns.add(
-                                (sponsor.id, campaign.propagation_channel_id))
+                                (campaign.propagation_channel_id, sponsor.id))
                         campaign.log('marked for build and publish (new embedded server)')
 
         # Ensure new server configuration is saved to CMS before deploying new
@@ -377,18 +384,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # the stats and email server
         self.deploy()
 
-    def build_and_test(self, propagation_channel_id, sponsor_id, test=False):
-        sponsor = self.__sponsors[sponsor_id]
+    def build_and_test(self, propagation_channel_name, sponsor_name, test=False):
+        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+        sponsor = self.__get_sponsor_by_name(sponsor_name)
         version = self.__client_versions[-1].version
         encoded_server_list, expected_egress_ip_addresses = \
-                    self.__get_encoded_server_list(propagation_channel_id)
+                    self.__get_encoded_server_list(propagation_channel.id)
         
         # A sponsor may use the same propagation channel for multiple
         # campaigns; we need only build and upload the client once.
-        return psi_ops_build.build(
-                        propagation_channel_id,
-                        sponsor_id,
-                        sponsor.banner,
+        return psi_ops_build.build_client(
+                        propagation_channel.id,
+                        sponsor.id,
+                        base64.b64decode(sponsor.banner),
                         encoded_server_list,
                         expected_egress_ip_addresses,
                         version,
@@ -419,7 +427,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         if self.__deploy_data_required_for_all:
             for host in self.__hosts.itervalues():
-                psi_ops_deploy.deploy_host(
+                psi_ops_deploy.deploy_data(
                                     host,
                                     self.__compartmentalize_data_for_host(host.id))
                 host.log('deploy data')
@@ -430,32 +438,34 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         build_filenames = {}
         for target in self.__deploy_builds_required_for_campaigns:
 
+            propagation_channel_id, sponsor_id = target
+            propagation_channel = self.__propagation_channels[propagation_channel_id]
+            sponsor = self.__sponsors[sponsor_id]
+
             # Build and upload to hosts
                 
             if target not in build_filenames:
                 
                 # A sponsor may use the same propagation channel for multiple
                 # campaigns; we need only build and upload the client once.
-                propagation_channel_id, sponsor_id = target
-                build_filenames[target] =  build_and_test(propagation_channel_id, sponsor_id)
+                build_filenames[target] = self.build_and_test(propagation_channel.name, sponsor.name)
 
-                # Upload client builds
-                # We only upload the builds for Propagation Channel IDs that need to be known for the host.
-                # UPDATE: Now we copy all builds.  We know that this breaks compartmentalization.
-                # However, we do not want to prevent an upgrade in the case where a user has
-                # downloaded from multiple propagation channels, and might therefore be connecting
-                # to a server from one propagation channel using a build from a different one.
-                for host in self.__hosts:
-                    psi_ops_deploy.deploy_build(host, build_filename)
             build_filename = build_filenames[target]
+
+            # Upload client builds
+            # We only upload the builds for Propagation Channel IDs that need to be known for the host.
+            # UPDATE: Now we copy all builds.  We know that this breaks compartmentalization.
+            # However, we do not want to prevent an upgrade in the case where a user has
+            # downloaded from multiple propagation channels, and might therefore be connecting
+            # to a server from one propagation channel using a build from a different one.
+            for host in self.__hosts.itervalues():
+                psi_ops_deploy.deploy_builds(host, build_filename)
 
             # Publish to propagation mechanisms
 
-            sponsor_id, propagation_channel_id = target
-            sponsor = self.__sponsors[sponsor_id]
             campaign = filter(lambda x:x.propagation_channel_id == propagation_channel_id, sponsor.campaigns)[0]
-            s3_bucket_name = psi_s3.publish_s3_bucket(self.__aws_account, build_filename)
-            campaign.log('published s3 bucket %s', (s3_bucket_name,))
+            s3_bucket_name = psi_ops_s3.publish_s3_download(self.__aws_account, build_filename)
+            campaign.log('published s3 bucket %s' % (s3_bucket_name,))
             if campaign.propagation_mechanism_type == 'twitter':
                 message = psi_templates.get_tweet_message(s3_bucket_name)
                 psi_twitter.tweet(campaign.account, message)
@@ -523,27 +533,35 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         next_version = 1
         if len(self.__client_versions) > 0:
             next_version = int(self.__client_versions[-1].version)+1
-        client_version = Client(str(next_version), description)
-        self.__client_versions.add(client_version)
+        client_version = ClientVersion(str(next_version), description)
+        self.__client_versions.append(client_version)
         # Mark deploy flag to rebuild and upload all clients
         for sponsor in self.__sponsors.itervalues():
             for campaign in sponsor.campaigns:
                 self.__deploy_builds_required_for_campaigns.add(
-                        (sponsor.id, campaign.propagation_channel_id))
+                        (campaign.propagation_channel_id, sponsor.id))
                 campaign.log('marked for build and publish (upgraded client)')
 
     def set_aws_account(self, access_id, secret_key):
-        self.__aws_account = AwsAccount(access_id, secret_key)
+        self.__aws_account.access_id = access_id
+        self.__aws_account.secret_key = secret_key
         self.__aws_account.log('set to %s' % (access_id,))
 
     def set_linode_account(self, api_key, base_id, base_ip_address, base_ssh_port,
                            base_root_password, base_stats_username, base_host_public_key,
                            base_known_hosts_entry, base_rsa_private_key, base_rsa_public_key,
                            base_tarball_path):
-        self.__linode_account = LinodeAccount(api_key, base_id, base_ip_address, base_ssh_port,
-                           base_root_password, base_stats_username, base_host_public_key,
-                           base_known_hosts_entry, base_rsa_private_key, base_rsa_public_key,
-                           base_tarball_path)
+        self.__linode_account.api_key = api_key
+        self.__linode_account.base_id = base_id
+        self.__linode_account.base_ip_address = base_ip_address
+        self.__linode_account.base_ssh_port = base_ssh_port
+        self.__linode_account.base_root_password = base_root_password
+        self.__linode_account.base_stats_username = base_stats_username
+        self.__linode_account.base_host_public_key = base_host_public_key
+        self.__linode_account.base_known_hosts_entry = base_known_hosts_entry
+        self.__linode_account.base_rsa_private_key = base_rsa_private_key
+        self.__linode_account.base_rsa_public_key = base_rsa_public_key
+        self.__linode_account.base_tarball_path = base_tarball_path
         self.__linode_account.log('set to %s' % (api_key,))
 
     def set_email_server_account(self, ip_address, ssh_port,
@@ -603,8 +621,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if event_logger:
             for server in servers:
                 event_logger(server.ip_address)
-        return ([server.egress_ip_address for server in servers],
-                [get_encoded_server_entry(server) for server in servers])
+        return ([self.__get_encoded_server_entry(server) for server in servers],
+                [server.egress_ip_address for server in servers])
         
     def get_region(self, client_ip_address):
         try:
@@ -689,12 +707,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def embed(self, propagation_channel_id):
         return get_encoded_server_list(propagation_channel_id)
     
-    # TODO...
-    #def get_egress_ip_address_for_server(server):
-    #    # egress IP address is host's IP address
-    #    hosts = get_hosts()
-    #    return filter(lambda x : x.Host_ID == server.Host_ID, hosts)[0].IP_Address
-    
     def __compartmentalize_data_for_host(self, host_id, discovery_date=datetime.datetime.now()):
         # Create a compartmentalized database with only the information needed by a particular host
         # - propagation channels includes only channel IDs that may connect to servers on this host
@@ -708,7 +720,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         copy = PsiphonNetwork()
 
-        servers_on_host = filter(lambda x : x.host_id == host_id, self.__servers)
+        servers_on_host = filter(lambda x : x.host_id == host_id, self.__servers.itervalues())
         # Servers with blank propagation channels are inactive
         discovery_propagation_channel_ids_for_host = set([server.propagation_channel_id
                                                           for server in servers_on_host
@@ -722,7 +734,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                                     None) # Omit mechanism type
 
         for server in self.__servers.itervalues():
-            if (server.propagation_channel_id in discovery_propagation_channel_ids_on_host and
+            if (server.propagation_channel_id in discovery_propagation_channel_ids_for_host and
                     not(server.discovery_date_range and server.host_id != host_id and server.discovery_date_range[1] <= discovery_date) and
                     not(server.is_embedded and server.host_id != host_id)):
                 copy.__servers[server.id] = Server(
@@ -753,11 +765,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             copy.__sponsors[copy_sponsor.id] = copy_sponsor
 
         for client_version in self.__client_versions:
-            copy.__client_versions.append(Version(
+            copy.__client_versions.append(ClientVersion(
                                             client_version.version,
                                             None)) # Omit description
 
-        return cPickle.dumps(copy)
+        return jsonpickle.encode(copy)
 
     def __compartmentalize_data_for_stats_server(self):
         # The stats server needs to be able to connect to all hosts and needs
@@ -796,7 +808,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         sponsor.name)
                                         # Omit banner, home pages, campaigns
 
-        return cPickle.dumps(copy)
+        return jsonpickle.encode(copy)
 
 
 def unit_test():
@@ -818,6 +830,7 @@ def edit():
     # Lock an existing network object, interact with it, then save changes
     print 'loading...'
     psinet = PsiphonNetwork.load()
+    #psinet = PsiphonNetwork.load_from_file('psi_ops.dat')
     import code
     try:
         code.InteractiveConsole(locals=locals()).interact(

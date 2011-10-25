@@ -82,8 +82,8 @@ def build_client_executable():
     if not os.path.isfile(signtool_filename):
         signtool_filename = SIGN_TOOL_FILENAME_ALT
     commands = [
-        'msbuild "%s" /t:Rebuild /p:Configuration=Release\n' % (CLIENT_SOLUTION_FILENAME,),
-        '"%s" "%s"\n' % (UPX_FILENAME, EXECUTABLE_FILENAME),
+        'msbuild "%s" /v:quiet /t:Rebuild /p:Configuration=Release\n' % (CLIENT_SOLUTION_FILENAME,),
+        '"%s" -qq "%s"\n' % (UPX_FILENAME, EXECUTABLE_FILENAME),
         '"%s" sign /f "%s" %s\n' % (signtool_filename,
                                              CODE_SIGNING_PFX_FILENAME,
                                              EXECUTABLE_FILENAME)]
@@ -139,9 +139,8 @@ def test_server(mode, expected_egress_ip_addresses):
     # - sleep 5 seconds, which allows time to establish connection
     # - determine egress IP address and assert it matches host IP address
     # - post WM_CLOSE to gracefully shut down the client and its connection
-    print 'Testing server %s on host %s mode %s...' % (server.IP_Address,
-                                                       server.Host_ID,
-                                                       mode)
+    print 'Testing egress IP addresses %s in %s mode...' % (
+            ','.join(expected_egress_ip_addresses), mode)
 
     restore_registry = False
 
@@ -165,11 +164,8 @@ def test_server(mode, expected_egress_ip_addresses):
         proc.wait()
         
         if egress_ip_address not in expected_egress_ip_addresses:
-            raise Exception('Test FAILURE: %s %s %s %s' % (
-                                mode,
-                                server.IP_Address,
-                                egress_ip_address,
-                                expected_egress_ip_address))
+            raise Exception('Test FAILURE: %s %s' % (
+                                ','.join(expected_egress_ip_addresses), mode))
     finally:
         if restore_registry:
             _winreg.SetValueEx(reg_key, REGISTRY_IGNORE_VPN_VALUE, None, ignore_vpn_value, ignore_vpn_type)
@@ -202,15 +198,16 @@ def build_client(
         shutil.copyfile(banner_source_path, EMAIL_BANNER_FILENAME)
 
         # Copy sponsor banner image file from Data to Client source tree
-        banner_source_path = os.path.join(BANNER_ROOT, sponsor.Banner_Filename)
-        shutil.copyfile(banner_source_path, BANNER_FILENAME)
+        with open(BANNER_FILENAME, 'wb') as banner_file:
+            banner_file.write(banner)
 
         # overwrite embedded values source file
         write_embedded_values(
             propagation_channel_id,
             sponsor_id,
             version,
-            encoded_server_list)
+            encoded_server_list,
+            ignore_system_server_list=test)
 
         # build
         build_client_executable()
@@ -226,8 +223,8 @@ def build_client(
             os.makedirs(BUILDS_ROOT)
         build_destination_path = os.path.join(
                                     BUILDS_ROOT,
-                                    BUILD_FILENAME_TEMPLATE % (channel.Propagation_Channel_ID,
-                                                               sponsor.Sponsor_ID))
+                                    BUILD_FILENAME_TEMPLATE % (propagation_channel_id,
+                                                               sponsor_id))
         shutil.copyfile(EXECUTABLE_FILENAME, build_destination_path)
 
         print 'Build: SUCCESS'
@@ -235,8 +232,8 @@ def build_client(
         return build_destination_path
 
     except:
-        traceback.print_exc()
         print 'Build: FAILURE'
+        raise
 
     finally:
 
