@@ -322,7 +322,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # Install Psiphon 3 and generate configuration values
         # Here, we're assuming one server/IP address per host
-        existing_server_ids = [server.id for server in self.__servers]
+        existing_server_ids = [server.id for server in self.__servers.itervalues()]
         psi_ops_install.install_host(host, [server], existing_server_ids)
         host.log('install')
 
@@ -367,6 +367,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 (sponsor.id, campaign.propagation_channel_id))
                         campaign.log('marked for build and publish (new embedded server)')
 
+        # Ensure new server configuration is saved to CMS before deploying new
+        # server info to the network
+
+        # TODO: add need-save flag
+        self.save()
+
         # This deploy will broadcast server info, propagate builds, and update
         # the stats and email server
         self.deploy()
@@ -390,12 +396,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def deploy(self):
 
-        # Ensure new server configuration is saved to CMS before deploying new
-        # server info to the network
-
-        # TODO: add need-save flag
-        self.save()
-
         # Deploy as required:
         #
         # - Implementation to flagged hosts
@@ -418,7 +418,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Host data
 
         if self.__deploy_data_required_for_all:
-            for host in __self.hosts.itervalues():
+            for host in self.__hosts.itervalues():
                 psi_ops_deploy.deploy_host(
                                     host,
                                     self.__compartmentalize_data_for_host(host.id))
