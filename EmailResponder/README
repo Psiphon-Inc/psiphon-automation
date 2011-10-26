@@ -28,7 +28,9 @@ OS
 
 4. Create directory where the responder configuration file will go.
     > sudo mkdir /mail_responder_config
-   TODO: Figure out what the write permissions should be on this directory.
+   Change the directory permissions so that the "normal" user (that will be used
+   for connecting via ssh) can write and all users can read.
+   > sudo chown ubuntu:ubuntu -R /mail_responder_config
 
 
 Postfix
