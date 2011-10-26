@@ -139,7 +139,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__deploy_stats_config_required = False
         self.__deploy_email_push_required = False
 
-    def show_status(self, verbose=False):
+    def show_status(self):
         # NOTE: verbose mode prints credentials to stdout
         print textwrap.dedent('''
             Sponsors:            %d
@@ -178,27 +178,77 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 len(self.__deploy_builds_required_for_campaigns),
                 'Yes' if self.__deploy_stats_config_required else 'No',
                 'Yes' if self.__deploy_email_push_required else 'No')
-        if verbose:
-            def print_object(obj):
-                if not obj:
-                    return
-                # TODO: nicer printing of recordtype objects
-                pprint.PrettyPrinter().pprint(obj)
-                for log_time, log_message in obj.get_logs():
-                    print log_time.isoformat(), log_message
-                print '\n'
-            map(print_object,
-                itertools.chain(
-                    self.__sponsors.itervalues(),
-                    self.__propagation_channels.itervalues(),
-                    self.__hosts.itervalues(),
-                    self.__servers.itervalues(),
-                    self.__client_versions,
-                    [self.__email_server_account,
-                     self.__stats_server_account,
-                     self.__aws_account,
-                     self.__linode_account]))
-                
+
+    def __show_logs(self, obj):
+        for timestamp, message in obj.get_logs():
+            print '%s: %s' % (timestamp.isoformat(), message)
+        print ''
+ 
+    def show_sponsors(self):
+        for s in self.__sponsors.itervalues():
+            print textwrap.dedent('''
+                ID:                     %s
+                Name:                   %s
+                Home Pages:             %s
+                Campaigns:              %s
+                ''') % (
+                    s.id,
+                    s.name,
+                    ', '.join(['%s: %s' % (region if region else 'All',
+                                           ', '.join([h.url for h in home_pages]))
+                               for region, home_pages in s.home_pages.iteritems()]),
+                    ', '.join(['%s %s %s %s' % (
+                                    self.__propagation_channels[c.propagation_channel_id].name,
+                                    c.propagation_mechanism_type,
+                                    c.account[0],
+                                    c.s3_bucket_name)
+                               for c in s.campaigns]))
+            self.__show_logs(s)
+
+    def show_propagation_channels(self):
+        for p in self.__propagation_channels.itervalues():
+            embedded_servers = [server.id for server in self.__servers.itervalues()
+                                if server.propagation_channel_id == p.id and server.is_embedded]
+            discovery_servers = ['%s (%s-%s)' % (server.id,
+                                                 server.discovery_date_range[0].isoformat(),
+                                                 server.discovery_date_range[1].isoformat())
+                                 for server in self.__servers.itervalues()
+                                 if server.propagation_channel_id == p.id and server.discovery_date_range]
+            print textwrap.dedent('''
+                ID:                     %s
+                Name:                   %s
+                Propagation Mechanisms: %s
+                Embedded Servers:       %s
+                Discovery Servers:      %s
+                ''') % (
+                    p.id,
+                    p.name,
+                    ', '.join(p.propagation_mechanism_types),
+                    ', '.join(embedded_servers),
+                    ', '.join(discovery_servers))
+            self.__show_logs(p)
+
+    def show_servers(self):
+        for s in self.__servers.itervalues():
+            print textwrap.dedent('''
+                Server:                 %s
+                Host:                   %s %s/%s
+                IP Address:             %s
+                Propagation Channel:    %s
+                Is Embedded:            %s
+                Discovery Date Range:   %s
+                ''') % (
+                    s.id,
+                    s.host_id,
+                    self.__hosts[s.host_id].ssh_username,
+                    self.__hosts[s.host_id].ssh_password,
+                    s.ip_address,
+                    self.__propagation_channels[s.propagation_channel_id].name,
+                    s.is_embedded,
+                    ('%s-%s' % (s.discovery_date_range[0].isoformat(),
+                                s.discovery_date_range[1].isoformat())) if s.discovery_date_range else 'None')
+            self.__show_logs(s)
+
     def __generate_id(self):
         count = 16
         chars = '0123456789ABCDEF'
@@ -831,6 +881,7 @@ def edit():
     print 'loading...'
     psinet = PsiphonNetwork.load()
     #psinet = PsiphonNetwork.load_from_file('psi_ops.dat')
+    psinet.show_status()
     import code
     try:
         code.InteractiveConsole(locals=locals()).interact(
