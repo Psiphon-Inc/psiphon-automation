@@ -22,28 +22,35 @@ import time
 import datetime
 import pprint
 import json
-import collections
 import textwrap
 import itertools
 import binascii
 import base64
 import jsonpickle
+import tempfile
 
-import psi_linode
 import psi_utils
-import psi_templates
 import psi_ops_cms
-import psi_ops_s3
-import psi_ops_twitter
-import psi_ops_install
-import psi_ops_deploy
-import psi_ops_build
 
 try:
+    # Modules available only on the automation server
+    import psi_linode
+    import psi_templates
+    import psi_ops_s3
+    import psi_ops_twitter
+    import psi_ops_install
+    import psi_ops_deploy
+    import psi_ops_build
+except ImportError:
+    pass
+
+try:
+    # Modules available only on the node server
     import GeoIP
 except ImportError:
     pass
 
+# NOTE: update compartmentalize() functions when adding fields
 
 PropagationChannel = psi_utils.recordtype(
     'PropagationChannel',
@@ -271,7 +278,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def add_sponsor(self, name):
         id = self.__generate_id()
-        sponsor = Sponsor(id, name, None, collections.defaultdict(list), [])
+        sponsor = Sponsor(id, name, None, {}, [])
         assert(not filter(lambda x:x.name == name, self.__sponsors.itervalues()))
         self.__sponsors[id] = sponsor
 
@@ -335,6 +342,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def set_sponsor_home_page(self, sponsor_name, region, url):
         sponsor = self.__get_sponsor_by_name(sponsor_name)
         home_page = SponsorHomePage(region, url)
+        if region not in sponsor.home_pages:
+            sponsor.home_pages[region] = []
         if home_page not in sponsor.home_pages[region]:
             sponsor.home_pages[region].append(home_page)
             sponsor.log('set home page %s for %s' % (url, region if region else 'All'))
@@ -344,14 +353,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def remove_sponsor_home_page(self, sponsor_name, region, url):
         sponsor = self.__get_sponsor_by_name(sponsor_name)
         home_page = SponsorHomePage(region, url)
-        if home_page in sponsor.home_pages[region]:
+        if (region in sponsor.home_pages
+            and home_page in sponsor.home_pages[region]):
             sponsor.home_pages[region].remove(home_page)
             sponsor.log('deleted home page %s for %s' % (url, region))
             self.__deploy_data_required_for_all = True
             sponsor.log('marked all hosts for data deployment')
 
     def get_server_by_ip_address(self, ip_address):
-        return filter(lambda x:x.ip_address == ip_address, self.__servers)
+        servers = filter(lambda x:x.ip_address == ip_address, self.__servers.itervalues())
+        if len(servers) == 1:
+            return servers[0]
+        return None
 
     def add_server(self, propagation_channel_name, discovery_date_range):
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
@@ -374,7 +387,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     host.ip_address,
                     propagation_channel.id,
                     is_embedded_server,
-                    discovery_date_range)
+                    discovery_date_range,
+                    '8080')
 
         # Install Psiphon 3 and generate configuration values
         # Here, we're assuming one server/IP address per host
@@ -468,7 +482,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Host implementation
 
         for host_id in self.__deploy_implementation_required_for_hosts:
-            host = __self.hosts[host_id]
+            host = self.__hosts[host_id]
             psi_ops_deploy.deploy_implementation(host)
             host.log('deploy implementation')
         self.__deploy_implementation_required_for_hosts.clear()
@@ -544,11 +558,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.save()
 
     def push_stats_config(self):
-        with tempfile.NamedTemporaryFile() as file:
-            file.write(json.dumps(emails))
-            ssh = psi_ssh.SSH(*self.__stats_server_account)
-            ssh.put_file(temp_file.name, STATS_SERVER_CONFIG_FILE_PATH)
-            self.__stats_server_account.log('pushed')
+        # TODO: test
+        pass
+        #with tempfile.NamedTemporaryFile() as file:
+        #    file.write(json.dumps(self.__compartmentalize_data_for_stats_server()))
+        #    ssh = psi_ssh.SSH(*self.__stats_server_account)
+        #    ssh.put_file(temp_file.name, STATS_SERVER_CONFIG_FILE_PATH)
+        #    self.__stats_server_account.log('pushed')
 
     def push_email_config(self):
         # Generate the email server config file, which is a JSON format
@@ -574,7 +590,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def add_server_version(self):
         # Marks all hosts for re-deployment of server implementation
-        for host in self.__hosts:
+        for host in self.__hosts.itervalues():
             self.__deploy_implementation_required_for_hosts.add(host.id)
             host.log('marked for implementation deployment')
 
@@ -701,9 +717,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if not region:
             region = self.get_region(client_ip_address)
         # case: lookup succeeded and corresponding region home page found
-        sponsor_home_pages = [home_page.url for home_page in sponsor.home_pages[region].itervalues()]
+        sponsor_home_pages = None
+        if region in sponsor.home_pages:
+            [home_page.url for home_page in sponsor.home_pages[region].itervalues()]
         # case: lookup failed or no corresponding region home page found --> use default
-        if not sponsor_home_pages:
+        if not sponsor_home_pages and None in sponsor.home_pages:
             sponsor_home_pages = [home_page.url for home_page in sponsor.home_pages[None].itervalues()]
         return sponsor_home_pages
     
@@ -780,8 +798,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             propagation_channel = self.__propagation_channels[id]
             copy.__propagation_channels[propagation_channel.id] = PropagationChannel(
                                                                     propagation_channel.id,
-                                                                    None, # Omit name
-                                                                    None) # Omit mechanism type
+                                                                    '', # Omit name
+                                                                    '') # Omit mechanism type
 
         for server in self.__servers.itervalues():
             if (server.propagation_channel_id in discovery_propagation_channel_ids_for_host and
@@ -789,9 +807,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     not(server.is_embedded and server.host_id != host_id)):
                 copy.__servers[server.id] = Server(
                                                 server.id,
-                                                None, # Omit host_id
+                                                '', # Omit host_id
                                                 server.ip_address,
+                                                server.egress_ip_address,
                                                 server.propagation_channel_id,
+                                                server.is_embedded,
                                                 server.discovery_date_range,
                                                 server.web_server_port,
                                                 server.web_server_secret,
@@ -805,19 +825,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for sponsor in self.__sponsors.itervalues():
             copy_sponsor = Sponsor(
                                 sponsor.id,
-                                None, # Omit name
-                                None, # Omit banner
-                                collections.defaultdict(list),
-                                None) # Omit campaigns
+                                '', # Omit name
+                                '', # Omit banner
+                                {},
+                                []) # Omit campaigns
             for region, home_pages in sponsor.home_pages.iteritems():
-                # Completely copy all home pages
-                copy_sponsor.home_pages[region].extend(home_pages)
+                copy_sponsor.home_pages[region] = home_pages
             copy.__sponsors[copy_sponsor.id] = copy_sponsor
 
         for client_version in self.__client_versions:
             copy.__client_versions.append(ClientVersion(
                                             client_version.version,
-                                            None)) # Omit description
+                                            '')) # Omit description
 
         return jsonpickle.encode(copy)
 

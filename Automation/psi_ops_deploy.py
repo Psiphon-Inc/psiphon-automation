@@ -30,15 +30,10 @@ import psi_config
 
 #==== Deploy File Locations  ==================================================
 
-HOST_SOURCE_ROOT = '/opt/PsiphonV'
-HOST_IP_UP_DIR = '/etc/ppp/ip-up.d'
-HOST_IP_DOWN_DIR = '/etc/ppp/ip-down.d'
-HOST_INIT_DIR = '/etc/init.d'
-
 BUILDS_ROOT = os.path.join('.', 'Builds')
 
 SOURCE_FILES = [
-    ('Automation', ['psi_ops.py']),
+    ('Automation', ['psi_ops.py', 'psi_ops_cms.py', 'psi_utils.py']),
     ('Server', ['psi_config.py', 'psi_psk.py', 'psi_web.py'])
 ]
 
@@ -57,19 +52,21 @@ def deploy_implementation(host):
     # Copy server source code
 
     for (dir, filenames) in SOURCE_FILES:
-        ssh.exec_command('mkdir -p %s' % (posixpath.join(HOST_SOURCE_ROOT, dir),))
+        ssh.exec_command('mkdir -p %s' % (
+                posixpath.join(psi_config.HOST_SOURCE_ROOT, dir),))
         for filename in filenames:
             ssh.put_file(os.path.join(os.path.abspath('..'), dir, filename),
-                         posixpath.join(HOST_SOURCE_ROOT, dir, filename))
+                         posixpath.join(psi_config.HOST_SOURCE_ROOT, dir, filename))
 
-    ssh.exec_command('chmod +x %s' % (posixpath.join(HOST_SOURCE_ROOT, 'Server', 'psi_web.py'),))
+    ssh.exec_command('chmod +x %s' % (
+            posixpath.join(psi_config.HOST_SOURCE_ROOT, 'Server', 'psi_web.py'),))
 
-    remote_ip_down_file_path = posixpath.join(HOST_IP_DOWN_DIR, 'psi-ip-down')
+    remote_ip_down_file_path = posixpath.join(psi_config.HOST_IP_DOWN_DIR, 'psi-ip-down')
     ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', 'psi-ip-down'),
                  remote_ip_down_file_path)
     ssh.exec_command('chmod +x %s' % (remote_ip_down_file_path,))
 
-    remote_init_file_path = posixpath.join(HOST_INIT_DIR, 'psiphonv')
+    remote_init_file_path = posixpath.join(psi_config.HOST_INIT_DIR, 'psiphonv')
     ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', 'psi-init'),
                  remote_init_file_path)
     ssh.exec_command('chmod +x %s' % (remote_init_file_path,))
@@ -81,7 +78,7 @@ def deploy_implementation(host):
 
     # Copy DNS capture init script and restart it
 
-    remote_init_file_path = posixpath.join(HOST_INIT_DIR, 'psi-dns-capture')
+    remote_init_file_path = posixpath.join(psi_config.HOST_INIT_DIR, 'psi-dns-capture')
     ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', 'psi-dns-capture'),
                  remote_init_file_path)
     ssh.exec_command('chmod +x %s' % (remote_init_file_path,))
@@ -91,11 +88,11 @@ def deploy_implementation(host):
 
     # Copy the rate-limiting scripts
 
-    remote_rate_limit_start_file_path = posixpath.join(HOST_IP_UP_DIR, 'rate-limit')
+    remote_rate_limit_start_file_path = posixpath.join(psi_config.HOST_IP_UP_DIR, 'rate-limit')
     ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', 'rate-limit-start'),
                  remote_rate_limit_start_file_path)
     ssh.exec_command('chmod +x %s' % (remote_rate_limit_start_file_path,))
-    remote_rate_limit_end_file_path = posixpath.join(HOST_IP_DOWN_DIR, 'rate-limit')
+    remote_rate_limit_end_file_path = posixpath.join(psi_config.HOST_IP_DOWN_DIR, 'rate-limit')
     ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', 'rate-limit-end'),
                  remote_rate_limit_end_file_path)
     ssh.exec_command('chmod +x %s' % (remote_rate_limit_end_file_path,))
@@ -114,7 +111,7 @@ def deploy_data(host, host_data):
 
     # Stop server, if running, before replacing data file (command may fail)
 
-    remote_init_file_path = posixpath.join(HOST_INIT_DIR, 'psiphonv')
+    remote_init_file_path = posixpath.join(psi_config.HOST_INIT_DIR, 'psiphonv')
 
     ssh.exec_command('%s stop' % (remote_init_file_path,))
 
@@ -127,8 +124,7 @@ def deploy_data(host, host_data):
     try:
         file.write(host_data)
         file.close()
-        ssh.put_file(file.name,
-                     posixpath.join(HOST_SOURCE_ROOT, 'Automation', psi_config.DATA_FILE_NAME))
+        ssh.put_file(file.name, psi_config.DATA_FILE_NAME)
     finally:
         try:
             os.remove(file.name)
