@@ -28,6 +28,7 @@ import sqlite3
 import traceback
 import csv
 import datetime
+import calendar
 import collections
 import bisect
 import base64
@@ -452,9 +453,7 @@ class DomainLookup(object):
                     if not line:
                         break
                     fields = line.split(' ')
-                    # Store timestamp as an iso8601 formatted string in UTC so that it can be easily
-                    # compared to netflow timestamps
-                    timestamp = datetime.datetime.utcfromtimestamp(float(fields[TIMESTAMP_FIELD])).strftime('%Y-%m-%dT%H:%M:%S')
+                    timestamp = fields[TIMESTAMP_FIELD]
                     id = fields[ID_FIELD]
                     if id[-1] == '+' and fields[DNS_RECORD_TYPE_FIELD] == 'A?':
                         domain = fields[DOMAIN_FIELD].rstrip('.')
@@ -470,8 +469,10 @@ class DomainLookup(object):
                                     # Sanity check: should be valid IP address
                                     ip_address = fields[i].rstrip(',')
                                     socket.inet_aton(ip_address)
+                                    # Note: truncating decimal precision for reasons
+                                    # explained in process_vpn_outbound_stats
                                     self.index[ip_address].append(
-                                        DomainLookup.Entry(timestamp, domain))
+                                        DomainLookup.Entry(int(timestamp[:timestamp.find('.')]), domain))
                             del pending_requests[id]
         # Ensure entries for each IP address are sorted by response timestamp
         # Also remove duplicates
@@ -486,10 +487,11 @@ class DomainLookup(object):
             return ip_address
         # Find the most recent entry before the request timestamp
         # If the flow start is before the first entry, still return the first entry
+        domain = entries[0].domain
         for value in entries:
-            domain = value.domain
             if value.timestamp > request_timestamp:
                 break
+            domain = value.domain
         return domain
 
 
@@ -539,7 +541,10 @@ class SessionIndex(object):
                 [host_id, start_date])
 
             for row in cursor:
-                session_info = SessionInfo(*row)
+                session_info = SessionInfo(*(list(row[:-2]) +
+                                [calendar.timegm(datetime.datetime.strptime(row[-2], '%Y-%m-%dT%H:%M:%S').utctimetuple()),
+                                 calendar.timegm(datetime.datetime.strptime(row[-1], '%Y-%m-%dT%H:%M:%S').utctimetuple()) if row[-1]
+                                 else row[-1]]))
                 sorted_array_index = output_index[session_info.session_id]
                 sorted_array_index.keys.append(getattr(session_info,sort_field))
                 sorted_array_index.data.append(session_info)
@@ -582,8 +587,8 @@ def process_vpn_outbound_stats(db, error_file, host_id, dns, csv_file, start_dat
                (host_id, start_date))
     db.execute('vacuum')
 
-    def to_iso8601(timestamp):
-        return datetime.datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S').strftime('%Y-%m-%dT%H:%M:%S')
+    def to_unix_timestamp(timestamp):
+        return calendar.timegm(datetime.datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S').utctimetuple())
 
     # CSV format
     #
@@ -603,8 +608,8 @@ def process_vpn_outbound_stats(db, error_file, host_id, dns, csv_file, start_dat
     # are reported in UTC.
     #
     # To compare netflow timestamps (which don't have millisecond resolution)
-    # to session timestamps, we truncate the session timestamps milliseconds
-    # and timezone info.
+    # to session and dns timestamps, we truncate the session and dns timestamps
+    # milliseconds and timezone info.
     # There is a small chance that multiple sessions will occur on the same
     # session_id (client vpn ip address) in the same second so that a flow
     # occuring in a single second will match both sessions.
@@ -629,7 +634,7 @@ def process_vpn_outbound_stats(db, error_file, host_id, dns, csv_file, start_dat
             continue
 
         # First find the earliest session that ends after the netflow end timestamp.
-        session = session_index.find_session_ending_on_or_after(row[3], to_iso8601(row[1]))
+        session = session_index.find_session_ending_on_or_after(row[3], to_unix_timestamp(row[1]))
 
         if not session:
             # If we couldn't find a session end timestamp on or after the netflow end timestamp,
@@ -637,7 +642,7 @@ def process_vpn_outbound_stats(db, error_file, host_id, dns, csv_file, start_dat
             session = session_index.find_latest_started_session(row[3])
 
         # See CSV format above
-        domain = dns.get_domain(row[4], to_iso8601(row[1]))
+        domain = dns.get_domain(row[4], to_unix_timestamp(row[0]))
 
         if not session:
             err = 'no session for outbound netflow on host %s: %s' % (host_id, str(row))
