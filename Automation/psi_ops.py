@@ -717,9 +717,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if not region:
             region = self.get_region(client_ip_address)
         # case: lookup succeeded and corresponding region home page found
-        sponsor_home_pages = None
+        sponsor_home_pages = []
         if region in sponsor.home_pages:
-            [home_page.url for home_page in sponsor.home_pages[region].itervalues()]
+            sponsor_home_pages = [home_page.url for home_page in sponsor.home_pages[region].itervalues()]
         # case: lookup failed or no corresponding region home page found --> use default
         if not sponsor_home_pages and None in sponsor.home_pages:
             sponsor_home_pages = [home_page.url for home_page in sponsor.home_pages[None].itervalues()]
@@ -762,7 +762,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # output.append(psi_psk.set_psk(self.server_ip_address))
     
         # SSH relay protocol info
-        server = filter(lambda x : x.ip_address == server_ip_address, self.__servers)[0]
+        server = filter(lambda x : x.ip_address == server_ip_address,
+                        self.__servers.itervalues())[0]
         if server.ssh_host_key:
             output.append('SSHPort: %s' % (server.ssh_port,))
             output.append('SSHUsername: %s' % (server.ssh_username,))

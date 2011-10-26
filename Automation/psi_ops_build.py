@@ -146,10 +146,10 @@ def test_server(mode, expected_egress_ip_addresses):
 
     try:
         if mode == 'ssh':
-            reg_key = _winreg.OpenKey(REGISTRY_ROOT_KEY, REGISTRY_PRODUCT_KEY)
+            reg_key = _winreg.OpenKey(REGISTRY_ROOT_KEY, REGISTRY_PRODUCT_KEY, 0, _winreg.KEY_ALL_ACCESS)
             ignore_vpn_value, ignore_vpn_type = _winreg.QueryValueEx(reg_key, REGISTRY_IGNORE_VPN_VALUE)
-            _winreg.SetValueEx(reg_key, REGISTRY_IGNORE_VPN_VALUE, None, _winreg.REG_DWORD, 1)
             restore_registry = True
+            _winreg.SetValueEx(reg_key, REGISTRY_IGNORE_VPN_VALUE, None, _winreg.REG_DWORD, 1)
 
         proc = subprocess.Popen([EXECUTABLE_FILENAME])
         time.sleep(15)
@@ -168,7 +168,7 @@ def test_server(mode, expected_egress_ip_addresses):
                                 ','.join(expected_egress_ip_addresses), mode))
     finally:
         if restore_registry:
-            _winreg.SetValueEx(reg_key, REGISTRY_IGNORE_VPN_VALUE, None, ignore_vpn_value, ignore_vpn_type)
+            _winreg.SetValueEx(reg_key, REGISTRY_IGNORE_VPN_VALUE, None, ignore_vpn_type, ignore_vpn_value)
 
 
 def build_client(
