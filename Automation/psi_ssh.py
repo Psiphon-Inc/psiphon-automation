@@ -21,6 +21,7 @@ import paramiko
 import base64
 import os
 import sys
+import StringIO
 
 sys.path.insert(0, os.path.abspath(os.path.join('..', 'Data')))
 import psi_db
@@ -28,7 +29,17 @@ import psi_db
 
 class SSH(object):
 
-    def __init__(self, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key):
+    def __init__(self, 
+                 ip_address, 
+                 ssh_port, 
+                 ssh_username, 
+                 ssh_password, 
+                 ssh_host_key, 
+                 ssh_pkey=None):
+        '''
+        If used, ssh_pkey must be a string with the complete PEM file contents.
+        '''
+        
         self.ssh = paramiko.SSHClient()
         self.ip_address = ip_address
         ssh_port = int(ssh_port)
@@ -36,15 +47,27 @@ class SSH(object):
             self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         else:
             key_type, key_data = ssh_host_key.split(' ')
+            
+            # Host keys are looked up by IP if the port is 22, but [IP]:port if 
+            # the port is anything else.
             if int(ssh_port) == 22: 
                 key_host_name = '%s' % (ip_address,)
             else:
                 key_host_name = '[%s]:%d' % (ip_address, ssh_port)
+                
             if key_type == 'ssh-dss':
-                self.ssh.get_host_keys().add(key_host_name, key_type, paramiko.DSSKey(data=base64.b64decode(key_data)))
+                self.ssh.get_host_keys().add(key_host_name, 
+                                             key_type, 
+                                             paramiko.DSSKey(data=base64.b64decode(key_data)))
             else: # 'ssh-rsa'
-                self.ssh.get_host_keys().add(key_host_name, key_type, paramiko.RSAKey(data=base64.b64decode(key_data)))
-        self.ssh.connect(ip_address, ssh_port, ssh_username, ssh_password)
+                self.ssh.get_host_keys().add(key_host_name, 
+                                             key_type, 
+                                             paramiko.RSAKey(data=base64.b64decode(key_data)))
+                
+        if ssh_pkey is not None:
+            ssh_pkey = paramiko.RSAKey.from_private_key(StringIO.StringIO(ssh_pkey))
+                
+        self.ssh.connect(ip_address, ssh_port, ssh_username, ssh_password, pkey=ssh_pkey)
 
     def close(self):
         self.ssh.close()
