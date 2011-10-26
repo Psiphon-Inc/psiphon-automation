@@ -112,7 +112,8 @@ LinodeAccount = psi_utils.recordtype(
 
 EmailServerAccount = psi_utils.recordtype(
     'EmailServerAccount',
-    'ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key',
+    'ip_address, ssh_port, ssh_username, ssh_pkey, ssh_host_key, '+
+    'config_file_path',
     default=None)
 
 StatsServerAccount = psi_utils.recordtype(
@@ -572,20 +573,28 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # download links.
         # Currently, we generate the entire config file for any change.
         
-        emails = []
+        emails = {}
         for sponsor in self.__sponsors.itervalues():
             for campaign in sponsor.campaigns:
                 if campaign.propagation_mechanism_type == 'email-autoresponder':
-                    subject, body = psi_templates.get_email_content(
-                                        campaign.s3_bucket_name)
+                    emails[campaign.account.email_address] = [
+                        ['plaintext', psi_templates.get_plaintext_email_content(campaign.s3_bucket_name)],
+                        ['html', psi_templates.get_html_email_content(campaign.s3_bucket_name)]
+                    ]
                     campaign.log('configuring email')
-                    emails.append(
-                        campaign.account.email_address, subject, body)
-
+                    
         with tempfile.NamedTemporaryFile() as file:
             file.write(json.dumps(emails))
-            ssh = psi_ssh.SSH(*self.__email_server_account)
-            ssh.put_file(temp_file.name, EMAIL_SERVER_CONFIG_FILE_PATH)
+            ssh = psi_ssh.SSH(
+                    self.__email_server_account.ip_address,
+                    self.__email_server_account.ssh_port,
+                    self.__email_server_account.ssh_username,
+                    None,
+                    self.__email_server_account.ssh_host_key,
+                    ssh_pkey=self.__email_server_account.ssh_pkey)
+            ssh.put_file(
+                    temp_file.name,
+                    self.__email_server_account.config_file_path)
             self.__email_server_account.log('pushed')
 
     def add_server_version(self):
