@@ -36,8 +36,14 @@ class SSH(object):
             self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         else:
             key_type, key_data = ssh_host_key.split(' ')
-            key_host_name = '[%s]:%d' % (ip_address, ssh_port)
-            self.ssh.get_host_keys().add(key_host_name, key_type, paramiko.RSAKey(data=base64.b64decode(key_data)))
+            if int(ssh_port) == 22: 
+                key_host_name = '%s' % (ip_address,)
+            else:
+                key_host_name = '[%s]:%d' % (ip_address, ssh_port)
+            if key_type == 'ssh-dss':
+                self.ssh.get_host_keys().add(key_host_name, key_type, paramiko.DSSKey(data=base64.b64decode(key_data)))
+            else: # 'ssh-rsa'
+                self.ssh.get_host_keys().add(key_host_name, key_type, paramiko.RSAKey(data=base64.b64decode(key_data)))
         self.ssh.connect(ip_address, ssh_port, ssh_username, ssh_password)
 
     def close(self):
