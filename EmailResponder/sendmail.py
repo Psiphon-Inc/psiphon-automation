@@ -112,6 +112,8 @@ def send_raw_email_amazonses(raw_email,
         recipient = [recipient]
 
     conn.send_raw_email(raw_email, source=from_address, destinations=recipient)
+    
+    conn.close()
 
     return True
 

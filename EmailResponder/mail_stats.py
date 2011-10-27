@@ -37,6 +37,8 @@ if __name__ == '__main__':
 
     quota = conn.get_send_quota()
     stats = conn.get_send_statistics()
+    
+    conn.close()
 
     email_body = ''
     email_body += json.dumps(quota, indent=2)
