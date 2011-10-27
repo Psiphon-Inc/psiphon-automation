@@ -113,7 +113,9 @@ def send_raw_email_amazonses(raw_email,
 
     conn.send_raw_email(raw_email, source=from_address, destinations=recipient)
     
-    conn.close()
+    # Getting an error when we try to call this. See:
+    # http://code.google.com/p/boto/issues/detail?id=518
+    #conn.close()
 
     return True
 
