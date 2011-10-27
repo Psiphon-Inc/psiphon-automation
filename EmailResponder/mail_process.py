@@ -36,6 +36,17 @@ import sendmail
 RESPONSE_FROM_ADDR = 'Psiphon Responder <get@psiphon3.com>'
 
 
+# In order to send an email from a particular address, Amazon SES requires that
+# we verify ownership of that address. But our mail server throws away all 
+# incoming email (even if it gets replied to), so there's no chance to see if
+# it's from Amazon with a link we want to click. So we'll add the ability to
+# specify an email address that we're expecting to receive a verification email
+# to. Note that this is intended to be used for very short time periods -- only
+# until the email is verified. So it should almost always be None.
+VERIFY_EMAIL_ADDRESS = ''  
+VERIFY_FILENAME = os.path.expanduser('~/verify.txt')
+
+
 def get_email_localpart(email_address):
     addr_regex = '([a-zA-Z0-9\+\.\-]+)@([a-zA-Z0-9\+\.\-]+)\.([a-zA-Z0-9\+\.\-]+)'
     match = re.match(addr_regex, email_address)
@@ -97,6 +108,10 @@ class MailResponder:
 
         if not self._parse_email(email_string):
             return False
+        
+        # Is this a verification email from Amazon SES?
+        if self._check_verification_email():
+            return False
 
         if not self._conf.has_key(self._requested_localpart):
             syslog.syslog(syslog.LOG_INFO, 'recip_addr invalid: %s' % self.requested_addr)
@@ -139,23 +154,23 @@ class MailResponder:
 
         to_regex = '.*?(<)?([a-zA-Z0-9\+\.\-]+@[a-zA-Z0-9\+\.\-]+\.[a-zA-Z0-9\+\.\-]+)(?(1)>).*'
         match = re.match(to_regex, self.requested_addr)
-        if match:
+        if match and match.group(2):
             self.requested_addr = match.group(2)
         else:
             # Bad address. Fail.
-            syslog.syslog(syslog.LOG_INFO, 'Unparsable recip_addr')
+            syslog.syslog(syslog.LOG_INFO, 'Unparsable requested_addr')
             return False
 
         # We also want just the localpart of the email address (get+fa or whatever).
         self._requested_localpart = get_email_localpart(self.requested_addr)
         if not self._requested_localpart:
             # Bad address. Fail.
-            syslog.syslog(syslog.LOG_INFO, 'Bad recip_addr')
+            syslog.syslog(syslog.LOG_INFO, 'Bad _requested_localpart')
             return False
         
         self._requester_addr = decode_header(self._email['Return-Path'])
         if not self._requester_addr:
-            syslog.syslog(syslog.LOG_INFO, 'No sender_addr')
+            syslog.syslog(syslog.LOG_INFO, 'No _requester_addr')
             return False
 
         self._subject = decode_header(self._email['Subject'])
@@ -164,6 +179,25 @@ class MailResponder:
         self._subject = u'Re: %s' % self._subject
 
         return True
+    
+    def _check_verification_email(self):
+        '''
+        Check if the incoming email is an Amazon SES verification email that
+        we should write to file so that we use the link in it.
+        '''
+        if VERIFY_EMAIL_ADDRESS and VERIFY_EMAIL_ADDRESS == self.requested_addr:
+            # Write the email to disk so that we can get the verification link 
+            # out of it.
+            f = open(VERIFY_FILENAME, 'w')
+            f.write(self._email.as_string())
+            f.close()
+            
+            syslog.syslog(syslog.LOG_INFO, 'verification email received to: %s' % self.requested_addr)
+            
+            return True
+        
+        return False
+        
 
 
 
