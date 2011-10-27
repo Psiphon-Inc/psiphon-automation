@@ -18,9 +18,9 @@
 #
 
 import sys
+import datetime
 from textwrap import dedent
 from keyword import iskeyword
-import psi_cms
 
 
 # Adapted from:
@@ -57,11 +57,16 @@ def recordtype(typename, field_names, verbose=False, **default_kwds):
     >>> Point(**d) == p        # convert from a dictionary
     True
     '''
+
     # Parse and validate the field names.  Validation serves two purposes,
     # generating informative error messages and preventing template injection attacks.
     if isinstance(field_names, basestring):
         # names separated by whitespace and/or commas
         field_names = field_names.replace(',', ' ').split()
+
+    assert('logs' not in field_names)
+    field_names.append('logs')
+
     field_names = tuple(map(str, field_names))
     if not field_names:
         raise ValueError('Records must have at least one field')
@@ -99,14 +104,17 @@ def recordtype(typename, field_names, verbose=False, **default_kwds):
         raise ValueError('Invalid keyword arguments: %s' % default_kwds)
     # Create and fill-in the class template
     numfields = len(field_names)
-    argtxt = ', '.join(field_names)
+    argtxt = ', '.join(field_names[:-1])
     reprtxt = ', '.join('%s=%%r' % f for f in field_names)
     dicttxt = ', '.join('%r: self.%s' % (f,f) for f in field_names)
     tupletxt = repr(tuple('self.%s' % f for f in field_names)).replace("'",'')
-    inittxt = '; '.join('self.%s=%s' % (f,f) for f in field_names)
+    inittxt = '; '.join('self.%s=%s' % (f,f) for f in field_names[:-1])
     itertxt = '; '.join('yield self.%s' % f for f in field_names)
     eqtxt   = ' and '.join('self.%s==other.%s' % (f,f) for f in field_names)
+    id_field_name = field_names[0]
     template = dedent('''
+        import datetime
+
         class %(typename)s(object):
             '%(typename)s(%(argtxt)s)'
 
@@ -114,14 +122,15 @@ def recordtype(typename, field_names, verbose=False, **default_kwds):
 
             def __init__(self, %(argtxt)s):
                 %(inittxt)s
-                self.__log = []
+                self.logs=[]
                 self.log('created')
 
             def log(self, message):
-                self.__log.append((time.time(), message))
+                self.logs.append((datetime.datetime.now(), message))
+                print '%(typename)s ' + str(self.%(id_field_name)s) + ' ' + message
 
-            def get_log(self):
-                return self.__log
+            def get_logs(self):
+                return self.logs
 
             def __len__(self):
                 return %(numfields)d

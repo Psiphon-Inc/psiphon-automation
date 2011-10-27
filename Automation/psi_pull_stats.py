@@ -179,10 +179,18 @@ ADDITIONAL_TABLES_SCHEMA = {
                          'outbound_byte_count')}
 
 
+def iso8601_to_utc(timestamp):
+    localized_datetime = datetime.datetime.strptime(timestamp[:26], '%Y-%m-%dT%H:%M:%S.%f')
+    timezone_delta = datetime.timedelta(
+                                hours = int(timestamp[-6:-3]),
+                                minutes = int(timestamp[-2:]))
+    return (localized_datetime - timezone_delta).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+
+
 def init_stats_db(db):
 
     # Create (if doesn't exist) a database table for each event type with
-    # a column for every expected field. The primary key constaint includes all
+    # a column for every expected field. The primary key constraint includes all
     # table columns and transparently handles the uniqueness logic -- duplicate
     # log lines are discarded. SQLite automatically creates an index for this.
 
@@ -200,6 +208,16 @@ def init_stats_db(db):
             ', '.join(['%s text' % (name,) for name in field_names]),
             ', '.join(field_names))
         db.execute(command)
+
+    # "Upgrade" any records in the db that have timestamps specified in local time
+    # to specify the timestamps in UTC
+
+    for (event_type, event_fields) in LOG_EVENT_TYPE_SCHEMA.items():
+        cursor = db.cursor()
+        cursor.execute("select * from %s where timestamp not like '%%Z'" % (event_type,))
+        for row in cursor:
+            db.execute('update %s set timestamp = ? where timestamp = ?' % (event_type,),
+                       [iso8601_to_utc(row[0]), row[0]])
 
 
 def pull_stats(db, error_file, host):
@@ -242,7 +260,10 @@ def pull_stats(db, error_file, host):
                         err = 'unexpected log line pattern: %s' % (line,)
                         error_file.write(err + '\n')
                         continue
-                    timestamp = match.group(1)
+                    # Note: We convert timestamps here to UTC so that they can all be rationally compared without
+                    #       taking the timezone into consideration. This eases matching of outbound statistics
+                    #       (and any other records that may not have consistent timezone info) to sessions.
+                    timestamp = iso8601_to_utc(match.group(1))
                     host_id = match.group(2)
                     event_type = match.group(3)
                     event_values = match.group(4).split()
@@ -276,30 +297,27 @@ def pull_stats(db, error_file, host):
     ssh.close()
 
 
-def iso8601_to_utc(timestamp):
-    localized_datetime = datetime.datetime.strptime(timestamp[:24], '%Y-%m-%dT%H:%M:%S.%f')
-    timezone_delta = datetime.timedelta(
-                                hours = int(timestamp[-6:-3]),
-                                minutes = int(timestamp[-2:]))
-    return (localized_datetime - timezone_delta).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-
-
-def reconstruct_sessions(db):
+def reconstruct_sessions(db, start_date):
     # Populate the session table. For each connection, create a session. Some
     # connections will have no end time, depending on when the logs are pulled.
     # Find the end time by selecting the 'disconnected' event with the same
     # host_id and session_id soonest after the connected timestamp.
 
-    # Note: this order of operations -- deleting all the sessions -- is to avoid
-    # duplicate session entries in the case where a previous pull created
+    # First, delete all sessions that we are about to reconstruct. This
+    # is to avoid duplicate session entries in the case where a previous pull created
     # sessions with no end.
-
-    db.execute('delete from session')
+    db.execute("delete from session where session_start_timestamp > '%s'" % (start_date,))
     db.execute('vacuum')
+
+    # TODO: there may be sessions that started before start_date that don't have an end
+    # time.  We could iterate through each of those and try to find a new 'disconnected'
+    # event for each, updating each when we find an end time.
+    # This is not critical because sessions are used to map regions/sponsors/etc to
+    # outbound stats, and that mapping handles sessions without end times.
 
     field_names = ADDITIONAL_TABLES_SCHEMA['session']
     cursor = db.cursor()
-    cursor.execute('select * from connected')
+    cursor.execute("select * from connected where timestamp > '%s'" % (start_date,))
     for row in cursor:
 
         # Check for a corresponding disconnected event
@@ -326,11 +344,7 @@ def reconstruct_sessions(db):
         assert(connected_field_names[0] == 'timestamp' and
                connected_field_names[1] == 'host_id' and
                connected_field_names[8] == 'session_id')
-        # Note: We convert timestamps here to UTC to ease matching of outbound statistics
-        #       (and any other records that may not have consistent timezone info) to sessions.
-        session_start_utc = iso8601_to_utc(row[0])
-        session_end_utc = iso8601_to_utc(session_end_timestamp) if session_end_timestamp else None
-        db.execute(command, list(row[1:])+[session_start_utc, session_end_utc])
+        db.execute(command, list(row[1:])+[row[0], session_end_timestamp])
 
 
 # Get the RSA key fingerprint from the host's SSH_Host_Key
@@ -355,7 +369,7 @@ def sync_directory(host, source_root, dest_root):
     # configuration that does not delete files on the dest that are not
     # present on the source.
 
-    rsync = pexpect.spawn('rsync -ae "ssh -p %s -l %s" %s:%s/ %s' %
+    rsync = pexpect.spawn('rsync -ae "ssh -p %s -l %s" %s:%s/ "%s"' %
                     (host.SSH_Port, host.SSH_Username,
                      host.IP_Address, source_root, dest_root_for_host))
     prompt = rsync.expect([ssh_fingerprint(host.SSH_Host_Key), 'password:'])
@@ -405,7 +419,7 @@ class DomainLookup(object):
 
     Entry = collections.namedtuple('Entry', 'timestamp, domain')
 
-    def __init__(self, dns_pcaps_root):
+    def __init__(self, dns_pcaps_root, start_date):
 
         # Build domain lookup index. Run each raw data file through tcpdump to
         # parse protocol. Example output lines:
@@ -425,10 +439,14 @@ class DomainLookup(object):
         for item in os.listdir(dns_pcaps_root):
             path = os.path.join(dns_pcaps_root, item)
             if os.path.isfile(path):
+                # Skip this file if it was created before start_date
+                # Note the filename format specified above
+                if start_date > item[8:16]:
+                    continue
                 if path.endswith('.gz'):
-                    proc = os.popen('gunzip -c %s | /usr/sbin/tcpdump -n -r - -tt' % (path,), 'r')
+                    proc = os.popen('gunzip -c "%s" | /usr/sbin/tcpdump -n -r - -tt' % (path,), 'r')
                 else:
-                    proc = os.popen('/usr/sbin/tcpdump -n -r %s -tt' % (path,), 'r')                    
+                    proc = os.popen('/usr/sbin/tcpdump -n -r "%s" -tt' % (path,), 'r')                    
                 while True:
                     line = proc.readline()
                     if not line:
@@ -475,20 +493,20 @@ class DomainLookup(object):
         return domain
 
 
-def pull_netflows(host):
+def pull_netflows(host, start_date):
 
     print 'pull netflows from host %s...' % (host.Host_ID,)
 
     dest_root_for_host = sync_directory(host, HOST_NETFLOW_DIR, NETFLOWS_ROOT)
 
     output_csv_path = dest_root_for_host + '.csv'
-    os.system('TZ=GMT nfdump -q -R %s -o csv > %s' % (dest_root_for_host, output_csv_path))
+    os.system('TZ=GMT nfdump -q -t %s -R "%s" -o csv > "%s"' % (start_date, dest_root_for_host, output_csv_path))
     return output_csv_path
 
 
 class SessionIndex(object):
 
-    def __init__(self, db, host_id):
+    def __init__(self, db, host_id, start_date):
 
         SessionInfo = collections.namedtuple(
             'SessionInfo',
@@ -516,8 +534,9 @@ class SessionIndex(object):
                    substr(session_start_timestamp,1,19), substr(session_end_timestamp,1,19)
                    from session
                    where host_id = ? and relay_protocol == 'VPN'
+                   and (session_end_timestamp > ? or session_end_timestamp is null)
                    order by substr(%s,1,19) asc''' % sort_field),
-                [host_id])
+                [host_id, start_date])
 
             for row in cursor:
                 session_info = SessionInfo(*row)
@@ -551,15 +570,16 @@ class SessionIndex(object):
         return sessions.data[-1]
 
 
-def process_vpn_outbound_stats(db, error_file, host_id, dns, csv_file):
+def process_vpn_outbound_stats(db, error_file, host_id, dns, csv_file, start_date):
 
     print 'processing vpn outbound stats from host %s...' % (host_id,)
 
     # Create an in-memory index for fast lookup of session start/end used
     # to map flows to sessions (to get region, prop channel etc. attributes)
-    session_index = SessionIndex(db, host_id)
+    session_index = SessionIndex(db, host_id, start_date)
 
-    db.execute("delete from outbound where relay_protocol = 'VPN' and host_id = '%s'" % (host_id,))
+    db.execute("delete from outbound where relay_protocol = 'VPN' and host_id = '%s' and day >= '%s'" %
+               (host_id, start_date))
     db.execute('vacuum')
 
     def to_iso8601(timestamp):
@@ -602,6 +622,10 @@ def process_vpn_outbound_stats(db, error_file, host_id, dns, csv_file):
 
         # Skip blank rows
         if not len(row):
+            continue
+
+        # Skip flows before start_date
+        if start_date > row[0]:
             continue
 
         # First find the earliest session that ends after the netflow end timestamp.
@@ -648,6 +672,16 @@ if __name__ == "__main__":
     # Note: truncating error file
     error_file = open('pull_stats.err', 'w')
 
+    # start_date is the date that we want to start processing session and netflow
+    # data.  It is too time and memory consuming to attempt to process all
+    # historical session and netflow data at once.  Processed statistics before
+    # start_date will not be thrown out.
+    # dns_start_date is before start date because we want to consider dns requests
+    # that may have been cached by the client for a while.
+    start_date = (datetime.datetime.utcnow() - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+    netflows_start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y/%m/%d')
+    dns_start_date = (datetime.datetime.strptime(start_date, '%Y-%m-%d') - datetime.timedelta(days=1)).strftime('%Y%m%d')
+
     try:
         init_stats_db(db)
         hosts = psi_db.get_hosts()
@@ -659,25 +693,27 @@ if __name__ == "__main__":
 
         # Compute sessions from connected/disconnected records
 
-        reconstruct_sessions(db)
+        reconstruct_sessions(db, start_date)
 
         # Pull netflows from each host and process them
         # Avoid doing this on Windows, where nfdump is not available
         if os.name == 'posix':
             for host in hosts:
 
-                csv_file_path = pull_netflows(host)
+                csv_file_path = pull_netflows(host, netflows_start_date)
 
                 # Construct domain lookup with data for current host only
-                dns = DomainLookup(pull_dns_pcaps(host))
+                dns = DomainLookup(pull_dns_pcaps(host), dns_start_date)
 
                 with open(csv_file_path, 'rb') as vpn_outbound_stats_csv:
                     process_vpn_outbound_stats(
-                        db, error_file, host.Host_ID, dns, vpn_outbound_stats_csv)
+                        db, error_file, host.Host_ID, dns, vpn_outbound_stats_csv, start_date)
+
+                os.remove(csv_file_path)
 
     except socket.error:
         # If the DomainLookup throws this error, we need to notice it.
-        db.execute('delete from outbound')
+        db.execute("delete from outbound where day >= '%s'" % (start_date,))
     except:
         traceback.print_exc()
     finally:

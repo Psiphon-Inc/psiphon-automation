@@ -59,7 +59,7 @@ Dependencies
 
 - Install additional modules:
 
-  easy_install xlrd xlwt xlutils paramiko pyOpenSSL pywin32
+  easy_install xlrd xlwt xlutils paramiko pyOpenSSL pywin32 jsonpickle
 
 [NOTE: you may require Visual C++ 2008, NOT 2010, to build Python modules
  (http://mail.python.org/pipermail/python-list/2010-April/1242706.html).
@@ -182,7 +182,15 @@ Create /etc/iptables.rules:
   -A INPUT -p udp --dport 4500 -j ACCEPT
   -A INPUT -i ipsec+ -p udp -m udp --dport l2tp -j ACCEPT
   -A INPUT -j REJECT --reject-with icmp-port-unreachable
+  -A FORWARD -p tcp -m tcp --dport 25 -j DROP 
+  -A FORWARD -p udp -m udp --dport 25 -j DROP 
+  -A FORWARD -p tcp -m tcp --dport 587 -j DROP 
+  -A FORWARD -p udp -m udp --dport 587 -j DROP
   -A FORWARD -s 10.0.0.0/8 -d 10.0.0.0/8 -j DROP
+  -A OUTPUT -p tcp -m tcp --dport 25 -j DROP 
+  -A OUTPUT -p udp -m udp --dport 25 -j DROP 
+  -A OUTPUT -p tcp -m tcp --dport 587 -j DROP 
+  -A OUTPUT -p udp -m udp --dport 587 -j DROP
   COMMIT
 
   *nat
@@ -235,7 +243,7 @@ Confirm that the path to ipsec is correct.
 apt-get update
 apt-get install -y xl2tpd
 apt-get install -y python-setuptools python-dev
-easy_install cherrypy webob xlrd portalocker netifaces
+easy_install cherrypy webob xlrd portalocker netifaces jsonpickle
 
 
 5. Get, patch and install Openswan and the KLIPS kernel module
