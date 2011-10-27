@@ -33,7 +33,7 @@ import sendmail
 #   - We tend to set up and down autoresponse addresses quickly.
 # If this becomes a problem in the future, we could set up some kind of 
 # auto-verification mechanism.
-RESPONSE_FROM_ADDR = 'Psiphon Responder <get@psiphon3.com>'
+RESPONSE_FROM_ADDR = 'Psiphon Responder <noreply@psiphon3.com>'
 
 
 # In order to send an email from a particular address, Amazon SES requires that
