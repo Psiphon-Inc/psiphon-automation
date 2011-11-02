@@ -32,17 +32,20 @@ STATS_MAIL_ADDR=$1
 
 MAIL_HOME=/home/mail_responder
 
-IN_FILES=( forward mail_process.py sendmail.py mail_stats.py )
-OUT_FILES=( .forward mail_process.py sendmail.py mail_stats.py )
+# The simple files: mail_process.py, sendmail.py
+sudo cp mail_process.py sendmail.py $MAIL_HOME
 
-sudo cp $IN_FILES $MAIL_HOME
+# forward needs to be copied to .forward
+sudo cp forward $MAIL_HOME/.forward
 
-cd $MAIL_HOME
+# mail_stats.py needs to have a line replaced with the real stats address
+sudo sed "s/RECIPIENT_ADDRESS = 'mail@example.com'/RECIPIENT_ADDRESS = '$STATS_MAIL_ADDR'/g" mail_stats.py > mail_stats.tmp 
+sudo mv mail_stats.tmp $MAIL_HOME/mail_stats.py
 
-sudo mv forward .forward
+# Fix ownership of the files
+sudo chown mail_responder:mail_responder $MAIL_HOME/*
 
-sudo sed "s/RECIPIENT_ADDRESS = 'mail@example.com'/RECIPIENT_ADDRESS = '$STATS_MAIL_ADDR'/g" mail_stats.py > mail_stats.py 
+# Nuke the compiled Python files, just in case.
+sudo rm $MAIL_HOME/*.pyc
 
-sudo chown mail_responder:mail_responder $OUT_FILES
-
-cd -
+exit 0
