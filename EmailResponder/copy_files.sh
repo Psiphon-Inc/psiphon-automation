@@ -35,8 +35,6 @@ MAIL_HOME=/home/mail_responder
 IN_FILES=( forward mail_process.py sendmail.py mail_stats.py )
 OUT_FILES=( .forward mail_process.py sendmail.py mail_stats.py )
 
-exit 0
-
 sudo cp $IN_FILES $MAIL_HOME
 
 cd $MAIL_HOME
