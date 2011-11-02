@@ -100,22 +100,21 @@ Please see the INSTALL file.
 Source Tree
 --------------------------------------------------------------------------------
 
-<pre>
-\...
- CHANGES
- INSTALL
- LICENSE
- README
- Automation\...             Build, Install, & Deploy Scripts
- Automation\Tools\...       3rd party Build Tools
- Client\...                 Clients
- Client\psiclient\...       Windows Client
- Data\...                   Network Database
- Data\Banners\...           Branding Assets
- Data\CodeSigning\...       Authenticode Keys
- EmailResponder\...         Email Autoresponder Server
- Server\...                 Web Server and Server Scripts
-</pre>
+    \...
+     CHANGES
+     INSTALL
+     LICENSE
+     README
+     Automation\...             Build, Install, & Deploy Scripts
+     Automation\Tools\...       3rd party Build Tools
+     Client\...                 Clients
+     Client\psiclient\...       Windows Client
+     Data\...                   Network Database
+     Data\Banners\...           Branding Assets
+     Data\CodeSigning\...       Authenticode Keys
+     EmailResponder\...         Email Autoresponder Server
+     Server\...                 Web Server and Server Scripts
+
 
 Licensing
 --------------------------------------------------------------------------------
