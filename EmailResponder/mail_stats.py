@@ -27,7 +27,7 @@ import sendmail
 
 
 RECIPIENT_ADDRESS = 'mail@example.com'
-SENDER_ADDRESS = 'Psiphon Responder <get@psiphon3.com>'
+SENDER_ADDRESS = 'Psiphon Responder <noreply@psiphon3.com>'
 
 
 if __name__ == '__main__':
