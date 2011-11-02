@@ -60,8 +60,10 @@ Coming soon:
 Documentation
 --------------------------------------------------------------------------------
 
-IMPORTANT: See the [design paper](https://bitbucket.org/psiphon/psiphon-circumvention-system/downloads/DESIGN.pdf), incuded with this software distribution, for
-important information regarding security limitations and user privacy issues.
+IMPORTANT: See the 
+[design paper](https://bitbucket.org/psiphon/psiphon-circumvention-system/downloads/DESIGN.pdf), 
+included with this software distribution, for important information regarding 
+security limitations and user privacy issues.
 
 
 Compatibility
