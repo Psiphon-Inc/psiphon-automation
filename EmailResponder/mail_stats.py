@@ -38,8 +38,10 @@ if __name__ == '__main__':
     quota = conn.get_send_quota()
     stats = conn.get_send_statistics()
     
-    conn.close()
-
+    # Getting an error when we try to call this. See:
+    # http://code.google.com/p/boto/issues/detail?id=518
+    #conn.close()
+    
     email_body = ''
     email_body += json.dumps(quota, indent=2)
     email_body += '\n\n'
