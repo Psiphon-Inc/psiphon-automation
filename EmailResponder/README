@@ -73,10 +73,10 @@ notify_classes =
 Source files
 ----------------------------------------
 
-* Copy mail_process.py, sendmail.py, mail_stats.py, and forward to 
-  /home/mail_responder. Rename forward to .forward. Make sure the permissions 
-  are correct:
-    > sudo chown mail_responder:mail_responder mail_process.py sendmail.py .forward
+* Use the copy_files.sh script to copy files from the source directory to the
+  mail_responder home directory. The script will also fill in the stats email
+  address and set the ownership of the files.
+  > bash copy_files.sh <stats_mail_addr>
 
 
 Logging
