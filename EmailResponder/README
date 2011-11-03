@@ -52,7 +52,12 @@ Postfix
    the email address that error mail should go to.
 
 4. Edit /etc/postfix/main.cf
-   * Change myhostname to be the public DNS name of the instance.
+   * Change myhostname to be the public DNS name of the instance, or the domain
+     name that's pointing to the instance.
+   * Change myorigin to be:
+        myorigin = $myhostname
+   * Change mydestination to be:
+        mydestination = $myhostname localhost.$mydomain localhost
    * Change smtpd_use_tls to 'no'
    * Add these two lines to the end. The cause all email that doesn't 
      correspond to a real address to be forwarded to the mail_responder account
