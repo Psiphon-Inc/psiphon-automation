@@ -59,7 +59,7 @@ class Blacklist(object):
         cur.execute("GRANT ALL PRIVILEGES ON "+_DB_DBNAME+".* TO %s@'%%' IDENTIFIED BY %s WITH GRANT OPTION;", (_DB_USERNAME, _DB_PASSWORD,))
         cur.execute('USE '+_DB_DBNAME)
        
-        if not cur.execute('SHOW TABLES IN +_DB_DBNAME') or (blacklist,) not in cur.fetchall():
+        if not cur.execute('SHOW TABLES IN '+_DB_DBNAME) or (blacklist,) not in cur.fetchall():
             cur.execute('CREATE TABLE IF NOT EXISTS blacklist ( emailhash CHAR(40) PRIMARY KEY, count TINYINT NOT NULL DEFAULT 0 );')
         
     def clear(self):
