@@ -36,7 +36,6 @@ if __name__ == '__main__':
     conn = SESConnection()
 
     quota = conn.get_send_quota()
-    stats = conn.get_send_statistics()
     
     # Getting an error when we try to call this. See:
     # http://code.google.com/p/boto/issues/detail?id=518
@@ -45,7 +44,6 @@ if __name__ == '__main__':
     email_body = ''
     email_body += json.dumps(quota, indent=2)
     email_body += '\n\n'
-    email_body += json.dumps(stats, indent=2)
 
     subject = '[MailResponder] Stats'
 
