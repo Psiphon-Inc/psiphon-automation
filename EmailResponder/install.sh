@@ -24,8 +24,19 @@ MAIL_FILE_DIR=/home/mail_responder
 echo "Copying files..."
 sh ./copy_files.sh $*
 
+if [ "$?" -ne "0" ]; then
+    echo "Copy failed!"
+    exit 1
+fi
+
 # Create the cron jobs.
 echo "Creating cron jobs..."
 sudo python create_cron_jobs.py --user $MAIL_USER --dir $MAIL_FILE_DIR
+
+if [ "$?" -ne "0" ]; then
+    echo "Cron creation failed!"
+    exit 1
+fi
+
 
 echo "Done"
