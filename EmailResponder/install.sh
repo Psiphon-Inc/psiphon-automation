@@ -17,6 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 MAIL_USER=mail_responder
+NORMAL_USER=ubuntu
 MAIL_FILE_DIR=/home/mail_responder
 
 
@@ -31,7 +32,7 @@ fi
 
 # Create the cron jobs.
 echo "Creating cron jobs..."
-sudo python create_cron_jobs.py --user $MAIL_USER --dir $MAIL_FILE_DIR
+sudo python create_cron_jobs.py --mailuser $MAIL_USER --normaluser $NORMAL_USER --dir $MAIL_FILE_DIR
 
 if [ "$?" -ne "0" ]; then
     echo "Cron creation failed!"

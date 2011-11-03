@@ -23,15 +23,17 @@ from crontab import CronTab
 
 
 class CronCreator(object):
-    def __init__(self, user, dir):
-        self.tab = CronTab(user=user)
+    def __init__(self, normal_user, mail_user, dir):
+        self.normal_tab = CronTab(user=normal_user)
+        self.mail_tab = CronTab(user=mail_user)
         self.dir = dir
         
     def go(self):
         self._maintenance_jobs()
         self._stats_jobs()
         self._blacklist_jobs()
-        self.tab.write()
+        self.normal_tab.write()
+        self.mail_tab.write()
     
     @staticmethod
     def _make_daily(cron):
@@ -40,37 +42,38 @@ class CronCreator(object):
         
     def _stats_jobs(self):
         command = '/usr/bin/python %s' % os.path.join(self.dir, 'mail_stats.py')
-        self.tab.remove_all(command)
-        cron = self.tab.new(command=command)
+        self.mail_tab.remove_all(command)
+        cron = self.mail_tab.new(command=command)
         self._make_daily(cron)
         
     def _blacklist_jobs(self):
         command = '/usr/bin/python %s' % os.path.join(self.dir, 'blacklist.py --clear')
-        self.tab.remove_all(command)
-        cron = self.tab.new(command=command)
+        self.mail_tab.remove_all(command)
+        cron = self.mail_tab.new(command=command)
         self._make_daily(cron)
         
     def _maintenance_jobs(self):
         # Clears the postfix message queue
         command = "for i in `mailq|grep '@' |awk {'print $1'}|grep -v '@'`; do sudo postsuper -d $i ; done"
-        self.tab.remove_all(command)
-        cron = self.tab.new(command=command)
+        self.normal_tab.remove_all(command)
+        cron = self.normal_tab.new(command=command)
         self._make_daily(cron)
 
         # Restart postfix
         command = 'sudo /etc/init.d/postfix restart'
-        self.tab.remove_all(command)
-        cron = self.tab.new(command=command)
+        self.normal_tab.remove_all(command)
+        cron = self.normal_tab.new(command=command)
         self._make_daily(cron)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Interact with the blacklist table')
-    parser.add_argument('--user', action='store', required=True, help="specifies which user's crontab to use") 
+    parser.add_argument('--mailuser', action='store', required=True, help="the name of the reduced-privilege mail user") 
+    parser.add_argument('--normaluser', action='store', required=True, help="the name of a normal (sudoer) user") 
     parser.add_argument('--dir', action='store', required=True, help="specifies the location of the command files") 
     args = parser.parse_args()
     
-    cron_creator = CronCreator(args.user, args.dir)
+    cron_creator = CronCreator(args.normaluser, args.mailuser, args.dir)
     cron_creator.go()
     
     
