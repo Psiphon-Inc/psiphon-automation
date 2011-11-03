@@ -59,12 +59,6 @@ class CronCreator(object):
         cron = self.normal_tab.new(command=command)
         self._make_daily(cron)
 
-        # Restart postfix
-        command = 'sudo /etc/init.d/postfix restart'
-        self.normal_tab.remove_all(command)
-        cron = self.normal_tab.new(command=command)
-        self._make_daily(cron)
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Interact with the blacklist table')
