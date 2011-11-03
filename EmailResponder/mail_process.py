@@ -49,7 +49,28 @@ VERIFY_EMAIL_ADDRESS = None
 VERIFY_FILENAME = os.path.expanduser('~/verify.txt')
 
 
+def strip_email(email_address):
+    '''
+    Strips something that looks like:
+        Fname Lname <mail@example.com>
+    Down to just mail@example.com and returns it. If passed a plain email address, 
+    will return that email. Returns False if bad email address.
+    '''
+
+    # This regex is adapted from:
+    # https://gitweb.torproject.org/gettor.git/blob/HEAD:/lib/gettor/requests.py
+    to_regex = '.*?(<)?([a-zA-Z0-9\+\.\-]+@[a-zA-Z0-9\+\.\-]+\.[a-zA-Z0-9\+\.\-]+)(?(1)>).*'
+    match = re.match(to_regex, email_address)
+    if match and match.group(2):
+        return match.group(2)
+    return False
+    
+
 def get_email_localpart(email_address):
+    '''
+    When given localpart@example.com, returns localpart. Returns False if bad 
+    email address. 
+    ''' 
     addr_regex = '([a-zA-Z0-9\+\.\-]+)@([a-zA-Z0-9\+\.\-]+)\.([a-zA-Z0-9\+\.\-]+)'
     match = re.match(addr_regex, email_address)
     if match:
@@ -162,14 +183,9 @@ class MailResponder:
         # The 'To' field generally looks like this: 
         #    "get+fa" <get+fa@psiphon3.com>
         # So we need to strip it down to the useful part.
-        # This regex is adapted from:
-        # https://gitweb.torproject.org/gettor.git/blob/HEAD:/lib/gettor/requests.py
 
-        to_regex = '.*?(<)?([a-zA-Z0-9\+\.\-]+@[a-zA-Z0-9\+\.\-]+\.[a-zA-Z0-9\+\.\-]+)(?(1)>).*'
-        match = re.match(to_regex, self.requested_addr)
-        if match and match.group(2):
-            self.requested_addr = match.group(2)
-        else:
+        self.requested_addr = strip_email(self.requested_addr)
+        if not self.requested_addr:
             # Bad address. Fail.
             syslog.syslog(syslog.LOG_INFO, 'Unparsable requested_addr')
             return False
