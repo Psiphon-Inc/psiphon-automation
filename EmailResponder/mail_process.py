@@ -64,7 +64,9 @@ def decode_header(header_val):
     try:
         hdr = email.header.decode_header(header_val)
         if not hdr: return False
-        return hdr[0][0].decode(hdr[0][1])        
+        text, encoding = hdr[0]
+        if not encoding: return text
+        return text.decode(encoding)        
     except Exception:
         return False
 
