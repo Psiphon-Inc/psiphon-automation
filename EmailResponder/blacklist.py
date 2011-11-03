@@ -49,11 +49,18 @@ class Blacklist(object):
         cur = self._conn.cursor()
         
         # Note that the DB name doesn't seem to be parameterizable.
-        cur.execute('CREATE DATABASE IF NOT EXISTS '+_DB_DBNAME)
+        
+        # We're going to pre-check for the DB and the table even though we're 
+        # using "IF NOT EXISTS", because otherwise it prints error text (which
+        # causes a problem when it's a cron job).
+        if not cur.execute('SHOW DATABASES') or (_DB_DBNAME,) not in cur.fetchall():
+            cur.execute('CREATE DATABASE IF NOT EXISTS '+_DB_DBNAME)
+            
         cur.execute("GRANT ALL PRIVILEGES ON "+_DB_DBNAME+".* TO %s@'%%' IDENTIFIED BY %s WITH GRANT OPTION;", (_DB_USERNAME, _DB_PASSWORD,))
         cur.execute('USE '+_DB_DBNAME)
        
-        cur.execute('CREATE TABLE IF NOT EXISTS blacklist ( emailhash CHAR(40) PRIMARY KEY, count TINYINT NOT NULL DEFAULT 0 );')
+        if not cur.execute('SHOW TABLES IN +_DB_DBNAME') or (blacklist,) not in cur.fetchall():
+            cur.execute('CREATE TABLE IF NOT EXISTS blacklist ( emailhash CHAR(40) PRIMARY KEY, count TINYINT NOT NULL DEFAULT 0 );')
         
     def clear(self):
         '''
