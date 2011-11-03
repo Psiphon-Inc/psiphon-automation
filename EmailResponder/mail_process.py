@@ -98,12 +98,15 @@ class MailResponder:
             self._conf = json.load(conffile)
 
             # The keys in our conf file may be full email addresses, but we 
-            # really just want them to be the address localpart (the part before the @)
+            # really just want them to be the address localpart (the part before 
+            # the @), and we want to ensure that it's lowercase.
+            
             for addr in self._conf.keys():
                 localpart = get_email_localpart(addr)
                 if not localpart: 
                     # if a localpart can't be found properly, just leave it
                     continue
+                localpart = localpart.lower()
                 self._conf[localpart] = self._conf.pop(addr)
 
         except Exception as e:
@@ -125,6 +128,7 @@ class MailResponder:
         if self._check_verification_email():
             return False
 
+        # Look up requested email address localpart. 
         if not self._conf.has_key(self._requested_localpart):
             syslog.syslog(syslog.LOG_INFO, 'recip_addr invalid: %s' % self.requested_addr)
             return False
@@ -176,6 +180,10 @@ class MailResponder:
             # Bad address. Fail.
             syslog.syslog(syslog.LOG_INFO, 'Bad _requested_localpart')
             return False
+        
+        # Convert to lowercase, since that's what's in the _conf and we want to 
+        # do a case-insensitive check.
+        self._requested_localpart = self._requested_localpart.lower()
         
         self._requester_addr = decode_header(self._email['Return-Path'])
         if not self._requester_addr:
