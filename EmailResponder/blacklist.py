@@ -60,6 +60,7 @@ class Blacklist(object):
         Deletes *all* entries from the blacklist table. Should be run exactly 
         once a day (or whatever the blacklist window is).
         '''
+        cur = self._conn.cursor()
         cur.execute('DELETE FROM blacklist')
         
     def _hash_addr(self, email_addr):

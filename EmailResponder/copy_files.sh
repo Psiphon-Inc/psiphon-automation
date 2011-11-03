@@ -32,8 +32,8 @@ STATS_MAIL_ADDR=$1
 
 MAIL_HOME=/home/mail_responder
 
-# The simple files: mail_process.py, sendmail.py
-sudo cp mail_process.py sendmail.py $MAIL_HOME
+# The simple files: mail_process.py, sendmail.py, blacklist.py
+sudo cp mail_process.py sendmail.py blacklist.py $MAIL_HOME
 
 # forward needs to be copied to .forward
 sudo cp forward $MAIL_HOME/.forward
