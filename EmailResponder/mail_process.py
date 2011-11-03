@@ -45,7 +45,7 @@ RESPONSE_FROM_ADDR = 'Psiphon Responder <noreply@psiphon3.com>'
 # specify an email address that we're expecting to receive a verification email
 # to. Note that this is intended to be used for very short time periods -- only
 # until the email is verified. So it should almost always be None.
-VERIFY_EMAIL_ADDRESS = ''  
+VERIFY_EMAIL_ADDRESS = None
 VERIFY_FILENAME = os.path.expanduser('~/verify.txt')
 
 
