@@ -17,6 +17,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+'''
+Creates the cron jobs required for operation of the mail responder.
+'''
+
 import argparse
 import os
 from crontab import CronTab
