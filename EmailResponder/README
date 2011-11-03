@@ -129,12 +129,12 @@ Email Responder Configuration
 
 For example:
 {
-"get+fa@example.com": 
+"get+aa@example.com": 
 [
     ["plain", "English - https://example.com/en.html\n\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html"], 
     ["html", "<a href=\"https://example.com/en.html\">English - https://example.com/en.html</a><br>\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html<br>"]
 ], 
-"getru": 
+"getbb": 
 [
     ["plain", "English - https://example2.com/en.html\n\u0420\u0443\u0441\u0441\u043a\u0438\u0439 - https://example2.com/ru.html"]
 ], 
@@ -154,8 +154,20 @@ For example:
 
 
 
+Blacklist
+--------------------------------------------------------------------------------
+
+> sudo apt-get install mysql-server
+> sudo apt-get install python-mysqldb
+
+
+> sudo pip install python-crontab
+
+
 Possible Issues
 --------------------------------------------------------------------------------
 
 * There is no In-Reply-To header being used, so, for example, Gmail's 
   conversation view is broken.
+
+

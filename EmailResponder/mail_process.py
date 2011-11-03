@@ -22,6 +22,7 @@ import email
 import email.header
 import json
 import re
+import traceback
 
 import sendmail
 
@@ -57,7 +58,15 @@ def get_email_localpart(email_address):
     return False
 
 def decode_header(header_val):
-    return email.header.decode_header(header_val.decode('utf-8'))[0][0].decode('utf-8')
+    '''
+    Returns False if decoding fails. Otherwise returns the decoded value.
+    '''
+    try:
+        hdr = email.header.decode_header(header_val)
+        if not hdr: return False
+        return hdr[0][0].decode(hdr[0][1])        
+    except Exception:
+        return False
 
 
 class MailResponder:
@@ -136,9 +145,6 @@ class MailResponder:
         Extracts the relevant items from the email.
         '''
 
-        # Note that the email fields will be UTF-8, but we need them in unicode
-        # before trying to send the response. Hence the .decode('utf-8') calls.
-
         self._email = email.message_from_string(email_string)
 
         self.requested_addr = decode_header(self._email['To'])
@@ -174,6 +180,7 @@ class MailResponder:
             return False
 
         self._subject = decode_header(self._email['Subject'])
+        if not self._subject: self._subject = '' 
 
         # Add 'Re:' to the subject
         self._subject = u'Re: %s' % self._subject
@@ -231,6 +238,7 @@ if __name__ == '__main__':
 
     except Exception as e:
         syslog.syslog(syslog.LOG_CRIT, 'Exception caught: %s' % e)
+        syslog.syslog(syslog.LOG_CRIT, traceback.format_exc())
     else:
         syslog.syslog(syslog.LOG_INFO, 
                       'Responded successfully to request for: %s' % responder.requested_addr)
