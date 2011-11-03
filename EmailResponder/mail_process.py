@@ -23,6 +23,7 @@ import email.header
 import json
 import re
 import traceback
+import time
 
 import sendmail
 
@@ -214,6 +215,8 @@ if __name__ == '__main__':
     '''
     Note that we always exit with 0 so that the email server doesn't complain.
     '''
+    
+    starttime = time.clock()
 
     if len(sys.argv) < 2:
         raise Exception('Not enough arguments. conf file required')
@@ -243,6 +246,6 @@ if __name__ == '__main__':
         syslog.syslog(syslog.LOG_CRIT, traceback.format_exc())
     else:
         syslog.syslog(syslog.LOG_INFO, 
-                      'Responded successfully to request for: %s' % responder.requested_addr)
+                      'Responded successfully to request for: %s: %fs' % (responder.requested_addr, time.clock()-starttime))
     
     exit(0)
