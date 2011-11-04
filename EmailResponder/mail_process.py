@@ -26,6 +26,7 @@ import traceback
 import time
 
 import sendmail
+import blacklist
 
 
 # We're going to use a fixed address to reply to all email from. 
@@ -153,6 +154,11 @@ class MailResponder:
         if not self._conf.has_key(self._requested_localpart):
             syslog.syslog(syslog.LOG_INFO, 'recip_addr invalid: %s' % self.requested_addr)
             return False
+        
+        # Check if the user is (or should be) blacklisted
+        if not self._check_blacklist():
+            syslog.syslog(syslog.LOG_INFO, 'requester blacklisted')
+            return False
 
         raw_response = sendmail.create_raw_email(self._requester_addr, 
                                                  self._response_from_addr,
@@ -167,6 +173,10 @@ class MailResponder:
             return False
 
         return True
+
+    def _check_blacklist(self):
+        bl = blacklist.Blacklist()
+        return bl.check_and_add(strip_email(self._requester_addr))
 
     def _parse_email(self, email_string):
         '''

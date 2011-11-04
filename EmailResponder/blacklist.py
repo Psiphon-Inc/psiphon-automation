@@ -79,6 +79,8 @@ class Blacklist(object):
         it's allowed to make.
         '''
         
+        cur = self._conn.cursor()
+        
         email_hash = self._hash_addr(email_addr)
         count = 0
         if cur.execute('SELECT count FROM blacklist WHERE emailhash = %s', (email_hash,)) > 0:
