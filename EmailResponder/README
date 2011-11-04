@@ -75,13 +75,20 @@ notify_classes =
     > sudo /etc/init.d/postfix restart
 
 
-Source files
+Source files and cron jobs
 ----------------------------------------
 
-* Use the copy_files.sh script to copy files from the source directory to the
-  mail_responder home directory. The script will also fill in the stats email
-  address and set the ownership of the files.
-  > bash copy_files.sh <stats_mail_addr>
+The install.sh script does the following:
+    - copy files from the source directory to the mail_responder home directory;
+    - modify those files, if necessary;
+    - set the proper ownership on those files;
+    - create the cron jobs needed for the running of the system
+
+The script requires the following package:
+> sudo pip install python-crontab
+
+To run the install script:    
+> sh install.sh <stats_mail_addr>
 
 
 Logging
@@ -114,12 +121,26 @@ Amazon SES
 Stats
 ----------------------------------------
 
-* mail_stats.py can be executed by a cron job to email basic statisitics to a 
-  desired email address. Edit that file so that RECIPIENT_ADDRESS and 
-  SENDER_ADDRESS meet your needs.
+* mail_stats.py can be executed by a cron job (installed by install.sh) to email
+  basic statisitics to a desired email address. Edit that file so that 
+  RECIPIENT_ADDRESS and SENDER_ADDRESS meet your needs.
 
 * The emailing is done with the same SES code and credentials that the 
   responder itself uses.
+
+
+Blacklist
+----------------------------------------
+
+Users will only receive responses to three requests per day (configurable), 
+after which they are "blacklisted". The blacklist is cleared once a day 
+(configurable).
+
+The blacklist code requires the following package be installed:
+> sudo apt-get install mysql-server
+> sudo apt-get install python-mysqldb
+
+The install.sh step above does the rest.
 
 
 Email Responder Configuration
@@ -157,16 +178,6 @@ For example:
 * NOTE: The *last* mimetype will be the one that's preferred by mail clients,
   so you should put the 'html' body last.
 
-
-
-Blacklist
---------------------------------------------------------------------------------
-
-> sudo apt-get install mysql-server
-> sudo apt-get install python-mysqldb
-
-
-> sudo pip install python-crontab
 
 
 Possible Issues
