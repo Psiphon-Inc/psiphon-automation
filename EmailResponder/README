@@ -57,9 +57,15 @@ Postfix
    * Change myorigin to be:
         myorigin = $myhostname
    * Change mydestination to be:
-        mydestination = $myhostname localhost.$mydomain localhost
+        mydestination = $myhostname localhost.$mydomain localhost $extradomains
+   * extradomains is a custom variable that will hold all of the domains that 
+     our server accepts mail for (and responds to). So, you will have:
+        extradomains = example1.com example2.com
+     Note that the variable can be missing or empty and that's okay. (Also note
+     that I haven't actually tested it with multiple values, so I don't yet
+     know if that works.)
    * Change smtpd_use_tls to 'no'
-   * Add these two lines to the end. The cause all email that doesn't 
+   * Add these two lines to the end. They cause all email that doesn't 
      correspond to a real address to be forwarded to the mail_responder account
      (which will then do the response processing).
         local_recipient_maps =
