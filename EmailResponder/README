@@ -157,7 +157,7 @@ Email Responder Configuration
   those addresses. 
 
 * The file is in JSON format, with these fields:
-{"email_localpart": [["mimetype", "body"], ...], ...}
+{"email_addr": [["mimetype", "body"], ...], ...}
 
 For example:
 {
@@ -166,20 +166,20 @@ For example:
     ["plain", "English - https://example.com/en.html\n\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html"], 
     ["html", "<a href=\"https://example.com/en.html\">English - https://example.com/en.html</a><br>\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html<br>"]
 ], 
-"getbb": 
+"getbb@example.com": 
 [
     ["plain", "English - https://example2.com/en.html\n\u0420\u0443\u0441\u0441\u043a\u0438\u0439 - https://example2.com/ru.html"]
 ], 
-"getget": "Just a string"
+"getget@example2.com": "Just a string"
 }
 
 * Things to notice about the format:
-  * The '@example.com' part of the email address is unnecessary. In fact, it 
-    will be ignored.
   * The email body can be a just a string, which will be interpreted as 'plain'
     mimetype, or an array of one or more tuples which are ["mimetype", "body"].
     Mimetypes can be 'plain' or 'html' (so there's really no reason to specify
     more than two).
+  * There can be multiple domains served by the same responder server, so the
+    whole email address is important.
 
 * NOTE: The *last* mimetype will be the one that's preferred by mail clients,
   so you should put the 'html' body last.

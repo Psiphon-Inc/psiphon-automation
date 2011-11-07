@@ -67,19 +67,6 @@ def strip_email(email_address):
     return False
     
 
-def get_email_localpart(email_address):
-    '''
-    When given localpart@example.com, returns localpart. Returns False if bad 
-    email address. 
-    ''' 
-    addr_regex = '([a-zA-Z0-9\+\.\-]+)@([a-zA-Z0-9\+\.\-]+)\.([a-zA-Z0-9\+\.\-]+)'
-    match = re.match(addr_regex, email_address)
-    if match:
-        return match.group(1)
-
-    # Bad address. 
-    return False
-
 def decode_header(header_val):
     '''
     Returns False if decoding fails. Otherwise returns the decoded value.
@@ -118,19 +105,7 @@ class MailResponder:
 
             # Note that json.load reads in unicode strings
             self._conf = json.load(conffile)
-
-            # The keys in our conf file may be full email addresses, but we 
-            # really just want them to be the address localpart (the part before 
-            # the @), and we want to ensure that it's lowercase.
             
-            for addr in self._conf.keys():
-                localpart = get_email_localpart(addr)
-                if not localpart: 
-                    # if a localpart can't be found properly, just leave it
-                    continue
-                localpart = localpart.lower()
-                self._conf[localpart] = self._conf.pop(addr)
-
         except Exception as e:
             syslog.syslog(syslog.LOG_CRIT, 'Failed to read conf file: %s' % e)
             return False
@@ -150,8 +125,8 @@ class MailResponder:
         if self._check_verification_email():
             return False
 
-        # Look up requested email address localpart. 
-        if not self._conf.has_key(self._requested_localpart):
+        # Look up requested email address. 
+        if not self._conf.has_key(self.requested_addr):
             syslog.syslog(syslog.LOG_INFO, 'recip_addr invalid: %s' % self.requested_addr)
             return False
         
@@ -163,7 +138,7 @@ class MailResponder:
         raw_response = sendmail.create_raw_email(self._requester_addr, 
                                                  self._response_from_addr,
                                                  self._subject,
-                                                 self._conf[self._requested_localpart])
+                                                 self._conf[self.requested_addr])
 
         if not raw_response:
             return False
@@ -200,17 +175,10 @@ class MailResponder:
             syslog.syslog(syslog.LOG_INFO, 'Unparsable requested_addr')
             return False
 
-        # We also want just the localpart of the email address (get+fa or whatever).
-        self._requested_localpart = get_email_localpart(self.requested_addr)
-        if not self._requested_localpart:
-            # Bad address. Fail.
-            syslog.syslog(syslog.LOG_INFO, 'Bad _requested_localpart')
-            return False
-        
         # Convert to lowercase, since that's what's in the _conf and we want to 
         # do a case-insensitive check.
-        self._requested_localpart = self._requested_localpart.lower()
-        
+        self.requested_addr = self.requested_addr.lower()
+
         self._requester_addr = decode_header(self._email['Return-Path'])
         if not self._requester_addr:
             syslog.syslog(syslog.LOG_INFO, 'No _requester_addr')
