@@ -24,6 +24,7 @@ import json
 import re
 import traceback
 import time
+import tempfile
 
 import sendmail
 import blacklist
@@ -38,6 +39,12 @@ import blacklist
 # auto-verification mechanism.
 RESPONSE_FROM_ADDR = 'Psiphon Responder <noreply@psiphon3.com>'
 
+# When exceptions occur, we may want to see the email that caused the exception.
+# If the following value is not None, an email that triggers an exception will
+# be written raw to a files in this directory. 
+# Note: This should be used only when necessary. Recording user information is
+# undesireable.
+EXCEPTION_DIR = os.path.expanduser('~/exceptions')
 
 # In order to send an email from a particular address, Amazon SES requires that
 # we verify ownership of that address. But our mail server throws away all 
@@ -246,6 +253,15 @@ if __name__ == '__main__':
     except Exception as e:
         syslog.syslog(syslog.LOG_CRIT, 'Exception caught: %s' % e)
         syslog.syslog(syslog.LOG_CRIT, traceback.format_exc())
+        
+        # Should we write this exception-causing email to disk?
+        if EXCEPTION_DIR and email_string:
+            temp = tempfile.mkstemp(suffix='.txt', dir=EXCEPTION_DIR)
+            tempfile = os.fdopen(temp[0], 'w')
+            tempfile.write('Exception caught: %s\n' % e)
+            tempfile.write('%s\n\n' % traceback.format_exc())
+            tempfile.write(email_string)
+            tempfile.close()
     else:
         syslog.syslog(syslog.LOG_INFO, 
                       'Responded successfully to request for: %s: %fs' % (responder.requested_addr, time.clock()-starttime))
