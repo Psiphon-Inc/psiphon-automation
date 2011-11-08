@@ -33,6 +33,40 @@ OS
    > sudo chown ubuntu:ubuntu -R /mail_responder_config
 
 
+SSH, fail2ban
+----------------------------------------
+
+For extra security, we'll have SSH listen on a non-standard port and use 
+fail2ban to prevent brute-force login attempts on SSH. Alternatively/additionally,
+EC2 security groups or OS firewall policies can restrict the incoming IPs 
+allowed to access the SSH port.
+
+1. Change SSH port number. 
+    > sudo nano /etc/ssh/sshd_config
+    Change 'Port' value to something random.
+    Make sure EC2 security group allows this port through for TCP.
+
+2. Install fail2ban.
+    > sudo apt-get install fail2ban
+    
+3. Configure fail2ban to use non-standard SSH port. 
+    Create or edit /etc/fail2ban/jail.local:
+      [ssh]
+      port    = ssh,<port#>
+      [ssh-ddos]
+      port    = ssh,<port#>
+
+4. Edit /etc/fail2ban/filter.d/sshd.conf, and add the following line to the 
+   failregex list:
+    ^%(__prefix_line)spam_unix\(sshd:auth\): authentication failure; logname=\S* uid=\S* euid=\S* tty=\S* ruser=\S* rhost=<HOST>(?:\s+user=.*)?\s*$
+   (We found with the Psiphon 3 servers that fail2ban wasn't detecting all the 
+   relevant auth.log entries without adding this regex.)
+   
+5. Restart ssh and fail2ban:
+    > sudo service ssh restart
+    > sudo service fail2ban restart
+
+
 Postfix
 ----------------------------------------
 
