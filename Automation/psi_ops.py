@@ -131,7 +131,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__propagation_mechanisms = {
             'twitter' : PropagationMechanism('twitter'),
             'email-autoresponder' : PropagationMechanism('email-autoresponder'),
-            'download-widget' : PropagationMechanism('download-widget')
+            'static-download' : PropagationMechanism('static-download')
         }
         self.__propagation_channels = {}
         self.__hosts = {}
@@ -267,9 +267,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                       self.__propagation_channels.itervalues())[0]
 
     def add_propagation_channel(self, name, propagation_mechanism_types):
-        id = self.__generate_id()
+        import_propagation_channel(self.__generate_id(), name, propagation_mechanism_types)
+
+    def import_propagation_channel(self, id, name, propagation_mechanism_types):
         for type in propagation_mechanism_types: assert(type in self.__propagation_mechanisms)
         propagation_channel = PropagationChannel(id, name, propagation_mechanism_types)
+        assert(id not in self.__propagation_channels)
         assert(not filter(lambda x:x.name == name, self.__propagation_channels.itervalues()))
         self.__propagation_channels[id] = propagation_channel
 
@@ -278,8 +281,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                       self.__sponsors.itervalues())[0]
 
     def add_sponsor(self, name):
-        id = self.__generate_id()
+        import_sponsor(self.__generate_id(), name)
+
+    def import_sponsor(self, id, name):
         sponsor = Sponsor(id, name, None, {}, [])
+        assert(id not in self.__sponsors)
         assert(not filter(lambda x:x.name == name, self.__sponsors.itervalues()))
         self.__sponsors[id] = sponsor
 
@@ -294,9 +300,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 (campaign.propagation_channel_id, sponsor.id))
             campaign.log('marked for build and publish (new banner)')
 
-    def add_sponsor_email_campaign(self, sponsor_name,
-                                   propagation_channel_name,
-                                   email_account):
+    def add_sponsor_email_campaign(self, sponsor_name, propagation_channel_name, email_account):
         sponsor = self.__get_sponsor_by_name(sponsor_name)
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
         propagation_mechanism_type = 'email-autoresponder'
@@ -336,6 +340,22 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
             sponsor.log('add twitter campaign %s' % (email_account,))
+            self.__deploy_builds_required_for_campaigns.add(
+                    (campaign.propagation_channel_id, sponsor.id))
+            campaign.log('marked for build and publish (new campaign)')
+
+    def add_sponsor_static_download_campaign(self, sponsor_name, propagation_channel_name):
+        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+        propagation_mechanism_type = 'static-download'
+        assert(propagation_mechanism_type in propagation_channel.propagation_mechanism_types)
+        campaign = SponsorCampaign(propagation_channel.id,
+                                   propagation_mechanism_type,
+                                   None,
+                                   None)
+        if campaign not in sponsor.campaigns:
+            sponsor.campaigns.append(campaign)
+            sponsor.log('add static download campaign')
             self.__deploy_builds_required_for_campaigns.add(
                     (campaign.propagation_channel_id, sponsor.id))
             campaign.log('marked for build and publish (new campaign)')
@@ -640,12 +660,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__linode_account.log('set to %s' % (api_key,))
 
     def set_email_server_account(self, ip_address, ssh_port,
-                                 ssh_username, ssh_password, ssh_host_key):
+                                 ssh_username, ssh_pkey, ssh_host_key,
+                                 config_file_path):
         self.__email_server_account.ip_address = ip_address
         self.__email_server_account.ssh_port = ssh_port
         self.__email_server_account.ssh_username = ssh_username
-        self.__email_server_account.ssh_password = ssh_password
+        self.__email_server_account.ssh_pkey = ssh_pkey
         self.__email_server_account.ssh_host_key = ssh_host_key
+        self.__email_server_account.config_file_path = config_file_path
         self.__email_server_account.log('set to %s' % (ip_address,))
 
     def set_stats_server_account(self, ip_address, ssh_port,
