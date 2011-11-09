@@ -25,25 +25,16 @@ in a day. This is both to hinder/prevent abuse of the system.
 import argparse
 import hashlib
 import MySQLdb as mdb
-
-
-DAILY_LIMIT = 3
-
-_DB_DBNAME = 'psiphon'
-_DB_USERNAME = 'psiphon'
-_DB_PASSWORD = 'psiphon'
-
-_DB_ROOT_USERNAME = 'root'
-_DB_ROOT_PASSWORD = ''
+import settings
 
 
 
 class Blacklist(object):
     def __init__(self):
-        self._conn = mdb.connect(user=_DB_ROOT_USERNAME, passwd=_DB_ROOT_PASSWORD)
+        self._conn = mdb.connect(user=settings.DB_ROOT_USERNAME, passwd=settings.DB_ROOT_PASSWORD)
         self._setup()
                 
-        self._conn = mdb.connect(user=_DB_DBNAME, passwd=_DB_PASSWORD, db=_DB_DBNAME)
+        self._conn = mdb.connect(user=settings.DB_DBNAME, passwd=settings.DB_PASSWORD, db=settings.DB_DBNAME)
     
     def _setup(self):
         cur = self._conn.cursor()
@@ -53,13 +44,15 @@ class Blacklist(object):
         # We're going to pre-check for the DB and the table even though we're 
         # using "IF NOT EXISTS", because otherwise it prints error text (which
         # causes a problem when it's a cron job).
-        if not cur.execute('SHOW DATABASES') or (_DB_DBNAME,) not in cur.fetchall():
-            cur.execute('CREATE DATABASE IF NOT EXISTS '+_DB_DBNAME)
-            
-        cur.execute("GRANT ALL PRIVILEGES ON "+_DB_DBNAME+".* TO %s@'%%' IDENTIFIED BY %s WITH GRANT OPTION;", (_DB_USERNAME, _DB_PASSWORD,))
-        cur.execute('USE '+_DB_DBNAME)
+        if not cur.execute('SHOW DATABASES') or (settings.DB_DBNAME,) not in cur.fetchall():
+            cur.execute('CREATE DATABASE IF NOT EXISTS '+settings.DB_DBNAME)
+
+        # The GRANT command implictly creates the user if it doesn't exist.
+        cur.execute("GRANT ALL PRIVILEGES ON "+settings.DB_DBNAME+".* TO %s@'%%' IDENTIFIED BY %s WITH GRANT OPTION;", (settings.DB_USERNAME, settings.DB_PASSWORD,))
+        
+        cur.execute('USE '+settings.DB_DBNAME)
        
-        if not cur.execute('SHOW TABLES IN '+_DB_DBNAME) or ('blacklist',) not in cur.fetchall():
+        if not cur.execute('SHOW TABLES IN '+settings.DB_DBNAME) or ('blacklist',) not in cur.fetchall():
             cur.execute('CREATE TABLE IF NOT EXISTS blacklist ( emailhash CHAR(40) PRIMARY KEY, count TINYINT NOT NULL DEFAULT 0 );')
         
     def clear(self):
@@ -86,7 +79,7 @@ class Blacklist(object):
         if cur.execute('SELECT count FROM blacklist WHERE emailhash = %s', (email_hash,)) > 0:
             count = cur.fetchall()[0][0]
             
-        if count < DAILY_LIMIT:
+        if count < settings.BLACKLIST_DAILY_LIMIT:
             cur.execute('INSERT INTO blacklist (emailhash, count) VALUES (%s, 1) ON DUPLICATE KEY UPDATE count = count+1', (email_hash,))
             return True
         

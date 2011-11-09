@@ -39,8 +39,8 @@ sudo cp mail_process.py sendmail.py blacklist.py $MAIL_HOME
 sudo cp forward $MAIL_HOME/.forward
 
 # mail_stats.py needs to have a line replaced with the real stats address
-sudo sed "s/RECIPIENT_ADDRESS = 'mail@example.com'/RECIPIENT_ADDRESS = '$STATS_MAIL_ADDR'/g" mail_stats.py > mail_stats.tmp 
-sudo mv mail_stats.tmp $MAIL_HOME/mail_stats.py
+sudo sed "s/RECIPIENT_ADDRESS = 'mail@example.com'/RECIPIENT_ADDRESS = '$STATS_MAIL_ADDR'/g" settings.py > settings.tmp 
+sudo mv settings.tmp $MAIL_HOME/settings.py
 
 # Fix ownership of the files
 sudo chown mail_responder:mail_responder $MAIL_HOME/*
