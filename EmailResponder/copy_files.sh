@@ -32,13 +32,13 @@ STATS_MAIL_ADDR=$1
 
 MAIL_HOME=/home/mail_responder
 
-# The simple files: mail_process.py, sendmail.py, blacklist.py
-sudo cp mail_process.py sendmail.py blacklist.py $MAIL_HOME
+# The simple files: mail_process.py, sendmail.py, blacklist.py, mail_stats.py
+sudo cp mail_process.py sendmail.py blacklist.py mail_stats.py $MAIL_HOME
 
 # forward needs to be copied to .forward
 sudo cp forward $MAIL_HOME/.forward
 
-# mail_stats.py needs to have a line replaced with the real stats address
+# settings.py needs to have a line replaced with the real stats address
 sudo sed "s/RECIPIENT_ADDRESS = 'mail@example.com'/RECIPIENT_ADDRESS = '$STATS_MAIL_ADDR'/g" settings.py > settings.tmp 
 sudo mv settings.tmp $MAIL_HOME/settings.py
 
