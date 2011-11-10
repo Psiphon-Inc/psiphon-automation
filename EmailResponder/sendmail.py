@@ -17,21 +17,34 @@
 from cStringIO import StringIO
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
 from email.header import Header
 from email import Charset
 from email.generator import Generator
+from email import encoders
 import smtplib
 from boto.ses.connection import SESConnection
 
 
 # Adapted from http://radix.twistedmatrix.com/2010/07/how-to-send-good-unicode-email-with.html
-def create_raw_email(recipient, from_address, subject, body):
+def create_raw_email(recipient, from_address, subject, body, attachment=None):
     '''
     Creates a i18n-compatible raw email.
     body may be an array of MIME parts in the form:
         [['plain', plainbody], ['html', htmlbody], ...]
     May raise exceptions, such as if character encodings fail.
+    attachment should be a tuple of (file-type-object, display-filename).
     '''
+    
+    # For email with an attachment, the MIME structure will be as follows: 
+    #    multipart/mixed
+    #        multipart/alternative
+    #            text/plain - the plain text message
+    #            text/html - the html message
+    #        application/octet-stream - the attachment
+    #
+    # For email without an attachment, it will be the same, but we'll omit the
+    # last piece.
 
     # We expect body to be an array of mime parts. So make one if that's not 
     # what we got.
@@ -45,8 +58,8 @@ def create_raw_email(recipient, from_address, subject, body):
     # a way that doesn't modify global state. :-(
     Charset.add_charset('utf-8', Charset.QP, Charset.QP, 'utf-8')
 
-    # This example is of an email with text and html alternatives.
-    multipart = MIMEMultipart('alternative')
+    # The root MIME section.
+    msgRoot = MIMEMultipart('mixed')
 
     # We need to use Header objects here instead of just assigning the strings in
     # order to get our headers properly encoded (with QP).
@@ -57,16 +70,34 @@ def create_raw_email(recipient, from_address, subject, body):
     #multipart['To'] = Header(recipient.encode('utf-8'), 'UTF-8').encode()
     #multipart['From'] = Header(from_address.encode('utf-8'), 'UTF-8').encode()
 
-    multipart['To'] = Header(recipient.encode('utf-8'), 'ascii').encode()
-    multipart['From'] = Header(from_address.encode('utf-8'), 'ascii').encode()
+    msgRoot['To'] = Header(recipient.encode('utf-8'), 'ascii').encode()
+    msgRoot['From'] = Header(from_address.encode('utf-8'), 'ascii').encode()
 
-    multipart['Subject'] = Header(subject.encode('utf-8'), 'UTF-8').encode()
+    msgRoot['Subject'] = Header(subject.encode('utf-8'), 'UTF-8').encode()
     
-    # Attach the parts with the given encodings.
-
+    # The MIME section that contains the plaintext and HTML alternatives.
+    msgAlternative = MIMEMultipart('alternative')
+    msgRoot.attach(msgAlternative)
+    
+    # Attach the body alternatives with the given encodings.
     for mimetype, content in body:
         msgpart = MIMEText(content.encode('utf-8'), mimetype, 'UTF-8')
-        multipart.attach(msgpart)
+        msgAlternative.attach(msgpart)
+        
+    # Attach the attachment
+    if attachment:
+        fp, filename = attachment
+
+        msgAttachment = MIMEBase('application', 'octet-stream')
+
+        msgAttachment.add_header('Content-Disposition', 'attachment', filename=filename)
+        
+        msgAttachment.set_payload(fp.read())
+        fp.close()
+        
+        encoders.encode_base64(msgAttachment)
+        
+        msgRoot.attach(msgAttachment)
 
     # And here we have to instantiate a Generator object to convert the multipart
     # object to a string (can't use multipart.as_string, because that escapes
@@ -74,7 +105,7 @@ def create_raw_email(recipient, from_address, subject, body):
 
     io = StringIO()
     g = Generator(io, False) # second argument means "should I mangle From?"
-    g.flatten(multipart)
+    g.flatten(msgRoot)
 
     return io.getvalue()
 
