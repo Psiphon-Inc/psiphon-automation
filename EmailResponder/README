@@ -110,7 +110,14 @@ add this line:
 notify_classes = 
 )
 
-5. Reload postfix conf and restart:
+5. By default, if an uncaught error occurs (which shouldn't occur, but...), 
+   postfix responds to the user with a bounce email that gives a lot of internal 
+   details about the error. This is undesirable, so we'll disable this in postfix.
+    > sudo nano /etc/postfix/master.cf
+   Comment out the bounce line, so it looks like this:
+    #bounce    unix  -       -       -       -       0       bounce
+
+6. Reload postfix conf and restart:
     > sudo postfix reload
     > sudo /etc/init.d/postfix restart
 
