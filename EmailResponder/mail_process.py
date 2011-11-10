@@ -29,7 +29,6 @@ import tempfile
 import settings
 import sendmail
 import blacklist
-import mail_stats
 
 
 
@@ -74,7 +73,6 @@ class MailResponder:
         self.requested_addr = None
         self._conf = None
         self._email = None
-        self.stats = mail_stats.MailStats()
 
     def read_conf(self, conf_filepath):
         '''
@@ -91,7 +89,7 @@ class MailResponder:
             self._conf = json.load(conffile)
             
         except Exception as e:
-            syslog.syslog(syslog.LOG_CRIT, 'Failed to read conf file: %s' % e)
+            syslog.syslog(syslog.LOG_CRIT, 'error: config file read failed: %s' % e)
             return False
 
         return True
@@ -111,18 +109,12 @@ class MailResponder:
 
         # Look up requested email address. 
         if not self._conf.has_key(self.requested_addr):
-            syslog.syslog(syslog.LOG_INFO, 'recip_addr invalid: %s' % self.requested_addr)
-            
-            # Record if this email was sent to our no-reply address
-            if self.requested_addr == strip_email(settings.RESPONSE_FROM_ADDR):
-                self.stats.increment_stats_noreply()
-                
+            syslog.syslog(syslog.LOG_INFO, 'fail: invalid requested address: %s' % self.requested_addr)
             return False
         
         # Check if the user is (or should be) blacklisted
         if not self._check_blacklist():
-            syslog.syslog(syslog.LOG_INFO, 'requester blacklisted')
-            self.stats.increment_stats_blacklist()
+            syslog.syslog(syslog.LOG_INFO, 'fail: blacklist')
             return False
 
         raw_response = sendmail.create_raw_email(self._requester_addr, 
@@ -136,9 +128,6 @@ class MailResponder:
         if not sendmail.send_raw_email_amazonses(raw_response, 
                                                  self._response_from_addr):
             return False
-
-        # Record the stats for the successful response
-        self.stats.increment_stats_per_addr(self.requested_addr)
 
         return True
 
@@ -155,7 +144,7 @@ class MailResponder:
 
         self.requested_addr = decode_header(self._email['To'])
         if not self.requested_addr:
-            syslog.syslog(syslog.LOG_INFO, 'No recip_addr')
+            syslog.syslog(syslog.LOG_INFO, 'fail: no requested address')
             return False
         
         # The 'To' field generally looks like this: 
@@ -165,7 +154,7 @@ class MailResponder:
         self.requested_addr = strip_email(self.requested_addr)
         if not self.requested_addr:
             # Bad address. Fail.
-            syslog.syslog(syslog.LOG_INFO, 'Unparsable requested_addr')
+            syslog.syslog(syslog.LOG_INFO, 'fail: unparsable requested address')
             return False
 
         # Convert to lowercase, since that's what's in the _conf and we want to 
@@ -174,7 +163,7 @@ class MailResponder:
 
         self._requester_addr = decode_header(self._email['Return-Path'])
         if not self._requester_addr:
-            syslog.syslog(syslog.LOG_INFO, 'No _requester_addr')
+            syslog.syslog(syslog.LOG_INFO, 'fail: no requester address')
             return False
 
         self._subject = decode_header(self._email['Subject'])
@@ -199,7 +188,7 @@ class MailResponder:
             f.write(self._email.as_string())
             f.close()
             
-            syslog.syslog(syslog.LOG_INFO, 'verification email received to: %s' % self.requested_addr)
+            syslog.syslog(syslog.LOG_INFO, 'info: verification email received to: %s' % self.requested_addr)
             
             return True
         
@@ -227,7 +216,7 @@ if __name__ == '__main__':
         email_string = sys.stdin.read()
 
         if not email_string:
-            syslog.syslog(syslog.LOG_CRIT, 'No stdin')
+            syslog.syslog(syslog.LOG_CRIT, 'error: no stdin')
             exit(0)
 
         responder = MailResponder()
@@ -239,9 +228,7 @@ if __name__ == '__main__':
             exit(0)
 
     except Exception as e:
-        syslog.syslog(syslog.LOG_CRIT, 'Exception caught: %s' % e)
-        syslog.syslog(syslog.LOG_CRIT, traceback.format_exc())
-        responder.stats.increment_stats_exceptions()
+        syslog.syslog(syslog.LOG_CRIT, 'exception: %s: %s' % (e, traceback.format_exc()))
         
         # Should we write this exception-causing email to disk?
         if settings.EXCEPTION_DIR and email_string:
@@ -253,6 +240,6 @@ if __name__ == '__main__':
             tempfile.close()
     else:
         syslog.syslog(syslog.LOG_INFO, 
-                      'Responded successfully to request for: %s: %fs' % (responder.requested_addr, time.clock()-starttime))
+                      'success: %s: %fs' % (responder.requested_addr, time.clock()-starttime))
     
     exit(0)
