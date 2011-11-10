@@ -30,7 +30,6 @@ import settings
 import sendmail
 
 
-
 class MailStats(object):
     '''
     Writes new info to the database as requests come in (and are sucessful or not.)
@@ -82,6 +81,52 @@ class MailStats(object):
     def increment_stats_blacklist(self):
         cur = self._conn.cursor()
         cur.execute('INSERT INTO stats_blacklist (date, count) VALUES (CURRENT_DATE(), 1) ON DUPLICATE KEY UPDATE count = count+1')
+        
+    def get_report(self):
+        '''
+        Extracts stats info from the database and generates a text report
+        '''
+        
+        cur = self._conn.cursor()
+        
+        # We'll report on the most recent full day. We'll determine this by 
+        # taking the second-most-recent date from the stats_per_addr table
+        # (which surely is getting updated every day).
+        if not cur.execute('SELECT date FROM stats_per_addr GROUP BY DATE ORDER BY DATE DESC LIMIT 1 OFFSET 1;'):
+            # We have no results yet.
+            return '(no data)'
+        
+        date = cur.fetchall()[0][0]
+                
+        report = 'Date: %s\n\n' % date
+        
+        # These tables all have only a single row with a single (non-date) value 
+        # for the most recent stats.
+        for table in ('stats_exceptions', 'stats_noreply', 'stats_blacklist'):
+            if cur.execute('SELECT count FROM '+table+' WHERE date = %s;', date):
+                res = cur.fetchall()[0]
+                report += '%s: %d\n' % (table, res[0])
+        
+        report += '\n'
+                
+        # The stats-per-addr table has multiple entries per day (zero or one
+        # for each email address we're serving), so it'll need a more custom
+        # report format.
+        
+        num_res = cur.execute('''
+            SELECT addr, count FROM stats_per_addr 
+            WHERE date = %s''', date)
+        res = cur.fetchall()
+        
+        report += 'Responses sent by address:\n'
+        
+        if not num_res:
+            report += '(none)'
+            
+        for row in res:
+            report += '%s: %d\n' % row
+            
+        return report
 
 
 if __name__ == '__main__':
