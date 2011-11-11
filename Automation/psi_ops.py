@@ -194,8 +194,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
  
     def show_sponsors(self):
         for s in self.__sponsors.itervalues():
-            print textwrap.dedent('''
-                ID:                     %s
+            print textwrap.dedent('''                ID:                     %s
                 Name:                   %s
                 Home Pages:             %s
                 Campaigns:              %s
@@ -208,7 +207,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     ', '.join(['%s %s %s %s' % (
                                     self.__propagation_channels[c.propagation_channel_id].name,
                                     c.propagation_mechanism_type,
-                                    c.account[0],
+                                    c.account[0] if c.account else 'None',
                                     c.s3_bucket_name)
                                for c in s.campaigns]))
             self.__show_logs(s)
