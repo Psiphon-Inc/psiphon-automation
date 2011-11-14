@@ -36,6 +36,12 @@ DB_ROOT_PASSWORD = ''
 # General processing/sending stuff
 # 
 
+# The location of the config file. 
+CONFIG_FILEPATH = '/mail_responder_config/conf.json'
+
+# The directory where attachment files are to be found.
+ATTACHMENT_DIR = '/mail_responder_config/attachments'
+
 # We're going to use a fixed address to reply to all email from. 
 # The reasons for this are:
 #   - Amazon SES requires you to register ever email address you send from;

@@ -88,8 +88,6 @@ Postfix
 4. Edit /etc/postfix/main.cf
    * Change myhostname to be the public DNS name of the instance, or the domain
      name that's pointing to the instance.
-   * Change myorigin to be:
-        myorigin = $myhostname
    * Change mydestination to be:
         mydestination = $myhostname localhost.$mydomain localhost $extradomains
    * extradomains is a custom variable that will hold all of the domains that 
@@ -117,7 +115,13 @@ notify_classes =
    Comment out the bounce line, so it looks like this:
     #bounce    unix  -       -       -       -       0       bounce
 
-6. Reload postfix conf and restart:
+6. Check the contents of /etc/mailname. It should be the FQDN of the current
+   instance's public name. If you're using an EC2 Static IP (which you surely
+   are), then the value in /etc/mailname is proably the public name that the
+   instance had *before* you assigned the static IP (at which point it got a new
+   public name). Make sure this is updated to the correct value. 
+
+7. Reload postfix conf and restart:
     > sudo postfix reload
     > sudo /etc/init.d/postfix restart
 
@@ -126,9 +130,9 @@ Source files and cron jobs
 ----------------------------------------
 
 The install.sh script does the following:
-    - copy files from the source directory to the mail_responder home directory;
-    - modify those files, if necessary;
-    - set the proper ownership on those files;
+    - copy files from the source directory to the mail_responder home directory
+    - modify those files, if necessary
+    - set the proper ownership on those files
     - create the cron jobs needed for the running of the system
 
 The script requires the following package:
@@ -144,12 +148,25 @@ Logging
 * Copy 20-psiphon-logging.conf to /etc/rsyslog.d/
   * This will prevent potentially sensitive user information from ending up in
     the system logs.
+  * It also copies the mail responder logs to a dedicated log file that will be
+    processed to get statisitics about use.
     
 * Enable RFC 3339 compatible high resolution timestamp logging format (required
   for stats processing).
   In /etc/rsyslog.conf, ensure this line is commented out:
     #$ActionFileDefaultTemplate RSYSLOG_TraditionalFileFormat
-
+    
+* Turn off "repeated message reduction" (the syslog feature that results in 
+  "last message repeated X times" instead of repeated logs). For our stats, we 
+  need a line per event, not a compressed view. 
+  In /etc/rsyslog.conf, change this:
+    $RepeatedMsgReduction on
+  to this:
+    $RepeatedMsgReduction off
+  (TODO: Can this be turned off for only mail_responder.log?)
+    
+* Restart the logging service:
+    > sudo service rsyslog restart
 
 
 Amazon SES
@@ -206,20 +223,29 @@ Email Responder Configuration
   those addresses. 
 
 * The file is in JSON format, with these fields:
-{"email_addr": [["mimetype", "body"], ...], ...}
+{"email_addr": {"body": [["mimetype", "body"], ...], "attach": "filename"}, ...}
 
 For example:
 {
-"get+aa@example.com": 
-[
-    ["plain", "English - https://example.com/en.html\n\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html"], 
-    ["html", "<a href=\"https://example.com/en.html\">English - https://example.com/en.html</a><br>\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html<br>"]
-], 
-"getbb@example.com": 
-[
-    ["plain", "English - https://example2.com/en.html\n\u0420\u0443\u0441\u0441\u043a\u0438\u0439 - https://example2.com/ru.html"]
-], 
-"getget@example2.com": "Just a string"
+"multipart-email@example.com":
+{
+  "body": 
+    [
+      ["plain", "English - https://example.com/en.html\n\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html"], 
+      ["html", "<a href=\"https://example.com/en.html\">English - https://example.com/en.html</a><br>\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html<br>"]
+    ],
+  "attach": null
+}, 
+"justtext@example.com":
+{
+  "body": 
+    [
+      ["plain", "English - https://example2.com/en.html\n\u0420\u0443\u0441\u0441\u043a\u0438\u0439 - https://example2.com/ru.html"]
+    ], 
+  "attach": null
+},
+"simplebody@example2.com": { "body": "Just a string", "attach": null },
+"attachment@example3.com": { "body": "I have an attachment", "attach": "abcd.exe" }
 }
 
 * Things to notice about the format:
@@ -229,6 +255,8 @@ For example:
     more than two).
   * There can be multiple domains served by the same responder server, so the
     whole email address is important.
+  * The attachment can be null.
+  * There can only be one attachment specified.
 
 * NOTE: The *last* mimetype will be the one that's preferred by mail clients,
   so you should put the 'html' body last.

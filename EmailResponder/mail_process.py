@@ -88,6 +88,15 @@ class MailResponder:
             # Note that json.load reads in unicode strings
             self._conf = json.load(conffile)
             
+            # Do some validation
+            for key in self._conf.keys():
+                item = self._conf[key]
+                if not item.has_key('body') or not item.has_key('attach'):
+                    raise Exception('invalid config item: %s:%s', key, repr(item))
+                if item['attach'] and \
+                        not os.path.isfile(os.path.join(settings.ATTACHMENT_DIR, item['attach'])):
+                    raise Exception('attachment file does not exist: %s:%s', key, repr(item))
+            
         except Exception as e:
             syslog.syslog(syslog.LOG_CRIT, 'error: config file read failed: %s' % e)
             return False
@@ -116,11 +125,16 @@ class MailResponder:
         if not self._check_blacklist():
             syslog.syslog(syslog.LOG_INFO, 'fail: blacklist')
             return False
+        
+        attachment = None
+        if self._conf[self.requested_addr]['attach']:
+            attachment = open(self._conf[self.requested_addr]['attach'])
 
         raw_response = sendmail.create_raw_email(self._requester_addr, 
                                                  self._response_from_addr,
                                                  self._subject,
-                                                 self._conf[self.requested_addr])
+                                                 self._conf[self.requested_addr]['body'],
+                                                 attachment)
 
         if not raw_response:
             return False
@@ -204,14 +218,6 @@ if __name__ == '__main__':
     
     starttime = time.clock()
 
-    if len(sys.argv) < 2:
-        raise Exception('Not enough arguments. conf file required')
-
-    conf_filename = sys.argv[1]
-
-    if not os.path.isfile(conf_filename):
-        raise Exception('conf file must exist: %s' % conf_filename)
-
     try:
         email_string = sys.stdin.read()
 
@@ -221,7 +227,7 @@ if __name__ == '__main__':
 
         responder = MailResponder()
 
-        if not responder.read_conf(conf_filename):
+        if not responder.read_conf(settings.CONFIG_FILEPATH):
             exit(0)
 
         if not responder.process_email(email_string):

@@ -1,1 +1,1 @@
-"|python /home/mail_responder/mail_process.py /mail_responder_config/conf.json"
+"|python /home/mail_responder/mail_process.py"
