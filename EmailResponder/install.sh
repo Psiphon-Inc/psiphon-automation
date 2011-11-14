@@ -22,13 +22,19 @@ MAIL_FILE_DIR=/home/mail_responder
 
 
 # Put the source files where they need to be. Pass arguments on.
-echo "Copying files..."
+echo "Copying source files..."
 sh ./copy_files.sh $*
 
 if [ "$?" -ne "0" ]; then
     echo "Copy failed!"
     exit 1
 fi
+
+# Copy the system/service config files.
+echo "Copying system config files..."
+sudo cp psiphon-log-rotate.conf /etc/logrotate.d/
+sudo cp 20-psiphon-logging.conf /etc/rsyslog.d/
+sudo reload rsyslog
 
 # Create the cron jobs.
 echo "Creating cron jobs..."
@@ -38,9 +44,5 @@ if [ "$?" -ne "0" ]; then
     echo "Cron creation failed!"
     exit 1
 fi
-
-# Copy the system config files.
-sudo cp psiphon-log-rotate.conf /etc/logrotate.d/
-sudo cp 20-psiphon-logging.conf /etc/rsyslog.d/
 
 echo "Done"
