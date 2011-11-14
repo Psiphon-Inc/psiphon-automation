@@ -224,11 +224,11 @@ Email Responder Configuration
   responder will respond to, and the message bodies that will sent back to 
   those addresses. 
   
-* Note that /mail_responder_config and all subdirectories and files must be 
-  readable by everyone.
-
+* /mail_responder_config/conf.json must be writable by the normal (ubuntu) user
+  and readable by mail_responder.
+  
 * The file is in JSON format, with these fields:
-{"email_addr": {"body": [["mimetype", "body"], ...], "attach": "filename"}, ...}
+{"email_addr": {"body": [["mimetype", "body"], ...], "attachment_bucket": "bucketname"}, ...}
 
 For example:
 {
@@ -239,7 +239,7 @@ For example:
       ["plain", "English - https://example.com/en.html\n\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html"], 
       ["html", "<a href=\"https://example.com/en.html\">English - https://example.com/en.html</a><br>\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html<br>"]
     ],
-  "attach": null
+  "attachment_bucket": null
 }, 
 "justtext@example.com":
 {
@@ -247,10 +247,10 @@ For example:
     [
       ["plain", "English - https://example2.com/en.html\n\u0420\u0443\u0441\u0441\u043a\u0438\u0439 - https://example2.com/ru.html"]
     ], 
-  "attach": null
+  "attachment_bucket": null
 },
-"simplebody@example2.com": { "body": "Just a string", "attach": null },
-"attachment@example3.com": { "body": "I have an attachment", "attach": "abcd.exe" }
+"simplebody@example2.com": { "body": "Just a string", "attachment_bucket": null },
+"attachment@example3.com": { "body": "I have an attachment", "attachment_bucket": "aaaa-bbbb-cccc-dddd" }
 }
 
 * Things to notice about the format:
@@ -262,11 +262,10 @@ For example:
     whole email address is important.
   * The attachment can be null.
   * There can only be one attachment specified.
+  * The attachment file will have to exist at: {attachment_bucket}/{settings.S3_EXE_NAME}
 
 * NOTE: The *last* mimetype will be the one that's preferred by mail clients,
   so you should put the 'html' body last.
-
-* The default configuration for the location of attachments is /mail_responder_config/attachments
 
 
 Possible Issues

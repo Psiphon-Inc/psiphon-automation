@@ -25,42 +25,15 @@ import re
 import traceback
 import time
 import tempfile
+import hashlib
+from boto.s3.connection import S3Connection
+from boto.s3.key import Key
+from boto.exception import S3ResponseError
 
 import settings
 import sendmail
 import blacklist
 
-
-
-def strip_email(email_address):
-    '''
-    Strips something that looks like:
-        Fname Lname <mail@example.com>
-    Down to just mail@example.com and returns it. If passed a plain email address, 
-    will return that email. Returns False if bad email address.
-    '''
-
-    # This regex is adapted from:
-    # https://gitweb.torproject.org/gettor.git/blob/HEAD:/lib/gettor/requests.py
-    to_regex = '.*?(<)?([a-zA-Z0-9\+\.\-]+@[a-zA-Z0-9\+\.\-]+\.[a-zA-Z0-9\+\.\-]+)(?(1)>).*'
-    match = re.match(to_regex, email_address)
-    if match and match.group(2):
-        return match.group(2)
-    return False
-    
-
-def decode_header(header_val):
-    '''
-    Returns False if decoding fails. Otherwise returns the decoded value.
-    '''
-    try:
-        hdr = email.header.decode_header(header_val)
-        if not hdr: return False
-        text, encoding = hdr[0]
-        if not encoding: return text
-        return text.decode(encoding)        
-    except Exception:
-        return False
 
 
 class MailResponder:
@@ -91,12 +64,8 @@ class MailResponder:
             # Do some validation
             for key in self._conf.keys():
                 item = self._conf[key]
-                if not item.has_key('body') or not item.has_key('attach'):
-                    raise Exception('invalid config item: %s:%s', key, repr(item))
-                if item['attach']:
-                    item['attach'] = os.path.join(settings.ATTACHMENT_DIR, item['attach'])
-                    if not os.path.isfile(item['attach']):
-                        raise Exception('attachment file does not exist: %s:%s', key, repr(item))
+                if not item.has_key('body') or not item.has_key('attachment_bucket'):
+                    raise Exception('invalid config item: %s:%s', (key, repr(item)))
             
         except Exception as e:
             syslog.syslog(syslog.LOG_CRIT, 'error: config file read failed: %s' % e)
@@ -128,8 +97,8 @@ class MailResponder:
             return False
         
         attachment = None
-        if self._conf[self.requested_addr]['attach']:
-            attachment = (open(self._conf[self.requested_addr]['attach']),
+        if self._conf[self.requested_addr]['attachment_bucket']:
+            attachment = (get_s3_attachment(self._conf[self.requested_addr]['attachment_bucket']),
                           settings.ATTACHMENT_NAME)
 
         raw_response = sendmail.create_raw_email(self._requester_addr, 
@@ -211,6 +180,81 @@ class MailResponder:
         return False
         
 
+def strip_email(email_address):
+    '''
+    Strips something that looks like:
+        Fname Lname <mail@example.com>
+    Down to just mail@example.com and returns it. If passed a plain email address, 
+    will return that email. Returns False if bad email address.
+    '''
+
+    # This regex is adapted from:
+    # https://gitweb.torproject.org/gettor.git/blob/HEAD:/lib/gettor/requests.py
+    to_regex = '.*?(<)?([a-zA-Z0-9\+\.\-]+@[a-zA-Z0-9\+\.\-]+\.[a-zA-Z0-9\+\.\-]+)(?(1)>).*'
+    match = re.match(to_regex, email_address)
+    if match and match.group(2):
+        return match.group(2)
+    return False
+    
+
+def decode_header(header_val):
+    '''
+    Returns False if decoding fails. Otherwise returns the decoded value.
+    '''
+    try:
+        hdr = email.header.decode_header(header_val)
+        if not hdr: return False
+        text, encoding = hdr[0]
+        if not encoding: return text
+        return text.decode(encoding)        
+    except Exception:
+        return False
+
+
+def get_s3_attachment(bucketname):
+    '''
+    Returns a file-type object for the Psiphon 3 executable in the requested 
+    bucket.
+    This function checks if the file has already been downloaded. If it has, 
+    it checks that the checksum still matches the file in S3. If the file doesn't
+    exist, or if it the checksum doesn't match, the 
+    '''
+    
+    # Make the attachment cache dir, if it doesn't exist 
+    if not os.path.isdir(settings.ATTACHMENT_CACHE_DIR):
+        os.mkdir(settings.ATTACHMENT_CACHE_DIR)
+    
+    # Make the connection using the credentials in the boto config file.
+    conn = S3Connection()
+    
+    bucket = conn.get_bucket(bucketname)
+    key = bucket.get_key(settings.S3_EXE_NAME)
+    etag = key.etag.strip('"').lower()
+    
+    # We store the cached file with the bucket name as the filename
+    cache_path = os.path.join(settings.ATTACHMENT_CACHE_DIR, bucketname)
+    
+    # Check if the file exists. If so, check if it's stale.
+    if os.path.isfile(cache_path):
+        cache_file = open(cache_path, 'r')
+        cache_hex = hashlib.md5(cache_file.read()).hexdigest().lower()
+        
+        # Do the hashes match?
+        if etag == cache_hex:
+            cache_file.seek(0)
+            return cache_file
+        
+        cache_file.close()
+        
+    # The cached file either doesn't exist or is stale.
+    cache_file = open(cache_path, 'w')
+    key.get_file(cache_file)
+    
+    # Close the file and re-open for read-only
+    cache_file.close()
+    cache_file = open(cache_path, 'r')
+    
+    return cache_file
 
 
 if __name__ == '__main__':

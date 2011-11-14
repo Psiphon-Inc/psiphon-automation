@@ -39,8 +39,8 @@ DB_ROOT_PASSWORD = ''
 # The location of the config file. 
 CONFIG_FILEPATH = '/mail_responder_config/conf.json'
 
-# The directory where attachment files are to be found.
-ATTACHMENT_DIR = '/mail_responder_config/attachments'
+# The directory where attachment files are cached.
+ATTACHMENT_CACHE_DIR = os.path.expanduser('~/attach_cache')
 
 # We're going to use a fixed address to reply to all email from. 
 # The reasons for this are:
@@ -51,17 +51,27 @@ ATTACHMENT_DIR = '/mail_responder_config/attachments'
 # auto-verification mechanism.
 RESPONSE_FROM_ADDR = 'Psiphon Responder <noreply@psiphon3.com>'
 
+
+#
+# Attachment stuff
+#
+
+# The name of the Psiphon 3 executable in the S3 buckets.
+S3_EXE_NAME = 'psiphon3.exe'
+
 # The name of the attachment that's displayed in the email must be a filetype
 # that Amazon SES accepts as a MIME type. But we also want it to be a filetype
 # that doesn't usually have a file association (since we don't want anyone
 # accidentally double-clicking and trying to open it).
 ATTACHMENT_NAME = 'psiphon3.asc'
 
+
 #
 # Blacklist stuff
 #
 
 BLACKLIST_DAILY_LIMIT = 3
+
 
 #
 # Stats stuff
