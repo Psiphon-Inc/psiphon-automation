@@ -51,6 +51,11 @@ ATTACHMENT_DIR = '/mail_responder_config/attachments'
 # auto-verification mechanism.
 RESPONSE_FROM_ADDR = 'Psiphon Responder <noreply@psiphon3.com>'
 
+# The name of the attachment that's displayed in the email must be a filetype
+# that Amazon SES accepts as a MIME type. But we also want it to be a filetype
+# that doesn't usually have a file association (since we don't want anyone
+# accidentally double-clicking and trying to open it).
+ATTACHMENT_NAME = 'psiphon3.asc'
 
 #
 # Blacklist stuff

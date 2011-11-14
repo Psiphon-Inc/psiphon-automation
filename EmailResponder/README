@@ -26,11 +26,13 @@ OS
     > sudo mkdir /home/mail_responder
     > sudo chown mail_responder:mail_responder /home/mail_responder
 
-4. Create directory where the responder configuration file will go.
+4. Create directory where the responder configuration file and attachments will 
+   go.
     > sudo mkdir /mail_responder_config
+    > sudo mkdir /mail_responder_config/attachments
    Change the directory permissions so that the "normal" user (that will be used
    for connecting via ssh) can write and all users can read.
-   > sudo chown ubuntu:ubuntu -R /mail_responder_config
+    > sudo chown ubuntu:ubuntu -R /mail_responder_config /mail_responder_config/attachments
 
 
 SSH, fail2ban
@@ -221,6 +223,9 @@ Email Responder Configuration
 * The /mail_responder_config/conf.json file contains the addresses that the
   responder will respond to, and the message bodies that will sent back to 
   those addresses. 
+  
+* Note that /mail_responder_config and all subdirectories and files must be 
+  readable by everyone.
 
 * The file is in JSON format, with these fields:
 {"email_addr": {"body": [["mimetype", "body"], ...], "attach": "filename"}, ...}
@@ -261,6 +266,7 @@ For example:
 * NOTE: The *last* mimetype will be the one that's preferred by mail clients,
   so you should put the 'html' body last.
 
+* The default configuration for the location of attachments is /mail_responder_config/attachments
 
 
 Possible Issues

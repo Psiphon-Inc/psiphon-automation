@@ -93,9 +93,10 @@ class MailResponder:
                 item = self._conf[key]
                 if not item.has_key('body') or not item.has_key('attach'):
                     raise Exception('invalid config item: %s:%s', key, repr(item))
-                if item['attach'] and \
-                        not os.path.isfile(os.path.join(settings.ATTACHMENT_DIR, item['attach'])):
-                    raise Exception('attachment file does not exist: %s:%s', key, repr(item))
+                if item['attach']:
+                    item['attach'] = os.path.join(settings.ATTACHMENT_DIR, item['attach'])
+                    if not os.path.isfile(item['attach']):
+                        raise Exception('attachment file does not exist: %s:%s', key, repr(item))
             
         except Exception as e:
             syslog.syslog(syslog.LOG_CRIT, 'error: config file read failed: %s' % e)
@@ -128,7 +129,8 @@ class MailResponder:
         
         attachment = None
         if self._conf[self.requested_addr]['attach']:
-            attachment = open(self._conf[self.requested_addr]['attach'])
+            attachment = (open(self._conf[self.requested_addr]['attach']),
+                          settings.ATTACHMENT_NAME)
 
         raw_response = sendmail.create_raw_email(self._requester_addr, 
                                                  self._response_from_addr,
