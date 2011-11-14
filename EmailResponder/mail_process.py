@@ -45,8 +45,6 @@ class MailResponder:
 
     def __init__(self):
         self.requested_addr = None
-        self._conf = None
-        self._email = None
 
     def read_conf(self, conf_filepath):
         '''
@@ -79,6 +77,8 @@ class MailResponder:
         Processes the given email and sends a response.
         Returns True if successful, False or exception otherwise.
         '''
+        
+        self._email_string = email_string
 
         if not self._parse_email(email_string):
             return False
@@ -141,6 +141,7 @@ class MailResponder:
         if not self.requested_addr:
             # Bad address. Fail.
             syslog.syslog(syslog.LOG_INFO, 'fail: unparsable requested address')
+            dump_to_exception_file('fail: unparsable requested address\n\n%s' % self._email_string)
             return False
 
         # Convert to lowercase, since that's what's in the _conf and we want to 
@@ -258,6 +259,14 @@ def get_s3_attachment(bucketname):
     return cache_file
 
 
+def dump_to_exception_file(string):
+    if settings.EXCEPTION_DIR:
+        temp = tempfile.mkstemp(suffix='.txt', dir=settings.EXCEPTION_DIR)
+        tempfile = os.fdopen(temp[0], 'w')
+        tempfile.write(string)
+        tempfile.close()
+
+
 if __name__ == '__main__':
     '''
     Note that we always exit with 0 so that the email server doesn't complain.
@@ -292,12 +301,9 @@ if __name__ == '__main__':
         
         # Should we write this exception-causing email to disk?
         if settings.EXCEPTION_DIR and email_string:
-            temp = tempfile.mkstemp(suffix='.txt', dir=settings.EXCEPTION_DIR)
-            tempfile = os.fdopen(temp[0], 'w')
-            tempfile.write('Exception caught: %s\n' % ex)
-            tempfile.write('%s\n\n' % traceback.format_exc())
-            tempfile.write(email_string)
-            tempfile.close()
+            dump_to_exception_file('Exception caught: %s\n%s\n\n%s' % (ex, 
+                                                                       traceback.format_exc(), 
+                                                                       email_string))
     else:
         syslog.syslog(syslog.LOG_INFO, 
                       'success: %s: %fs' % (responder.requested_addr, time.clock()-starttime))
