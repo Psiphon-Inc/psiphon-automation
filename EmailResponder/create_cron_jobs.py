@@ -58,7 +58,7 @@ class CronCreator(object):
         
     def _maintenance_jobs(self):
         # Clears the postfix message queue
-        command = "for i in `mailq|grep '@' |awk {'print $1'}|grep -v '@'`; do sudo postsuper -d $i ; done"
+        command = "sudo postsuper -d ALL"
         self.normal_tab.remove_all(command)
         cron = self.normal_tab.new(command=command)
         self._make_daily(cron)
