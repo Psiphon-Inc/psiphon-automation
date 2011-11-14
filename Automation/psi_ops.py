@@ -596,10 +596,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for sponsor in self.__sponsors.itervalues():
             for campaign in sponsor.campaigns:
                 if campaign.propagation_mechanism_type == 'email-autoresponder':
-                    emails[campaign.account.email_address] = [
-                        ['plaintext', psi_templates.get_plaintext_email_content(campaign.s3_bucket_name)],
-                        ['html', psi_templates.get_html_email_content(campaign.s3_bucket_name)]
-                    ]
+                    emails[campaign.account.email_address] = \
+                    {
+                     'body': 
+                        [
+                            ['plaintext', psi_templates.get_plaintext_email_content(campaign.s3_bucket_name)],
+                            ['html', psi_templates.get_html_email_content(campaign.s3_bucket_name)]
+                        ],
+                     'attachment_bucket': campaign.s3_bucket_name
+                    }
                     campaign.log('configuring email')
                     
         with tempfile.NamedTemporaryFile() as file:
