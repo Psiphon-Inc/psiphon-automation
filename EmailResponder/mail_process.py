@@ -29,6 +29,7 @@ import hashlib
 from boto.s3.connection import S3Connection
 from boto.s3.key import Key
 from boto.exception import S3ResponseError
+from boto.exception import BotoServerError
 
 import settings
 import sendmail
@@ -67,8 +68,8 @@ class MailResponder:
                 if not item.has_key('body') or not item.has_key('attachment_bucket'):
                     raise Exception('invalid config item: %s:%s', (key, repr(item)))
             
-        except Exception as e:
-            syslog.syslog(syslog.LOG_CRIT, 'error: config file read failed: %s' % e)
+        except Exception as ex:
+            syslog.syslog(syslog.LOG_CRIT, 'error: config file read failed: %s' % ex)
             return False
 
         return True
@@ -276,17 +277,24 @@ if __name__ == '__main__':
         if not responder.read_conf(settings.CONFIG_FILEPATH):
             exit(0)
 
-        if not responder.process_email(email_string):
-            exit(0)
-
-    except Exception as e:
-        syslog.syslog(syslog.LOG_CRIT, 'exception: %s: %s' % (e, traceback.format_exc()))
+        try:
+            if not responder.process_email(email_string):
+                exit(0)
+        except BotoServerError as ex:
+            if ex.error_message == 'Address blacklisted.':
+                syslog.syslog(syslog.LOG_CRIT, 'fail: requester address blacklisted by SES')
+                exit(0)
+            else:
+                raise
+            
+    except Exception as ex:
+        syslog.syslog(syslog.LOG_CRIT, 'exception: %s: %s' % (ex, traceback.format_exc()))
         
         # Should we write this exception-causing email to disk?
         if settings.EXCEPTION_DIR and email_string:
             temp = tempfile.mkstemp(suffix='.txt', dir=settings.EXCEPTION_DIR)
             tempfile = os.fdopen(temp[0], 'w')
-            tempfile.write('Exception caught: %s\n' % e)
+            tempfile.write('Exception caught: %s\n' % ex)
             tempfile.write('%s\n\n' % traceback.format_exc())
             tempfile.write(email_string)
             tempfile.close()
