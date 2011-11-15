@@ -268,6 +268,14 @@ For example:
   so you should put the 'html' body last.
 
 
+Appendix
+--------------------------------------------------------------------------------
+
+In order for our responses to not be flagged as spam, these guidelines should be 
+followed:
+http://docs.amazonwebservices.com/ses/latest/DeveloperGuide/index.html?SPFSenderIDDKIM.html
+
+
 Possible Issues
 --------------------------------------------------------------------------------
 
