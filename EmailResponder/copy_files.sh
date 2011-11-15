@@ -43,7 +43,10 @@ sudo sed "s/RECIPIENT_ADDRESS = 'mail@example.com'/RECIPIENT_ADDRESS = '$STATS_M
 sudo mv settings.tmp $MAIL_HOME/settings.py
 
 # Fix ownership of the files
-sudo chown mail_responder:mail_responder $MAIL_HOME/* $MAIL_HOME/.forward 
+sudo chown mail_responder:mail_responder $MAIL_HOME/* $MAIL_HOME/.forward
+
+# Make the files readable by anyone (e.g., other users will use them for cron jobs)
+sudo chmod a+r  $MAIL_HOME/* $MAIL_HOME/.forward
 
 # Nuke the compiled Python files, just in case.
 sudo rm $MAIL_HOME/*.pyc

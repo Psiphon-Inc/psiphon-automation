@@ -23,14 +23,76 @@ The MailStats class can be used to record stats about the mail responder.
 '''
 
 import json
-import argparse
+import re
 from boto.ses.connection import SESConnection
+
 import settings
 import sendmail
 
 
+def process_log_file(logfile):
+    '''
+    Takes a file-like object, processes it, extracts info about activity, and 
+    returns a human-readable text summary of its contents.
+    '''
+    
+    logtypes = {
+                'success': {
+                            'regex': re.compile('mail_process.py: success: (.*):'),
+                            'results': {}
+                            },
+                'fail': {
+                            'regex': re.compile('mail_process.py: fail: (.*)'),
+                            'results': {}
+                            },
+                'exception': {
+                              'regex': re.compile('mail_process.py: exception: (.*)'),
+                              'results': {}
+                              },
+                'error': {
+                          'regex': re.compile('mail_process.py: error: (.*)'),
+                          'results': {}
+                          },
+                }
+    
+    unmatched_lines = []
+    
+    while True:
+        line = logfile.readline()
+        if not line: break
+        line = line.strip()
+        
+        match = False
+        for logtype in logtypes.values():
+            res = logtype['regex'].search(line)
+            if not res: continue
+            
+            val = res.groups()[0]
+            logtype['results'][val] = logtype['results'][val]+1 if logtype['results'].has_key(val) else 1
+            
+            match = True
+            break
+        
+        if not match:
+            unmatched_lines.append(line)
+
+    text = ''
+    for logtype_name in logtypes:
+        text += '\n%s\n----------------------\n\n' % logtype_name
+        for info, count in logtypes[logtype_name]['results'].iteritems():
+            text += '%s\nCOUNT: %d\n\n' % (info, count)
+        
+    text += '\n\nunmatched lines\n---------------------------\n'
+    text += '\n'.join(unmatched_lines)
+    
+    return text
+
 
 if __name__ == '__main__':
+
+    logfile = open(settings.LOG_FILENAME, 'r')
+    loginfo = process_log_file(logfile)
+    logfile.close()
 
     # Open the connection. Uses creds from boto conf or env vars.
     conn = SESConnection()
@@ -43,7 +105,8 @@ if __name__ == '__main__':
     
     email_body = ''
     email_body += json.dumps(quota, indent=2)
-    email_body += '\n\n'
+    email_body += '\n\n\n'
+    email_body += loginfo
 
     subject = '[MailResponder] Stats'
 

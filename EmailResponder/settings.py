@@ -82,6 +82,9 @@ STATS_RECIPIENT_ADDRESS = 'mail@example.com'
 # The address from which the stats email should be sent.
 STATS_SENDER_ADDRESS = 'Psiphon Responder <noreply@psiphon3.com>'
 
+# The location of our log file
+LOG_FILENAME = '/var/log/mail_responder.log'
+
 
 #
 # SES email verification stuff
