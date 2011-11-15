@@ -44,12 +44,6 @@ class CronCreator(object):
         cron.minute().on(0)
         cron.hour().on(0)
         
-    def _stats_jobs(self):
-        command = '/usr/bin/python %s' % os.path.join(self.dir, 'mail_stats.py')
-        self.normal_tab.remove_all(command)
-        cron = self.normal_tab.new(command=command)
-        self._make_daily(cron)
-        
     def _blacklist_jobs(self):
         command = '/usr/bin/python %s' % os.path.join(self.dir, 'blacklist.py --clear')
         self.mail_tab.remove_all(command)

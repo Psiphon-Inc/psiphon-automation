@@ -90,9 +90,15 @@ def process_log_file(logfile):
 
 if __name__ == '__main__':
 
-    logfile = open(settings.LOG_FILENAME, 'r')
-    loginfo = process_log_file(logfile)
-    logfile.close()
+    # We want to process the most recently rotated file (so that we're processing
+    # a whole day of results, and not a partial day).
+    loginfo = ''
+    try:
+        logfile = open('%s.1'%settings.LOG_FILENAME, 'r')
+        loginfo = process_log_file(logfile)
+        logfile.close()
+    except:
+        pass
 
     # Open the connection. Uses creds from boto conf or env vars.
     conn = SESConnection()
