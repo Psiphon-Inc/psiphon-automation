@@ -262,9 +262,9 @@ def get_s3_attachment(bucketname):
 def dump_to_exception_file(string):
     if settings.EXCEPTION_DIR:
         temp = tempfile.mkstemp(suffix='.txt', dir=settings.EXCEPTION_DIR)
-        tempfile = os.fdopen(temp[0], 'w')
-        tempfile.write(string)
-        tempfile.close()
+        f = os.fdopen(temp[0], 'w')
+        f.write(string)
+        f.close()
 
 
 if __name__ == '__main__':
