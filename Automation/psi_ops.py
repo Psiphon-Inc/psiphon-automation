@@ -386,6 +386,46 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             return servers[0]
         return None
 
+    def import_host(self, id, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
+                    stats_ssh_username, stats_ssh_password):
+        host = Host(
+                id,
+                provider_id,
+                ip_address,
+                ssh_port,
+                ssh_username,
+                ssh_password,
+                ssh_host_key,
+                stats_ssh_username,
+                stats_ssh_password)
+
+        assert(host.id not in self.__hosts)
+        self.__hosts[host.id] = host
+
+    def import_server(self, server_id, host_id, ip_address, egress_ip_address, propagation_channel_id,
+                      is_embedded, discovery_date_range, web_server_port, web_server_secret,
+                      web_server_certificate, web_server_private_key, ssh_port, ssh_username,
+                      ssh_password, ssh_host_key):
+        server = Server(
+                    server_id,
+                    host_id,
+                    ip_address,
+                    egress_ip_address,
+                    propagation_channel_id,
+                    is_embedded,
+                    discovery_date_range,
+                    web_server_port,
+                    web_server_secret,
+                    web_server_certificate,
+                    web_server_private_key,
+                    ssh_port,
+                    ssh_username,
+                    ssh_password,
+                    ssh_host_key)
+                    
+        assert(server.id not in self.__servers)
+        self.__servers[server.id] = server
+
     def add_server(self, propagation_channel_name, discovery_date_range):
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
 
