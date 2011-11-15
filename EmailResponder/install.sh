@@ -40,7 +40,7 @@ sudo cp mail_process.py sendmail.py blacklist.py mail_stats.py $MAIL_HOME
 sudo cp forward $MAIL_HOME/.forward
 
 # settings.py needs to have a line replaced with the real stats address
-sudo sed "s/RECIPIENT_ADDRESS = 'mail@example.com'/RECIPIENT_ADDRESS = '$STATS_MAIL_ADDR'/g" settings.py > settings.tmp 
+sed "s/RECIPIENT_ADDRESS = 'mail@example.com'/RECIPIENT_ADDRESS = '$STATS_MAIL_ADDR'/g" settings.py > settings.tmp 
 sudo mv settings.tmp $MAIL_HOME/settings.py
 
 # Fix ownership of the files
@@ -55,7 +55,7 @@ sudo rm $MAIL_HOME/*.pyc
 
 # Copy the system/service config files.
 echo "Copying system config files..."
-sed "s/\(.*\)%MAIL_HOME%\(.*\)/\1$MAIL_HOME\2/g" psiphon-log-rotate.conf > psiphon-log-rotate.tmp 
+sed "s|\(.*\)%MAIL_HOME%\(.*\)|\1$MAIL_HOME\2|g" psiphon-log-rotate.conf > psiphon-log-rotate.tmp 
 sudo mv psiphon-log-rotate.tmp /etc/logrotate.d/psiphon-log-rotate.conf
 sudo cp 20-psiphon-logging.conf /etc/rsyslog.d/
 sudo reload rsyslog

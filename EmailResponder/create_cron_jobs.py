@@ -34,7 +34,6 @@ class CronCreator(object):
         
     def go(self):
         self._maintenance_jobs()
-        self._stats_jobs()
         self._blacklist_jobs()
         self.normal_tab.write()
         self.mail_tab.write()
