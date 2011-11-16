@@ -24,12 +24,15 @@ import zipfile
 import os, os.path
 import StringIO 
 import csv
+import zlib
+import tarfile
 
 
 GEO_DATA_ROOT = os.path.join(os.path.abspath('..'), 'Data', 'GeoData')
 GEO_ZIP_FILENAME = 'maxmind_data.zip'
 GEO_ZIP_PATH = os.path.join(GEO_DATA_ROOT, GEO_ZIP_FILENAME)
 GEO_ROUTES_ROOT = os.path.join(GEO_DATA_ROOT, 'Routes')
+
 
 def recache_geodata(url):
     # getting the file age
@@ -70,7 +73,8 @@ def recache_geodata(url):
     else:
         print("The geodata file is not modified, using cached version")
 
-def consume_line(start_ip, end_ip, country_code):
+
+def consume_line(files, start_ip, end_ip, country_code):
     start = ip2int(start_ip)
     end = ip2int(end_ip)
 
@@ -78,10 +82,17 @@ def consume_line(start_ip, end_ip, country_code):
     if not start or not end or len(country_code) != 2:
         return False
 
+    path = os.path.join(GEO_ROUTES_ROOT, '%s.route' % country_code)
+    if path in files:
+        file = files[path]
+    else:
+        file = open(path, 'a+')
+        files[path] = file
+
     base = start
     step = 0
     while base <= end:
-        step =0
+        step = 0
         while base | (1 << step) != base:
             if (base | (((~0) & 0xffffffff) >> (31-step))) > end:
                 break
@@ -90,10 +101,9 @@ def consume_line(start_ip, end_ip, country_code):
         # In case CIDR is needed 
         #cidr = 32 - step
         bitmask = 0xffffffff ^ (1 << step) - 1
-        filename = os.path.join(GEO_ROUTES_ROOT, '%s.route' % country_code)
-        with open(filename, 'a') as f:
-            f.write( "%s\t%s\n" % (int2ip(base), int2ip(bitmask)))
+        file.write( "%s\t%s\n" % (int2ip(base), int2ip(bitmask)))
         base += 1 << step
+
 
 def ip2int(ip):
     try:
@@ -102,13 +112,13 @@ def ip2int(ip):
         return False
     return struct.unpack('!I', val)[0]
 
+
 def int2ip(ip):
     val = struct.pack('!I', ip)
     try:
         return socket.inet_ntoa(val)
     except socket.error:
         return False
-
 
 
 def make_routes():
@@ -146,13 +156,31 @@ def make_routes():
         for name in files:
             os.remove(os.path.join(root, name))
 
+    # Keep route files open for appending while processing CSV
+    files = {}
+
     myreader = csv.reader(data, delimiter=',', quotechar='"')
     for row in myreader:
         if len(row) == 6:
             ip1 = row[0]
             ip2 = row[1]
             country_code = row[4]
-            consume_line(ip1, ip2, country_code)
+            consume_line(files, ip1, ip2, country_code)
+
+    # Close route files and make zlib compressed copies
+    # Create single file archive containing all zlib route files
+    tar = tarfile.open(name='routes.tar.gz', mode='w:gz')
+    for path, file in files.iteritems():
+        file.flush()
+        file.seek(0)
+        data = file.read()
+        file.close()
+        zip_path = path + '.zip'
+        with open(zip_path, 'w') as zip_file:
+            zip_file.write(zlib.compress(data))
+        tar.add(zip_path, arcname=os.path.split(zip_path)[1], recursive=False)
+    tar.close()
+
 
 if __name__ == "__main__":
     make_routes()
