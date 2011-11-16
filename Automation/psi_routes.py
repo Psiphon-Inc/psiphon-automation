@@ -169,16 +169,18 @@ def make_routes():
 
     # Close route files and make zlib compressed copies
     # Create single file archive containing all zlib route files
+    # Using zlib format to compress data, which client expects and
+    # handles; note, this isn't .zip or .gz format.
     tar = tarfile.open(name='routes.tar.gz', mode='w:gz')
     for path, file in files.iteritems():
         file.flush()
         file.seek(0)
         data = file.read()
         file.close()
-        zip_path = path + '.zip'
-        with open(zip_path, 'w') as zip_file:
-            zip_file.write(zlib.compress(data))
-        tar.add(zip_path, arcname=os.path.split(zip_path)[1], recursive=False)
+        zlib_path = path + '.zlib'
+        with open(zlib_path, 'w') as zlib_file:
+            zlib_file.write(zlib.compress(data))
+        tar.add(zlib_path, arcname=os.path.split(zlib_path)[1], recursive=False)
     tar.close()
 
 
