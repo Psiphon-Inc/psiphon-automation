@@ -252,7 +252,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     self.__hosts[s.host_id].ssh_username,
                     self.__hosts[s.host_id].ssh_password,
                     s.ip_address,
-                    self.__propagation_channels[s.propagation_channel_id].name,
+                    self.__propagation_channels[s.propagation_channel_id].name if s.propagation_channel_id else 'None',
                     s.is_embedded,
                     ('%s-%s' % (s.discovery_date_range[0].isoformat(),
                                 s.discovery_date_range[1].isoformat())) if s.discovery_date_range else 'None')
