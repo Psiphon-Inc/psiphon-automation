@@ -86,7 +86,7 @@ def consume_line(files, start_ip, end_ip, country_code):
     if path in files:
         file = files[path]
     else:
-        file = open(path, 'a+')
+        file = open(path, 'a')
         files[path] = file
 
     base = start
@@ -173,12 +173,11 @@ def make_routes():
     # handles; note, this isn't .zip or .gz format.
     tar = tarfile.open(name='routes.tar.gz', mode='w:gz')
     for path, file in files.iteritems():
-        file.flush()
-        file.seek(0)
-        data = file.read()
         file.close()
+        with open(path, 'r') as file:
+            data = file.read()
         zlib_path = path + '.zlib'
-        with open(zlib_path, 'w') as zlib_file:
+        with open(zlib_path, 'wb') as zlib_file:
             zlib_file.write(zlib.compress(data))
         tar.add(zlib_path, arcname=os.path.split(zlib_path)[1], recursive=False)
     tar.close()
