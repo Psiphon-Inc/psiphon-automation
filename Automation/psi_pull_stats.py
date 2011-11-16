@@ -691,13 +691,13 @@ if __name__ == "__main__":
         for host in hosts:
             pull_stats(db, error_file, host)
 
-        # Compute sessions from connected/disconnected records
-
-        reconstruct_sessions(db, start_date)
-
         # Pull netflows from each host and process them
         # Avoid doing this on Windows, where nfdump is not available
         if os.name == 'posix':
+            # Compute sessions from connected/disconnected records
+    
+            reconstruct_sessions(db, start_date)
+
             for host in hosts:
 
                 csv_file_path = pull_netflows(host, netflows_start_date)

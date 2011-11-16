@@ -725,6 +725,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__stats_server_account.log('set to %s' % (ip_address,))
 
     def __get_encoded_server_entry(self, server):
+        # Double-check that we're not giving our blank server credentials
+        # ...this has happened in the past when following manual build steps
+        assert(len(server.ip_address) > 1)
+        assert(len(server.web_server_port) > 1)
+        assert(len(server.web_server_secret) > 1)
+        assert(len(server.web_server_certificate) > 1)
         return binascii.hexlify('%s %s %s %s' % (
                                     server.ip_address,
                                     server.web_server_port,
