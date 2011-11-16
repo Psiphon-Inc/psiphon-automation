@@ -28,6 +28,7 @@ import binascii
 import base64
 import jsonpickle
 import tempfile
+import pprint
 
 import psi_utils
 import psi_ops_cms
@@ -37,12 +38,13 @@ try:
     import psi_linode
     import psi_templates
     import psi_ops_s3
-    import psi_ops_twitter
     import psi_ops_install
     import psi_ops_deploy
     import psi_ops_build
-except ImportError:
-    pass
+    import psi_ops_test
+    import psi_ops_twitter
+except ImportError as error:
+    print error
 
 try:
     # Modules available only on the node server
@@ -508,7 +510,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # the stats and email server
         self.deploy()
 
-    def build_and_test(self, propagation_channel_name, sponsor_name, test=False):
+    def build(self, propagation_channel_name, sponsor_name, test=False):
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
         sponsor = self.__get_sponsor_by_name(sponsor_name)
         version = self.__client_versions[-1].version
@@ -522,7 +524,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         sponsor.id,
                         base64.b64decode(sponsor.banner),
                         encoded_server_list,
-                        expected_egress_ip_addresses,
                         version,
                         test)
 
@@ -572,7 +573,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 
                 # A sponsor may use the same propagation channel for multiple
                 # campaigns; we need only build and upload the client once.
-                build_filenames[target] = self.build_and_test(propagation_channel.name, sponsor.name)
+                build_filenames[target] = self.build(propagation_channel.name, sponsor.name)
 
             build_filename = build_filenames[target]
 
@@ -826,10 +827,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             output.append('Upgrade: %s' % (upgrade_client_version,))
     
         # Discovery
-        for encoded_server_entry in self.__get_encoded_server_list(
+        encoded_server_list, expected_egress_ip_addresses = \
+                    self.__get_encoded_server_list(
                                                 propagation_channel_id,
                                                 client_ip_address,
-                                                event_logger=event_logger):
+                                                event_logger=event_logger)
+        for encoded_server_entry in encoded_server_list:
             output.append('Server: %s' % (encoded_server_entry,))
     
         # VPN relay protocol info
@@ -955,7 +958,45 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         return jsonpickle.encode(copy)
 
+    def __test_server(self, server, test_web_server, test_vpn, test_ssh):
+        return psi_ops_test.test_server(
+                                server.ip_address,
+                                server.web_server_port,
+                                server.web_server_secret,
+                                [self.__get_encoded_server_entry(server)],
+                                self.__client_versions[-1].version,
+                                [server.egress_ip_address],
+                                test_web_server,
+                                test_vpn,
+                                test_ssh)
 
+    def __test_servers(self, servers, test_web_server, test_vpn, test_ssh):
+        results = {}
+        for server in servers:
+            results[server.id] = self.__test_server(server, test_web_server, test_vpn, test_ssh)
+        pprint.pprint(results)
+        
+    def test_server(self, server_id, test_web_server=True, test_vpn=True, test_ssh=True):
+        if not server_id in self.__servers:
+            print 'Server "%s" not found' % (server_id,)
+        elif self.__servers[server_id].propagation_channel_id == None:
+            print 'Server "%s" does not have a propagation channel id' % (server_id,)
+        else:
+            servers = [self.__servers[server_id]]
+            self.__test_servers(servers, test_web_server, test_vpn, test_ssh)
+
+    def test_host(self, host_id, test_web_server=True, test_vpn=True, test_ssh=True):
+        if not host_id in self.__hosts:
+            print 'Host "%s" not found' % (host_id,)
+        else:
+            servers = [server for server in self.__servers.itervalues() if server.host_id == host_id and server.propagation_channel_id != None]
+            self.__test_servers(servers, test_web_server, test_vpn, test_ssh)
+
+    def test_servers(self, test_web_server=True, test_vpn=True, test_ssh=True):
+        servers = [server for server in self.__servers.itervalues() if server.propagation_channel_id != None]
+        self.__test_servers(servers, test_web_server, test_vpn, test_ssh)
+
+        
 def unit_test():
     psinet = PsiphonNetwork()
     psinet.add_propagation_channel('email-channel', ['email-autoresponder'])
