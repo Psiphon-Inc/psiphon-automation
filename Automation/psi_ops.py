@@ -978,9 +978,21 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def __test_servers(self, servers, test_web_server, test_vpn, test_ssh):
         results = {}
+        passes = 0
+        failures = 0
         for server in servers:
-            results[server.id] = self.__test_server(server, test_web_server, test_vpn, test_ssh)
+            result = self.__test_server(server, test_web_server, test_vpn, test_ssh)
+            results[server.id] = result
+            for test_result in result.itervalues():
+                if 'FAIL' in test_result:
+                    failures += 1
+                else:
+                    passes += 1
         pprint.pprint(results)
+        print 'servers tested: %d' % (len(servers),)
+        print 'tests passed:   %d' % (passes,)
+        print 'tests failed:   %d' % (failures,)
+        print 'SUCCESS' if failures == 0 else 'FAIL'
         
     def test_server(self, server_id, test_web_server=True, test_vpn=True, test_ssh=True):
         if not server_id in self.__servers:
