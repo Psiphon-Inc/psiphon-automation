@@ -102,9 +102,11 @@ class MailResponder:
             attachment = (get_s3_attachment(self._conf[self.requested_addr]['attachment_bucket']),
                           settings.ATTACHMENT_NAME)
         
-        extra_headers = None
+        extra_headers = { 'Reply-To': self.requested_addr }
+        
         if self._requester_msgid:
-            extra_headers = { 'In-Reply-To': self._requester_msgid, 'References': self._requester_msgid }
+            extra_headers['In-Reply-To'] = self._requester_msgid
+            extra_headers['References'] = self._requester_msgid
 
         raw_response = sendmail.create_raw_email(self._requester_addr, 
                                                  self._response_from_addr,
