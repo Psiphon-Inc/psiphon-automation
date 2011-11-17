@@ -32,6 +32,8 @@ GEO_DATA_ROOT = os.path.join(os.path.abspath('..'), 'Data', 'GeoData')
 GEO_ZIP_FILENAME = 'maxmind_data.zip'
 GEO_ZIP_PATH = os.path.join(GEO_DATA_ROOT, GEO_ZIP_FILENAME)
 GEO_ROUTES_ROOT = os.path.join(GEO_DATA_ROOT, 'Routes')
+GEO_ROUTES_EXTENSION = '.zlib'
+GEO_ROUTES_ARCHIVE_PATH = os.path.join(GEO_ROUTES_ROOT, 'routes.tar.gz')
 
 
 def recache_geodata(url):
@@ -171,12 +173,12 @@ def make_routes():
     # Create single file archive containing all zlib route files
     # Using zlib format to compress data, which client expects and
     # handles; note, this isn't .zip or .gz format.
-    tar = tarfile.open(name='routes.tar.gz', mode='w:gz')
+    tar = tarfile.open(name=GEO_ROUTES_ARCHIVE_PATH, mode='w:gz')
     for path, file in files.iteritems():
         file.close()
         with open(path, 'r') as file:
             data = file.read()
-        zlib_path = path + '.zlib'
+        zlib_path = path + GEO_ROUTES_EXTENSION
         with open(zlib_path, 'wb') as zlib_file:
             zlib_file.write(zlib.compress(data))
         tar.add(zlib_path, arcname=os.path.split(zlib_path)[1], recursive=False)
