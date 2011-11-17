@@ -78,7 +78,11 @@ def create_raw_email(recipient, from_address, subject, body, attachment=None, ex
     
     if extra_headers:
         for header_name, header_value in extra_headers.iteritems():
-            msgRoot[header_name] = Header(header_value.encode('utf-8'), 'UTF-8').encode()
+            # We need a special case for the Reply-To header. Like To and From,
+            # it needs to be ASCII encoded.
+            encoding = 'UTF-8'
+            if header_name.lower() == 'reply-to': encoding = 'ascii'
+            msgRoot[header_name] = Header(header_value.encode('utf-8'), encoding).encode()
     
     # The MIME section that contains the plaintext and HTML alternatives.
     msgAlternative = MIMEMultipart('alternative')
