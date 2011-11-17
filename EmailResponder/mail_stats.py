@@ -54,6 +54,7 @@ def process_log_file(logfile):
                           'results': {}
                           },
                 }
+    logtype_order = ('success', 'fail', 'exception', 'error')
     
     unmatched_lines = []
     
@@ -77,7 +78,7 @@ def process_log_file(logfile):
             unmatched_lines.append(line)
 
     text = ''
-    for logtype_name in logtypes:
+    for logtype_name in logtype_order:
         text += '\n%s\n----------------------\n\n' % logtype_name
         for info, count in logtypes[logtype_name]['results'].iteritems():
             text += '%s\nCOUNT: %d\n\n' % (info, count)
