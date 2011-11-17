@@ -35,6 +35,7 @@ import psi_ops_cms
 
 try:
     # Modules available only on the automation server
+    import psi_ssh
     import psi_linode
     import psi_templates
     import psi_ops_s3
@@ -147,7 +148,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__deploy_data_required_for_all = False
         self.__deploy_builds_required_for_campaigns = set()
         self.__deploy_stats_config_required = False
-        self.__deploy_email_push_required = False
+        self.__deploy_email_config_required = False
 
     def show_status(self):
         # NOTE: verbose mode prints credentials to stdout
@@ -187,7 +188,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 'Yes' if self.__deploy_data_required_for_all else 'No',
                 len(self.__deploy_builds_required_for_campaigns),
                 'Yes' if self.__deploy_stats_config_required else 'No',
-                'Yes' if self.__deploy_email_push_required else 'No')
+                'Yes' if self.__deploy_email_config_required else 'No')
 
     def __show_logs(self, obj):
         for timestamp, message in obj.get_logs():
@@ -597,8 +598,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 campaign.log('tweeted')
             elif campaign.propagation_mechanism_type == 'email-autoresponder':
                 campaign.s3_bucket_name = s3_bucket_name
-                if not self.__deploy_email_push_required:
-                    self.__deploy_email_push_required = True
+                if not self.__deploy_email_config_required:
+                    self.__deploy_email_config_required = True
                     campaign.log('email push scheduled')
 
         self.__deploy_builds_required_for_campaigns.clear()
@@ -609,9 +610,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.push_stats_config()
             self.__deploy_stats_config_required = False
 
-        if self.__email_push_required:
-            self.push_email()
-            self.__email_push_required = False
+        if self.__deploy_email_config_required:
+            self.push_email_config()
+            self.__deploy_email_config_required = False
 
         # Ensure deploy flags and new propagation info (S3 bucket names)
         # are stored to CMS
@@ -621,8 +622,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def push_stats_config(self):
         # TODO: test
         pass
-        #with tempfile.NamedTemporaryFile() as file:
-        #    file.write(json.dumps(self.__compartmentalize_data_for_stats_server()))
+        #with tempfile.NamedTemporaryFile() as temp_file:
+        #    temp_file.write(json.dumps(self.__compartmentalize_data_for_stats_server()))
         #    ssh = psi_ssh.SSH(*self.__stats_server_account)
         #    ssh.put_file(temp_file.name, STATS_SERVER_CONFIG_FILE_PATH)
         #    self.__stats_server_account.log('pushed')
@@ -641,15 +642,17 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     {
                      'body': 
                         [
-                            ['plaintext', psi_templates.get_plaintext_email_content(campaign.s3_bucket_name)],
+                            ['plain', psi_templates.get_plaintext_email_content(campaign.s3_bucket_name)],
                             ['html', psi_templates.get_html_email_content(campaign.s3_bucket_name)]
                         ],
                      'attachment_bucket': campaign.s3_bucket_name
                     }
                     campaign.log('configuring email')
-                    
-        with tempfile.NamedTemporaryFile() as file:
-            file.write(json.dumps(emails))
+        
+        temp_file = tempfile.NamedTemporaryFile(delete=False)
+        try:
+            temp_file.write(json.dumps(emails))
+            temp_file.close()
             ssh = psi_ssh.SSH(
                     self.__email_server_account.ip_address,
                     self.__email_server_account.ssh_port,
@@ -661,7 +664,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     temp_file.name,
                     self.__email_server_account.config_file_path)
             self.__email_server_account.log('pushed')
-
+        finally:
+            try:
+                os.remove(temp_file.name)
+            except:
+                pass
+            
     def add_server_version(self):
         # Marks all hosts for re-deployment of server implementation
         for host in self.__hosts.itervalues():
