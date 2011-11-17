@@ -23,6 +23,7 @@ import os
 import posixpath
 import sys
 import psi_ssh
+import psi_routes
 
 sys.path.insert(0, os.path.abspath(os.path.join('..', 'Server')))
 import psi_config
@@ -138,7 +139,7 @@ def deploy_data(host, host_data):
     ssh.close()
 
 
-def deploy_builds(host, build_filename):
+def deploy_build(host, build_filename):
 
     print 'deploy %s build to host %s...' % (build_filename, host.id,)
 
@@ -153,5 +154,27 @@ def deploy_builds(host, build_filename):
         build_filename,
         posixpath.join(psi_config.UPGRADE_DOWNLOAD_PATH,
                        os.path.split(build_filename)[1]))
+
+    ssh.close()
+
+
+def deploy_routes(host, build_filename):
+
+    print 'deploy routes to host %s...' % (host.id,)
+
+    ssh = psi_ssh.SSH(
+            host.ip_address, host.ssh_port,
+            host.ssh_username, host.ssh_password,
+            host.ssh_host_key)
+
+    target_filename = posixpath.join(
+                            psi_config.ROUTES_PATH,
+                            os.path.split(psi_routes.GEO_ROUTES_ARCHIVE_PATH)[1])
+
+    ssh.put_file(
+        psi_routes.GEO_ROUTES_ARCHIVE_PATH,
+        target_filename)
+
+    ssh.exec_command('tar xfz %s' % (target_filename,))
 
     ssh.close()

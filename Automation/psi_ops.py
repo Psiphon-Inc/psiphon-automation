@@ -44,6 +44,7 @@ try:
     import psi_ops_build
     import psi_ops_test
     import psi_ops_twitter
+    import psi_routes
 except ImportError as error:
     print error
 
@@ -465,6 +466,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         psi_ops_deploy.deploy_data(
                             host,
                             self.__compartmentalize_data_for_host(host.id))
+        psi_ops_deploy.deploy_routes(host)
         host.log('initial deployment')
 
         # Update database
@@ -585,7 +587,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # downloaded from multiple propagation channels, and might therefore be connecting
             # to a server from one propagation channel using a build from a different one.
             for host in self.__hosts.itervalues():
-                psi_ops_deploy.deploy_builds(host, build_filename)
+                psi_ops_deploy.deploy_build(host, build_filename)
 
             # Publish to propagation mechanisms
 
@@ -618,6 +620,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # are stored to CMS
 
         self.save()
+
+    def update_routes(self):
+        psi_routes.make_routes()
+        for host in self.__hosts.itervalues():
+            psi_ops_deploy.deploy_routes(host)
+            host.log('deploy routes')
 
     def push_stats_config(self):
         # TODO: test
