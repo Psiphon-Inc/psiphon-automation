@@ -27,13 +27,14 @@ from boto.ses.connection import SESConnection
 
 
 # Adapted from http://radix.twistedmatrix.com/2010/07/how-to-send-good-unicode-email-with.html
-def create_raw_email(recipient, from_address, subject, body, attachment=None):
+def create_raw_email(recipient, from_address, subject, body, attachment=None, extra_headers=None):
     '''
     Creates a i18n-compatible raw email.
     body may be an array of MIME parts in the form:
         [['plain', plainbody], ['html', htmlbody], ...]
     May raise exceptions, such as if character encodings fail.
     attachment should be a tuple of (file-type-object, display-filename).
+    extra_headers should be a dictionary of header-name:header-string values.
     '''
     
     # For email with an attachment, the MIME structure will be as follows: 
@@ -74,6 +75,10 @@ def create_raw_email(recipient, from_address, subject, body, attachment=None):
     msgRoot['From'] = Header(from_address.encode('utf-8'), 'ascii').encode()
 
     msgRoot['Subject'] = Header(subject.encode('utf-8'), 'UTF-8').encode()
+    
+    if extra_headers:
+        for header_name, header_value in extra_headers.iteritems():
+            msgRoot[header_name] = Header(header_value.encode('utf-8'), 'UTF-8').encode()
     
     # The MIME section that contains the plaintext and HTML alternatives.
     msgAlternative = MIMEMultipart('alternative')

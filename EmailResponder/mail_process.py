@@ -101,12 +101,17 @@ class MailResponder:
         if self._conf[self.requested_addr]['attachment_bucket']:
             attachment = (get_s3_attachment(self._conf[self.requested_addr]['attachment_bucket']),
                           settings.ATTACHMENT_NAME)
+        
+        extra_headers = None
+        if self._requester_msgid:
+            extra_headers = { 'In-Reply-To': self._requester_msgid, 'References': self._requester_msgid }
 
         raw_response = sendmail.create_raw_email(self._requester_addr, 
                                                  self._response_from_addr,
                                                  self._subject,
                                                  self._conf[self.requested_addr]['body'],
-                                                 attachment)
+                                                 attachment,
+                                                 extra_headers)
 
         if not raw_response:
             return False
@@ -159,7 +164,11 @@ class MailResponder:
         # Add 'Re:' to the subject
         self._subject = u'Re: %s' % self._subject
 
+        self._requester_msgid = decode_header(self._email['Message-ID'])
+        if not self._requester_msgid: self._requester_msgid = None 
+
         return True
+    
     
     def _check_verification_email(self):
         '''
