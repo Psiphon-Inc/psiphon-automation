@@ -22,31 +22,19 @@ import email
 import email.header
 import json
 import re
+import traceback
+import time
+import tempfile
+import hashlib
+from boto.s3.connection import S3Connection
+from boto.s3.key import Key
+from boto.exception import S3ResponseError
+from boto.exception import BotoServerError
 
+import settings
 import sendmail
+import blacklist
 
-
-# We're going to use a fixed address to reply to all email from. 
-# The reasons for this are:
-#   - Amazon SES requires you to register ever email address you send from;
-#   - Amazon SES has a limit of 100 registered addresses;
-#   - We tend to set up and down autoresponse addresses quickly.
-# If this becomes a problem in the future, we could set up some kind of 
-# auto-verification mechanism.
-RESPONSE_FROM_ADDR = 'Psiphon Responder <get@psiphon3.com>'
-
-
-def get_email_localpart(email_address):
-    addr_regex = '([a-zA-Z0-9\+\.\-]+)@([a-zA-Z0-9\+\.\-]+)\.([a-zA-Z0-9\+\.\-]+)'
-    match = re.match(addr_regex, email_address)
-    if match:
-        return match.group(1)
-
-    # Bad address. 
-    return False
-
-def decode_header(header_val):
-    return email.header.decode_header(header_val.decode('utf-8'))[0][0].decode('utf-8')
 
 
 class MailResponder:
@@ -57,8 +45,6 @@ class MailResponder:
 
     def __init__(self):
         self.requested_addr = None
-        self._conf = None
-        self._email = None
 
     def read_conf(self, conf_filepath):
         '''
@@ -69,22 +55,19 @@ class MailResponder:
         try:
             conffile = open(conf_filepath, 'r')
 
-            self._response_from_addr = RESPONSE_FROM_ADDR
+            self._response_from_addr = settings.RESPONSE_FROM_ADDR
 
             # Note that json.load reads in unicode strings
             self._conf = json.load(conffile)
-
-            # The keys in our conf file may be full email addresses, but we 
-            # really just want them to be the address localpart (the part before the @)
-            for addr in self._conf.keys():
-                localpart = get_email_localpart(addr)
-                if not localpart: 
-                    # if a localpart can't be found properly, just leave it
-                    continue
-                self._conf[localpart] = self._conf.pop(addr)
-
-        except Exception as e:
-            syslog.syslog(syslog.LOG_CRIT, 'Failed to read conf file: %s' % e)
+            
+            # Do some validation
+            for key in self._conf.keys():
+                item = self._conf[key]
+                if not item.has_key('body') or not item.has_key('attachment_bucket'):
+                    raise Exception('invalid config item: %s:%s', (key, repr(item)))
+            
+        except Exception as ex:
+            syslog.syslog(syslog.LOG_CRIT, 'error: config file read failed: %s' % ex)
             return False
 
         return True
@@ -94,18 +77,43 @@ class MailResponder:
         Processes the given email and sends a response.
         Returns True if successful, False or exception otherwise.
         '''
+        
+        self._email_string = email_string
 
         if not self._parse_email(email_string):
             return False
-
-        if not self._conf.has_key(self._requested_localpart):
-            syslog.syslog(syslog.LOG_INFO, 'recip_addr invalid: %s' % self.requested_addr)
+        
+        # Is this a verification email from Amazon SES?
+        if self._check_verification_email():
             return False
+
+        # Look up requested email address. 
+        if not self._conf.has_key(self.requested_addr):
+            syslog.syslog(syslog.LOG_INFO, 'fail: invalid requested address: %s' % self.requested_addr)
+            return False
+        
+        # Check if the user is (or should be) blacklisted
+        if not self._check_blacklist():
+            syslog.syslog(syslog.LOG_INFO, 'fail: blacklist')
+            return False
+        
+        attachment = None
+        if self._conf[self.requested_addr]['attachment_bucket']:
+            attachment = (get_s3_attachment(self._conf[self.requested_addr]['attachment_bucket']),
+                          settings.ATTACHMENT_NAME)
+        
+        extra_headers = { 'Reply-To': self.requested_addr }
+        
+        if self._requester_msgid:
+            extra_headers['In-Reply-To'] = self._requester_msgid
+            extra_headers['References'] = self._requester_msgid
 
         raw_response = sendmail.create_raw_email(self._requester_addr, 
                                                  self._response_from_addr,
                                                  self._subject,
-                                                 self._conf[self._requested_localpart])
+                                                 self._conf[self.requested_addr]['body'],
+                                                 attachment,
+                                                 extra_headers)
 
         if not raw_response:
             return False
@@ -116,89 +124,199 @@ class MailResponder:
 
         return True
 
+    def _check_blacklist(self):
+        bl = blacklist.Blacklist()
+        return bl.check_and_add(strip_email(self._requester_addr))
+
     def _parse_email(self, email_string):
         '''
         Extracts the relevant items from the email.
         '''
 
-        # Note that the email fields will be UTF-8, but we need them in unicode
-        # before trying to send the response. Hence the .decode('utf-8') calls.
-
         self._email = email.message_from_string(email_string)
 
         self.requested_addr = decode_header(self._email['To'])
         if not self.requested_addr:
-            syslog.syslog(syslog.LOG_INFO, 'No recip_addr')
+            syslog.syslog(syslog.LOG_INFO, 'fail: no requested address')
             return False
         
         # The 'To' field generally looks like this: 
         #    "get+fa" <get+fa@psiphon3.com>
         # So we need to strip it down to the useful part.
-        # This regex is adapted from:
-        # https://gitweb.torproject.org/gettor.git/blob/HEAD:/lib/gettor/requests.py
 
-        to_regex = '.*?(<)?([a-zA-Z0-9\+\.\-]+@[a-zA-Z0-9\+\.\-]+\.[a-zA-Z0-9\+\.\-]+)(?(1)>).*'
-        match = re.match(to_regex, self.requested_addr)
-        if match:
-            self.requested_addr = match.group(2)
-        else:
+        self.requested_addr = strip_email(self.requested_addr)
+        if not self.requested_addr:
             # Bad address. Fail.
-            syslog.syslog(syslog.LOG_INFO, 'Unparsable recip_addr')
+            syslog.syslog(syslog.LOG_INFO, 'fail: unparsable requested address')
+            dump_to_exception_file('fail: unparsable requested address\n\n%s' % self._email_string)
             return False
 
-        # We also want just the localpart of the email address (get+fa or whatever).
-        self._requested_localpart = get_email_localpart(self.requested_addr)
-        if not self._requested_localpart:
-            # Bad address. Fail.
-            syslog.syslog(syslog.LOG_INFO, 'Bad recip_addr')
-            return False
-        
+        # Convert to lowercase, since that's what's in the _conf and we want to 
+        # do a case-insensitive check.
+        self.requested_addr = self.requested_addr.lower()
+
         self._requester_addr = decode_header(self._email['Return-Path'])
         if not self._requester_addr:
-            syslog.syslog(syslog.LOG_INFO, 'No sender_addr')
+            syslog.syslog(syslog.LOG_INFO, 'fail: no requester address')
             return False
 
         self._subject = decode_header(self._email['Subject'])
+        if not self._subject: self._subject = '' 
 
         # Add 'Re:' to the subject
         self._subject = u'Re: %s' % self._subject
 
-        return True
+        self._requester_msgid = decode_header(self._email['Message-ID'])
+        if not self._requester_msgid: self._requester_msgid = None 
 
+        return True
+    
+    
+    def _check_verification_email(self):
+        '''
+        Check if the incoming email is an Amazon SES verification email that
+        we should write to file so that we use the link in it.
+        '''
+        if settings.VERIFY_EMAIL_ADDRESS \
+           and settings.VERIFY_EMAIL_ADDRESS == self.requested_addr:
+            
+            # Write the email to disk so that we can get the verification link 
+            # out of it.
+            f = open(settings.VERIFY_FILENAME, 'w')
+            f.write(self._email.as_string())
+            f.close()
+            
+            syslog.syslog(syslog.LOG_INFO, 'info: verification email received to: %s' % self.requested_addr)
+            
+            return True
+        
+        return False
+        
+
+def strip_email(email_address):
+    '''
+    Strips something that looks like:
+        Fname Lname <mail@example.com>
+    Down to just mail@example.com and returns it. If passed a plain email address, 
+    will return that email. Returns False if bad email address.
+    '''
+
+    # This regex is adapted from:
+    # https://gitweb.torproject.org/gettor.git/blob/HEAD:/lib/gettor/requests.py
+    to_regex = '.*?(<)?([a-zA-Z0-9\+\.\-]+@[a-zA-Z0-9\+\.\-]+\.[a-zA-Z0-9\+\.\-]+)(?(1)>).*'
+    match = re.match(to_regex, email_address)
+    if match and match.group(2):
+        return match.group(2)
+    return False
+    
+
+def decode_header(header_val):
+    '''
+    Returns False if decoding fails. Otherwise returns the decoded value.
+    '''
+    try:
+        hdr = email.header.decode_header(header_val)
+        if not hdr: return False
+        decoded = u''
+        
+        return ' '.join([text.decode(encoding) if encoding else text for text,encoding in hdr])
+    except Exception:
+        return False
+
+
+def get_s3_attachment(bucketname):
+    '''
+    Returns a file-type object for the Psiphon 3 executable in the requested 
+    bucket.
+    This function checks if the file has already been downloaded. If it has, 
+    it checks that the checksum still matches the file in S3. If the file doesn't
+    exist, or if it the checksum doesn't match, the 
+    '''
+    
+    # Make the attachment cache dir, if it doesn't exist 
+    if not os.path.isdir(settings.ATTACHMENT_CACHE_DIR):
+        os.mkdir(settings.ATTACHMENT_CACHE_DIR)
+    
+    # Make the connection using the credentials in the boto config file.
+    conn = S3Connection()
+    
+    bucket = conn.get_bucket(bucketname)
+    key = bucket.get_key(settings.S3_EXE_NAME)
+    etag = key.etag.strip('"').lower()
+    
+    # We store the cached file with the bucket name as the filename
+    cache_path = os.path.join(settings.ATTACHMENT_CACHE_DIR, bucketname)
+    
+    # Check if the file exists. If so, check if it's stale.
+    if os.path.isfile(cache_path):
+        cache_file = open(cache_path, 'r')
+        cache_hex = hashlib.md5(cache_file.read()).hexdigest().lower()
+        
+        # Do the hashes match?
+        if etag == cache_hex:
+            cache_file.seek(0)
+            return cache_file
+        
+        cache_file.close()
+        
+    # The cached file either doesn't exist or is stale.
+    cache_file = open(cache_path, 'w')
+    key.get_file(cache_file)
+    
+    # Close the file and re-open for read-only
+    cache_file.close()
+    cache_file = open(cache_path, 'r')
+    
+    return cache_file
+
+
+def dump_to_exception_file(string):
+    if settings.EXCEPTION_DIR:
+        temp = tempfile.mkstemp(suffix='.txt', dir=settings.EXCEPTION_DIR)
+        f = os.fdopen(temp[0], 'w')
+        f.write(string)
+        f.close()
 
 
 if __name__ == '__main__':
     '''
     Note that we always exit with 0 so that the email server doesn't complain.
     '''
-
-    if len(sys.argv) < 2:
-        raise Exception('Not enough arguments. conf file required')
-
-    conf_filename = sys.argv[1]
-
-    if not os.path.isfile(conf_filename):
-        raise Exception('conf file must exist: %s' % conf_filename)
+    
+    starttime = time.clock()
 
     try:
         email_string = sys.stdin.read()
 
         if not email_string:
-            syslog.syslog(syslog.LOG_CRIT, 'No stdin')
+            syslog.syslog(syslog.LOG_CRIT, 'error: no stdin')
             exit(0)
 
         responder = MailResponder()
 
-        if not responder.read_conf(conf_filename):
+        if not responder.read_conf(settings.CONFIG_FILEPATH):
             exit(0)
 
-        if not responder.process_email(email_string):
-            exit(0)
-
-    except Exception as e:
-        syslog.syslog(syslog.LOG_CRIT, 'Exception caught: %s' % e)
+        try:
+            if not responder.process_email(email_string):
+                exit(0)
+        except BotoServerError as ex:
+            if ex.error_message == 'Address blacklisted.':
+                syslog.syslog(syslog.LOG_CRIT, 'fail: requester address blacklisted by SES')
+                exit(0)
+            else:
+                raise
+            
+    except Exception as ex:
+        syslog.syslog(syslog.LOG_CRIT, 'exception: %s: %s' % (ex, traceback.format_exc()))
+        
+        # Should we write this exception-causing email to disk?
+        if settings.EXCEPTION_DIR and email_string:
+            dump_to_exception_file('Exception caught: %s\n%s\n\n%s' % (ex, 
+                                                                       traceback.format_exc(), 
+                                                                       email_string))
     else:
         syslog.syslog(syslog.LOG_INFO, 
-                      'Responded successfully to request for: %s' % responder.requested_addr)
+                      'success: %s: %fs' % (responder.requested_addr, time.clock()-starttime))
     
     exit(0)

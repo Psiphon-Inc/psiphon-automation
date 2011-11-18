@@ -26,9 +26,47 @@ OS
     > sudo mkdir /home/mail_responder
     > sudo chown mail_responder:mail_responder /home/mail_responder
 
-4. Create directory where the responder configuration file will go.
+4. Create directory where the responder configuration file and attachments will 
+   go.
     > sudo mkdir /mail_responder_config
-   TODO: Figure out what the write permissions should be on this directory.
+    > sudo mkdir /mail_responder_config/attachments
+   Change the directory permissions so that the "normal" user (that will be used
+   for connecting via ssh) can write and all users can read.
+    > sudo chown ubuntu:ubuntu -R /mail_responder_config /mail_responder_config/attachments
+
+
+SSH, fail2ban
+----------------------------------------
+
+For extra security, we'll have SSH listen on a non-standard port and use 
+fail2ban to prevent brute-force login attempts on SSH. Alternatively/additionally,
+EC2 security groups or OS firewall policies can restrict the incoming IPs 
+allowed to access the SSH port.
+
+1. Change SSH port number. 
+    > sudo nano /etc/ssh/sshd_config
+    Change 'Port' value to something random.
+    Make sure EC2 security group allows this port through for TCP.
+
+2. Install fail2ban.
+    > sudo apt-get install fail2ban
+    
+3. Configure fail2ban to use non-standard SSH port. 
+    Create or edit /etc/fail2ban/jail.local:
+      [ssh]
+      port    = ssh,<port#>
+      [ssh-ddos]
+      port    = ssh,<port#>
+
+4. Edit /etc/fail2ban/filter.d/sshd.conf, and add the following line to the 
+   failregex list:
+    ^%(__prefix_line)spam_unix\(sshd:auth\): authentication failure; logname=\S* uid=\S* euid=\S* tty=\S* ruser=\S* rhost=<HOST>(?:\s+user=.*)?\s*$
+   (We found with the Psiphon 3 servers that fail2ban wasn't detecting all the 
+   relevant auth.log entries without adding this regex.)
+   
+5. Restart ssh and fail2ban:
+    > sudo service ssh restart
+    > sudo service fail2ban restart
 
 
 Postfix
@@ -50,9 +88,18 @@ Postfix
    the email address that error mail should go to.
 
 4. Edit /etc/postfix/main.cf
-   * Change myhostname to be the public DNS name of the instance.
+   * Change myhostname to be the public DNS name of the instance, or the domain
+     name that's pointing to the instance.
+   * Change mydestination to be:
+        mydestination = $myhostname localhost.$mydomain localhost $extradomains
+   * extradomains is a custom variable that will hold all of the domains that 
+     our server accepts mail for (and responds to). So, you will have:
+        extradomains = example1.com example2.com
+     Note that the variable can be missing or empty and that's okay. (Also note
+     that I haven't actually tested it with multiple values, so I don't yet
+     know if that works.)
    * Change smtpd_use_tls to 'no'
-   * Add these two lines to the end. The cause all email that doesn't 
+   * Add these two lines to the end. They cause all email that doesn't 
      correspond to a real address to be forwarded to the mail_responder account
      (which will then do the response processing).
         local_recipient_maps =
@@ -63,18 +110,38 @@ add this line:
 notify_classes = 
 )
 
-5. Reload postfix conf and restart:
+5. By default, if an uncaught error occurs (which shouldn't occur, but...), 
+   postfix responds to the user with a bounce email that gives a lot of internal 
+   details about the error. This is undesirable, so we'll disable this in postfix.
+    > sudo nano /etc/postfix/master.cf
+   Comment out the bounce line, so it looks like this:
+    #bounce    unix  -       -       -       -       0       bounce
+
+6. Check the contents of /etc/mailname. It should be the FQDN of the current
+   instance's public name. If you're using an EC2 Static IP (which you surely
+   are), then the value in /etc/mailname is proably the public name that the
+   instance had *before* you assigned the static IP (at which point it got a new
+   public name). Make sure this is updated to the correct value. 
+
+7. Reload postfix conf and restart:
     > sudo postfix reload
     > sudo /etc/init.d/postfix restart
 
 
-Source files
+Source files and cron jobs
 ----------------------------------------
 
-* Copy mail_process.py, sendmail.py, mail_stats.py, and forward to 
-  /home/mail_responder. Rename forward to .forward. Make sure the permissions 
-  are correct:
-    > sudo chown mail_responder:mail_responder mail_process.py sendmail.py .forward
+The install.sh script does the following:
+    - copy files from the source directory to the mail_responder home directory
+    - modify those files, if necessary
+    - set the proper ownership on those files
+    - create the cron jobs needed for the running of the system
+
+The script requires the following package:
+> sudo pip install python-crontab
+
+To run the install script:    
+> sh install.sh <stats_mail_addr>
 
 
 Logging
@@ -83,6 +150,25 @@ Logging
 * Copy 20-psiphon-logging.conf to /etc/rsyslog.d/
   * This will prevent potentially sensitive user information from ending up in
     the system logs.
+  * It also copies the mail responder logs to a dedicated log file that will be
+    processed to get statisitics about use.
+    
+* Enable RFC 3339 compatible high resolution timestamp logging format (required
+  for stats processing).
+  In /etc/rsyslog.conf, ensure this line is commented out:
+    #$ActionFileDefaultTemplate RSYSLOG_TraditionalFileFormat
+    
+* Turn off "repeated message reduction" (the syslog feature that results in 
+  "last message repeated X times" instead of repeated logs). For our stats, we 
+  need a line per event, not a compressed view. 
+  In /etc/rsyslog.conf, change this:
+    $RepeatedMsgReduction on
+  to this:
+    $RepeatedMsgReduction off
+  (TODO: Can this be turned off for only mail_responder.log?)
+    
+* Restart the logging service:
+    > sudo service rsyslog restart
 
 
 Amazon SES
@@ -107,12 +193,28 @@ Amazon SES
 Stats
 ----------------------------------------
 
-* mail_stats.py can be executed by a cron job to email basic statisitics to a 
-  desired email address. Edit that file so that RECIPIENT_ADDRESS and 
-  SENDER_ADDRESS meet your needs.
+* Stats will be derived from the contents of /var/log/mail_responder.log
+
+* mail_stats.py can be executed by a cron job (installed by install.sh) to email
+  basic statisitics to a desired email address. Edit that file so that 
+  RECIPIENT_ADDRESS and SENDER_ADDRESS meet your needs.
 
 * The emailing is done with the same SES code and credentials that the 
   responder itself uses.
+
+
+Blacklist
+----------------------------------------
+
+Users will only receive responses to three requests per day (configurable), 
+after which they are "blacklisted". The blacklist is cleared once a day 
+(configurable).
+
+The blacklist code requires the following package be installed:
+> sudo apt-get install mysql-server
+> sudo apt-get install python-mysqldb
+
+The install.sh step above does the rest.
 
 
 Email Responder Configuration
@@ -121,35 +223,57 @@ Email Responder Configuration
 * The /mail_responder_config/conf.json file contains the addresses that the
   responder will respond to, and the message bodies that will sent back to 
   those addresses. 
-
+  
+* /mail_responder_config/conf.json must be writable by the normal (ubuntu) user
+  and readable by mail_responder.
+  
 * The file is in JSON format, with these fields:
-{"email_localpart": [["mimetype", "body"], ...], ...}
+{"email_addr": {"body": [["mimetype", "body"], ...], "attachment_bucket": "bucketname"}, ...}
 
 For example:
 {
-"get+fa@example.com": 
-[
-    ["plain", "English - https://example.com/en.html\n\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html"], 
-    ["html", "<a href=\"https://example.com/en.html\">English - https://example.com/en.html</a><br>\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html<br>"]
-], 
-"getru": 
-[
-    ["plain", "English - https://example2.com/en.html\n\u0420\u0443\u0441\u0441\u043a\u0438\u0439 - https://example2.com/ru.html"]
-], 
-"getget": "Just a string"
+"multipart-email@example.com":
+{
+  "body": 
+    [
+      ["plain", "English - https://example.com/en.html\n\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html"], 
+      ["html", "<a href=\"https://example.com/en.html\">English - https://example.com/en.html</a><br>\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html<br>"]
+    ],
+  "attachment_bucket": null
+}, 
+"justtext@example.com":
+{
+  "body": 
+    [
+      ["plain", "English - https://example2.com/en.html\n\u0420\u0443\u0441\u0441\u043a\u0438\u0439 - https://example2.com/ru.html"]
+    ], 
+  "attachment_bucket": null
+},
+"simplebody@example2.com": { "body": "Just a string", "attachment_bucket": null },
+"attachment@example3.com": { "body": "I have an attachment", "attachment_bucket": "aaaa-bbbb-cccc-dddd" }
 }
 
 * Things to notice about the format:
-  * The '@example.com' part of the email address is unnecessary. In fact, it 
-    will be ignored.
   * The email body can be a just a string, which will be interpreted as 'plain'
     mimetype, or an array of one or more tuples which are ["mimetype", "body"].
     Mimetypes can be 'plain' or 'html' (so there's really no reason to specify
     more than two).
+  * There can be multiple domains served by the same responder server, so the
+    whole email address is important.
+  * The attachment can be null.
+  * There can only be one attachment specified.
+  * The attachment file will have to exist at: {attachment_bucket}/{settings.S3_EXE_NAME}
 
 * NOTE: The *last* mimetype will be the one that's preferred by mail clients,
   so you should put the 'html' body last.
 
+
+Appendix
+--------------------------------------------------------------------------------
+
+In order for our responses to not be flagged as spam, these guidelines should be 
+followed:
+http://docs.amazonwebservices.com/ses/latest/DeveloperGuide/index.html?SPFSenderIDDKIM.html
 
 
 Possible Issues
@@ -157,3 +281,5 @@ Possible Issues
 
 * There is no In-Reply-To header being used, so, for example, Gmail's 
   conversation view is broken.
+
+

@@ -22,13 +22,8 @@ import shutil
 import subprocess
 import textwrap
 import tempfile
-import time
 import traceback
 import sys
-import urllib2
-import win32ui
-import win32con
-import _winreg
 
 
 #==== Build File Locations  ===================================================
@@ -54,10 +49,6 @@ SIGN_TOOL_FILENAME_ALT = 'C:\\Program Files\\Microsoft SDKs\\Windows\\v7.0A\\Bin
 
 UPX_FILENAME = '.\Tools\upx.exe'
 
-REGISTRY_ROOT_KEY = _winreg.HKEY_CURRENT_USER
-REGISTRY_PRODUCT_KEY = 'SOFTWARE\\Psiphon3'
-REGISTRY_IGNORE_VPN_VALUE = 'UserSkipVPN'
-
 # Check usage restrictions here before using this service:
 # http://www.whatismyip.com/faq/automation.asp
 CHECK_IP_ADDRESS_URL = 'http://automation.whatismyip.com/n09230945.asp'
@@ -82,8 +73,8 @@ def build_client_executable():
     if not os.path.isfile(signtool_filename):
         signtool_filename = SIGN_TOOL_FILENAME_ALT
     commands = [
-        'msbuild "%s" /t:Rebuild /p:Configuration=Release\n' % (CLIENT_SOLUTION_FILENAME,),
-        '"%s" "%s"\n' % (UPX_FILENAME, EXECUTABLE_FILENAME),
+        'msbuild "%s" /v:quiet /t:Rebuild /p:Configuration=Release\n' % (CLIENT_SOLUTION_FILENAME,),
+        '"%s" -qq "%s"\n' % (UPX_FILENAME, EXECUTABLE_FILENAME),
         '"%s" sign /f "%s" %s\n' % (signtool_filename,
                                              CODE_SIGNING_PFX_FILENAME,
                                              EXECUTABLE_FILENAME)]
@@ -133,54 +124,11 @@ def write_embedded_values(propagation_channel_id,
                                (1 if ignore_vpn_relay else 0)))
 
 
-def test_server(mode, expected_egress_ip_addresses):
-    # test:
-    # - spawn client process, which starts the VPN
-    # - sleep 5 seconds, which allows time to establish connection
-    # - determine egress IP address and assert it matches host IP address
-    # - post WM_CLOSE to gracefully shut down the client and its connection
-    print 'Testing server %s on host %s mode %s...' % (server.IP_Address,
-                                                       server.Host_ID,
-                                                       mode)
-
-    restore_registry = False
-
-    try:
-        if mode == 'ssh':
-            reg_key = _winreg.OpenKey(REGISTRY_ROOT_KEY, REGISTRY_PRODUCT_KEY)
-            ignore_vpn_value, ignore_vpn_type = _winreg.QueryValueEx(reg_key, REGISTRY_IGNORE_VPN_VALUE)
-            _winreg.SetValueEx(reg_key, REGISTRY_IGNORE_VPN_VALUE, None, _winreg.REG_DWORD, 1)
-            restore_registry = True
-
-        proc = subprocess.Popen([EXECUTABLE_FILENAME])
-        time.sleep(15)
-    
-        # In VPN mode, all traffic is routed through the proxy. In SSH mode, the
-        # urlib2 ProxyHandler picks up the Windows Internet Settings and uses the
-        # HTTP Proxy that is set by the client.
-        urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler()))
-        egress_ip_address = urllib2.urlopen(CHECK_IP_ADDRESS_URL).read().split('\n')[0]
-    
-        win32ui.FindWindow(None, APPLICATION_TITLE).PostMessage(win32con.WM_CLOSE)
-        proc.wait()
-        
-        if egress_ip_address not in expected_egress_ip_addresses:
-            raise Exception('Test FAILURE: %s %s %s %s' % (
-                                mode,
-                                server.IP_Address,
-                                egress_ip_address,
-                                expected_egress_ip_address))
-    finally:
-        if restore_registry:
-            _winreg.SetValueEx(reg_key, REGISTRY_IGNORE_VPN_VALUE, None, ignore_vpn_value, ignore_vpn_type)
-
-
 def build_client(
         propagation_channel_id,
         sponsor_id,
         banner,
         encoded_server_list,
-        expected_egress_ip_addresses,
         version,
         test=False):
     try:
@@ -202,23 +150,23 @@ def build_client(
         shutil.copyfile(banner_source_path, EMAIL_BANNER_FILENAME)
 
         # Copy sponsor banner image file from Data to Client source tree
-        banner_source_path = os.path.join(BANNER_ROOT, sponsor.Banner_Filename)
-        shutil.copyfile(banner_source_path, BANNER_FILENAME)
+        if banner:
+            with open(BANNER_FILENAME, 'wb') as banner_file:
+                banner_file.write(banner)
 
         # overwrite embedded values source file
         write_embedded_values(
             propagation_channel_id,
             sponsor_id,
             version,
-            encoded_server_list)
+            encoded_server_list,
+            ignore_system_server_list=test)
 
         # build
         build_client_executable()
 
-        # testing
         if test:
-            test_server('vpn', expected_egress_ip_addresses)
-            test_server('ssh', expected_egress_ip_addresses)
+            return EXECUTABLE_FILENAME
 
         # rename and copy executable to Builds folder
         # e.g., Builds/psiphon-3A885577DD84EF13-8BB28C1A8E8A9ED9.exe
@@ -226,8 +174,8 @@ def build_client(
             os.makedirs(BUILDS_ROOT)
         build_destination_path = os.path.join(
                                     BUILDS_ROOT,
-                                    BUILD_FILENAME_TEMPLATE % (channel.Propagation_Channel_ID,
-                                                               sponsor.Sponsor_ID))
+                                    BUILD_FILENAME_TEMPLATE % (propagation_channel_id,
+                                                               sponsor_id))
         shutil.copyfile(EXECUTABLE_FILENAME, build_destination_path)
 
         print 'Build: SUCCESS'
@@ -235,8 +183,8 @@ def build_client(
         return build_destination_path
 
     except:
-        traceback.print_exc()
         print 'Build: FAILURE'
+        raise
 
     finally:
 

@@ -39,15 +39,22 @@ if os.name == 'posix':
     import pexpect
 
 import psi_ssh
-
-sys.path.insert(0, os.path.abspath(os.path.join('..', 'Data')))
-import psi_db
+import psi_ops
 
 
-#==== Syslog File Configuration  ===============================================
+#==== Syslog File Configuration  ==============================================
 
 HOST_LOG_DIR = '/var/log'
 HOST_LOG_FILENAME_PATTERN = 'psiphonv*.log*'
+
+
+#==== psi_ops DB Configuration  =================================================
+
+PSI_OPS_ROOT = os.path.abspath(os.path.join('..', 'Data', 'PsiOps'))
+PSI_OPS_DB_FILENAME = os.path.join(PSI_OPS_ROOT, 'psi_ops.dat')
+
+
+#==== Stats DB Configuration  =================================================
 
 STATS_ROOT = os.path.abspath(os.path.join('..', 'Stats'))
 STATS_DB_FILENAME = os.path.join(STATS_ROOT, 'stats.db')
@@ -56,14 +63,12 @@ STATS_DB_FILENAME = os.path.join(STATS_ROOT, 'stats.db')
 #==== Netflow Files Configuration  ============================================
 
 HOST_NETFLOW_DIR = '/var/cache/nfdump'
-
 NETFLOWS_ROOT = os.path.abspath(os.path.join('..', 'Data', 'Netflows'))
 
 
-#==== DNS pcap File Configuration  =============================================
+#==== DNS pcap File Configuration  ============================================
 
 HOST_DNS_PCAPS_DIR = '/var/cache/dns-pcaps'
-
 DNS_PCAPS_ROOT = os.path.abspath(os.path.join('..', 'Data', 'dns-pcaps'))
 
 
@@ -72,7 +77,8 @@ DNS_PCAPS_ROOT = os.path.abspath(os.path.join('..', 'Data', 'dns-pcaps'))
 
 if os.path.isfile('psi_data_config.py'):
     import psi_data_config
-    psi_db.set_db_root(psi_data_config.DATA_ROOT)
+    PSI_OPS_ROOT = os.path.abspath(os.path.join(psi_data_config.DATA_ROOT, 'PsiOps'))
+    PSI_OPS_DB_FILENAME = os.path.join(PSI_OPS_ROOT, 'psi_ops.dat')
     STATS_ROOT = os.path.join(psi_data_config.DATA_ROOT, '..', 'Stats')
     STATS_DB_FILENAME = os.path.join(STATS_ROOT, 'stats.db')
     NETFLOWS_ROOT = os.path.join(psi_data_config.DATA_ROOT, 'Netflows')
@@ -221,20 +227,16 @@ def init_stats_db(db):
                        [iso8601_to_utc(row[0]), row[0]])
 
 
-def pull_stats(db, error_file, host):
+def pull_stats(db, error_file, host, server_ip_address_to_id):
 
-    print 'pull stats from host %s...' % (host.Host_ID,)
-
-    server_ip_address_to_id = {}
-    for server in psi_db.get_servers():
-        server_ip_address_to_id[server.IP_Address] = server.Server_ID
+    print 'pull stats from host %s...' % (host.id,)
 
     line_re = re.compile(LOG_LINE_PATTERN)
 
     ssh = psi_ssh.SSH(
-            host.IP_Address, host.SSH_Port,
-            host.SSH_Username, host.SSH_Password,
-            host.SSH_Host_Key)
+            host.ip_address, host.ssh_port,
+            host.stats_ssh_username, host.stats_ssh_password,
+            host.ssh_host_key)
 
     # Download each log file from the host, parse each line and insert
     # log entries into database.
@@ -360,9 +362,9 @@ def ssh_fingerprint(host_key):
 def sync_directory(host, source_root, dest_root):
 
     print 'sync %s from host %s to local %s...' % (
-                source_root, host.Host_ID, dest_root)
+                source_root, host.id, dest_root)
 
-    dest_root_for_host = os.path.join(dest_root, host.Host_ID)
+    dest_root_for_host = os.path.join(dest_root, host.id)
     if not os.path.exists(dest_root_for_host):
         os.makedirs(dest_root_for_host)
     
@@ -371,15 +373,15 @@ def sync_directory(host, source_root, dest_root):
     # present on the source.
 
     rsync = pexpect.spawn('rsync -ae "ssh -p %s -l %s" %s:%s/ "%s"' %
-                    (host.SSH_Port, host.SSH_Username,
-                     host.IP_Address, source_root, dest_root_for_host))
-    prompt = rsync.expect([ssh_fingerprint(host.SSH_Host_Key), 'password:'])
+                    (host.ssh_port, host.stats_ssh_username,
+                     host.ip_address, source_root, dest_root_for_host))
+    prompt = rsync.expect([ssh_fingerprint(host.ssh_host_key), 'password:'])
     if prompt == 0:
         rsync.sendline('yes')
         rsync.expect('password:')
-        rsync.sendline(host.SSH_Password)
+        rsync.sendline(host.stats_ssh_password)
     else:
-        rsync.sendline(host.SSH_Password)
+        rsync.sendline(host.stats_ssh_password)
 
     rsync.wait()
 
@@ -388,7 +390,7 @@ def sync_directory(host, source_root, dest_root):
 
 def pull_dns_pcaps(host):
 
-    print 'pull DNS pcaps from host %s...' % (host.Host_ID,)
+    print 'pull DNS pcaps from host %s...' % (host.id,)
 
     return sync_directory(host, HOST_DNS_PCAPS_DIR, DNS_PCAPS_ROOT)
 
@@ -497,7 +499,7 @@ class DomainLookup(object):
 
 def pull_netflows(host, start_date):
 
-    print 'pull netflows from host %s...' % (host.Host_ID,)
+    print 'pull netflows from host %s...' % (host.id,)
 
     dest_root_for_host = sync_directory(host, HOST_NETFLOW_DIR, NETFLOWS_ROOT)
 
@@ -670,6 +672,8 @@ def process_vpn_outbound_stats(db, error_file, host_id, dns, csv_file, start_dat
 
 if __name__ == "__main__":
 
+    psinet = psi_ops.PsiphonNetwork.load_from_file(PSI_OPS_DB_FILENAME)
+
     if not os.path.exists(STATS_ROOT):
         os.makedirs(STATS_ROOT)
     db = sqlite3.connect(STATS_DB_FILENAME)
@@ -689,20 +693,23 @@ if __name__ == "__main__":
 
     try:
         init_stats_db(db)
-        hosts = psi_db.get_hosts()
+        hosts = psinet.get_hosts()
+        server_ip_address_to_id = {}
+        for server in psinet.get_servers():
+            server_ip_address_to_id[server.ip_address] = server.id
 
         # Pull stats from each host
 
         for host in hosts:
-            pull_stats(db, error_file, host)
-
-        # Compute sessions from connected/disconnected records
-
-        reconstruct_sessions(db, start_date)
+            pull_stats(db, error_file, host, server_ip_address_to_id)
 
         # Pull netflows from each host and process them
         # Avoid doing this on Windows, where nfdump is not available
         if os.name == 'posix':
+            # Compute sessions from connected/disconnected records
+    
+            reconstruct_sessions(db, start_date)
+
             for host in hosts:
 
                 csv_file_path = pull_netflows(host, netflows_start_date)
@@ -712,7 +719,7 @@ if __name__ == "__main__":
 
                 with open(csv_file_path, 'rb') as vpn_outbound_stats_csv:
                     process_vpn_outbound_stats(
-                        db, error_file, host.Host_ID, dns, vpn_outbound_stats_csv, start_date)
+                        db, error_file, host.id, dns, vpn_outbound_stats_csv, start_date)
 
                 os.remove(csv_file_path)
 

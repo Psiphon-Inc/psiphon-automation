@@ -22,7 +22,11 @@ import sys
 import subprocess
 import shlex
 import tempfile
-import cPickle
+import jsonpickle
+
+
+PSI_OPS_ROOT = os.path.abspath(os.path.join('..', 'Data', 'PsiOps'))
+PSI_OPS_DB_FILENAME = os.path.join(PSI_OPS_ROOT, 'psi_ops.dat')
 
 
 if os.path.isfile('psi_data_config.py'):
@@ -142,16 +146,29 @@ class PersistentObject(object):
             unlock_document()
             self.is_locked = False
 
+    def save_to_file(self, filename):
+        with open(filename, 'w') as file:
+            file.write(jsonpickle.encode(self))
+
     def save(self):
-        with tempfile.NamedTemporaryFile(delete=False) as file:
-            file.write(cPickle.dumps(self))
+        if not os.path.isfile('psi_data_config.py'):
+            self.save_to_file(PSI_OPS_DB_FILENAME)
+            return
+        # NOTE: avoiding saving the object with the is_locked attribute set
+        is_locked = self.is_locked
+        self.is_locked = None
+        try:
+            with tempfile.NamedTemporaryFile(delete=False) as file:
+                file.write(jsonpickle.encode(self))
+        finally:
+            self.is_locked = is_locked
         import_document(file.name)
         os.remove(file.name)
 
     @staticmethod
     def load_from_file(filename):
         with open(filename) as file:
-            obj = cPickle.loads(file.read())
+            obj = jsonpickle.decode(file.read())
             if not hasattr(obj, 'version'):
                 obj.version = '0.0'
             if obj.version != obj.class_version:
@@ -160,6 +177,8 @@ class PersistentObject(object):
 
     @staticmethod
     def load():
+        if not os.path.isfile('psi_data_config.py'):
+            return PersistentObject.load_from_file(PSI_OPS_DB_FILENAME)
         obj = None
         file = tempfile.NamedTemporaryFile(delete=False)
         file.close()
