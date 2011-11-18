@@ -631,7 +631,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # TODO: test
         pass
         #with tempfile.NamedTemporaryFile() as temp_file:
-        #    temp_file.write(json.dumps(self.__compartmentalize_data_for_stats_server()))
+        #    temp_file.write(self.__compartmentalize_data_for_stats_server())
         #    ssh = psi_ssh.SSH(*self.__stats_server_account)
         #    ssh.put_file(temp_file.name, STATS_SERVER_CONFIG_FILE_PATH)
         #    self.__stats_server_account.log('pushed')
