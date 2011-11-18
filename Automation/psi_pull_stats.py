@@ -226,13 +226,9 @@ def init_stats_db(db):
                        [iso8601_to_utc(row[0]), row[0]])
 
 
-def pull_stats(db, error_file, host, servers):
+def pull_stats(db, error_file, host, server_ip_address_to_id):
 
     print 'pull stats from host %s...' % (host.id,)
-
-    server_ip_address_to_id = {}
-    for server in servers:
-        server_ip_address_to_id[server.ip_address] = server.id
 
     line_re = re.compile(LOG_LINE_PATTERN)
 
@@ -693,12 +689,14 @@ if __name__ == "__main__":
     try:
         init_stats_db(db)
         hosts = psinet.get_hosts()
-        servers = psinet.get_servers()
+        server_ip_address_to_id = {}
+        for server in psinet.get_servers():
+            server_ip_address_to_id[server.ip_address] = server.id
 
         # Pull stats from each host
 
         for host in hosts:
-            pull_stats(db, error_file, host, servers)
+            pull_stats(db, error_file, host, server_ip_address_to_id)
 
         # Pull netflows from each host and process them
         # Avoid doing this on Windows, where nfdump is not available
