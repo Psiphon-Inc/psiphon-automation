@@ -955,8 +955,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         copy = PsiphonNetwork()
     
         for host in self.__hosts.itervalues():
-            copy.__hosts[copy_host.id] = Host(
+            copy.__hosts[host.id] = Host(
                                             host.id,
+                                            '', # Omit: provider id isn't needed
                                             host.ip_address,
                                             host.ssh_port,
                                             '', # Omit: root ssh username
@@ -973,16 +974,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             # Omit: propagation, web server, ssh info
     
         for propagation_channel in self.__propagation_channels.itervalues():
-            copy.__propagation_channels[copy_propagation_channel.id] = Sponsor(
+            copy.__propagation_channels[propagation_channel.id] = PropagationChannel(
                                         propagation_channel.id,
-                                        propagation_channel.name)
+                                        propagation_channel.name,
+                                        [])
                                         # Omit mechanism info
 
         for sponsor in self.__sponsors.itervalues():
-            copy.__sponsors[copy_sponsor.id] = Sponsor(
+            copy.__sponsors[sponsor.id] = Sponsor(
                                         sponsor.id,
-                                        sponsor.name)
-                                        # Omit banner, home pages, campaigns
+                                        sponsor.name,
+                                        '',
+                                        {},
+                                        []) # Omit banner, home pages, campaigns
 
         return jsonpickle.encode(copy)
 
