@@ -1050,7 +1050,6 @@ def edit():
     # Lock an existing network object, interact with it, then save changes
     print 'loading...'
     psinet = PsiphonNetwork.load()
-    #psinet = PsiphonNetwork.load_from_file('psi_ops.dat')
     psinet.show_status()
     import code
     try:

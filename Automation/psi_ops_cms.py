@@ -25,6 +25,10 @@ import tempfile
 import jsonpickle
 
 
+PSI_OPS_ROOT = os.path.abspath(os.path.join('..', 'Data', 'PsiOps'))
+PSI_OPS_DB_FILENAME = os.path.join(PSI_OPS_ROOT, 'psi_ops.dat')
+
+
 if os.path.isfile('psi_data_config.py'):
     import psi_data_config
     sys.path.insert(0, psi_data_config.DATA_ROOT)
@@ -142,7 +146,14 @@ class PersistentObject(object):
             unlock_document()
             self.is_locked = False
 
+    def save_to_file(self, filename):
+        with open(filename, 'w') as file:
+            file.write(jsonpickle.encode(self))
+
     def save(self):
+        if not os.path.isfile('psi_data_config.py'):
+            self.save_to_file(PSI_OPS_DB_FILENAME)
+            return
         with tempfile.NamedTemporaryFile(delete=False) as file:
             file.write(jsonpickle.encode(self))
         import_document(file.name)
@@ -160,6 +171,8 @@ class PersistentObject(object):
 
     @staticmethod
     def load():
+        if not os.path.isfile('psi_data_config.py'):
+            return PersistentObject.load_from_file(PSI_OPS_DB_FILENAME)
         obj = None
         file = tempfile.NamedTemporaryFile(delete=False)
         file.close()
