@@ -876,6 +876,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def embed(self, propagation_channel_id):
         return get_encoded_server_list(propagation_channel_id)
     
+    def get_hosts(self):
+        return self.__hosts.itervalues()
+        
+    def get_servers(self):
+        return self.__servers.itervalues()
+    
     def __compartmentalize_data_for_host(self, host_id, discovery_date=datetime.datetime.now()):
         # Create a compartmentalized database with only the information needed by a particular host
         # - propagation channels includes only channel IDs that may connect to servers on this host
