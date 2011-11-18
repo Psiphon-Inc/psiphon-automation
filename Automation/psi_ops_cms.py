@@ -154,8 +154,14 @@ class PersistentObject(object):
         if not os.path.isfile('psi_data_config.py'):
             self.save_to_file(PSI_OPS_DB_FILENAME)
             return
-        with tempfile.NamedTemporaryFile(delete=False) as file:
-            file.write(jsonpickle.encode(self))
+        # NOTE: avoiding saving the object with the is_locked attribute set
+        is_locked = self.is_locked
+        self.is_locked = None
+        try:
+            with tempfile.NamedTemporaryFile(delete=False) as file:
+                file.write(jsonpickle.encode(self))
+        finally:
+            self.is_locked = is_locked
         import_document(file.name)
         os.remove(file.name)
 
