@@ -31,8 +31,11 @@ PSI_OPS_DB_FILENAME = os.path.join(PSI_OPS_ROOT, 'psi_ops.dat')
 
 if os.path.isfile('psi_data_config.py'):
     import psi_data_config
-    sys.path.insert(0, psi_data_config.DATA_ROOT)
-    import psi_ops_config
+    try:
+        sys.path.insert(0, psi_data_config.DATA_ROOT)
+        import psi_ops_config
+    except ImportError as error:
+        print error
 
 
 def unlock_document():
