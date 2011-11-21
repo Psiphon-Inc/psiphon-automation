@@ -645,7 +645,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         emails = {}
         for sponsor in self.__sponsors.itervalues():
             for campaign in sponsor.campaigns:
-                if campaign.propagation_mechanism_type == 'email-autoresponder':
+                if (campaign.propagation_mechanism_type == 'email-autoresponder' and
+                    campaign.s3_bucket_name != None):
                     emails[campaign.account.email_address] = \
                     {
                      'body': 
@@ -1040,7 +1041,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         servers = [server for server in self.__servers.itervalues() if server.propagation_channel_id != None]
         self.__test_servers(servers, test_web_server, test_vpn, test_ssh)
 
-        
+    def save(self):
+        print 'saving...'
+        self.save()
+
+
 def unit_test():
     psinet = PsiphonNetwork()
     psinet.add_propagation_channel('email-channel', ['email-autoresponder'])
@@ -1069,8 +1074,6 @@ def edit():
                 'Interact with the \'psinet\' object...\n')
     except SystemExit as e:
         pass
-    print 'saving...'
-    psinet.save()
     psinet.release()
 
 
