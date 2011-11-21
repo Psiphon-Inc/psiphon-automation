@@ -36,11 +36,13 @@ DB_ROOT_PASSWORD = ''
 # General processing/sending stuff
 # 
 
+MAIL_RESPONDER_USERNAME = 'mail_responder'
+
 # The location of the config file. 
 CONFIG_FILEPATH = '/mail_responder_config/conf.json'
 
 # The directory where attachment files are cached.
-ATTACHMENT_CACHE_DIR = os.path.expanduser('~/attach_cache')
+ATTACHMENT_CACHE_DIR = os.path.expanduser('~%s/attach_cache' % MAIL_RESPONDER_USERNAME)
 
 # We're going to use a fixed address to reply to all email from. 
 # The reasons for this are:
@@ -98,7 +100,7 @@ LOG_FILENAME = '/var/log/mail_responder.log'
 # to. Note that this is intended to be used for very short time periods -- only
 # until the email is verified. So it should almost always be None.
 VERIFY_EMAIL_ADDRESS = None
-VERIFY_FILENAME = os.path.expanduser('~/verify.txt')
+VERIFY_FILENAME = os.path.expanduser('~%s/verify.txt' % MAIL_RESPONDER_USERNAME)
 
 
 #
@@ -110,5 +112,5 @@ VERIFY_FILENAME = os.path.expanduser('~/verify.txt')
 # be written raw to a files in this directory. 
 # Note: This should be used only when necessary. Recording user information is
 # undesireable.
-EXCEPTION_DIR = os.path.expanduser('~/exceptions')
+EXCEPTION_DIR = os.path.expanduser('~%s/exceptions' % MAIL_RESPONDER_USERNAME)
 
