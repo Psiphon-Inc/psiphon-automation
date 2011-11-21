@@ -125,8 +125,10 @@ class MailResponder:
         return True
 
     def _check_blacklist(self):
+        '''
+        '''
         bl = blacklist.Blacklist()
-        return bl.check_and_add(strip_email(self._requester_addr))
+        return bl.check_and_add(self._requester_addr)
 
     def _parse_email(self, email_string):
         '''
@@ -155,9 +157,16 @@ class MailResponder:
         # do a case-insensitive check.
         self.requested_addr = self.requested_addr.lower()
 
+        # Extract and parse the sender's (requester's) address
+        
         self._requester_addr = decode_header(self._email['Return-Path'])
         if not self._requester_addr:
             syslog.syslog(syslog.LOG_INFO, 'fail: no requester address')
+            return False
+        
+        self._requester_addr = strip_email(self._requester_addr)
+        if not self._requester_addr:
+            syslog.syslog(syslog.LOG_INFO, 'fail: unparsable requester address')
             return False
 
         self._subject = decode_header(self._email['Subject'])
