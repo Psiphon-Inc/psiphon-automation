@@ -24,11 +24,27 @@ The MailStats class can be used to record stats about the mail responder.
 
 import json
 import re
+import os
 from boto.ses.connection import SESConnection
 
 import settings
 import sendmail
 
+
+def get_ses_quota():
+    '''
+    Returns the simple Amazon SES quota info, in text. 
+    '''
+    # Open the connection. Uses creds from boto conf or env vars.
+    conn = SESConnection()
+
+    quota = conn.get_send_quota()
+    
+    # Getting an error when we try to call this. See:
+    # http://code.google.com/p/boto/issues/detail?id=518
+    #conn.close()
+
+    return json.dumps(quota, indent=2)
 
 def process_log_file(logfile):
     '''
@@ -89,6 +105,13 @@ def process_log_file(logfile):
     return text
 
 
+def get_exception_info():
+    if os.path.isdir(settings.EXCEPTION_DIR):
+        return 'Exception files count: %d' % len(os.listdir(settings.EXCEPTION_DIR))
+    else:
+        return 'Exception files count: (not gathering)'
+
+
 if __name__ == '__main__':
 
     # We want to process the most recently rotated file (so that we're processing
@@ -101,19 +124,12 @@ if __name__ == '__main__':
     except:
         pass
 
-    # Open the connection. Uses creds from boto conf or env vars.
-    conn = SESConnection()
-
-    quota = conn.get_send_quota()
-    
-    # Getting an error when we try to call this. See:
-    # http://code.google.com/p/boto/issues/detail?id=518
-    #conn.close()
-    
     email_body = ''
-    email_body += json.dumps(quota, indent=2)
-    email_body += '\n\n\n'
     email_body += loginfo
+    email_body += '\n\n\n'
+    email_body += get_exception_info()
+    email_body += '\n\n\n'
+    email_body += get_ses_quota()
 
     subject = '[MailResponder] Stats'
 
