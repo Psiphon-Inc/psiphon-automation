@@ -779,7 +779,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # for no additional "effort".
             bucket_count = len(servers)
             if bucket_count == 0:
-                return []
+                return ([], None)
             bucket = struct.unpack('!L',socket.inet_aton(client_ip_address))[0] % bucket_count
             servers = [servers[bucket]]
         # optional logger (used by server to log each server IP address disclosed)
