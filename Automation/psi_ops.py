@@ -270,7 +270,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                       self.__propagation_channels.itervalues())[0]
 
     def add_propagation_channel(self, name, propagation_mechanism_types):
-        import_propagation_channel(self.__generate_id(), name, propagation_mechanism_types)
+        self.import_propagation_channel(self.__generate_id(), name, propagation_mechanism_types)
 
     def import_propagation_channel(self, id, name, propagation_mechanism_types):
         for type in propagation_mechanism_types: assert(type in self.__propagation_mechanisms)
@@ -284,7 +284,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                       self.__sponsors.itervalues())[0]
 
     def add_sponsor(self, name):
-        import_sponsor(self.__generate_id(), name)
+        self.import_sponsor(self.__generate_id(), name)
 
     def import_sponsor(self, id, name):
         sponsor = Sponsor(id, name, None, {}, [])
@@ -299,7 +299,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         sponsor.banner = banner
         sponsor.log('set banner')
         for campaign in sponsor.campaigns:
-            self.__deploy_builds_required_for_campaigns.set(
+            self.__deploy_builds_required_for_campaigns.add(
                 (campaign.propagation_channel_id, sponsor.id))
             campaign.log('marked for build and publish (new banner)')
 
