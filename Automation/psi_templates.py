@@ -51,13 +51,17 @@ def get_html_email_content(s3_bucket_name):
 Or click the link below.<br>
 <a href="{0}/en.html">{0}/en.html</a><br>
 <br>
+<div style="direction: rtl;">
 برای استفاده از سایفون ۳، فایل پیوست شده را با پسوند زیر ذخیره کنید‪:‬<br>
 .exe<br>
 یا بر روی لینک  زیر کلیک کنید‪.‬<br>
 <a href="{0}/fa.html">{0}/fa.html</a><br>
+</div>
 <br>
 Русский - <a href="{0}/ru.html">{0}/ru.html</a><br>
 Türkmençe - <a href="{0}/tk.html">{0}/tk.html</a><br>
 中文 - <a href="{0}/zh.html">{0}/zh.html</a><br>
+<div style="direction: rtl;">
 العربي - <a href="{0}/ar.html">{0}/ar.html</a><br>
+</div>
 ภาษาไทย - <a href="{0}/th.html">{0}/th.html</a><br>'''.format(bucket_root_url)
