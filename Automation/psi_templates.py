@@ -30,11 +30,15 @@ Türkmençe - {0}/tk.html
 
 def get_plaintext_email_content(s3_bucket_name):
     bucket_root_url = 'https://s3.amazonaws.com/' + s3_bucket_name
-    return '''To use Psiphon 3, save the attached file with a .exe extension.  Or click one of the links below.
-برای استفاده از سایفون ۳، فایل پیوست شده را با پسوند .exe ذخیره کنید. یا بر روی یکی‌ از لینک‌های زیر کلیک کنید.
+    return '''To use Psiphon 3, save the attached file with a .exe extension.
+Or click the link below.
+{0}/en.html
 
-English - {0}/en.html
-فارسی - {0}/fa.html
+برای استفاده از سایفون ۳، فایل پیوست شده را با پسوند زیر ذخیره کنید‪:‬
+.exe
+یا بر روی لینک  زیر کلیک کنید‪.‬
+{0}/fa.html
+
 Русский - {0}/ru.html
 Türkmençe - {0}/tk.html
 中文 - {0}/zh.html
@@ -43,11 +47,15 @@ Türkmençe - {0}/tk.html
 
 def get_html_email_content(s3_bucket_name):
     bucket_root_url = 'https://s3.amazonaws.com/' + s3_bucket_name
-    return '''To use Psiphon 3, save the attached file with a .exe extension.  Or click one of the links below.<br>
-برای استفاده از سایفون ۳، فایل پیوست شده را با پسوند .exe ذخیره کنید. یا بر روی یکی‌ از لینک‌های زیر کلیک کنید.<br>
+    return '''To use Psiphon 3, save the attached file with a .exe extension.<br>
+Or click the link below.<br>
+<a href="{0}/en.html">{0}/en.html</a><br>
 <br>
-English - <a href="{0}/en.html">{0}/en.html</a><br>
-فارسی - <a href="{0}/fa.html">{0}/fa.html</a><br>
+برای استفاده از سایفون ۳، فایل پیوست شده را با پسوند زیر ذخیره کنید‪:‬<br>
+.exe<br>
+یا بر روی لینک  زیر کلیک کنید‪.‬<br>
+<a href="{0}/fa.html">{0}/fa.html</a><br>
+<br>
 Русский - <a href="{0}/ru.html">{0}/ru.html</a><br>
 Türkmençe - <a href="{0}/tk.html">{0}/tk.html</a><br>
 中文 - <a href="{0}/zh.html">{0}/zh.html</a><br>
