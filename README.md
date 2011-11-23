@@ -74,7 +74,7 @@ Psiphon does not add HTTPS or equivilent security where it is not already in pla
 application level.
 
 - Anonymity. Psiphon is not an anonymity solution such as
-[Tor] (https://www.torproject.org).
+[Tor](https://www.torproject.org).
 If a user connects to a Psiphon proxy which is beyond the monitoring of the censor he or she
 is circumventing, then the censor will only see that the user is sending encrypted traffic to
 a Psiphon proxy. The censor will know the user is using Psiphon. Psiphon does not defend against
