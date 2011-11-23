@@ -38,5 +38,5 @@ if __name__ == '__main__':
     
     if not mail_process.process_input(em.as_string()):
         print 'FAILED: check log for details'
-    else
+    else:
         print 'SUCCESS'
