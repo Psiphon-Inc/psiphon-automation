@@ -57,6 +57,43 @@ Coming soon:
   behind the tools used to censor IPv4 traffic.
 
 
+Security Properties
+--------------------------------------------------------------------------------
+
+Psiphon 3 is a circumvention system. To accomplish its design goals, it uses computer
+security technology including encryption and digital signatures. Using these algorithms
+does not mean Psiphon 3 offers additional security properties such as privacy or
+authentication for users Internet traffic.
+
+- Confidentiality. Traffic routed between a users computer and Psiphon proxy is encrypted
+and authenticated (using standard SSH and L2TP/IPSec VPN algorithms). The purpose of this
+encryption is to evade censorship based on deep-packet inspection of traffic, not to add
+confidentiality to the user's Internet traffic. The users traffic is plaintext to the Psiphon
+proxy and to the Internet at large as it egresses from the Psiphon proxy. Put simply,
+Psiphon does not add HTTPS or equivilent security where it is not already in place at the
+application level.
+
+- Anonymity. Psiphon is not an anonymity solution such as [Tor] (https://www.torproject.org).
+If a user connects to a Psiphon proxy which is beyond the monitoring of the censor he or she
+is circumventing, then the censor will only see that the user is sending encrypted traffic to
+a Psiphon proxy. The censor will know the user is using Psiphon. Psiphon does not defend against
+traffic analysis attacks the censor may deploy against traffic flowing to Psiphon proxies. 
+The Psiphon proxy will know where the user is coming from, what their unencrypted traffic is, and
+what their destination is, and so the user is necessarily putting trust in the entity running the
+Psiphon proxy.
+
+- Integrity. Psiphon was not designed to add integrity to Internet traffic. However, in the case
+where a censor is intercepting SSL/TLS traffic using compromised root CA keys, Psiphon adds
+integrity; but only if the user has secured a trusted client out of band and is using a Psiphon
+proxy beyond the control of the censor. Simply, the users HTTPS traffic happens to bypass the
+censors man-in-the-middle attack, and the Psiphon authentication system does not rely on the 
+commercial Certificate Authority for most use cases. See the design paper for details on
+Psiphon PKI.
+
+- Availability. Psiphon is designed to make available Internet content that's otherwise censored.
+This is its primary design goal.
+
+
 Documentation
 --------------------------------------------------------------------------------
 
