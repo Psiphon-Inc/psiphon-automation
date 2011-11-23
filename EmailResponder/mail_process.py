@@ -221,16 +221,18 @@ def strip_email(email_address):
 
 def decode_header(header_val):
     '''
-    Returns False if decoding fails. Otherwise returns the decoded value.
+    Returns None if decoding fails. Otherwise returns the decoded value.
     '''
     try:
+        if not header_val: return None
+        
         hdr = email.header.decode_header(header_val)
-        if not hdr: return False
+        if not hdr: return None
         decoded = u''
         
         return ' '.join([text.decode(encoding) if encoding else text for text,encoding in hdr])
-    except Exception:
-        return False
+    except:
+        return None
 
 
 def get_s3_attachment(bucketname):
@@ -287,6 +289,30 @@ def dump_to_exception_file(string):
         f.close()
 
 
+def process_input(email_string):
+    '''
+    Process the email in email_string. Returns False on error; returns the 
+    requested address on success.
+    '''
+    
+    responder = MailResponder()
+
+    if not responder.read_conf(settings.CONFIG_FILEPATH):
+        return False
+
+    try:
+        if not responder.process_email(email_string):
+            return False
+    except BotoServerError as ex:
+        if ex.error_message == 'Address blacklisted.':
+            syslog.syslog(syslog.LOG_CRIT, 'fail: requester address blacklisted by SES')
+            return False
+        else:
+            raise
+        
+    return responder.requested_addr
+
+
 if __name__ == '__main__':
     '''
     Note that we always exit with 0 so that the email server doesn't complain.
@@ -296,26 +322,15 @@ if __name__ == '__main__':
 
     try:
         email_string = sys.stdin.read()
-
+        
         if not email_string:
             syslog.syslog(syslog.LOG_CRIT, 'error: no stdin')
             exit(0)
 
-        responder = MailResponder()
-
-        if not responder.read_conf(settings.CONFIG_FILEPATH):
+        requested_addr = process_input(email_string) 
+        if not requested_addr:
             exit(0)
 
-        try:
-            if not responder.process_email(email_string):
-                exit(0)
-        except BotoServerError as ex:
-            if ex.error_message == 'Address blacklisted.':
-                syslog.syslog(syslog.LOG_CRIT, 'fail: requester address blacklisted by SES')
-                exit(0)
-            else:
-                raise
-            
     except Exception as ex:
         syslog.syslog(syslog.LOG_CRIT, 'exception: %s: %s' % (ex, traceback.format_exc()))
         
@@ -326,6 +341,6 @@ if __name__ == '__main__':
                                                                        email_string))
     else:
         syslog.syslog(syslog.LOG_INFO, 
-                      'success: %s: %fs' % (responder.requested_addr, time.clock()-starttime))
+                      'success: %s: %fs' % (requested_addr, time.clock()-starttime))
     
     exit(0)

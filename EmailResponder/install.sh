@@ -33,8 +33,8 @@ STATS_MAIL_ADDR=$1
 # Put the source files where they need to be. 
 echo "Copying source files..."
 
-# The simple files: mail_process.py, sendmail.py, blacklist.py, mail_stats.py
-sudo cp mail_process.py sendmail.py blacklist.py mail_stats.py $MAIL_HOME
+# Copy the simple files
+sudo cp mail_process.py sendmail.py blacklist.py mail_stats.py mail_direct.py $MAIL_HOME
 
 # forward needs to be copied to .forward
 sudo cp forward $MAIL_HOME/.forward
