@@ -456,7 +456,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # Install Psiphon 3 and generate configuration values
         # Here, we're assuming one server/IP address per host
-        existing_server_ids = [server.id for server in self.__servers.itervalues()]
+        existing_server_ids = [existing_server.id for existing_server in self.__servers.itervalues()]
         psi_ops_install.install_host(host, [server], existing_server_ids)
         host.log('install')
 

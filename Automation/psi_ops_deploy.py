@@ -158,7 +158,7 @@ def deploy_build(host, build_filename):
     ssh.close()
 
 
-def deploy_routes(host, build_filename):
+def deploy_routes(host):
 
     print 'deploy routes to host %s...' % (host.id,)
 
@@ -166,6 +166,8 @@ def deploy_routes(host, build_filename):
             host.ip_address, host.ssh_port,
             host.ssh_username, host.ssh_password,
             host.ssh_host_key)
+
+    ssh.exec_command('mkdir -p %s' % (psi_config.ROUTES_PATH,))
 
     target_filename = posixpath.join(
                             psi_config.ROUTES_PATH,
