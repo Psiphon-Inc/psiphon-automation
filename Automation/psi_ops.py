@@ -813,7 +813,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if region in sponsor.home_pages:
             sponsor_home_pages = [home_page.url for home_page in sponsor.home_pages[region]]
         # case: lookup failed or no corresponding region home page found --> use default
-        if not sponsor_home_pages and None in sponsor.home_pages:
+        if not sponsor_home_pages and 'None' in sponsor.home_pages:
             sponsor_home_pages = [home_page.url for home_page in sponsor.home_pages[None]]
         return sponsor_home_pages
     
