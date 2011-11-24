@@ -125,6 +125,8 @@ def deploy_data(host, host_data):
     try:
         file.write(host_data)
         file.close()
+        ssh.exec_command('mkdir -p %s' % (
+                posixpath.split(psi_config.DATA_FILE_NAME)[0],))
         ssh.put_file(file.name, psi_config.DATA_FILE_NAME)
     finally:
         try:
