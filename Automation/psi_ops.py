@@ -563,7 +563,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # Build and publish
 
-        build_filenames = {}
         for target in self.__deploy_builds_required_for_campaigns:
 
             propagation_channel_id, sponsor_id = target
@@ -572,13 +571,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             # Build and upload to hosts
                 
-            if target not in build_filenames:
-                
-                # A sponsor may use the same propagation channel for multiple
-                # campaigns; we need only build and upload the client once.
-                build_filenames[target] = self.build(propagation_channel.name, sponsor.name)
-
-            build_filename = build_filenames[target]
+            build_filename = self.build(propagation_channel.name, sponsor.name)
 
             # Upload client builds
             # We only upload the builds for Propagation Channel IDs that need to be known for the host.
@@ -591,18 +584,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             # Publish to propagation mechanisms
 
-            campaign = filter(lambda x:x.propagation_channel_id == propagation_channel_id, sponsor.campaigns)[0]
-            s3_bucket_name = psi_ops_s3.publish_s3_download(self.__aws_account, build_filename)
-            campaign.log('published s3 bucket %s' % (s3_bucket_name,))
-            if campaign.propagation_mechanism_type == 'twitter':
-                message = psi_templates.get_tweet_message(s3_bucket_name)
-                psi_twitter.tweet(campaign.account, message)
-                campaign.log('tweeted')
-            elif campaign.propagation_mechanism_type == 'email-autoresponder':
-                campaign.s3_bucket_name = s3_bucket_name
-                if not self.__deploy_email_config_required:
-                    self.__deploy_email_config_required = True
-                    campaign.log('email push scheduled')
+            for campaign in filter(lambda x:x.propagation_channel_id == propagation_channel_id, sponsor.campaigns):
+                s3_bucket_name = psi_ops_s3.publish_s3_download(self.__aws_account, build_filename)
+                campaign.log('published s3 bucket %s' % (s3_bucket_name,))
+                if campaign.propagation_mechanism_type == 'twitter':
+                    message = psi_templates.get_tweet_message(s3_bucket_name)
+                    psi_twitter.tweet(campaign.account, message)
+                    campaign.log('tweeted')
+                elif campaign.propagation_mechanism_type == 'email-autoresponder':
+                    campaign.s3_bucket_name = s3_bucket_name
+                    if not self.__deploy_email_config_required:
+                        self.__deploy_email_config_required = True
+                        campaign.log('email push scheduled')
 
         self.__deploy_builds_required_for_campaigns.clear()
 
@@ -912,7 +905,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for server in self.__servers.itervalues():
             if (server.propagation_channel_id in discovery_propagation_channel_ids_for_host and
                     not(server.discovery_date_range and server.host_id != host_id and server.discovery_date_range[1] <= discovery_date) and
-                    not(server.is_embedded and server.host_id != host_id)):
+                    not(not server.discovery_date_range and server.host_id != host_id)):
                 copy.__servers[server.id] = Server(
                                                 server.id,
                                                 '', # Omit host_id
@@ -1043,7 +1036,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def save(self):
         print 'saving...'
-        self.save()
+        super(PsiphonNetwork, self).save()
 
 
 def unit_test():
