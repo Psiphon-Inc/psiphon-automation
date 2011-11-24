@@ -452,7 +452,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     propagation_channel.id,
                     is_embedded_server,
                     discovery_date_range,
-                    '8080')
+                    '8080',
+                    None,
+                    None,
+                    None,
+                    '22')
 
         # Install Psiphon 3 and generate configuration values
         # Here, we're assuming one server/IP address per host
