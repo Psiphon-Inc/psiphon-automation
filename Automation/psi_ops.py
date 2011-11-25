@@ -1050,6 +1050,20 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             servers = [server for server in self.__servers.itervalues() if server.host_id == host_id and server.propagation_channel_id != None]
             self.__test_servers(servers, test_web_server, test_vpn, test_ssh)
 
+    def test_propagation_channel(self, propagation_channel_name, test_web_server=True, test_vpn=True, test_ssh=True):
+        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+        servers = [server for server in self.__servers.itervalues() if server.propagation_channel_id == propagation_channel.id]
+        self.__test_servers(servers, test_web_server, test_vpn, test_ssh)
+
+    def test_sponsor(self, sponsor_name, test_web_server=True, test_vpn=True, test_ssh=True):
+        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        propagation_channel_ids = set()
+        for campaign in sponsor.campaigns:
+            propagation_channel_ids.add(campaign.propagation_channel_id)
+        servers = [server for server in self.__servers.itervalues()
+                   if server.propagation_channel_id in propagation_channel_ids]
+        self.__test_servers(servers, test_web_server, test_vpn, test_ssh)
+                    
     def test_servers(self, test_web_server=True, test_vpn=True, test_ssh=True):
         servers = [server for server in self.__servers.itervalues() if server.propagation_channel_id != None]
         self.__test_servers(servers, test_web_server, test_vpn, test_ssh)
