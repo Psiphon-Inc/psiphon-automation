@@ -217,26 +217,42 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__show_logs(s)
 
     def show_propagation_channels(self):
+        now = datetime.datetime.now()
         for p in self.__propagation_channels.itervalues():
             embedded_servers = [server.id for server in self.__servers.itervalues()
                                 if server.propagation_channel_id == p.id and server.is_embedded]
-            discovery_servers = ['%s (%s-%s)' % (server.id,
-                                                 server.discovery_date_range[0].isoformat(),
-                                                 server.discovery_date_range[1].isoformat())
-                                 for server in self.__servers.itervalues()
-                                 if server.propagation_channel_id == p.id and server.discovery_date_range]
+            propagation_servers = [server.id for server in self.__servers.itervalues()
+                                   if server.propagation_channel_id == p.id and
+                                   not server.is_embedded and not server.discovery_date_range]
+            current_discovery_servers = ['%s (%s-%s)' % (server.id,
+                                                         server.discovery_date_range[0].isoformat(),
+                                                         server.discovery_date_range[1].isoformat())
+                                         for server in self.__servers.itervalues()
+                                         if server.propagation_channel_id == p.id and server.discovery_date_range and
+                                         (server.discovery_date_range[0] <= now < server.discovery_date_range[1])]
+            other_discovery_servers = ['%s (%s-%s)' % (server.id,
+                                                       server.discovery_date_range[0].isoformat(),
+                                                       server.discovery_date_range[1].isoformat())
+                                       for server in self.__servers.itervalues()
+                                       if server.propagation_channel_id == p.id and server.discovery_date_range and
+                                       not (server.discovery_date_range[0] <= now < server.discovery_date_range[1])]
+            
             print textwrap.dedent('''
                 ID:                     %s
                 Name:                   %s
                 Propagation Mechanisms: %s
                 Embedded Servers:       %s
+                Propagation Servers:    %s
                 Discovery Servers:      %s
+                Old Discovery Servers:  %s
                 ''') % (
                     p.id,
                     p.name,
-                    ', '.join(p.propagation_mechanism_types),
-                    ', '.join(embedded_servers),
-                    ', '.join(discovery_servers))
+                    ',\n                        '.join(p.propagation_mechanism_types),
+                    ',\n                        '.join(embedded_servers),
+                    ',\n                        '.join(propagation_servers),
+                    ',\n                        '.join(current_discovery_servers),
+                    ',\n                        '.join(other_discovery_servers))
             self.__show_logs(p)
 
     def show_servers(self):
