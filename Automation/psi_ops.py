@@ -774,7 +774,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # output all servers for propagation channel ID with no discovery date
             servers = [server for server in self.__servers.itervalues()
                        if server.propagation_channel_id == propagation_channel_id and
-                           not server.discovery_date_range]
+                           server.is_embedded]
         else:
             # discovery case
             if not discovery_date:
