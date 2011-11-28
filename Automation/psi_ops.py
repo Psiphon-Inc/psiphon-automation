@@ -504,6 +504,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             
         # If it's a propagation server, stop embedding the old one (it's still
         # active, but not embedded in builds or discovered)
+        # TODO: FIX THIS - NEED LIST OF NEW SERVERS
         if is_embedded_server and unembed_others:
             for other_server in self.__servers.itervalues():
                 if (other_server.propagation_channel_id == propagation_channel.id and
