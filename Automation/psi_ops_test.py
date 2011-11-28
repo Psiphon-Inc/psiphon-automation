@@ -93,6 +93,11 @@ def test_server(ip_address, web_server_port, web_server_secret, encoded_server_l
             results['WEB'] = 'PASS' if result else 'FAIL'
         except Exception as ex:
             results['WEB'] = 'FAIL: ' + str(ex)
+        try:
+            result = __test_web_server(ip_address, '443', web_server_secret)
+            results['443'] = 'PASS' if result else 'FAIL'
+        except Exception as ex:
+            results['443'] = 'FAIL: ' + str(ex)
 
     if test_vpn or test_ssh:
         executable_path = psi_ops_build.build_client('0', '0', None, encoded_server_list, version, True)
