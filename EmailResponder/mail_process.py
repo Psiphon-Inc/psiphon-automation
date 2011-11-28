@@ -318,7 +318,7 @@ if __name__ == '__main__':
     Note that we always exit with 0 so that the email server doesn't complain.
     '''
     
-    starttime = time.clock()
+    starttime = time.time()
 
     try:
         email_string = sys.stdin.read()
@@ -341,6 +341,6 @@ if __name__ == '__main__':
                                                                        email_string))
     else:
         syslog.syslog(syslog.LOG_INFO, 
-                      'success: %s: %fs' % (requested_addr, time.clock()-starttime))
+                      'success: %s: %fs' % (requested_addr, time.time()-starttime))
     
     exit(0)
