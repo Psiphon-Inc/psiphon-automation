@@ -446,7 +446,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(server.id not in self.__servers)
         self.__servers[server.id] = server
 
-    def add_server(self, propagation_channel_name, discovery_date_range):
+    def add_servers(self, count, propagation_channel_name, discovery_date_range, unembed_others=True):
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
 
         # Embedded servers (aka "propagation servers") are embedded in client
@@ -454,54 +454,57 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # connect to a server.
         is_embedded_server = (discovery_date_range is None)
 
-        print 'starting Linode process (~5 minutes)...'
+        for x in range(count):
+            print 'starting Linode process (~5 minutes)...'
 
-        # Create a new cloud VPS
-        linode_info = psi_linode.launch_new_server(self.__linode_account)
-        host = Host(*linode_info)
+            # Create a new cloud VPS
+            linode_info = psi_linode.launch_new_server(self.__linode_account)
+            host = Host(*linode_info)
 
-        server = Server(
-                    None,
-                    host.id,
-                    host.ip_address,
-                    host.ip_address,
-                    propagation_channel.id,
-                    is_embedded_server,
-                    discovery_date_range,
-                    '8080',
-                    None,
-                    None,
-                    None,
-                    '22')
+            server = Server(
+                        None,
+                        host.id,
+                        host.ip_address,
+                        host.ip_address,
+                        propagation_channel.id,
+                        is_embedded_server,
+                        discovery_date_range,
+                        '8080',
+                        None,
+                        None,
+                        None,
+                        '22')
 
-        # Install Psiphon 3 and generate configuration values
-        # Here, we're assuming one server/IP address per host
-        existing_server_ids = [existing_server.id for existing_server in self.__servers.itervalues()]
-        psi_ops_install.install_host(host, [server], existing_server_ids)
-        host.log('install')
+            # Install Psiphon 3 and generate configuration values
+            # Here, we're assuming one server/IP address per host
+            existing_server_ids = [existing_server.id for existing_server in self.__servers.itervalues()]
+            psi_ops_install.install_host(host, [server], existing_server_ids)
+            host.log('install')
 
-        # Deploy will upload web server source database data and client builds
-        # (Only deploying for the new host, not broadcasting info yet...)
-        psi_ops_deploy.deploy_implementation(host)
-        psi_ops_deploy.deploy_data(
-                            host,
-                            self.__compartmentalize_data_for_host(host.id))
-        psi_ops_deploy.deploy_routes(host)
-        host.log('initial deployment')
+            # Deploy will upload web server source database data and client builds
+            # (Only deploying for the new host, not broadcasting info yet...)
+            psi_ops_deploy.deploy_implementation(host)
+            psi_ops_deploy.deploy_data(
+                                host,
+                                self.__compartmentalize_data_for_host(host.id))
+            psi_ops_deploy.deploy_routes(host)
+            host.log('initial deployment')
 
-        # Update database
+            # Update database
 
-        # Add new server (we also add a host; here, the host and server are
-        # one-to-one, but legacy networks have many servers per host and we
-        # retain support for this in the data model and general functionality)
-        assert(host.id not in self.__hosts)
-        self.__hosts[host.id] = host
-        assert(server.id not in self.__servers)
-        self.__servers[server.id] = server
+            # Add new server (we also add a host; here, the host and server are
+            # one-to-one, but legacy networks have many servers per host and we
+            # retain support for this in the data model and general functionality)
+            assert(host.id not in self.__hosts)
+            self.__hosts[host.id] = host
+            assert(server.id not in self.__servers)
+            self.__servers[server.id] = server
 
+            self.save()
+            
         # If it's a propagation server, stop embedding the old one (it's still
         # active, but not embedded in builds or discovered)
-        if is_embedded_server:
+        if is_embedded_server and unembed_others:
             for other_server in self.__servers.itervalues():
                 if (other_server.propagation_channel_id == propagation_channel.id and
                     other_server.id != server.id and
@@ -1003,6 +1006,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         []) # Omit banner, home pages, campaigns
 
         return jsonpickle.encode(copy)
+
+    def run_command_on_host(self, host, command):
+        ssh = psi_ssh.SSH(
+                host.ip_address, host.ssh_port,
+                host.ssh_username, host.ssh_password,
+                host.ssh_host_key)
+
+        ssh.exec_command(command)
 
     def __test_server(self, server, test_web_server, test_vpn, test_ssh):
         return psi_ops_test.test_server(
