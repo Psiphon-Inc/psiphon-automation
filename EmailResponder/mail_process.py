@@ -137,7 +137,7 @@ class MailResponder:
 
         self._email = email.message_from_string(email_string)
 
-        self.requested_addr = decode_header(self._email['To'])
+        self.requested_addr = decode_header(self._email['X-Original-To'])
         if not self.requested_addr:
             syslog.syslog(syslog.LOG_INFO, 'fail: no requested address')
             return False
