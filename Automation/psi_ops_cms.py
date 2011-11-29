@@ -23,7 +23,6 @@ import subprocess
 import shlex
 import tempfile
 import jsonpickle
-import portalocker
 
 try:
     import portalocker
