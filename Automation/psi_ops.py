@@ -456,6 +456,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # connect to a server.
         is_embedded_server = (discovery_date_range is None)
 
+        new_server_ids = []
+        
         for x in range(count):
             print 'starting Linode process (~5 minutes)...'
 
@@ -502,15 +504,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             assert(server.id not in self.__servers)
             self.__servers[server.id] = server
 
+            new_server_ids.append(server.id)
+            
             self.save()
             
         # If it's a propagation server, stop embedding the old one (it's still
         # active, but not embedded in builds or discovered)
-        # TODO: FIX THIS - NEED LIST OF NEW SERVERS
         if is_embedded_server and unembed_others:
             for other_server in self.__servers.itervalues():
                 if (other_server.propagation_channel_id == propagation_channel.id and
-                    other_server.id != server.id and
+                    other_server.id not in new_server_ids and
                     other_server.is_embedded):
                     other_server.is_embedded = False
                     other_server.log('unembedded')
