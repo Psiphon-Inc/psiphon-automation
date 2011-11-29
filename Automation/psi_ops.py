@@ -29,6 +29,8 @@ import base64
 import jsonpickle
 import tempfile
 import pprint
+import struct
+import socket
 
 import psi_utils
 import psi_ops_cms
