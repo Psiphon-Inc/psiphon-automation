@@ -23,6 +23,14 @@ import subprocess
 import shlex
 import tempfile
 import jsonpickle
+import portalocker
+
+try:
+    import portalocker
+except ImportError as error:
+    pass
+
+#==============================================================================
 
 
 PSI_OPS_ROOT = os.path.abspath(os.path.join('..', 'Data', 'PsiOps'))
@@ -169,8 +177,10 @@ class PersistentObject(object):
         os.remove(file.name)
 
     @staticmethod
-    def load_from_file(filename):
+    def load_from_file(filename, lock_file=False):
         with open(filename) as file:
+            if lock_file:
+                portalocker.lock(file, portalocker.LOCK_SH)
             obj = jsonpickle.decode(file.read())
             if not hasattr(obj, 'version'):
                 obj.version = '0.0'
