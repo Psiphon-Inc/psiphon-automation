@@ -110,7 +110,7 @@ def export_document(dest_filename):
         raise Exception('CipherShare export failed: ' + str(output))
 
 
-def import_document(source_filename):
+def import_document(source_filename, for_stats=False):
     cmd = 'CipherShareScriptingClient.exe \
             ImportDocument \
             -UserName %s -Password %s \
@@ -120,7 +120,7 @@ def import_document(source_filename):
             -ShareGroup "%s" \
             -Description "%s" \
             -AddVersionIfExists \
-            -KeepLocked \
+            %s \
             -IgnoreKeyTrust' \
          % (psi_ops_config.CIPHERSHARE_USERNAME,
             psi_ops_config.CIPHERSHARE_PASSWORD,
@@ -129,9 +129,11 @@ def import_document(source_filename):
             psi_ops_config.CIPHERSHARE_SERVERHOST,
             psi_ops_config.CIPHERSHARE_SERVERPORT,
             source_filename,
-            psi_ops_config.CIPHERSHARE_PSI_OPS_DOCUMENT_PATH,
+            psi_ops_config.CIPHERSHARE_PSI_OPS_FOR_STATS_DOCUMENT_PATH if for_stats else
+                psi_ops_config.CIPHERSHARE_PSI_OPS_DOCUMENT_PATH,
             psi_ops_config.CIPHERSHARE_SHAREGROUP,
-            psi_ops_config.CIPHERSHARE_PSI_OPS_DOCUMENT_DESCRIPTION)
+            psi_ops_config.CIPHERSHARE_PSI_OPS_DOCUMENT_DESCRIPTION,
+            '' if for_stats else '-KeepLocked')
     
     proc = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output = proc.communicate()

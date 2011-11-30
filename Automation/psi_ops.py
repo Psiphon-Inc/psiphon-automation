@@ -650,13 +650,17 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             host.log('deploy routes')
 
     def push_stats_config(self):
-        # TODO: test
-        pass
-        #with tempfile.NamedTemporaryFile() as temp_file:
-        #    temp_file.write(self.__compartmentalize_data_for_stats_server())
-        #    ssh = psi_ssh.SSH(*self.__stats_server_account)
-        #    ssh.put_file(temp_file.name, STATS_SERVER_CONFIG_FILE_PATH)
-        #    self.__stats_server_account.log('pushed')
+        temp_file = tempfile.NamedTemporaryFile(delete=False)
+        try:
+            temp_file.write(self.__compartmentalize_data_for_stats_server())
+            temp_file.close()
+            psi_ops_cms.import_document(temp_file.name, True)
+            self.__stats_server_account.log('pushed')
+        finally:
+            try:
+                os.remove(temp_file.name)
+            except:
+                pass
 
     def push_email_config(self):
         # Generate the email server config file, which is a JSON format
