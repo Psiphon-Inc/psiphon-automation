@@ -452,3 +452,15 @@ def install_host(host, servers, existing_server_ids):
     ## Deploy will upload web server source database data and client builds
     #psi_deploy.deploy(host)
     # NOTE: call psi_ops_deploy.deploy_host() to complete the install process
+
+    
+def install_firewall_rules(host):
+
+    ssh = psi_ssh.SSH(
+            host.ip_address, host.ssh_port,
+            host.ssh_username, host.ssh_password,
+            host.ssh_host_key)
+
+    ssh.put_file('iptables.rules', '/etc/iptables.rules')
+    ssh.exec_command('iptables-restore < /etc/iptables.rules')
+    ssh.exec_command('/etc/init.d/fail2ban restart')
