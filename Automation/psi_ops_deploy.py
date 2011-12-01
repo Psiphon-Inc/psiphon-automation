@@ -41,14 +41,20 @@ SOURCE_FILES = [
 #==============================================================================
 
 
+ssh_sessions = {}
+
+
 def deploy_implementation(host):
 
     print 'deploy implementation to host %s...' % (host.id,)
 
-    ssh = psi_ssh.SSH(
-            host.ip_address, host.ssh_port,
-            host.ssh_username, host.ssh_password,
-            host.ssh_host_key)
+    if not host.id in ssh_sessions:
+        ssh_sessions[host.id] = psi_ssh.SSH(
+                                    host.ip_address, host.ssh_port,
+                                    host.ssh_username, host.ssh_password,
+                                    host.ssh_host_key)
+
+    ssh = ssh_sessions[host.id]
 
     # Copy server source code
 
@@ -98,17 +104,18 @@ def deploy_implementation(host):
                  remote_rate_limit_end_file_path)
     ssh.exec_command('chmod +x %s' % (remote_rate_limit_end_file_path,))
 
-    ssh.close()
-
 
 def deploy_data(host, host_data):
 
     print 'deploy data to host %s...' % (host.id,)
 
-    ssh = psi_ssh.SSH(
-            host.ip_address, host.ssh_port,
-            host.ssh_username, host.ssh_password,
-            host.ssh_host_key)
+    if not host.id in ssh_sessions:
+        ssh_sessions[host.id] = psi_ssh.SSH(
+                                    host.ip_address, host.ssh_port,
+                                    host.ssh_username, host.ssh_password,
+                                    host.ssh_host_key)
+
+    ssh = ssh_sessions[host.id]
 
     # Stop server, if running, before replacing data file (command may fail)
 
@@ -138,17 +145,18 @@ def deploy_data(host, host_data):
 
     ssh.exec_command('%s restart' % (remote_init_file_path,))
 
-    ssh.close()
-
 
 def deploy_build(host, build_filename):
 
     print 'deploy %s build to host %s...' % (build_filename, host.id,)
 
-    ssh = psi_ssh.SSH(
-            host.ip_address, host.ssh_port,
-            host.ssh_username, host.ssh_password,
-            host.ssh_host_key)
+    if not host.id in ssh_sessions:
+        ssh_sessions[host.id] = psi_ssh.SSH(
+                                    host.ip_address, host.ssh_port,
+                                    host.ssh_username, host.ssh_password,
+                                    host.ssh_host_key)
+
+    ssh = ssh_sessions[host.id]
 
     ssh.exec_command('mkdir -p %s' % (psi_config.UPGRADE_DOWNLOAD_PATH,))
 
@@ -157,17 +165,18 @@ def deploy_build(host, build_filename):
         posixpath.join(psi_config.UPGRADE_DOWNLOAD_PATH,
                        os.path.split(build_filename)[1]))
 
-    ssh.close()
-
 
 def deploy_routes(host):
 
     print 'deploy routes to host %s...' % (host.id,)
 
-    ssh = psi_ssh.SSH(
-            host.ip_address, host.ssh_port,
-            host.ssh_username, host.ssh_password,
-            host.ssh_host_key)
+    if not host.id in ssh_sessions:
+        ssh_sessions[host.id] = psi_ssh.SSH(
+                                    host.ip_address, host.ssh_port,
+                                    host.ssh_username, host.ssh_password,
+                                    host.ssh_host_key)
+
+    ssh = ssh_sessions[host.id]
 
     ssh.exec_command('mkdir -p %s' % (psi_config.ROUTES_PATH,))
 
@@ -180,5 +189,3 @@ def deploy_routes(host):
         target_filename)
 
     ssh.exec_command('tar xfz %s' % (target_filename,))
-
-    ssh.close()
