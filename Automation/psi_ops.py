@@ -564,13 +564,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Deploy as required:
         #
         # - Implementation to flagged hosts
-        # - Data to all hosts
         # - Builds for required channels and sponsors
+        # - Data to all hosts
+        # - Publish, tweet
         # - Email and stats server config
         #
         # NOTE: Order is important. Hosts get new implementation before
-        # new data, in case schema has changed; deploy new data before
-        # propagating builds so servers are prepared for clients
+        # new data, in case schema has changed; deploy builds before
+        # deploying new data so an upgrade is available when it's needed;
+        # deploy data before publishing and updating email config so new
+        # servers are prepared for newly downloaded clients
 
         # Host implementation
 
@@ -578,19 +581,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             host = self.__hosts[host_id]
             psi_ops_deploy.deploy_implementation(host)
             host.log('deploy implementation')
+        
         self.__deploy_implementation_required_for_hosts.clear()
 
-        # Host data
-
-        if self.__deploy_data_required_for_all:
-            for host in self.__hosts.itervalues():
-                psi_ops_deploy.deploy_data(
-                                    host,
-                                    self.__compartmentalize_data_for_host(host.id))
-                host.log('deploy data')
-        self.__deploy_data_required_for_all = False
-
-        # Build and publish
+        # Build
 
         for target in self.__deploy_builds_required_for_campaigns:
 
@@ -614,14 +608,33 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # Publish to propagation mechanisms
 
             for campaign in filter(lambda x:x.propagation_channel_id == propagation_channel_id, sponsor.campaigns):
-                s3_bucket_name = psi_ops_s3.publish_s3_download(self.__aws_account, build_filename)
-                campaign.log('published s3 bucket %s' % (s3_bucket_name,))
+                campaign.s3_bucket_name = psi_ops_s3.publish_s3_download(self.__aws_account, build_filename)
+                campaign.log('created s3 bucket %s' % (campaign.s3_bucket_name,))
+
+        # Host data
+
+        if self.__deploy_data_required_for_all:
+            for host in self.__hosts.itervalues():
+                psi_ops_deploy.deploy_data(
+                                    host,
+                                    self.__compartmentalize_data_for_host(host.id))
+                host.log('deploy data')
+        
+        self.__deploy_data_required_for_all = False
+
+        # Publish
+        
+        for target in self.__deploy_builds_required_for_campaigns:
+
+            propagation_channel_id, sponsor_id = target
+            sponsor = self.__sponsors[sponsor_id]
+
+            for campaign in filter(lambda x:x.propagation_channel_id == propagation_channel_id, sponsor.campaigns):
                 if campaign.propagation_mechanism_type == 'twitter':
-                    message = psi_templates.get_tweet_message(s3_bucket_name)
+                    message = psi_templates.get_tweet_message(campaign.s3_bucket_name)
                     psi_twitter.tweet(campaign.account, message)
                     campaign.log('tweeted')
                 elif campaign.propagation_mechanism_type == 'email-autoresponder':
-                    campaign.s3_bucket_name = s3_bucket_name
                     if not self.__deploy_email_config_required:
                         self.__deploy_email_config_required = True
                         campaign.log('email push scheduled')
