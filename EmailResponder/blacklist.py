@@ -44,15 +44,17 @@ class Blacklist(object):
         # We're going to pre-check for the DB and the table even though we're 
         # using "IF NOT EXISTS", because otherwise it prints error text (which
         # causes a problem when it's a cron job).
-        if not cur.execute('SHOW DATABASES') or (settings.DB_DBNAME,) not in cur.fetchall():
+        cur.execute('SHOW DATABASES')
+        if not cur.rowcount or (settings.DB_DBNAME,) not in cur.fetchall():
             cur.execute('CREATE DATABASE IF NOT EXISTS '+settings.DB_DBNAME)
 
         # The GRANT command implictly creates the user if it doesn't exist.
         cur.execute("GRANT ALL PRIVILEGES ON "+settings.DB_DBNAME+".* TO %s@'%%' IDENTIFIED BY %s WITH GRANT OPTION;", (settings.DB_USERNAME, settings.DB_PASSWORD,))
         
         cur.execute('USE '+settings.DB_DBNAME)
-       
-        if not cur.execute('SHOW TABLES IN '+settings.DB_DBNAME) or ('blacklist',) not in cur.fetchall():
+        
+        cur.execute('SHOW TABLES IN '+settings.DB_DBNAME)
+        if not cur.rowcount or ('blacklist',) not in cur.fetchall():
             cur.execute('CREATE TABLE IF NOT EXISTS blacklist ( emailhash CHAR(40) PRIMARY KEY, count TINYINT NOT NULL DEFAULT 0 );')
         
     def clear(self):
@@ -69,14 +71,16 @@ class Blacklist(object):
     def check_and_add(self, email_addr):
         '''
         Check if the given email address has exceeded the number of requests that
-        it's allowed to make.
+        it's allowed to make. Returns True if email_addr is allowed to get a 
+        reply, False otherwise.
         '''
         
         cur = self._conn.cursor()
         
         email_hash = self._hash_addr(email_addr)
         count = 0
-        if cur.execute('SELECT count FROM blacklist WHERE emailhash = %s', (email_hash,)) > 0:
+        cur.execute('SELECT count FROM blacklist WHERE emailhash = %s', (email_hash,))
+        if cur.rowcount > 0:
             count = cur.fetchall()[0][0]
             
         if count < settings.BLACKLIST_DAILY_LIMIT:
