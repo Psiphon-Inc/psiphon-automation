@@ -123,6 +123,7 @@ def pave_linode(linode_account, ip_address, password):
     ssh.exec_command('scp -P %d root@%s:%s /' % (linode_account.base_ssh_port,
                                                  linode_account.base_ip_address,
                                                  linode_account.base_tarball_path))
+    ssh.exec_command('apt-get install -y bzip2 &> /dev/null')
     ssh.exec_command('tar xvpfj %s -C / &> /dev/null' % (linode_account.base_tarball_path,))
     
     
