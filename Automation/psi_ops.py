@@ -448,7 +448,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(server.id not in self.__servers)
         self.__servers[server.id] = server
 
-    def add_servers(self, count, propagation_channel_name, discovery_date_range, unembed_others=True):
+    def add_servers(self, count, propagation_channel_name, discovery_date_range, replace_others=True):
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
 
         # Embedded servers (aka "propagation servers") are embedded in client
@@ -512,15 +512,27 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             
             self.save()
             
-        # If it's a propagation server, stop embedding the old one (it's still
-        # active, but not embedded in builds or discovered)
-        if is_embedded_server and unembed_others:
-            for other_server in self.__servers.itervalues():
-                if (other_server.propagation_channel_id == propagation_channel.id and
-                    other_server.id not in new_server_ids and
-                    other_server.is_embedded):
-                    other_server.is_embedded = False
-                    other_server.log('unembedded')
+        if replace_others:
+            # If we just created new propagation servers, stop embedding the old ones
+            # (they are still active, but not embedded in builds or discovered)
+            if is_embedded_server:
+                for other_server in self.__servers.itervalues():
+                    if (other_server.propagation_channel_id == propagation_channel.id and
+                        other_server.id not in new_server_ids and
+                        other_server.is_embedded):
+                        other_server.is_embedded = False
+                        other_server.log('unembedded')
+            # If we just created new discovery servers, stop discovering existing ones
+            else:
+                now = datetime.datetime.now()
+                today = datetime.datetime(now.year, now.month, now.day)
+                for other_server in self.__servers.itervalues():
+                    if (other_server.propagation_channel_id == propagation_channel.id and
+                        other_server.id not in new_server_ids and
+                        other_server.discovery_date_range and
+                        (other_server.discovery_date_range[0] <= today < other_server.discovery_date_range[1])):
+                        other_server.discovery_date_range = (other_server.discovery_date_range[0], today)
+                        other_server.log('replaced')
 
         self.__deploy_data_required_for_all = True
         self.__deploy_stats_config_required = True
