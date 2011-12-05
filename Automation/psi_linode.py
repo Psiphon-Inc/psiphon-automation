@@ -23,6 +23,7 @@ import random
 import string
 import time
 import psi_ssh
+import socket
 import linode.api
 
 
@@ -96,11 +97,24 @@ def stop_linode(linode_api, linode_id):
                          'shutdown the linode')
     assert(linode_api.linode_job_list(LinodeID=linode_id, JobID=shutdown_job_id)[0]['HOST_SUCCESS'] == 1)
     
+
+# SSH sessions are attempted soon after linodes are started.  We don't know when the ssh service
+# will be available so we can try every few seconds for up to a minute.    
+def make_ssh_session(ip_address, ssh_port, username, password, host_public_key):
+    for attempt in range(12):
+        try:
+            ssh = psi_ssh.SSH(ip_address, ssh_port, username, password, host_public_key)
+            return ssh
+        except socket.error:
+            print('Waiting for ssh...')
+            time.sleep(5)
+    raise Exception('Took too long to establish an ssh session')
+    
     
 def pave_linode(linode_account, ip_address, password):
     # Note: using auto-add-policy for host's SSH public key here since we can't get it through the Linode API.
     # There's a risk of man-in-the-middle.
-    ssh = psi_ssh.SSH(ip_address, 22, 'root', password, None)
+    ssh = make_ssh_session(ip_address, 22, 'root', password, None)
     ssh.exec_command('mkdir -p /root/.ssh')
     ssh.exec_command('echo "%s" > /root/.ssh/known_hosts' % (linode_account.base_known_hosts_entry,))
     ssh.exec_command('echo "%s" > /root/.ssh/id_rsa' % (linode_account.base_rsa_private_key,))
@@ -113,7 +127,7 @@ def pave_linode(linode_account, ip_address, password):
     
     
 def refresh_credentials(linode_account, ip_address, new_root_password, new_stats_password):
-    ssh = psi_ssh.SSH(ip_address, linode_account.base_ssh_port,
+    ssh = make_ssh_session(ip_address, linode_account.base_ssh_port,
                       'root', linode_account.base_root_password,
                       linode_account.base_host_public_key)
     ssh.exec_command('echo "root:%s" | chpasswd' % (new_root_password,))
@@ -126,7 +140,7 @@ def refresh_credentials(linode_account, ip_address, new_root_password, new_stats
 
 def get_host_name(linode_account, ip_address):
     # Note: using base image credentials; call before changing credentials
-    ssh = psi_ssh.SSH(ip_address, linode_account.base_ssh_port,
+    ssh = make_ssh_session(ip_address, linode_account.base_ssh_port,
                       'root', linode_account.base_root_password,
                       linode_account.base_host_public_key)
     return ssh.exec_command('hostname').strip()
@@ -145,9 +159,6 @@ def launch_new_server(linode_account):
     bootstrap_config_id, psiphon3_host_config_id = create_linode_configurations(linode_api, linode_id, ','.join(disk_ids))
     start_linode(linode_api, linode_id, bootstrap_config_id)
     
-    # Wait a few seconds for SSH to be available
-    time.sleep(10)
-
     # Clone the base linode
     linode_ip_address = linode_api.linode_ip_list(LinodeID=linode_id)[0]['IPADDRESS']
     pave_linode(linode_account, linode_ip_address, new_root_password)

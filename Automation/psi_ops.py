@@ -506,6 +506,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             new_server_ids.append(server.id)
             
+            self.test_server(server.id, test_vpn=False, test_ssh=False)
+            
             self.save()
             
         # If it's a propagation server, stop embedding the old one (it's still
@@ -1067,6 +1069,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         print 'tests passed:   %d' % (passes,)
         print 'tests failed:   %d' % (failures,)
         print 'SUCCESS' if failures == 0 else 'FAIL'
+        assert(failures == 0)
         
     def test_server(self, server_id, test_web_server=True, test_vpn=True, test_ssh=True):
         if not server_id in self.__servers:
