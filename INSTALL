@@ -265,7 +265,7 @@ Confirm that the path to ipsec is correct.
 
 apt-get update
 apt-get install -y xl2tpd
-apt-get install -y python-setuptools python-dev
+apt-get install -y python-setuptools python-dev build-essential
 easy_install cherrypy webob xlrd portalocker netifaces jsonpickle
 
 Patch cherrypy (/usr/local/lib/python2.6/dist-packages/CherryPy-3.2.0-py2.6.egg/cherrypy/wsgiserver/ssl_builtin.py):
@@ -331,12 +331,15 @@ NOTE3: For Linode, follow these steps to use the kernel supplied by the linux di
 Also install linux-headers-2.6-xen-686
 
 
-apt-get install -y build-essential bison flex libgmp3-dev
+apt-get install -y bison flex libgmp3-dev
 wget http://openswan.org/download/openswan-2.6.30.tar.gz
 tar zxvf openswan-2.6.30.tar.gz
 cd openswan-2.6.30
 
   (See: http://comments.gmane.org/gmane.network.openswan.user/15675)
+
+Note: The following code changes can be skipped if the server only has one 
+host (i.e., only has one IP address).
 
 Edit linux/include/openswan/ipsec_param.h:
   Set IPSEC_NUM_IF 20 or however number of interfaces are needed
@@ -414,9 +417,9 @@ make install
 [TODO: check again for latest-version Python download URL]
 
 cd ..
-wget http://geolite.maxmind.com/download/geoip/api/python/GeoIP-Python-1.2.5.tar.gz
-tar xvf GeoIP-Python-1.2.5.tar.gz
-cd GeoIP-Python-1.2.5
+wget http://geolite.maxmind.com/download/geoip/api/python/GeoIP-Python-1.2.7.tar.gz
+tar xvf GeoIP-Python-1.2.7.tar.gz
+cd GeoIP-Python-1.2.7
 [apt-get install gcc]
 [apt-get install python-dev]
 python setup.py build
@@ -462,7 +465,7 @@ Add to the weekly rotation (lower) section of /etc/logrotate.d/rsyslog:
 
 (3) Set up fprobe-ulog
 
-apt-get install fprobe-ulog nfdump
+apt-get install -y fprobe-ulog nfdump
 
 Edit /etc/default/fprobe-ulog:
 
