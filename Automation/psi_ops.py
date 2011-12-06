@@ -200,10 +200,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
  
     def show_sponsors(self):
         for s in self.__sponsors.itervalues():
-            print textwrap.dedent('''                ID:                     %s
-                Name:                   %s
-                Home Pages:             %s
-                Campaigns:              %s
+            print textwrap.dedent('''                ID:                      %s
+                Name:                    %s
+                Home Pages:              %s
+                Campaigns:               %s
                 ''') % (
                     s.id,
                     s.name,
@@ -223,9 +223,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for p in self.__propagation_channels.itervalues():
             embedded_servers = [server.id for server in self.__servers.itervalues()
                                 if server.propagation_channel_id == p.id and server.is_embedded]
-            propagation_servers = [server.id for server in self.__servers.itervalues()
-                                   if server.propagation_channel_id == p.id and
-                                   not server.is_embedded and not server.discovery_date_range]
+            old_propagation_servers = [server.id for server in self.__servers.itervalues()
+                                       if server.propagation_channel_id == p.id and
+                                       not server.is_embedded and not server.discovery_date_range]
             current_discovery_servers = ['%s (%s-%s)' % (server.id,
                                                          server.discovery_date_range[0].isoformat(),
                                                          server.discovery_date_range[1].isoformat())
@@ -240,32 +240,32 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                        not (server.discovery_date_range[0] <= now < server.discovery_date_range[1])]
             
             print textwrap.dedent('''
-                ID:                     %s
-                Name:                   %s
-                Propagation Mechanisms: %s
-                Embedded Servers:       %s
-                Propagation Servers:    %s
-                Discovery Servers:      %s
-                Old Discovery Servers:  %s
+                ID:                      %s
+                Name:                    %s
+                Propagation Mechanisms:  %s
+                Embedded Servers:        %s
+                Discovery Servers:       %s
+                Old Propagation Servers: %s
+                Old Discovery Servers:   %s
                 ''') % (
                     p.id,
                     p.name,
-                    ',\n                        '.join(p.propagation_mechanism_types),
-                    ',\n                        '.join(embedded_servers),
-                    ',\n                        '.join(propagation_servers),
-                    ',\n                        '.join(current_discovery_servers),
-                    ',\n                        '.join(other_discovery_servers))
+                    ',\n                         '.join(p.propagation_mechanism_types),
+                    ',\n                         '.join(embedded_servers),
+                    ',\n                         '.join(current_discovery_servers),
+                    ',\n                         '.join(old_propagation_servers),
+                    ',\n                         '.join(other_discovery_servers))
             self.__show_logs(p)
 
     def show_servers(self):
         for s in self.__servers.itervalues():
             print textwrap.dedent('''
-                Server:                 %s
-                Host:                   %s %s/%s
-                IP Address:             %s
-                Propagation Channel:    %s
-                Is Embedded:            %s
-                Discovery Date Range:   %s
+                Server:                  %s
+                Host:                    %s %s/%s
+                IP Address:              %s
+                Propagation Channel:     %s
+                Is Embedded:             %s
+                Discovery Date Range:    %s
                 ''') % (
                     s.id,
                     s.host_id,
