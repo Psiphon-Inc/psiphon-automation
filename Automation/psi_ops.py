@@ -541,12 +541,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             else:
                 now = datetime.datetime.now()
                 for other_server in self.__servers.itervalues():
+                    # NOTE: don't instantiate today outside of this loop, otherwise jsonpickle will
+                    # serialize references to it (for all but the first server in this loop) which
+                    # are not unpickle-able
+                    today = datetime.datetime(now.year, now.month, now.day)
                     if (other_server.propagation_channel_id == propagation_channel.id and
                         other_server.id not in new_server_ids and
                         other_server.discovery_date_range and
                         (other_server.discovery_date_range[0] <= today < other_server.discovery_date_range[1])):
-                        other_server.discovery_date_range = (other_server.discovery_date_range[0],
-                                                             datetime.datetime(now.year, now.month, now.day))
+                        other_server.discovery_date_range = (other_server.discovery_date_range[0], today)
                         other_server.log('replaced')
 
         self.__deploy_data_required_for_all = True
@@ -955,10 +958,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     
     def __compartmentalize_data_for_host(self, host_id, discovery_date=datetime.datetime.now()):
         # Create a compartmentalized database with only the information needed by a particular host
-        # - propagation channels includes only channel IDs that may connect to servers on this host
-        # - servers data includes only servers for propagation channel IDs in filtered propagation channel sheet
-        #   (which is more than just servers on this host, due to cross-host discovery)
-        #   also, omit non-propagation servers not on this host whose discovery time period has elapsed
+        # - all propagation channels because any client may connect to servers on this host
+        # - servers data
+        #   omit discovery servers not on this host whose discovery time period has elapsed
         #   also, omit propagation servers not on this host
         #   (not on this host --> because servers on this host still need to run, even if not discoverable)
         # - send home pages for all sponsors, but omit names, banners, campaigns
@@ -966,24 +968,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         copy = PsiphonNetwork()
 
-        servers_on_host = filter(lambda x : x.host_id == host_id, self.__servers.itervalues())
-        # Servers with blank propagation channels are inactive
-        discovery_propagation_channel_ids_for_host = set([server.propagation_channel_id
-                                                          for server in servers_on_host
-                                                          if server.propagation_channel_id])
-
-        for id in discovery_propagation_channel_ids_for_host:
-            propagation_channel = self.__propagation_channels[id]
+        for propagation_channel in self.__propagation_channels.itervalues():
             copy.__propagation_channels[propagation_channel.id] = PropagationChannel(
                                                                     propagation_channel.id,
                                                                     '', # Omit name
                                                                     '') # Omit mechanism type
 
         for server in self.__servers.itervalues():
-            if (server.propagation_channel_id in discovery_propagation_channel_ids_for_host and
-                    not(server.discovery_date_range and server.host_id != host_id and server.discovery_date_range[1] <= discovery_date) and
-                    not(not server.discovery_date_range and server.host_id != host_id)):
-                copy.__servers[server.id] = Server(
+            if ((server.discovery_date_range and server.host_id != host_id and server.discovery_date_range[1] <= discovery_date) or
+                (not server.discovery_date_range and server.host_id != host_id)):
+                continue
+            
+            copy.__servers[server.id] = Server(
                                                 server.id,
                                                 '', # Omit host_id
                                                 server.ip_address,
