@@ -465,6 +465,21 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             linode_info = psi_linode.launch_new_server(self.__linode_account)
             host = Host(*linode_info)
 
+            # NOTE: jsonpickle will serialize references to discovery_date_range, which can't be
+            # resolved when unpickling, if discovery_date_range is used directly.
+            # So create a copy instead.
+            discovery = ((datetime.datetime(discovery_date_range[0].year,
+                                            discovery_date_range[0].month,
+                                            discovery_date_range[0].day,
+                                            discovery_date_range[0].hour,
+                                            discovery_date_range[0].minute),
+                          datetime.datetime(discovery_date_range[1].year,
+                                            discovery_date_range[1].month,
+                                            discovery_date_range[1].day,
+                                            discovery_date_range[1].hour,
+                                            discovery_date_range[1].minute))
+                         if discovery_date_range else None)
+            
             server = Server(
                         None,
                         host.id,
@@ -472,7 +487,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.ip_address,
                         propagation_channel.id,
                         is_embedded_server,
-                        discovery_date_range,
+                        discovery,
                         '8080',
                         None,
                         None,
@@ -525,13 +540,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # If we just created new discovery servers, stop discovering existing ones
             else:
                 now = datetime.datetime.now()
-                today = datetime.datetime(now.year, now.month, now.day)
                 for other_server in self.__servers.itervalues():
                     if (other_server.propagation_channel_id == propagation_channel.id and
                         other_server.id not in new_server_ids and
                         other_server.discovery_date_range and
                         (other_server.discovery_date_range[0] <= today < other_server.discovery_date_range[1])):
-                        other_server.discovery_date_range = (other_server.discovery_date_range[0], today)
+                        other_server.discovery_date_range = (other_server.discovery_date_range[0],
+                                                             datetime.datetime(now.year, now.month, now.day))
                         other_server.log('replaced')
 
         self.__deploy_data_required_for_all = True
