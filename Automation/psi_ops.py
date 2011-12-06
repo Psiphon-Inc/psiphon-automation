@@ -918,6 +918,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # output.append(psi_psk.set_psk(self.server_ip_address))
     
         # SSH relay protocol info
+        #
+        # SSH Session ID is a randomly generated unique ID used for
+        # client-side session duration reporting
+        #
         server = filter(lambda x : x.ip_address == server_ip_address,
                         self.__servers.itervalues())[0]
         if server.ssh_host_key:
@@ -927,6 +931,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             key_type, host_key = server.ssh_host_key.split(' ')
             assert(key_type == 'ssh-rsa')
             output.append('SSHHostKey: %s' % (host_key,))
+            output.append('SSHSessionID: %s' % (binascii.hexlify(os.urandom(8)),))
         return output
     
     def embed(self, propagation_channel_id):
