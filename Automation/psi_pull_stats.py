@@ -153,6 +153,8 @@ LOG_EVENT_TYPE_SCHEMA = {
                          'sponsor_id',
                          'client_version'),
     'disconnected' :    ('relay_protocol',
+                         'session_id'),
+    'status' :          ('relay_protocol',
                          'session_id')}
 
 # Additional stat tables that don't correspond to log line entries. Currently
