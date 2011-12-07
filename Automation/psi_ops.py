@@ -642,8 +642,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # Publish to propagation mechanisms
 
             for campaign in filter(lambda x:x.propagation_channel_id == propagation_channel_id, sponsor.campaigns):
-                campaign.s3_bucket_name = psi_ops_s3.publish_s3_download(self.__aws_account, build_filename)
-                campaign.log('created s3 bucket %s' % (campaign.s3_bucket_name,))
+                if campaign.s3_bucket_name:
+                    psi_ops_s3.update_s3_download(self.__aws_account, build_filename, campaign.s3_bucket_name)
+                    campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
+                else:
+                    campaign.s3_bucket_name = psi_ops_s3.publish_s3_download(self.__aws_account, build_filename)
+                    campaign.log('created s3 bucket %s' % (campaign.s3_bucket_name,))
 
         # Host data
 
