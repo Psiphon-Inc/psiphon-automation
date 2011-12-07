@@ -70,6 +70,30 @@ def publish_s3_download(aws_account, build_filename):
     # Create new bucket
     # TODO: retry on boto.exception.S3CreateError: S3Error[409]: Conflict
     bucket = s3.create_bucket(bucket_id, location=location)
+    
+    set_s3_bucket_contents(bucket, build_filename)
+    
+    print 'download URL: https://s3.amazonaws.com/%s/en.html' % (bucket_id)
+
+    return bucket_id
+
+
+def update_s3_download(aws_account, build_filename, bucket_id):
+    
+    # Connect to AWS
+
+    s3 = boto.s3.connection.S3Connection(
+                aws_account.access_id,
+                aws_account.secret_key)
+                
+    bucket = s3.get_bucket(bucket_id)
+    
+    set_s3_bucket_contents(bucket, build_filename)
+
+    print 'updated download URL: https://s3.amazonaws.com/%s/en.html' % (bucket_id)
+    
+    
+def set_s3_bucket_contents(bucket, build_filename):
 
     try:
         def progress(complete, total):
@@ -94,7 +118,7 @@ def publish_s3_download(aws_account, build_filename):
         key.close()
     except:
         # TODO: delete all keys
-        #print 'upload failed, deleting bucket %s' % (bucket_id,)
+        #print 'upload failed, deleting bucket'
         #bucket.delete()
         raise
 
@@ -103,7 +127,3 @@ def publish_s3_download(aws_account, build_filename):
     # Make the whole bucket public now that it's uploaded
     bucket.disable_logging()
     bucket.make_public(recursive=True)
-
-    print 'download URL: https://s3.amazonaws.com/%s/en.html' % (bucket_id)
-
-    return bucket_id
