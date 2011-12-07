@@ -772,6 +772,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         (campaign.propagation_channel_id, sponsor.id))
                 campaign.log('marked for build and publish (upgraded client)')
 
+    def get_server_entry(self, server_id):
+        server = filter(lambda x:x.id == server_id,self.__servers.itervalues())[0]
+        return self.__get_encoded_server_entry(server)
+    
+    def deploy_implementation_for_host_with_server(self, server_id):
+        server = filter(lambda x:x.id == server_id,self.__servers.itervalues())[0]
+        host = filter(lambda x:x.id == server.host_id,self.__hosts.itervalues())[0]
+        psi_ops_deploy.deploy_implementation(host)
+
     def set_aws_account(self, access_id, secret_key):
         self.__aws_account.access_id = access_id
         self.__aws_account.secret_key = secret_key
