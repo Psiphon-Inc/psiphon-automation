@@ -31,6 +31,7 @@ import tempfile
 import pprint
 import struct
 import socket
+import random
 
 import psi_utils
 import psi_ops_cms
@@ -39,6 +40,7 @@ try:
     # Modules available only on the automation server
     import psi_ssh
     import psi_linode
+    import psi_elastichosts
     import psi_templates
     import psi_ops_s3
     import psi_ops_install
@@ -108,6 +110,12 @@ AwsAccount = psi_utils.recordtype(
     'access_id, secret_key',
     default=None)
 
+ProviderRank = psi_utils.recordtype(
+    'ProviderRank',
+    'provider, rank',
+    default=None)
+ProviderRank.provider_values = ('linode', 'elastichosts') 
+
 LinodeAccount = psi_utils.recordtype(
     'LinodeAccount',
     'api_key, base_id, base_ip_address, base_ssh_port, '+
@@ -115,6 +123,15 @@ LinodeAccount = psi_utils.recordtype(
     'base_known_hosts_entry, base_rsa_private_key, base_rsa_public_key, '+
     'base_tarball_path',
     default=None)
+
+ElasticHostsAccount = psi_utils.recordtype(
+    'ElasticHostsAccount',
+    'zone, uuid, api_key, base_drive_id, cpu, mem, base_host_public_key, '+
+        'root_username, base_root_password, base_ssh_port, stats_username, rank', 
+    default=None)
+ElasticHostsAccount.zone_values = ('ELASTICHOSTS_US1', # sat-p
+                                   'ELASTICHOSTS_UK1', # lon-p
+                                   'ELASTICHOSTS_UK2') # lon-b
 
 EmailServerAccount = psi_utils.recordtype(
     'EmailServerAccount',
@@ -146,7 +163,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__email_server_account = EmailServerAccount()
         self.__stats_server_account = StatsServerAccount()
         self.__aws_account = AwsAccount()
+        self.__provider_ranks = []
         self.__linode_account = LinodeAccount()
+        self.__elastichosts_accounts = []
         self.__deploy_implementation_required_for_hosts = set()
         self.__deploy_data_required_for_all = False
         self.__deploy_builds_required_for_campaigns = set()
@@ -156,22 +175,24 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def show_status(self):
         # NOTE: verbose mode prints credentials to stdout
         print textwrap.dedent('''
-            Sponsors:            %d
-            Channels:            %d
-            Twitter Campaigns:   %d
-            Email Campaigns:     %d
-            Hosts:               %d
-            Servers:             %d
-            Email Server:        %s
-            Stats Server:        %s
-            Client Version:      %s %s
-            AWS Account:         %s
-            Linode Account:      %s
-            Deploys Pending:     Host Implementations    %d                              
-                                 Host Data               %s
-                                 Campaign Builds         %d
-                                 Stats Server Config     %s
-                                 Email Server Config     %s
+            Sponsors:             %d
+            Channels:             %d
+            Twitter Campaigns:    %d
+            Email Campaigns:      %d
+            Hosts:                %d
+            Servers:              %d
+            Email Server:         %s
+            Stats Server:         %s
+            Client Version:       %s %s
+            AWS Account:          %s
+            Provider Ranks:       %s
+            Linode Account:       %s
+            ElasticHosts Account: %s
+            Deploys Pending:      Host Implementations    %d                              
+                                  Host Data               %s
+                                  Campaign Builds         %d
+                                  Stats Server Config     %s
+                                  Email Server Config     %s
             ''') % (
                 len(self.__sponsors),
                 len(self.__propagation_channels),
@@ -185,8 +206,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 self.__stats_server_account.ip_address if self.__stats_server_account else 'None',
                 self.__client_versions[-1].version if self.__client_versions else 'None',
                 self.__client_versions[-1].description if self.__client_versions else '',
-                'Configured' if self.__aws_account else 'None',
-                'Configured' if self.__linode_account else 'None',
+                'Configured' if self.__aws_account.access_id else 'None',
+                'Configured' if self.__provider_ranks else 'None',
+                'Configured' if self.__linode_account.api_key else 'None',
+                'Configured' if self.__elastichosts_accounts else 'None',
                 len(self.__deploy_implementation_required_for_hosts),
                 'Yes' if self.__deploy_data_required_for_all else 'No',
                 len(self.__deploy_builds_required_for_campaigns),
@@ -447,7 +470,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     
         assert(server.id not in self.__servers)
         self.__servers[server.id] = server
-
+        
     def add_servers(self, count, propagation_channel_name, discovery_date_range, replace_others=True):
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
 
@@ -459,11 +482,25 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         new_server_ids = []
         
         for x in range(count):
-            print 'starting Linode process (~5 minutes)...'
+            provider = self._weighted_random_choice(self.__provider_ranks).provider
+            
+            # This is pretty dirty. We should use some proper OO technique.
+            provider_launch_new_server = None
+            provider_account = None
+            if provider.lower() == 'linode':
+                provider_launch_new_server = psi_linode.launch_new_server
+                provider_account = self.__linode_account
+            elif provider.lower() == 'elastichosts':
+                provider_launch_new_server = psi_elastichosts.ElasticHosts().launch_new_server
+                provider_account = _weighted_random_choice(self.__elastichosts_accounts)
+            else:
+                raise ValueError('bad provider value: %s' % provider)
+            
+            print 'starting %s process (up to 20 minutes)...' % provider
 
             # Create a new cloud VPS
-            linode_info = psi_linode.launch_new_server(self.__linode_account)
-            host = Host(*linode_info)
+            server_info = provider_launch_new_server(provider_account)
+            host = Host(*server_info)
 
             # NOTE: jsonpickle will serialize references to discovery_date_range, which can't be
             # resolved when unpickling, if discovery_date_range is used directly.
@@ -575,6 +612,23 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # This deploy will broadcast server info, propagate builds, and update
         # the stats and email server
         self.deploy()
+
+    def _weighted_random_choice(self, choices):
+        '''
+        Assumes that each choice has a "rank" attribute, and that the rank is an integer.
+        Returns the chosen members of the choices iterable.
+        '''
+        if not choices:
+            raise ValueError('choices must not be empty')
+        
+        rank_total = sum([choice.rank for choice in choices])
+        rand = random.randrange(rank_total)
+        rank_accum = 0
+        for choice in choices:
+            rank_accum += choice.rank
+            if rank_accum > rand:
+                break
+        return choice
 
     def build(self, propagation_channel_name, sponsor_name, test=False):
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
@@ -786,46 +840,95 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         psi_ops_deploy.deploy_implementation(host)
 
     def set_aws_account(self, access_id, secret_key):
-        self.__aws_account.access_id = access_id
-        self.__aws_account.secret_key = secret_key
-        self.__aws_account.log('set to %s' % (access_id,))
+        psi_utils.update_recordtype(
+            self.__aws_account,
+            access_id=access_id, secret_key=secret_key)
+
+    def upsert_provider_rank(self, provider, rank):
+        '''
+        Inserts or updates a Provider-Rank entry. The "key" for an entry is provider. 
+        rank: the higher the score, the more the provider will be preferred when
+            provideres are being randomly selected among.
+        '''
+        
+        if provider not in ProviderRank.provider_values:
+            raise ValueError('bad provider value: %s' % provider)
+        
+        pr = ProviderRank()
+        found = False
+        for existing_pr in self.__provider_ranks:
+            if existing_pr.provider == provider:
+                pr = existing_pr
+                found = True
+                break
+        
+        if not found:
+            self.__provider_ranks.append(pr)
+        
+        psi_utils.update_recordtype(
+            pr, 
+            provider=provider, rank=rank)
 
     def set_linode_account(self, api_key, base_id, base_ip_address, base_ssh_port,
                            base_root_password, base_stats_username, base_host_public_key,
                            base_known_hosts_entry, base_rsa_private_key, base_rsa_public_key,
                            base_tarball_path):
-        self.__linode_account.api_key = api_key
-        self.__linode_account.base_id = base_id
-        self.__linode_account.base_ip_address = base_ip_address
-        self.__linode_account.base_ssh_port = base_ssh_port
-        self.__linode_account.base_root_password = base_root_password
-        self.__linode_account.base_stats_username = base_stats_username
-        self.__linode_account.base_host_public_key = base_host_public_key
-        self.__linode_account.base_known_hosts_entry = base_known_hosts_entry
-        self.__linode_account.base_rsa_private_key = base_rsa_private_key
-        self.__linode_account.base_rsa_public_key = base_rsa_public_key
-        self.__linode_account.base_tarball_path = base_tarball_path
-        self.__linode_account.log('set to %s' % (api_key,))
+        
+        psi_utils.update_recordtype(
+            self.__linode_account,
+            api_key=api_key, base_id=base_id, base_ip_address=base_ip_address, 
+            base_ssh_port=base_ssh_port, base_root_password=base_root_password, 
+            base_stats_username=base_stats_username, base_host_public_key=base_host_public_key,
+            base_known_hosts_entry=base_known_hosts_entry, base_rsa_private_key=base_rsa_private_key, 
+            base_rsa_public_key=base_rsa_public_key, base_tarball_path=base_tarball_path) 
+
+
+    def upsert_elastichosts_account(self, zone, uuid, api_key, base_drive_id, 
+                                    cpu, mem, base_host_public_key, root_username, 
+                                    base_root_password, base_ssh_port, stats_username, rank):
+        '''
+        Inserts or updates an ElasticHosts account information entry. The "key"
+        for an entry is zone+uuid. 
+        rank: the higher the score, the more the account will be preferred when
+            the ElasticHosts accounts are being randomly selected among.
+        '''
+        
+        if zone not in ElasticHostsAccount.zone_values:
+            raise ValueError('bad zone value: %s' % zone)
+        
+        acct = ElasticHostsAccount()
+        found = False
+        for existing_acct in self.__elastichosts_accounts:
+            if existing_acct.zone == zone and existing_acct.uuid == uuid:
+                acct = existing_acct
+                found = True
+                break
+        
+        if not found:
+            self.__elastichosts_accounts.append(acct)
+        
+        psi_utils.update_recordtype(
+            acct, 
+            zone=zone, uuid=uuid, api_key=api_key, base_drive_id=base_drive_id, 
+            cpu=cpu, mem=mem, base_host_public_key=base_host_public_key, 
+            root_username=root_username, base_root_password=base_root_password, 
+            base_ssh_port=base_ssh_port, stats_username=stats_username, rank=rank)
+        
 
     def set_email_server_account(self, ip_address, ssh_port,
                                  ssh_username, ssh_pkey, ssh_host_key,
                                  config_file_path):
-        self.__email_server_account.ip_address = ip_address
-        self.__email_server_account.ssh_port = ssh_port
-        self.__email_server_account.ssh_username = ssh_username
-        self.__email_server_account.ssh_pkey = ssh_pkey
-        self.__email_server_account.ssh_host_key = ssh_host_key
-        self.__email_server_account.config_file_path = config_file_path
-        self.__email_server_account.log('set to %s' % (ip_address,))
+        psi_utils.update_recordtype(
+            self.__email_server_account,
+            ip_address=ip_address, ssh_port=ssh_port, ssh_username=ssh_username,
+            ssh_pkey=ssh_pkey, ssh_host_key=ssh_host_key, config_file_path=config_file_path)
 
     def set_stats_server_account(self, ip_address, ssh_port,
                                  ssh_username, ssh_password, ssh_host_key):
-        self.__stats_server_account.ip_address = ip_address
-        self.__stats_server_account.ssh_port = ssh_port
-        self.__stats_server_account.ssh_username = ssh_username
-        self.__stats_server_account.ssh_password = ssh_password
-        self.__stats_server_account.ssh_host_key = ssh_host_key
-        self.__stats_server_account.log('set to %s' % (ip_address,))
+        psi_utils.update_recordtype(
+            self.__stats_server_account,
+            ip_address=ip_address, ssh_port=ssh_port, ssh_username=ssh_username,
+            ssh_password=ssh_password, ssh_host_key=ssh_host_key)
 
     def __get_encoded_server_entry(self, server):
         # Double-check that we're not giving our blank server credentials

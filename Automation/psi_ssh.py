@@ -22,10 +22,26 @@ import base64
 import os
 import sys
 import StringIO
+import socket
+import time
 
 sys.path.insert(0, os.path.abspath(os.path.join('..', 'Data')))
 import psi_db
 
+
+# SSH sessions are attempted soon after linodes are started.  We don't know when the ssh service
+# will be available so we can try every few seconds for up to a minute.
+# This is basically a retrying SSH factory.
+def make_ssh_session(ip_address, ssh_port, username, password, host_public_key, verbose=True):
+    for attempt in range(12):
+        try:
+            ssh = SSH(ip_address, ssh_port, username, password, host_public_key)
+            return ssh
+        except socket.error:
+            if verbose: print('Waiting for ssh...')
+            time.sleep(5)
+    raise Exception('Took too long to establish an ssh session')
+    
 
 class SSH(object):
 
@@ -46,7 +62,9 @@ class SSH(object):
         if ssh_host_key == None:
             self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         else:
-            key_type, key_data = ssh_host_key.split(' ')
+            split_key = ssh_host_key.split(' ')
+            key_type = split_key[0]
+            key_data = split_key[1]
             
             # Host keys are looked up by IP if the port is 22, but [IP]:port if 
             # the port is anything else.
