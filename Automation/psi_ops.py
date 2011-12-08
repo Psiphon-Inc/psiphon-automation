@@ -149,6 +149,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def __init__(self):
         super(PsiphonNetwork, self).__init__()
+        # TODO: what is this __version for?
         self.__version = '1.0'
         self.__sponsors = {}
         self.__propagation_mechanisms = {
@@ -171,6 +172,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__deploy_builds_required_for_campaigns = set()
         self.__deploy_stats_config_required = False
         self.__deploy_email_config_required = False
+
+    class_version = '0.1'
+
+    def upgrade(self):
+        if self.version < '0.1':
+            self.__provider_ranks = []
+            self.__elastichosts_accounts = []
+            self.version = '0.1'
 
     def show_status(self):
         # NOTE: verbose mode prints credentials to stdout
