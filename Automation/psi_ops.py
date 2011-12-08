@@ -36,24 +36,65 @@ import random
 import psi_utils
 import psi_ops_cms
 
+# Modules available only on the automation server
+
 try:
-    # Modules available only on the automation server
     import psi_ssh
-    import psi_linode
-    import psi_elastichosts
-    import psi_templates
-    import psi_ops_s3
-    import psi_ops_install
-    import psi_ops_deploy
-    import psi_ops_build
-    import psi_ops_test
-    import psi_ops_twitter
-    import psi_routes
 except ImportError as error:
     print error
 
 try:
-    # Modules available only on the node server
+    import psi_linode
+except ImportError as error:
+    print error
+
+try:
+    import psi_elastichosts
+except ImportError as error:
+    print error
+try:
+    import psi_templates
+except ImportError as error:
+    print error
+    
+try:
+    import psi_ops_s3
+except ImportError as error:
+    print error
+    
+try:
+    import psi_ops_install
+except ImportError as error:
+    print error
+    
+try:
+    import psi_ops_deploy
+except ImportError as error:
+    print error
+    
+try:
+    import psi_ops_build
+except ImportError as error:
+    print error
+    
+try:
+    import psi_ops_test
+except ImportError as error:
+    print error
+    
+try:
+    import psi_ops_twitter
+except ImportError as error:
+    print error
+    
+try:
+    import psi_routes
+except ImportError as error:
+    print error
+    
+# Modules available only on the node server
+
+try:
     import GeoIP
 except ImportError:
     pass
@@ -679,7 +720,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             psi_ops_deploy.deploy_implementation(host)
             host.log('deploy implementation')
         
-        self.__deploy_implementation_required_for_hosts.clear()
+        if len(self.__deploy_implementation_required_for_hosts) > 0:
+            self.__deploy_implementation_required_for_hosts.clear()
+            self.save()
 
         # Build
 
@@ -711,6 +754,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 else:
                     campaign.s3_bucket_name = psi_ops_s3.publish_s3_download(self.__aws_account, build_filename)
                     campaign.log('created s3 bucket %s' % (campaign.s3_bucket_name,))
+                    
+            self.save()
 
         # Host data
 
@@ -721,7 +766,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     self.__compartmentalize_data_for_host(host.id))
                 host.log('deploy data')
         
-        self.__deploy_data_required_for_all = False
+            self.__deploy_data_required_for_all = False
+            self.save()
 
         # Publish
         
@@ -740,22 +786,21 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         self.__deploy_email_config_required = True
                         campaign.log('email push scheduled')
 
-        self.__deploy_builds_required_for_campaigns.clear()
+        if len(self.__deploy_builds_required_for_campaigns) > 0:
+            self.__deploy_builds_required_for_campaigns.clear()
+            self.save()
 
         # Email and stats server configs
 
         if self.__deploy_stats_config_required:
             self.push_stats_config()
             self.__deploy_stats_config_required = False
+            self.save()
 
         if self.__deploy_email_config_required:
             self.push_email_config()
             self.__deploy_email_config_required = False
-
-        # Ensure deploy flags and new propagation info (S3 bucket names)
-        # are stored to CMS
-
-        self.save()
+            self.save()
 
     def update_routes(self):
         psi_routes.make_routes()
