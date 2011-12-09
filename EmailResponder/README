@@ -218,6 +218,23 @@ The blacklist code requires the following package be installed:
 The install.sh step above does the rest.
 
 
+DKIM
+----------------------------------------
+
+For information about DKIM (DomainKeys Identified Mail) see dkim.org, RFC-4871,
+and do some googling. 
+
+A handy DKIM DNS record generator can be found here:
+http://www.dnswatch.info/dkim/create-dns-record
+
+A couple of python packages are required:
+
+> sudo easy_install dnspython pydkim
+
+See the DKIM section of settings.py for more values that must be set/changed.
+
+
+
 Email Responder Configuration
 --------------------------------------------------------------------------------
 
