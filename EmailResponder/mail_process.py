@@ -68,7 +68,7 @@ class MailResponder:
                     raise Exception('invalid config item: %s:%s', (key, repr(item)))
             
         except Exception as ex:
-            syslog.syslog(syslog.LOG_CRIT, 'error: config file read failed: %s' % ex)
+            syslog.syslog(syslog.LOG_CRIT, 'error: config file read failed: %s; file: %s' % (ex, conf_filepath))
             return False
 
         return True

@@ -110,7 +110,7 @@ VERIFY_FILENAME = os.path.expanduser('~%s/verify.txt' % MAIL_RESPONDER_USERNAME)
 # 
 DKIM_DOMAIN = STATS_SENDER_ADDRESS_BARE[STATS_SENDER_ADDRESS_BARE.index('@')+1:]
 DKIM_SELECTOR = 'key1'
-DKIM_PRIVATE_KEY = CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'dkim.key')
+DKIM_PRIVATE_KEY = os.path.join(CONFIG_DIR, 'dkim.key')
 
 #
 # Miscellaneous
