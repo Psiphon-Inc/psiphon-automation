@@ -38,8 +38,9 @@ DB_ROOT_PASSWORD = ''
 
 MAIL_RESPONDER_USERNAME = 'mail_responder'
 
-# The location of the config file. 
-CONFIG_FILEPATH = '/mail_responder_config/conf.json'
+# The location of the config files.
+CONFIG_DIR =  '/mail_responder_config'
+CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'conf.json')
 
 # The directory where attachment files are cached.
 ATTACHMENT_CACHE_DIR = os.path.expanduser('~%s/attach_cache' % MAIL_RESPONDER_USERNAME)
@@ -82,7 +83,8 @@ BLACKLIST_DAILY_LIMIT = 3
 # The address to which the stats email should be sent.
 STATS_RECIPIENT_ADDRESS = 'mail@example.com'
 # The address from which the stats email should be sent.
-STATS_SENDER_ADDRESS = 'Psiphon Responder <noreply@psiphon3.com>'
+STATS_SENDER_ADDRESS_BARE = 'noreply@psiphon3.com'
+STATS_SENDER_ADDRESS = 'Psiphon Responder <%s>' % STATS_SENDER_ADDRESS_BARE
 
 # The location of our log file
 LOG_FILENAME = '/var/log/mail_responder.log'
@@ -102,6 +104,13 @@ LOG_FILENAME = '/var/log/mail_responder.log'
 VERIFY_EMAIL_ADDRESS = None
 VERIFY_FILENAME = os.path.expanduser('~%s/verify.txt' % MAIL_RESPONDER_USERNAME)
 
+
+#
+# DKIM email signing stuff
+# 
+DKIM_DOMAIN = STATS_SENDER_ADDRESS_BARE[STATS_SENDER_ADDRESS_BARE.index('@')+1:]
+DKIM_SELECTOR = 'key1'
+DKIM_PRIVATE_KEY = CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'dkim.key')
 
 #
 # Miscellaneous

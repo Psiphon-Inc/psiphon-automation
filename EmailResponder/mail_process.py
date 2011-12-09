@@ -26,6 +26,7 @@ import traceback
 import time
 import tempfile
 import hashlib
+import dkim
 from boto.s3.connection import S3Connection
 from boto.s3.key import Key
 from boto.exception import S3ResponseError
@@ -117,6 +118,8 @@ class MailResponder:
 
         if not raw_response:
             return False
+        
+        raw_response = self._dkim_sign_email(raw_response)
 
         if not sendmail.send_raw_email_amazonses(raw_response, 
                                                  self._response_from_addr):
@@ -200,6 +203,16 @@ class MailResponder:
             return True
         
         return False
+    
+    def _dkim_sign_email(self, raw_email):
+        '''
+        Signs the raw email according to DKIM standards and returns the resulting
+        email (which is the original with extra signature headers). 
+        '''
+        sig = dkim.sign(raw_email, settings.DKIM_SELECTOR, settings.DKIM_DOMAIN, 
+                        open(settings.DKIM_PRIVATE_KEY).read())
+        return sig + raw_email
+    
         
 
 def strip_email(email_address):
