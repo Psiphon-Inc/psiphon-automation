@@ -454,6 +454,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     (campaign.propagation_channel_id, sponsor.id))
             campaign.log('marked for build and publish (new campaign)')
 
+    def set_sponsor_campaign_s3_bucket_name(self, sponsor_name, propagation_channel_name, account, s3_bucket_name):
+        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+        for campaign in sponsor.campaigns:
+            if (campaign.propagation_channel_id == propagation_channel.id and
+                campaign.account[0] == account):
+                    campaign.s3_bucket_name = s3_bucket_name
+                    campaign.log('set campaign s3 bucket name to %s' % (s3_bucket_name,))
+                    self.__deploy_builds_required_for_campaigns.add(
+                        (campaign.propagation_channel_id, sponsor.id))
+                    campaign.log('marked for build and publish (modified campaign)')
+            
     def set_sponsor_home_page(self, sponsor_name, region, url):
         sponsor = self.__get_sponsor_by_name(sponsor_name)
         home_page = SponsorHomePage(region, url)
@@ -703,15 +715,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         #
         # - Implementation to flagged hosts
         # - Builds for required channels and sponsors
-        # - Data to all hosts
         # - Publish, tweet
+        # - Data to all hosts
         # - Email and stats server config
         #
         # NOTE: Order is important. Hosts get new implementation before
         # new data, in case schema has changed; deploy builds before
-        # deploying new data so an upgrade is available when it's needed;
-        # deploy data before publishing and updating email config so new
-        # servers are prepared for newly downloaded clients
+        # deploying new data so an upgrade is available when it's needed
 
         # Host implementation
 
@@ -726,7 +736,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # Build
 
-        for target in self.__deploy_builds_required_for_campaigns:
+        for target in self.__deploy_builds_required_for_campaigns.copy():
 
             propagation_channel_id, sponsor_id = target
             propagation_channel = self.__propagation_channels[propagation_channel_id]
@@ -754,7 +764,17 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 else:
                     campaign.s3_bucket_name = psi_ops_s3.publish_s3_download(self.__aws_account, build_filename)
                     campaign.log('created s3 bucket %s' % (campaign.s3_bucket_name,))
+
+                if campaign.propagation_mechanism_type == 'twitter':
+                    message = psi_templates.get_tweet_message(campaign.s3_bucket_name)
+                    psi_twitter.tweet(campaign.account, message)
+                    campaign.log('tweeted')
+                elif campaign.propagation_mechanism_type == 'email-autoresponder':
+                    if not self.__deploy_email_config_required:
+                        self.__deploy_email_config_required = True
+                        campaign.log('email push scheduled')
                     
+            self.__deploy_builds_required_for_campaigns.remove(target)
             self.save()
 
         # Host data
@@ -767,27 +787,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 host.log('deploy data')
         
             self.__deploy_data_required_for_all = False
-            self.save()
-
-        # Publish
-        
-        for target in self.__deploy_builds_required_for_campaigns:
-
-            propagation_channel_id, sponsor_id = target
-            sponsor = self.__sponsors[sponsor_id]
-
-            for campaign in filter(lambda x:x.propagation_channel_id == propagation_channel_id, sponsor.campaigns):
-                if campaign.propagation_mechanism_type == 'twitter':
-                    message = psi_templates.get_tweet_message(campaign.s3_bucket_name)
-                    psi_twitter.tweet(campaign.account, message)
-                    campaign.log('tweeted')
-                elif campaign.propagation_mechanism_type == 'email-autoresponder':
-                    if not self.__deploy_email_config_required:
-                        self.__deploy_email_config_required = True
-                        campaign.log('email push scheduled')
-
-        if len(self.__deploy_builds_required_for_campaigns) > 0:
-            self.__deploy_builds_required_for_campaigns.clear()
             self.save()
 
         # Email and stats server configs
