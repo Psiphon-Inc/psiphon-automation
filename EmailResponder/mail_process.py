@@ -213,6 +213,27 @@ class MailResponder:
                         open(settings.DKIM_PRIVATE_KEY).read())
         return sig + raw_email
     
+    def send_test_email(self, recipient, from_address, subject, body, 
+                        attachment=None, extra_headers=None):
+        '''
+        Used for debugging purposes to send an email that's approximately like
+        a response email. 
+        NOTE: from_address must be a sender that's verified with Amazon SES.
+        '''
+        raw = sendmail.create_raw_email(recipient, from_address, subject, body, 
+                                        attachment, extra_headers)
+        if not raw:
+            print 'create_raw_email failed'
+            return False
+        
+        raw = self._dkim_sign_email(raw)
+        
+        if not sendmail.send_raw_email_amazonses(raw, from_address):
+            print 'send_raw_email_amazonses failed'
+            return False
+        
+        print 'Email sent'
+        return True
         
 
 def strip_email(email_address):
