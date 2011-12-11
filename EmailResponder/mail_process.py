@@ -246,7 +246,7 @@ def strip_email(email_address):
 
     # This regex is adapted from:
     # https://gitweb.torproject.org/gettor.git/blob/HEAD:/lib/gettor/requests.py
-    to_regex = '.*?(<)?([a-zA-Z0-9\+\.\-]+@[a-zA-Z0-9\+\.\-]+\.[a-zA-Z0-9\+\.\-]+)(?(1)>).*'
+    to_regex = '.*?(<)?([a-zA-Z0-9_\+\.\-]+@[a-zA-Z0-9\+\.\-]+\.[a-zA-Z0-9\+\.\-]+)(?(1)>).*'
     match = re.match(to_regex, email_address)
     if match and match.group(2):
         return match.group(2)
