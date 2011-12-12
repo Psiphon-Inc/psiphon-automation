@@ -292,3 +292,39 @@ WITH (
 ALTER TABLE status OWNER TO postgres;
 GRANT ALL ON TABLE status TO postgres;
 GRANT ALL ON TABLE status TO psiphon3;
+
+-- View: ssh_session_duration;
+
+-- DROP VIEW ssh_session_duration;
+
+CREATE VIEW ssh_session_duration
+(
+connected_timestamp,
+duration,
+host_id,
+server_id,
+client_region,
+propagation_channel_id,
+sponsor_id,
+client_version,
+relay_protocol
+)
+AS
+SELECT
+connected.timestamp,
+CAST(EXTRACT('epoch' FROM disconnected.timestamp-connected.timestamp) AS INTEGER),
+connected.host_id,
+connected.server_id,
+connected.client_region,
+connected.propagation_channel_id,
+connected.sponsor_id,
+connected.client_version,
+connected.relay_protocol
+FROM connected
+JOIN disconnected
+ON connected.session_id = disconnected.session_id
+AND disconnected.relay_protocol = 'SSH';
+
+ALTER TABLE ssh_session_duration OWNER TO postgres;
+GRANT ALL ON TABLE ssh_session_duration TO postgres;
+GRANT ALL ON TABLE ssh_session_duration TO psiphon3;
