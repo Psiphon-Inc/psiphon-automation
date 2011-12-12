@@ -554,7 +554,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 provider_account = self.__linode_account
             elif provider.lower() == 'elastichosts':
                 provider_launch_new_server = psi_elastichosts.ElasticHosts().launch_new_server
-                provider_account = _weighted_random_choice(self.__elastichosts_accounts)
+                provider_account = self._weighted_random_choice(self.__elastichosts_accounts)
             else:
                 raise ValueError('bad provider value: %s' % provider)
             

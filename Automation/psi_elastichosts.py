@@ -40,9 +40,7 @@ class ElasticHosts(object):
     Interface for interacting with ElasticHosts resources.
     '''
     
-    def __init__(self, account, verbose=True):
-        self._account = account
-        
+    def __init__(self, verbose=True):
         self._verbose = verbose
 
         # Libcloud needs to be told where the CA certs can be found.
@@ -51,8 +49,6 @@ class ElasticHosts(object):
         # For more info, see: 
         # http://wiki.apache.org/incubator/LibcloudSSL
         libcloud.security.CA_CERTS_PATH.append('./linode/cloud-cacerts.pem')
-        
-        self._create_connection()
         
     def _print(self, string, newline=True):
         if not self._verbose: return
@@ -65,11 +61,14 @@ class ElasticHosts(object):
         Driver = get_driver(getattr(Provider, self._account.zone))
         self._driver = Driver(self._account.uuid, self._account.api_key)
 
-    def launch_new_server(self):
+    def launch_new_server(self, account):
         # Note that we're using the libcloud API in a fairly bastardized way.
         # We're not using the real API at all (we've found that it doesn't work),
         # but we're using the connection object, because it makes our code a lot
         # cleaner.
+
+        self._account = account
+        self._create_connection()
         
         # Determine the base drive size. We can then use this as the size for 
         # the new drive.
