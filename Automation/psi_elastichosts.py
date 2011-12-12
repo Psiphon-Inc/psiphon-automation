@@ -70,6 +70,8 @@ class ElasticHosts(object):
         self._account = account
         self._create_connection()
         
+        self._print('Creating new ElasticHosts server in zone: %s...' % self._account.zone)
+        
         # Determine the base drive size. We can then use this as the size for 
         # the new drive.
         self._print('Determining drive size...')
