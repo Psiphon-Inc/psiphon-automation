@@ -273,7 +273,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
  
     def show_sponsors(self):
         for s in self.__sponsors.itervalues():
-            print textwrap.dedent('''                ID:                      %s
+            print textwrap.dedent('''
+                ID:                      %s
                 Name:                    %s
                 Home Pages:              %s
                 Campaigns:               %s
@@ -291,6 +292,21 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                for c in s.campaigns]))
             self.__show_logs(s)
 
+    def show_campaigns_on_propagation_channel(self, propagation_channel_name):
+        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+        for sponsor in self.__sponsors.itervalues():
+            for campaign in sponsor.campaigns:
+                if campaign.propagation_channel_id == propagation_channel.id:
+                    print textwrap.dedent('''
+                            Sponsor:                %s
+                            Propagation Mechanism:  %s
+                            Account:                %s
+                            Bucket Name:            %s''') % (
+                                sponsor.name,
+                                campaign.propagation_mechanism_type,
+                                campaign.account[0] if campaign.account else 'None',
+                                campaign.s3_bucket_name)
+        
     def show_propagation_channels(self):
         now = datetime.datetime.now()
         for p in self.__propagation_channels.itervalues():
