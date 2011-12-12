@@ -76,8 +76,10 @@ class ElasticHosts(object):
         resp = self._driver.connection.request(action='/drives/%s/info' 
                                                         % self._account.base_drive_id)
         drive_size = resp.object['size']
+        self._print('Drive size: %dGB' % (drive_size/1024/1024/1024))
         
         random_name = ''.join([random.choice(string.letters + string.digits) for i in range(16)])
+        self._print('Server/drive name: %s' % random_name)
         
         # Create a blank new drive of the appropriate size
         self._print('Creating blank drive...')
@@ -102,6 +104,15 @@ class ElasticHosts(object):
             self._print(resp.object['imaging'], newline=False)
             time.sleep(5)
         
+        # If we don't use a static IP, the server will get a fresh IP every time
+        # it reboots (which is bad).
+        self._print('Creating IP address...')
+        resp = self._driver.connection.request(action='/resources/ip/create', 
+                                               method='POST', 
+                                               data=json.dumps({'name': random_name}))
+        ip_address = resp.object['resource']
+        self._print('IP address: %s' % ip_address)
+        
         # The drive is ready, now create the server that uses it.
         self._print('Creating server...')
         resp = self._driver.connection.request(action='/servers/create/stopped', 
@@ -110,13 +121,13 @@ class ElasticHosts(object):
                                                                 'name': random_name,
                                                                 'cpu': self._account.cpu,
                                                                 'mem': self._account.mem,
+                                                                'nic:0:dhcp': ip_address,
                                                                 # The rest of these settings are basically the defaults.
                                                                 # ...But the create won't work without them.
-                                                                'persistent':True,
-                                                                'smp':'auto',
-                                                                'boot':'ide:0:0',
-                                                                'nic:0:dhcp':'auto',
-                                                                'nic:0:model':'e1000',
+                                                                'persistent': True,
+                                                                'smp': 'auto',
+                                                                'boot': 'ide:0:0',
+                                                                'nic:0:model': 'e1000',
                                                                 }))
         server_id = resp.object['server']
 
@@ -125,8 +136,6 @@ class ElasticHosts(object):
         resp = self._driver.connection.request(action='/servers/%s/start' % server_id, 
                                                method='POST')
 
-        ip_address = resp.object['nic:0:ip']
-        
         ssh_info = SSHInfo(ip_address, self._account.base_ssh_port, 
                            self._account.root_username, self._account.base_root_password,
                            self._account.base_host_public_key)
@@ -148,12 +157,6 @@ class ElasticHosts(object):
         # Reboot
         self._print('Rebooting server...')
         self._reboot(ssh_info)
-        
-        # Get new IP address
-        self._print('Retrieving new IP...')
-        resp = self._driver.connection.request(action='/servers/%s/info' % server_id)
-
-        ip_address = resp.object['nic:0:ip']
         
         self._print('Complete')
         
