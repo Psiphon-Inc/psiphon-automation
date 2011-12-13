@@ -318,13 +318,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         old_propagation_servers = [server.id for server in self.__servers.itervalues()
                                    if server.propagation_channel_id == p.id and
                                    not server.is_embedded and not server.discovery_date_range]
-        current_discovery_servers = ['%s (%s-%s)' % (server.id,
+        current_discovery_servers = ['%s (%s - %s)' % (server.id,
                                                      server.discovery_date_range[0].isoformat(),
                                                      server.discovery_date_range[1].isoformat())
                                      for server in self.__servers.itervalues()
                                      if server.propagation_channel_id == p.id and server.discovery_date_range and
                                      (server.discovery_date_range[0] <= now < server.discovery_date_range[1])]
-        other_discovery_servers = ['%s (%s-%s)' % (server.id,
+        other_discovery_servers = ['%s (%s - %s)' % (server.id,
                                                    server.discovery_date_range[0].isoformat(),
                                                    server.discovery_date_range[1].isoformat())
                                    for server in self.__servers.itervalues()
@@ -366,7 +366,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     s.ip_address,
                     self.__propagation_channels[s.propagation_channel_id].name if s.propagation_channel_id else 'None',
                     s.is_embedded,
-                    ('%s-%s' % (s.discovery_date_range[0].isoformat(),
+                    ('%s - %s' % (s.discovery_date_range[0].isoformat(),
                                 s.discovery_date_range[1].isoformat())) if s.discovery_date_range else 'None')
             self.__show_logs(s)
 
@@ -586,17 +586,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # NOTE: jsonpickle will serialize references to discovery_date_range, which can't be
             # resolved when unpickling, if discovery_date_range is used directly.
             # So create a copy instead.
-            discovery = ((datetime.datetime(discovery_date_range[0].year,
-                                            discovery_date_range[0].month,
-                                            discovery_date_range[0].day,
-                                            discovery_date_range[0].hour,
-                                            discovery_date_range[0].minute),
-                          datetime.datetime(discovery_date_range[1].year,
-                                            discovery_date_range[1].month,
-                                            discovery_date_range[1].day,
-                                            discovery_date_range[1].hour,
-                                            discovery_date_range[1].minute))
-                         if discovery_date_range else None)
+            discovery = self.__copy_date_range(discovery_date_range) if discovery_date_range else None
             
             server = Server(
                         None,
@@ -657,18 +647,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         other_server.log('unembedded')
             # If we just created new discovery servers, stop discovering existing ones
             else:
-                now = datetime.datetime.now()
-                for other_server in self.__servers.itervalues():
-                    # NOTE: don't instantiate today outside of this loop, otherwise jsonpickle will
-                    # serialize references to it (for all but the first server in this loop) which
-                    # are not unpickle-able
-                    today = datetime.datetime(now.year, now.month, now.day)
-                    if (other_server.propagation_channel_id == propagation_channel.id and
-                        other_server.id not in new_server_ids and
-                        other_server.discovery_date_range and
-                        (other_server.discovery_date_range[0] <= today < other_server.discovery_date_range[1])):
-                        other_server.discovery_date_range = (other_server.discovery_date_range[0], today)
-                        other_server.log('replaced')
+                self.__replace_propagation_channel_discovery_servers_not_in(propagation_channel.id, new_server_ids)
 
         self.__deploy_data_required_for_all = True
         self.__deploy_stats_config_required = True
@@ -693,6 +672,47 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # This deploy will broadcast server info, propagate builds, and update
         # the stats and email server
         self.deploy()
+
+    def set_servers_propagation_channel_and_discovery_date_range(self, server_names, propagation_channel_name, discovery_date_range, replace_others=True):
+        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+        for server_name in server_names:
+            server = self.__servers[server_name]
+            server.propagation_channel_id = propagation_channel.id
+            server.discovery_date_range = self.__copy_date_range(discovery_date_range)
+            server.log('propagation channel set to %s' % (propagation_channel.id,))
+            server.log('discovery_date_range set to %s - %s' % (server.discovery_date_range[0].isoformat(),
+                                                                server.discovery_date_range[1].isoformat()))
+        
+        if replace_others:
+            self.__replace_propagation_channel_discovery_servers_not_in(propagation_channel.id, server_names)
+
+        self.__deploy_data_required_for_all = True
+
+    def __copy_date_range(self, date_range):
+        return (datetime.datetime(date_range[0].year,
+                                  date_range[0].month,
+                                  date_range[0].day,
+                                  date_range[0].hour,
+                                  date_range[0].minute),
+                datetime.datetime(date_range[1].year,
+                                  date_range[1].month,
+                                  date_range[1].day,
+                                  date_range[1].hour,
+                                  date_range[1].minute))
+
+    def __replace_propagation_channel_discovery_servers_not_in(self, propagation_channel_id, current_server_ids):
+        now = datetime.datetime.now()
+        for other_server in self.__servers.itervalues():
+            # NOTE: don't instantiate today outside of this loop, otherwise jsonpickle will
+            # serialize references to it (for all but the first server in this loop) which
+            # are not unpickle-able
+            today = datetime.datetime(now.year, now.month, now.day)
+            if (other_server.propagation_channel_id == propagation_channel_id and
+                other_server.id not in current_server_ids and
+                other_server.discovery_date_range and
+                (other_server.discovery_date_range[0] <= today < other_server.discovery_date_range[1])):
+                other_server.discovery_date_range = (other_server.discovery_date_range[0], today)
+                other_server.log('replaced')
 
     def _weighted_random_choice(self, choices):
         '''
@@ -827,6 +847,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             host.log('deploy routes')
 
     def push_stats_config(self):
+        print 'push stats config...'
+        
         temp_file = tempfile.NamedTemporaryFile(delete=False)
         try:
             temp_file.write(self.__compartmentalize_data_for_stats_server())
@@ -844,6 +866,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # mapping every request email to a response body containing
         # download links.
         # Currently, we generate the entire config file for any change.
+        
+        print 'push email config...'
         
         emails = {}
         for sponsor in self.__sponsors.itervalues():
