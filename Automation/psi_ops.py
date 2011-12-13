@@ -336,12 +336,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     for server in self.__servers.itervalues()
                                     if server.propagation_channel_id == p.id and server.discovery_date_range and
                                        server.discovery_date_range[0] > now]
+        future_discovery_servers.sort(key=lambda str: str[str.find('('):])
         old_discovery_servers = ['%s (%s - %s)' % (server.id,
                                                    server.discovery_date_range[0].isoformat(),
                                                    server.discovery_date_range[1].isoformat())
                                  for server in self.__servers.itervalues()
                                  if server.propagation_channel_id == p.id and server.discovery_date_range and
                                     now >= server.discovery_date_range[1]]
+        old_discovery_servers.sort(key=lambda str: str[str.find('('):])
         
         print textwrap.dedent('''
             ID:                       %s
