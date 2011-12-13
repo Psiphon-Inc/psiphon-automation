@@ -466,7 +466,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                    None)
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
-            sponsor.log('add twitter campaign %s' % (email_account,))
+            sponsor.log('add twitter campaign %s' % (twitter_account_name,))
             self.__deploy_builds_required_for_campaigns.add(
                     (campaign.propagation_channel_id, sponsor.id))
             campaign.log('marked for build and publish (new campaign)')
@@ -820,7 +820,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
                 if campaign.propagation_mechanism_type == 'twitter':
                     message = psi_templates.get_tweet_message(campaign.s3_bucket_name)
-                    psi_twitter.tweet(campaign.account, message)
+                    psi_ops_twitter.tweet(campaign.account, message)
                     campaign.log('tweeted')
                 elif campaign.propagation_mechanism_type == 'email-autoresponder':
                     if not self.__deploy_email_config_required:

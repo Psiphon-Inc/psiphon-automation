@@ -20,13 +20,7 @@
 
 def get_tweet_message(s3_bucket_name):
     bucket_root_url = 'https://s3.amazonaws.com/' + s3_bucket_name
-    return '''English - {0}/en.html
-فارسی - {0}/fa.html
-Русский - {0}/ru.html
-Türkmençe - {0}/tk.html
-中文 - {0}/zh.html
-العربي - {0}/ar.html
-ภาษาไทย - {0}/th.html'''.format(bucket_root_url)
+    return 'Get Psiphon 3 here: %s/en.html' % (bucket_root_url,)
 
 def get_plaintext_email_content(s3_bucket_name):
     bucket_root_url = 'https://s3.amazonaws.com/' + s3_bucket_name
