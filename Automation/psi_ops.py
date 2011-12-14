@@ -325,7 +325,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                    if server.propagation_channel_id == p.id and
                                    not server.is_embedded and not server.discovery_date_range]
         current_discovery_servers = ['%s - %s : %s' % (server.discovery_date_range[0].isoformat(),
-                                                       server.discovery_date_range[1].isoformat()
+                                                       server.discovery_date_range[1].isoformat(),
                                                        server.id)
                                      for server in self.__servers.itervalues()
                                      if server.propagation_channel_id == p.id and server.discovery_date_range and
