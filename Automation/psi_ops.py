@@ -324,22 +324,22 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         old_propagation_servers = [server.id for server in self.__servers.itervalues()
                                    if server.propagation_channel_id == p.id and
                                    not server.is_embedded and not server.discovery_date_range]
-        current_discovery_servers = ['%s (%s - %s)' % (server.id,
-                                                       server.discovery_date_range[0].isoformat(),
-                                                       server.discovery_date_range[1].isoformat())
+        current_discovery_servers = ['%s - %s : %s' % (server.discovery_date_range[0].isoformat(),
+                                                       server.discovery_date_range[1].isoformat()
+                                                       server.id)
                                      for server in self.__servers.itervalues()
                                      if server.propagation_channel_id == p.id and server.discovery_date_range and
                                      (server.discovery_date_range[0] <= now < server.discovery_date_range[1])]
-        future_discovery_servers = ['%s (%s - %s)' % (server.id,
-                                                      server.discovery_date_range[0].isoformat(),
-                                                      server.discovery_date_range[1].isoformat())
+        future_discovery_servers = ['%s - %s : %s' % (server.discovery_date_range[0].isoformat(),
+                                                      server.discovery_date_range[1].isoformat(),
+                                                      server.id)
                                     for server in self.__servers.itervalues()
                                     if server.propagation_channel_id == p.id and server.discovery_date_range and
                                        server.discovery_date_range[0] > now]
         future_discovery_servers.sort(key=lambda str: str[str.find('('):])
-        old_discovery_servers = ['%s (%s - %s)' % (server.id,
-                                                   server.discovery_date_range[0].isoformat(),
-                                                   server.discovery_date_range[1].isoformat())
+        old_discovery_servers = ['%s - %s : %s' % (server.discovery_date_range[0].isoformat(),
+                                                   server.discovery_date_range[1].isoformat(),
+                                                   server.id)
                                  for server in self.__servers.itervalues()
                                  if server.propagation_channel_id == p.id and server.discovery_date_range and
                                     now >= server.discovery_date_range[1]]
@@ -357,12 +357,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             ''') % (
                 p.id,
                 p.name,
-                ',\n                          '.join(p.propagation_mechanism_types),
-                ',\n                          '.join(embedded_servers),
-                ',\n                          '.join(current_discovery_servers),
-                ',\n                          '.join(future_discovery_servers),
-                ',\n                          '.join(old_propagation_servers),
-                ',\n                          '.join(old_discovery_servers))
+                '\n                          '.join(p.propagation_mechanism_types),
+                '\n                          '.join(embedded_servers),
+                '\n                          '.join(current_discovery_servers),
+                '\n                          '.join(future_discovery_servers),
+                '\n                          '.join(old_propagation_servers),
+                '\n                          '.join(old_discovery_servers))
         self.__show_logs(p)
 
     def show_servers(self):
