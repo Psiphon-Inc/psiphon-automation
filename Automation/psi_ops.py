@@ -995,7 +995,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             base_known_hosts_entry=base_known_hosts_entry, base_rsa_private_key=base_rsa_private_key, 
             base_rsa_public_key=base_rsa_public_key, base_tarball_path=base_tarball_path) 
 
-
     def upsert_elastichosts_account(self, zone, uuid, api_key, base_drive_id, 
                                     cpu, mem, base_host_public_key, root_username, 
                                     base_root_password, base_ssh_port, stats_username, rank):
@@ -1022,11 +1021,17 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         
         psi_utils.update_recordtype(
             acct, 
-            zone=zone, uuid=uuid, api_key=api_key, base_drive_id=base_drive_id, 
-            cpu=cpu, mem=mem, base_host_public_key=base_host_public_key, 
-            root_username=root_username, base_root_password=base_root_password, 
-            base_ssh_port=base_ssh_port, stats_username=stats_username, rank=rank)
-        
+            zone=zone, uuid=uuid,
+            api_key=acct.api_key if api_key is None else api_key,
+            base_drive_id=acct.base_drive_id if base_drive_id is None else base_drive_id,
+            cpu=acct.cpu if cpu is None else cpu,
+            mem=acct.mem if mem is None else mem,
+            base_host_public_key=acct.base_host_public_key if base_host_public_key is None else base_host_public_key,
+            root_username=acct.root_username if root_username is None else root_username,
+            base_root_password=acct.base_root_password if base_root_password is None else base_root_password,
+            base_ssh_port=acct.base_ssh_port if base_ssh_port is None else base_ssh_port,
+            stats_username=acct.stats_username if stats_username is None else stats_username,
+            rank=acct.rank if rank is None else rank)
 
     def set_email_server_account(self, ip_address, ssh_port,
                                  ssh_username, ssh_pkey, ssh_host_key,
