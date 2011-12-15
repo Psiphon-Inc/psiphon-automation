@@ -98,13 +98,25 @@ class ElasticHosts(object):
                                         method='POST')
         
         # Imaging takes up to about 20 minutes, so we'll check and wait and repeat.
-        while True:
+        # HACK: We have seen the imaging key be absent even though the imaging 
+        # isn't finished. So we'll add a bit of a hack to check a few more times
+        # before we accept it as finished. We're also going to make sure that 
+        # the last % we saw was in the 90s. 
+        done_check = 3
+        last_imaging_value = ''
+        while done_check > 0:
             resp = self._driver.connection.request(action='/drives/%s/info' % drive_id)
             if not resp.object.has_key('imaging'):
-                self._print('Drive imaging complete')
-                break
+                if last_imaging_value.startswith('9') and len(last_imaging_value) == 3: # '99%'
+                    done_check -= 1
+                    self._print('Imaging might be done; checking again (%d)...' % done_check)
+                else:
+                    self._print('Imaging probably not done, but returning no progress; checking again...')
+                continue
             self._print(resp.object['imaging'], newline=False)
+            last_imaging_value = resp.object['imaging']
             time.sleep(5)
+        self._print('Drive imaging complete')
         
         # If we don't use a static IP, the server will get a fresh IP every time
         # it reboots (which is bad).
