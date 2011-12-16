@@ -387,6 +387,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 s.discovery_date_range[1].isoformat())) if s.discovery_date_range else 'None')
             self.__show_logs(s)
 
+    def show_provider_ranks(self):
+        for r in self.__provider_ranks:
+            print textwrap.dedent('''
+                Provider:   %s
+                Rank:       %s
+                ''') % (r.provider, r.rank)
+            
     def __generate_id(self):
         count = 16
         chars = '0123456789ABCDEF'
