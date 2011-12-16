@@ -115,7 +115,7 @@ if os.path.isfile('psi_data_config.py'):
 # timestamp, host ID, and event type. The schema array defines the additional
 # fields expected for each valid event type.
 
-LOG_LINE_PATTERN = '([\dT\.:-]+) ([\w-]+) psiphonv: (\w+) (.+)'
+LOG_LINE_PATTERN = '([\dT\.:\+-]+) ([\w-]+) psiphonv: (\w+) (.+)'
 
 LOG_ENTRY_COMMON_FIELDS = ('timestamp', 'host_id')
 
