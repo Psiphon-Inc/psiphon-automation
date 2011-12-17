@@ -50,6 +50,9 @@ class CronCreator(object):
         self._make_daily(cron)
         
     def _maintenance_jobs(self):
+        # Disabled
+        return
+    
         # Clears the postfix message queue
         command = "sudo postsuper -d ALL"
         self.normal_tab.remove_all(command)

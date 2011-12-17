@@ -25,6 +25,8 @@ The MailStats class can be used to record stats about the mail responder.
 import json
 import re
 import os
+import subprocess
+import shlex
 from boto.ses.connection import SESConnection
 
 import settings
@@ -124,19 +126,33 @@ if __name__ == '__main__':
     except:
         pass
 
-    email_body = ''
+    queue_check = subprocess.Popen(shlex.split('sudo perl %s' % os.path.expanduser('~%s/postfix_queue_check.pl' % settings.MAIL_RESPONDER_USERNAME)), stdout=subprocess.PIPE).communicate()[0]
+    logwatch_basic = subprocess.Popen(shlex.split('logwatch --output stdout --format text'), stdout=subprocess.PIPE).communicate()[0]
+    logwatch_postfix = subprocess.Popen(shlex.split('logwatch --service postfix --range yesterday --detail 12 --output stdout --format text'), stdout=subprocess.PIPE).communicate()[0]
+
+
+    email_body = '<pre>'
+    
     email_body += loginfo
     email_body += '\n\n\n'
     email_body += get_exception_info()
     email_body += '\n\n\n'
-    email_body += get_ses_quota()
+    email_body += 'SES quota info\n----------------------\n' + get_ses_quota()
+    email_body += '\n\n\n'
+    email_body += 'Postfix queue counts\n----------------------\n' + queue_check
+    email_body += '\n\n\n'
+    email_body += 'Logwatch Basic\n----------------------\n' + logwatch_basic
+    email_body += '\n\n\n'
+    email_body += 'Logwatch Postfix\n----------------------\n' + logwatch_postfix
+
+    email_body += '</pre>'
 
     subject = '[MailResponder] Stats'
 
     raw_email = sendmail.create_raw_email(settings.STATS_RECIPIENT_ADDRESS, 
                                           settings.STATS_SENDER_ADDRESS, 
                                           subject, 
-                                          email_body)
+                                          [['plain', email_body], ['html', email_body]])
 
     if not raw_email:
         exit(1)

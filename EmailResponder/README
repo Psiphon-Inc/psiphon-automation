@@ -129,6 +129,18 @@ notify_classes =
     > sudo /etc/init.d/postfix restart
 
 
+Logwatch and Postfix-Logwatch
+----------------------------------------
+
+1. Install logwatch build-essential
+    > sudo apt-get install logwatch
+    
+2. Install postfix-logwatch.
+    - Download current version from: http://logreporters.sourceforge.net/
+    - Extract the archive, enter the new directory, and execute:
+        > sudo make install-logwatch
+
+
 Source files and cron jobs
 ----------------------------------------
 

@@ -34,7 +34,7 @@ STATS_MAIL_ADDR=$1
 echo "Copying source files..."
 
 # Copy the simple files
-sudo cp mail_process.py sendmail.py blacklist.py mail_stats.py mail_direct.py $MAIL_HOME
+sudo cp mail_process.py sendmail.py blacklist.py mail_stats.py mail_direct.py postfix_queue_check.pl $MAIL_HOME
 
 # forward needs to be copied to .forward
 sudo cp forward $MAIL_HOME/.forward
