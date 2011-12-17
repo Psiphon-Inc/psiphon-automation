@@ -129,6 +129,7 @@ class MailResponder:
 
     def _check_blacklist(self):
         '''
+        Check if the current requester address has been blacklisted.
         '''
         bl = blacklist.Blacklist()
         return bl.check_and_add(self._requester_addr)
@@ -209,6 +210,12 @@ class MailResponder:
         Signs the raw email according to DKIM standards and returns the resulting
         email (which is the original with extra signature headers). 
         '''
+        
+        # Disabling DKIM signing for now. It adds a significant processing 
+        # overhead, and it's not clear that it adds a significant benefit.
+        # If bounces increase, we'll re-enable it and see.
+        return raw_email
+        
         sig = dkim.sign(raw_email, settings.DKIM_SELECTOR, settings.DKIM_DOMAIN, 
                         open(settings.DKIM_PRIVATE_KEY).read())
         return sig + raw_email
