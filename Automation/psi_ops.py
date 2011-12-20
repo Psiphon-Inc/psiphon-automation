@@ -368,24 +368,28 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def show_servers(self):
         for s in self.__servers.itervalues():
-            print textwrap.dedent('''
-                Server:                  %s
-                Host:                    %s %s/%s
-                IP Address:              %s
-                Propagation Channel:     %s
-                Is Embedded:             %s
-                Discovery Date Range:    %s
-                ''') % (
-                    s.id,
-                    s.host_id,
-                    self.__hosts[s.host_id].ssh_username,
-                    self.__hosts[s.host_id].ssh_password,
-                    s.ip_address,
-                    self.__propagation_channels[s.propagation_channel_id].name if s.propagation_channel_id else 'None',
-                    s.is_embedded,
-                    ('%s - %s' % (s.discovery_date_range[0].isoformat(),
-                                s.discovery_date_range[1].isoformat())) if s.discovery_date_range else 'None')
-            self.__show_logs(s)
+            self.show_server(s.id)
+
+    def show_server(self, server_id):
+        s = self.__servers[server_id]
+        print textwrap.dedent('''
+            Server:                  %s
+            Host:                    %s %s/%s
+            IP Address:              %s
+            Propagation Channel:     %s
+            Is Embedded:             %s
+            Discovery Date Range:    %s
+            ''') % (
+                s.id,
+                s.host_id,
+                self.__hosts[s.host_id].ssh_username,
+                self.__hosts[s.host_id].ssh_password,
+                s.ip_address,
+                self.__propagation_channels[s.propagation_channel_id].name if s.propagation_channel_id else 'None',
+                s.is_embedded,
+                ('%s - %s' % (s.discovery_date_range[0].isoformat(),
+                            s.discovery_date_range[1].isoformat())) if s.discovery_date_range else 'None')
+        self.__show_logs(s)
 
     def show_provider_ranks(self):
         for r in self.__provider_ranks:
