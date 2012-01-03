@@ -54,14 +54,10 @@ def __test_server(executable_path, mode, expected_egress_ip_addresses):
     print 'Testing egress IP addresses %s in %s mode...' % (
             ','.join(expected_egress_ip_addresses), mode)
 
-    restore_registry = False
-
     try:
-        if mode == 'ssh':
-            reg_key = _winreg.OpenKey(REGISTRY_ROOT_KEY, REGISTRY_PRODUCT_KEY, 0, _winreg.KEY_ALL_ACCESS)
-            ignore_vpn_value, ignore_vpn_type = _winreg.QueryValueEx(reg_key, REGISTRY_IGNORE_VPN_VALUE)
-            restore_registry = True
-            _winreg.SetValueEx(reg_key, REGISTRY_IGNORE_VPN_VALUE, None, _winreg.REG_DWORD, 1)
+        reg_key = _winreg.OpenKey(REGISTRY_ROOT_KEY, REGISTRY_PRODUCT_KEY, 0, _winreg.KEY_ALL_ACCESS)
+        ignore_vpn_value, ignore_vpn_type = _winreg.QueryValueEx(reg_key, REGISTRY_IGNORE_VPN_VALUE)
+        _winreg.SetValueEx(reg_key, REGISTRY_IGNORE_VPN_VALUE, None, _winreg.REG_DWORD, 1 if mode == 'ssh' else 0)
 
         proc = subprocess.Popen([executable_path])
         time.sleep(15)
@@ -79,8 +75,7 @@ def __test_server(executable_path, mode, expected_egress_ip_addresses):
             raise Exception('egress is %s and expected egresses are %s' % (
                                 egress_ip_address, ','.join(expected_egress_ip_addresses)))
     finally:
-        if restore_registry:
-            _winreg.SetValueEx(reg_key, REGISTRY_IGNORE_VPN_VALUE, None, ignore_vpn_type, ignore_vpn_value)
+        _winreg.SetValueEx(reg_key, REGISTRY_IGNORE_VPN_VALUE, None, ignore_vpn_type, ignore_vpn_value)
             
 
 def test_server(ip_address, web_server_port, web_server_secret, encoded_server_list, version,
