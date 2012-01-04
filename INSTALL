@@ -174,6 +174,7 @@ Create /etc/iptables.rules:
   -A INPUT -d 127.0.0.0/8 -i ! lo -j REJECT --reject-with icmp-port-unreachable
   -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
   -A INPUT -p tcp -m state --state NEW -m tcp --dport 22 -j ACCEPT
+  -A INPUT -p tcp -m state --state NEW -m tcp --dport 80 -j ACCEPT
   -A INPUT -p tcp -m state --state NEW -m tcp --dport 2222 -j ACCEPT
   -A INPUT -p tcp -m state --state NEW -m tcp --dport 8080 -j ACCEPT
   -A INPUT -p esp -j ACCEPT
@@ -194,6 +195,7 @@ Create /etc/iptables.rules:
   -A OUTPUT -p udp -m multiport --dports 53,80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
   -A OUTPUT -p udp -m udp --dport 123 -j ACCEPT
   -A OUTPUT -p tcp -m tcp --sport 22 -j ACCEPT
+  -A OUTPUT -p tcp -m tcp --sport 80 -j ACCEPT
   -A OUTPUT -p tcp -m tcp --sport 2222 -j ACCEPT
   -A OUTPUT -p tcp -m tcp --sport 8080 -j ACCEPT
   -A OUTPUT -p esp -j ACCEPT
@@ -239,18 +241,30 @@ installing fail2ban to defend against brute-force SSH login attempts.
 Create or edit /etc/fail2ban/jail.local:
 
   [ssh]
-  port    = ssh,2222
+  port    = ssh,80,2222
 
   [ssh-ddos]
-  port    = ssh,2222
+  port    = ssh,80,2222
 
 Edit /etc/fail2ban/filter.d/sshd.conf, and add the following line to the failregex list:
 
   ^%(__prefix_line)spam_unix\(sshd:auth\): authentication failure; logname=\S* uid=\S* euid=\S* tty=\S* ruser=\S* rhost=<HOST>(?:\s+user=.*)?\s*$
 
 
-3. Install and configure sudo
--------------------------------
+3. Install obfuscated ssh
+-------------------------
+
+apt-get install libpam0g-dev
+wget https://github.com/brl/obfuscated-openssh/zipball/master -O ossh.zip
+unzip ossh.zip
+cd brl-obfuscated-openssh-ca93a2c
+./configure --with-pam
+make
+make install
+
+
+4. Install and configure sudo
+-----------------------------
 
 apt-get update
 apt-get install sudo
@@ -261,7 +275,7 @@ Add the following line under "User privilege specification" below the root entry
 Confirm that the path to ipsec is correct.
 
 
-4. Get xl2tp, and python packages
+5. Get xl2tp, and python packages
 ---------------------------------
 
 apt-get update
@@ -312,7 +326,7 @@ Patch cherrypy (/usr/local/lib/python2.6/dist-packages/CherryPy-3.2.0-py2.6.egg/
         return ssl_environ
 
 
-5. Get, patch and install Openswan and the KLIPS kernel module
+6. Get, patch and install Openswan and the KLIPS kernel module
 --------------------------------------------------------------
 
 NOTE: We're using KLIPS in place of NETKEY as only KLIPS passed both tests:
@@ -401,7 +415,7 @@ update-rc.d ipsec defaults
 reboot
 
 
-6. Configure GeoIP lookup
+7. Configure GeoIP lookup
 -------------------------
 
 cd /root
@@ -427,7 +441,7 @@ python setup.py build
 python setup.py install
 
 
-7. Configure logging
+8. Configure logging
 --------------------
 
 (1) Direct all psiphonv logs to psiphonv.log and turn off all VPN logging
@@ -503,7 +517,7 @@ Note: it is a good idea to use a unique user name and a strong randomly
 generated password for this user on each host.
 
 
-8. Add host and servers to network database
+9. Add host and servers to network database
 -------------------------------------------
 
 See the section below on Network Database Configuration.
@@ -520,7 +534,7 @@ port, discovery Client ID and discovery schedule.
 and private key.
 
 
-9. Run psi_install.py
+10. Run psi_install.py
 ---------------------
 
 On the build host:
@@ -531,7 +545,7 @@ On the build host:
 The following subitems are performed by this script:
 
 
-9.1 Configure IPSec
+10.1 Configure IPSec
 -------------------
 
 We configure multiple connections, one per public IP address.
@@ -577,7 +591,7 @@ We configure multiple connections, one per public IP address.
   <empty file>
 
 
-9.2 Configure an instance of xl2tpd per external IP address
+10.2 Configure an instance of xl2tpd per external IP address
 -----------------------------------------------------------
 
 We run multiple xl2tpd instances, one per public IP address, due to an issue
@@ -653,14 +667,14 @@ https://lists.openswan.org/pipermail/users/2011-February/020143.html
   esac
 
 
-9.3 Restart L2TP/IPSec
+10.3 Restart L2TP/IPSec
 ----------------------
 
   /etc/init.d/ipsec restart
   /etc/init.d/xl2tpd restart
 
 
-10. Invoke the deploy script
+11. Invoke the deploy script
 ----------------------------
 
 This script:
