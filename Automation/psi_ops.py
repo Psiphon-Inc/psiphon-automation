@@ -588,8 +588,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # connect to a server.
         is_embedded_server = (discovery_date_range is None)
 
-        new_server_ids = []
-        
+        if replace_others:
+            # If we are creating new propagation servers, stop embedding the old ones
+            # (they are still active, but not embedded in builds or discovered)
+            if is_embedded_server:
+                for old_server in self.__servers.itervalues():
+                    if (old_server.propagation_channel_id == propagation_channel.id and
+                        old_server.is_embedded):
+                        old_server.is_embedded = False
+                        old_server.log('unembedded')
+            # If we are creating new discovery servers, stop discovering existing ones
+            else:
+                self.__replace_propagation_channel_discovery_servers(propagation_channel.id)
+
         for x in range(count):
             provider = self._weighted_random_choice(self.__provider_ranks).provider
             
@@ -657,26 +668,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             psi_ops_deploy.deploy_routes(host)
             host.log('initial deployment')
 
-            new_server_ids.append(server.id)
-
             self.test_server(server.id, test_vpn=False, test_ssh=False)
             
             self.save()
             
-        if replace_others:
-            # If we just created new propagation servers, stop embedding the old ones
-            # (they are still active, but not embedded in builds or discovered)
-            if is_embedded_server:
-                for other_server in self.__servers.itervalues():
-                    if (other_server.propagation_channel_id == propagation_channel.id and
-                        other_server.id not in new_server_ids and
-                        other_server.is_embedded):
-                        other_server.is_embedded = False
-                        other_server.log('unembedded')
-            # If we just created new discovery servers, stop discovering existing ones
-            else:
-                self.__replace_propagation_channel_discovery_servers_not_in(propagation_channel.id, new_server_ids)
-
         self.__deploy_data_required_for_all = True
         self.__deploy_stats_config_required = True
 
@@ -703,6 +698,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def set_servers_propagation_channel_and_discovery_date_range(self, server_names, propagation_channel_name, discovery_date_range, replace_others=True):
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+
+        if replace_others:
+            self.__replace_propagation_channel_discovery_servers(propagation_channel.id)
+
         for server_name in server_names:
             server = self.__servers[server_name]
             server.propagation_channel_id = propagation_channel.id
@@ -711,9 +710,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             server.log('discovery_date_range set to %s - %s' % (server.discovery_date_range[0].isoformat(),
                                                                 server.discovery_date_range[1].isoformat()))
         
-        if replace_others:
-            self.__replace_propagation_channel_discovery_servers_not_in(propagation_channel.id, server_names)
-
         self.__deploy_data_required_for_all = True
 
     def __copy_date_range(self, date_range):
@@ -728,19 +724,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                   date_range[1].hour,
                                   date_range[1].minute))
 
-    def __replace_propagation_channel_discovery_servers_not_in(self, propagation_channel_id, current_server_ids):
+    def __replace_propagation_channel_discovery_servers(self, propagation_channel_id):
         now = datetime.datetime.now()
-        for other_server in self.__servers.itervalues():
+        for old_server in self.__servers.itervalues():
             # NOTE: don't instantiate today outside of this loop, otherwise jsonpickle will
             # serialize references to it (for all but the first server in this loop) which
             # are not unpickle-able
             today = datetime.datetime(now.year, now.month, now.day)
-            if (other_server.propagation_channel_id == propagation_channel_id and
-                other_server.id not in current_server_ids and
-                other_server.discovery_date_range and
-                (other_server.discovery_date_range[0] <= today < other_server.discovery_date_range[1])):
-                other_server.discovery_date_range = (other_server.discovery_date_range[0], today)
-                other_server.log('replaced')
+            if (old_server.propagation_channel_id == propagation_channel_id and
+                old_server.discovery_date_range and
+                (old_server.discovery_date_range[0] <= today < old_server.discovery_date_range[1])):
+                old_server.discovery_date_range = (old_server.discovery_date_range[0], today)
+                old_server.log('replaced')
 
     def _weighted_random_choice(self, choices):
         '''
