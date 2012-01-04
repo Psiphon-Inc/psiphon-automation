@@ -299,6 +299,7 @@ GRANT ALL ON TABLE status TO psiphon3;
 
 CREATE VIEW ssh_session_duration
 (
+id,
 connected_timestamp,
 duration,
 host_id,
@@ -311,6 +312,7 @@ relay_protocol
 )
 AS
 SELECT
+disconnected.id,
 connected.timestamp,
 CAST(EXTRACT('epoch' FROM disconnected.timestamp-connected.timestamp) AS INTEGER),
 connected.host_id,
