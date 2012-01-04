@@ -139,7 +139,7 @@ Server = psi_utils.recordtype(
     'id, host_id, ip_address, egress_ip_address, '+
     'propagation_channel_id, is_embedded, discovery_date_range, '+
     'web_server_port, web_server_secret, web_server_certificate, web_server_private_key, '+
-    'ssh_port, ssh_username, ssh_password, ssh_host_key',
+    'ssh_port, ssh_username, ssh_password, ssh_host_key, ssh_obfuscated_port, ssh_obfuscated_key',
     default=None)
 
 ClientVersion = psi_utils.recordtype(
@@ -1195,6 +1195,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             assert(key_type == 'ssh-rsa')
             output.append('SSHHostKey: %s' % (host_key,))
             output.append('SSHSessionID: %s' % (binascii.hexlify(os.urandom(8)),))
+            # Obfuscated SSH fields are optional
+            if server.ssh_obfuscated_port:
+                output.append('SSHObfuscatedPort: %s' % (server.ssh_obfuscated_port,))
+                output.append('SSHObfuscatedKey: %s' % (server.ssh_obfuscated_key,))
         return output
     
     def embed(self, propagation_channel_id):
