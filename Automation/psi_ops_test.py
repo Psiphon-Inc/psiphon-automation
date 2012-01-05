@@ -42,6 +42,8 @@ def __test_web_server(ip_address, web_server_port, web_server_secret):
             'SSHUsername: ' in response and
             'SSHPassword: ' in response and
             'SSHHostKey: ' in response and
+            'SSHObfuscatedPort: ' in response and
+            'SSHObfuscatedKey: ' in response and
             'PSK: ' in response)
 
 
