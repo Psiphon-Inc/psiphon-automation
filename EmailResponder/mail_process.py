@@ -170,12 +170,13 @@ class MailResponder:
         
         self._requester_addr = strip_email(self._requester_addr)
         if not self._requester_addr:
-            # This might be a bounce email from Amazon SES
-            if self._email['From'] == 'MAILER-DAEMON@email-bounces.amazonaws.com':
-                syslog.syslog(syslog.LOG_INFO, 'fail: incoming bounce notice')
-                dump_to_exception_file('fail: incoming bounce notice\n\n%s' % self._email_string)
+            # Amazon SES bounces have '<>' for Return-Path, so they end up here.
+            if self._email['Return-Path'] == 'MAILER-DAEMON@email-bounces.amazonses.com':
+                syslog.syslog(syslog.LOG_INFO, 'fail: bounce')
             else:
                 syslog.syslog(syslog.LOG_INFO, 'fail: unparsable requester address')
+                dump_to_exception_file('fail: unparsable requester address\n\n%s' % self._email_string)
+                
             return False
 
         self._subject = decode_header(self._email['Subject'])
