@@ -214,13 +214,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__deploy_stats_config_required = False
         self.__deploy_email_config_required = False
 
-    class_version = '0.1'
+    class_version = '0.2'
 
     def upgrade(self):
         if self.version < '0.1':
             self.__provider_ranks = []
             self.__elastichosts_accounts = []
             self.version = '0.1'
+        if self.version < '0.2':
+            for server in self.__servers.itervalues():
+                server.ssh_obfuscated_port = None
+                server.ssh_obfuscated_key = None
+            self.version = '0.2'
 
     def show_status(self):
         # NOTE: verbose mode prints credentials to stdout
@@ -639,7 +644,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         None,
                         None,
                         None,
-                        '22')
+                        '22',
+                        None,
+                        None,
+                        None,
+                        '80')
 
             # Install Psiphon 3 and generate configuration values
             # Here, we're assuming one server/IP address per host
