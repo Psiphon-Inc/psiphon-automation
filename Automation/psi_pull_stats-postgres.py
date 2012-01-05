@@ -355,6 +355,9 @@ def reconstruct_sessions(db):
     print "Reconstructing new sessions..."
     start_time = time.time()
     
+	# Note: only using this session reconstruction logic for VPN protocol at this time;
+	#       SSH and OSSH durations are implemented using views (see psi_pull_stats-postgres-schema.sql)
+	
     session_cursor.execute(textwrap.dedent('''
         INSERT INTO session (host_id, server_id, client_region, propagation_channel_id,
                              sponsor_id, client_version, relay_protocol, session_id,
@@ -379,7 +382,7 @@ def reconstruct_sessions(db):
                 AND connected.host_id = disconnected.host_id
                 AND connected.relay_protocol = disconnected.relay_protocol
                 AND connected.session_id = disconnected.session_id
-            WHERE connected.relay_protocol <> 'SSH'
+            WHERE connected.relay_protocol = 'VPN'
             AND NOT EXISTS (SELECT * FROM session WHERE connected_id = connected.id)
         '''))
 
