@@ -227,7 +227,24 @@ def make_sshd_config_file_command(server_index, ssh_user):
         file_contents, server_index)
 
 
-def make_xinetd_config_file_command(ip_addresses):
+def make_obfuscated_sshd_config_file_command(server_index, ssh_user, ssh_obfuscated_port, ssh_obfuscated_key):
+    file_contents = textwrap.dedent('''
+        AllowUsers %s
+        HostKey /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%d
+        PrintLastLog no
+        PrintMotd no
+        UseDNS no
+        UsePAM yes
+        LogLevel ERROR
+        ObfuscatedPort %s
+        ObfuscatedKeyword %s
+        ''' % (ssh_user, server_index, ssh_obfuscated_port, ssh_obfuscated_key))
+
+    return 'echo "%s" > /etc/ssh/sshd_config.obfuscated.psiphon_ssh_%d' % (
+        file_contents, server_index)
+
+
+def make_xinetd_config_file_command(servers):
 
     defaults_section = textwrap.dedent('''
         defaults
@@ -237,7 +254,7 @@ def make_xinetd_config_file_command(ip_addresses):
         ''')
 
     ssh_service_section_template = textwrap.dedent('''
-        service ssh
+        service %s
         {
             id              = psiphon_ssh.%d
             bind            = %s
@@ -250,11 +267,40 @@ def make_xinetd_config_file_command(ip_addresses):
             server_args     = -i -4 -f /etc/ssh/sshd_config.psiphon_ssh_%d
         }
         ''')
+        
+    obfuscated_ssh_service_section_template = textwrap.dedent('''
+        service %s
+        {
+            id              = psiphon_ssh.obfuscated.%d
+            bind            = %s
+            socket_type     = stream
+            protocol        = tcp
+            wait            = no
+            user            = root
+            group           = nogroup
+            server          = /usr/local/sbin/sshd
+            server_args     = -i -4 -f /etc/ssh/sshd_config.obfuscated.psiphon_ssh_%d
+        }
+        ''')
 
-    file_contents = defaults_section + '\n'.join(
-        [ssh_service_section_template % (index, ip_address, index)
-         for index, ip_address in enumerate(ip_addresses)])
-
+    def service_name_for_port(port):
+        if port == 22:
+            return 'ssh'
+        elif port == 80:
+            return 'http'
+        else:
+            assert(False)
+        
+    service_sections = []
+    for index, server in enumerate(servers):
+        if server.ssh_port is not None:
+            service_sections.append(ssh_service_section_template %
+                                (service_name_for_port(server.ssh_port), index, server.ip_address, index))
+        if server.ssh_obfuscated_port is not None:
+            service_sections.append(obfuscated_ssh_service_section_template %
+                                (service_name_for_port(server.ssh_obfuscated_port), index, server.ip_address, index))
+            
+    file_contents = defaults_section + '\n'.join(service_sections)
     return 'echo "%s" > /etc/xinetd.conf' % (file_contents,)
 
 
@@ -410,10 +456,15 @@ def install_host(host, servers, existing_server_ids):
         ssh.exec_command('useradd -d /dev/null -s /bin/false %s && echo \"%s:%s\"|chpasswd' % (
                             server.ssh_username, server.ssh_username, server.ssh_password))
         ssh.exec_command(make_sshd_config_file_command(index, server.ssh_username))
+        if server.ssh_obfuscated_port is not None:
+            if server.ssh_obfuscated_key is None:
+                server.ssh_obfuscated_key = binascii.hexlify(os.urandom(32))
+            ssh.exec_command(make_obfuscated_sshd_config_file_command(index, server.ssh_username,
+                                                    server.ssh_obfuscated_port, server.ssh_obfuscated_key))
         # NOTE we do not write the ssh host key back to the server because it is generated
         #      on the server in the first place.
 
-    ssh.exec_command(make_xinetd_config_file_command([server.ip_address for server in servers]))
+    ssh.exec_command(make_xinetd_config_file_command(servers))
 
     #
     # Restart the xinetd service
