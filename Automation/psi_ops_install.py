@@ -237,7 +237,7 @@ def make_obfuscated_sshd_config_file_command(server_index, ssh_user, ssh_obfusca
         UsePAM yes
         LogLevel ERROR
         ObfuscatedPort %s
-        ObfuscatedKeyword %s
+        ObfuscateKeyword %s
         ''' % (ssh_user, server_index, ssh_obfuscated_port, ssh_obfuscated_key))
 
     return 'echo "%s" > /etc/ssh/sshd_config.obfuscated.psiphon_ssh_%d' % (
@@ -284,9 +284,9 @@ def make_xinetd_config_file_command(servers):
         ''')
 
     def service_name_for_port(port):
-        if port == 22:
+        if port == '22':
             return 'ssh'
-        elif port == 80:
+        elif port == '80':
             return 'http'
         else:
             assert(False)

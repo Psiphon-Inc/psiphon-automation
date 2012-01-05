@@ -705,6 +705,17 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # the stats and email server
         self.deploy()
 
+    def reinstall_host(self, host_id):
+        host = self.__hosts[host_id]
+        servers = [server for server in self.__servers.itervalues() if server.host_id == host_id]
+        existing_server_ids = [existing_server.id for existing_server in self.__servers.itervalues()]
+        psi_ops_install.install_host(host, servers, existing_server_ids)
+        host.log('reinstall')
+
+    def reinstall_hosts(self):
+        for host in self.__hosts.itervalues():
+            self.reinstall_host(host.id)
+            
     def set_servers_propagation_channel_and_discovery_date_range(self, server_names, propagation_channel_name, discovery_date_range, replace_others=True):
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
 
@@ -1252,7 +1263,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 server.ssh_port,
                                                 server.ssh_username,
                                                 server.ssh_password,
-                                                server.ssh_host_key)
+                                                server.ssh_host_key,
+                                                server.ssh_obfuscated_port,
+                                                server.ssh_obfuscated_key)
     
         for sponsor in self.__sponsors.itervalues():
             copy_sponsor = Sponsor(
