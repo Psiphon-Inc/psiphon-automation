@@ -710,6 +710,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         servers = [server for server in self.__servers.itervalues() if server.host_id == host_id]
         existing_server_ids = [existing_server.id for existing_server in self.__servers.itervalues()]
         psi_ops_install.install_host(host, servers, existing_server_ids)
+        psi_ops_deploy.deploy_implementation(host)
+        # New data might have been generated
+        psi_ops_deploy.deploy_data(
+                                host,
+                                self.__compartmentalize_data_for_host(host.id))
         host.log('reinstall')
 
     def reinstall_hosts(self):

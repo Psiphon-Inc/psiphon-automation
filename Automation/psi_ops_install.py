@@ -212,25 +212,25 @@ def make_ipsec_secrets_file_command():
     return 'echo "" > /etc/ipsec.secrets && chmod 666 /etc/ipsec.secrets'
 
 
-def make_sshd_config_file_command(server_index, ssh_user):
+def make_sshd_config_file_command(ip_address, ssh_user):
     file_contents = textwrap.dedent('''
         AllowUsers %s
-        HostKey /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%d
+        HostKey /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s
         PrintLastLog no
         PrintMotd no
         UseDNS no
         UsePAM yes
         LogLevel ERROR
-        ''' % (ssh_user, server_index))
+        ''' % (ssh_user, ip_address))
 
-    return 'echo "%s" > /etc/ssh/sshd_config.psiphon_ssh_%d' % (
-        file_contents, server_index)
+    return 'echo "%s" > /etc/ssh/sshd_config.psiphon_ssh_%s' % (
+        file_contents, ip_address)
 
 
-def make_obfuscated_sshd_config_file_command(server_index, ssh_user, ssh_obfuscated_port, ssh_obfuscated_key):
+def make_obfuscated_sshd_config_file_command(ip_address, ssh_user, ssh_obfuscated_port, ssh_obfuscated_key):
     file_contents = textwrap.dedent('''
         AllowUsers %s
-        HostKey /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%d
+        HostKey /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s
         PrintLastLog no
         PrintMotd no
         UseDNS no
@@ -238,10 +238,10 @@ def make_obfuscated_sshd_config_file_command(server_index, ssh_user, ssh_obfusca
         LogLevel ERROR
         ObfuscatedPort %s
         ObfuscateKeyword %s
-        ''' % (ssh_user, server_index, ssh_obfuscated_port, ssh_obfuscated_key))
+        ''' % (ssh_user, ip_address, ssh_obfuscated_port, ssh_obfuscated_key))
 
-    return 'echo "%s" > /etc/ssh/sshd_config.obfuscated.psiphon_ssh_%d' % (
-        file_contents, server_index)
+    return 'echo "%s" > /etc/ssh/sshd_config.obfuscated.psiphon_ssh_%s' % (
+        file_contents, ip_address)
 
 
 def make_xinetd_config_file_command(servers):
@@ -256,7 +256,7 @@ def make_xinetd_config_file_command(servers):
     ssh_service_section_template = textwrap.dedent('''
         service %s
         {
-            id              = psiphon_ssh.%d
+            id              = psiphon_ssh.%s
             bind            = %s
             socket_type     = stream
             protocol        = tcp
@@ -264,14 +264,14 @@ def make_xinetd_config_file_command(servers):
             user            = root
             group           = nogroup
             server          = /usr/sbin/sshd
-            server_args     = -i -4 -f /etc/ssh/sshd_config.psiphon_ssh_%d
+            server_args     = -i -4 -f /etc/ssh/sshd_config.psiphon_ssh_%s
         }
         ''')
         
     obfuscated_ssh_service_section_template = textwrap.dedent('''
         service %s
         {
-            id              = psiphon_ssh.obfuscated.%d
+            id              = psiphon_ssh.obfuscated.%s
             bind            = %s
             socket_type     = stream
             protocol        = tcp
@@ -279,7 +279,7 @@ def make_xinetd_config_file_command(servers):
             user            = root
             group           = nogroup
             server          = /usr/local/sbin/sshd
-            server_args     = -i -4 -f /etc/ssh/sshd_config.obfuscated.psiphon_ssh_%d
+            server_args     = -i -4 -f /etc/ssh/sshd_config.obfuscated.psiphon_ssh_%s
         }
         ''')
 
@@ -292,13 +292,13 @@ def make_xinetd_config_file_command(servers):
             assert(False)
         
     service_sections = []
-    for index, server in enumerate(servers):
+    for server in servers:
         if server.ssh_port is not None:
             service_sections.append(ssh_service_section_template %
-                                (service_name_for_port(server.ssh_port), index, server.ip_address, index))
+                                (service_name_for_port(server.ssh_port), server.ip_address, server.ip_address, server.ip_address))
         if server.ssh_obfuscated_port is not None:
             service_sections.append(obfuscated_ssh_service_section_template %
-                                (service_name_for_port(server.ssh_obfuscated_port), index, server.ip_address, index))
+                                (service_name_for_port(server.ssh_obfuscated_port), server.ip_address, server.ip_address, server.ip_address))
             
     file_contents = defaults_section + '\n'.join(service_sections)
     return 'echo "%s" > /etc/xinetd.conf' % (file_contents,)
@@ -428,7 +428,7 @@ def install_host(host, servers, existing_server_ids):
     # Generate and upload sshd_config files and xinetd.conf
     #
 
-    for index, server in enumerate(servers):
+    for server in servers:
 
         # Generate SSH credentials and SSH host key here because we need to create them
         # on the server and use them in the sshd_config files.
@@ -438,11 +438,11 @@ def install_host(host, servers, existing_server_ids):
             server.ssh_username = 'psiphon_ssh_%s' % (binascii.hexlify(os.urandom(8)),)
             server.ssh_password = binascii.hexlify(os.urandom(32))
         if server.ssh_host_key is None:
-            ssh.exec_command('rm /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%d' % (index,))
-            ssh.exec_command('ssh-keygen -t rsa -N \"\" -f /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%d' % (index,))
+            ssh.exec_command('rm /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (server.ip_address,))
+            ssh.exec_command('ssh-keygen -t rsa -N \"\" -f /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (server.ip_address,))
             try:
                 # TODO: use temp dir?
-                ssh.get_file('/etc/ssh/ssh_host_rsa_key.psiphon_ssh_%d.pub' % (index,), 'ssh_host_key')
+                ssh.get_file('/etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s.pub' % (server.ip_address,), 'ssh_host_key')
                 with open('ssh_host_key') as file:
                     key = file.read()
             finally:
@@ -455,11 +455,11 @@ def install_host(host, servers, existing_server_ids):
         #      the user already exists
         ssh.exec_command('useradd -d /dev/null -s /bin/false %s && echo \"%s:%s\"|chpasswd' % (
                             server.ssh_username, server.ssh_username, server.ssh_password))
-        ssh.exec_command(make_sshd_config_file_command(index, server.ssh_username))
+        ssh.exec_command(make_sshd_config_file_command(server.ip_address, server.ssh_username))
         if server.ssh_obfuscated_port is not None:
             if server.ssh_obfuscated_key is None:
                 server.ssh_obfuscated_key = binascii.hexlify(os.urandom(32))
-            ssh.exec_command(make_obfuscated_sshd_config_file_command(index, server.ssh_username,
+            ssh.exec_command(make_obfuscated_sshd_config_file_command(server.ip_address, server.ssh_username,
                                                     server.ssh_obfuscated_port, server.ssh_obfuscated_key))
         # NOTE we do not write the ssh host key back to the server because it is generated
         #      on the server in the first place.
