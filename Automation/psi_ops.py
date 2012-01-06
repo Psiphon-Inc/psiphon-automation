@@ -968,6 +968,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 self.__deploy_builds_required_for_campaigns.add(
                         (campaign.propagation_channel_id, sponsor.id))
                 campaign.log('marked for build and publish (upgraded client)')
+        # Need to deploy data as well for auto-update
+        self.__deploy_data_required_for_all = True
 
     def get_server_entry(self, server_id):
         server = filter(lambda x:x.id == server_id,self.__servers.itervalues())[0]
