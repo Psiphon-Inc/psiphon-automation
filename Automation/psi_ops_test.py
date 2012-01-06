@@ -69,15 +69,14 @@ def __test_server(executable_path, mode, expected_egress_ip_addresses):
         # HTTP Proxy that is set by the client.
         urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler()))
         egress_ip_address = urllib2.urlopen(psi_ops_build.CHECK_IP_ADDRESS_URL).read().split('\n')[0]
-    
-        win32ui.FindWindow(None, psi_ops_build.APPLICATION_TITLE).PostMessage(win32con.WM_CLOSE)
-        proc.wait()
-        
+
         if egress_ip_address not in expected_egress_ip_addresses:
             raise Exception('egress is %s and expected egresses are %s' % (
                                 egress_ip_address, ','.join(expected_egress_ip_addresses)))
     finally:
         _winreg.SetValueEx(reg_key, REGISTRY_IGNORE_VPN_VALUE, None, ignore_vpn_type, ignore_vpn_value)
+        win32ui.FindWindow(None, psi_ops_build.APPLICATION_TITLE).PostMessage(win32con.WM_CLOSE)
+        proc.wait()
             
 
 def test_server(ip_address, web_server_port, web_server_secret, encoded_server_list, version,
