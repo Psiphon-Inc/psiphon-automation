@@ -712,6 +712,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         psi_ops_install.install_host(host, servers, existing_server_ids)
         psi_ops_deploy.deploy_implementation(host)
         # New data might have been generated
+        # NOTE that if the client version has been incremented but a full deploy has not yet been run,
+        # this following psi_ops_deploy.deploy_data call is not safe.  Data will specify a new version
+        # that is not yet available on servers (infinite download loop).
         psi_ops_deploy.deploy_data(
                                 host,
                                 self.__compartmentalize_data_for_host(host.id))
