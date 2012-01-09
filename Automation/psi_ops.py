@@ -648,7 +648,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         None,
                         None,
                         None,
-                        '80')
+                        '995')
 
             # Install Psiphon 3 and generate configuration values
             # Here, we're assuming one server/IP address per host
