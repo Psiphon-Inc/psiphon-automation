@@ -249,10 +249,10 @@ installing fail2ban to defend against brute-force SSH login attempts.
 Create or edit /etc/fail2ban/jail.local:
 
   [ssh]
-  port    = ssh,80,2222
+  port    = ssh,80,465,587,993,995,2222
 
   [ssh-ddos]
-  port    = ssh,80,2222
+  port    = ssh,80,465,587,993,995,2222
 
 Edit /etc/fail2ban/filter.d/sshd.conf, and add the following line to the failregex list:
 
