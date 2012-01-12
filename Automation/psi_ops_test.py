@@ -20,14 +20,18 @@
 import urllib2
 import subprocess
 import time
-import win32ui
-import win32con
-import _winreg
+try:
+    import win32ui
+    import win32con
+    import _winreg
+    REGISTRY_ROOT_KEY = _winreg.HKEY_CURRENT_USER
+except ImportError as error:
+    print error
+    print 'NOTE: Running client tests will not be available.'
 
 import psi_ops_build
 
 
-REGISTRY_ROOT_KEY = _winreg.HKEY_CURRENT_USER
 REGISTRY_PRODUCT_KEY = 'SOFTWARE\\Psiphon3'
 REGISTRY_IGNORE_VPN_VALUE = 'UserSkipVPN'
 
