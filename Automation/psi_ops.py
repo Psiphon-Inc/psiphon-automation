@@ -1407,10 +1407,10 @@ def edit():
     psinet.show_status()
     import code
     try:
-        code.InteractiveConsole(locals=locals()).interact(
+        code.interact(
                 'Psiphon 3 Console\n'+
                 '-----------------\n'+
-                'Interact with the \'psinet\' object...\n')
+                'Interact with the \'psinet\' object...\n', local=locals())
     except SystemExit as e:
         pass
     psinet.release()
