@@ -139,7 +139,7 @@ Server = psi_utils.recordtype(
     'id, host_id, ip_address, egress_ip_address, '+
     'propagation_channel_id, is_embedded, discovery_date_range, '+
     'web_server_port, web_server_secret, web_server_certificate, web_server_private_key, '+
-    'ssh_port, ssh_username, ssh_password, ssh_host_key',
+    'ssh_port, ssh_username, ssh_password, ssh_host_key, ssh_obfuscated_port, ssh_obfuscated_key',
     default=None)
 
 ClientVersion = psi_utils.recordtype(
@@ -214,13 +214,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__deploy_stats_config_required = False
         self.__deploy_email_config_required = False
 
-    class_version = '0.1'
+    class_version = '0.2'
 
     def upgrade(self):
         if self.version < '0.1':
             self.__provider_ranks = []
             self.__elastichosts_accounts = []
             self.version = '0.1'
+        if self.version < '0.2':
+            for server in self.__servers.itervalues():
+                server.ssh_obfuscated_port = None
+                server.ssh_obfuscated_key = None
+            self.version = '0.2'
 
     def show_status(self):
         # NOTE: verbose mode prints credentials to stdout
@@ -534,6 +539,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__deploy_data_required_for_all = True
             sponsor.log('marked all hosts for data deployment')
 
+    def set_sponsor_name(self, sponsor_name, new_sponsor_name):
+        assert(not filter(lambda x:x.name == new_sponsor_name, self.__sponsors.itervalues()))
+        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor.name = (new_sponsor_name)
+        self.__deploy_stats_config_required = True
+        sponsor.log('set sponsor name from \'%s\' to \'%s\'' % (sponsor_name, new_sponsor_name))
+        
     def get_server_by_ip_address(self, ip_address):
         servers = filter(lambda x:x.ip_address == ip_address, self.__servers.itervalues())
         if len(servers) == 1:
@@ -588,8 +600,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # connect to a server.
         is_embedded_server = (discovery_date_range is None)
 
-        new_server_ids = []
-        
+        if replace_others:
+            # If we are creating new propagation servers, stop embedding the old ones
+            # (they are still active, but not embedded in builds or discovered)
+            if is_embedded_server:
+                for old_server in self.__servers.itervalues():
+                    if (old_server.propagation_channel_id == propagation_channel.id and
+                        old_server.is_embedded):
+                        old_server.is_embedded = False
+                        old_server.log('unembedded')
+            # If we are creating new discovery servers, stop discovering existing ones
+            else:
+                self.__replace_propagation_channel_discovery_servers(propagation_channel.id)
+
         for x in range(count):
             provider = self._weighted_random_choice(self.__provider_ranks).provider
             
@@ -628,7 +651,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         None,
                         None,
                         None,
-                        '22')
+                        '22',
+                        None,
+                        None,
+                        None,
+                        '995')
 
             # Install Psiphon 3 and generate configuration values
             # Here, we're assuming one server/IP address per host
@@ -657,26 +684,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             psi_ops_deploy.deploy_routes(host)
             host.log('initial deployment')
 
-            new_server_ids.append(server.id)
-
             self.test_server(server.id, test_vpn=False, test_ssh=False)
             
             self.save()
             
-        if replace_others:
-            # If we just created new propagation servers, stop embedding the old ones
-            # (they are still active, but not embedded in builds or discovered)
-            if is_embedded_server:
-                for other_server in self.__servers.itervalues():
-                    if (other_server.propagation_channel_id == propagation_channel.id and
-                        other_server.id not in new_server_ids and
-                        other_server.is_embedded):
-                        other_server.is_embedded = False
-                        other_server.log('unembedded')
-            # If we just created new discovery servers, stop discovering existing ones
-            else:
-                self.__replace_propagation_channel_discovery_servers_not_in(propagation_channel.id, new_server_ids)
-
         self.__deploy_data_required_for_all = True
         self.__deploy_stats_config_required = True
 
@@ -701,8 +712,31 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # the stats and email server
         self.deploy()
 
+    def reinstall_host(self, host_id):
+        host = self.__hosts[host_id]
+        servers = [server for server in self.__servers.itervalues() if server.host_id == host_id]
+        existing_server_ids = [existing_server.id for existing_server in self.__servers.itervalues()]
+        psi_ops_install.install_host(host, servers, existing_server_ids)
+        psi_ops_deploy.deploy_implementation(host)
+        # New data might have been generated
+        # NOTE that if the client version has been incremented but a full deploy has not yet been run,
+        # this following psi_ops_deploy.deploy_data call is not safe.  Data will specify a new version
+        # that is not yet available on servers (infinite download loop).
+        psi_ops_deploy.deploy_data(
+                                host,
+                                self.__compartmentalize_data_for_host(host.id))
+        host.log('reinstall')
+
+    def reinstall_hosts(self):
+        for host in self.__hosts.itervalues():
+            self.reinstall_host(host.id)
+            
     def set_servers_propagation_channel_and_discovery_date_range(self, server_names, propagation_channel_name, discovery_date_range, replace_others=True):
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+
+        if replace_others:
+            self.__replace_propagation_channel_discovery_servers(propagation_channel.id)
+
         for server_name in server_names:
             server = self.__servers[server_name]
             server.propagation_channel_id = propagation_channel.id
@@ -711,9 +745,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             server.log('discovery_date_range set to %s - %s' % (server.discovery_date_range[0].isoformat(),
                                                                 server.discovery_date_range[1].isoformat()))
         
-        if replace_others:
-            self.__replace_propagation_channel_discovery_servers_not_in(propagation_channel.id, server_names)
-
         self.__deploy_data_required_for_all = True
 
     def __copy_date_range(self, date_range):
@@ -728,19 +759,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                   date_range[1].hour,
                                   date_range[1].minute))
 
-    def __replace_propagation_channel_discovery_servers_not_in(self, propagation_channel_id, current_server_ids):
+    def __replace_propagation_channel_discovery_servers(self, propagation_channel_id):
         now = datetime.datetime.now()
-        for other_server in self.__servers.itervalues():
+        for old_server in self.__servers.itervalues():
             # NOTE: don't instantiate today outside of this loop, otherwise jsonpickle will
             # serialize references to it (for all but the first server in this loop) which
             # are not unpickle-able
             today = datetime.datetime(now.year, now.month, now.day)
-            if (other_server.propagation_channel_id == propagation_channel_id and
-                other_server.id not in current_server_ids and
-                other_server.discovery_date_range and
-                (other_server.discovery_date_range[0] <= today < other_server.discovery_date_range[1])):
-                other_server.discovery_date_range = (other_server.discovery_date_range[0], today)
-                other_server.log('replaced')
+            if (old_server.propagation_channel_id == propagation_channel_id and
+                old_server.discovery_date_range and
+                (old_server.discovery_date_range[0] <= today < old_server.discovery_date_range[1])):
+                old_server.discovery_date_range = (old_server.discovery_date_range[0], today)
+                old_server.log('replaced')
 
     def _weighted_random_choice(self, choices):
         '''
@@ -953,6 +983,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 self.__deploy_builds_required_for_campaigns.add(
                         (campaign.propagation_channel_id, sponsor.id))
                 campaign.log('marked for build and publish (upgraded client)')
+        # Need to deploy data as well for auto-update
+        self.__deploy_data_required_for_all = True
 
     def get_server_entry(self, server_id):
         server = filter(lambda x:x.id == server_id,self.__servers.itervalues())[0]
@@ -1195,6 +1227,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             assert(key_type == 'ssh-rsa')
             output.append('SSHHostKey: %s' % (host_key,))
             output.append('SSHSessionID: %s' % (binascii.hexlify(os.urandom(8)),))
+            # Obfuscated SSH fields are optional
+            if server.ssh_obfuscated_port:
+                output.append('SSHObfuscatedPort: %s' % (server.ssh_obfuscated_port,))
+                output.append('SSHObfuscatedKey: %s' % (server.ssh_obfuscated_key,))
         return output
     
     def embed(self, propagation_channel_id):
@@ -1244,7 +1280,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 server.ssh_port,
                                                 server.ssh_username,
                                                 server.ssh_password,
-                                                server.ssh_host_key)
+                                                server.ssh_host_key,
+                                                server.ssh_obfuscated_port,
+                                                server.ssh_obfuscated_key)
     
         for sponsor in self.__sponsors.itervalues():
             copy_sponsor = Sponsor(
