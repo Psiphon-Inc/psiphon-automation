@@ -718,6 +718,36 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # the stats and email server
         self.deploy()
 
+    def remove_host(self, host_id):
+        host = self.__hosts[host_id]
+        if host.provider == 'linode':
+            provider_remove_host = psi_linode.remove_server
+            provider_account = self.__linode_account
+        else:
+            raise ValueError('can\'t remove host from provider %s' % host.provider)
+        
+        # Remove the actual host through the provider's API
+        provider_remove_host(provider_account, host.provider_id)
+        
+        # Delete the host and it's servers from the DB
+        server_ids_on_host = []
+        for server in self.__servers.itervalues():
+            if server.host_id == host.id:
+                server_ids_on_host.append(server.id)
+        for server_id in server_ids_on_host:
+            self.__servers.pop(server.id)
+        self.__hosts.pop(host.id)
+        
+        # Clear flags that include this host id.  Update stats config.
+        if host.id in self.__deploy_implementation_required_for_hosts:
+            self.__deploy_implementation_required_for_hosts.remove(host.id)
+        self.__deploy_stats_config_required = True
+        # NOTE: If host was currently discoverable or will be in the future, 
+        #       host data should be updated.
+        # NOTE: If host was currently embedded, new campaign builds are needed.
+        
+        self.save()
+
     def reinstall_host(self, host_id):
         host = self.__hosts[host_id]
         servers = [server for server in self.__servers.itervalues() if server.host_id == host_id]

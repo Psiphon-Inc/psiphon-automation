@@ -169,5 +169,10 @@ def launch_new_server(linode_account):
             linode_account.base_stats_username, new_stats_password)
 
 
+def remove_server(linode_account, server_id):
+    linode_api = linode.api.Api(key=linode_account.api_key)
+    linode_api.linode_delete(LinodeID=server_id, skipChecks=True)
+    
+    
 if __name__ == "__main__":
     print launch_new_server()
