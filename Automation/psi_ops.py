@@ -131,7 +131,7 @@ SponsorCampaign = psi_utils.recordtype(
 
 Host = psi_utils.recordtype(
     'Host',
-    'id, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key, '+
+    'id, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key, '+
     'stats_ssh_username, stats_ssh_password')
 
 Server = psi_utils.recordtype(
@@ -214,7 +214,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__deploy_stats_config_required = False
         self.__deploy_email_config_required = False
 
-    class_version = '0.2'
+    class_version = '0.3'
 
     def upgrade(self):
         if self.version < '0.1':
@@ -226,6 +226,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 server.ssh_obfuscated_port = None
                 server.ssh_obfuscated_key = None
             self.version = '0.2'
+        if self.version < '0.3':
+            for host in self.__hosts.itervalues():
+                host.provider = None
+            self.version = '0.3'
 
     def show_status(self):
         # NOTE: verbose mode prints credentials to stdout
@@ -556,6 +560,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     stats_ssh_username, stats_ssh_password):
         host = Host(
                 id,
+                provider,
                 provider_id,
                 ip_address,
                 ssh_port,
@@ -633,6 +638,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # Create a new cloud VPS
             server_info = provider_launch_new_server(provider_account)
             host = Host(*server_info)
+            host.provider = provider.lower()
 
             # NOTE: jsonpickle will serialize references to discovery_date_range, which can't be
             # resolved when unpickling, if discovery_date_range is used directly.
@@ -1312,6 +1318,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for host in self.__hosts.itervalues():
             copy.__hosts[host.id] = Host(
                                             host.id,
+                                            '', # Omit: provider isn't needed
                                             '', # Omit: provider id isn't needed
                                             host.ip_address,
                                             host.ssh_port,

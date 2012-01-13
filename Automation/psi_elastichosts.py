@@ -174,7 +174,7 @@ class ElasticHosts(object):
         
         self._print('Complete')
         
-        return (random_name, str(server_id), ip_address,
+        return (random_name, None, str(server_id), ip_address,
                 ssh_info.port, ssh_info.username, new_root_password,
                 ' '.join(new_pub_key.split(' ')[:2]),
                 self._account.stats_username, new_stats_password)

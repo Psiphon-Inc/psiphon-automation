@@ -163,7 +163,7 @@ def launch_new_server(linode_account):
     new_stats_password = psi_utils.generate_password()
     new_host_public_key = refresh_credentials(linode_account, linode_ip_address, new_root_password, new_stats_password)
 
-    return (hostname, str(linode_id), linode_ip_address,
+    return (hostname, None, str(linode_id), linode_ip_address,
             linode_account.base_ssh_port, 'root', new_root_password,
             ' '.join(new_host_public_key.split(' ')[:2]),
             linode_account.base_stats_username, new_stats_password)
