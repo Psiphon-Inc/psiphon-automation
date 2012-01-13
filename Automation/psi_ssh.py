@@ -17,16 +17,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import paramiko
+import ssh
 import base64
 import os
 import sys
 import StringIO
 import socket
 import time
-
-sys.path.insert(0, os.path.abspath(os.path.join('..', 'Data')))
-import psi_db
 
 
 # SSH sessions are attempted soon after linodes are started.  We don't know when the ssh service
@@ -41,50 +38,50 @@ def make_ssh_session(ip_address, ssh_port, username, password, host_public_key, 
             if verbose: print('Waiting for ssh...')
             time.sleep(5)
     raise Exception('Took too long to establish an ssh session')
-    
+
 
 class SSH(object):
 
-    def __init__(self, 
-                 ip_address, 
-                 ssh_port, 
-                 ssh_username, 
-                 ssh_password, 
-                 ssh_host_key, 
+    def __init__(self,
+                 ip_address,
+                 ssh_port,
+                 ssh_username,
+                 ssh_password,
+                 ssh_host_key,
                  ssh_pkey=None):
         '''
         If used, ssh_pkey must be a string with the complete PEM file contents.
         '''
-        
-        self.ssh = paramiko.SSHClient()
+
+        self.ssh = ssh.SSHClient()
         self.ip_address = ip_address
         ssh_port = int(ssh_port)
         if ssh_host_key == None:
-            self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            self.ssh.set_missing_host_key_policy(ssh.AutoAddPolicy())
         else:
             split_key = ssh_host_key.split(' ')
             key_type = split_key[0]
             key_data = split_key[1]
-            
-            # Host keys are looked up by IP if the port is 22, but [IP]:port if 
+
+            # Host keys are looked up by IP if the port is 22, but [IP]:port if
             # the port is anything else.
-            if int(ssh_port) == 22: 
+            if int(ssh_port) == 22:
                 key_host_name = '%s' % (ip_address,)
             else:
                 key_host_name = '[%s]:%d' % (ip_address, ssh_port)
-                
+
             if key_type == 'ssh-dss':
-                self.ssh.get_host_keys().add(key_host_name, 
-                                             key_type, 
-                                             paramiko.DSSKey(data=base64.b64decode(key_data)))
+                self.ssh.get_host_keys().add(key_host_name,
+                                             key_type,
+                                             ssh.DSSKey(data=base64.b64decode(key_data)))
             else: # 'ssh-rsa'
-                self.ssh.get_host_keys().add(key_host_name, 
-                                             key_type, 
-                                             paramiko.RSAKey(data=base64.b64decode(key_data)))
-                
+                self.ssh.get_host_keys().add(key_host_name,
+                                             key_type,
+                                             ssh.RSAKey(data=base64.b64decode(key_data)))
+
         if ssh_pkey is not None:
-            ssh_pkey = paramiko.RSAKey.from_private_key(StringIO.StringIO(ssh_pkey))
-                
+            ssh_pkey = ssh.RSAKey.from_private_key(StringIO.StringIO(ssh_pkey))
+
         self.ssh.connect(ip_address, ssh_port, ssh_username, ssh_password, pkey=ssh_pkey)
 
     def close(self):
@@ -128,15 +125,3 @@ class SSH(object):
         sftp = self.ssh.open_sftp()
         sftp.get(remote_path, local_path)
         sftp.close()
-
-
-if __name__ == "__main__":
-
-    # test
-
-    hosts = psi_db.get_hosts()
-    for host in hosts:
-        ssh = SSH(
-                host.IP_Address, host.SSH_Username,
-                host.SSH_Password, host.SSH_Host_Key)
-        print ssh.exec_command('ls /')
