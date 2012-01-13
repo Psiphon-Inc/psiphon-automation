@@ -379,6 +379,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for s in self.__servers.itervalues():
             self.show_server(s.id)
 
+    def show_servers_on_host(self, host_id):
+        for s in self.__servers.itervalues():
+            if s.host_id == host_id:
+                self.show_server(s.id)
+                
     def show_server(self, server_id):
         s = self.__servers[server_id]
         print textwrap.dedent('''
@@ -735,7 +740,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if server.host_id == host.id:
                 server_ids_on_host.append(server.id)
         for server_id in server_ids_on_host:
-            self.__servers.pop(server.id)
+            self.__servers.pop(server_id)
         self.__hosts.pop(host.id)
         
         # Clear flags that include this host id.  Update stats config.
@@ -1272,6 +1277,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def embed(self, propagation_channel_id):
         return get_encoded_server_list(propagation_channel_id)
     
+    def get_host_by_provider_id(self, provider_id):
+        for host in self.__hosts.itervalues():
+            if host.provider_id and host.provider_id == provider_id:
+                return host
+                
     def get_hosts(self):
         return list(self.__hosts.itervalues())
         
