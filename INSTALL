@@ -175,6 +175,10 @@ Create /etc/iptables.rules:
   -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
   -A INPUT -p tcp -m state --state NEW -m tcp --dport 22 -j ACCEPT
   -A INPUT -p tcp -m state --state NEW -m tcp --dport 80 -j ACCEPT
+  -A INPUT -p tcp -m state --state NEW -m tcp --dport 465 -j ACCEPT
+  -A INPUT -p tcp -m state --state NEW -m tcp --dport 587 -j ACCEPT
+  -A INPUT -p tcp -m state --state NEW -m tcp --dport 993 -j ACCEPT
+  -A INPUT -p tcp -m state --state NEW -m tcp --dport 995 -j ACCEPT
   -A INPUT -p tcp -m state --state NEW -m tcp --dport 2222 -j ACCEPT
   -A INPUT -p tcp -m state --state NEW -m tcp --dport 8080 -j ACCEPT
   -A INPUT -p esp -j ACCEPT
@@ -196,6 +200,10 @@ Create /etc/iptables.rules:
   -A OUTPUT -p udp -m udp --dport 123 -j ACCEPT
   -A OUTPUT -p tcp -m tcp --sport 22 -j ACCEPT
   -A OUTPUT -p tcp -m tcp --sport 80 -j ACCEPT
+  -A OUTPUT -p tcp -m tcp --sport 465 -j ACCEPT
+  -A OUTPUT -p tcp -m tcp --sport 587 -j ACCEPT
+  -A OUTPUT -p tcp -m tcp --sport 993 -j ACCEPT
+  -A OUTPUT -p tcp -m tcp --sport 995 -j ACCEPT
   -A OUTPUT -p tcp -m tcp --sport 2222 -j ACCEPT
   -A OUTPUT -p tcp -m tcp --sport 8080 -j ACCEPT
   -A OUTPUT -p esp -j ACCEPT
@@ -241,10 +249,10 @@ installing fail2ban to defend against brute-force SSH login attempts.
 Create or edit /etc/fail2ban/jail.local:
 
   [ssh]
-  port    = ssh,80,2222
+  port    = ssh,80,465,587,993,995,2222
 
   [ssh-ddos]
-  port    = ssh,80,2222
+  port    = ssh,80,465,587,993,995,2222
 
 Edit /etc/fail2ban/filter.d/sshd.conf, and add the following line to the failregex list:
 

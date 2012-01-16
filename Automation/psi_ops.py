@@ -559,6 +559,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__deploy_data_required_for_all = True
             sponsor.log('marked all hosts for data deployment')
 
+    def set_sponsor_name(self, sponsor_name, new_sponsor_name):
+        assert(not filter(lambda x:x.name == new_sponsor_name, self.__sponsors.itervalues()))
+        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor.name = (new_sponsor_name)
+        self.__deploy_stats_config_required = True
+        sponsor.log('set sponsor name from \'%s\' to \'%s\'' % (sponsor_name, new_sponsor_name))
+        
     def get_server_by_ip_address(self, ip_address):
         servers = filter(lambda x:x.ip_address == ip_address, self.__servers.itervalues())
         if len(servers) == 1:

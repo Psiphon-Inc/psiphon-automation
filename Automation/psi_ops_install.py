@@ -288,6 +288,14 @@ def make_xinetd_config_file_command(servers):
             return 'ssh'
         elif port == '80':
             return 'http'
+        elif port == '465':
+            return 'ssmtp'
+        elif port == '587':
+            return 'submission'
+        elif port == '993':
+            return 'imaps'
+        elif port == '995':
+            return 'pop3s'
         else:
             assert(False)
         
