@@ -22,7 +22,7 @@ import time
 import re
 import multiprocessing
 import collections
-import jsonpickle
+import json
 import pexpect
 import base64
 import hashlib
@@ -105,7 +105,7 @@ if __name__ == "__main__":
     start_time = time.time()
 
     with open(PSI_OPS_DB_FILENAME) as file:
-        psinet = jsonpickle.decode(file.read())
+        psinet = json.loads(file.read())
 
     Host = collections.namedtuple(
         'Host',

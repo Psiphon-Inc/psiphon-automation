@@ -142,6 +142,17 @@ def process_stats(host, servers, db_cur, error_file):
     if not os.path.exists(directory):
         return
 
+    # Only process logs lines after last timestamp processed. This gives a
+    # significant performance boost.
+
+    db_cur.execute(
+        'select last_timestamp from processed_logs where host_id = %s',
+        [host.id])
+    last_timestamp = db_cur.fetchone()
+    if last_timestamp:
+        last_timestamp = last_timestamp[0]
+    next_last_timestamp = None
+
     # Prepare some loop invariant formatted strings. Gives a significant
     # performance boots vs. formatting per log line.
 
@@ -162,8 +173,15 @@ def process_stats(host, servers, db_cur, error_file):
 
     for filename in os.listdir(directory):
         if re.match(HOST_LOG_FILENAME_PATTERN, filename):
-            with open(os.path.join(directory, filename)) as file:
+            path = os.path.join(directory, filename)
+            if filename.endswith('.gz'):
+                # Older log file archives are in gzip format
+                file = gzip.open(path)
+            else:
+                file = open(path)
+            try:
                 print 'processing %s...' % (filename,)
+                lines_processed = 0
                 for line in file.read().split('\n'):
                     match = line_re.match(line)
                     if (not match or
@@ -171,11 +189,23 @@ def process_stats(host, servers, db_cur, error_file):
                         err = 'unexpected log line pattern: %s' % (line,)
                         error_file.write(err + '\n')
                         continue
+
                     # Note: We convert timestamps here to UTC so that they can all be rationally compared without
                     #       taking the timezone into consideration. This eases matching of outbound statistics
                     #       (and any other records that may not have consistent timezone info) to sessions.
                     # Update: no longer calling iso8601_to_utc(timestamp) as database can perform translation
+
                     timestamp = match.group(1)
+
+                    # Last timestamp check
+                    # Note: - assuming lexicographical order (ISO8601)
+                    #       - currently broken for 1 hour DST window or backwards moving server clock
+
+                    if last_timestamp and timestamp < last_timestamp:
+                        continue
+                    if not next_last_timestamp or timestamp > next_last_timestamp:
+                        next_last_timestamp = timestamp
+
                     host_id = match.group(2)
                     event_type = match.group(3)
                     event_values = match.group(4).split()
@@ -194,7 +224,7 @@ def process_stats(host, servers, db_cur, error_file):
                     # stats to keep IP addresses confidental in reporting.
 
                     if field_names[2] == 'server_id':
-                        field_values[2] = server_ip_address_to_id.get([field_values[2]], 'Unknown')
+                        field_values[2] = server_ip_address_to_id.get(field_values[2], 'Unknown')
 
                     # SQL injection note: the table name isn't parameterized
                     # and comes from log file data, but it's implicitly
@@ -203,6 +233,21 @@ def process_stats(host, servers, db_cur, error_file):
                     command = event_sql[event_type]
 
                     db_cur.execute(command, field_values + field_values)
+                    lines_processed += 1
+
+            finally:
+                file.close()
+        print '%d new lines processed' % (lines_processed)
+
+    if next_last_timestamp:
+        if not last_timestamp:
+            db_cur.execute(
+                'insert into processed_logs (host_id, last_timestamp) values (%s, %s)',
+                [host.id, next_last_timestamp])
+        else:
+            db_cur.execute(
+                'update processed_logs set last_timestamp = %s where host_id = %s',
+                [next_last_timestamp, host.id])
 
 
 if __name__ == "__main__":
@@ -212,10 +257,11 @@ if __name__ == "__main__":
     psinet = psi_ops.PsiphonNetwork.load_from_file(PSI_OPS_DB_FILENAME, lock_file=True)
 
     db_conn = psycopg2.connect(
-        'dbname=%s user=%s password=%s' % (
+        'dbname=%s user=%s password=%s port=%d' % (
             psi_ops_stats_credentials.POSTGRES_DBNAME,
             psi_ops_stats_credentials.POSTGRES_USER,
-            psi_ops_stats_credentials.POSTGRES_PASSWORD))
+            psi_ops_stats_credentials.POSTGRES_PASSWORD,
+            psi_ops_stats_credentials.POSTGRES_PORT))
 
     # Note: truncating error file
     error_file = open('process_stats.err', 'w')

@@ -1,3 +1,20 @@
+-- Table: processed_logs
+
+-- DROP TABLE processed_logs;
+
+CREATE TABLE processed_logs
+(
+  host_id text,
+  last_timestamp text,
+  CONSTRAINT processed_logs_pkey PRIMARY KEY (host_id)
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE processed_logs OWNER TO postgres;
+GRANT ALL ON TABLE processed_logs TO postgres;
+GRANT ALL ON TABLE processed_logs TO psiphon3;
+
 -- Table: connected
 
 -- DROP TABLE connected;
