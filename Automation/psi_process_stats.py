@@ -110,6 +110,15 @@ LOG_EVENT_TYPE_SCHEMA = {
 
 def iso8601_to_utc(timestamp):
     localized_datetime = datetime.datetime.strptime(timestamp[:26], '%Y-%m-%dT%H:%M:%S.%f')
+    # NOTE: strptime slow! Consider replacing with robust version of following.
+    #year = int(timestamp[0:4])
+    #month = int(timestamp[5:7])
+    #day = int(timestamp[8:10])
+    #hour = int(timestamp[11:13])
+    #minute = int(timestamp[14:16])
+    #second = int(timestamp[17:19])
+    #microsecond = int(timestamp[20:26])
+    localized_datetime = datetime.datetime(year, month, day, hour, minute, second, microsecond)
     timezone_delta = datetime.timedelta(
                                 hours = int(timestamp[-6:-3]),
                                 minutes = int(timestamp[-2:]))
@@ -130,6 +139,27 @@ def process_stats(host, servers, db_cur, error_file):
     # log entries into database.
 
     directory = os.path.join(LOCAL_LOG_ROOT, host.id)
+    if not os.path.exists(directory):
+        return
+
+    # Prepare some loop invariant formatted strings. Gives a significant
+    # performance boots vs. formatting per log line.
+
+    event_columns = {}
+    event_sql = {}
+
+    for event_type, event_fields in LOG_EVENT_TYPE_SCHEMA.iteritems():
+        event_columns[event_type] = LOG_ENTRY_COMMON_FIELDS + event_fields
+        assert(event_fields[0] == 'server_id' or 'server_id' not in event_fields)
+        assert(len(LOG_ENTRY_COMMON_FIELDS) == 2)
+        command = 'insert into %s (%s) select %s where not exists (select 1 from %s where %s)' % (
+                        event_type,
+                        ', '.join(event_columns[event_type]),
+                        ', '.join(['%s']*len(event_columns[event_type])),
+                        event_type,
+                        ' and '.join(['%s = %%s' % x for x in event_columns[event_type]]))
+        event_sql[event_type] = command
+
     for filename in os.listdir(directory):
         if re.match(HOST_LOG_FILENAME_PATTERN, filename):
             with open(os.path.join(directory, filename)) as file:
@@ -144,7 +174,8 @@ def process_stats(host, servers, db_cur, error_file):
                     # Note: We convert timestamps here to UTC so that they can all be rationally compared without
                     #       taking the timezone into consideration. This eases matching of outbound statistics
                     #       (and any other records that may not have consistent timezone info) to sessions.
-                    timestamp = iso8601_to_utc(match.group(1))
+                    # Update: no longer calling iso8601_to_utc(timestamp) as database can perform translation
+                    timestamp = match.group(1)
                     host_id = match.group(2)
                     event_type = match.group(3)
                     event_values = match.group(4).split()
@@ -153,24 +184,23 @@ def process_stats(host, servers, db_cur, error_file):
                         err = 'invalid log line fields %s' % (line,)
                         error_file.write(err + '\n')
                         continue
-                    field_names = LOG_ENTRY_COMMON_FIELDS + event_fields
+
+                    field_names = event_columns[event_type]
+
                     field_values = [timestamp, host_id] + event_values
+                    assert(len(field_names) == len(field_values))
+
                     # Replace server IP addresses with server IDs in
                     # stats to keep IP addresses confidental in reporting.
-                    assert(len(field_names) == len(field_values))
-                    for index, name in enumerate(field_names):
-                        if name.find('server_id') != -1:
-                            field_values[index] = server_ip_address_to_id[
-                                                    field_values[index]]
+
+                    if field_names[2] == 'server_id':
+                        field_values[2] = server_ip_address_to_id.get([field_values[2]], 'Unknown')
+
                     # SQL injection note: the table name isn't parameterized
                     # and comes from log file data, but it's implicitly
                     # validated by hash table lookups
-                    command = 'insert into %s (%s) select %s where not exists (select 1 from %s where %s)' % (
-                                    event_type,
-                                    ', '.join(field_names),
-                                    ', '.join(['%s']*len(field_values)),
-                                    event_type,
-                                    ' and '.join(['%s = %%s' % x for x in field_names]))
+
+                    command = event_sql[event_type]
 
                     db_cur.execute(command, field_values + field_values)
 
