@@ -131,7 +131,7 @@ SponsorCampaign = psi_utils.recordtype(
 
 Host = psi_utils.recordtype(
     'Host',
-    'id, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key, '+
+    'id, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key, '+
     'stats_ssh_username, stats_ssh_password')
 
 Server = psi_utils.recordtype(
@@ -214,7 +214,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__deploy_stats_config_required = False
         self.__deploy_email_config_required = False
 
-    class_version = '0.2'
+    class_version = '0.3'
 
     def upgrade(self):
         if self.version < '0.1':
@@ -226,6 +226,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 server.ssh_obfuscated_port = None
                 server.ssh_obfuscated_key = None
             self.version = '0.2'
+        if self.version < '0.3':
+
+            for host in self.__hosts.itervalues():
+
+                host.provider = None
+
+            self.version = '0.3'
 
     def show_status(self):
         # NOTE: verbose mode prints credentials to stdout
@@ -378,6 +385,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def show_servers(self):
         for s in self.__servers.itervalues():
             self.show_server(s.id)
+
+    def show_servers_on_host(self, host_id):
+
+        for s in self.__servers.itervalues():
+
+            if s.host_id == host_id:
+
+                self.show_server(s.id)
 
     def show_server(self, server_id):
         s = self.__servers[server_id]
@@ -576,6 +591,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     stats_ssh_username, stats_ssh_password):
         host = Host(
                 id,
+                provider,
                 provider_id,
                 ip_address,
                 ssh_port,
@@ -653,6 +669,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # Create a new cloud VPS
             server_info = provider_launch_new_server(provider_account)
             host = Host(*server_info)
+            host.provider = provider.lower()
 
             # NOTE: jsonpickle will serialize references to discovery_date_range, which can't be
             # resolved when unpickling, if discovery_date_range is used directly.
@@ -675,7 +692,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         None,
                         None,
                         None,
-                        '80')
+                        '995')
 
             # Install Psiphon 3 and generate configuration values
             # Here, we're assuming one server/IP address per host
@@ -732,6 +749,36 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # the stats and email server
         self.deploy()
 
+    def remove_host(self, host_id):
+        host = self.__hosts[host_id]
+        if host.provider == 'linode':
+            provider_remove_host = psi_linode.remove_server
+            provider_account = self.__linode_account
+        else:
+            raise ValueError('can\'t remove host from provider %s' % host.provider)
+        
+        # Remove the actual host through the provider's API
+        provider_remove_host(provider_account, host.provider_id)
+        
+        # Delete the host and it's servers from the DB
+        server_ids_on_host = []
+        for server in self.__servers.itervalues():
+            if server.host_id == host.id:
+                server_ids_on_host.append(server.id)
+        for server_id in server_ids_on_host:
+            self.__servers.pop(server_id)
+        self.__hosts.pop(host.id)
+        
+        # Clear flags that include this host id.  Update stats config.
+        if host.id in self.__deploy_implementation_required_for_hosts:
+            self.__deploy_implementation_required_for_hosts.remove(host.id)
+        self.__deploy_stats_config_required = True
+        # NOTE: If host was currently discoverable or will be in the future, 
+        #       host data should be updated.
+        # NOTE: If host was currently embedded, new campaign builds are needed.
+        
+        self.save()
+        
     def reinstall_host(self, host_id):
         host = self.__hosts[host_id]
         servers = [server for server in self.__servers.itervalues() if server.host_id == host_id]
@@ -1267,6 +1314,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     
     def embed(self, propagation_channel_id):
         return get_encoded_server_list(propagation_channel_id)
+
+    def get_host_by_provider_id(self, provider_id):
+        for host in self.__hosts.itervalues():
+            if host.provider_id and host.provider_id == provider_id:
+                return host
     
     def get_hosts(self):
         return list(self.__hosts.itervalues())
@@ -1345,6 +1397,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for host in self.__hosts.itervalues():
             copy.__hosts[host.id] = Host(
                                             host.id,
+                                            '', # Omit: provider isn't needed
                                             '', # Omit: provider id isn't needed
                                             host.ip_address,
                                             host.ssh_port,
@@ -1479,10 +1532,10 @@ def edit():
     psinet.show_status()
     import code
     try:
-        code.InteractiveConsole(locals=locals()).interact(
+        code.interact(
                 'Psiphon 3 Console\n'+
                 '-----------------\n'+
-                'Interact with the \'psinet\' object...\n')
+                'Interact with the \'psinet\' object...\n', local=locals())
     except SystemExit as e:
         pass
     psinet.release()
