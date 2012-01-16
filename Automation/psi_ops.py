@@ -119,7 +119,7 @@ EmailPropagationAccount = psi_utils.recordtype(
 
 Sponsor = psi_utils.recordtype(
     'Sponsor',
-    'id, name, banner, home_pages, campaigns')
+    'id, name, banner, home_pages, campaigns, page_view_regexes')
 
 SponsorHomePage = psi_utils.recordtype(
     'SponsorHomePage',
@@ -283,22 +283,26 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def show_sponsor(self, sponsor_name):
         s = self.__get_sponsor_by_name(sponsor_name)
         print textwrap.dedent('''
-            ID:                      %s
-            Name:                    %s
-            Home Pages:              %s
-            Campaigns:               %s
-            ''') % (
-                s.id,
-                s.name,
-                ', '.join(['%s: %s' % (region if region else 'All',
-                                       ', '.join([h.url for h in home_pages]))
-                           for region, home_pages in s.home_pages.iteritems()]),
-                ', '.join(['%s %s %s %s' % (
-                                self.__propagation_channels[c.propagation_channel_id].name,
-                                c.propagation_mechanism_type,
-                                c.account[0] if c.account else 'None',
-                                c.s3_bucket_name)
-                           for c in s.campaigns]))
+            ID:                      %(id)s
+            Name:                    %(name)s
+            Home Pages:              %(home_pages)s
+            Regexes:                 %(regexes)s
+            Campaigns:               %(campaigns)s
+            ''') % 
+            {
+             'id': s.id,
+             'name': s.name,
+             'home_pages': ', '.join(['%s: %s' % (region if region else 'All',
+                                                  ', '.join([h.url for h in home_pages]))
+                                                  for region, home_pages in s.home_pages.iteritems()]),
+             'regexes': ', '.join(s.page_view_regexes),
+             'campaigns': ', '.join(['%s %s %s %s' % (
+                                                      self.__propagation_channels[c.propagation_channel_id].name,
+                                                      c.propagation_mechanism_type,
+                                                      c.account[0] if c.account else 'None',
+                                                      c.s3_bucket_name)
+                                     for c in s.campaigns])
+             }
         self.__show_logs(s)
 
     def show_campaigns_on_propagation_channel(self, propagation_channel_name):
@@ -539,6 +543,22 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__deploy_data_required_for_all = True
             sponsor.log('marked all hosts for data deployment')
 
+    def set_sponsor_page_view_regex(self, sponsor_name, regex):
+        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        if regex not in sponsor.page_view_regexes:
+            sponsor.page_view_regexes.append(regex)
+            sponsor.log('set page view regex %s' % regex)
+            self.__deploy_data_required_for_all = True
+            sponsor.log('marked all hosts for data deployment')
+    
+    def remove_sponsor_page_view_regex(self, sponsor_name, regex):
+        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        if regex in sponsor.page_view_regexes):
+            sponsor.page_view_regexes.remove(regex)
+            sponsor.log('deleted page view regex %s' % regex)
+            self.__deploy_data_required_for_all = True
+            sponsor.log('marked all hosts for data deployment')
+
     def get_server_by_ip_address(self, ip_address):
         servers = filter(lambda x:x.ip_address == ip_address, self.__servers.itervalues())
         if len(servers) == 1:
@@ -606,7 +626,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             else:
                 self.__replace_propagation_channel_discovery_servers(propagation_channel.id)
 
-        for x in range(count):
+        for _ in range(count):
             provider = self._weighted_random_choice(self.__provider_ranks).provider
             
             # This is pretty dirty. We should use some proper OO technique.
@@ -1167,6 +1187,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             sponsor_home_pages = [home_page.url for home_page in sponsor.home_pages['None']]
         return sponsor_home_pages
     
+    def _get_sponsor_page_view_regexes(self, sponsor_id):
+        # Web server support function: fails gracefully
+        if sponsor_id not in self.__sponsors:
+            return []
+        sponsor = self.__sponsors[sponsor_id]
+        return sponsor.page_view_regexes
+    
     def __check_upgrade(self, client_version):
         # check last version number against client version number
         # assumes versions list is in ascending version order
@@ -1186,6 +1213,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         homepage_urls = self.__get_sponsor_home_pages(sponsor_id, client_ip_address)
         for homepage_url in homepage_urls:
             output.append('Homepage: %s' % (homepage_url,))
+    
+        # Give client a set of regexes indicating which pages should have individual stats
+        page_view_regexes = self._get_sponsor_page_view_regexes(sponsor_id)
+        for regex in page_view_regexes:
+            output.append('PageViewRegex: %s' % (regex,))
     
         # Tell client if an upgrade is available
         upgrade_client_version = self.__check_upgrade(client_version)
@@ -1283,7 +1315,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 '', # Omit name
                                 '', # Omit banner
                                 {},
-                                []) # Omit campaigns
+                                [], # Omit campaigns
+                                sponsor.page_view_regexes) 
             for region, home_pages in sponsor.home_pages.iteritems():
                 copy_sponsor.home_pages[region] = home_pages
             copy.__sponsors[copy_sponsor.id] = copy_sponsor
@@ -1421,6 +1454,7 @@ def unit_test():
     psinet.add_propagation_channel('email-channel', ['email-autoresponder'])
     psinet.add_sponsor('sponsor1')
     psinet.set_sponsor_home_page('sponsor1', 'CA', 'http://psiphon.ca')
+    psinet.set_sponsor_page_view_regex('sponsor1', r'^http://psiphon\.ca')
     psinet.add_sponsor_email_campaign('sponsor1', 'email-channel', 'get@psiphon.ca')
     psinet.show_status(verbose=True)
 
