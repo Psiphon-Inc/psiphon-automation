@@ -387,11 +387,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.show_server(s.id)
 
     def show_servers_on_host(self, host_id):
-
         for s in self.__servers.itervalues():
-
             if s.host_id == host_id:
-
                 self.show_server(s.id)
 
     def show_server(self, server_id):
@@ -778,7 +775,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # NOTE: If host was currently embedded, new campaign builds are needed.
         
         self.save()
-        
+
     def reinstall_host(self, host_id):
         host = self.__hosts[host_id]
         servers = [server for server in self.__servers.itervalues() if server.host_id == host_id]
