@@ -214,7 +214,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__deploy_stats_config_required = False
         self.__deploy_email_config_required = False
 
-    class_version = '0.3'
+    class_version = '0.4'
 
     def upgrade(self):
         if self.version < '0.1':
@@ -227,12 +227,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 server.ssh_obfuscated_key = None
             self.version = '0.2'
         if self.version < '0.3':
-
             for host in self.__hosts.itervalues():
-
                 host.provider = None
-
             self.version = '0.3'
+        if self.version < '0.4':
+            for sponsor in self.__sponsors.itervalues():
+                sponsor.page_view_regexes = []
+            self.version = '0.4'
 
     def show_status(self):
         # NOTE: verbose mode prints credentials to stdout
@@ -295,21 +296,20 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             Home Pages:              %(home_pages)s
             Regexes:                 %(regexes)s
             Campaigns:               %(campaigns)s
-            ''') % 
-            {
-             'id': s.id,
-             'name': s.name,
-             'home_pages': ', '.join(['%s: %s' % (region if region else 'All',
-                                                  ', '.join([h.url for h in home_pages]))
-                                                  for region, home_pages in s.home_pages.iteritems()]),
-             'regexes': ', '.join(s.page_view_regexes),
-             'campaigns': ', '.join(['%s %s %s %s' % (
-                                                      self.__propagation_channels[c.propagation_channel_id].name,
-                                                      c.propagation_mechanism_type,
-                                                      c.account[0] if c.account else 'None',
-                                                      c.s3_bucket_name)
-                                     for c in s.campaigns])
-             }
+            ''') % {
+                    'id': s.id,
+                    'name': s.name,
+                    'home_pages': ', '.join(['%s: %s' % (region if region else 'All',
+                                                         ', '.join([h.url for h in home_pages]))
+                                                         for region, home_pages in s.home_pages.iteritems()]),
+                    'regexes': ', '.join(s.page_view_regexes),
+                    'campaigns': ', '.join(['%s %s %s %s' % (
+                                                             self.__propagation_channels[c.propagation_channel_id].name,
+                                                             c.propagation_mechanism_type,
+                                                             c.account[0] if c.account else 'None',
+                                                             c.s3_bucket_name)
+                                            for c in s.campaigns])
+                    }
         self.__show_logs(s)
 
     def show_campaigns_on_propagation_channel(self, propagation_channel_name):
@@ -446,7 +446,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.import_sponsor(self.__generate_id(), name)
 
     def import_sponsor(self, id, name):
-        sponsor = Sponsor(id, name, None, {}, [])
+        sponsor = Sponsor(id, name, None, {}, [], [])
         assert(id not in self.__sponsors)
         assert(not filter(lambda x:x.name == name, self.__sponsors.itervalues()))
         self.__sponsors[id] = sponsor
@@ -565,7 +565,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     
     def remove_sponsor_page_view_regex(self, sponsor_name, regex):
         sponsor = self.__get_sponsor_by_name(sponsor_name)
-        if regex in sponsor.page_view_regexes):
+        if regex in sponsor.page_view_regexes:
             sponsor.page_view_regexes.remove(regex)
             sponsor.log('deleted page view regex %s' % regex)
             self.__deploy_data_required_for_all = True
@@ -584,7 +584,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             return servers[0]
         return None
 
-    def import_host(self, id, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
+    def import_host(self, id, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
                     stats_ssh_username, stats_ssh_password):
         host = Host(
                 id,
@@ -1309,9 +1309,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 output.append('SSHObfuscatedKey: %s' % (server.ssh_obfuscated_key,))
         return output
     
-    def embed(self, propagation_channel_id):
-        return get_encoded_server_list(propagation_channel_id)
-
     def get_host_by_provider_id(self, provider_id):
         for host in self.__hosts.itervalues():
             if host.provider_id and host.provider_id == provider_id:
@@ -1424,7 +1421,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         sponsor.name,
                                         '',
                                         {},
-                                        []) # Omit banner, home pages, campaigns
+                                        [],
+                                        []) # Omit banner, home pages, campaigns, regexes
 
         return jsonpickle.encode(copy)
 
