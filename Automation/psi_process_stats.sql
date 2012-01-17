@@ -41,15 +41,6 @@ ALTER TABLE connected OWNER TO postgres;
 GRANT ALL ON TABLE connected TO postgres;
 GRANT ALL ON TABLE connected TO psiphon3;
 
--- Index: connected_session_duration_index
-
--- DROP INDEX connected_session_duration_index;
-
-CREATE INDEX connected_session_duration_index
-  ON connected
-  USING btree
-  (session_id, host_id);
-
 -- Table: disconnected
 
 -- DROP TABLE disconnected;
@@ -70,15 +61,6 @@ WITH (
 ALTER TABLE disconnected OWNER TO postgres;
 GRANT ALL ON TABLE disconnected TO postgres;
 GRANT ALL ON TABLE disconnected TO psiphon3;
-
--- Index: disconnected_session_duration_index
-
--- DROP INDEX disconnected_session_duration_index;
-
-CREATE INDEX disconnected_session_duration_index
-  ON disconnected
-  USING btree
-  (session_id, host_id);
 
 -- Table: discovery
 
@@ -221,11 +203,20 @@ ALTER TABLE status OWNER TO postgres;
 GRANT ALL ON TABLE status TO postgres;
 GRANT ALL ON TABLE status TO psiphon3;
 
--- View: session_duration;
+-- Index: session_duration_index
 
--- DROP VIEW session_duration;
+-- DROP INDEX session_duration_index;
 
-CREATE VIEW session_duration
+CREATE INDEX session_duration_index
+  ON disconnected
+  USING btree
+  ("timestamp", host_id, relay_protocol, session_id);
+
+-- View: session;
+
+-- DROP VIEW session;
+
+CREATE VIEW session
 (
 id,
 connected_timestamp,
@@ -240,7 +231,7 @@ relay_protocol
 )
 AS
 SELECT
-disconnected.id,
+connected.id,
 connected.timestamp,
 CAST(EXTRACT('epoch' FROM disconnected.timestamp-connected.timestamp) AS INTEGER),
 connected.host_id,
@@ -251,9 +242,19 @@ connected.sponsor_id,
 connected.client_version,
 connected.relay_protocol
 FROM connected
-JOIN disconnected
-ON (connected.session_id = disconnected.session_id AND connected.host_id = disconnected.host_id);
+LEFT OUTER JOIN disconnected
+ON
+disconnected.timestamp =
+    (SELECT d.timestamp FROM disconnected AS d
+     WHERE d.timestamp > connected.timestamp
+        AND d.host_id = connected.host_id
+        AND d.relay_protocol = connected.relay_protocol
+        AND d.session_id = connected.session_id
+     ORDER BY d.timestamp ASC LIMIT 1)
+AND connected.host_id = disconnected.host_id
+AND connected.relay_protocol = disconnected.relay_protocol
+AND connected.session_id = disconnected.session_id;
 
-ALTER TABLE session_duration OWNER TO postgres;
-GRANT ALL ON TABLE session_duration TO postgres;
-GRANT ALL ON TABLE session_duration TO psiphon3;
+ALTER TABLE session OWNER TO postgres;
+GRANT ALL ON TABLE session TO postgres;
+GRANT ALL ON TABLE session TO psiphon3;

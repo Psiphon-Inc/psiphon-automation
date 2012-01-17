@@ -182,7 +182,8 @@ def process_stats(host, servers, db_cur, error_file):
             try:
                 print 'processing %s...' % (filename,)
                 lines_processed = 0
-                for line in file.read().split('\n'):
+                lines = file.read().split('\n')
+                for line in reversed(lines):
                     match = line_re.match(line)
                     if (not match or
                         not LOG_EVENT_TYPE_SCHEMA.has_key(match.group(3))):
@@ -200,8 +201,11 @@ def process_stats(host, servers, db_cur, error_file):
                     # Last timestamp check
                     # Note: - assuming lexicographical order (ISO8601)
                     #       - currently broken for 1 hour DST window or backwards moving server clock
+                    #       - Strict < check to not skip new logs in same time... but this will
+                    #         also guarantee reprocessing of the last line for each host
 
                     if last_timestamp and timestamp < last_timestamp:
+                        # Assumes processing the lines in reverse chronological order
                         continue
                     if not next_last_timestamp or timestamp > next_last_timestamp:
                         next_last_timestamp = timestamp
