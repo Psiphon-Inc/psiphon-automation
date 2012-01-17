@@ -32,6 +32,7 @@ import pprint
 import struct
 import socket
 import random
+from pkg_resources import parse_version
 
 import psi_utils
 import psi_ops_cms
@@ -217,20 +218,20 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     class_version = '0.4'
 
     def upgrade(self):
-        if self.version < '0.1':
+        if cmp(parse_version(self.version), parse_version('0.1')) < 0:
             self.__provider_ranks = []
             self.__elastichosts_accounts = []
             self.version = '0.1'
-        if self.version < '0.2':
+        if cmp(parse_version(self.version), parse_version('0.2')) < 0:
             for server in self.__servers.itervalues():
                 server.ssh_obfuscated_port = None
                 server.ssh_obfuscated_key = None
             self.version = '0.2'
-        if self.version < '0.3':
+        if cmp(parse_version(self.version), parse_version('0.3')) < 0:
             for host in self.__hosts.itervalues():
                 host.provider = None
             self.version = '0.3'
-        if self.version < '0.4':
+        if cmp(parse_version(self.version), parse_version('0.4')) < 0:
             for sponsor in self.__sponsors.itervalues():
                 sponsor.page_view_regexes = []
             self.version = '0.4'
