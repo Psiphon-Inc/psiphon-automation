@@ -120,7 +120,7 @@ EmailPropagationAccount = psi_utils.recordtype(
 
 Sponsor = psi_utils.recordtype(
     'Sponsor',
-    'id, name, banner, home_pages, campaigns, page_view_regexes')
+    'id, name, banner, home_pages, campaigns, page_view_regexes, https_request_regexes')
 
 SponsorHomePage = psi_utils.recordtype(
     'SponsorHomePage',
@@ -129,6 +129,10 @@ SponsorHomePage = psi_utils.recordtype(
 SponsorCampaign = psi_utils.recordtype(
     'SponsorCampaign',
     'propagation_channel_id, propagation_mechanism_type, account, s3_bucket_name')
+
+SponsorRegex = psi_utils.recordtype(
+    'SponsorRegex',
+    'regex, replace')
 
 Host = psi_utils.recordtype(
     'Host',
@@ -234,6 +238,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.4')) < 0:
             for sponsor in self.__sponsors.itervalues():
                 sponsor.page_view_regexes = []
+                sponsor.https_request_regexes = []
             self.version = '0.4'
 
     def show_status(self):
@@ -295,7 +300,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             ID:                      %(id)s
             Name:                    %(name)s
             Home Pages:              %(home_pages)s
-            Regexes:                 %(regexes)s
+            Page View Regexes:       %(page_view_regexes)d
+            HTTPS Request Regexes:   %(https_request_regexes)d
             Campaigns:               %(campaigns)s
             ''') % {
                     'id': s.id,
@@ -303,7 +309,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     'home_pages': ', '.join(['%s: %s' % (region if region else 'All',
                                                          ', '.join([h.url for h in home_pages]))
                                                          for region, home_pages in s.home_pages.iteritems()]),
-                    'regexes': ', '.join(s.page_view_regexes),
+                    'page_view_regexes': ', '.join(len(s.page_view_regexes)),
+                    'https_request_regexes': ', '.join(len(s.https_request_regexes)),
                     'campaigns': ', '.join(['%s %s %s %s' % (
                                                              self.__propagation_channels[c.propagation_channel_id].name,
                                                              c.propagation_mechanism_type,
@@ -556,19 +563,51 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__deploy_data_required_for_all = True
             sponsor.log('marked all hosts for data deployment')
 
-    def set_sponsor_page_view_regex(self, sponsor_name, regex):
+    def set_sponsor_page_view_regex(self, sponsor_name, regex, replace):
         sponsor = self.__get_sponsor_by_name(sponsor_name)
-        if regex not in sponsor.page_view_regexes:
-            sponsor.page_view_regexes.append(regex)
-            sponsor.log('set page view regex %s' % regex)
+        if not [rx for rx in sponsor.page_view_regexes if rx.regex == regex]:
+            sponsor.page_view_regexes.append(SponsorRegex(regex, replace))
+            sponsor.log('set page view regex %s; replace %s' % (regex, replace))
             self.__deploy_data_required_for_all = True
             sponsor.log('marked all hosts for data deployment')
     
     def remove_sponsor_page_view_regex(self, sponsor_name, regex):
+        '''
+        Note that the regex part of the regex+replace pair is unique, so only
+        it has to be passed in when removing.
+        '''
         sponsor = self.__get_sponsor_by_name(sponsor_name)
-        if regex in sponsor.page_view_regexes:
+        match = [sponsor.page_view_regexes.pop(idx) 
+                 for (idx, rx) 
+                 in enumerate(sponsor.page_view_regexes) 
+                 if rx.regex == regex]
+        if match:
             sponsor.page_view_regexes.remove(regex)
             sponsor.log('deleted page view regex %s' % regex)
+            self.__deploy_data_required_for_all = True
+            sponsor.log('marked all hosts for data deployment')
+
+    def set_sponsor_https_request_regex(self, sponsor_name, regex, replace):
+        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        if not [rx for rx in sponsor.https_request_regexes if rx.regex == regex]:
+            sponsor.https_request_regexes.append(SponsorRegex(regex, replace))
+            sponsor.log('set https request regex %s; replace %s' % (regex, replace))
+            self.__deploy_data_required_for_all = True
+            sponsor.log('marked all hosts for data deployment')
+    
+    def remove_sponsor_https_request_regex(self, sponsor_name, regex):
+        '''
+        Note that the regex part of the regex+replace pair is unique, so only
+        it has to be passed in when removing.
+        '''
+        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        match = [sponsor.https_request_regexes.pop(idx) 
+                 for (idx, rx) 
+                 in enumerate(sponsor.https_request_regexes) 
+                 if rx.regex == regex]
+        if match:
+            sponsor.https_request_regexes.remove(regex)
+            sponsor.log('deleted https request regex %s' % regex)
             self.__deploy_data_required_for_all = True
             sponsor.log('marked all hosts for data deployment')
 
@@ -1246,6 +1285,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         sponsor = self.__sponsors[sponsor_id]
         return sponsor.page_view_regexes
     
+    def _get_sponsor_https_request_regexes(self, sponsor_id):
+        # Web server support function: fails gracefully
+        if sponsor_id not in self.__sponsors:
+            return []
+        sponsor = self.__sponsors[sponsor_id]
+        return sponsor.https_request_regexes
+    
     def __check_upgrade(self, client_version):
         # check last version number against client version number
         # assumes versions list is in ascending version order
@@ -1265,11 +1311,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         homepage_urls = self.__get_sponsor_home_pages(sponsor_id, client_ip_address)
         for homepage_url in homepage_urls:
             output.append('Homepage: %s' % (homepage_url,))
-    
-        # Give client a set of regexes indicating which pages should have individual stats
-        page_view_regexes = self._get_sponsor_page_view_regexes(sponsor_id)
-        for regex in page_view_regexes:
-            output.append('PageViewRegex: %s' % (regex,))
     
         # Tell client if an upgrade is available
         upgrade_client_version = self.__check_upgrade(client_version)
@@ -1308,6 +1349,28 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if server.ssh_obfuscated_port:
                 output.append('SSHObfuscatedPort: %s' % (server.ssh_obfuscated_port,))
                 output.append('SSHObfuscatedKey: %s' % (server.ssh_obfuscated_key,))
+
+        # Additional Configuration
+        # Extra config is JSON-encoded.
+        # Give client a set of regexes indicating which pages should have individual stats
+        config = {}
+        
+        config['page_view_regexes'] = []
+        for sponsor_regex in self._get_sponsor_page_view_regexes(sponsor_id):
+            config['page_view_regexes'].append({
+                                                'regex': sponsor_regex.regex,
+                                                'replace': sponsor_regex.replace
+                                                })
+        
+        config['https_request_regexes'] = []
+        for sponsor_regex in self._get_sponsor_https_request_regexes(sponsor_id):
+            config['https_request_regexes'].append({
+                                                'regex': sponsor_regex.regex,
+                                                'replace': sponsor_regex.replace
+                                                })
+        
+        output.append('Config: ' + json.dumps(config))
+        
         return output
     
     def get_host_by_provider_id(self, provider_id):
@@ -1370,7 +1433,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 '', # Omit banner
                                 {},
                                 [], # Omit campaigns
-                                sponsor.page_view_regexes) 
+                                sponsor.page_view_regexes,
+                                sponsor.https_request_regexes) 
             for region, home_pages in sponsor.home_pages.iteritems():
                 copy_sponsor.home_pages[region] = home_pages
             copy.__sponsors[copy_sponsor.id] = copy_sponsor
@@ -1422,6 +1486,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         sponsor.name,
                                         '',
                                         {},
+                                        [],
                                         [],
                                         []) # Omit banner, home pages, campaigns, regexes
 
@@ -1510,8 +1575,13 @@ def unit_test():
     psinet.add_propagation_channel('email-channel', ['email-autoresponder'])
     psinet.add_sponsor('sponsor1')
     psinet.set_sponsor_home_page('sponsor1', 'CA', 'http://psiphon.ca')
-    psinet.set_sponsor_page_view_regex('sponsor1', r'^http://psiphon\.ca')
     psinet.add_sponsor_email_campaign('sponsor1', 'email-channel', 'get@psiphon.ca')
+    psinet.set_sponsor_page_view_regex('sponsor1', r'^http://psiphon\.ca', r'$&')
+    psinet.set_sponsor_page_view_regex('sponsor1', r'^http://psiphon\.ca/', r'$&')
+    psinet.remove_sponsor_page_view_regex('sponsor1', r'^http://psiphon\.ca/')
+    psinet.set_sponsor_https_request_regex('sponsor1', r'^http://psiphon\.ca', r'$&')
+    psinet.set_sponsor_https_request_regex('sponsor1', r'^http://psiphon\.ca/', r'$&')
+    psinet.remove_sponsor_https_request_regex('sponsor1', r'^http://psiphon\.ca/')
     psinet.show_status(verbose=True)
 
 
