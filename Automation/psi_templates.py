@@ -33,9 +33,12 @@ Or click the link below.
 یا بر روی لینک  زیر کلیک کنید‪.‬
 {0}/fa.html
 
+要使用Psiphon 3, 保存文件.exe扩展名。
+或者点击下面的链接。
+{0}/zh.html
+
 Русский - {0}/ru.html
 Türkmençe - {0}/tk.html
-中文 - {0}/zh.html
 العربي - {0}/ar.html
 ภาษาไทย - {0}/th.html'''.format(bucket_root_url)
 
@@ -55,9 +58,11 @@ Or click the link below.<br>
 </div>
 <br>
 <div style="direction: ltr;">
+要使用Psiphon 3, 保存文件.exe扩展名。<br>
+或者点击下面的链接。<br>
+<a href="{0}/zh.html">{0}/zh.html</a><br>
 Русский - <a href="{0}/ru.html">{0}/ru.html</a><br>
 Türkmençe - <a href="{0}/tk.html">{0}/tk.html</a><br>
-中文 - <a href="{0}/zh.html">{0}/zh.html</a><br>
 </div>
 <div style="direction: rtl;">
 العربي - <a href="{0}/ar.html">{0}/ar.html</a><br>
