@@ -125,7 +125,7 @@ def iso8601_to_utc(timestamp):
     return (localized_datetime - timezone_delta).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
 
 
-def process_stats(host, servers, db_cur, error_file):
+def process_stats(host, servers, db_cur, error_file=None):
 
     print 'process stats from host %s...' % (host.id,)
 
@@ -188,7 +188,8 @@ def process_stats(host, servers, db_cur, error_file):
                     if (not match or
                         not LOG_EVENT_TYPE_SCHEMA.has_key(match.group(3))):
                         err = 'unexpected log line pattern: %s' % (line,)
-                        error_file.write(err + '\n')
+                        if error_file:
+                            error_file.write(err + '\n')
                         continue
 
                     # Note: We convert timestamps here to UTC so that they can all be rationally compared without
@@ -216,7 +217,8 @@ def process_stats(host, servers, db_cur, error_file):
                     event_fields = LOG_EVENT_TYPE_SCHEMA[event_type]
                     if len(event_values) != len(event_fields):
                         err = 'invalid log line fields %s' % (line,)
-                        error_file.write(err + '\n')
+                        if error_file:
+                            error_file.write(err + '\n')
                         continue
 
                     field_names = event_columns[event_type]
@@ -342,22 +344,18 @@ if __name__ == "__main__":
             psi_ops_stats_credentials.POSTGRES_PASSWORD,
             psi_ops_stats_credentials.POSTGRES_PORT))
 
-    # Note: truncating error file
-    error_file = open('process_stats.err', 'w')
-
     hosts = psinet.get_hosts()
     servers = psinet.get_servers()
 
     try:
         for host in hosts:
             db_cur = db_conn.cursor()
-            process_stats(host, servers, db_cur, error_file)
+            process_stats(host, servers, db_cur)
             db_cur.close()
             db_conn.commit()
         reconstruct_sessions(db_conn)
         db_conn.commit()
     finally:
-        error_file.close()
         db_conn.close()
 
     print 'elapsed time: %fs' % (time.time()-start_time,)
