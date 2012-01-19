@@ -195,6 +195,22 @@ def deploy_build(host, build_filename):
     ssh.close()
     
 
+def deploy_build_to_hosts(hosts, build_filename):
+
+    def do_deploy_build(host):
+        try:
+            deploy_build(host, build_filename)
+            return None
+        except Exception as e:
+            return e
+            
+    pool = ThreadPool(20)
+    results = pool.map(do_deploy_build, hosts)
+    for result in results:
+        if result:
+            raise result
+
+
 def deploy_routes(host):
 
     print 'deploy routes to host %s...' % (host.id,)

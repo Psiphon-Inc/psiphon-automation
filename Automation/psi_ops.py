@@ -888,8 +888,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # However, we do not want to prevent an upgrade in the case where a user has
             # downloaded from multiple propagation channels, and might therefore be connecting
             # to a server from one propagation channel using a build from a different one.
-            for host in self.__hosts.itervalues():
-                psi_ops_deploy.deploy_build(host, build_filename)
+            psi_ops_deploy.deploy_build_to_hosts(self.__hosts.itervalues(), build_filename)
 
             # Publish to propagation mechanisms
 
