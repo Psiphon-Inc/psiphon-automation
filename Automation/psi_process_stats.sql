@@ -203,58 +203,60 @@ ALTER TABLE status OWNER TO postgres;
 GRANT ALL ON TABLE status TO postgres;
 GRANT ALL ON TABLE status TO psiphon3;
 
--- Index: session_duration_index
+-- Index: session_reconstruction_index
 
--- DROP INDEX session_duration_index;
+-- DROP INDEX session_reconstruction_index;
 
-CREATE INDEX session_duration_index
+CREATE INDEX session_reconstruction_index
   ON disconnected
   USING btree
-  ("timestamp", host_id, relay_protocol, session_id);
+  (session_id, host_id, relay_protocol, "timestamp");
 
--- View: session;
+-- Index: existing_session_reconstruction_index
 
--- DROP VIEW session;
+-- DROP INDEX existing_session_reconstruction_index;
 
-CREATE VIEW session
+CREATE INDEX existing_session_reconstruction_index
+  ON disconnected
+  USING btree
+  (session_id);
+
+-- Table: "session"
+
+-- DROP TABLE "session";
+
+CREATE TABLE "session"
 (
-id,
-connected_timestamp,
-duration,
-host_id,
-server_id,
-client_region,
-propagation_channel_id,
-sponsor_id,
-client_version,
-relay_protocol
+  host_id text,
+  server_id text,
+  client_region text,
+  propagation_channel_id text,
+  sponsor_id text,
+  client_version text,
+  relay_protocol text,
+  session_id text,
+  session_start_timestamp timestamp with time zone,
+  session_end_timestamp timestamp with time zone,
+  id bigserial NOT NULL,
+  connected_id bigint NOT NULL,
+  CONSTRAINT session_pkey PRIMARY KEY (id),
+  CONSTRAINT connected_id FOREIGN KEY (connected_id)
+      REFERENCES connected (id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT session_host_id_key UNIQUE (host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, relay_protocol, session_id, session_start_timestamp, session_end_timestamp)
 )
-AS
-SELECT
-connected.id,
-connected.timestamp,
-CAST(EXTRACT('epoch' FROM disconnected.timestamp-connected.timestamp) AS INTEGER),
-connected.host_id,
-connected.server_id,
-connected.client_region,
-connected.propagation_channel_id,
-connected.sponsor_id,
-connected.client_version,
-connected.relay_protocol
-FROM connected
-LEFT OUTER JOIN disconnected
-ON
-disconnected.timestamp =
-    (SELECT d.timestamp FROM disconnected AS d
-     WHERE d.timestamp > connected.timestamp
-        AND d.host_id = connected.host_id
-        AND d.relay_protocol = connected.relay_protocol
-        AND d.session_id = connected.session_id
-     ORDER BY d.timestamp ASC LIMIT 1)
-AND connected.host_id = disconnected.host_id
-AND connected.relay_protocol = disconnected.relay_protocol
-AND connected.session_id = disconnected.session_id;
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE "session" OWNER TO postgres;
+GRANT ALL ON TABLE "session" TO postgres;
+GRANT ALL ON TABLE "session" TO psiphon3;
 
-ALTER TABLE session OWNER TO postgres;
-GRANT ALL ON TABLE session TO postgres;
-GRANT ALL ON TABLE session TO psiphon3;
+-- Index: session_connected_id_index
+
+-- DROP INDEX session_connected_id_index;
+
+CREATE INDEX session_connected_id_index
+  ON "session"
+  USING btree
+  (connected_id);
