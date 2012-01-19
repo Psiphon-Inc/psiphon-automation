@@ -102,6 +102,23 @@ def deploy_implementation(host):
     ssh.close()
     
 
+def deploy_implementation_to_hosts(hosts):
+    
+    def do_deploy_implementation(host):
+        try:
+            deploy_implementation(host)
+            host.log('deploy implementation')
+            return None
+        except Exception as e:
+            return e
+            
+    pool = ThreadPool(20)
+    results = pool.map(do_deploy_implementation, hosts)
+    for result in results:
+        if result:
+            raise result
+
+
 def deploy_data(host, host_data):
 
     print 'deploy data to host %s...' % (host.id,)

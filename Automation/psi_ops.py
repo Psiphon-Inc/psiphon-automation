@@ -863,11 +863,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # Host implementation
 
-        for host_id in self.__deploy_implementation_required_for_hosts:
-            host = self.__hosts[host_id]
-            psi_ops_deploy.deploy_implementation(host)
-            host.log('deploy implementation')
-        
+        hosts = [self.__hosts[host_id] for host_id in self.__deploy_implementation_required_for_hosts]
+        psi_ops_deploy.deploy_implementation_to_hosts(hosts)
+
         if len(self.__deploy_implementation_required_for_hosts) > 0:
             self.__deploy_implementation_required_for_hosts.clear()
             self.save()
