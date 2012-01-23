@@ -32,7 +32,7 @@ CREATE TABLE connected
   session_id text,
   id bigserial NOT NULL,
   CONSTRAINT connected_pkey PRIMARY KEY (id),
-  CONSTRAINT connected_timestamp_key UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, relay_protocol, session_id)
+  CONSTRAINT connected_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, relay_protocol, session_id)
 )
 WITH (
   OIDS=FALSE
@@ -53,7 +53,7 @@ CREATE TABLE disconnected
   session_id text,
   id bigserial NOT NULL,
   CONSTRAINT disconnected_pkey PRIMARY KEY (id),
-  CONSTRAINT disconnected_timestamp_key UNIQUE ("timestamp", host_id, relay_protocol, session_id)
+  CONSTRAINT disconnected_unique UNIQUE ("timestamp", host_id, relay_protocol, session_id)
 )
 WITH (
   OIDS=FALSE
@@ -79,7 +79,7 @@ CREATE TABLE discovery
   client_unknown text,
   id bigserial NOT NULL,
   CONSTRAINT discovery_pkey PRIMARY KEY (id),
-  CONSTRAINT discovery_timestamp_key UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, discovery_server_id, client_unknown)
+  CONSTRAINT discovery_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, discovery_server_id, client_unknown)
 )
 WITH (
   OIDS=FALSE
@@ -103,7 +103,7 @@ CREATE TABLE download
   client_version text,
   id bigserial NOT NULL,
   CONSTRAINT download_pkey PRIMARY KEY (id),
-  CONSTRAINT download_timestamp_key UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version)
+  CONSTRAINT download_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version)
 )
 WITH (
   OIDS=FALSE
@@ -129,7 +129,7 @@ CREATE TABLE failed
   error_code text,
   id bigserial NOT NULL,
   CONSTRAINT failed_pkey PRIMARY KEY (id),
-  CONSTRAINT failed_timestamp_key UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, relay_protocol, error_code)
+  CONSTRAINT failed_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, relay_protocol, error_code)
 )
 WITH (
   OIDS=FALSE
@@ -153,7 +153,7 @@ CREATE TABLE handshake
   client_version text,
   id bigserial NOT NULL,
   CONSTRAINT handshake_pkey PRIMARY KEY (id),
-  CONSTRAINT handshake_timestamp_key UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version)
+  CONSTRAINT handshake_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version)
 )
 WITH (
   OIDS=FALSE
@@ -173,7 +173,7 @@ CREATE TABLE started
   server_id text,
   id bigserial NOT NULL,
   CONSTRAINT started_pkey PRIMARY KEY (id),
-  CONSTRAINT started_timestamp_key UNIQUE ("timestamp", host_id, server_id)
+  CONSTRAINT started_unique UNIQUE ("timestamp", host_id, server_id)
 )
 WITH (
   OIDS=FALSE
@@ -194,7 +194,7 @@ CREATE TABLE status
   session_id text,
   id bigserial NOT NULL,
   CONSTRAINT status_pkey PRIMARY KEY (id),
-  CONSTRAINT status_timestamp_key UNIQUE ("timestamp", host_id, relay_protocol, session_id)
+  CONSTRAINT status_unique UNIQUE ("timestamp", host_id, relay_protocol, session_id)
 )
 WITH (
   OIDS=FALSE
@@ -202,6 +202,86 @@ WITH (
 ALTER TABLE status OWNER TO postgres;
 GRANT ALL ON TABLE status TO postgres;
 GRANT ALL ON TABLE status TO psiphon3;
+
+-- Table: bytes_transferred
+
+-- DROP TABLE bytes_transferred;
+
+CREATE TABLE bytes_transferred
+(
+  "timestamp" timestamp with time zone,
+  host_id text,
+  server_id text,
+  client_region text,
+  propagation_channel_id text,
+  sponsor_id text,
+  client_version text,
+  relay_protocol text,
+  bytes integer NOT NULL,
+  id bigserial NOT NULL,
+  CONSTRAINT bytes_transferred_pkey PRIMARY KEY (id),
+  CONSTRAINT bytes_transferred_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, relay_protocol, bytes)
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE bytes_transferred OWNER TO postgres;
+GRANT ALL ON TABLE bytes_transferred TO postgres;
+GRANT ALL ON TABLE bytes_transferred TO psiphon3;
+
+-- Table: page_views
+
+-- DROP TABLE page_views;
+
+CREATE TABLE page_views
+(
+  "timestamp" timestamp with time zone,
+  host_id text,
+  server_id text,
+  client_region text,
+  propagation_channel_id text,
+  sponsor_id text,
+  client_version text,
+  relay_protocol text,
+  pagename text,
+  viewcount integer NOT NULL,
+  id bigserial NOT NULL,
+  CONSTRAINT page_views_pkey PRIMARY KEY (id),
+  CONSTRAINT page_views_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, relay_protocol, pagename, viewcount)
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE page_views OWNER TO postgres;
+GRANT ALL ON TABLE page_views TO postgres;
+GRANT ALL ON TABLE page_views TO psiphon3;
+
+-- Table: https_requests
+
+-- DROP TABLE https_requests;
+
+CREATE TABLE https_requests
+(
+  "timestamp" timestamp with time zone,
+  host_id text,
+  server_id text,
+  client_region text,
+  propagation_channel_id text,
+  sponsor_id text,
+  client_version text,
+  relay_protocol text,
+  "domain" text,
+  count integer NOT NULL,
+  id bigserial NOT NULL,
+  CONSTRAINT https_requests_pkey PRIMARY KEY (id),
+  CONSTRAINT https_requests_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, relay_protocol, "domain", count)
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE https_requests OWNER TO postgres;
+GRANT ALL ON TABLE https_requests TO postgres;
+GRANT ALL ON TABLE https_requests TO psiphon3;
 
 -- Index: session_reconstruction_index
 
