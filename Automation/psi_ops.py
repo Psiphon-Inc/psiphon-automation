@@ -300,18 +300,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             ID:                      %(id)s
             Name:                    %(name)s
             Home Pages:              %(home_pages)s
-            Page View Regexes:       %(page_view_regexes)d
-            HTTPS Request Regexes:   %(https_request_regexes)d
+            Page View Regexes:       %(page_view_regexes)s
+            HTTPS Request Regexes:   %(https_request_regexes)s
             Campaigns:               %(campaigns)s
             ''') % {
                     'id': s.id,
                     'name': s.name,
-                    'home_pages': ', '.join(['%s: %s' % (region if region else 'All',
-                                                         ', '.join([h.url for h in home_pages]))
-                                                         for region, home_pages in s.home_pages.iteritems()]),
-                    'page_view_regexes': ', '.join(len(s.page_view_regexes)),
-                    'https_request_regexes': ', '.join(len(s.https_request_regexes)),
-                    'campaigns': ', '.join(['%s %s %s %s' % (
+                    'home_pages': '\n                         '.join(['%s: %s' % (region.ljust(5) if region else 'All',
+                                                         '\n                                '.join([h.url for h in home_pages]))
+                                                         for region, home_pages in sorted(s.home_pages.items())]),
+                    'page_view_regexes': '\n                         '.join(s.page_view_regexes),
+                    'https_request_regexes': '\n                         '.join(s.https_request_regexes),
+                    'campaigns': '\n                         '.join(['%s %s %s %s' % (
                                                              self.__propagation_channels[c.propagation_channel_id].name,
                                                              c.propagation_mechanism_type,
                                                              c.account[0] if c.account else 'None',
