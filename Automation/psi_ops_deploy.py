@@ -24,6 +24,7 @@ import posixpath
 import sys
 import psi_ssh
 import psi_routes
+from multiprocessing.pool import ThreadPool
 
 sys.path.insert(0, os.path.abspath(os.path.join('..', 'Server')))
 import psi_config
@@ -101,6 +102,23 @@ def deploy_implementation(host):
     ssh.close()
     
 
+def deploy_implementation_to_hosts(hosts):
+    
+    def do_deploy_implementation(host):
+        try:
+            deploy_implementation(host)
+            host.log('deploy implementation')
+            return None
+        except Exception as e:
+            return e
+            
+    pool = ThreadPool(20)
+    results = pool.map(do_deploy_implementation, hosts)
+    for result in results:
+        if result:
+            raise result
+
+
 def deploy_data(host, host_data):
 
     print 'deploy data to host %s...' % (host.id,)
@@ -141,6 +159,23 @@ def deploy_data(host, host_data):
     ssh.close()
     
 
+def deploy_data_to_hosts(host_and_data_list):
+
+    def do_deploy_data(host_and_data):
+        try:
+            deploy_data(host_and_data['host'], host_and_data['data'])
+            host_and_data['host'].log('deploy data')
+            return None
+        except Exception as e:
+            return e
+            
+    pool = ThreadPool(20)
+    results = pool.map(do_deploy_data, host_and_data_list)
+    for result in results:
+        if result:
+            raise result
+
+            
 def deploy_build(host, build_filename):
 
     print 'deploy %s build to host %s...' % (build_filename, host.id,)
@@ -159,6 +194,22 @@ def deploy_build(host, build_filename):
 
     ssh.close()
     
+
+def deploy_build_to_hosts(hosts, build_filename):
+
+    def do_deploy_build(host):
+        try:
+            deploy_build(host, build_filename)
+            return None
+        except Exception as e:
+            return e
+            
+    pool = ThreadPool(20)
+    results = pool.map(do_deploy_build, hosts)
+    for result in results:
+        if result:
+            raise result
+
 
 def deploy_routes(host):
 

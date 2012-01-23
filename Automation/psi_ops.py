@@ -300,18 +300,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             ID:                      %(id)s
             Name:                    %(name)s
             Home Pages:              %(home_pages)s
-            Page View Regexes:       %(page_view_regexes)d
-            HTTPS Request Regexes:   %(https_request_regexes)d
+            Page View Regexes:       %(page_view_regexes)s
+            HTTPS Request Regexes:   %(https_request_regexes)s
             Campaigns:               %(campaigns)s
             ''') % {
                     'id': s.id,
                     'name': s.name,
-                    'home_pages': ', '.join(['%s: %s' % (region if region else 'All',
-                                                         ', '.join([h.url for h in home_pages]))
-                                                         for region, home_pages in s.home_pages.iteritems()]),
-                    'page_view_regexes': ', '.join(len(s.page_view_regexes)),
-                    'https_request_regexes': ', '.join(len(s.https_request_regexes)),
-                    'campaigns': ', '.join(['%s %s %s %s' % (
+                    'home_pages': '\n                         '.join(['%s: %s' % (region.ljust(5) if region else 'All',
+                                                         '\n                                '.join([h.url for h in home_pages]))
+                                                         for region, home_pages in sorted(s.home_pages.items())]),
+                    'page_view_regexes': '\n                         '.join(s.page_view_regexes),
+                    'https_request_regexes': '\n                         '.join(s.https_request_regexes),
+                    'campaigns': '\n                         '.join(['%s %s %s %s' % (
                                                              self.__propagation_channels[c.propagation_channel_id].name,
                                                              c.propagation_mechanism_type,
                                                              c.account[0] if c.account else 'None',
@@ -926,11 +926,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # Host implementation
 
-        for host_id in self.__deploy_implementation_required_for_hosts:
-            host = self.__hosts[host_id]
-            psi_ops_deploy.deploy_implementation(host)
-            host.log('deploy implementation')
-        
+        hosts = [self.__hosts[host_id] for host_id in self.__deploy_implementation_required_for_hosts]
+        psi_ops_deploy.deploy_implementation_to_hosts(hosts)
+
         if len(self.__deploy_implementation_required_for_hosts) > 0:
             self.__deploy_implementation_required_for_hosts.clear()
             self.save()
@@ -953,8 +951,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # However, we do not want to prevent an upgrade in the case where a user has
             # downloaded from multiple propagation channels, and might therefore be connecting
             # to a server from one propagation channel using a build from a different one.
-            for host in self.__hosts.itervalues():
-                psi_ops_deploy.deploy_build(host, build_filename)
+            psi_ops_deploy.deploy_build_to_hosts(self.__hosts.itervalues(), build_filename)
 
             # Publish to propagation mechanisms
 
@@ -981,12 +978,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Host data
 
         if self.__deploy_data_required_for_all:
+            host_and_data_list = []
             for host in self.__hosts.itervalues():
-                psi_ops_deploy.deploy_data(
-                                    host,
-                                    self.__compartmentalize_data_for_host(host.id))
-                host.log('deploy data')
-        
+                host_and_data_list.append(dict(host=host, data=self.__compartmentalize_data_for_host(host.id)))
+
+            psi_ops_deploy.deploy_data_to_hosts(host_and_data_list)
             self.__deploy_data_required_for_all = False
             self.save()
 
