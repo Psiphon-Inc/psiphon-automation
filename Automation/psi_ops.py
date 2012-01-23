@@ -309,8 +309,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     'home_pages': '\n                         '.join(['%s: %s' % (region.ljust(5) if region else 'All',
                                                          '\n                                '.join([h.url for h in home_pages]))
                                                          for region, home_pages in sorted(s.home_pages.items())]),
-                    'page_view_regexes': '\n                         '.join(s.page_view_regexes),
-                    'https_request_regexes': '\n                         '.join(s.https_request_regexes),
+                    'page_view_regexes': '\n                         '.join(['%s -> %s' % (page_view_regex.regex, page_view_regex.replace)
+                                                                             for page_view_regex in s.page_view_regexes]),
+                    'https_request_regexes': '\n                         '.join(['%s -> %s' % (https_request_regex.regex, https_request_regex.replace)
+                                                                                 for https_request_regex in s.https_request_regexes]),
                     'campaigns': '\n                         '.join(['%s %s %s %s' % (
                                                              self.__propagation_channels[c.propagation_channel_id].name,
                                                              c.propagation_mechanism_type,
