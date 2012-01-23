@@ -86,16 +86,18 @@ def sync_log_files(host):
                  HOST_LOG_DIR,
                  dest)
     rsync = pexpect.spawn(command)
-    prompt = rsync.expect([fingerprint, 'password:'])
-    if prompt == 0:
-        rsync.sendline('yes')
-        rsync.expect('password:')
-        rsync.sendline(host.stats_ssh_password)
-    else:
-        rsync.sendline(host.stats_ssh_password)
-    rsync.wait()
-
-    print 'completed host %s' % (host.id,)
+    try:
+        prompt = rsync.expect([fingerprint, 'password:'])
+        if prompt == 0:
+            rsync.sendline('yes')
+            rsync.expect('password:')
+            rsync.sendline(host.stats_ssh_password)
+        else:
+            rsync.sendline(host.stats_ssh_password)
+        rsync.wait()
+        print 'completed host %s' % (host.id,)
+    except pexpect.ExceptionPexpect as e:
+        print 'failed host %s: %s' % (host.id, str(e))
 
     return time.time()-start_time
 

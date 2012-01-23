@@ -125,7 +125,7 @@ def iso8601_to_utc(timestamp):
     return (localized_datetime - timezone_delta).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
 
 
-def process_stats(host, servers, db_cur, error_file):
+def process_stats(host, servers, db_cur, error_file=None):
 
     print 'process stats from host %s...' % (host.id,)
 
@@ -182,12 +182,14 @@ def process_stats(host, servers, db_cur, error_file):
             try:
                 print 'processing %s...' % (filename,)
                 lines_processed = 0
-                for line in file.read().split('\n'):
+                lines = file.read().split('\n')
+                for line in reversed(lines):
                     match = line_re.match(line)
                     if (not match or
                         not LOG_EVENT_TYPE_SCHEMA.has_key(match.group(3))):
                         err = 'unexpected log line pattern: %s' % (line,)
-                        error_file.write(err + '\n')
+                        if error_file:
+                            error_file.write(err + '\n')
                         continue
 
                     # Note: We convert timestamps here to UTC so that they can all be rationally compared without
@@ -200,8 +202,11 @@ def process_stats(host, servers, db_cur, error_file):
                     # Last timestamp check
                     # Note: - assuming lexicographical order (ISO8601)
                     #       - currently broken for 1 hour DST window or backwards moving server clock
+                    #       - Strict < check to not skip new logs in same time... but this will
+                    #         also guarantee reprocessing of the last line for each host
 
                     if last_timestamp and timestamp < last_timestamp:
+                        # Assumes processing the lines in reverse chronological order
                         continue
                     if not next_last_timestamp or timestamp > next_last_timestamp:
                         next_last_timestamp = timestamp
@@ -212,7 +217,8 @@ def process_stats(host, servers, db_cur, error_file):
                     event_fields = LOG_EVENT_TYPE_SCHEMA[event_type]
                     if len(event_values) != len(event_fields):
                         err = 'invalid log line fields %s' % (line,)
-                        error_file.write(err + '\n')
+                        if error_file:
+                            error_file.write(err + '\n')
                         continue
 
                     field_names = event_columns[event_type]
@@ -250,6 +256,81 @@ def process_stats(host, servers, db_cur, error_file):
                 [next_last_timestamp, host.id])
 
 
+def reconstruct_sessions(db):
+    # Populate the session table. For each connection, create a session. Some
+    # connections will have no end time, depending on when the logs are pulled.
+    # Find the end time by selecting the 'disconnected' event with the same
+    # host_id and session_id soonest after the connected timestamp.
+
+    session_cursor = db.cursor()    
+    
+    # There may be existing sessions that started before start_date that don't have an end
+    # time.  We first iterate through each of those and try to find a new 'disconnected'
+    # event for each, updating each when we find an end time.
+    
+    print 'Reconstructing previously incomplete sessions...'
+    start_time = time.time()
+
+    # Note: I tried adding an index on session((session_end_timestamp IS NULL)),
+    # and the query planner showed that it was being used instead of a Seq Scan,
+    # but it didn't speed up the operation at all.
+    session_cursor.execute(textwrap.dedent('''
+        UPDATE session
+        SET session_end_timestamp =
+            (SELECT disconnected.timestamp FROM disconnected
+             WHERE disconnected.timestamp > session.session_start_timestamp
+                 AND disconnected.host_id = session.host_id
+                 AND disconnected.relay_protocol = session.relay_protocol
+                 AND disconnected.session_id = session.session_id
+             ORDER BY disconnected.timestamp ASC LIMIT 1)
+        WHERE session_end_timestamp IS NULL
+        AND (session.relay_protocol = 'VPN' OR
+             EXISTS (SELECT 1 FROM disconnected WHERE disconnected.session_id = session.session_id))
+        '''))
+
+    session_cursor.execute('COMMIT')
+
+    print 'elapsed time: %fs' % (time.time()-start_time,)
+
+    # Reconstruct and insert all sessions.
+    # We do this in a single SQL statement, which we have found to perform much
+    # better than looping through results.
+
+    print "Reconstructing new sessions..."
+    start_time = time.time()
+    
+    session_cursor.execute(textwrap.dedent('''
+        INSERT INTO session (host_id, server_id, client_region, propagation_channel_id,
+                             sponsor_id, client_version, relay_protocol, session_id,
+                             session_start_timestamp, session_end_timestamp, connected_id)
+            SELECT connected.host_id, connected.server_id, connected.client_region,
+                connected.propagation_channel_id, connected.sponsor_id, connected.client_version,
+                connected.relay_protocol, connected.session_id, connected.timestamp,
+                disconnected.timestamp, connected.id
+            FROM
+                connected
+            LEFT OUTER JOIN
+                disconnected
+            ON
+                -- Get the disconnect time that matches the connection
+                disconnected.timestamp =
+                    (SELECT d.timestamp FROM disconnected AS d
+                     WHERE d.timestamp > connected.timestamp
+                        AND d.host_id = connected.host_id
+                        AND d.relay_protocol = connected.relay_protocol
+                        AND d.session_id = connected.session_id
+                     ORDER BY d.timestamp ASC LIMIT 1)
+                AND connected.host_id = disconnected.host_id
+                AND connected.relay_protocol = disconnected.relay_protocol
+                AND connected.session_id = disconnected.session_id
+            WHERE NOT EXISTS (SELECT 1 FROM session WHERE connected_id = connected.id)
+        '''))
+
+    session_cursor.execute('COMMIT')
+
+    print 'elapsed time: %fs' % (time.time()-start_time,)
+
+
 if __name__ == "__main__":
 
     start_time = time.time()
@@ -263,20 +344,18 @@ if __name__ == "__main__":
             psi_ops_stats_credentials.POSTGRES_PASSWORD,
             psi_ops_stats_credentials.POSTGRES_PORT))
 
-    # Note: truncating error file
-    error_file = open('process_stats.err', 'w')
-
     hosts = psinet.get_hosts()
     servers = psinet.get_servers()
 
     try:
         for host in hosts:
             db_cur = db_conn.cursor()
-            process_stats(host, servers, db_cur, error_file)
+            process_stats(host, servers, db_cur)
             db_cur.close()
             db_conn.commit()
+        reconstruct_sessions(db_conn)
+        db_conn.commit()
     finally:
-        error_file.close()
         db_conn.close()
 
     print 'elapsed time: %fs' % (time.time()-start_time,)
