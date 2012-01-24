@@ -198,13 +198,15 @@ def deploy_build(host, build_filename):
 def deploy_build_to_hosts(hosts, build_filename):
 
     def do_deploy_build(host):
-        try:
-            deploy_build(host, build_filename)
-            return None
-        except Exception as e:
-            return e
+        for i in range(5):
+            try:
+                deploy_build(host, build_filename)
+                return None
+            except Exception as e:
+                pass
+        return e
             
-    pool = ThreadPool(20)
+    pool = ThreadPool(10)
     results = pool.map(do_deploy_build, hosts)
     for result in results:
         if result:
