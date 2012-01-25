@@ -162,12 +162,14 @@ def deploy_data(host, host_data):
 def deploy_data_to_hosts(host_and_data_list):
 
     def do_deploy_data(host_and_data):
-        try:
-            deploy_data(host_and_data['host'], host_and_data['data'])
-            host_and_data['host'].log('deploy data')
-            return None
-        except Exception as e:
-            return e
+        for i in range(5):
+            try:
+                deploy_data(host_and_data['host'], host_and_data['data'])
+                host_and_data['host'].log('deploy data')
+                return None
+            except Exception as e:
+                pass
+        return e
             
     pool = ThreadPool(20)
     results = pool.map(do_deploy_data, host_and_data_list)
