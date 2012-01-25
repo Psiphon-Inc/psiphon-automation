@@ -25,6 +25,7 @@ import csv
 import datetime
 import collections
 import time
+import traceback
 import psycopg2
 
 import psi_ssh
@@ -250,6 +251,24 @@ def process_stats(host, servers, db_cur, error_file=None):
                     field_values = [timestamp, host_id] + event_values
                     assert(len(field_names) == len(field_values))
 
+                    # Check for invalid bytes value for bytes_transferred
+
+                    if event_type == 'bytes_transferred':
+                        assert(field_names[8] == 'bytes')
+                        if not (0 <= int(field_values[8]) < 2147483647):
+                            err = 'invalid byte fields %s' % (line,)
+                            print err
+                            if error_file:
+                                error_file.write(err + '\n')
+                            continue
+
+                        # Client version 24 had a bug which resulted in
+                        # corrupt byte transferred values, so discard them
+                        
+                        assert(field_names[6] == 'client_version')
+                        if int(field_values[6]) == 24:
+                            continue
+
                     # Replace server IP addresses with server IDs in
                     # stats to keep IP addresses confidental in reporting.
 
@@ -379,6 +398,9 @@ if __name__ == "__main__":
             db_conn.commit()
         reconstruct_sessions(db_conn)
         db_conn.commit()
+    except Exception as e:
+        for line in traceback.format_exc().split('\n'):
+            print line
     finally:
         db_conn.close()
 
