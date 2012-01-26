@@ -296,12 +296,13 @@ CREATE TABLE speed
   propagation_channel_id text,
   sponsor_id text,
   client_version text,
+  relay_protocol text,
   "operation" text,
   milliseconds integer,
   "size" integer,
   id bigserial NOT NULL,
   CONSTRAINT speed_pkey PRIMARY KEY (id),
-  CONSTRAINT speed_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, "operation", milliseconds, "size")
+  CONSTRAINT speed_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, relay_protocol, "operation", milliseconds, "size")
 )
 WITH (
   OIDS=FALSE

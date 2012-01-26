@@ -135,6 +135,7 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'propagation_channel_id',
                              'sponsor_id',
                              'client_version',
+                             'relay_protocol',
                              'operation',
                              'milliseconds',
                              'size'),
