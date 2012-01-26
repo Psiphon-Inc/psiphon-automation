@@ -283,6 +283,33 @@ ALTER TABLE https_requests OWNER TO postgres;
 GRANT ALL ON TABLE https_requests TO postgres;
 GRANT ALL ON TABLE https_requests TO psiphon3;
 
+-- Table: speed
+
+-- DROP TABLE speed;
+
+CREATE TABLE speed
+(
+  "timestamp" timestamp with time zone,
+  host_id text,
+  server_id text,
+  client_region text,
+  propagation_channel_id text,
+  sponsor_id text,
+  client_version text,
+  "operation" text,
+  milliseconds integer,
+  "size" integer,
+  id bigserial NOT NULL,
+  CONSTRAINT speed_pkey PRIMARY KEY (id),
+  CONSTRAINT speed_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, "operation", milliseconds, "size")
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE speed OWNER TO postgres;
+GRANT ALL ON TABLE speed TO postgres;
+GRANT ALL ON TABLE speed TO psiphon3;
+
 -- Index: session_reconstruction_index
 
 -- DROP INDEX session_reconstruction_index;
