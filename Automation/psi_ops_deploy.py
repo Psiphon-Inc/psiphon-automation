@@ -78,16 +78,6 @@ def deploy_implementation(host):
 
     ssh.exec_command('%s restart' % (remote_init_file_path,))
 
-    # Copy DNS capture init script and restart it
-
-    remote_init_file_path = posixpath.join(psi_config.HOST_INIT_DIR, 'psi-dns-capture')
-    ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', 'psi-dns-capture'),
-                 remote_init_file_path)
-    ssh.exec_command('chmod +x %s' % (remote_init_file_path,))
-    ssh.exec_command('update-rc.d %s defaults' % ('psi-dns-capture',))
-
-    ssh.exec_command('%s restart' % (remote_init_file_path,))
-
     # Copy the rate-limiting scripts
 
     remote_rate_limit_start_file_path = posixpath.join(psi_config.HOST_IP_UP_DIR, 'rate-limit')
@@ -162,12 +152,14 @@ def deploy_data(host, host_data):
 def deploy_data_to_hosts(host_and_data_list):
 
     def do_deploy_data(host_and_data):
-        try:
-            deploy_data(host_and_data['host'], host_and_data['data'])
-            host_and_data['host'].log('deploy data')
-            return None
-        except Exception as e:
-            return e
+        for i in range(5):
+            try:
+                deploy_data(host_and_data['host'], host_and_data['data'])
+                host_and_data['host'].log('deploy data')
+                return None
+            except Exception as e:
+                pass
+        return e
             
     pool = ThreadPool(20)
     results = pool.map(do_deploy_data, host_and_data_list)

@@ -235,13 +235,13 @@ Enable the firewall and IP forwarding:
   /etc/init.d/procps start
 
 
-2. Install xinetd, tcpdump, wondershaper, fail2ban, ntp
+2. Install xinetd, wondershaper, fail2ban, ntp
 -------------------------------------------------------
 
 apt-get update
 apt-get upgrade
 apt-get dist-upgrade
-apt-get install -y xinetd tcpdump wondershaper fail2ban ntp
+apt-get install -y xinetd wondershaper fail2ban ntp
 
 As management SSH access is open to any source IP address, we recommend
 installing fail2ban to defend against brute-force SSH login attempts.
