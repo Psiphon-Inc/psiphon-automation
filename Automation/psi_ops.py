@@ -190,6 +190,10 @@ StatsServerAccount = psi_utils.recordtype(
     'ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key',
     default=None)
 
+SpeedTestURL = psi_utils.recordtype(
+    'SpeedTestURL',
+    'url')
+
 
 class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
@@ -218,8 +222,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__deploy_builds_required_for_campaigns = set()
         self.__deploy_stats_config_required = False
         self.__deploy_email_config_required = False
+        self.__speed_test_urls = []
 
-    class_version = '0.4'
+    class_version = '0.5'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -240,6 +245,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 sponsor.page_view_regexes = []
                 sponsor.https_request_regexes = []
             self.version = '0.4'
+        if cmp(parse_version(self.version), parse_version('0.5')) < 0:
+            self.__speed_test_urls = []
+            self.version = '0.5'
 
     def show_status(self):
         # NOTE: verbose mode prints credentials to stdout
@@ -1367,6 +1375,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 'replace': sponsor_regex.replace
                                                 })
         
+        # If there are speed test URLs, select one at random and return it
+        if self.__speed_test_urls:
+            config['speed_test_url'] = random.choice(self.__speed_test_urls)
+
         output.append('Config: ' + json.dumps(config))
         
         return output
@@ -1441,6 +1453,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             copy.__client_versions.append(ClientVersion(
                                             client_version.version,
                                             '')) # Omit description
+
+        for speed_test_url in self.__speed_test_urls:
+            copy.__speed_test_urls.append(SpeedTestURL(speed_test_url.url))
 
         return jsonpickle.encode(copy)
 

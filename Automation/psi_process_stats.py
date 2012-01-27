@@ -129,7 +129,17 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'client_version',
                              'relay_protocol',
                              'domain',
-                             'count')
+                             'count'),
+    'speed' :               ('server_id',
+                             'client_region',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'relay_protocol',
+                             'operation',
+                             'info',
+                             'milliseconds',
+                             'size'),
     }
 
 
