@@ -137,6 +137,7 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'client_version',
                              'relay_protocol',
                              'operation',
+                             'info',
                              'milliseconds',
                              'size'),
     }
