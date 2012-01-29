@@ -192,7 +192,7 @@ StatsServerAccount = psi_utils.recordtype(
 
 SpeedTestURL = psi_utils.recordtype(
     'SpeedTestURL',
-    'url')
+    'server_address, server_port, request_path')
 
 
 class PsiphonNetwork(psi_ops_cms.PersistentObject):
@@ -1100,10 +1100,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server = filter(lambda x:x.id == server_id,self.__servers.itervalues())[0]
         return self.__get_encoded_server_entry(server)
     
-    def deploy_implementation_for_host_with_server(self, server_id):
+    def deploy_implementation_and_data_for_host_with_server(self, server_id):
         server = filter(lambda x:x.id == server_id,self.__servers.itervalues())[0]
         host = filter(lambda x:x.id == server.host_id,self.__hosts.itervalues())[0]
         psi_ops_deploy.deploy_implementation(host)
+        psi_ops_deploy.deploy_data(host, self.__compartmentalize_data_for_host(host.id))
 
     def set_aws_account(self, access_id, secret_key):
         psi_utils.update_recordtype(
@@ -1200,6 +1201,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__stats_server_account,
             ip_address=ip_address, ssh_port=ssh_port, ssh_username=ssh_username,
             ssh_password=ssh_password, ssh_host_key=ssh_host_key)
+
+    def add_speed_test_url(self, server_address, server_port, request_path):
+        if (server_address, server_port, request_path) not in [
+                (s.server_address, s.server_port, s.request_path) for s in self.__speed_test_urls]:
+            self.__speed_test_urls.append(SpeedTestURL(server_address, server_port, request_path))
+            self.__deploy_data_required_for_all = True
 
     def __get_encoded_server_entry(self, server):
         # Double-check that we're not giving our blank server credentials
@@ -1364,20 +1371,25 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         config['page_view_regexes'] = []
         for sponsor_regex in self._get_sponsor_page_view_regexes(sponsor_id):
             config['page_view_regexes'].append({
-                                                'regex': sponsor_regex.regex,
-                                                'replace': sponsor_regex.replace
+                                                'regex' : sponsor_regex.regex,
+                                                'replace' : sponsor_regex.replace
                                                 })
         
         config['https_request_regexes'] = []
         for sponsor_regex in self._get_sponsor_https_request_regexes(sponsor_id):
             config['https_request_regexes'].append({
-                                                'regex': sponsor_regex.regex,
-                                                'replace': sponsor_regex.replace
+                                                'regex' : sponsor_regex.regex,
+                                                'replace' : sponsor_regex.replace
                                                 })
         
         # If there are speed test URLs, select one at random and return it
         if self.__speed_test_urls:
-            config['speed_test_url'] = random.choice(self.__speed_test_urls)
+            speed_test_url = random.choice(self.__speed_test_urls)
+            config['speed_test_url'] = {
+                'server_address' : speed_test_url.server_address,
+                'server_port' : speed_test_url.server_port,
+                'request_path' : speed_test_url.request_path
+            }
 
         output.append('Config: ' + json.dumps(config))
         
@@ -1455,7 +1467,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             '')) # Omit description
 
         for speed_test_url in self.__speed_test_urls:
-            copy.__speed_test_urls.append(SpeedTestURL(speed_test_url.url))
+            copy.__speed_test_urls.append(
+                SpeedTestURL(
+                    speed_test_url.server_address,
+                    speed_test_url.server_port,
+                    speed_test_url.request_path))
 
         return jsonpickle.encode(copy)
 
