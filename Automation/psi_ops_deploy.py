@@ -224,6 +224,6 @@ def deploy_routes(host):
         psi_routes.GEO_ROUTES_ARCHIVE_PATH,
         target_filename)
 
-    ssh.exec_command('tar xfz %s' % (target_filename,))
+    ssh.exec_command('tar xz -C %s -f %s' % (psi_config.ROUTES_PATH, target_filename))
 
     ssh.close()
