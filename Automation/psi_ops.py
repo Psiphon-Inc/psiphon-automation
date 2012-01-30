@@ -464,7 +464,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.import_sponsor(self.__generate_id(), name)
 
     def import_sponsor(self, id, name):
-        sponsor = Sponsor(id, name, None, {}, [], [])
+        sponsor = Sponsor(id, name, None, {}, [], [], [])
         assert(id not in self.__sponsors)
         assert(not filter(lambda x:x.name == name, self.__sponsors.itervalues()))
         self.__sponsors[id] = sponsor
