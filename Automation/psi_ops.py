@@ -1663,9 +1663,8 @@ def interact(lock):
         code.interact(
                 'Psiphon 3 Console\n'+
                 '-----------------\n'+
-                '%s mode\n'+
-                'Interact with the \'psinet\' object...\n' % (
-                    'EDIT' if lock else 'READ-ONLY',),
+                ('%s mode\n' % ('EDIT' if lock else 'READ-ONLY',))+
+                'Interact with the \'psinet\' object...\n',
                 local=locals())
     except SystemExit as e:
         if lock:
