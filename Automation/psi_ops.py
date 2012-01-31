@@ -447,9 +447,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                       self.__propagation_channels.itervalues())[0]
 
     def add_propagation_channel(self, name, propagation_mechanism_types):
+        assert(self.is_locked)
         self.import_propagation_channel(self.__generate_id(), name, propagation_mechanism_types)
 
     def import_propagation_channel(self, id, name, propagation_mechanism_types):
+        assert(self.is_locked)
         for type in propagation_mechanism_types: assert(type in self.__propagation_mechanisms)
         propagation_channel = PropagationChannel(id, name, propagation_mechanism_types)
         assert(id not in self.__propagation_channels)
@@ -461,15 +463,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                       self.__sponsors.itervalues())[0]
 
     def add_sponsor(self, name):
+        assert(self.is_locked)
         self.import_sponsor(self.__generate_id(), name)
 
     def import_sponsor(self, id, name):
+        assert(self.is_locked)
         sponsor = Sponsor(id, name, None, {}, [], [], [])
         assert(id not in self.__sponsors)
         assert(not filter(lambda x:x.name == name, self.__sponsors.itervalues()))
         self.__sponsors[id] = sponsor
 
     def set_sponsor_banner(self, name, banner_filename):
+        assert(self.is_locked)
         with open(banner_filename, 'rb') as file:
             banner = base64.b64encode(file.read())
         sponsor = self.__get_sponsor_by_name(name)
@@ -481,6 +486,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             campaign.log('marked for build and publish (new banner)')
 
     def add_sponsor_email_campaign(self, sponsor_name, propagation_channel_name, email_account):
+        assert(self.is_locked)
         sponsor = self.__get_sponsor_by_name(sponsor_name)
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
         propagation_mechanism_type = 'email-autoresponder'
@@ -504,6 +510,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                      twitter_account_consumer_secret,
                                      twitter_account_access_token_key,
                                      twitter_account_access_token_secret):
+        assert(self.is_locked)
         sponsor = self.__get_sponsor_by_name(sponsor_name)
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
         propagation_mechanism_type = 'twitter'
@@ -525,6 +532,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             campaign.log('marked for build and publish (new campaign)')
 
     def add_sponsor_static_download_campaign(self, sponsor_name, propagation_channel_name):
+        assert(self.is_locked)
         sponsor = self.__get_sponsor_by_name(sponsor_name)
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
         propagation_mechanism_type = 'static-download'
@@ -541,6 +549,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             campaign.log('marked for build and publish (new campaign)')
 
     def set_sponsor_campaign_s3_bucket_name(self, sponsor_name, propagation_channel_name, account, s3_bucket_name):
+        assert(self.is_locked)
         sponsor = self.__get_sponsor_by_name(sponsor_name)
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
         for campaign in sponsor.campaigns:
@@ -553,6 +562,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     campaign.log('marked for build and publish (modified campaign)')
             
     def set_sponsor_home_page(self, sponsor_name, region, url):
+        assert(self.is_locked)
         sponsor = self.__get_sponsor_by_name(sponsor_name)
         home_page = SponsorHomePage(region, url)
         if region not in sponsor.home_pages:
@@ -564,6 +574,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             sponsor.log('marked all hosts for data deployment')
     
     def remove_sponsor_home_page(self, sponsor_name, region, url):
+        assert(self.is_locked)
         sponsor = self.__get_sponsor_by_name(sponsor_name)
         home_page = SponsorHomePage(region, url)
         if (region in sponsor.home_pages
@@ -574,6 +585,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             sponsor.log('marked all hosts for data deployment')
 
     def set_sponsor_page_view_regex(self, sponsor_name, regex, replace):
+        assert(self.is_locked)
         sponsor = self.__get_sponsor_by_name(sponsor_name)
         if not [rx for rx in sponsor.page_view_regexes if rx.regex == regex]:
             sponsor.page_view_regexes.append(SponsorRegex(regex, replace))
@@ -586,6 +598,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         Note that the regex part of the regex+replace pair is unique, so only
         it has to be passed in when removing.
         '''
+        assert(self.is_locked)
         sponsor = self.__get_sponsor_by_name(sponsor_name)
         match = [sponsor.page_view_regexes.pop(idx) 
                  for (idx, rx) 
@@ -598,6 +611,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             sponsor.log('marked all hosts for data deployment')
 
     def set_sponsor_https_request_regex(self, sponsor_name, regex, replace):
+        assert(self.is_locked)
         sponsor = self.__get_sponsor_by_name(sponsor_name)
         if not [rx for rx in sponsor.https_request_regexes if rx.regex == regex]:
             sponsor.https_request_regexes.append(SponsorRegex(regex, replace))
@@ -610,6 +624,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         Note that the regex part of the regex+replace pair is unique, so only
         it has to be passed in when removing.
         '''
+        assert(self.is_locked)
         sponsor = self.__get_sponsor_by_name(sponsor_name)
         match = [sponsor.https_request_regexes.pop(idx) 
                  for (idx, rx) 
@@ -622,6 +637,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             sponsor.log('marked all hosts for data deployment')
 
     def set_sponsor_name(self, sponsor_name, new_sponsor_name):
+        assert(self.is_locked)
         assert(not filter(lambda x:x.name == new_sponsor_name, self.__sponsors.itervalues()))
         sponsor = self.__get_sponsor_by_name(sponsor_name)
         sponsor.name = (new_sponsor_name)
@@ -636,6 +652,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def import_host(self, id, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
                     stats_ssh_username, stats_ssh_password):
+        assert(self.is_locked)
         host = Host(
                 id,
                 provider,
@@ -655,6 +672,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                       is_embedded, discovery_date_range, web_server_port, web_server_secret,
                       web_server_certificate, web_server_private_key, ssh_port, ssh_username,
                       ssh_password, ssh_host_key):
+        assert(self.is_locked)
         server = Server(
                     server_id,
                     host_id,
@@ -676,6 +694,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__servers[server.id] = server
         
     def add_servers(self, count, propagation_channel_name, discovery_date_range, replace_others=True):
+        assert(self.is_locked)
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
 
         # Embedded servers (aka "propagation servers") are embedded in client
@@ -797,6 +816,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.deploy()
 
     def remove_host(self, host_id):
+        assert(self.is_locked)
         host = self.__hosts[host_id]
         if host.provider == 'linode':
             provider_remove_host = psi_linode.remove_server
@@ -827,6 +847,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.save()
 
     def reinstall_host(self, host_id):
+        assert(self.is_locked)
         host = self.__hosts[host_id]
         servers = [server for server in self.__servers.itervalues() if server.host_id == host_id]
         existing_server_ids = [existing_server.id for existing_server in self.__servers.itervalues()]
@@ -842,10 +863,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         host.log('reinstall')
 
     def reinstall_hosts(self):
+        assert(self.is_locked)
         for host in self.__hosts.itervalues():
             self.reinstall_host(host.id)
             
     def set_servers_propagation_channel_and_discovery_date_range(self, server_names, propagation_channel_name, discovery_date_range, replace_others=True):
+        assert(self.is_locked)
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
 
         if replace_others:
@@ -874,6 +897,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                   date_range[1].minute))
 
     def __replace_propagation_channel_discovery_servers(self, propagation_channel_id):
+        assert(self.is_locked)
         now = datetime.datetime.now()
         for old_server in self.__servers.itervalues():
             # NOTE: don't instantiate today outside of this loop, otherwise jsonpickle will
@@ -921,7 +945,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         test)
 
     def deploy(self):
-
         # Deploy as required:
         #
         # - Implementation to flagged hosts
@@ -933,6 +956,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # NOTE: Order is important. Hosts get new implementation before
         # new data, in case schema has changed; deploy builds before
         # deploying new data so an upgrade is available when it's needed
+
+        assert(self.is_locked)
 
         # Host implementation
 
@@ -1009,12 +1034,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.save()
 
     def update_routes(self):
+        assert(self.is_locked) # (host.log is called by deploy)
         psi_routes.make_routes()
-        for host in self.__hosts.itervalues():
-            psi_ops_deploy.deploy_routes(host)
-            host.log('deploy routes')
+        psi_ops_deploy.deploy_routes_to_hosts(self.__hosts.values())
 
     def push_stats_config(self):
+        assert(self.is_locked)
         print 'push stats config...'
         
         temp_file = tempfile.NamedTemporaryFile(delete=False)
@@ -1035,6 +1060,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # download links.
         # Currently, we generate the entire config file for any change.
         
+        assert(self.is_locked)
         print 'push email config...'
         
         emails = {}
@@ -1075,12 +1101,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 pass
             
     def add_server_version(self):
+        assert(self.is_locked)
         # Marks all hosts for re-deployment of server implementation
         for host in self.__hosts.itervalues():
             self.__deploy_implementation_required_for_hosts.add(host.id)
             host.log('marked for implementation deployment')
 
     def add_client_version(self, description):
+        assert(self.is_locked)
         # Records the new version number to trigger upgrades
         next_version = 1
         if len(self.__client_versions) > 0:
@@ -1107,6 +1135,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         psi_ops_deploy.deploy_data(host, self.__compartmentalize_data_for_host(host.id))
 
     def set_aws_account(self, access_id, secret_key):
+        assert(self.is_locked)
         psi_utils.update_recordtype(
             self.__aws_account,
             access_id=access_id, secret_key=secret_key)
@@ -1117,7 +1146,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         rank: the higher the score, the more the provider will be preferred when
             provideres are being randomly selected among.
         '''
-        
+        assert(self.is_locked)
         if provider not in ProviderRank.provider_values:
             raise ValueError('bad provider value: %s' % provider)
         
@@ -1140,7 +1169,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                            base_root_password, base_stats_username, base_host_public_key,
                            base_known_hosts_entry, base_rsa_private_key, base_rsa_public_key,
                            base_tarball_path):
-        
+        assert(self.is_locked)
         psi_utils.update_recordtype(
             self.__linode_account,
             api_key=api_key, base_id=base_id, base_ip_address=base_ip_address, 
@@ -1158,7 +1187,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         rank: the higher the score, the more the account will be preferred when
             the ElasticHosts accounts are being randomly selected among.
         '''
-        
+        assert(self.is_locked)
         if zone not in ElasticHostsAccount.zone_values:
             raise ValueError('bad zone value: %s' % zone)
         
@@ -1190,6 +1219,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def set_email_server_account(self, ip_address, ssh_port,
                                  ssh_username, ssh_pkey, ssh_host_key,
                                  config_file_path):
+        assert(self.is_locked)
         psi_utils.update_recordtype(
             self.__email_server_account,
             ip_address=ip_address, ssh_port=ssh_port, ssh_username=ssh_username,
@@ -1197,12 +1227,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def set_stats_server_account(self, ip_address, ssh_port,
                                  ssh_username, ssh_password, ssh_host_key):
+        assert(self.is_locked)
         psi_utils.update_recordtype(
             self.__stats_server_account,
             ip_address=ip_address, ssh_port=ssh_port, ssh_username=ssh_username,
             ssh_password=ssh_password, ssh_host_key=ssh_host_key)
 
     def add_speed_test_url(self, server_address, server_port, request_path):
+        assert(self.is_locked)
         if (server_address, server_port, request_path) not in [
                 (s.server_address, s.server_port, s.request_path) for s in self.__speed_test_urls]:
             self.__speed_test_urls.append(SpeedTestURL(server_address, server_port, request_path))
@@ -1595,6 +1627,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__test_servers(servers, test_web_server, test_vpn, test_ssh)
 
     def save(self):
+        assert(self.is_locked)
         print 'saving...'
         super(PsiphonNetwork, self).save()
 
@@ -1620,21 +1653,29 @@ def create():
     psinet.save()
 
 
-def edit():
-    # Lock an existing network object, interact with it, then save changes
+def interact(lock):
+    # Load an existing network object, interact with it, then save changes
     print 'loading...'
-    psinet = PsiphonNetwork.load()
+    psinet = PsiphonNetwork.load(lock)
     psinet.show_status()
     import code
     try:
         code.interact(
                 'Psiphon 3 Console\n'+
                 '-----------------\n'+
-                'Interact with the \'psinet\' object...\n', local=locals())
+                '%s mode\n'+
+                'Interact with the \'psinet\' object...\n' % (
+                    'EDIT' if lock else 'READ-ONLY',),
+                local=locals())
     except SystemExit as e:
-        pass
-    psinet.release()
+        if lock:
+            psinet.release()
+        raise
 
+    
+def edit():
+    interact(lock=True)
+    
 
-if __name__ == "__main__":
-    edit()
+def view():
+    interact(lock=False)

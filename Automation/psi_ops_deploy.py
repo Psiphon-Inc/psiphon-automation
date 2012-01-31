@@ -213,17 +213,33 @@ def deploy_routes(host):
                     host.ip_address, host.ssh_port,
                     host.ssh_username, host.ssh_password,
                     host.ssh_host_key)
-
     ssh.exec_command('mkdir -p %s' % (psi_config.ROUTES_PATH,))
 
     target_filename = posixpath.join(
                             psi_config.ROUTES_PATH,
                             os.path.split(psi_routes.GEO_ROUTES_ARCHIVE_PATH)[1])
 
-    ssh.put_file(
-        psi_routes.GEO_ROUTES_ARCHIVE_PATH,
-        target_filename)
-
+    ssh.put_file(psi_routes.GEO_ROUTES_ARCHIVE_PATH, target_filename)
     ssh.exec_command('tar xz -C %s -f %s' % (psi_config.ROUTES_PATH, target_filename))
-
     ssh.close()
+
+    host.log('deploy routes')
+
+
+def deploy_routes_to_hosts(hosts):
+
+    def do_deploy_routes(host):
+        for i in range(5):
+            try:
+                deploy_routes(host)
+                return None
+            except Exception as e:
+                pass
+        return e
+            
+    pool = ThreadPool(10)
+    results = pool.map(do_deploy_routes, hosts)
+    for result in results:
+        if result:
+            raise result
+
