@@ -32,6 +32,7 @@ import pprint
 import struct
 import socket
 import random
+import optparse
 from pkg_resources import parse_version
 
 import psi_utils
@@ -1678,3 +1679,14 @@ def edit():
 
 def view():
     interact(lock=False)
+
+
+if __name__ == "__main__":
+    parser = optparse.OptionParser('usage: %prog [options]')
+    parser.add_option("-r", "--read-only", dest="readonly", action="store_true",
+                      help="don't lock the network object")
+    (options, _) = parser.parse_args()
+    if options.readonly:
+        view()
+    else:
+        edit()
