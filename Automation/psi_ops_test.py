@@ -44,7 +44,7 @@ def retry_on_exception_decorator(function):
             try:
                 return function(*args, **kwds)
             except Exception as e:
-                pass
+                time.sleep(10)
         raise e
     return wrapper
 
