@@ -20,6 +20,7 @@
 import urllib2
 import subprocess
 import time
+from functools import wraps
 try:
     import win32ui
     import win32con
@@ -36,12 +37,25 @@ REGISTRY_PRODUCT_KEY = 'SOFTWARE\\Psiphon3'
 REGISTRY_IGNORE_VPN_VALUE = 'UserSkipVPN'
 
 
+def retry_on_exception_decorator(function):
+    @wraps(function)
+    def wrapper(*args, **kwds):
+        for i in range(3):
+            try:
+                return function(*args, **kwds)
+            except Exception as e:
+                pass
+        raise e
+    return wrapper
+
+
+@retry_on_exception_decorator
 def __test_web_server(ip_address, web_server_port, web_server_secret):
     print 'Testing web server at %s...' % (ip_address,)
     get_request = 'https://%s:%s/handshake?propagation_channel_id=0&sponsor_id=0&client_version=1&server_secret=%s' % (ip_address, web_server_port, web_server_secret)
     # Reset the proxy settings (see comment below)
     urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler()))
-    response = urllib2.urlopen(get_request).read()
+    response = urllib2.urlopen(get_request, timeout=15).read()
     return ('SSHPort: ' in response and
             'SSHUsername: ' in response and
             'SSHPassword: ' in response and
@@ -51,6 +65,7 @@ def __test_web_server(ip_address, web_server_port, web_server_secret):
             'PSK: ' in response)
 
 
+@retry_on_exception_decorator
 def __test_server(executable_path, mode, expected_egress_ip_addresses):
     # test:
     # - spawn client process, which starts the VPN
