@@ -40,11 +40,13 @@ REGISTRY_IGNORE_VPN_VALUE = 'UserSkipVPN'
 def retry_on_exception_decorator(function):
     @wraps(function)
     def wrapper(*args, **kwds):
-        for i in range(3):
+        for i in range(4):
             try:
+                if i > 0:
+                    time.sleep(15)
                 return function(*args, **kwds)
             except Exception as e:
-                time.sleep(10)
+                pass
         raise e
     return wrapper
 
