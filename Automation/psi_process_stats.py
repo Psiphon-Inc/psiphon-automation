@@ -388,7 +388,7 @@ if __name__ == "__main__":
 
     start_time = time.time()
 
-    psinet = psi_ops.PsiphonNetwork.load_from_file(PSI_OPS_DB_FILENAME, lock_file=True)
+    psinet = psi_ops.PsiphonNetwork.load_from_file(PSI_OPS_DB_FILENAME)
 
     db_conn = psycopg2.connect(
         'dbname=%s user=%s password=%s port=%d' % (

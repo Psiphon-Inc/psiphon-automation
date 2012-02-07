@@ -180,6 +180,7 @@ config setup
     oe=off
     # Which IPsec stack to use. auto will try netkey, then klips then mast
     protostack=klips
+    plutostderrlog=/dev/null
 '''
 
     return file_contents

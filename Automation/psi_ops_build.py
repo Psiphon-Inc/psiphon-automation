@@ -75,7 +75,7 @@ def build_client_executable():
     commands = [
         'msbuild "%s" /v:quiet /t:Rebuild /p:Configuration=Release\n' % (CLIENT_SOLUTION_FILENAME,),
         '"%s" -qq "%s"\n' % (UPX_FILENAME, EXECUTABLE_FILENAME),
-        '"%s" sign /f "%s" %s\n' % (signtool_filename,
+        '"%s" sign /f "%s" "%s"\n' % (signtool_filename,
                                              CODE_SIGNING_PFX_FILENAME,
                                              EXECUTABLE_FILENAME)]
     command_filename = 'build.cmd'
