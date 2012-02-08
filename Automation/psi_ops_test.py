@@ -43,7 +43,7 @@ def retry_on_exception_decorator(function):
         for i in range(4):
             try:
                 if i > 0:
-                    time.sleep(15)
+                    time.sleep(20)
                 return function(*args, **kwds)
             except Exception as e:
                 pass
