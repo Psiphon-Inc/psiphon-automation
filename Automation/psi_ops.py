@@ -17,6 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import sys
 import os
 import time
 import datetime
@@ -1578,19 +1579,26 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         results = {}
         passes = 0
         failures = 0
+        servers_with_errors = set()
         for server in servers:
             result = self.__test_server(server, test_web_server, test_vpn, test_ssh)
             results[server.id] = result
             for test_result in result.itervalues():
                 if 'FAIL' in test_result:
                     failures += 1
+                    servers_with_errors.add(server.id)
                 else:
                     passes += 1
-        pprint.pprint(results)
-        print 'servers tested: %d' % (len(servers),)
-        print 'tests passed:   %d' % (passes,)
-        print 'tests failed:   %d' % (failures,)
-        print 'SUCCESS' if failures == 0 else 'FAIL'
+        for server_id, result in results.iteritems():
+            if server_id in servers_with_errors:
+                pprint.pprint((server_id, result), stream=sys.stderr)
+            else:
+                pprint.pprint((server_id, result))
+        sys.stderr.write('servers tested:      %d\n' % (len(servers),))
+        sys.stderr.write('servers with errors: %d\n' % (len(servers_with_errors),))
+        sys.stderr.write('tests passed:        %d\n' % (passes,))
+        sys.stderr.write('tests failed:        %d\n' % (failures,))
+        sys.stderr.write('SUCCESS\n' if failures == 0 else 'FAIL\n')
         assert(failures == 0)
         
     def test_server(self, server_id, test_web_server=True, test_vpn=True, test_ssh=True):
