@@ -58,7 +58,7 @@ def __test_web_server(ip_address, web_server_port, web_server_secret):
     get_request = 'https://%s:%s/handshake?propagation_channel_id=0&sponsor_id=0&client_version=1&server_secret=%s' % (ip_address, web_server_port, web_server_secret)
     # Reset the proxy settings (see comment below)
     urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler()))
-    response = urllib2.urlopen(get_request, timeout=15).read()
+    response = urllib2.urlopen(get_request, timeout=10).read()
     return ('SSHPort: ' in response and
             'SSHUsername: ' in response and
             'SSHPassword: ' in response and

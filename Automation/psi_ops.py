@@ -1563,6 +1563,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         ssh.exec_command(command)
 
+    def copy_file_to_host(self, host, source_filename, dest_filename):
+        ssh = psi_ssh.SSH(
+                host.ip_address, host.ssh_port,
+                host.ssh_username, host.ssh_password,
+                host.ssh_host_key)
+
+        ssh.put_file(source_filename, dest_filename)
+
     def __test_server(self, server, test_cases):
         return psi_ops_test.test_server(
                                 server.ip_address,
