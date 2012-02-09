@@ -1690,9 +1690,7 @@ def view():
 def test(tests):
     psinet = PsiphonNetwork.load(lock=False)
     psinet.show_status()
-    psinet.test_servers(test_web_server='web' in tests,
-                        test_vpn='vpn' in tests,
-                        test_ssh='ssh' in tests)
+    psinet.test_servers(tests)
 
 
 if __name__ == "__main__":
@@ -1700,8 +1698,8 @@ if __name__ == "__main__":
     parser.add_option("-r", "--read-only", dest="readonly", action="store_true",
                       help="don't lock the network object")
     parser.add_option("-t", "--test", dest="test", action="append",
-                      choices=('web', 'vpn', 'ssh'),
-                      help="specify once for each of: web, vpn, ssh")
+                      choices=('handshake', 'VPN', 'SSH+', 'SSH'),
+                      help="specify once for each of: handshake, VPN, SSH+, SSH")
     (options, _) = parser.parse_args()
     if options.test:
         test(options.test)
