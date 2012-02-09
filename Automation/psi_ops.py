@@ -1563,7 +1563,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         ssh.exec_command(command)
 
-    def __test_server(self, server, test_web_server, test_vpn, test_ssh):
+    def __test_server(self, server, test_cases):
         return psi_ops_test.test_server(
                                 server.ip_address,
                                 server.web_server_port,
@@ -1571,17 +1571,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 [self.__get_encoded_server_entry(server)],
                                 self.__client_versions[-1].version,
                                 [server.egress_ip_address],
-                                test_web_server,
-                                test_vpn,
-                                test_ssh)
+                                test_cases)
 
-    def __test_servers(self, servers, test_web_server, test_vpn, test_ssh):
+    def __test_servers(self, servers, test_cases):
         results = {}
         passes = 0
         failures = 0
         servers_with_errors = set()
         for server in servers:
-            result = self.__test_server(server, test_web_server, test_vpn, test_ssh)
+            result = self.__test_server(server, test_cases)
             results[server.id] = result
             for test_result in result.itervalues():
                 if 'FAIL' in test_result:
@@ -1600,40 +1598,40 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         sys.stderr.write('tests failed:        %d\n' % (failures,))
         sys.stderr.write('SUCCESS\n' if failures == 0 else 'FAIL\n')
         assert(failures == 0)
-        
-    def test_server(self, server_id, test_web_server=True, test_vpn=True, test_ssh=True):
+    
+    def test_server(self, server_id, test_cases=None):
         if not server_id in self.__servers:
             print 'Server "%s" not found' % (server_id,)
         elif self.__servers[server_id].propagation_channel_id == None:
             print 'Server "%s" does not have a propagation channel id' % (server_id,)
         else:
             servers = [self.__servers[server_id]]
-            self.__test_servers(servers, test_web_server, test_vpn, test_ssh)
+            self.__test_servers(servers, test_cases)
 
-    def test_host(self, host_id, test_web_server=True, test_vpn=True, test_ssh=True):
+    def test_host(self, host_id, test_cases=None):
         if not host_id in self.__hosts:
             print 'Host "%s" not found' % (host_id,)
         else:
             servers = [server for server in self.__servers.itervalues() if server.host_id == host_id and server.propagation_channel_id != None]
-            self.__test_servers(servers, test_web_server, test_vpn, test_ssh)
+            self.__test_servers(servers, test_cases)
 
-    def test_propagation_channel(self, propagation_channel_name, test_web_server=True, test_vpn=True, test_ssh=True):
+    def test_propagation_channel(self, propagation_channel_name, test_cases=None):
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
         servers = [server for server in self.__servers.itervalues() if server.propagation_channel_id == propagation_channel.id]
-        self.__test_servers(servers, test_web_server, test_vpn, test_ssh)
+        self.__test_servers(servers, test_cases)
 
-    def test_sponsor(self, sponsor_name, test_web_server=True, test_vpn=True, test_ssh=True):
+    def test_sponsor(self, sponsor_name, test_cases=None):
         sponsor = self.__get_sponsor_by_name(sponsor_name)
         propagation_channel_ids = set()
         for campaign in sponsor.campaigns:
             propagation_channel_ids.add(campaign.propagation_channel_id)
         servers = [server for server in self.__servers.itervalues()
                    if server.propagation_channel_id in propagation_channel_ids]
-        self.__test_servers(servers, test_web_server, test_vpn, test_ssh)
+        self.__test_servers(servers, test_cases)
                     
-    def test_servers(self, test_web_server=True, test_vpn=True, test_ssh=True):
+    def test_servers(self, test_cases=None):
         servers = [server for server in self.__servers.itervalues() if server.propagation_channel_id != None]
-        self.__test_servers(servers, test_web_server, test_vpn, test_ssh)
+        self.__test_servers(servers, test_cases)
 
     def save(self):
         assert(self.is_locked)

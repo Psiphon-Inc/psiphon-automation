@@ -34,7 +34,7 @@ import psi_ops_build
 
 
 REGISTRY_PRODUCT_KEY = 'SOFTWARE\\Psiphon3'
-REGISTRY_IGNORE_VPN_VALUE = 'UserSkipVPN'
+REGISTRY_TRANSPORT_VALUE = 'Transport'
 
 
 def retry_on_exception_decorator(function):
@@ -46,6 +46,7 @@ def retry_on_exception_decorator(function):
                     time.sleep(20)
                 return function(*args, **kwds)
             except Exception as e:
+                print str(e)
                 pass
         raise e
     return wrapper
@@ -68,20 +69,21 @@ def __test_web_server(ip_address, web_server_port, web_server_secret):
 
 
 @retry_on_exception_decorator
-def __test_server(executable_path, mode, expected_egress_ip_addresses):
+def __test_server(executable_path, transport, expected_egress_ip_addresses):
     # test:
     # - spawn client process, which starts the VPN
     # - sleep 5 seconds, which allows time to establish connection
     # - determine egress IP address and assert it matches host IP address
     # - post WM_CLOSE to gracefully shut down the client and its connection
     print 'Testing egress IP addresses %s in %s mode...' % (
-            ','.join(expected_egress_ip_addresses), mode)
+            ','.join(expected_egress_ip_addresses), transport)
 
     try:
+        proc = None
         reg_key = _winreg.OpenKey(REGISTRY_ROOT_KEY, REGISTRY_PRODUCT_KEY, 0, _winreg.KEY_ALL_ACCESS)
-        ignore_vpn_value, ignore_vpn_type = _winreg.QueryValueEx(reg_key, REGISTRY_IGNORE_VPN_VALUE)
-        _winreg.SetValueEx(reg_key, REGISTRY_IGNORE_VPN_VALUE, None, _winreg.REG_DWORD, 1 if mode == 'ssh' else 0)
-
+        transport_value, transport_type = _winreg.QueryValueEx(reg_key, REGISTRY_TRANSPORT_VALUE)
+        _winreg.SetValueEx(reg_key, REGISTRY_TRANSPORT_VALUE, None, _winreg.REG_SZ, transport)
+        
         proc = subprocess.Popen([executable_path])
         time.sleep(15)
     
@@ -95,43 +97,47 @@ def __test_server(executable_path, mode, expected_egress_ip_addresses):
             raise Exception('egress is %s and expected egresses are %s' % (
                                 egress_ip_address, ','.join(expected_egress_ip_addresses)))
     finally:
-        _winreg.SetValueEx(reg_key, REGISTRY_IGNORE_VPN_VALUE, None, ignore_vpn_type, ignore_vpn_value)
-        win32ui.FindWindow(None, psi_ops_build.APPLICATION_TITLE).PostMessage(win32con.WM_CLOSE)
-        proc.wait()
+        _winreg.SetValueEx(reg_key, REGISTRY_TRANSPORT_VALUE, None, transport_type, transport_value)
+        try:
+            win32ui.FindWindow(None, psi_ops_build.APPLICATION_TITLE).PostMessage(win32con.WM_CLOSE)
+        except Exception as e:
+            print e
+        if proc:
+            proc.wait()
             
 
 def test_server(ip_address, web_server_port, web_server_secret, encoded_server_list, version,
-                expected_egress_ip_addresses, test_web_server, test_vpn, test_ssh):
+                expected_egress_ip_addresses, test_cases = None):
+
+    if not test_cases:
+        test_cases = ['handshake', 'VPN', 'SSH+', 'SSH']
+
     results = {}
-    
-    if test_web_server:
-        try:
-            result = __test_web_server(ip_address, web_server_port, web_server_secret)
-            results['WEB'] = 'PASS' if result else 'FAIL'
-        except Exception as ex:
-            results['WEB'] = 'FAIL: ' + str(ex)
-        try:
-            result = __test_web_server(ip_address, '443', web_server_secret)
-            results['443'] = 'PASS' if result else 'FAIL'
-        except Exception as ex:
-            results['443'] = 'FAIL: ' + str(ex)
 
-    if test_vpn or test_ssh:
-        executable_path = psi_ops_build.build_client('0', '0', None, encoded_server_list, version, True)
-        
-    if test_vpn:
-        try:
-            __test_server(executable_path, 'vpn', expected_egress_ip_addresses)
-            results['VPN'] = 'PASS'
-        except Exception as ex:
-            results['VPN'] = 'FAIL: ' + str(ex)
+    executable_path = None
 
-    if test_ssh:
-        try:
-            __test_server(executable_path, 'ssh', expected_egress_ip_addresses)
-            results['SSH'] = 'PASS'
-        except Exception as ex:
-            results['SSH'] = 'FAIL: ' + str(ex)
+    for test_case in test_cases:
+
+        print 'test case %s...' % (test_case,)
+
+        if test_case == 'handshake':
+            try:
+                result = __test_web_server(ip_address, web_server_port, web_server_secret)
+                results['WEB'] = 'PASS' if result else 'FAIL'
+            except Exception as ex:
+                results['WEB'] = 'FAIL: ' + str(ex)
+            try:
+                result = __test_web_server(ip_address, '443', web_server_secret)
+                results['443'] = 'PASS' if result else 'FAIL'
+            except Exception as ex:
+                results['443'] = 'FAIL: ' + str(ex)
+        elif test_case in ['VPN', 'SSH+', 'SSH']:
+            if not executable_path:
+                executable_path = psi_ops_build.build_client('0', '0', None, encoded_server_list, version, True)
+            try:
+                __test_server(executable_path, test_case, expected_egress_ip_addresses)
+                results[test_case] = 'PASS'
+            except Exception as ex:
+                results[test_case] = 'FAIL: ' + str(ex)
     
     return results
-
