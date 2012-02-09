@@ -174,7 +174,7 @@ class MailResponder:
             # so they end up here.
             if self._email['From'] == 'MAILER-DAEMON@email-bounces.amazonses.com':
                 syslog.syslog(syslog.LOG_INFO, 'fail: bounce')
-            elif self._email['From'] == 'complaints@email-abuse.amazonaws.com':
+            elif self._email['From'] == 'complaints@email-abuse.amazonses.com':
                 syslog.syslog(syslog.LOG_INFO, 'fail: complaint')
             else:
                 syslog.syslog(syslog.LOG_INFO, 'fail: unparsable requester address')
