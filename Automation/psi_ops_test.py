@@ -79,7 +79,7 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
             ','.join(expected_egress_ip_addresses), transport)
 
     try:
-        proc = None
+        proc, transport_value, transport_type = None, None, None
         reg_key = _winreg.OpenKey(REGISTRY_ROOT_KEY, REGISTRY_PRODUCT_KEY, 0, _winreg.KEY_ALL_ACCESS)
         transport_value, transport_type = _winreg.QueryValueEx(reg_key, REGISTRY_TRANSPORT_VALUE)
         _winreg.SetValueEx(reg_key, REGISTRY_TRANSPORT_VALUE, None, _winreg.REG_SZ, transport)
@@ -97,7 +97,8 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
             raise Exception('egress is %s and expected egresses are %s' % (
                                 egress_ip_address, ','.join(expected_egress_ip_addresses)))
     finally:
-        _winreg.SetValueEx(reg_key, REGISTRY_TRANSPORT_VALUE, None, transport_type, transport_value)
+        if transport_type and transport_value:
+            _winreg.SetValueEx(reg_key, REGISTRY_TRANSPORT_VALUE, None, transport_type, transport_value)
         try:
             win32ui.FindWindow(None, psi_ops_build.APPLICATION_TITLE).PostMessage(win32con.WM_CLOSE)
         except Exception as e:
