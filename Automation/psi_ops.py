@@ -1249,11 +1249,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(len(server.web_server_port) > 1)
         assert(len(server.web_server_secret) > 1)
         assert(len(server.web_server_certificate) > 1)
-        return binascii.hexlify('%s %s %s %s' % (
+
+        return binascii.hexlify('%s %s %s %s %s %s %s %s %s %s' % (
                                     server.ip_address,
                                     server.web_server_port,
                                     server.web_server_secret,
-                                    server.web_server_certificate))    
+                                    server.web_server_certificate,
+                                    server.ssh_port if server.ssh_port else '',
+                                    server.ssh_username if server.ssh_username else '',
+                                    server.ssh_password if server.ssh_password else '',
+                                    server.ssh_host_key if server.ssh_host_key else '',
+                                    server.ssh_obfuscated_port if server.ssh_obfuscated_port else '',
+                                    server.ssh_obfuscated_key if server.ssh_obfuscated_key else ''))
     
     def __get_encoded_server_list(self, propagation_channel_id,
                                   client_ip_address=None, event_logger=None, discovery_date=None):
