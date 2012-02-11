@@ -789,7 +789,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             psi_ops_deploy.deploy_routes(host)
             host.log('initial deployment')
 
-            self.test_server(server.id, test_vpn=False, test_ssh=False)
+            self.test_server(server.id, ['handshake'])
             
             self.save()
             
