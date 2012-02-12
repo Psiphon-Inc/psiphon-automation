@@ -74,10 +74,6 @@ def deploy_implementation(host):
     ssh.exec_command('chmod +x %s' % (remote_init_file_path,))
     ssh.exec_command('update-rc.d %s defaults' % ('psiphonv',))
 
-    # Add required Python module
-    
-    ssh.exec_command('easy_install pyOpenSSL')
-    
     # Restart server after source code updated
 
     ssh.exec_command('%s restart' % (remote_init_file_path,))
