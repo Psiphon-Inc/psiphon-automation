@@ -481,6 +481,12 @@ def install_host(host, servers, existing_server_ids):
 
     ssh.exec_command('/etc/init.d/xinetd restart')
 
+    #
+    # Add required Python module
+    #
+    
+    ssh.exec_command('easy_install pyOpenSSL')
+    
     ssh.close()
 
     #
@@ -509,10 +515,6 @@ def install_host(host, servers, existing_server_ids):
             server.web_server_private_key = ''.join(key_pem.split('\n')[1:-2])
             server.web_server_certificate = ''.join(cert_pem.split('\n')[1:-2])
 
-    # Add required Python module
-    
-    ssh.exec_command('easy_install pyOpenSSL')
-    
     ## Deploy will upload web server source database data and client builds
     #psi_deploy.deploy(host)
     # NOTE: call psi_ops_deploy.deploy_host() to complete the install process
