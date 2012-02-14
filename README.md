@@ -1,7 +1,42 @@
 Psiphon 3 Circumvention System README
 ================================================================================
+----BEGIN ssh-with-no-handshake NOTES----
+
+Two design statements:
+
+1. If a transport can connect without first making an extra-transport request,
+   then it should.
+    - In order to connect with VPN, an initial handshake is required in order to 
+      get server credentials. So that doesn't qualify.
+    - SSH and OSSH, on the other hand, do not, in theory, require an initial 
+      handshake. So we will embed those credentials and then connect without an
+      initial handshake.
+
+2. Any extra-transport requests should try HTTPS (8080, then 443) and then fail
+   over to setting up and making request through any available transports that
+   don't require an extra-transport request to connect.
+    - Failure requests, post-disconnect stats request, and VPN handshake requests
+      all must be done extra-transport. Until now, those depended on HTTPS being
+      available. This change will make it so that those requests succeed if HTTPS
+      *or* SSH *or* OSSH are available.
+
+TODO
+
+- Upgrade known ServerEntries that lack SSH creds to new form as they are retrieved
+  (in the handshake).
+
+- Make sure old bug is fixed: All instances of HTTPSRequest should fail over.
+  (In previous code, ConnectionThread does port failover but UpgradeThread doesn't.)
+
+if transport->requires_handshake(serverEntry)
+  do handshake
+  transport connect
+else 
+  transport connect
+  do handshake through transport
 
 
+----END ssh-with-no-handshake NOTES----
 Overview
 --------------------------------------------------------------------------------
 
