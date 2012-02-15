@@ -36,7 +36,7 @@ BUILDS_ROOT = os.path.join('.', 'Builds')
 
 SOURCE_FILES = [
     ('Automation', ['psi_ops.py', 'psi_ops_cms.py', 'psi_utils.py']),
-    ('Server', ['psi_config.py', 'psi_psk.py', 'psi_web.py'])
+    ('Server', ['psi_config.py', 'psi_psk.py', 'psi_web.py', 'psi_auth.py', 'pam.py'])
 ]
 
 #==============================================================================
@@ -62,6 +62,9 @@ def deploy_implementation(host):
 
     ssh.exec_command('chmod +x %s' % (
             posixpath.join(psi_config.HOST_SOURCE_ROOT, 'Server', 'psi_web.py'),))
+
+    ssh.exec_command('chmod +x %s' % (
+            posixpath.join(psi_config.HOST_SOURCE_ROOT, 'Server', 'psi_auth.py'),))
 
     remote_ip_down_file_path = posixpath.join(psi_config.HOST_IP_DOWN_DIR, 'psi-ip-down')
     ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', 'psi-ip-down'),
