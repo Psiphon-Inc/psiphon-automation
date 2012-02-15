@@ -98,7 +98,8 @@ except ImportError as error:
 # Modules available only on the node server
 
 try:
-    import GeoIP
+    sys.path.insert(0, os.path.abspath(os.path.join('..', 'Server')))
+    import psi_geoip
 except ImportError:
     pass
 
@@ -1297,32 +1298,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return ([self.__get_encoded_server_entry(server) for server in servers],
                 [server.egress_ip_address for server in servers])
         
-    def get_region(self, client_ip_address):
-        try:
-            region = None
-            # Use the commercial "city" database is available
-            city_db_filename = '/usr/local/share/GeoIP/GeoIPCity.dat'
-            if os.path.isfile(city_db_filename):
-                record = GeoIP.open(city_db_filename,
-                                    GeoIP.GEOIP_MEMORY_CACHE).record_by_name(client_ip_address)
-                if record:
-                    region = record['country_code']
-            else:
-                region = GeoIP.new(GeoIP.GEOIP_MEMORY_CACHE).country_code_by_name(client_ip_address)
-            if region is None:
-                region = 'None'
-            return region
-        except NameError:
-            # Handle the case where the GeoIP module isn't installed
-            return 'None'
-    
     def __get_sponsor_home_pages(self, sponsor_id, client_ip_address, region=None):
         # Web server support function: fails gracefully
         if sponsor_id not in self.__sponsors:
             return []
         sponsor = self.__sponsors[sponsor_id]
         if not region:
-            region = self.get_region(client_ip_address)
+            region = psi_geoip.get_region(client_ip_address)
         # case: lookup succeeded and corresponding region home page found
         sponsor_home_pages = []
         if region in sponsor.home_pages:
