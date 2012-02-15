@@ -91,11 +91,25 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
         # urlib2 ProxyHandler picks up the Windows Internet Settings and uses the
         # HTTP Proxy that is set by the client.
         urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler()))
-        egress_ip_address = urllib2.urlopen(psi_ops_build.CHECK_IP_ADDRESS_URL).read().split('\n')[0]
+
+        # Split tunnel not implemented for VPN
+        if transport != 'VPN':
+            # Get egress IP from web site in same GeoIP region; local split tunnel is not proxied
+
+            egress_ip_address = urllib2.urlopen(psi_ops_build.CHECK_IP_ADDRESS_URL_LOCAL).read().split('\n')[0]
+
+            if egress_ip_address in expected_egress_ip_addresses:
+                raise Exception('Local case: egress is %s and expected egresses are %s' % (
+                                    egress_ip_address, ','.join(expected_egress_ip_addresses)))
+
+        # Get egress IP from web site in different GeoIP region; remote split tunnel is proxied
+
+        egress_ip_address = urllib2.urlopen(psi_ops_build.CHECK_IP_ADDRESS_URL_REMOTE).read().split('\n')[0]
 
         if egress_ip_address not in expected_egress_ip_addresses:
-            raise Exception('egress is %s and expected egresses are %s' % (
+            raise Exception('Remote case: egress is %s and expected egresses are %s' % (
                                 egress_ip_address, ','.join(expected_egress_ip_addresses)))
+        
     finally:
         if transport_type and transport_value:
             _winreg.SetValueEx(reg_key, REGISTRY_TRANSPORT_VALUE, None, transport_type, transport_value)
