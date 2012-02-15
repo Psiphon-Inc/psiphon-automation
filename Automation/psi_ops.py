@@ -1358,57 +1358,50 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     
     def handshake(self, server_ip_address, client_ip_address,
                   propagation_channel_id, sponsor_id, client_version, event_logger=None):
-        # Handshake output is a series of Name:Value lines returned to the client
-        output = []
-    
+        # Legacy handshake output is a series of Name:Value lines returned to 
+        # the client. That format will continue to be supported (old client 
+        # versions expect it), but the new format of a JSON-ified object will
+        # also be output.
+
+        config = {}
+
         # Give client a set of landing pages to open when connection established
-        homepage_urls = self.__get_sponsor_home_pages(sponsor_id, client_ip_address)
-        for homepage_url in homepage_urls:
-            output.append('Homepage: %s' % (homepage_url,))
-    
+        config['homepages'] = self.__get_sponsor_home_pages(sponsor_id, client_ip_address)
+
         # Tell client if an upgrade is available
-        upgrade_client_version = self.__check_upgrade(client_version)
-        if upgrade_client_version:
-            output.append('Upgrade: %s' % (upgrade_client_version,))
-    
+        config['upgrade_client_version'] = self.__check_upgrade(client_version)
+
         # Discovery
-        encoded_server_list, expected_egress_ip_addresses = \
+        config['encoded_server_list'], _ = \
                     self.__get_encoded_server_list(
                                                 propagation_channel_id,
                                                 client_ip_address,
                                                 event_logger=event_logger)
-        for encoded_server_entry in encoded_server_list:
-            output.append('Server: %s' % (encoded_server_entry,))
-    
+
         # VPN relay protocol info
-        # Note: this is added in the handshake handler in psi_web
-        # output.append(psi_psk.set_psk(self.server_ip_address))
-    
+        # Note: The VPN PSK will be added in higher up the call stack
+
         # SSH relay protocol info
         #
         # SSH Session ID is a randomly generated unique ID used for
         # client-side session duration reporting
         #
-        server = filter(lambda x : x.ip_address == server_ip_address,
-                        self.__servers.itervalues())[0]
-        if server.ssh_host_key:
-            output.append('SSHPort: %s' % (server.ssh_port,))
-            output.append('SSHUsername: %s' % (server.ssh_username,))
-            output.append('SSHPassword: %s' % (server.ssh_password,))
-            key_type, host_key = server.ssh_host_key.split(' ')
-            assert(key_type == 'ssh-rsa')
-            output.append('SSHHostKey: %s' % (host_key,))
-            output.append('SSHSessionID: %s' % (binascii.hexlify(os.urandom(8)),))
-            # Obfuscated SSH fields are optional
-            if server.ssh_obfuscated_port:
-                output.append('SSHObfuscatedPort: %s' % (server.ssh_obfuscated_port,))
-                output.append('SSHObfuscatedKey: %s' % (server.ssh_obfuscated_key,))
+        server = next(server for server in self.__servers.itervalues() 
+                      if server.ip_address == server_ip_address)
 
-        # Additional Configuration
-        # Extra config is JSON-encoded.
+        ssh_host_key_type, ssh_host_key = server.ssh_host_key.split(' ')
+        assert(ssh_host_key_type == 'ssh-rsa')
+
+        config['ssh_port'] = server.ssh_port
+        config['ssh_username'] = server.ssh_username
+        config['ssh_password'] = server.ssh_password
+        ssh_host_key_type, config['ssh_host_key'] = server.ssh_host_key.split(' ')
+        assert(ssh_host_key_type == 'ssh-rsa')
+        config['ssh_session_id'] = binascii.hexlify(os.urandom(8))
+        config['ssh_obfuscated_port'] = server.ssh_obfuscated_port
+        config['ssh_obfuscated_key'] = server.ssh_obfuscated_key
+
         # Give client a set of regexes indicating which pages should have individual stats
-        config = {}
-        
         config['page_view_regexes'] = []
         for sponsor_regex in self._get_sponsor_page_view_regexes(sponsor_id):
             config['page_view_regexes'].append({
@@ -1432,9 +1425,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 'request_path' : speed_test_url.request_path
             }
 
-        output.append('Config: ' + json.dumps(config))
-        
-        return output
+        return config
     
     def get_host_by_provider_id(self, provider_id):
         for host in self.__hosts.itervalues():
