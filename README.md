@@ -27,13 +27,11 @@ TODO
 
 - Make sure old bug is fixed: All instances of HTTPSRequest should fail over.
   (In previous code, ConnectionThread does port failover but UpgradeThread doesn't.)
+  - Surely this will come naturally from the ServerRequest changes.
 
-if transport->requires_handshake(serverEntry)
-  do handshake
-  transport connect
-else 
-  transport connect
-  do handshake through transport
+- Test None/null values in the handshake JSON. For example, I think the upgrade
+  version can theoretically be None/null. The desired behaviour is that it get
+  the default empty string value when pulling it out of JSON.
 
 
 ----END ssh-with-no-handshake NOTES----
