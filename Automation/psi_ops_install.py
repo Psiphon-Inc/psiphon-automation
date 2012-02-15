@@ -35,6 +35,9 @@ SSL_CERTIFICATE_KEY_TYPE = crypto.TYPE_RSA
 SSL_CERTIFICATE_KEY_SIZE = 2048
 SSL_CERTIFICATE_DIGEST_TYPE = 'sha1'
 SSL_CERTIFICATE_VALIDITY = (60*60*24*365*10) # 10 years
+SSH_RANDOM_USERNAME_SUFFIX_BYTE_LENGTH = 8
+SSH_PASSWORD_BYTE_LENGTH = 32
+SSH_OBFUSCATED_KEY_BYTE_LENGTH = 32
 
 
 #==== Helpers ==================================================================
@@ -444,8 +447,9 @@ def install_host(host, servers, existing_server_ids):
         # They will be updated in the database below.
         if (server.ssh_username is None
             or server.ssh_password is None):
-            server.ssh_username = 'psiphon_ssh_%s' % (binascii.hexlify(os.urandom(8)),)
-            server.ssh_password = binascii.hexlify(os.urandom(32))
+            server.ssh_username = 'psiphon_ssh_%s' % (
+                binascii.hexlify(os.urandom(SSH_RANDOM_USERNAME_SUFFIX_BYTE_LENGTH)),)
+            server.ssh_password = binascii.hexlify(os.urandom(SSH_PASSWORD_BYTE_LENGTH))
         if server.ssh_host_key is None:
             ssh.exec_command('rm /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (server.ip_address,))
             ssh.exec_command('ssh-keygen -t rsa -N \"\" -f /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (server.ip_address,))
@@ -467,7 +471,7 @@ def install_host(host, servers, existing_server_ids):
         ssh.exec_command(make_sshd_config_file_command(server.ip_address, server.ssh_username))
         if server.ssh_obfuscated_port is not None:
             if server.ssh_obfuscated_key is None:
-                server.ssh_obfuscated_key = binascii.hexlify(os.urandom(32))
+                server.ssh_obfuscated_key = binascii.hexlify(os.urandom(SSH_OBFUSCATED_KEY_BYTE_LENGTH))
             ssh.exec_command(make_obfuscated_sshd_config_file_command(server.ip_address, server.ssh_username,
                                                     server.ssh_obfuscated_port, server.ssh_obfuscated_key))
         # NOTE we do not write the ssh host key back to the server because it is generated
