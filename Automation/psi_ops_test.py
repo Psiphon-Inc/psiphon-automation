@@ -96,7 +96,7 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
         if transport != 'VPN':
             # Get egress IP from web site in same GeoIP region; local split tunnel is not proxied
 
-            egress_ip_address = urllib2.urlopen(psi_ops_build.CHECK_IP_ADDRESS_URL_LOCAL).read().split('\n')[0]
+            egress_ip_address = urllib2.urlopen(psi_ops_build.CHECK_IP_ADDRESS_URL_LOCAL, timeout=30).read().split('\n')[0]
 
             if egress_ip_address in expected_egress_ip_addresses:
                 raise Exception('Local case: egress is %s and expected egresses are %s' % (
@@ -104,7 +104,7 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
 
         # Get egress IP from web site in different GeoIP region; remote split tunnel is proxied
 
-        egress_ip_address = urllib2.urlopen(psi_ops_build.CHECK_IP_ADDRESS_URL_REMOTE).read().split('\n')[0]
+        egress_ip_address = urllib2.urlopen(psi_ops_build.CHECK_IP_ADDRESS_URL_REMOTE, timeout=30).read().split('\n')[0]
 
         if egress_ip_address not in expected_egress_ip_addresses:
             raise Exception('Remote case: egress is %s and expected egresses are %s' % (
