@@ -22,6 +22,22 @@ Two design statements:
 
 TODO
 
+- Put TransportConnection into separate file.
+
+- LocalProxy NEEDS an UpdateSessionInfo function. The regexes are only available
+  *after* a handshake, but the LocalProxy needs to be connected *before* the 
+  handshake can happen (for SSH). Needs to be threadsafe.
+
+- Make sure to set up LocalProxy and call systemProxySettings.Apply() before 
+  trying to do any requests through transport. (So, before trying to do any
+  requests at all -- delay post-SSH-connect-handshake, upgrade stuff, etc.)
+
+- Figure out what connection name should be used for determining the
+
+- Do not ignore system proxy settings when connecting directly to server via HTTPS.
+  - Probably should use system settings always -- it makes sense whether we have a
+    transport up or not (as long as we have the SystemProxySettings set up).
+
 - Upgrade known ServerEntries that lack SSH creds to new form as they are retrieved
   (in the handshake).
 
