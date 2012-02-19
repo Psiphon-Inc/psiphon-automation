@@ -22,24 +22,30 @@ Two design statements:
 
 TODO
 
-- Put TransportConnection into separate file.
+- If we're not careful, we'll be introducing/amplying a pretty bad race 
+  condition. Primary example:
+      1. User clicks disconnect.
+      2. LocalProxy worker thread notices user-cancel flag. Breaks busy-wait;
+         calls DoStop. 
+      3. LocalProxy::DoStop does final stats-and-status request to server.
+      4. ServerRequest::MakeRequest notices that the transport is still up, so 
+         routes the request through the transport.
+      5. ...and then then Transport worker thread notices the user-cancel flag 
+         and tears down the transport. While the stats-and-status request is 
+         in progress.
 
-- LocalProxy NEEDS an UpdateSessionInfo function. The regexes are only available
-  *after* a handshake, but the LocalProxy needs to be connected *before* the 
-  handshake can happen (for SSH). Needs to be threadsafe.
+- Current server iptables settings probably need to be modified to allow the 
+  handshake (etc.) to succeed through the transport.
 
-- Make sure to set up LocalProxy and call systemProxySettings.Apply() before 
-  trying to do any requests through transport. (So, before trying to do any
-  requests at all -- delay post-SSH-connect-handshake, upgrade stuff, etc.)
+- Determine if WinHttpGetIEProxyConfigForCurrentUser is the correct/best way to
+  deterine the correct local proxy settings (both when our LocalProxy is and 
+  isn't up). See HTTPSRequest::GetSystemDefaultHTTPSProxy().
+  - SystemProxySettings has some code to determine local proxy info, but then
+    we need to figure out which connection name to use. And maybe using a 
+    WinHTTP function in HTTPSRequest makes mroe sense.
 
-- Figure out what connection name should be used for determining the
-
-- Do not ignore system proxy settings when connecting directly to server via HTTPS.
-  - Probably should use system settings always -- it makes sense whether we have a
-    transport up or not (as long as we have the SystemProxySettings set up).
-
-- Upgrade known ServerEntries that lack SSH creds to new form as they are retrieved
-  (in the handshake).
+- Upgrade known ServerEntries that lack SSH creds to new form as they are 
+  retrieved (in the handshake).
 
 - Make sure old bug is fixed: All instances of HTTPSRequest should fail over.
   (In previous code, ConnectionThread does port failover but UpgradeThread doesn't.)
@@ -48,6 +54,8 @@ TODO
 - Test None/null values in the handshake JSON. For example, I think the upgrade
   version can theoretically be None/null. The desired behaviour is that it get
   the default empty string value when pulling it out of JSON.
+
+- Put SystemProxySettings calls entirely in LocalProxy?
 
 
 ----END ssh-with-no-handshake NOTES----
