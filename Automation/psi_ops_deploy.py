@@ -35,8 +35,19 @@ import psi_config
 BUILDS_ROOT = os.path.join('.', 'Builds')
 
 SOURCE_FILES = [
-    ('Automation', ['psi_ops.py', 'psi_ops_cms.py', 'psi_utils.py']),
-    ('Server', ['psi_config.py', 'psi_psk.py', 'psi_web.py', 'psi_auth.py', 'pam.py'])
+    ('Automation',
+     ['psi_ops.py',
+      'psi_ops_cms.py',
+      'psi_utils.py'
+     ]),
+
+    ('Server',
+     ['psi_config.py',
+      'psi_psk.py',
+      'psi_web.py',
+      'psi_auth.py',
+      'psi_geoip.py',
+      'pam.py'])
 ]
 
 #==============================================================================
