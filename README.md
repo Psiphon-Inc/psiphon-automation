@@ -25,6 +25,10 @@ TODO
 - Current server iptables settings probably need to be modified to allow the 
   handshake (etc.) to succeed through the transport.
 
+- Make sure to test generated client. Embedded values should be different format now.
+
+- Test real campaign (regexes, speed test, discovery).
+
 - Determine if WinHttpGetIEProxyConfigForCurrentUser is the correct/best way to
   deterine the correct local proxy settings (both when our LocalProxy is and 
   isn't up). See HTTPSRequest::GetSystemDefaultHTTPSProxy().
@@ -38,8 +42,6 @@ TODO
 - Test None/null values in the handshake JSON. For example, I think the upgrade
   version can theoretically be None/null. The desired behaviour is that it get
   the default empty string value when pulling it out of JSON.
-
-- Make sure to test generated client. Embedded values should be different format now.
 
 Things to explain
 - Programmatic transport priority
