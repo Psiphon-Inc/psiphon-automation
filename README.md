@@ -39,9 +39,10 @@ TODO
   version can theoretically be None/null. The desired behaviour is that it get
   the default empty string value when pulling it out of JSON.
 
+- Make sure to test generated client. Embedded values should be different format now.
+
 Things to explain
 - Programmatic transport priority
-- Using HTTPSRequest directly is almost always wrong
 
 ----END ssh-with-no-handshake NOTES----
 Overview

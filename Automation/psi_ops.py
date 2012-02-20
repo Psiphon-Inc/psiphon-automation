@@ -1374,13 +1374,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         ssh_host_key_type, ssh_host_key = server.ssh_host_key.split(' ')
         assert(ssh_host_key_type == 'ssh-rsa')
 
-        config['ssh_port'] = server.ssh_port
+        config['ssh_port'] = int(server.ssh_port)
         config['ssh_username'] = server.ssh_username
         config['ssh_password'] = server.ssh_password
         ssh_host_key_type, config['ssh_host_key'] = server.ssh_host_key.split(' ')
         assert(ssh_host_key_type == 'ssh-rsa')
         config['ssh_session_id'] = binascii.hexlify(os.urandom(8))
-        config['ssh_obfuscated_port'] = server.ssh_obfuscated_port
+        config['ssh_obfuscated_port'] = int(server.ssh_obfuscated_port)
         config['ssh_obfuscated_key'] = server.ssh_obfuscated_key
 
         # Give client a set of regexes indicating which pages should have individual stats
@@ -1403,7 +1403,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             speed_test_url = random.choice(self.__speed_test_urls)
             config['speed_test_url'] = {
                 'server_address' : speed_test_url.server_address,
-                'server_port' : speed_test_url.server_port,
+                'server_port' : int(speed_test_url.server_port),
                 'request_path' : speed_test_url.request_path
             }
 
