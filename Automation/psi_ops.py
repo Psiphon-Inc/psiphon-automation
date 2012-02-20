@@ -1403,7 +1403,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             speed_test_url = random.choice(self.__speed_test_urls)
             config['speed_test_url'] = {
                 'server_address' : speed_test_url.server_address,
-                'server_port' : int(speed_test_url.server_port),
+                # For backwards-compatibility reasons, this can't be cast to int
+                'server_port' : speed_test_url.server_port,
                 'request_path' : speed_test_url.request_path
             }
 
