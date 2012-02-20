@@ -1256,7 +1256,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         extended_config['sshPort'] = int(server.ssh_port) if server.ssh_port else 0
         extended_config['sshUsername'] = server.ssh_username if server.ssh_username else ''
         extended_config['sshPassword'] = server.ssh_password if server.ssh_password else ''
-        extended_config['sshHostKey'] = server.ssh_host_key if server.ssh_host_key else ''
+
+        extended_config['sshHostKey'] = ''
+        if server.ssh_host_key:
+            ssh_host_key_type, extended_config['sshHostKey'] = server.ssh_host_key.split(' ')
+            assert(ssh_host_key_type == 'ssh-rsa')
+
         extended_config['sshObfuscatedPort'] = int(server.ssh_obfuscated_port) if server.ssh_obfuscated_port else 0
         extended_config['sshObfuscatedKey'] = server.ssh_obfuscated_key if server.ssh_obfuscated_key else ''
 
@@ -1374,9 +1379,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         #
         server = next(server for server in self.__servers.itervalues() 
                       if server.ip_address == server_ip_address)
-
-        ssh_host_key_type, ssh_host_key = server.ssh_host_key.split(' ')
-        assert(ssh_host_key_type == 'ssh-rsa')
 
         config['ssh_port'] = int(server.ssh_port)
         config['ssh_username'] = server.ssh_username
