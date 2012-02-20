@@ -22,20 +22,6 @@ Two design statements:
 
 TODO
 
-- If we're not careful, we'll be introducing/amplifying a pretty bad race 
-  condition. Primary example:
-      1. User clicks disconnect.
-      2. LocalProxy worker thread notices user-cancel flag. Breaks busy-wait;
-         calls DoStop. 
-      3. LocalProxy::DoStop does final stats-and-status request to server.
-      4. ServerRequest::MakeRequest notices that the transport is still up, so 
-         routes the request through the transport.
-      5. ...and then then Transport worker thread notices the user-cancel flag 
-         and tears down the transport. While the stats-and-status request is 
-         in progress.
-  This is somewhat related to any attempt to make sure the final 
-  stats-and-status request goes through the established transport. 
-
 - Current server iptables settings probably need to be modified to allow the 
   handshake (etc.) to succeed through the transport.
 
