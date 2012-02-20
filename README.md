@@ -58,6 +58,9 @@ TODO
 - Rethink if it makes sense to exclude the "current" transport from 
   temp/failover transports. 
 
+- Make sure session reconstruction is okay with the fact that the final /status
+  might use a different protocol than the rest of the session.
+
 Things to explain
 - Programmatic transport priority
 
