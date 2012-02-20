@@ -46,6 +46,18 @@ TODO
   version can theoretically be None/null. The desired behaviour is that it get
   the default empty string value when pulling it out of JSON.
 
+- Known bug that might be too minor to fix: If polipo or plonk crashes, 
+  LocalProxy will try to send its last /status before the SystemProxySettings
+  are restored (cleared). ServerRequest will first try HTTPS:8080 and HTTPS:443
+  through the proxy, which will quickly fail (because either polipo or plonk isn't 
+  there); then it will brink up a temp transport (which may or may not work --
+  the "current transport" is excluded from consideration). This is surely 
+  fixable, but it's not immediately obvious how. And it'll be unusual. And 
+  it will sometimes succeed.
+
+- Rethink if it makes sense to exclude the "current" transport from 
+  temp/failover transports. 
+
 Things to explain
 - Programmatic transport priority
 
