@@ -39,9 +39,6 @@ TODO
     we need to figure out which connection name to use. And maybe using a 
     WinHTTP function in HTTPSRequest makes more sense.
 
-- Upgrade known ServerEntries that lack SSH creds to new form as they are 
-  retrieved (in the handshake).
-
 - Test None/null values in the handshake JSON. For example, I think the upgrade
   version can theoretically be None/null. The desired behaviour is that it get
   the default empty string value when pulling it out of JSON.
