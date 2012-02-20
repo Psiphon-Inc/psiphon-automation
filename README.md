@@ -39,8 +39,6 @@ TODO
   version can theoretically be None/null. The desired behaviour is that it get
   the default empty string value when pulling it out of JSON.
 
-- Put SystemProxySettings calls entirely in LocalProxy?
-
 
 ----END ssh-with-no-handshake NOTES----
 Overview
