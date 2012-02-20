@@ -49,10 +49,6 @@ TODO
 - Upgrade known ServerEntries that lack SSH creds to new form as they are 
   retrieved (in the handshake).
 
-- Make sure old bug is fixed: All instances of HTTPSRequest should fail over.
-  (In previous code, ConnectionThread does port failover but UpgradeThread doesn't.)
-  - Surely this will come naturally from the ServerRequest changes.
-
 - Test None/null values in the handshake JSON. For example, I think the upgrade
   version can theoretically be None/null. The desired behaviour is that it get
   the default empty string value when pulling it out of JSON.
