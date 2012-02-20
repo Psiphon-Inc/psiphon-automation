@@ -22,7 +22,7 @@ Two design statements:
 
 TODO
 
-- If we're not careful, we'll be introducing/amplying a pretty bad race 
+- If we're not careful, we'll be introducing/amplifying a pretty bad race 
   condition. Primary example:
       1. User clicks disconnect.
       2. LocalProxy worker thread notices user-cancel flag. Breaks busy-wait;
@@ -33,6 +33,8 @@ TODO
       5. ...and then then Transport worker thread notices the user-cancel flag 
          and tears down the transport. While the stats-and-status request is 
          in progress.
+  This is somewhat related to any attempt to make sure the final 
+  stats-and-status request goes through the established transport. 
 
 - Current server iptables settings probably need to be modified to allow the 
   handshake (etc.) to succeed through the transport.
@@ -42,7 +44,7 @@ TODO
   isn't up). See HTTPSRequest::GetSystemDefaultHTTPSProxy().
   - SystemProxySettings has some code to determine local proxy info, but then
     we need to figure out which connection name to use. And maybe using a 
-    WinHTTP function in HTTPSRequest makes mroe sense.
+    WinHTTP function in HTTPSRequest makes more sense.
 
 - Upgrade known ServerEntries that lack SSH creds to new form as they are 
   retrieved (in the handshake).
