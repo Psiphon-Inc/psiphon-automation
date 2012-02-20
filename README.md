@@ -29,6 +29,9 @@ TODO
 
 - Test real campaign (regexes, speed test, discovery).
 
+- Test failover to temp-transport in ServerRequest. It won't happen naturally.
+  Like, HTTPS is never going to fail for us in debugging without special effort.
+
 - Determine if WinHttpGetIEProxyConfigForCurrentUser is the correct/best way to
   deterine the correct local proxy settings (both when our LocalProxy is and 
   isn't up). See HTTPSRequest::GetSystemDefaultHTTPSProxy().
