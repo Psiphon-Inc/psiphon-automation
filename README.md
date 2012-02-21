@@ -70,11 +70,6 @@ TODO
     we need to figure out which connection name to use. And maybe using a 
     WinHTTP function in HTTPSRequest makes more sense.
 
-- After resuming from system sleep, my system ended up in a state where I could
-  no longer connect at all -- even after closing the app and clearing proxy 
-  settings and restarting it. (Hopefully after reboot...)
-  - ... or maybe this was a coincidence and actually due to the change in firewall rules.
-
 - Maybe now, maybe future: Remember which method worked last time for 
   extra-transport requests, and skip to it next time.
 
