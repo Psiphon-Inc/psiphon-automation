@@ -70,6 +70,9 @@ TODO
 - Temp-transport failover (like, one of the transports actually failing) might
   not be behaving correctly. Test.
 
+- Maybe now, maybe future: Remember which method worked last time for 
+  extra-transport requests, and skip to it next time.
+
 ----END ssh-with-no-handshake NOTES----
 Overview
 --------------------------------------------------------------------------------
