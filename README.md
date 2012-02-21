@@ -61,6 +61,7 @@ TODO
 - After resuming from system sleep, my system ended up in a state where I could
   no longer connect at all -- even after closing the app and clearing proxy 
   settings and restarting it. (Hopefully after reboot...)
+  - ... or maybe this was a coincidence and actually due to the change in firewall rules.
 
 - If one "synchronized exit" worker threat exits messily, the other one should
   not do the clean, StopImminent exit. In particular, if Plonk does, Polipo 
