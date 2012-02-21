@@ -415,7 +415,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         s = self.__servers[server_id]
         print textwrap.dedent('''
             Server:                  %s
-            Host:                    %s %s/%s
+            Host:                    %s %s %s/%s
             IP Address:              %s
             Propagation Channel:     %s
             Is Embedded:             %s
@@ -423,6 +423,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             ''') % (
                 s.id,
                 s.host_id,
+                self.__hosts[s.host_id].ip_address,
                 self.__hosts[s.host_id].ssh_username,
                 self.__hosts[s.host_id].ssh_password,
                 s.ip_address,
