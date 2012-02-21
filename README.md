@@ -22,9 +22,6 @@ Two design statements:
 
 TODO
 
-- Bug: Switching from OSSH to VPN during a connect sequence took a long time 
-  to do anything, and then marked current server as failed and tried next server.
-
 - Bug: /connected is getting 404. Maybe not 100% of the time (I've seen it work
   and fail when connected with VPN, for example).
 
@@ -49,9 +46,6 @@ TODO
     have a nagging suspicion that the tunnel won't be town down all the way
     and bad things might result (this is some testing that needs to be done
     regardless).]
-
-- VPN disconnect is very slow. Might be related to previous bug. (But my HTTPS isn't blocked...)
-  - Might not be related. Added some my_prints around the stats sending and don't see it slow.
 
 - Make sure to test generated client. Embedded values should be different format now.
 
