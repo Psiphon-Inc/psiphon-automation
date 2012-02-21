@@ -56,10 +56,7 @@ TODO
   temp/failover transports. 
 
 - Make sure session reconstruction is okay with the fact that the final /status
-  might use a different protocol than the rest of the session.
-
-Things to explain
-- Programmatic transport priority
+  might use a different protocol than the rest of the session. (Better be.)
 
 ----END ssh-with-no-handshake NOTES----
 Overview
