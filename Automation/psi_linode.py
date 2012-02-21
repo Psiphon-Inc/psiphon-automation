@@ -48,7 +48,7 @@ def create_linode(linode_api):
     # -1: Being Created
     #  0: Brand New
     wait_while_condition(lambda: linode_api.linode_list(LinodeID=new_node_id)[0]['STATUS'] == -1,
-                         30,
+                         60,
                          'create a linode')
     assert(linode_api.linode_list(LinodeID=new_node_id)[0]['STATUS'] == 0)
     return new_node_id
@@ -136,33 +136,39 @@ def get_host_name(linode_account, ip_address):
 
     
 def launch_new_server(linode_account):
+    linode_id = None
     linode_api = linode.api.Api(key=linode_account.api_key)
     
     # Power on the base image linode
     start_linode(linode_api, linode_account.base_id, None)
     
-    # Create a new linode
-    new_root_password = psi_utils.generate_password()
-    linode_id = create_linode(linode_api)
-    disk_ids = create_linode_disks(linode_api, linode_id, new_root_password)
-    bootstrap_config_id, psiphon3_host_config_id = create_linode_configurations(linode_api, linode_id, ','.join(disk_ids))
-    start_linode(linode_api, linode_id, bootstrap_config_id)
-    
-    # Clone the base linode
-    linode_ip_address = linode_api.linode_ip_list(LinodeID=linode_id)[0]['IPADDRESS']
-    pave_linode(linode_account, linode_ip_address, new_root_password)
-    stop_linode(linode_api, linode_id)
-    start_linode(linode_api, linode_id, psiphon3_host_config_id)
-    
-    # Power down the base image linode
-    stop_linode(linode_api, linode_account.base_id)
+    try:
+        # Create a new linode
+        new_root_password = psi_utils.generate_password()
+        linode_id = create_linode(linode_api)
+        disk_ids = create_linode_disks(linode_api, linode_id, new_root_password)
+        bootstrap_config_id, psiphon3_host_config_id = create_linode_configurations(linode_api, linode_id, ','.join(disk_ids))
+        start_linode(linode_api, linode_id, bootstrap_config_id)
+        
+        # Clone the base linode
+        linode_ip_address = linode_api.linode_ip_list(LinodeID=linode_id)[0]['IPADDRESS']
+        pave_linode(linode_account, linode_ip_address, new_root_password)
+        stop_linode(linode_api, linode_id)
+        start_linode(linode_api, linode_id, psiphon3_host_config_id)
+        
+        # Query hostname
+        hostname = get_host_name(linode_account, linode_ip_address)
 
-    # Query hostname
-    hostname = get_host_name(linode_account, linode_ip_address)
-
-    # Change the new linode's credentials
-    new_stats_password = psi_utils.generate_password()
-    new_host_public_key = refresh_credentials(linode_account, linode_ip_address, new_root_password, new_stats_password)
+        # Change the new linode's credentials
+        new_stats_password = psi_utils.generate_password()
+        new_host_public_key = refresh_credentials(linode_account, linode_ip_address, new_root_password, new_stats_password)
+    except Exception as ex:
+        if linode_id:
+            remove_server(linode_account, linode_id)
+        raise
+    finally:
+        # Power down the base image linode
+        stop_linode(linode_api, linode_account.base_id)
 
     return (hostname, None, str(linode_id), linode_ip_address,
             linode_account.base_ssh_port, 'root', new_root_password,
