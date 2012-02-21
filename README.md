@@ -58,6 +58,18 @@ TODO
 - Make sure session reconstruction is okay with the fact that the final /status
   might use a different protocol than the rest of the session. (Better be.)
 
+- After resuming from system sleep, my system ended up in a state where I could
+  no longer connect at all -- even after closing the app and clearing proxy 
+  settings and restarting it. (Hopefully after reboot...)
+
+- If one "synchronized exit" worker threat exits messily, the other one should
+  not do the clean, StopImminent exit. In particular, if Plonk does, Polipo 
+  should not try to do a final /status (until cleanup) -- it won't succeed, 
+  and it'll take a long time.
+
+- Temp-transport failover (like, one of the transports actually failing) might
+  not be behaving correctly. Test.
+
 ----END ssh-with-no-handshake NOTES----
 Overview
 --------------------------------------------------------------------------------
