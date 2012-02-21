@@ -736,7 +736,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             print 'starting %s process (up to 20 minutes)...' % provider
 
             # Create a new cloud VPS
-            server_info = provider_launch_new_server(provider_account)
+            def provider_launch_new_server_with_retries():
+                for _ in range(3):
+                    try:
+                        return provider_launch_new_server(provider_account)
+                    except Exception as ex:
+                        pass
+                raise ex
+
+            server_info = provider_launch_new_server_with_retries()
             host = Host(*server_info)
             host.provider = provider.lower()
 
