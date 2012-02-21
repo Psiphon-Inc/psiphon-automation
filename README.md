@@ -22,9 +22,6 @@ Two design statements:
 
 TODO
 
-- Bug: /connected is getting 404. Maybe not 100% of the time (I've seen it work
-  and fail when connected with VPN, for example).
-
 - HTTPS requests to server aren't tunneled through VPN. Ever. This is very bad.
   But the fix is probably very hard. The real fix for this might have to wait.
   - What will happen now (if HTTPS is blocked) -- which might be acceptable:
@@ -72,15 +69,6 @@ TODO
   - SystemProxySettings has some code to determine local proxy info, but then
     we need to figure out which connection name to use. And maybe using a 
     WinHTTP function in HTTPSRequest makes more sense.
-
-- Known bug that might be too minor to fix: If polipo or plonk crashes, 
-  LocalProxy will try to send its last /status before the SystemProxySettings
-  are restored (cleared). ServerRequest will first try HTTPS:8080 and HTTPS:443
-  through the proxy, which will quickly fail (because either polipo or plonk isn't 
-  there); then it will brink up a temp transport (which may or may not work --
-  the "current transport" is excluded from consideration). This is surely 
-  fixable, but it's not immediately obvious how. And it'll be unusual. And 
-  it will sometimes succeed.
 
 - After resuming from system sleep, my system ended up in a state where I could
   no longer connect at all -- even after closing the app and clearing proxy 
