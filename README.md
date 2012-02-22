@@ -22,6 +22,12 @@ Two design statements:
 
 TODO
 
+- Polipo doesn't detect when a split-tunnel rules file is overwritten.  So if
+  someone uses Psiphon 3 from Country A, then travels to Country B, the first
+  time they use Psiphon 3 in Country B they will still be using split tunnel rules
+  for Country A.  At the start of the session, we should make sure that no route
+  file exists.
+  
 - Current server iptables settings probably need to be modified to allow the 
   handshake (etc.) to succeed through the transport.
 
