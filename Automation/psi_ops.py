@@ -696,6 +696,23 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(server.id not in self.__servers)
         self.__servers[server.id] = server
         
+    def replace_propagation_channel_servers(self, propagation_channel_name,
+                                            new_discovery_servers_count,
+                                            new_propagation_servers_count):
+        assert(self.is_locked)
+        
+        # Use a default 2 week discovery date range.  This should be called more frequently.
+        now = datetime.datetime.now()
+        today = datetime.datetime(now.year, now.month, now.day)
+        new_discovery_date_range = (today, today + datetime.timedelta(weeks=2))
+                
+        if new_discovery_servers_count > 0:
+            self.add_servers(new_discovery_servers_count, propagation_channel_name, new_discovery_date_range)
+
+        if new_propagation_servers_count > 0:
+            self.add_servers(new_propagation_servers_count, propagation_channel_name, None)
+
+
     def add_servers(self, count, propagation_channel_name, discovery_date_range, replace_others=True):
         assert(self.is_locked)
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
