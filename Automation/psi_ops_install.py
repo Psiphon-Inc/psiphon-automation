@@ -382,6 +382,8 @@ def generate_self_signed_certificate():
 
 def install_host(host, servers, existing_server_ids):
 
+    install_firewall_rules(host)
+    
     # NOTE:
     # For partially configured hosts we need to completely reconfigure
     # all files because we use a counter in the xl2tpd config files that is not
@@ -537,3 +539,5 @@ def install_firewall_rules(host):
     ssh.put_file('iptables.rules', '/etc/iptables.rules')
     ssh.exec_command('iptables-restore < /etc/iptables.rules')
     ssh.exec_command('/etc/init.d/fail2ban restart')
+    ssh.close()
+    
