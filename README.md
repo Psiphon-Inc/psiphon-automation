@@ -28,8 +28,27 @@ TODO
   for Country A.  At the start of the session, we should make sure that no route
   file exists.
   
-- Current server iptables settings probably need to be modified to allow the 
-  handshake (etc.) to succeed through the transport.
+- HTTPS requests to server aren't tunneled through VPN. Ever. This is very bad.
+  But the fix is probably very hard. The real fix for this might have to wait.
+  - What will happen now (if HTTPS is blocked) -- which might be acceptable:
+    1. Handshake will be tried through HTTPS, OSSH, etc. It will succeed (or 
+       else we ain't doing VPN, so nothing to talk about).
+    2. VPN transport will connect.
+    3. While the transport is up, all other server requests will fail, since
+       they'll be assumed to be going through the tunnel, but won't be. (And,
+       remember, the assumption is that HTTPS is blocked.)
+    4. So we get no stats, but the user can still use VPN.
+	5. Disconnect will be really slow, since the final /status call will probably
+	   fail slowly.
+    [NOTE: We might actually get stats, which is good and bad. They'll accrue 
+    and accrue as the user browses, and won't get cleared out because the /status
+    request fails every time (memory usage: bad). When the tunnel is all torn
+    down and LocalProxy::Cleanup is call, there'll be a last attempt to send
+    the stats... and it'll succeed, since it'll try OSSH (good). I haven't
+    tested this, so I don't know if it'll actually work like this. And I even
+    have a nagging suspicion that the tunnel won't be town down all the way
+    and bad things might result (this is some testing that needs to be done
+    regardless).]
 
 - Make sure to test generated client. Embedded values should be different format now.
 
@@ -37,6 +56,18 @@ TODO
 
 - Test failover to temp-transport in ServerRequest. It won't happen naturally.
   Like, HTTPS is never going to fail for us in debugging without special effort.
+  - I have done some testing of failing from HTTPS to OSSH, but not on to SSH.
+  - I've seen some weirdness to suggest that there's a problem if a transport fails.
+
+- Make sure session reconstruction is okay with the fact that the final /status
+  might use a different protocol than the rest of the session. (Better be.)
+
+- Test None/null values in the handshake JSON. For example, I think the upgrade
+  version can theoretically be None/null. The desired behaviour is that it get
+  the default empty string value when pulling it out of JSON.
+
+- Rethink if it makes sense to exclude the "current" transport from 
+  temp/failover transports. 
 
 - Determine if WinHttpGetIEProxyConfigForCurrentUser is the correct/best way to
   deterine the correct local proxy settings (both when our LocalProxy is and 
@@ -44,38 +75,6 @@ TODO
   - SystemProxySettings has some code to determine local proxy info, but then
     we need to figure out which connection name to use. And maybe using a 
     WinHTTP function in HTTPSRequest makes more sense.
-
-- Test None/null values in the handshake JSON. For example, I think the upgrade
-  version can theoretically be None/null. The desired behaviour is that it get
-  the default empty string value when pulling it out of JSON.
-
-- Known bug that might be too minor to fix: If polipo or plonk crashes, 
-  LocalProxy will try to send its last /status before the SystemProxySettings
-  are restored (cleared). ServerRequest will first try HTTPS:8080 and HTTPS:443
-  through the proxy, which will quickly fail (because either polipo or plonk isn't 
-  there); then it will brink up a temp transport (which may or may not work --
-  the "current transport" is excluded from consideration). This is surely 
-  fixable, but it's not immediately obvious how. And it'll be unusual. And 
-  it will sometimes succeed.
-
-- Rethink if it makes sense to exclude the "current" transport from 
-  temp/failover transports. 
-
-- Make sure session reconstruction is okay with the fact that the final /status
-  might use a different protocol than the rest of the session. (Better be.)
-
-- After resuming from system sleep, my system ended up in a state where I could
-  no longer connect at all -- even after closing the app and clearing proxy 
-  settings and restarting it. (Hopefully after reboot...)
-  - ... or maybe this was a coincidence and actually due to the change in firewall rules.
-
-- If one "synchronized exit" worker threat exits messily, the other one should
-  not do the clean, StopImminent exit. In particular, if Plonk does, Polipo 
-  should not try to do a final /status (until cleanup) -- it won't succeed, 
-  and it'll take a long time.
-
-- Temp-transport failover (like, one of the transports actually failing) might
-  not be behaving correctly. Test.
 
 - Maybe now, maybe future: Remember which method worked last time for 
   extra-transport requests, and skip to it next time.
