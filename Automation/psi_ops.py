@@ -106,7 +106,9 @@ except ImportError:
 
 PropagationChannel = psi_utils.recordtype(
     'PropagationChannel',
-    'id, name, propagation_mechanism_types')
+    'id, name, propagation_mechanism_types, '+
+    'new_discovery_servers_count, new_propagation_servers_count, '+
+    'max_discovery_server_age_in_days, max_propagation_server_age_in_days')
 
 PropagationMechanism = psi_utils.recordtype(
     'PropagationMechanism',
@@ -226,7 +228,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__deploy_email_config_required = False
         self.__speed_test_urls = []
 
-    class_version = '0.5'
+    class_version = '0.6'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -250,6 +252,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.5')) < 0:
             self.__speed_test_urls = []
             self.version = '0.5'
+        if cmp(parse_version(self.version), parse_version('0.6')) < 0:
+            for propagation_channel in self.__propagation_channels.itervalues():
+                propagation_channel.new_discovery_servers_count = 0
+                propagation_channel.new_propagation_servers_count = 0
+                propagation_channel.max_discovery_server_age_in_days = 0
+                propagation_channel.max_propagation_server_age_in_days = 0
+            self.version = '0.6'
 
     def show_status(self):
         # NOTE: verbose mode prints credentials to stdout
@@ -383,23 +392,31 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         old_discovery_servers.sort()
         
         print textwrap.dedent('''
-            ID:                       %s
-            Name:                     %s
-            Propagation Mechanisms:   %s
-            Embedded Servers:         %s
-            Discovery Servers:        %s
-            Future Discovery Servers: %s
-            Old Propagation Servers:  %s
-            Old Discovery Servers:    %s
+            ID:                                %s
+            Name:                              %s
+            Propagation Mechanisms:            %s
+            New Propagation Servers:           %s
+            Max Propagation Server Age (days): %s
+            New Discovery Servers:             %s
+            Max Discovery Server Age (days):   %s
+            Embedded Servers:                  %s
+            Discovery Servers:                 %s
+            Future Discovery Servers:          %s
+            Old Propagation Servers:           %s
+            Old Discovery Servers:             %s
             ''') % (
                 p.id,
                 p.name,
-                '\n                          '.join(p.propagation_mechanism_types),
-                '\n                          '.join(embedded_servers),
-                '\n                          '.join(current_discovery_servers),
-                '\n                          '.join(future_discovery_servers),
-                '\n                          '.join(old_propagation_servers),
-                '\n                          '.join(old_discovery_servers))
+                '\n                                   '.join(p.propagation_mechanism_types),
+                str(p.new_propagation_servers_count),
+                str(p.max_propagation_server_age_in_days),
+                str(p.new_discovery_servers_count),
+                str(p.max_discovery_server_age_in_days),
+                '\n                                   '.join(embedded_servers),
+                '\n                                   '.join(current_discovery_servers),
+                '\n                                   '.join(future_discovery_servers),
+                '\n                                   '.join(old_propagation_servers),
+                '\n                                   '.join(old_discovery_servers))
         self.__show_logs(p)
 
     def show_servers(self):
@@ -456,11 +473,31 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def import_propagation_channel(self, id, name, propagation_mechanism_types):
         assert(self.is_locked)
         for type in propagation_mechanism_types: assert(type in self.__propagation_mechanisms)
-        propagation_channel = PropagationChannel(id, name, propagation_mechanism_types)
+        propagation_channel = PropagationChannel(id, name, propagation_mechanism_types, 0, 0, 0, 0)
         assert(id not in self.__propagation_channels)
         assert(not filter(lambda x:x.name == name, self.__propagation_channels.itervalues()))
         self.__propagation_channels[id] = propagation_channel
 
+    def set_propagation_channel_new_discovery_servers_count(self, propagation_channel_name, count):
+        assert(self.is_locked)
+        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+        propagation_channel.new_discovery_servers_count = count
+    
+    def set_propagation_channel_new_propagation_servers_count(self, propagation_channel_name, count):
+        assert(self.is_locked)
+        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+        propagation_channel.new_propagation_servers_count = count
+        
+    def set_propagation_channel_max_discovery_server_age_in_days(self, propagation_channel_name, age):
+        assert(self.is_locked)
+        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+        propagation_channel.max_discovery_server_age_in_days = age
+        
+    def set_propagation_channel_max_propagation_server_age_in_days(self, propagation_channel_name, age):
+        assert(self.is_locked)
+        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+        propagation_channel.max_propagation_server_age_in_days = age
+        
     def __get_sponsor_by_name(self, name):
         return filter(lambda x:x.name == name,
                       self.__sponsors.itervalues())[0]
@@ -704,26 +741,30 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return vpn_users + ssh_users
 
     def prune_propagation_channel_servers(self, propagation_channel_name,
-                                          max_discovery_server_age_in_days,
-                                          max_propagation_server_age_in_days):
+                                          max_discovery_server_age_in_days=None,
+                                          max_propagation_server_age_in_days=None):
         assert(self.is_locked)
 
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
         now = datetime.datetime.now()
         today = datetime.datetime(now.year, now.month, now.day)
-        
+
         # Remove old servers with low activity
+        
+        if max_discovery_server_age_in_days == None:
+            max_discovery_server_age_in_days = propagation_channel.max_discovery_server_age_in_days
         if max_discovery_server_age_in_days > 0:
             old_discovery_servers = [server for server in self.__servers.itervalues()
                 if server.propagation_channel_id == propagation_channel.id
                 and server.discovery_date_range
                 and server.discovery_date_range[1] < (today - datetime.timedelta(days=max_discovery_server_age_in_days))
                 and self.__hosts[server.host_id].provider == 'linode']
-
             for server in old_discovery_servers:
                 if self.__count_users_on_host(server.host_id) == 0:
                     self.remove_host(server.host_id)
 
+        if max_propagation_server_age_in_days == None:
+            max_propagation_server_age_in_days = propagation_channel.max_propagation_server_age_in_days
         if max_propagation_server_age_in_days > 0:
             old_propagation_servers = [server for server in self.__servers.itervalues()
                 if server.propagation_channel_id == propagation_channel.id
@@ -731,7 +772,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 and not server.is_embedded
                 and server.logs[0][0] < (today - datetime.timedelta(days=max_propagation_server_age_in_days))
                 and self.__hosts[server.host_id].provider == 'linode']
-                
             for server in old_propagation_servers:
                 if self.__count_users_on_host(server.host_id) == 0:
                     self.remove_host(server.host_id)
@@ -741,18 +781,24 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.deploy()
         
     def replace_propagation_channel_servers(self, propagation_channel_name,
-                                            new_discovery_servers_count,
-                                            new_propagation_servers_count):
+                                            new_discovery_servers_count=None,
+                                            new_propagation_servers_count=None):
         assert(self.is_locked)
         
-        # Use a default 2 week discovery date range.
+        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
         now = datetime.datetime.now()
         today = datetime.datetime(now.year, now.month, now.day)
+
+        # Use a default 2 week discovery date range.
         new_discovery_date_range = (today, today + datetime.timedelta(weeks=2))
 
+        if new_discovery_servers_count == None:
+            new_discovery_servers_count = propagation_channel.new_discovery_servers_count
         if new_discovery_servers_count > 0:
             self.add_servers(new_discovery_servers_count, propagation_channel_name, new_discovery_date_range)
 
+        if new_propagation_servers_count == None:
+            new_propagation_servers_count = propagation_channel.new_propagation_servers_count
         if new_propagation_servers_count > 0:
             self.add_servers(new_propagation_servers_count, propagation_channel_name, None)
 
@@ -1526,7 +1572,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             copy.__propagation_channels[propagation_channel.id] = PropagationChannel(
                                                                     propagation_channel.id,
                                                                     '', # Omit name
-                                                                    '') # Omit mechanism type
+                                                                    '', # Omit mechanism type
+                                                                    '', # Omit new server counts
+                                                                    '', # Omit new server counts
+                                                                    '', # Omit server ages
+                                                                    '') # Omit server ages
 
         for server in self.__servers.itervalues():
             if ((server.discovery_date_range and server.host_id != host_id and server.discovery_date_range[1] <= discovery_date) or
@@ -1610,8 +1660,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             copy.__propagation_channels[propagation_channel.id] = PropagationChannel(
                                         propagation_channel.id,
                                         propagation_channel.name,
-                                        [])
-                                        # Omit mechanism info
+                                        [], # Omit mechanism info
+                                        '', # Omit new server counts
+                                        '', # Omit new server counts
+                                        '', # Omit server ages
+                                        '') # Omit server ages
 
         for sponsor in self.__sponsors.itervalues():
             copy.__sponsors[sponsor.id] = Sponsor(
