@@ -1839,7 +1839,7 @@ def prune_all_propagation_channels():
     try:
         for propagation_channel in psinet._PsiphonNetwork__propagation_channels.itervalues():
             number_removed = psinet.prune_propagation_channel_servers(propagation_channel.name)
-            sys.stderr.write('Pruned %d servers from %s' % (number_removed, propagation_channel.name))
+            sys.stderr.write('Pruned %d servers from %s\n' % (number_removed, propagation_channel.name))
     finally:
         psinet.show_status()
         psinet.release()
