@@ -482,21 +482,25 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(self.is_locked)
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
         propagation_channel.new_discovery_servers_count = count
+        propagation_channel.log('New discovery servers count set to %d' % (count,))
     
     def set_propagation_channel_new_propagation_servers_count(self, propagation_channel_name, count):
         assert(self.is_locked)
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
         propagation_channel.new_propagation_servers_count = count
+        propagation_channel.log('New propagation servers count set to %d' % (count,))
         
     def set_propagation_channel_max_discovery_server_age_in_days(self, propagation_channel_name, age):
         assert(self.is_locked)
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
         propagation_channel.max_discovery_server_age_in_days = age
+        propagation_channel.log('Max discovery server age set to %d days' % (age,))
         
     def set_propagation_channel_max_propagation_server_age_in_days(self, propagation_channel_name, age):
         assert(self.is_locked)
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
         propagation_channel.max_propagation_server_age_in_days = age
+        propagation_channel.log('Max propagation server age set to %d days' % (age,))
         
     def __get_sponsor_by_name(self, name):
         return filter(lambda x:x.name == name,
