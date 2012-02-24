@@ -754,6 +754,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         today = datetime.datetime(now.year, now.month, now.day)
 
         # Remove old servers with low activity
+        number_removed = 0
         
         if max_discovery_server_age_in_days == None:
             max_discovery_server_age_in_days = propagation_channel.max_discovery_server_age_in_days
@@ -766,6 +767,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for server in old_discovery_servers:
                 if self.__count_users_on_host(server.host_id) == 0:
                     self.remove_host(server.host_id)
+                    number_removed += 1
 
         if max_propagation_server_age_in_days == None:
             max_propagation_server_age_in_days = propagation_channel.max_propagation_server_age_in_days
@@ -779,10 +781,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for server in old_propagation_servers:
                 if self.__count_users_on_host(server.host_id) == 0:
                     self.remove_host(server.host_id)
+                    number_removed += 1
 
         # This deploy will update the stats server, so it doesn't try to pull stats from
         # hosts that no longer exist
         self.deploy()
+        
+        return number_removed
         
     def replace_propagation_channel_servers(self, propagation_channel_name,
                                             new_discovery_servers_count=None,
@@ -1833,7 +1838,18 @@ def prune_all_propagation_channels():
     psinet.show_status()
     try:
         for propagation_channel in psinet._PsiphonNetwork__propagation_channels.itervalues():
-            psinet.prune_propagation_channel_servers(propagation_channel.name)
+            number_removed = psinet.prune_propagation_channel_servers(propagation_channel.name)
+            sys.stderr.write('Pruned %d servers from %s' % (number_removed, propagation_channel.name))
+    finally:
+        psinet.show_status()
+        psinet.release()
+        
+        
+def replace_propagation_channel_servers(propagation_channel_name):
+    psinet = PsiphonNetwork.load(lock=True)
+    psinet.show_status()
+    try:
+        psinet.replace_propagation_channel_servers(propagation_channel_name)
     finally:
         psinet.show_status()
         psinet.release()
@@ -1848,12 +1864,16 @@ if __name__ == "__main__":
                       help="specify once for each of: handshake, VPN, SSH+, SSH")
     parser.add_option("-p", "--prune", dest="prune", action="store_true",
                       help="prune all propagation channels")
+    parser.add_option("-n", "--new-servers", dest="channel", action="store", type="string",
+                      help="create new servers for this propagation channel")
     (options, _) = parser.parse_args()
-    if options.test:
+    if options.channel:
+        replace_propagation_channel_servers(options.channel)
+    elif options.prune:
+        prune_all_propagation_channels()
+    elif options.test:
         test(options.test)
     elif options.readonly:
         view()
-    elif options.prune:
-        prune_all_propagation_channels()
     else:
         edit()
