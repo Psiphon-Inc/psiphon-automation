@@ -695,23 +695,66 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     
         assert(server.id not in self.__servers)
         self.__servers[server.id] = server
+
+    def __count_users_on_host(self, host_id):
+        vpn_users = int(self.run_command_on_host(self.__hosts[host_id],
+                                                 'ifconfig | grep ppp | wc -l'))
+        ssh_users = int(self.run_command_on_host(self.__hosts[host_id],
+                                                 'ps ax | grep ssh | grep psiphon | wc -l')) / 2
+        return vpn_users + ssh_users
+
+    def prune_propagation_channel_servers(self, propagation_channel_name,
+                                          max_discovery_server_age_in_days,
+                                          max_propagation_server_age_in_days):
+        assert(self.is_locked)
+
+        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+        now = datetime.datetime.now()
+        today = datetime.datetime(now.year, now.month, now.day)
+        
+        # Remove old servers with low activity
+        if max_discovery_server_age_in_days > 0:
+            old_discovery_servers = [server for server in self.__servers.itervalues()
+                if server.propagation_channel_id == propagation_channel.id
+                and server.discovery_date_range
+                and server.discovery_date_range[1] < (today - datetime.timedelta(days=max_discovery_server_age_in_days))
+                and self.__hosts[server.host_id].provider == 'linode']
+
+            for server in old_discovery_servers:
+                if self.__count_users_on_host(server.host_id) == 0:
+                    self.remove_host(server.host_id)
+
+        if max_propagation_server_age_in_days > 0:
+            old_propagation_servers = [server for server in self.__servers.itervalues()
+                if server.propagation_channel_id == propagation_channel.id
+                and not server.discovery_date_range
+                and not server.is_embedded
+                and server.logs[0][0] < (today - datetime.timedelta(days=max_propagation_server_age_in_days))
+                and self.__hosts[server.host_id].provider == 'linode']
+                
+            for server in old_propagation_servers:
+                if self.__count_users_on_host(server.host_id) == 0:
+                    self.remove_host(server.host_id)
+
+        # This deploy will update the stats server, so it doesn't try to pull stats from
+        # hosts that no longer exist
+        self.deploy()
         
     def replace_propagation_channel_servers(self, propagation_channel_name,
                                             new_discovery_servers_count,
                                             new_propagation_servers_count):
         assert(self.is_locked)
         
-        # Use a default 2 week discovery date range.  This should be called more frequently.
+        # Use a default 2 week discovery date range.
         now = datetime.datetime.now()
         today = datetime.datetime(now.year, now.month, now.day)
         new_discovery_date_range = (today, today + datetime.timedelta(weeks=2))
-                
+
         if new_discovery_servers_count > 0:
             self.add_servers(new_discovery_servers_count, propagation_channel_name, new_discovery_date_range)
 
         if new_propagation_servers_count > 0:
             self.add_servers(new_propagation_servers_count, propagation_channel_name, None)
-
 
     def add_servers(self, count, propagation_channel_name, discovery_date_range, replace_others=True):
         assert(self.is_locked)
@@ -758,6 +801,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     try:
                         return provider_launch_new_server(provider_account)
                     except Exception as ex:
+                        print str(ex)
                         pass
                 raise ex
 
@@ -1587,7 +1631,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 host.ssh_username, host.ssh_password,
                 host.ssh_host_key)
 
-        ssh.exec_command(command)
+        return ssh.exec_command(command)
 
     def copy_file_to_host(self, host, source_filename, dest_filename):
         ssh = psi_ssh.SSH(
