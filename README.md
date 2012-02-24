@@ -64,10 +64,7 @@ TODO
 
 - Test None/null values in the handshake JSON. For example, I think the upgrade
   version can theoretically be None/null. The desired behaviour is that it get
-  the default empty string value when pulling it out of JSON.
-
-- Rethink if it makes sense to exclude the "current" transport from 
-  temp/failover transports. 
+  the default empty string value when pulling it out of JSON. 
 
 - Determine if WinHttpGetIEProxyConfigForCurrentUser is the correct/best way to
   deterine the correct local proxy settings (both when our LocalProxy is and 
