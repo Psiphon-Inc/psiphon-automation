@@ -1828,6 +1828,17 @@ def test(tests):
     psinet.test_servers(tests)
 
 
+def prune_all_propagation_channels():
+    psinet = PsiphonNetwork.load(lock=True)
+    psinet.show_status()
+    try:
+        for propagation_channel in psinet._PsiphonNetwork__propagation_channels.itervalues():
+            psinet.prune_propagation_channel_servers(propagation_channel.name)
+    finally:
+        psinet.show_status()
+        psinet.release()
+        
+        
 if __name__ == "__main__":
     parser = optparse.OptionParser('usage: %prog [options]')
     parser.add_option("-r", "--read-only", dest="readonly", action="store_true",
@@ -1835,10 +1846,14 @@ if __name__ == "__main__":
     parser.add_option("-t", "--test", dest="test", action="append",
                       choices=('handshake', 'VPN', 'SSH+', 'SSH'),
                       help="specify once for each of: handshake, VPN, SSH+, SSH")
+    parser.add_option("-p", "--prune", dest="prune", action="store_true",
+                      help="prune all propagation channels")
     (options, _) = parser.parse_args()
     if options.test:
         test(options.test)
     elif options.readonly:
         view()
+    elif options.prune:
+        prune_all_propagation_channels()
     else:
         edit()
