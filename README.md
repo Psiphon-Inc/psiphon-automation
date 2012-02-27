@@ -22,12 +22,6 @@ Two design statements:
 
 TODO
 
-- Polipo doesn't detect when a split-tunnel rules file is overwritten.  So if
-  someone uses Psiphon 3 from Country A, then travels to Country B, the first
-  time they use Psiphon 3 in Country B they will still be using split tunnel rules
-  for Country A.  At the start of the session, we should make sure that no route
-  file exists.
-  
 - HTTPS requests to server aren't tunneled through VPN. Ever. This is very bad.
   But the fix is probably very hard. The real fix for this might have to wait.
   - What will happen now (if HTTPS is blocked) -- which might be acceptable:
@@ -56,10 +50,6 @@ TODO
 
 - Make sure session reconstruction is okay with the fact that the final /status
   might use a different protocol than the rest of the session. (Better be.)
-
-- Test None/null values in the handshake JSON. For example, I think the upgrade
-  version can theoretically be None/null. The desired behaviour is that it get
-  the default empty string value when pulling it out of JSON. 
 
 - Determine if WinHttpGetIEProxyConfigForCurrentUser is the correct/best way to
   deterine the correct local proxy settings (both when our LocalProxy is and 
