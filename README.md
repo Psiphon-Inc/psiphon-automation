@@ -1,5 +1,6 @@
 Psiphon 3 Circumvention System README
 ================================================================================
+
 ----BEGIN ssh-with-no-handshake NOTES----
 
 Two design statements:
@@ -61,18 +62,8 @@ TODO
 - Maybe now, maybe future: Remember which method worked last time for 
   extra-transport requests, and skip to it next time.
 
-- Test failover to temp-transport in ServerRequest. It won't happen naturally.
-  Like, HTTPS is never going to fail for us in debugging without special effort.
-  - I have done some testing of failing from HTTPS to OSSH, but not on to SSH.
-  - I've seen some weirdness to suggest that there's a problem if a transport fails.
-  - There was a crash bug if TransportConnection::Connect threw anything other
-    than TryNextServer. But it's fixed now.
-  - I have tested temp transport failover to at least some degree now (with
-    two different ways of making OSSH transport fail: returning false from
-	GetSSHParams and manually closing Plonk while it's setting up). I feel
-	somewhat confident now that temp-transport failover is working fine.
-
 ----END ssh-with-no-handshake NOTES----
+
 Overview
 --------------------------------------------------------------------------------
 
