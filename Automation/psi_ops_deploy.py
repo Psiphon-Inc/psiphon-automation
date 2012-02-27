@@ -36,8 +36,19 @@ import psi_config
 BUILDS_ROOT = os.path.join('.', 'Builds')
 
 SOURCE_FILES = [
-    ('Automation', ['psi_ops.py', 'psi_ops_cms.py', 'psi_utils.py']),
-    ('Server', ['psi_config.py', 'psi_psk.py', 'psi_web.py'])
+    ('Automation',
+     ['psi_ops.py',
+      'psi_ops_cms.py',
+      'psi_utils.py'
+     ]),
+
+    ('Server',
+     ['psi_config.py',
+      'psi_psk.py',
+      'psi_web.py',
+      'psi_auth.py',
+      'psi_geoip.py',
+      'pam.py'])
 ]
 
 #==============================================================================
@@ -85,6 +96,9 @@ def deploy_implementation(host):
     ssh.exec_command('chmod +x %s' % (
             posixpath.join(psi_config.HOST_SOURCE_ROOT, 'Server', 'psi_web.py'),))
 
+    ssh.exec_command('chmod +x %s' % (
+            posixpath.join(psi_config.HOST_SOURCE_ROOT, 'Server', 'psi_auth.py'),))
+
     remote_ip_down_file_path = posixpath.join(psi_config.HOST_IP_DOWN_DIR, 'psi-ip-down')
     ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', 'psi-ip-down'),
                  remote_ip_down_file_path)
@@ -95,6 +109,9 @@ def deploy_implementation(host):
                  remote_init_file_path)
     ssh.exec_command('chmod +x %s' % (remote_init_file_path,))
     ssh.exec_command('update-rc.d %s defaults' % ('psiphonv',))
+
+    # Patch PAM config to use psi_auth.py
+    ssh.exec_command('grep psi_auth.py /etc/pam.d/sshd || sed -i \'s/@include common-auth/auth       sufficient   pam_exec.so expose_authtok seteuid \\/opt\\/PsiphonV\\/Server\\/psi_auth.py\\n@include common-auth/\' /etc/pam.d/sshd')
 
     # Restart server after source code updated
 

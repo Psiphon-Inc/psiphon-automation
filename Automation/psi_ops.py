@@ -98,7 +98,8 @@ except ImportError as error:
 # Modules available only on the node server
 
 try:
-    import GeoIP
+    sys.path.insert(0, os.path.abspath(os.path.join('..', 'Server')))
+    import psi_geoip
 except ImportError:
     pass
 
@@ -1374,11 +1375,27 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(len(server.web_server_port) > 1)
         assert(len(server.web_server_secret) > 1)
         assert(len(server.web_server_certificate) > 1)
-        return binascii.hexlify('%s %s %s %s' % (
+
+        # Extended (i.e., new) entry fields are in a JSON string
+        extended_config = {}
+        extended_config['sshPort'] = int(server.ssh_port) if server.ssh_port else 0
+        extended_config['sshUsername'] = server.ssh_username if server.ssh_username else ''
+        extended_config['sshPassword'] = server.ssh_password if server.ssh_password else ''
+
+        extended_config['sshHostKey'] = ''
+        if server.ssh_host_key:
+            ssh_host_key_type, extended_config['sshHostKey'] = server.ssh_host_key.split(' ')
+            assert(ssh_host_key_type == 'ssh-rsa')
+
+        extended_config['sshObfuscatedPort'] = int(server.ssh_obfuscated_port) if server.ssh_obfuscated_port else 0
+        extended_config['sshObfuscatedKey'] = server.ssh_obfuscated_key if server.ssh_obfuscated_key else ''
+
+        return binascii.hexlify('%s %s %s %s %s' % (
                                     server.ip_address,
                                     server.web_server_port,
                                     server.web_server_secret,
-                                    server.web_server_certificate))    
+                                    server.web_server_certificate,
+                                    json.dumps(extended_config)))
     
     def __get_encoded_server_list(self, propagation_channel_id,
                                   client_ip_address=None, event_logger=None, discovery_date=None):
@@ -1415,32 +1432,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return ([self.__get_encoded_server_entry(server) for server in servers],
                 [server.egress_ip_address for server in servers])
         
-    def get_region(self, client_ip_address):
-        try:
-            region = None
-            # Use the commercial "city" database is available
-            city_db_filename = '/usr/local/share/GeoIP/GeoIPCity.dat'
-            if os.path.isfile(city_db_filename):
-                record = GeoIP.open(city_db_filename,
-                                    GeoIP.GEOIP_MEMORY_CACHE).record_by_name(client_ip_address)
-                if record:
-                    region = record['country_code']
-            else:
-                region = GeoIP.new(GeoIP.GEOIP_MEMORY_CACHE).country_code_by_name(client_ip_address)
-            if region is None:
-                region = 'None'
-            return region
-        except NameError:
-            # Handle the case where the GeoIP module isn't installed
-            return 'None'
-    
     def __get_sponsor_home_pages(self, sponsor_id, client_ip_address, region=None):
         # Web server support function: fails gracefully
         if sponsor_id not in self.__sponsors:
             return []
         sponsor = self.__sponsors[sponsor_id]
         if not region:
-            region = self.get_region(client_ip_address)
+            region = psi_geoip.get_region(client_ip_address)
         # case: lookup succeeded and corresponding region home page found
         sponsor_home_pages = []
         if region in sponsor.home_pages:
@@ -1476,57 +1474,47 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     
     def handshake(self, server_ip_address, client_ip_address,
                   propagation_channel_id, sponsor_id, client_version, event_logger=None):
-        # Handshake output is a series of Name:Value lines returned to the client
-        output = []
-    
+        # Legacy handshake output is a series of Name:Value lines returned to 
+        # the client. That format will continue to be supported (old client 
+        # versions expect it), but the new format of a JSON-ified object will
+        # also be output.
+
+        config = {}
+
         # Give client a set of landing pages to open when connection established
-        homepage_urls = self.__get_sponsor_home_pages(sponsor_id, client_ip_address)
-        for homepage_url in homepage_urls:
-            output.append('Homepage: %s' % (homepage_url,))
-    
+        config['homepages'] = self.__get_sponsor_home_pages(sponsor_id, client_ip_address)
+
         # Tell client if an upgrade is available
-        upgrade_client_version = self.__check_upgrade(client_version)
-        if upgrade_client_version:
-            output.append('Upgrade: %s' % (upgrade_client_version,))
-    
+        config['upgrade_client_version'] = self.__check_upgrade(client_version)
+
         # Discovery
-        encoded_server_list, expected_egress_ip_addresses = \
+        config['encoded_server_list'], _ = \
                     self.__get_encoded_server_list(
                                                 propagation_channel_id,
                                                 client_ip_address,
                                                 event_logger=event_logger)
-        for encoded_server_entry in encoded_server_list:
-            output.append('Server: %s' % (encoded_server_entry,))
-    
+
         # VPN relay protocol info
-        # Note: this is added in the handshake handler in psi_web
-        # output.append(psi_psk.set_psk(self.server_ip_address))
-    
+        # Note: The VPN PSK will be added in higher up the call stack
+
         # SSH relay protocol info
         #
         # SSH Session ID is a randomly generated unique ID used for
         # client-side session duration reporting
         #
-        server = filter(lambda x : x.ip_address == server_ip_address,
-                        self.__servers.itervalues())[0]
-        if server.ssh_host_key:
-            output.append('SSHPort: %s' % (server.ssh_port,))
-            output.append('SSHUsername: %s' % (server.ssh_username,))
-            output.append('SSHPassword: %s' % (server.ssh_password,))
-            key_type, host_key = server.ssh_host_key.split(' ')
-            assert(key_type == 'ssh-rsa')
-            output.append('SSHHostKey: %s' % (host_key,))
-            output.append('SSHSessionID: %s' % (binascii.hexlify(os.urandom(8)),))
-            # Obfuscated SSH fields are optional
-            if server.ssh_obfuscated_port:
-                output.append('SSHObfuscatedPort: %s' % (server.ssh_obfuscated_port,))
-                output.append('SSHObfuscatedKey: %s' % (server.ssh_obfuscated_key,))
+        server = next(server for server in self.__servers.itervalues() 
+                      if server.ip_address == server_ip_address)
 
-        # Additional Configuration
-        # Extra config is JSON-encoded.
+        config['ssh_port'] = int(server.ssh_port)
+        config['ssh_username'] = server.ssh_username
+        config['ssh_password'] = server.ssh_password
+        ssh_host_key_type, config['ssh_host_key'] = server.ssh_host_key.split(' ')
+        assert(ssh_host_key_type == 'ssh-rsa')
+        config['ssh_session_id'] = binascii.hexlify(os.urandom(8))
+        config['ssh_obfuscated_port'] = int(server.ssh_obfuscated_port)
+        config['ssh_obfuscated_key'] = server.ssh_obfuscated_key
+
         # Give client a set of regexes indicating which pages should have individual stats
-        config = {}
-        
         config['page_view_regexes'] = []
         for sponsor_regex in self._get_sponsor_page_view_regexes(sponsor_id):
             config['page_view_regexes'].append({
@@ -1546,13 +1534,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             speed_test_url = random.choice(self.__speed_test_urls)
             config['speed_test_url'] = {
                 'server_address' : speed_test_url.server_address,
+                # For backwards-compatibility reasons, this can't be cast to int
                 'server_port' : speed_test_url.server_port,
                 'request_path' : speed_test_url.request_path
             }
 
-        output.append('Config: ' + json.dumps(config))
-        
-        return output
+        return config
     
     def get_host_by_provider_id(self, provider_id):
         for host in self.__hosts.itervalues():
