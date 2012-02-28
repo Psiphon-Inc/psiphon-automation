@@ -81,6 +81,10 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
 
     for split_tunnel_mode in [True, False]:
 
+        # Split tunnelling is not implemented for VPN. No need to run the same test twice.
+        if transport == 'VPN' and split_tunnel_mode:
+            continue
+
         try:
             proc = None
             transport_value, transport_type = None, None
@@ -101,7 +105,6 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
             urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler()))
     
             # Get egress IP from web site in same GeoIP region; local split tunnel is not proxied
-            # Note: split tunnel not implemented for VPN
         
             egress_ip_address = urllib2.urlopen(psi_ops_build.CHECK_IP_ADDRESS_URL_LOCAL, timeout=30).read().split('\n')[0]
     
