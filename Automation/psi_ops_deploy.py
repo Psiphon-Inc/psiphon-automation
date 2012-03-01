@@ -163,14 +163,11 @@ def deploy_data(host, host_data):
                     host.ssh_host_key)
 
     # Stop server, if running, before replacing data file (command may fail)
-
+    # Disable restarting the server through psi-check-services first
+    
+    ssh.exec_command('touch %s' % (psi_config.HOST_SERVER_STOPPED_LOCK_FILE,))
     remote_init_file_path = posixpath.join(psi_config.HOST_INIT_DIR, 'psiphonv')
-
     ssh.exec_command('%s stop' % (remote_init_file_path,))
-    # This is a special case.  We don't want psi-check-services to restart the psiphonv service
-    # while we are uploading new data.  Removing the pid file prevents psi-check-services
-    # from restarting it.
-    ssh.exec_command('rm /var/run/psiphonv.pid')
 
     # Copy data file
     # We upload a compartmentalized version of the master file
@@ -193,6 +190,11 @@ def deploy_data(host, host_data):
     # Restart server after data file updated
 
     ssh.exec_command('%s restart' % (remote_init_file_path,))
+    
+    # Allow psi-check-services to restart the server now that data has been successfully copied
+    # and the server is running again
+    
+    ssh.exec_command('rm %s' % (psi_config.HOST_SERVER_STOPPED_LOCK_FILE,))
 
     ssh.close()
     
