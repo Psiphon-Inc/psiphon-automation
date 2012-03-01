@@ -48,7 +48,8 @@ SOURCE_FILES = [
       'psi_web.py',
       'psi_auth.py',
       'psi_geoip.py',
-      'pam.py'])
+      'pam.py',
+      'psi-check-services'])
 ]
 
 #==============================================================================
@@ -99,6 +100,9 @@ def deploy_implementation(host):
     ssh.exec_command('chmod +x %s' % (
             posixpath.join(psi_config.HOST_SOURCE_ROOT, 'Server', 'psi_auth.py'),))
 
+    ssh.exec_command('chmod +x %s' % (
+            posixpath.join(psi_config.HOST_SOURCE_ROOT, 'Server', 'psi-check-services'),))
+
     remote_ip_down_file_path = posixpath.join(psi_config.HOST_IP_DOWN_DIR, 'psi-ip-down')
     ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', 'psi-ip-down'),
                  remote_ip_down_file_path)
@@ -117,6 +121,14 @@ def deploy_implementation(host):
 
     ssh.exec_command('%s restart' % (remote_init_file_path,))
 
+    # Install the cron job that calls psi-check-services
+
+    cron_file = '/etc/cron.d/psi-check-services'
+    ssh.exec_command('echo "SHELL=/bin/sh" > %s;' % (cron_file,) +
+                     'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
+                     'echo "*/5 * * * * root %s" >> %s' % (
+            posixpath.join(psi_config.HOST_SOURCE_ROOT, 'Server', 'psi-check-services'), cron_file))
+    
     # Copy the rate-limiting scripts
 
     remote_rate_limit_start_file_path = posixpath.join(psi_config.HOST_IP_UP_DIR, 'rate-limit')
@@ -155,6 +167,10 @@ def deploy_data(host, host_data):
     remote_init_file_path = posixpath.join(psi_config.HOST_INIT_DIR, 'psiphonv')
 
     ssh.exec_command('%s stop' % (remote_init_file_path,))
+    # This is a special case.  We don't want psi-check-services to restart the psiphonv service
+    # while we are uploading new data.  Removing the pid file prevents psi-check-services
+    # from restarting it.
+    ssh.exec_command('rm /var/run/psiphonv.pid')
 
     # Copy data file
     # We upload a compartmentalized version of the master file
