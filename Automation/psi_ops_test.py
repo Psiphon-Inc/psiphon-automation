@@ -35,7 +35,7 @@ import psi_ops_build
 
 REGISTRY_PRODUCT_KEY = 'SOFTWARE\\Psiphon3'
 REGISTRY_TRANSPORT_VALUE = 'Transport'
-REGISTRY_SPLIT_TUNNEL_VALUE = 'UserEnableSplitTunneling'
+REGISTRY_SPLIT_TUNNEL_VALUE = 'SplitTunnel'
 
 
 def retry_on_exception_decorator(function):
