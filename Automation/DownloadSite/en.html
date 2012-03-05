@@ -88,7 +88,7 @@
     </h2>
 
     <p class="c0">
-      <span>Psiphon 3 is a new circumvention tool from Psiphon Inc. that utilizes VPN and HTTP Proxy technology to provide you with the best content access possible. Your Psiphon 3 client will automatically learn about new access points to maximize your chances of bypassing censorship.</span>
+      <span>Psiphon 3 is a new circumvention tool from Psiphon Inc. that utilizes VPN, SSH and HTTP Proxy technology to provide you with the best content access possible. Your Psiphon 3 client will automatically learn about new access points to maximize your chances of bypassing censorship.</span>
     </p>
     <h2 class="c0">
       <span>How do I get Psiphon 3?</span>
@@ -136,25 +136,37 @@
     </p>
 
     <p class="c0">
-      <span>Psiphon 3 automatically starts connecting when you run it. While it is connecting, a spinning icon is displayed.</span>
+      <span>Psiphon 3 automatically starts connecting when you run it. While it is connecting, a spinning icon is displayed. You may select one of the following tunnel modes: VPN (L2TP over IPSec), SSH, or SSH+ (SSH plus obfuscation, a randomized layer on top of SSH to avoid protocol fingerprinting).</span>
     </p>
     <p class="c0 c3">
       <span></span>
     </p>
     <p class="c0 c1">
-      <img height="130" src="image04.png" width="278">
+      <img height="200" src="image05.png" width="348">
     </p>
     <p class="c0 c3">
       <span></span>
     </p>
     <p class="c0">
-      <span>When the green icon is displayed, all of your Internet traffic is flowing through Psiphon 3.</span>
+      <span>When the green icon is displayed, your Internet traffic is flowing through Psiphon 3. In VPN mode, all of your traffic automatically tunnels through Psiphon 3.</span>
+    </p>
+    <p class="c0 c3">
+      <span></span>
+    </p>
+    <p class="c0">
+      <span>In SSH and SSH+ modes, Psiphon 3 automatically sets the Windows system proxy settings and traffic for applications that respect these settings tunnel through Psiphon 3. These settings are respected by default by all major web browsers.</span>
+    </p>
+    <p class="c0 c3">
+      <span></span>
+    </p>
+    <p class="c0">
+      <span>Furthermore, in SSH and SSH+ modes, Psiphon 3 offers a split tunnel option where international traffic is tunneled through the proxy and domestic traffic is not. Check the “Don’t proxy...” option to enable split tunneling. When this option is on, unproxied domains are reported in the message area.</span>
     </p>
     <p class="c0 c3">
       <span></span>
     </p>
     <p class="c0 c1">
-      <img height="130" src="image02.png" width="278">
+      <img height="215" src="image06.png" width="348">
     </p>
     <p class="c0 c3">
       <span></span>
@@ -166,14 +178,6 @@
     <p class="c0 c3">
       <span></span>
     </p>
-    <p class="c0">
-      <span>Sometimes the VPN protocol is blocked and, after a 20 second connection timeout, Psiphon 3 automatically falls back to offering an HTTP Proxy and SOCKS Proxy over an SSH tunnel. In this mode, not all of your Internet traffic flows through Psiphon 3, just certain applications. Psiphon 3 automatically sets the Windows system proxy settings that are respected by default by all major web browsers.</span>
-    </p>
-    <p class="c0 c3">
-      <span></span>
-    </p>
-    <p class="c0 c1">
-      <img height="183" src="image00.png" width="278">
     </p>
   </body>
 </html>
