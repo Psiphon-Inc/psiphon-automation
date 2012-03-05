@@ -40,7 +40,15 @@ Or click the link below.
 Русский - {0}/ru.html
 Türkmençe - {0}/tk.html
 العربي - {0}/ar.html
-ภาษาไทย - {0}/th.html'''.format(bucket_root_url)
+ภาษาไทย - {0}/th.html
+
+Psiphon 3 дан фойдаланиш учун илова қилинган файлни .exe кенгайтиришда сақланг.
+Ёки қуйидаги уланишни босинг. 
+{0}/uz@cyrillic.html
+
+Psiphon 3 dan foydalanish uchun ilova qilingan faylni .exe kyengaytirishda saqlang.
+Yoki quyidagi ulanishni bosing.
+{0}/uz@Latn.html'''.format(bucket_root_url)
 
 def get_html_email_content(s3_bucket_name):
     bucket_root_url = 'https://s3.amazonaws.com/' + s3_bucket_name
@@ -70,4 +78,14 @@ Türkmençe - <a href="{0}/tk.html">{0}/tk.html</a><br>
 </div>
 <div style="direction: ltr;">
 ภาษาไทย - <a href="{0}/th.html">{0}/th.html</a><br>
+</div>
+<div style="direction: ltr;">
+Psiphon 3 дан фойдаланиш учун илова қилинган файлни .exe кенгайтиришда сақланг.<br>
+Ёки қуйидаги уланишни босинг.<br> 
+<a href="{0}/uz@cyrillic.html.html">{0}/uz@cyrillic.html</a><br>
+</div>
+<div style="direction: ltr;">
+Psiphon 3 dan foydalanish uchun ilova qilingan faylni .exe kyengaytirishda saqlang.<br>
+Yoki quyidagi ulanishni bosing.<br>
+<a href="{0}/uz@Latn.html.html">{0}/uz@Latn.html</a><br>
 </div>'''.format(bucket_root_url)
