@@ -1161,6 +1161,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__deploy_email_config_required = False
             self.save()
 
+    def update_static_site_content(self):
+        assert(self.is_locked)
+        for sponsor in self.__sponsors.itervalues():
+            for campaign in sponsor.campaigns:
+                if campaign.s3_bucket_name:
+                    psi_ops_s3.update_s3_download(self.__aws_account, None, campaign.s3_bucket_name)
+                    campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
+
     def update_routes(self):
         assert(self.is_locked) # (host.log is called by deploy)
         psi_routes.make_routes()
