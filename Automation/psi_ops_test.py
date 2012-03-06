@@ -99,7 +99,7 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
             proc = subprocess.Popen([executable_path])
             
             # VPN mode takes longer to establish a connection than other modes
-            time.sleep(20 if transport == 'VPN' else 15)
+            time.sleep(15 if transport == 'VPN' else 10)
         
             # In VPN mode, all traffic is routed through the proxy. In SSH mode, the
             # urlib2 ProxyHandler picks up the Windows Internet Settings and uses the
