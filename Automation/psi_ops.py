@@ -268,6 +268,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             Channels:             %d
             Twitter Campaigns:    %d
             Email Campaigns:      %d
+            Total Campaigns:      %d
             Hosts:                %d
             Servers:              %d
             Email Server:         %s
@@ -288,6 +289,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 sum([len(filter(lambda x:x.propagation_mechanism_type == 'twitter', sponsor.campaigns))
                      for sponsor in self.__sponsors.itervalues()]),
                 sum([len(filter(lambda x:x.propagation_mechanism_type == 'email-autoresponder', sponsor.campaigns))
+                     for sponsor in self.__sponsors.itervalues()]),
+                sum([len(sponsor.campaigns)
                      for sponsor in self.__sponsors.itervalues()]),
                 len(self.__hosts),
                 len(self.__servers),
@@ -1160,6 +1163,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.push_email_config()
             self.__deploy_email_config_required = False
             self.save()
+
+    def update_static_site_content(self):
+        assert(self.is_locked)
+        for sponsor in self.__sponsors.itervalues():
+            for campaign in sponsor.campaigns:
+                if campaign.s3_bucket_name:
+                    psi_ops_s3.update_s3_download(self.__aws_account, None, campaign.s3_bucket_name)
+                    campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
 
     def update_routes(self):
         assert(self.is_locked) # (host.log is called by deploy)

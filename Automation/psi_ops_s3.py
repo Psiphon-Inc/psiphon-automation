@@ -113,9 +113,10 @@ def set_s3_bucket_contents(bucket, build_filename):
         
         # Upload the specific Propagation Channel/Spondor build as "psiphon3.exe"
     
-        key = bucket.new_key(DOWNLOAD_SITE_BUILD_FILENAME)
-        key.set_contents_from_filename(build_filename, cb=progress)
-        key.close()
+        if build_filename:
+            key = bucket.new_key(DOWNLOAD_SITE_BUILD_FILENAME)
+            key.set_contents_from_filename(build_filename, cb=progress)
+            key.close()
     except:
         # TODO: delete all keys
         #print 'upload failed, deleting bucket'
