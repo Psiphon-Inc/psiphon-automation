@@ -25,6 +25,11 @@ import tempfile
 import binascii
 from OpenSSL import crypto
 import psi_ssh
+import posixpath
+
+sys.path.insert(0, os.path.abspath(os.path.join('..', 'Server')))
+import psi_config
+
 
 
 #==== Configuration ============================================================
