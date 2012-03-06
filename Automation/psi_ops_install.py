@@ -439,6 +439,17 @@ def install_host(host, servers, existing_server_ids):
     ssh.exec_command('/etc/init.d/xl2tpd restart')
 
     #
+    # Upload and install patched Open SSH 
+    #
+
+    ssh.exec_command('rm -rf %(key)s; mkdir -p %(key)s' % {"key": psi_config.HOST_OSSH_SRC_DIR})
+    remote_ossh_file_path = posixpath.join(psi_config.HOST_OSSH_SRC_DIR, 'ossh.tar.gz')
+    ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', '3rdParty', 'ossh.tar.gz'),
+                 remote_ossh_file_path)
+    ssh.exec_command('cd %s; tar xfz ossh.tar.gz; ./configure --with-pam; make && make install' 
+            %(psi_config.HOST_OSSH_SRC_DIR,))
+
+    #
     # Generate and upload sshd_config files and xinetd.conf
     #
 
