@@ -268,6 +268,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             Channels:             %d
             Twitter Campaigns:    %d
             Email Campaigns:      %d
+            Total Campaigns:      %d
             Hosts:                %d
             Servers:              %d
             Email Server:         %s
@@ -288,6 +289,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 sum([len(filter(lambda x:x.propagation_mechanism_type == 'twitter', sponsor.campaigns))
                      for sponsor in self.__sponsors.itervalues()]),
                 sum([len(filter(lambda x:x.propagation_mechanism_type == 'email-autoresponder', sponsor.campaigns))
+                     for sponsor in self.__sponsors.itervalues()]),
+                sum([len(sponsor.campaigns)
                      for sponsor in self.__sponsors.itervalues()]),
                 len(self.__hosts),
                 len(self.__servers),
