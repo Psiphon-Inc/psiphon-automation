@@ -117,7 +117,7 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
                                     egress_ip_address, ','.join(expected_egress_ip_addresses)))
     
             if transport != 'VPN' and split_tunnel_mode and is_proxied:
-                raise Exception('Local case/not VPN/split tunnel: egress is %s and expected egresses are %s' % (
+                raise Exception('Local case/not VPN/split tunnel: egress is %s and expected egresses are ANYTHING OTHER THAN %s' % (
                                     egress_ip_address, ','.join(expected_egress_ip_addresses)))
         
             # Get egress IP from web site in different GeoIP region; remote split tunnel is proxied
