@@ -451,7 +451,7 @@ def install_host(host, servers, existing_server_ids):
     remote_ossh_file_path = posixpath.join(psi_config.HOST_OSSH_SRC_DIR, 'ossh.tar.gz')
     ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', '3rdParty', 'ossh.tar.gz'),
                  remote_ossh_file_path)
-    ssh.exec_command('cd %s; tar xfz ossh.tar.gz; ./configure --with-pam; make && make install' 
+    ssh.exec_command('cd %s; tar xfz ossh.tar.gz; ./configure --with-pam > /dev/null; make > /dev/null && make install > /dev/null' 
             %(psi_config.HOST_OSSH_SRC_DIR,))
 
     #
