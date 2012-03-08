@@ -995,8 +995,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def reinstall_hosts(self):
         assert(self.is_locked)
-        for host in self.__hosts.itervalues():
-            self.reinstall_host(host.id)
+        psi_ops_deploy.run_in_parallel(25, self.reinstall_host, [host.id for host in self.__hosts.itervalues()])
             
     def set_servers_propagation_channel_and_discovery_date_range(self, server_names, propagation_channel_name, discovery_date_range, replace_others=True):
         assert(self.is_locked)
