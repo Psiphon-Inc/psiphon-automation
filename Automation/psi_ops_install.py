@@ -225,6 +225,7 @@ def make_sshd_config_file_command(ip_address, ssh_user):
     file_contents = textwrap.dedent('''
         AllowUsers %s
         HostKey /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s
+        LoginGraceTime 20
         PrintLastLog no
         PrintMotd no
         UseDNS no
@@ -240,6 +241,7 @@ def make_obfuscated_sshd_config_file_command(ip_address, ssh_user, ssh_obfuscate
     file_contents = textwrap.dedent('''
         AllowUsers %s
         HostKey /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s
+        LoginGraceTime 20
         PrintLastLog no
         PrintMotd no
         UseDNS no
