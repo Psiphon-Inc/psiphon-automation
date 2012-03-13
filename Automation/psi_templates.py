@@ -80,12 +80,12 @@ Türkmençe - <a href="{0}/tk.html">{0}/tk.html</a><br>
 ภาษาไทย - <a href="{0}/th.html">{0}/th.html</a><br>
 </div>
 <div style="direction: ltr;">
-Psiphon 3 дан фойдаланиш учун илова қилинган файлни .exe кенгайтиришда сақланг.<br>
-Ёки қуйидаги уланишни босинг.<br> 
+Psiphon 3 дан фойдаланиш учун илова қилинган файлни .exe форматида сақланг.<br>
+Ёки мана бу линкни босинг.<br> 
 <a href="{0}/uz@cyrillic.html">{0}/uz@cyrillic.html</a><br>
 </div>
 <div style="direction: ltr;">
-Psiphon 3 dan foydalanish uchun ilova qilingan faylni .exe kyengaytirishda saqlang.<br>
-Yoki quyidagi ulanishni bosing.<br>
+Psiphon 3 dan foydalanish uchun ilova qilingan faylni .exe formatida saqlang.<br>
+Yoki mana bu linkni bosing.<br> 
 <a href="{0}/uz@Latn.html">{0}/uz@Latn.html</a><br>
 </div>'''.format(bucket_root_url)
