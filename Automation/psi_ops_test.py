@@ -20,6 +20,7 @@
 import urllib2
 import subprocess
 import time
+import random
 from functools import wraps
 try:
     import win32ui
@@ -76,70 +77,71 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
     # - sleep 5 seconds, which allows time to establish connection
     # - determine egress IP address and assert it matches host IP address
     # - post WM_CLOSE to gracefully shut down the client and its connection
-    print 'Testing egress IP addresses %s in %s mode...' % (
-            ','.join(expected_egress_ip_addresses), transport)
 
-    for split_tunnel_mode in [True, False]:
+    # Split tunnelling is not implemented for VPN.
+    if transport == 'VPN':
+        split_tunnel_mode = False
+    else:
+        split_tunnel_mode = random.choice([True, False])
 
-        # Split tunnelling is not implemented for VPN. No need to run the same test twice.
-        if transport == 'VPN' and split_tunnel_mode:
-            continue
+    print 'Testing egress IP addresses %s in %s mode (split tunnel %s)...' % (
+            ','.join(expected_egress_ip_addresses), transport, 'ENABLED' if split_tunnel_mode else 'DISABLED')
 
+    try:
+        proc = None
+        transport_value, transport_type = None, None
+        split_tunnel_value, split_tunnel_type = None, None
+        reg_key = _winreg.OpenKey(REGISTRY_ROOT_KEY, REGISTRY_PRODUCT_KEY, 0, _winreg.KEY_ALL_ACCESS)
+        transport_value, transport_type = _winreg.QueryValueEx(reg_key, REGISTRY_TRANSPORT_VALUE)
+        _winreg.SetValueEx(reg_key, REGISTRY_TRANSPORT_VALUE, None, _winreg.REG_SZ, transport)
+        split_tunnel_value, split_tunnel_type = _winreg.QueryValueEx(reg_key, REGISTRY_SPLIT_TUNNEL_VALUE)
+        # Enable split tunnel with registry setting
+        _winreg.SetValueEx(reg_key, REGISTRY_SPLIT_TUNNEL_VALUE, None, _winreg.REG_DWORD, 1 if split_tunnel_mode else 0)
+        
+        proc = subprocess.Popen([executable_path])
+        
+        time.sleep(15)
+    
+        # In VPN mode, all traffic is routed through the proxy. In SSH mode, the
+        # urlib2 ProxyHandler picks up the Windows Internet Settings and uses the
+        # HTTP Proxy that is set by the client.
+        urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler()))
+
+        # Get egress IP from web site in same GeoIP region; local split tunnel is not proxied
+    
+        egress_ip_address = urllib2.urlopen(psi_ops_build.CHECK_IP_ADDRESS_URL_LOCAL, timeout=30).read().split('\n')[0]
+
+        is_proxied = (egress_ip_address in expected_egress_ip_addresses)
+    
+        if (transport == 'VPN' or not split_tunnel_mode) and not is_proxied:
+            raise Exception('Local case/VPN/not split tunnel: egress is %s and expected egresses are %s' % (
+                                egress_ip_address, ','.join(expected_egress_ip_addresses)))
+
+        if transport != 'VPN' and split_tunnel_mode and is_proxied:
+            raise Exception('Local case/not VPN/split tunnel: egress is %s and expected egresses are ANYTHING OTHER THAN %s' % (
+                                egress_ip_address, ','.join(expected_egress_ip_addresses)))
+    
+        # Get egress IP from web site in different GeoIP region; remote split tunnel is proxied
+    
+        egress_ip_address = urllib2.urlopen(psi_ops_build.CHECK_IP_ADDRESS_URL_REMOTE, timeout=30).read().split('\n')[0]
+    
+        is_proxied = (egress_ip_address in expected_egress_ip_addresses)
+
+        if not is_proxied:
+            raise Exception('Remote case: egress is %s and expected egresses are %s' % (
+                                egress_ip_address, ','.join(expected_egress_ip_addresses)))
+        
+    finally:
+        if transport_type and transport_value:
+            _winreg.SetValueEx(reg_key, REGISTRY_TRANSPORT_VALUE, None, transport_type, transport_value)
+        if split_tunnel_value and split_tunnel_type:
+            _winreg.SetValueEx(reg_key, REGISTRY_SPLIT_TUNNEL_VALUE, None, split_tunnel_type, split_tunnel_value)
         try:
-            proc = None
-            transport_value, transport_type = None, None
-            split_tunnel_value, split_tunnel_type = None, None
-            reg_key = _winreg.OpenKey(REGISTRY_ROOT_KEY, REGISTRY_PRODUCT_KEY, 0, _winreg.KEY_ALL_ACCESS)
-            transport_value, transport_type = _winreg.QueryValueEx(reg_key, REGISTRY_TRANSPORT_VALUE)
-            _winreg.SetValueEx(reg_key, REGISTRY_TRANSPORT_VALUE, None, _winreg.REG_SZ, transport)
-            split_tunnel_value, split_tunnel_type = _winreg.QueryValueEx(reg_key, REGISTRY_SPLIT_TUNNEL_VALUE)
-            # Enable split tunnel with registry setting
-            _winreg.SetValueEx(reg_key, REGISTRY_SPLIT_TUNNEL_VALUE, None, _winreg.REG_DWORD, 1 if split_tunnel_mode else 0)
-            
-            proc = subprocess.Popen([executable_path])
-            
-            time.sleep(15)
-        
-            # In VPN mode, all traffic is routed through the proxy. In SSH mode, the
-            # urlib2 ProxyHandler picks up the Windows Internet Settings and uses the
-            # HTTP Proxy that is set by the client.
-            urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler()))
-    
-            # Get egress IP from web site in same GeoIP region; local split tunnel is not proxied
-        
-            egress_ip_address = urllib2.urlopen(psi_ops_build.CHECK_IP_ADDRESS_URL_LOCAL, timeout=30).read().split('\n')[0]
-    
-            is_proxied = (egress_ip_address in expected_egress_ip_addresses)
-        
-            if (transport == 'VPN' or not split_tunnel_mode) and not is_proxied:
-                raise Exception('Local case/VPN/not split tunnel: egress is %s and expected egresses are %s' % (
-                                    egress_ip_address, ','.join(expected_egress_ip_addresses)))
-    
-            if transport != 'VPN' and split_tunnel_mode and is_proxied:
-                raise Exception('Local case/not VPN/split tunnel: egress is %s and expected egresses are ANYTHING OTHER THAN %s' % (
-                                    egress_ip_address, ','.join(expected_egress_ip_addresses)))
-        
-            # Get egress IP from web site in different GeoIP region; remote split tunnel is proxied
-        
-            egress_ip_address = urllib2.urlopen(psi_ops_build.CHECK_IP_ADDRESS_URL_REMOTE, timeout=30).read().split('\n')[0]
-        
-            is_proxied = (egress_ip_address in expected_egress_ip_addresses)
-    
-            if not is_proxied:
-                raise Exception('Remote case: egress is %s and expected egresses are %s' % (
-                                    egress_ip_address, ','.join(expected_egress_ip_addresses)))
-            
-        finally:
-            if transport_type and transport_value:
-                _winreg.SetValueEx(reg_key, REGISTRY_TRANSPORT_VALUE, None, transport_type, transport_value)
-            if split_tunnel_value and split_tunnel_type:
-                _winreg.SetValueEx(reg_key, REGISTRY_SPLIT_TUNNEL_VALUE, None, split_tunnel_type, split_tunnel_value)
-            try:
-                win32ui.FindWindow(None, psi_ops_build.APPLICATION_TITLE).PostMessage(win32con.WM_CLOSE)
-            except Exception as e:
-                print e
-            if proc:
-                proc.wait()
+            win32ui.FindWindow(None, psi_ops_build.APPLICATION_TITLE).PostMessage(win32con.WM_CLOSE)
+        except Exception as e:
+            print e
+        if proc:
+            proc.wait()
             
 
 def test_server(ip_address, web_server_port, web_server_secret, encoded_server_list, version,
