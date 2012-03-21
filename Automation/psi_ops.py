@@ -1720,11 +1720,22 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             results[server.id] = result
             for test_result in result.itervalues():
                 if 'FAIL' in test_result:
-                    failures += 1
                     servers_with_errors.add(server.id)
+                    break
+        # One final pass to re-test servers that failed
+        for server_id in servers_with_errors:
+            server = self.__servers[server_id]
+            result = self.__test_server(server, test_cases)
+            results[server.id] = result
+        # Process results
+        servers_with_errors.clear()
+        for server_id, result in results.iteritems():
+            for test_result in result.itervalues():
+                if 'FAIL' in test_result:
+                    failures += 1
+                    servers_with_errors.add(server_id)
                 else:
                     passes += 1
-        for server_id, result in results.iteritems():
             if server_id in servers_with_errors:
                 pprint.pprint((server_id, result), stream=sys.stderr)
             else:
