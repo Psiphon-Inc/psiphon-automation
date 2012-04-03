@@ -391,8 +391,8 @@ def update_propagation_channels(db, propagation_channels):
     for channel in propagation_channels:
         cursor.execute('UPDATE propagation_channel SET name = %s WHERE id = %s',
                        [channel.name, channel.id])
-        cursor.execute('INSERT INTO propagation_channel (id, name) VALUES (%s, %s) ' +
-                       'WHERE NOT EXISTS (SELECT 1 FROM propagation_channel WHERE id = %s AND name = %s',
+        cursor.execute('INSERT INTO propagation_channel (id, name) SELECT %s, %s ' +
+                       'WHERE NOT EXISTS (SELECT 1 FROM propagation_channel WHERE id = %s AND name = %s)',
                        [channel.id, channel.name, channel.id, channel.name])
 
     cursor.execute('COMMIT')
@@ -405,8 +405,8 @@ def update_sponsors(db, sponsors):
     for sponsor in sponsors:
         cursor.execute('UPDATE sponsor SET name = %s WHERE id = %s',
                        [sponsor.name, sponsor.id])
-        cursor.execute('INSERT INTO sponsor (id, name) VALUES (%s, %s) ' +
-                       'WHERE NOT EXISTS (SELECT 1 FROM sponsor WHERE id = %s AND name = %s',
+        cursor.execute('INSERT INTO sponsor (id, name) SELECT %s, %s ' +
+                       'WHERE NOT EXISTS (SELECT 1 FROM sponsor WHERE id = %s AND name = %s)',
                        [sponsor.id, sponsor.name, sponsor.id, sponsor.name])
 
     cursor.execute('COMMIT')

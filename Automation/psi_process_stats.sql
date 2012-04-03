@@ -404,3 +404,185 @@ ALTER TABLE sponsor OWNER TO postgres;
 GRANT ALL ON TABLE sponsor TO postgres;
 GRANT ALL ON TABLE sponsor TO psiphon3;
 
+CREATE OR REPLACE VIEW psiphon_discovery AS
+SELECT
+  discovery."timestamp",
+  discovery.host_id,
+  discovery.server_id,
+  discovery.client_region,
+  propagation_channel.name AS propagation_channel_name,
+  sponsor.name AS sponsor_name,
+  discovery.client_version,
+  discovery.discovery_server_id,
+  discovery.client_unknown,
+  discovery.id
+FROM discovery
+JOIN propagation_channel ON propagation_channel.id = discovery.propagation_channel_id
+JOIN sponsor ON  sponsor.id = discovery.sponsor_id;
+
+ALTER VIEW psiphon_discovery OWNER TO postgres;
+GRANT ALL ON VIEW psiphon_discovery TO postgres;
+GRANT ALL ON VIEW psiphon_discovery TO psiphon3;
+
+CREATE OR REPLACE VIEW psiphon_download AS
+SELECT
+  download."timestamp",
+  download.host_id,
+  download.server_id,
+  download.client_region,
+  propagation_channel.name AS propagation_channel_name,
+  sponsor.name AS sponsor_name,
+  download.client_version,
+  download.id
+FROM download
+JOIN propagation_channel ON propagation_channel.id = download.propagation_channel_id
+JOIN sponsor ON  sponsor.id = download.sponsor_id;
+
+ALTER VIEW psiphon_download OWNER TO postgres;
+GRANT ALL ON VIEW psiphon_download TO postgres;
+GRANT ALL ON VIEW psiphon_download TO psiphon3;
+
+CREATE OR REPLACE VIEW psiphon_failed AS
+SELECT
+  failed."timestamp",
+  failed.host_id,
+  failed.server_id,
+  failed.client_region,
+  propagation_channel.name AS propagation_channel_name,
+  sponsor.name AS sponsor_name,
+  failed.client_version,
+  failed.relay_protocol,
+  failed.error_code,
+  failed.id
+FROM failed
+JOIN propagation_channel ON propagation_channel.id = failed.propagation_channel_id
+JOIN sponsor ON  sponsor.id = failed.sponsor_id;
+
+ALTER VIEW psiphon_failed OWNER TO postgres;
+GRANT ALL ON VIEW psiphon_failed TO postgres;
+GRANT ALL ON VIEW psiphon_failed TO psiphon3;
+
+CREATE OR REPLACE VIEW psiphon_handshake AS
+SELECT
+  handshake."timestamp",
+  handshake.host_id,
+  handshake.server_id,
+  handshake.client_region,
+  propagation_channel.name AS propagation_channel_name,
+  sponsor.name AS sponsor_name,
+  handshake.client_version,
+  handshake.id
+FROM handshake
+JOIN propagation_channel ON propagation_channel.id = handshake.propagation_channel_id
+JOIN sponsor ON  sponsor.id = handshake.sponsor_id;
+
+ALTER VIEW psiphon_handshake OWNER TO postgres;
+GRANT ALL ON VIEW psiphon_handshake TO postgres;
+GRANT ALL ON VIEW psiphon_handshake TO psiphon3;
+
+CREATE OR REPLACE VIEW psiphon_bytes_transferred AS
+SELECT
+  bytes_transferred."timestamp",
+  bytes_transferred.host_id,
+  bytes_transferred.server_id,
+  bytes_transferred.client_region,
+  propagation_channel.name AS propagation_channel_name,
+  sponsor.name AS sponsor_name,
+  bytes_transferred.client_version,
+  bytes_transferred.relay_protocol,
+  bytes_transferred.bytes,
+  bytes_transferred.id
+FROM bytes_transferred
+JOIN propagation_channel ON propagation_channel.id = bytes_transferred.propagation_channel_id
+JOIN sponsor ON  sponsor.id = bytes_transferred.sponsor_id;
+
+ALTER VIEW psiphon_bytes_transferred OWNER TO postgres;
+GRANT ALL ON VIEW psiphon_bytes_transferred TO postgres;
+GRANT ALL ON VIEW psiphon_bytes_transferred TO psiphon3;
+
+CREATE OR REPLACE VIEW psiphon_page_views AS
+SELECT
+  page_views."timestamp",
+  page_views.host_id,
+  page_views.server_id,
+  page_views.client_region,
+  propagation_channel.name AS propagation_channel_name,
+  sponsor.name AS sponsor_name,
+  page_views.client_version,
+  page_views.relay_protocol,
+  page_views.pagename,
+  page_views.viewcount
+  page_views.id
+FROM page_views
+JOIN propagation_channel ON propagation_channel.id = page_views.propagation_channel_id
+JOIN sponsor ON  sponsor.id = page_views.sponsor_id;
+
+ALTER VIEW psiphon_page_views OWNER TO postgres;
+GRANT ALL ON VIEW psiphon_page_views TO postgres;
+GRANT ALL ON VIEW psiphon_page_views TO psiphon3;
+
+CREATE OR REPLACE VIEW psiphon_https_requests AS
+SELECT
+  https_requests."timestamp",
+  https_requests.host_id,
+  https_requests.server_id,
+  https_requests.client_region,
+  propagation_channel.name AS propagation_channel_name,
+  sponsor.name AS sponsor_name,
+  https_requests.client_version,
+  https_requests.relay_protocol,
+  https_requests."domain",
+  https_requests.count,
+  https_requests.id
+FROM https_requests
+JOIN propagation_channel ON propagation_channel.id = https_requests.propagation_channel_id
+JOIN sponsor ON  sponsor.id = https_requests.sponsor_id;
+
+ALTER VIEW psiphon_https_requests OWNER TO postgres;
+GRANT ALL ON VIEW psiphon_https_requests TO postgres;
+GRANT ALL ON VIEW psiphon_https_requests TO psiphon3;
+
+CREATE OR REPLACE VIEW psiphon_speed AS
+SELECT
+  speed."timestamp",
+  speed.host_id,
+  speed.server_id,
+  speed.client_region,
+  propagation_channel.name AS propagation_channel_name,
+  sponsor.name AS sponsor_name,
+  speed.client_version,
+  speed.relay_protocol,
+  speed."operation",
+  speed.info,
+  speed.milliseconds,
+  speed."size",
+  speed.id
+FROM speed
+JOIN propagation_channel ON propagation_channel.id = speed.propagation_channel_id
+JOIN sponsor ON  sponsor.id = speed.sponsor_id;
+
+ALTER VIEW psiphon_speed OWNER TO postgres;
+GRANT ALL ON VIEW psiphon_speed TO postgres;
+GRANT ALL ON VIEW psiphon_speed TO psiphon3;
+
+CREATE OR REPLACE VIEW psiphon_session AS
+SELECT
+  "session".host_id,
+  "session".server_id,
+  "session".client_region,
+  propagation_channel.name AS propagation_channel_name,
+  sponsor.name AS sponsor_name,
+  "session".client_version,
+  "session".relay_protocol,
+  "session".session_id,
+  "session".session_start_timestamp,
+  "session".session_end_timestamp,
+  "session".id
+FROM "session"
+JOIN propagation_channel ON propagation_channel.id = "session".propagation_channel_id
+JOIN sponsor ON  sponsor.id = "session".sponsor_id;
+
+ALTER VIEW psiphon_session OWNER TO postgres;
+GRANT ALL ON VIEW psiphon_session TO postgres;
+GRANT ALL ON VIEW psiphon_session TO psiphon3;
+
