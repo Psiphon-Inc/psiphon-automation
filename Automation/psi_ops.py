@@ -1562,6 +1562,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def get_servers(self):
         return list(self.__servers.itervalues())
     
+    def get_propagation_channels(self):
+        return list(self.__propagation_channels.itervalues())
+
+    def get_sponsors(self):
+        return list(self.__sponsors.itervalues())
+
     def __compartmentalize_data_for_host(self, host_id, discovery_date=datetime.datetime.now()):
         # Create a compartmentalized database with only the information needed by a particular host
         # - all propagation channels because any client may connect to servers on this host

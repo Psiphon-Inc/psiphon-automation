@@ -369,3 +369,38 @@ CREATE INDEX session_connected_id_index
   ON "session"
   USING btree
   (connected_id);
+
+-- Table: propagation_channel
+
+-- DROP TABLE propagataion_channel;
+
+CREATE TABLE propagation_channel
+(
+  id text,
+  name text,
+  CONSTRAINT propagation_channel_pkey PRIMARY KEY (id)
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE propagation_channel OWNER TO postgres;
+GRANT ALL ON TABLE propagation_channel TO postgres;
+GRANT ALL ON TABLE propagation_channel TO psiphon3;
+
+-- Table: sponsor
+
+-- DROP TABLE sponsor;
+
+CREATE TABLE sponsor
+(
+  id text,
+  name text,
+  CONSTRAINT sponsor_pkey PRIMARY KEY (id)
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE sponsor OWNER TO postgres;
+GRANT ALL ON TABLE sponsor TO postgres;
+GRANT ALL ON TABLE sponsor TO psiphon3;
+

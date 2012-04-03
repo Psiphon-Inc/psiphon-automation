@@ -384,6 +384,34 @@ def reconstruct_sessions(db):
     print 'elapsed time: %fs' % (time.time()-start_time,)
 
 
+def update_propagation_channels(db, propagation_channels):
+
+    cursor = db.cursor()
+
+    for channel in propagation_channels:
+        cursor.execute('UPDATE propagation_channel SET name = %s WHERE id = %s',
+                       [channel.name, channel.id])
+        cursor.execute('INSERT INTO propagation_channel (id, name) VALUES (%s, %s) ' +
+                       'WHERE NOT EXISTS (SELECT 1 FROM propagation_channel WHERE id = %s AND name = %s',
+                       [channel.id, channel.name, channel.id, channel.name])
+
+    cursor.execute('COMMIT')
+
+
+def update_sponsors(db, sponsors):
+
+    cursor = db.cursor()
+
+    for sponsor in sponsors:
+        cursor.execute('UPDATE sponsor SET name = %s WHERE id = %s',
+                       [sponsor.name, sponsor.id])
+        cursor.execute('INSERT INTO sponsor (id, name) VALUES (%s, %s) ' +
+                       'WHERE NOT EXISTS (SELECT 1 FROM sponsor WHERE id = %s AND name = %s',
+                       [sponsor.id, sponsor.name, sponsor.id, sponsor.name])
+
+    cursor.execute('COMMIT')
+
+
 if __name__ == "__main__":
 
     start_time = time.time()
@@ -399,8 +427,13 @@ if __name__ == "__main__":
 
     hosts = psinet.get_hosts()
     servers = psinet.get_servers()
+    propagation_channels = psinet.get_propagation_channels()
+    sponsors = psinet.get_sponsors()
 
     try:
+        update_propagation_channels(db_conn, propagation_channels)
+        update_sponsors(db_conn, sponsors)
+
         for host in hosts:
             db_cur = db_conn.cursor()
             process_stats(host, servers, db_cur)
