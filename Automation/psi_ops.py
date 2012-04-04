@@ -1388,6 +1388,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # Extended (i.e., new) entry fields are in a JSON string
         extended_config = {}
+
+        # NOTE: also putting original values in extended config for easier parsing for new clients
+        extended_config['ipAddress'] = server.ip_address
+        extended_config['webServerPort'] = server.web_server_port
+        extended_config['webServerSecret'] = server.web_server_secret
+        extended_config['webServerCertificate'] = server.web_server_certificate
+
         extended_config['sshPort'] = int(server.ssh_port) if server.ssh_port else 0
         extended_config['sshUsername'] = server.ssh_username if server.ssh_username else ''
         extended_config['sshPassword'] = server.ssh_password if server.ssh_password else ''
