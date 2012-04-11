@@ -415,6 +415,7 @@ SELECT
   propagation_channel.name AS propagation_channel_name,
   sponsor.name AS sponsor_name,
   discovery.client_version,
+  discovery.relay_protocol,
   discovery.discovery_server_id,
   discovery.client_unknown,
   discovery.id
@@ -473,6 +474,7 @@ SELECT
   propagation_channel.name AS propagation_channel_name,
   sponsor.name AS sponsor_name,
   handshake.client_version,
+  handshake.relay_protocol,
   handshake.id
 FROM handshake
 JOIN propagation_channel ON propagation_channel.id = handshake.propagation_channel_id
