@@ -75,11 +75,12 @@ CREATE TABLE discovery
   propagation_channel_id text,
   sponsor_id text,
   client_version text,
+  relay_protocol text,
   discovery_server_id text,
   client_unknown text,
   id bigserial NOT NULL,
   CONSTRAINT discovery_pkey PRIMARY KEY (id),
-  CONSTRAINT discovery_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, discovery_server_id, client_unknown)
+  CONSTRAINT discovery_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, relay_protocol, discovery_server_id, client_unknown)
 )
 WITH (
   OIDS=FALSE
@@ -151,9 +152,10 @@ CREATE TABLE handshake
   propagation_channel_id text,
   sponsor_id text,
   client_version text,
+  relay_protocol text,
   id bigserial NOT NULL,
   CONSTRAINT handshake_pkey PRIMARY KEY (id),
-  CONSTRAINT handshake_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version)
+  CONSTRAINT handshake_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, relay_protocol)
 )
 WITH (
   OIDS=FALSE
