@@ -79,8 +79,11 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
     # - post WM_CLOSE to gracefully shut down the client and its connection
 
     has_remote_check = len(psi_ops_build.CHECK_IP_ADDRESS_URL_REMOTE) > 0
+    has_local_check = len(psi_ops_build.CHECK_IP_ADDRESS_URL_LOCAL) > 0
 
     # Split tunnelling is not implemented for VPN.
+    # Also, if there is no remote check, don't use split tunnel mode because we always want
+    # to test at least one proxied case.
     if transport == 'VPN' or not has_remote_check:
         split_tunnel_mode = False
     else:
@@ -109,19 +112,20 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
         # HTTP Proxy that is set by the client.
         urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler()))
 
-        # Get egress IP from web site in same GeoIP region; local split tunnel is not proxied
+        if has_local_check:
+            # Get egress IP from web site in same GeoIP region; local split tunnel is not proxied
     
-        egress_ip_address = urllib2.urlopen(psi_ops_build.CHECK_IP_ADDRESS_URL_LOCAL, timeout=30).read().split('\n')[0]
+            egress_ip_address = urllib2.urlopen(psi_ops_build.CHECK_IP_ADDRESS_URL_LOCAL, timeout=30).read().split('\n')[0]
 
-        is_proxied = (egress_ip_address in expected_egress_ip_addresses)
+            is_proxied = (egress_ip_address in expected_egress_ip_addresses)
     
-        if (transport == 'VPN' or not split_tunnel_mode) and not is_proxied:
-            raise Exception('Local case/VPN/not split tunnel: egress is %s and expected egresses are %s' % (
-                                egress_ip_address, ','.join(expected_egress_ip_addresses)))
+            if (transport == 'VPN' or not split_tunnel_mode) and not is_proxied:
+                raise Exception('Local case/VPN/not split tunnel: egress is %s and expected egresses are %s' % (
+                                    egress_ip_address, ','.join(expected_egress_ip_addresses)))
 
-        if transport != 'VPN' and split_tunnel_mode and is_proxied:
-            raise Exception('Local case/not VPN/split tunnel: egress is %s and expected egresses are ANYTHING OTHER THAN %s' % (
-                                egress_ip_address, ','.join(expected_egress_ip_addresses)))
+            if transport != 'VPN' and split_tunnel_mode and is_proxied:
+                raise Exception('Local case/not VPN/split tunnel: egress is %s and expected egresses are ANYTHING OTHER THAN %s' % (
+                                    egress_ip_address, ','.join(expected_egress_ip_addresses)))
     
         if has_remote_check:
             # Get egress IP from web site in different GeoIP region; remote split tunnel is proxied
