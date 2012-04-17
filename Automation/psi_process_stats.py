@@ -76,12 +76,16 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'client_region',
                              'propagation_channel_id',
                              'sponsor_id',
-                             'client_version'),
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol'),
     'discovery' :           ('server_id',
                              'client_region',
                              'propagation_channel_id',
                              'sponsor_id',
                              'client_version',
+                             'client_platform',
+                             'relay_protocol',
                              'discovery_server_id',
                              'client_unknown'),
     'connected' :           ('server_id',
@@ -89,6 +93,7 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'propagation_channel_id',
                              'sponsor_id',
                              'client_version',
+                             'client_platform',
                              'relay_protocol',
                              'session_id'),
     'failed' :              ('server_id',
@@ -96,13 +101,15 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'propagation_channel_id',
                              'sponsor_id',
                              'client_version',
+                             'client_platform',
                              'relay_protocol',
                              'error_code'),
     'download' :            ('server_id',
                              'client_region',
                              'propagation_channel_id',
                              'sponsor_id',
-                             'client_version'),
+                             'client_version',
+                             'client_platform')
     'disconnected' :        ('relay_protocol',
                              'session_id'),
     'status' :              ('relay_protocol',
@@ -112,6 +119,7 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'propagation_channel_id',
                              'sponsor_id',
                              'client_version',
+                             'client_platform',
                              'relay_protocol',
                              'bytes'),
     'page_views' :          ('server_id',
@@ -119,6 +127,7 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'propagation_channel_id',
                              'sponsor_id',
                              'client_version',
+                             'client_platform',
                              'relay_protocol',
                              'pagename',
                              'viewcount'),
@@ -127,6 +136,7 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'propagation_channel_id',
                              'sponsor_id',
                              'client_version',
+                             'client_platform',
                              'relay_protocol',
                              'domain',
                              'count'),
@@ -135,6 +145,7 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'propagation_channel_id',
                              'sponsor_id',
                              'client_version',
+                             'client_platform',
                              'relay_protocol',
                              'operation',
                              'info',
@@ -264,8 +275,8 @@ def process_stats(host, servers, db_cur, error_file=None):
                     # Check for invalid bytes value for bytes_transferred
 
                     if event_type == 'bytes_transferred':
-                        assert(field_names[8] == 'bytes')
-                        if not (0 <= int(field_values[8]) < 2147483647):
+                        assert(field_names[9] == 'bytes')
+                        if not (0 <= int(field_values[9]) < 2147483647):
                             err = 'invalid byte fields %s' % (line,)
                             print err
                             if error_file:
@@ -354,11 +365,11 @@ def reconstruct_sessions(db):
     
     session_cursor.execute(textwrap.dedent('''
         INSERT INTO session (host_id, server_id, client_region, propagation_channel_id,
-                             sponsor_id, client_version, relay_protocol, session_id,
+                             sponsor_id, client_version, client_platform, relay_protocol, session_id,
                              session_start_timestamp, session_end_timestamp, connected_id)
             SELECT connected.host_id, connected.server_id, connected.client_region,
                 connected.propagation_channel_id, connected.sponsor_id, connected.client_version,
-                connected.relay_protocol, connected.session_id, connected.timestamp,
+                connected.client_platform, connected.relay_protocol, connected.session_id, connected.timestamp,
                 disconnected.timestamp, connected.id
             FROM
                 connected

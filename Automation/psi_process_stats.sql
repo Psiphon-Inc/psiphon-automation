@@ -28,11 +28,12 @@ CREATE TABLE connected
   propagation_channel_id text,
   sponsor_id text,
   client_version text,
+  client_platform text,
   relay_protocol text,
   session_id text,
   id bigserial NOT NULL,
   CONSTRAINT connected_pkey PRIMARY KEY (id),
-  CONSTRAINT connected_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, relay_protocol, session_id)
+  CONSTRAINT connected_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, client_platform, relay_protocol, session_id)
 )
 WITH (
   OIDS=FALSE
@@ -75,11 +76,13 @@ CREATE TABLE discovery
   propagation_channel_id text,
   sponsor_id text,
   client_version text,
+  client_platform text,
+  relay_protocol text,
   discovery_server_id text,
   client_unknown text,
   id bigserial NOT NULL,
   CONSTRAINT discovery_pkey PRIMARY KEY (id),
-  CONSTRAINT discovery_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, discovery_server_id, client_unknown)
+  CONSTRAINT discovery_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, client_platform, relay_protocol, discovery_server_id, client_unknown)
 )
 WITH (
   OIDS=FALSE
@@ -101,9 +104,10 @@ CREATE TABLE download
   propagation_channel_id text,
   sponsor_id text,
   client_version text,
+  client_platform text,
   id bigserial NOT NULL,
   CONSTRAINT download_pkey PRIMARY KEY (id),
-  CONSTRAINT download_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version)
+  CONSTRAINT download_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, client_platform)
 )
 WITH (
   OIDS=FALSE
@@ -125,11 +129,12 @@ CREATE TABLE failed
   propagation_channel_id text,
   sponsor_id text,
   client_version text,
+  client_platform text,
   relay_protocol text,
   error_code text,
   id bigserial NOT NULL,
   CONSTRAINT failed_pkey PRIMARY KEY (id),
-  CONSTRAINT failed_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, relay_protocol, error_code)
+  CONSTRAINT failed_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, client_platform, relay_protocol, error_code)
 )
 WITH (
   OIDS=FALSE
@@ -151,9 +156,11 @@ CREATE TABLE handshake
   propagation_channel_id text,
   sponsor_id text,
   client_version text,
+  client_platform text,
+  relay_protocol text,
   id bigserial NOT NULL,
   CONSTRAINT handshake_pkey PRIMARY KEY (id),
-  CONSTRAINT handshake_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version)
+  CONSTRAINT handshake_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, client_platform, relay_protocol)
 )
 WITH (
   OIDS=FALSE
@@ -216,11 +223,12 @@ CREATE TABLE bytes_transferred
   propagation_channel_id text,
   sponsor_id text,
   client_version text,
+  client_platform text,
   relay_protocol text,
   bytes integer NOT NULL,
   id bigserial NOT NULL,
   CONSTRAINT bytes_transferred_pkey PRIMARY KEY (id),
-  CONSTRAINT bytes_transferred_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, relay_protocol, bytes)
+  CONSTRAINT bytes_transferred_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, client_platform, relay_protocol, bytes)
 )
 WITH (
   OIDS=FALSE
@@ -242,12 +250,13 @@ CREATE TABLE page_views
   propagation_channel_id text,
   sponsor_id text,
   client_version text,
+  client_platform text,
   relay_protocol text,
   pagename text,
   viewcount integer NOT NULL,
   id bigserial NOT NULL,
   CONSTRAINT page_views_pkey PRIMARY KEY (id),
-  CONSTRAINT page_views_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, relay_protocol, pagename, viewcount)
+  CONSTRAINT page_views_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, client_platform, relay_protocol, pagename, viewcount)
 )
 WITH (
   OIDS=FALSE
@@ -269,12 +278,13 @@ CREATE TABLE https_requests
   propagation_channel_id text,
   sponsor_id text,
   client_version text,
+  client_platform text,
   relay_protocol text,
   "domain" text,
   count integer NOT NULL,
   id bigserial NOT NULL,
   CONSTRAINT https_requests_pkey PRIMARY KEY (id),
-  CONSTRAINT https_requests_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, relay_protocol, "domain", count)
+  CONSTRAINT https_requests_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, client_platform, relay_protocol, "domain", count)
 )
 WITH (
   OIDS=FALSE
@@ -296,6 +306,7 @@ CREATE TABLE speed
   propagation_channel_id text,
   sponsor_id text,
   client_version text,
+  client_platform text,
   relay_protocol text,
   "operation" text,
   info text,
@@ -303,7 +314,7 @@ CREATE TABLE speed
   "size" integer,
   id bigserial NOT NULL,
   CONSTRAINT speed_pkey PRIMARY KEY (id),
-  CONSTRAINT speed_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, relay_protocol, "operation", info, milliseconds, "size")
+  CONSTRAINT speed_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, client_platform, relay_protocol, "operation", info, milliseconds, "size")
 )
 WITH (
   OIDS=FALSE
@@ -342,6 +353,7 @@ CREATE TABLE "session"
   propagation_channel_id text,
   sponsor_id text,
   client_version text,
+  client_platform text,
   relay_protocol text,
   session_id text,
   session_start_timestamp timestamp with time zone,
@@ -352,7 +364,7 @@ CREATE TABLE "session"
   CONSTRAINT connected_id FOREIGN KEY (connected_id)
       REFERENCES connected (id) MATCH SIMPLE
       ON UPDATE NO ACTION ON DELETE NO ACTION,
-  CONSTRAINT session_host_id_key UNIQUE (host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, relay_protocol, session_id, session_start_timestamp, session_end_timestamp)
+  CONSTRAINT session_host_id_key UNIQUE (host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, client_platform, relay_protocol, session_id, session_start_timestamp, session_end_timestamp)
 )
 WITH (
   OIDS=FALSE
@@ -413,6 +425,8 @@ SELECT
   propagation_channel.name AS propagation_channel_name,
   sponsor.name AS sponsor_name,
   discovery.client_version,
+  discovery.client_platform,
+  discovery.relay_protocol,
   discovery.discovery_server_id,
   discovery.client_unknown,
   discovery.id
@@ -433,6 +447,7 @@ SELECT
   propagation_channel.name AS propagation_channel_name,
   sponsor.name AS sponsor_name,
   download.client_version,
+  download.client_platform,
   download.id
 FROM download
 JOIN propagation_channel ON propagation_channel.id = download.propagation_channel_id
@@ -451,6 +466,7 @@ SELECT
   propagation_channel.name AS propagation_channel_name,
   sponsor.name AS sponsor_name,
   failed.client_version,
+  failed.client_platform,
   failed.relay_protocol,
   failed.error_code,
   failed.id
@@ -471,6 +487,8 @@ SELECT
   propagation_channel.name AS propagation_channel_name,
   sponsor.name AS sponsor_name,
   handshake.client_version,
+  handshake.client_platform,
+  handshake.relay_protocol,
   handshake.id
 FROM handshake
 JOIN propagation_channel ON propagation_channel.id = handshake.propagation_channel_id
@@ -489,6 +507,7 @@ SELECT
   propagation_channel.name AS propagation_channel_name,
   sponsor.name AS sponsor_name,
   bytes_transferred.client_version,
+  bytes_transferred.client_platform,
   bytes_transferred.relay_protocol,
   bytes_transferred.bytes,
   bytes_transferred.id
@@ -509,6 +528,7 @@ SELECT
   propagation_channel.name AS propagation_channel_name,
   sponsor.name AS sponsor_name,
   page_views.client_version,
+  page_views.client_platform,
   page_views.relay_protocol,
   page_views.pagename,
   page_views.viewcount
@@ -530,6 +550,7 @@ SELECT
   propagation_channel.name AS propagation_channel_name,
   sponsor.name AS sponsor_name,
   https_requests.client_version,
+  https_requests.client_platform,
   https_requests.relay_protocol,
   https_requests."domain",
   https_requests.count,
@@ -551,6 +572,7 @@ SELECT
   propagation_channel.name AS propagation_channel_name,
   sponsor.name AS sponsor_name,
   speed.client_version,
+  speed.client_platform,
   speed.relay_protocol,
   speed."operation",
   speed.info,
@@ -573,6 +595,7 @@ SELECT
   propagation_channel.name AS propagation_channel_name,
   sponsor.name AS sponsor_name,
   "session".client_version,
+  "session".client_platform,
   "session".relay_protocol,
   "session".session_id,
   "session".session_start_timestamp,
