@@ -109,7 +109,7 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'propagation_channel_id',
                              'sponsor_id',
                              'client_version',
-                             'client_platform')
+                             'client_platform'),
     'disconnected' :        ('relay_protocol',
                              'session_id'),
     'status' :              ('relay_protocol',
