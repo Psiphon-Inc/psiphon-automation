@@ -531,7 +531,7 @@ SELECT
   page_views.client_platform,
   page_views.relay_protocol,
   page_views.pagename,
-  page_views.viewcount
+  page_views.viewcount,
   page_views.id
 FROM page_views
 JOIN propagation_channel ON propagation_channel.id = page_views.propagation_channel_id
