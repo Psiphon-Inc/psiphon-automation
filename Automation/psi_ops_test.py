@@ -57,7 +57,7 @@ def retry_on_exception_decorator(function):
 @retry_on_exception_decorator
 def __test_web_server(ip_address, web_server_port, web_server_secret):
     print 'Testing web server at %s...' % (ip_address,)
-    get_request = 'https://%s:%s/handshake?propagation_channel_id=0&sponsor_id=0&client_version=1&server_secret=%s' % (ip_address, web_server_port, web_server_secret)
+    get_request = 'https://%s:%s/handshake?propagation_channel_id=0&sponsor_id=0&client_version=1&server_secret=%s&relay_protocol=SSH' % (ip_address, web_server_port, web_server_secret)
     # Reset the proxy settings (see comment below)
     urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler()))
     response = urllib2.urlopen(get_request, timeout=10).read()
@@ -67,7 +67,7 @@ def __test_web_server(ip_address, web_server_port, web_server_secret):
             'SSHHostKey: ' in response and
             'SSHObfuscatedPort: ' in response and
             'SSHObfuscatedKey: ' in response and
-            'PSK: ' in response)
+            'PSK: ' not in response)
 
 
 @retry_on_exception_decorator
