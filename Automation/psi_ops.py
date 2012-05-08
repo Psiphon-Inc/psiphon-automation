@@ -38,6 +38,7 @@ from pkg_resources import parse_version
 
 import psi_utils
 import psi_ops_cms
+import psi_ops_server_entry_auth
 
 # Modules available only on the automation server
 
@@ -199,6 +200,10 @@ SpeedTestURL = psi_utils.recordtype(
     'SpeedTestURL',
     'server_address, server_port, request_path')
 
+RemoteServerSigningKeyPair = psi_utils.recordtype(
+    'RemoteServerSigningKeyPair',
+    'pem_key_pair')
+
 
 class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
@@ -228,8 +233,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__deploy_stats_config_required = False
         self.__deploy_email_config_required = False
         self.__speed_test_urls = []
+        self.__remote_server_list_signing_key_pair = \
+            RemoteServerSigningKeyPair(
+                *psi_ops_server_entry_auth.generate_signing_key_pair(''))
 
-    class_version = '0.6'
+    class_version = '0.7'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -260,6 +268,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 propagation_channel.max_discovery_server_age_in_days = 0
                 propagation_channel.max_propagation_server_age_in_days = 0
             self.version = '0.6'
+        if cmp(parse_version(self.version), parse_version('0.7')) < 0:
+            self.__remote_server_list_signing_key_pair = \
+                RemoteServerSigningKeyPair(
+                    *psi_ops_server_entry_auth.generate_signing_key_pair(''))
+            self.version = '0.7'
 
     def show_status(self):
         # NOTE: verbose mode prints credentials to stdout
