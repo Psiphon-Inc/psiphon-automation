@@ -30,12 +30,21 @@ import boto.s3.key
 
 DOWNLOAD_SITE_BUILD_FILENAME = 'psiphon3.exe'
 
+DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME = 'server_list'
+
 DOWNLOAD_SITE_CONTENT_ROOT = os.path.join('.', 'DownloadSite')
 
 #==============================================================================
 
 
-def publish_s3_download(aws_account, build_filename):
+def get_s3_bucket_remote_server_list_url(bucket_id):
+    # Assumes USEast
+    return "https://s3.amazonaws.com/%s/%s" % (
+                bucket_id,
+                DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME)
+
+
+def create_s3_bucket(aws_account):
 
     # Connect to AWS
 
@@ -71,14 +80,12 @@ def publish_s3_download(aws_account, build_filename):
     # TODO: retry on boto.exception.S3CreateError: S3Error[409]: Conflict
     bucket = s3.create_bucket(bucket_id, location=location)
     
-    set_s3_bucket_contents(bucket, build_filename)
-    
-    print 'download URL: https://s3.amazonaws.com/%s/en.html' % (bucket_id)
+    print 'new download URL: https://s3.amazonaws.com/%s/en.html' % (bucket_id)
 
     return bucket_id
 
 
-def update_s3_download(aws_account, build_filename, bucket_id):
+def update_s3_download(aws_account, build_filename, remote_server_list, bucket_id):
     
     # Connect to AWS
 
@@ -88,12 +95,12 @@ def update_s3_download(aws_account, build_filename, bucket_id):
                 
     bucket = s3.get_bucket(bucket_id)
     
-    set_s3_bucket_contents(bucket, build_filename)
+    set_s3_bucket_contents(bucket, build_filename, remote_server_list)
 
     print 'updated download URL: https://s3.amazonaws.com/%s/en.html' % (bucket_id)
     
     
-def set_s3_bucket_contents(bucket, build_filename):
+def set_s3_bucket_contents(bucket, build_filename, remote_server_list):
 
     try:
         def progress(complete, total):
@@ -117,6 +124,12 @@ def set_s3_bucket_contents(bucket, build_filename):
             key = bucket.new_key(DOWNLOAD_SITE_BUILD_FILENAME)
             key.set_contents_from_filename(build_filename, cb=progress)
             key.close()
+
+        if remote_server_list:
+            key = bucket.new_key(DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME)
+            key.set_contents_from_string(remote_server_list, cb=progress)
+            key.close()
+
     except:
         # TODO: delete all keys
         #print 'upload failed, deleting bucket'

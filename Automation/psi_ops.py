@@ -204,6 +204,9 @@ RemoteServerSigningKeyPair = psi_utils.recordtype(
     'RemoteServerSigningKeyPair',
     'pem_key_pair')
 
+# The RemoteServerSigningKeyPair record is stored in the secure management
+# database, so we don't require a secret key pair wrapping password
+REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD = 'none'
 
 class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
@@ -235,7 +238,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__speed_test_urls = []
         self.__remote_server_list_signing_key_pair = \
             RemoteServerSigningKeyPair(
-                *psi_ops_server_entry_auth.generate_signing_key_pair(''))
+                *psi_ops_server_entry_auth.generate_signing_key_pair(
+                    REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD))
 
     class_version = '0.7'
 
@@ -271,7 +275,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.7')) < 0:
             self.__remote_server_list_signing_key_pair = \
                 RemoteServerSigningKeyPair(
-                    *psi_ops_server_entry_auth.generate_signing_key_pair(''))
+                    *psi_ops_server_entry_auth.generate_signing_key_pair(
+                        REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD))
             self.version = '0.7'
 
     def show_status(self):
@@ -1070,12 +1075,22 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 break
         return choice
 
-    def build(self, propagation_channel_name, sponsor_name, test=False):
+    def build(
+            self,
+            propagation_channel_name,
+            sponsor_name,
+            remote_server_list_url,
+            test=False):
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
         sponsor = self.__get_sponsor_by_name(sponsor_name)
         version = self.__client_versions[-1].version
         encoded_server_list, expected_egress_ip_addresses = \
                     self.__get_encoded_server_list(propagation_channel.id)
+        
+        remote_server_list_signature_public_key = \
+            psi_ops_server_entry_auth.get_base64_der_public_key(
+                self.__remote_server_list_signing_key_pair,
+                REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD)
         
         # A sponsor may use the same propagation channel for multiple
         # campaigns; we need only build and upload the client once.
@@ -1084,6 +1099,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         sponsor.id,
                         base64.b64decode(sponsor.banner),
                         encoded_server_list,
+                        remote_server_list_signature_public_key,
+                        remote_server_list_url,
                         version,
                         test)
 
@@ -1119,27 +1136,49 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             propagation_channel = self.__propagation_channels[propagation_channel_id]
             sponsor = self.__sponsors[sponsor_id]
 
-            # Build and upload to hosts
-                
-            build_filename = self.build(propagation_channel.name, sponsor.name)
-
-            # Upload client builds
-            # We only upload the builds for Propagation Channel IDs that need to be known for the host.
-            # UPDATE: Now we copy all builds.  We know that this breaks compartmentalization.
-            # However, we do not want to prevent an upgrade in the case where a user has
-            # downloaded from multiple propagation channels, and might therefore be connecting
-            # to a server from one propagation channel using a build from a different one.
-            psi_ops_deploy.deploy_build_to_hosts(self.__hosts.itervalues(), build_filename)
-
-            # Publish to propagation mechanisms
-
             for campaign in filter(lambda x:x.propagation_channel_id == propagation_channel_id, sponsor.campaigns):
-                if campaign.s3_bucket_name:
-                    psi_ops_s3.update_s3_download(self.__aws_account, build_filename, campaign.s3_bucket_name)
-                    campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
-                else:
-                    campaign.s3_bucket_name = psi_ops_s3.publish_s3_download(self.__aws_account, build_filename)
+
+                if not campaign.s3_bucket_name:
+                    campaign.s3_bucket_name = psi_ops_s3.create_s3_bucket(self.__aws_account)
                     campaign.log('created s3 bucket %s' % (campaign.s3_bucket_name,))
+                    self.save() # don't leak buckets
+
+                # Remote server list: for clients to get new servers via S3, we embed the
+                # bucket URL in the build. So now we're ensuring the bucket exists and we
+                # have its URL before the build is uploaded to S3. The remote server list
+                # is placed in the S3 bucket.
+
+                remote_server_list_url = psi_ops_s3.get_s3_bucket_remote_server_list_url(campaign.s3_bucket_name)
+    
+                remote_server_list = \
+                    psi_ops_server_entry_auth.make_signed_data(
+                        self.__remote_server_list_signing_key_pair,
+                        REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD,
+                        self.__get_encoded_server_list(propagation_channel.id)[0])
+            
+                # Build and upload to hosts
+    
+                build_filename = self.build(
+                                    propagation_channel.name,
+                                    sponsor.name,
+                                    remote_server_list_url)
+    
+                # Upload client builds
+                # We only upload the builds for Propagation Channel IDs that need to be known for the host.
+                # UPDATE: Now we copy all builds.  We know that this breaks compartmentalization.
+                # However, we do not want to prevent an upgrade in the case where a user has
+                # downloaded from multiple propagation channels, and might therefore be connecting
+                # to a server from one propagation channel using a build from a different one.
+                psi_ops_deploy.deploy_build_to_hosts(self.__hosts.itervalues(), build_filename)
+    
+                # Publish to propagation mechanisms
+
+                psi_ops_s3.update_s3_download(
+                    self.__aws_account,
+                    build_filename,
+                    remote_server_list,
+                    campaign.s3_bucket_name)
+                campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
 
                 if campaign.propagation_mechanism_type == 'twitter':
                     message = psi_templates.get_tweet_message(campaign.s3_bucket_name)
@@ -1150,6 +1189,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         self.__deploy_email_config_required = True
                         campaign.log('email push scheduled')
                     
+            # NOTE: before we added remote server lists, it used to be that
+            # multiple campaigns with different buckets but the same prop/sponsor IDs
+            # could share one build. The "deploy_builds_required_for_campaigns" dirty
+            # flag granularity is a hold-over from that. In the current code, this
+            # means some builds may be repeated unnecessarily in a failure case.
+
             self.__deploy_builds_required_for_campaigns.remove(target)
             self.save()
 
