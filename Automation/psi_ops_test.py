@@ -169,7 +169,15 @@ def test_server(ip_address, web_server_port, web_server_secret, encoded_server_l
                 results['443'] = 'FAIL: ' + str(ex)
         elif test_case in ['VPN', 'SSH+', 'SSH']:
             if not executable_path:
-                executable_path = psi_ops_build.build_client('0', '0', None, encoded_server_list, version, True)
+                executable_path = psi_ops_build.build_client(
+                                    '0',  # propagation_channel_id
+                                    '0',  # sponsor_id
+                                    None, # banner
+                                    encoded_server_list,
+                                    '',   # remote_server_list_signature_public_key
+                                    '',   # remote_server_list_url
+                                    version,
+                                    True)
             try:
                 __test_server(executable_path, test_case, expected_egress_ip_addresses)
                 results[test_case] = 'PASS'
