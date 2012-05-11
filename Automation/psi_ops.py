@@ -38,9 +38,13 @@ from pkg_resources import parse_version
 
 import psi_utils
 import psi_ops_cms
-import psi_ops_server_entry_auth
 
 # Modules available only on the automation server
+
+try:
+    import psi_ops_server_entry_auth
+except ImportError as error:
+    print error
 
 try:
     import psi_ssh
@@ -238,7 +242,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__speed_test_urls = []
         self.__remote_server_list_signing_key_pair = \
             RemoteServerSigningKeyPair(
-                *psi_ops_server_entry_auth.generate_signing_key_pair(
+                psi_ops_server_entry_auth.generate_signing_key_pair(
                     REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD))
 
     class_version = '0.7'
@@ -275,7 +279,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.7')) < 0:
             self.__remote_server_list_signing_key_pair = \
                 RemoteServerSigningKeyPair(
-                    *psi_ops_server_entry_auth.generate_signing_key_pair(
+                    psi_ops_server_entry_auth.generate_signing_key_pair(
                         REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD))
             self.version = '0.7'
 
@@ -1089,7 +1093,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         
         remote_server_list_signature_public_key = \
             psi_ops_server_entry_auth.get_base64_der_public_key(
-                self.__remote_server_list_signing_key_pair,
+                self.__remote_server_list_signing_key_pair.pem_key_pair,
                 REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD)
         
         # A sponsor may use the same propagation channel for multiple
@@ -1152,9 +1156,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     
                 remote_server_list = \
                     psi_ops_server_entry_auth.make_signed_data(
-                        self.__remote_server_list_signing_key_pair,
+                        self.__remote_server_list_signing_key_pair.pem_key_pair,
                         REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD,
-                        self.__get_encoded_server_list(propagation_channel.id)[0])
+                        '\n'.join(self.__get_encoded_server_list(propagation_channel.id)[0]))
             
                 # Build and upload to hosts
     
