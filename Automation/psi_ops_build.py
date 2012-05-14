@@ -101,8 +101,7 @@ def write_embedded_values(propagation_channel_id,
                           embedded_server_list,
                           remote_server_list_signature_public_key,
                           remote_server_list_url,
-                          ignore_system_server_list=False,
-                          ignore_vpn_relay=False):
+                          ignore_system_server_list=False):
     template = textwrap.dedent('''
         #pragma once
 
@@ -129,7 +128,8 @@ def write_embedded_values(propagation_channel_id,
                                client_version,
                                '\\n'.join(embedded_server_list),
                                (1 if ignore_system_server_list else 0),
-                               (1 if ignore_vpn_relay else 0)))
+                               remote_server_list_signature_public_key,
+                               remote_server_list_url))
 
 
 def build_client(
