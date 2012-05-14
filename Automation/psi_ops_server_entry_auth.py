@@ -79,7 +79,7 @@ def make_signed_data(key_pair, private_key_password, data):
 
     rsa_key = M2Crypto.RSA.load_key_string(
                 key_pair, callback=lambda _:private_key_password)
-    signature = rsa_key.sign(sha.digest(), algo='sha256')
+    signature = rsa_key.sign(data_digest, algo='sha256')
     
     return json.dumps(
         {"data" : data,
