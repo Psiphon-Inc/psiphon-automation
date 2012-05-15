@@ -240,10 +240,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__deploy_stats_config_required = False
         self.__deploy_email_config_required = False
         self.__speed_test_urls = []
-        self.__remote_server_list_signing_key_pair = \
-            RemoteServerSigningKeyPair(
-                psi_ops_server_entry_auth.generate_signing_key_pair(
-                    REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD))
+        self.__remote_server_list_signing_key_pair = None
 
     class_version = '0.7'
 
@@ -277,10 +274,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 propagation_channel.max_propagation_server_age_in_days = 0
             self.version = '0.6'
         if cmp(parse_version(self.version), parse_version('0.7')) < 0:
-            self.__remote_server_list_signing_key_pair = \
-                RemoteServerSigningKeyPair(
-                    psi_ops_server_entry_auth.generate_signing_key_pair(
-                        REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD))
+            self.__remote_server_list_signing_key_pair = None
             self.version = '0.7'
 
     def show_status(self):
@@ -1079,6 +1073,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 break
         return choice
 
+    def __get_remote_server_list_signing_key_pair(self):
+        if not self.__remote_server_list_signing_key_pair:
+            assert(self.is_locked)
+            self.__remote_server_list_signing_key_pair = \
+                RemoteServerSigningKeyPair(
+                    psi_ops_server_entry_auth.generate_signing_key_pair(
+                        REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD))
+            
+        return self.__remote_server_list_signing_key_pair
+    
     def build(
             self,
             propagation_channel_name,
@@ -1093,7 +1097,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         
         remote_server_list_signature_public_key = \
             psi_ops_server_entry_auth.get_base64_der_public_key(
-                self.__remote_server_list_signing_key_pair.pem_key_pair,
+                self.__get_remote_server_list_signing_key_pair().pem_key_pair,
                 REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD)
         
         # A sponsor may use the same propagation channel for multiple
@@ -1156,7 +1160,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     
                 remote_server_list = \
                     psi_ops_server_entry_auth.make_signed_data(
-                        self.__remote_server_list_signing_key_pair.pem_key_pair,
+                        self.__get_remote_server_list_signing_key_pair().pem_key_pair,
                         REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD,
                         '\n'.join(self.__get_encoded_server_list(propagation_channel.id)[0]))
             
