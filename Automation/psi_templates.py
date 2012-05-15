@@ -48,7 +48,8 @@ Yoki quyidagi ulanishni bosing.
 Русский - {0}/ru.html
 Türkmençe - {0}/tk.html
 العربي - {0}/ar.html
-ภาษาไทย - {0}/th.html'''.format(bucket_root_url)
+ภาษาไทย - {0}/th.html
+Uyghurche - {0}/ug@Latn.html'''.format(bucket_root_url)
 
 def get_html_email_content(s3_bucket_name):
     bucket_root_url = 'https://s3.amazonaws.com/' + s3_bucket_name
@@ -92,4 +93,5 @@ Türkmençe - <a href="{0}/tk.html">{0}/tk.html</a><br>
 </div>
 <div style="direction: ltr;">
 ภาษาไทย - <a href="{0}/th.html">{0}/th.html</a><br>
+Uyghurche - <a href="{0}/ug@Latn.html">{0}/ug@Latn.html</a><br>
 </div>'''.format(bucket_root_url)
