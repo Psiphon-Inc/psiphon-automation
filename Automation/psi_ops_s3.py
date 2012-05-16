@@ -39,9 +39,9 @@ DOWNLOAD_SITE_CONTENT_ROOT = os.path.join('.', 'DownloadSite')
 
 def get_s3_bucket_remote_server_list_url(bucket_id):
     # Assumes USEast
-    return "https://s3.amazonaws.com/%s/%s" % (
+    return ('https', 's3.amazonaws.com', "%s/%s" % (
                 bucket_id,
-                DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME)
+                DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME))
 
 
 def create_s3_bucket(aws_account):

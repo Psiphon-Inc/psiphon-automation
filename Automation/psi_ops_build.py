@@ -120,7 +120,9 @@ def write_embedded_values(propagation_channel_id,
 
         static const char* REMOTE_SERVER_LIST_SIGNATURE_PUBLIC_KEY = "%s";
 
-        static const char* REMOTE_SERVER_LIST_URL = "%s";
+        static const char* REMOTE_SERVER_LIST_ADDRESS = "%s";
+        
+        static const char* REMOTE_SERVER_LIST_REQUEST_PATH = "%s";
         ''')
     with open(EMBEDDED_VALUES_FILENAME, 'w') as file:
         file.write(template % (propagation_channel_id,
@@ -129,7 +131,8 @@ def write_embedded_values(propagation_channel_id,
                                '\\n'.join(embedded_server_list),
                                (1 if ignore_system_server_list else 0),
                                remote_server_list_signature_public_key,
-                               remote_server_list_url))
+                               remote_server_list_url[1],
+                               remote_server_list_url[2]))
 
 
 def build_client(
