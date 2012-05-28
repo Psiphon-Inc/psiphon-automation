@@ -113,7 +113,9 @@ def write_embedded_values(propagation_channel_id,
         //       in Explorer properties tab, etc.
         static const char* CLIENT_VERSION = "%s";
 
-        static const char* EMBEDDED_SERVER_LIST = "%s";
+        #include <string.h>
+        static string embedded_server_list = string() + "%s";
+        static const char* EMBEDDED_SERVER_LIST = embedded_server_list.c_str();
 
         // When this flag is set, only the embedded server list is used. This is for testing only.
         static const int IGNORE_SYSTEM_SERVER_LIST = %d;
@@ -128,7 +130,7 @@ def write_embedded_values(propagation_channel_id,
         file.write(template % (propagation_channel_id,
                                sponsor_id,
                                client_version,
-                               '\\n'.join(embedded_server_list),
+                               '\\n\" + \"'.join(embedded_server_list),
                                (1 if ignore_system_server_list else 0),
                                remote_server_list_signature_public_key,
                                remote_server_list_url[1],
