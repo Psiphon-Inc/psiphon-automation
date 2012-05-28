@@ -34,7 +34,7 @@ class Blacklist(object):
         self._conn = mdb.connect(user=settings.DB_ROOT_USERNAME, passwd=settings.DB_ROOT_PASSWORD)
         self._setup()
                 
-        self._conn = mdb.connect(user=settings.DB_DBNAME, passwd=settings.DB_PASSWORD, db=settings.DB_DBNAME)
+        self._conn = mdb.connect(user=settings.DB_USERNAME, passwd=settings.DB_PASSWORD, db=settings.DB_DBNAME)
     
     def _setup(self):
         cur = self._conn.cursor()
@@ -49,7 +49,7 @@ class Blacklist(object):
             cur.execute('CREATE DATABASE IF NOT EXISTS '+settings.DB_DBNAME)
 
         # The GRANT command implictly creates the user if it doesn't exist.
-        cur.execute("GRANT ALL PRIVILEGES ON "+settings.DB_DBNAME+".* TO %s@'%%' IDENTIFIED BY %s WITH GRANT OPTION;", (settings.DB_USERNAME, settings.DB_PASSWORD,))
+        cur.execute("GRANT ALL PRIVILEGES ON "+settings.DB_DBNAME+".* TO %s@'localhost' IDENTIFIED BY %s WITH GRANT OPTION;", (settings.DB_USERNAME, settings.DB_PASSWORD,))
         
         cur.execute('USE '+settings.DB_DBNAME)
         
