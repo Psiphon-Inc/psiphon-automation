@@ -404,7 +404,7 @@ def generate_self_signed_certificate():
     assert certificate.verify(private_key)
     assert certificate.verify(public_key)
     
-    return certificate.as_pem(), private_key.as_pem(cipher=None)
+    return certificate.as_pem(), rsa.as_pem(cipher=None) # Use rsa for PKCS#1
 
 
 def install_host(host, servers, existing_server_ids):
@@ -558,7 +558,7 @@ def install_host(host, servers, existing_server_ids):
 
         if (server.web_server_certificate is None
             or server.web_server_private_key is None):
-            key_pem, cert_pem = generate_self_signed_certificate()
+            cert_pem, key_pem = generate_self_signed_certificate()
             server.web_server_private_key = ''.join(key_pem.split('\n')[1:-2])
             server.web_server_certificate = ''.join(cert_pem.split('\n')[1:-2])
 
