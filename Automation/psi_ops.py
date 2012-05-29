@@ -1080,7 +1080,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 RemoteServerSigningKeyPair(
                     psi_ops_server_entry_auth.generate_signing_key_pair(
                         REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD))
-            
+        
+        # This may be serialized/deserialized into a unicode string, but M2Crypto won't accept that.
+        # The key pair should only contain ascii anyways, so encoding to ascii should be safe.
+        self.__remote_server_list_signing_key_pair.pem_key_pair = \
+            self.__remote_server_list_signing_key_pair.pem_key_pair.encode('ascii', 'ignore')
         return self.__remote_server_list_signing_key_pair
     
     def build(
