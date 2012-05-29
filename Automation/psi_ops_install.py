@@ -404,7 +404,7 @@ def generate_self_signed_certificate():
     assert certificate.verify(private_key)
     assert certificate.verify(public_key)
     
-    return certificate.as_pem(), private_key.as_pem(cipher=None)
+    return private_key.as_pem(cipher=None), certificate.as_pem()
 
 
 def install_host(host, servers, existing_server_ids):
