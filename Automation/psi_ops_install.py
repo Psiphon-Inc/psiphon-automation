@@ -23,23 +23,25 @@ import sys
 import textwrap
 import tempfile
 import binascii
-from OpenSSL import crypto
 import psi_ssh
 import posixpath
+import time
+import M2Crypto
 
 sys.path.insert(0, os.path.abspath(os.path.join('..', 'Server')))
 import psi_config
-
 
 
 #==== Configuration ============================================================
 
 WEB_SERVER_SECRET_BYTE_LENGTH = 32
 SERVER_ID_WORD_LENGTH = 3
-SSL_CERTIFICATE_KEY_TYPE = crypto.TYPE_RSA
-SSL_CERTIFICATE_KEY_SIZE = 2048
+
+SSL_CERTIFICATE_RSA_EXPONENT = 3
+SSL_CERTIFICATE_RSA_KEY_LENGTH_BITS = 2048
 SSL_CERTIFICATE_DIGEST_TYPE = 'sha1'
-SSL_CERTIFICATE_VALIDITY = (60*60*24*365*10) # 10 years
+SSL_CERTIFICATE_VALIDITY_SECONDS = (60*60*24*365*10) # 10 years
+
 SSH_RANDOM_USERNAME_SUFFIX_BYTE_LENGTH = 8
 SSH_PASSWORD_BYTE_LENGTH = 32
 SSH_OBFUSCATED_KEY_BYTE_LENGTH = 32
@@ -362,9 +364,20 @@ morer              applory            pyte               mareshat
 
 
 def generate_self_signed_certificate():
-    key_pair = crypto.PKey()
-    key_pair.generate_key(SSL_CERTIFICATE_KEY_TYPE, SSL_CERTIFICATE_KEY_SIZE)
-    request = crypto.X509Req()
+    
+    # Based on http://svn.osafoundation.org/m2crypto/trunk/tests/test_x509.py
+    
+    private_key = M2Crypto.EVP.PKey()
+    request = M2Crypto.X509.Request()
+    rsa = M2Crypto.RSA.gen_key(
+        SSL_CERTIFICATE_RSA_KEY_LENGTH_BITS, SSL_CERTIFICATE_RSA_EXPONENT, lambda _: None)
+    private_key.assign_rsa(rsa)
+    request.set_pubkey(private_key)
+    request.sign(private_key, SSL_CERTIFICATE_DIGEST_TYPE)
+    assert request.verify(private_key)
+    public_key = request.get_pubkey()
+    assert request.verify(public_key)
+
     #
     # TODO: generate a random, yet plausible DN
     #
@@ -372,19 +385,26 @@ def generate_self_signed_certificate():
     # for (key, value) in subject_pairs.items():
     #    setattr(subject, key, value)
     #
-    request.set_pubkey(key_pair)
-    request.sign(key_pair, SSL_CERTIFICATE_DIGEST_TYPE)
-    certificate = crypto.X509()
-    certificate.set_version(2)
+    certificate = M2Crypto.X509.X509()
+
     certificate.set_serial_number(0)
-    certificate.gmtime_adj_notBefore(0)
-    certificate.gmtime_adj_notAfter(SSL_CERTIFICATE_VALIDITY)
-    certificate.set_issuer(request.get_subject())
-    certificate.set_subject(request.get_subject())
-    certificate.set_pubkey(request.get_pubkey())
-    certificate.sign(key_pair, SSL_CERTIFICATE_DIGEST_TYPE)
-    return (crypto.dump_privatekey(crypto.FILETYPE_PEM, key_pair),
-            crypto.dump_certificate(crypto.FILETYPE_PEM, certificate))
+    certificate.set_version(2)
+
+    now = long(time.time())
+    notBefore = M2Crypto.ASN1.ASN1_UTCTIME()
+    notBefore.set_time(now)
+    notAfter = M2Crypto.ASN1.ASN1_UTCTIME()
+    notAfter.set_time(now + SSL_CERTIFICATE_VALIDITY_SECONDS)
+    certificate.set_not_before(notBefore)
+    certificate.set_not_after(notAfter)
+
+    certificate.set_pubkey(public_key)
+    certificate.sign(private_key, SSL_CERTIFICATE_DIGEST_TYPE)
+    assert certificate.verify()
+    assert certificate.verify(private_key)
+    assert certificate.verify(public_key)
+    
+    return certificate.as_pem(), private_key.as_pem(cipher=None)
 
 
 def install_host(host, servers, existing_server_ids):
