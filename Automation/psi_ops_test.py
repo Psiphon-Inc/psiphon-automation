@@ -179,12 +179,12 @@ def test_server(ip_address, web_server_port, web_server_secret, encoded_server_l
         elif test_case in ['VPN', 'SSH+', 'SSH']:
             if not executable_path:
                 executable_path = psi_ops_build.build_client(
-                                    '0',  # propagation_channel_id
-                                    '0',  # sponsor_id
-                                    None, # banner
+                                    '0',        # propagation_channel_id
+                                    '0',        # sponsor_id
+                                    None,       # banner
                                     encoded_server_list,
-                                    '',   # remote_server_list_signature_public_key
-                                    '',   # remote_server_list_url
+                                    '',         # remote_server_list_signature_public_key
+                                    ('','',''), # remote_server_list_url
                                     version,
                                     True)
             try:
