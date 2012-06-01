@@ -32,7 +32,7 @@ import psi_utils
 SOURCE_ROOT = os.path.join(os.path.abspath('..'), 'Android')
 
 PSIPHON_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'PsiphonAndroid')
-ZIRCO_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'ziroc-browser')
+ZIRCO_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'zirco-browser')
 
 BANNER_ROOT = os.path.join(os.path.abspath('..'), 'Data', 'Banners')
 CLIENT_SOLUTION_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient.sln')
@@ -64,18 +64,18 @@ if os.path.isfile('psi_data_config.py'):
 def build_apk():
 
     commands = [
-        'android update lib-project -p %s' % (ZIRCO_SOURCE_ROOT,),
-        'android update project -p %s' % (PSIPHON_SOURCE_ROOT,),
-        'ant -f %s clean' % (os.path.join(ZIRCO_SOURCE_ROOT, 'build.xml'),),
-        'ant -f %s clean' % (os.path.join(PSIPHON_SOURCE_ROOT, 'build.xml'),),
-        'ant -f %s release' % (os.path.join(PSIPHON_SOURCE_ROOT, 'build.xml'),),
-        'jarsigner -sigalg SHA256withRSA -digestalg SHA256 -keystore %s -storepass %s %s psiphon' % (
+        'android update lib-project -p "%s"' % (ZIRCO_SOURCE_ROOT,),
+        'android update project -p "%s"' % (PSIPHON_SOURCE_ROOT,),
+        'ant -q -f "%s" clean' % (os.path.join(ZIRCO_SOURCE_ROOT, 'build.xml'),),
+        'ant -q -f "%s" clean' % (os.path.join(PSIPHON_SOURCE_ROOT, 'build.xml'),),
+        'ant -q -f "%s" release' % (os.path.join(PSIPHON_SOURCE_ROOT, 'build.xml'),),
+        'jarsigner -sigalg SHA256withRSA -digestalg SHA1 -keystore "%s" -storepass %s "%s" psiphon' % (
             KEYSTORE_FILENAME, KEYSTORE_PASSWORD, RELEASE_UNSIGNED_APK_FILENAME),
-        'move %s %s' % (RELEASE_UNSIGNED_APK_FILENAME, RELEASE_SIGNED_APK_FILENAME),
-        'zipalign -f 4 %s %s' % (RELEASE_SIGNED_APK_FILENAME,ZIPALIGNED_APK_FILENAME)]
+        'move "%s" "%s"' % (RELEASE_UNSIGNED_APK_FILENAME, RELEASE_SIGNED_APK_FILENAME),
+        'zipalign -f 4 "%s" "%s"' % (RELEASE_SIGNED_APK_FILENAME, ZIPALIGNED_APK_FILENAME)]
 
     for command in commands:
-        if 0 != subprocess.call(command):
+        if 0 != os.system(command):
             raise Exception('build failed')
 
 
@@ -99,7 +99,7 @@ def write_embedded_values(propagation_channel_id,
             
             final String EMBEDDED_SERVER_LIST = "%s";
         
-            final String REMOTE_SERVER_LIST_URL = "%s";
+            final String REMOTE_SERVER_LIST_URL = "%s://%s/%s";
         
             final String REMOTE_SERVER_LIST_SIGNATURE_PUBLIC_KEY = "%s";
         }
@@ -109,10 +109,10 @@ def write_embedded_values(propagation_channel_id,
                                sponsor_id,
                                client_version,
                                '\\n'.join(embedded_server_list),
-                               (1 if ignore_system_server_list else 0),
-                               remote_server_list_signature_public_key,
+                               remote_server_list_url[0],
                                remote_server_list_url[1],
-                               remote_server_list_url[2]))
+                               remote_server_list_url[2],
+                               remote_server_list_signature_public_key))
 
 
 def write_android_manifest_version(client_version):
@@ -162,7 +162,7 @@ def build_client(
         build_apk()
 
         if test:
-            return APK_FILENAME
+            return ZIPALIGNED_APK_FILENAME
 
         # rename and copy executable to Builds folder
         # e.g., Builds/psiphon-3A885577DD84EF13-8BB28C1A8E8A9ED9.exe
@@ -170,9 +170,9 @@ def build_client(
             os.makedirs(BUILDS_ROOT)
         build_destination_path = os.path.join(
                                     BUILDS_ROOT,
-                                    BUILD_FILENAME_TEMPLATE % (propagation_channel_id,
-                                                               sponsor_id))
-        shutil.copyfile(APK_FILENAME, build_destination_path)
+                                    APK_FILENAME_TEMPLATE % (propagation_channel_id,
+                                                             sponsor_id))
+        shutil.copyfile(ZIPALIGNED_APK_FILENAME, build_destination_path)
 
         print 'Build: SUCCESS'
 

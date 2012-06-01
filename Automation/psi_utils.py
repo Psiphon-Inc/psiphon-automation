@@ -216,15 +216,18 @@ def generate_password():
 
 class TemporaryBackup:
     
-    def __init__(self):
+    def __init__(self, files=None):
         self.files = {}
+        if files:
+            for file in files:
+                self.backup(file)
 
     def backup(self, filename):
         temporary_file = tempfile.NamedTemporaryFile()
         with open(filename, 'rb') as file:
             temporary_file.write(file.read())
             temporary_file.flush()
-        self.files[filename] = temporary_files
+        self.files[filename] = temporary_file
 
     def restore_all(self):
         for filename, temporary_file in self.files.iteritems():
