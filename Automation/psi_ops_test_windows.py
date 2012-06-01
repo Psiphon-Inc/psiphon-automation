@@ -31,7 +31,23 @@ except ImportError as error:
     print error
     print 'NOTE: Running client tests will not be available.'
 
-import psi_ops_build
+import psi_ops_build_windows
+
+
+# Check usage restrictions here before using this service:
+# http://www.whatismyip.com/faq/automation.asp
+
+# Local service should be in same GeoIP region; local split tunnel will be in effect (not proxied)
+# Remote service should be in different GeoIP region; remote split tunnel will be in effect (proxied)
+CHECK_IP_ADDRESS_URL_LOCAL = 'http://automation.whatismyip.com/n09230945.asp'
+CHECK_IP_ADDRESS_URL_REMOTE = 'http://automation.whatismyip.com/n09230945.asp'
+
+# if psi_build_config.py exists, load it and use psi_build_config.DATA_ROOT as the data root dir
+
+if os.path.isfile('psi_data_config.py'):
+    import psi_data_config
+    CHECK_IP_ADDRESS_URL_LOCAL = psi_data_config.CHECK_IP_ADDRESS_URL_LOCAL
+    CHECK_IP_ADDRESS_URL_REMOTE = psi_data_config.CHECK_IP_ADDRESS_URL_REMOTE
 
 
 REGISTRY_PRODUCT_KEY = 'SOFTWARE\\Psiphon3'

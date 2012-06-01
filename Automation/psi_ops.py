@@ -81,12 +81,17 @@ except ImportError as error:
     print error
     
 try:
-    import psi_ops_build
+    import psi_ops_build_windows
 except ImportError as error:
     print error
     
 try:
-    import psi_ops_test
+    import psi_ops_build_android
+except ImportError as error:
+    print error
+    
+try:
+    import psi_ops_test_windows
 except ImportError as error:
     print error
     
