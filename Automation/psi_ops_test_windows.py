@@ -17,6 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import os
 import urllib2
 import subprocess
 import time
@@ -94,8 +95,8 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
     # - determine egress IP address and assert it matches host IP address
     # - post WM_CLOSE to gracefully shut down the client and its connection
 
-    has_remote_check = len(psi_ops_build.CHECK_IP_ADDRESS_URL_REMOTE) > 0
-    has_local_check = len(psi_ops_build.CHECK_IP_ADDRESS_URL_LOCAL) > 0
+    has_remote_check = len(CHECK_IP_ADDRESS_URL_REMOTE) > 0
+    has_local_check = len(CHECK_IP_ADDRESS_URL_LOCAL) > 0
 
     # Split tunnelling is not implemented for VPN.
     # Also, if there is no remote check, don't use split tunnel mode because we always want
@@ -131,7 +132,7 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
         if has_local_check:
             # Get egress IP from web site in same GeoIP region; local split tunnel is not proxied
     
-            egress_ip_address = urllib2.urlopen(psi_ops_build.CHECK_IP_ADDRESS_URL_LOCAL, timeout=30).read().split('\n')[0]
+            egress_ip_address = urllib2.urlopen(CHECK_IP_ADDRESS_URL_LOCAL, timeout=30).read().split('\n')[0]
 
             is_proxied = (egress_ip_address in expected_egress_ip_addresses)
     
@@ -146,7 +147,7 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
         if has_remote_check:
             # Get egress IP from web site in different GeoIP region; remote split tunnel is proxied
 
-            egress_ip_address = urllib2.urlopen(psi_ops_build.CHECK_IP_ADDRESS_URL_REMOTE, timeout=30).read().split('\n')[0]
+            egress_ip_address = urllib2.urlopen(CHECK_IP_ADDRESS_URL_REMOTE, timeout=30).read().split('\n')[0]
     
             is_proxied = (egress_ip_address in expected_egress_ip_addresses)
 
@@ -160,7 +161,7 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
         if split_tunnel_value and split_tunnel_type:
             _winreg.SetValueEx(reg_key, REGISTRY_SPLIT_TUNNEL_VALUE, None, split_tunnel_type, split_tunnel_value)
         try:
-            win32ui.FindWindow(None, psi_ops_build.APPLICATION_TITLE).PostMessage(win32con.WM_CLOSE)
+            win32ui.FindWindow(None, psi_ops_build_windows.APPLICATION_TITLE).PostMessage(win32con.WM_CLOSE)
         except Exception as e:
             print e
         if proc:
@@ -194,7 +195,7 @@ def test_server(ip_address, web_server_port, web_server_secret, encoded_server_l
                 results['443'] = 'FAIL: ' + str(ex)
         elif test_case in ['VPN', 'SSH+', 'SSH']:
             if not executable_path:
-                executable_path = psi_ops_build.build_client(
+                executable_path = psi_ops_build_windows.build_client(
                                     '0',  # propagation_channel_id
                                     '0',  # sponsor_id
                                     None, # banner

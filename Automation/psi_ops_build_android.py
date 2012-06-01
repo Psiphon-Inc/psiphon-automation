@@ -48,7 +48,7 @@ RELEASE_SIGNED_APK_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'bin', 'PsiphonA
 ZIPALIGNED_APK_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'bin', 'PsiphonAndroid-release.apk')
 
 BUILDS_ROOT = os.path.join('.', 'Builds', 'Android')
-APK_FILENAME_TEMPLATE = 'PsiphonAndroid.-%s-%s.apk'
+APK_FILENAME_TEMPLATE = 'PsiphonAndroid-%s-%s.apk'
 
 # if psi_build_config.py exists, load it and use psi_build_config.DATA_ROOT as the data root dir
 

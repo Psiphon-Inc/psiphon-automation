@@ -217,6 +217,7 @@ RemoteServerSigningKeyPair = psi_utils.recordtype(
 # database, so we don't require a secret key pair wrapping password
 REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD = 'none'
 
+
 class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def __init__(self):
@@ -1093,7 +1094,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             propagation_channel_name,
             sponsor_name,
             remote_server_list_url,
+            platforms=None,
             test=False):
+        if not platforms:
+            platforms = ['Windows', 'Android']
+
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
         sponsor = self.__get_sponsor_by_name(sponsor_name)
         version = self.__client_versions[-1].version
@@ -1105,9 +1110,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 self.__get_remote_server_list_signing_key_pair().pem_key_pair,
                 REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD)
         
-        # A sponsor may use the same propagation channel for multiple
-        # campaigns; we need only build and upload the client once.
-        return psi_ops_build.build_client(
+        builders = {
+            'Windows' : psi_ops_build_windows.build_client,
+            'Android' : psi_ops_build_android.build_client
+        }
+
+        return [builders[platform](
                         propagation_channel.id,
                         sponsor.id,
                         base64.b64decode(sponsor.banner),
@@ -1115,7 +1123,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         remote_server_list_signature_public_key,
                         remote_server_list_url,
                         version,
-                        test)
+                        test) for platform in platforms]
 
     def deploy(self):
         # Deploy as required:
@@ -1169,12 +1177,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD,
                         '\n'.join(self.__get_encoded_server_list(propagation_channel.id)[0]))
             
-                # Build and upload to hosts
+                # Build for each client platform
+
+                client_builds = [
+                    ('Windows', psi_ops_s3.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME),
+                    ('Android', psi_ops_s3.DOWNLOAD_SITE_ANDROID_BUILD_FILENAME)
+                ]
     
-                build_filename = self.build(
+                build_filenames = self.build(
                                     propagation_channel.name,
                                     sponsor.name,
-                                    remote_server_list_url)
+                                    remote_server_list_url,
+                                    [platform for (platform, _) in client_builds])
     
                 # Upload client builds
                 # We only upload the builds for Propagation Channel IDs that need to be known for the host.
@@ -1182,13 +1196,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 # However, we do not want to prevent an upgrade in the case where a user has
                 # downloaded from multiple propagation channels, and might therefore be connecting
                 # to a server from one propagation channel using a build from a different one.
-                psi_ops_deploy.deploy_build_to_hosts(self.__hosts.itervalues(), build_filename)
+                for build_filename in build_filenames:
+                    psi_ops_deploy.deploy_build_to_hosts(self.__hosts.itervalues(), build_filename)
     
                 # Publish to propagation mechanisms
+                # NOTE: assumes client_builds/build_filenames have corresponding order
 
                 psi_ops_s3.update_s3_download(
                     self.__aws_account,
-                    build_filename,
+                    [(build_filenames[i], target_filename)
+                        for i, (_, target_filename) in enumerate(client_builds)],
                     remote_server_list,
                     campaign.s3_bucket_name)
                 campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
