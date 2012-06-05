@@ -141,6 +141,9 @@
     <p class="c0">
       <span>Psiphon 3 is a circumvention tool from Psiphon Inc. that utilizes VPN, SSH and HTTP Proxy technology to provide you with uncensored access to Internet content. Your Psiphon 3 client will automatically learn about new access points to maximize your chances of bypassing censorship.</span>
     </p>
+    <p class="c2 c0">
+      <span></span>
+    </p>
     <p class="c0">
       <span>Psiphon 3 is designed to provide you with open access to online content. Psiphon does not increase your online privacy, and should not be considered or used as an online security tool.</span>
     </p>
@@ -163,7 +166,7 @@
       <span></span>
     </p>
     <p class="c0">
-      <span>Support for Mac OS X and iOS is coming soon.</span>
+      <span>Psiphon 3 clients for iOS and Mac OS X are coming soon.</span>
     </p>
     <p class="c2 c0">
       <span></span>
@@ -179,7 +182,7 @@
       <span>Is my Psiphon 3 for Windows authentic?</span>
     </h2>
     <p class="c0">
-      <span>Psiphon 3 for Windows is never distributed as an installable package. Each Psiphon 3 for Windows client is a single file exe that is digitally signed by Psiphon Inc. Windows automatically checks this signature when you run the client. You can also manually inspect the signature before running the client by invoking the Properties dialog for the file and inspecting the Digital Signatures tab.</span>
+      <span>Psiphon 3 for Windows is never distributed as an installable package. Each Psiphon 3 for Windows client is a single executable file (".exe") that is digitally signed by Psiphon Inc. Windows automatically checks this signature when you run the client. You can also manually inspect the signature before running the client by invoking the Properties dialog for the file and inspecting the Digital Signatures tab.</span>
     </p>
     <p class="c2 c0">
       <span></span>
@@ -191,19 +194,23 @@
       <span></span>
     </p>
     <p class="c0">
-      <span>The SHA1 thumbprint for the Psiphon Inc. certificate public key, as displayed in the Certificate dialog Details tab, is </span>
+      <span>
+      The SHA1 thumbprint for the Psiphon Inc. certificate public key is displayed in the Certificate dialog Details tab.
+      For the certificate valid for the period
+      </span>
+      <span class="c3">June 16, 2011 to June 21, 2012</span>
+      <span>the SHA1 thumbprint is:</span>
       <pre>
         8f:b7:ef:bd:20:a9:20:3a:38:37:08:a2:1e:0a:1d:2e:ad:7b:ee:6d
       </pre>
-      <span>for the certificate valid for the period </span>
-      <span class="c3">June 16, 2011 to June 21, 2012</span>
-      <span>&nbsp;and </span>
+      <span>
+      and for the certificate valid for the for the period </span>
+      <span class="c3">May 21, 2011 to July 30, 2014</span>
+      <span>the SHA1 thumbprint is:</span>
       <pre>
         84:c5:13:5b:13:d1:53:96:7e:88:c9:13:86:0e:83:ee:ef:48:8e:91
       </pre>
-      <span>for the certificate valid for the for the period </span>
-      <span class="c3">May 21, 2011 to July 30, 2014</span>
-      <span>. Psiphon 3 for Windows auto-updates itself, and this process automatically verifies that each update is authentic.</span>
+      <span>Psiphon 3 for Windows auto-updates itself, and this process automatically verifies that each update is authentic.</span>
     <h2 class="c0">
       <a name="how_do_i_run_psiphon_3_for_windows"></a>
       <span>How do I run Psiphon 3 for Windows?</span>
@@ -261,7 +268,7 @@
       <span>Is my Psiphon 3 for Android authentic?</span>
     </h2>
     <p class="c0">
-      <span>Each Psiphon 3 for Android client is shipped as an APK file that is digitally signed by Psiphon Inc. The Psiphon Inc. certificate public key is as follows: </span>
+      <span>Each Psiphon 3 for Android client is shipped as an Android APK file (".apk") that is digitally signed by Psiphon Inc. The Psiphon Inc. certificate public key is as follows: </span>
       <pre>
       Owner: CN=Psiphon Inc., OU=Psiphon Inc., O=Psiphon Inc.,
              L=Unknown, ST=Unknown, C=CA
@@ -291,7 +298,13 @@
       <span>How do I run Psiphon 3 for Android?</span>
     </h2>
     <p class="c0">
-      <span>To install the APK, you must enable the option in your Android device to install non-Market apps. This option can be disabled once the Psiphon 3 app is installed for the first time. Psiphon 3 for Android will automatically update itself.</span>
+      <span>Click on a Psiphon APK link from within your Android email or browser to begin the installation.</span>
+    </p>
+    <p class="c2 c0">
+      <span></span>
+    </p>
+    <p class="c0">
+      <span>To install a Psiphon APK, you must enable the option in your Android device to install non-Market apps. This option can be disabled once the Psiphon 3 app is installed for the first time. Psiphon 3 for Android will automatically update itself.</span>
     </p>
     <p class="c2 c0">
       <span></span>
@@ -318,7 +331,7 @@
       <span></span>
     </p>
     <p class="c0">
-      <span>Once the app has connected to the network, it will launch the built-in Psiphon browser. Psiphon 3 for Android does not automatically tunnel the traffic for the default Android browser or other apps. By default, just the Psiphon browser is tunneled through the Psiphon 3 network.</span>
+      <span>Once the app has connected to the network, it will launch the built-in Psiphon browser. Psiphon 3 for Android does not automatically tunnel the traffic for the default Android browser or other apps. By default, only the Psiphon browser is tunneled through the Psiphon 3 network.</span>
     </p>
     <p class="c2 c0">
       <span></span>
@@ -346,7 +359,7 @@
       <li><span>Page views (full page URLs for sponsor web sites)</span></li>
       <li><span>Bytes transferred</span></li>
       <li><span>Number of HTTPS requests</span></li>
-      <li><span>Client platform (simple operating system list; e.g, not browser user agent)</span></li>
+      <li><span>Client platform (simplified operating system list; e.g, not a detailed browser user agent)</span></li>
     </ul>
     </p>
     <p class="c0">
@@ -409,7 +422,7 @@
       <span>Q: Why does my Psiphon 3 tunnel IP address frequently change?</span>
     </p>
     <p class="c0">
-      <span>A: Your Psiphon 3 client will automatically discover new Psiphon 3 servers. When one is currently unavailable, another one can be used instead.</span>
+      <span>A: Your Psiphon 3 client will automatically discover new Psiphon 3 servers. When the last server used is currently unavailable, another one can be used instead.</span>
     </p>
     <p class="c2 c0">
       <span></span>
@@ -453,17 +466,7 @@
       <span>Q: What is the file "psiphon3.exe.orig"?</span>
     </p>
     <p class="c0">
-      <span>A: The Psiphon 3 for Windows automatic update process renames an old version to "psiphon3.exe.orig". Old files with the ".orig" suffix can safely be deleted.</span>
-    </p>
-    <p class="c2 c0">
-      <span></span>
-    </p>
-
-    <p class="c0 c3">
-      <span>Q: Is Psiphon 3 for Windows compatible with IE, Firefox, Safari, and Chrome web browsers?</span>
-    </p>
-    <p class="c0">
-      <span>A: Yes. Check your browser settings and make sure that it is configured to use the system proxy settings.</span>
+      <span>A: The automatic update process in Psiphon 3 for Windows renames its old version to "psiphon3.exe.orig". Old files with the ".orig" suffix can safely be deleted.</span>
     </p>
     <p class="c2 c0">
       <span></span>
@@ -477,6 +480,16 @@
       A: Only in VPN mode. After a successful connection is established in VPN mode, your entire computer’s traffic will pass through the Psiphon 3 network.
       In SSH modes, only applications that use the local HTTP and SOCKS proxies will be proxied.
       </span>
+    </p>
+    <p class="c2 c0">
+      <span></span>
+    </p>
+
+    <p class="c0 c3">
+      <span>Q: Is Psiphon 3 for Windows compatible with IE, Firefox, Safari, and Chrome web browsers?</span>
+    </p>
+    <p class="c0">
+      <span>A: Yes. In SSH modes, check your browser settings and make sure that it is configured to use the system proxy settings.</span>
     </p>
     <p class="c2 c0">
       <span></span>
@@ -520,7 +533,7 @@
       Psiphom uses the L2TP/IPSec VPN protocol.
       Your network's firewall may not allow the use of VPNs.
       Your home router may not be configured to pass through this VPN protocol; check your firewall settings to see that IPSec or L2TP pass-through is enabled.
-      Your system’s IPSec Services may be disabled; Check your service settings and enable this service to start automatically.
+      Your system’s IPSec Services may be disabled; check your service settings and enable this service to start automatically.
       </span>
     </p>
     <p class="c2 c0">
