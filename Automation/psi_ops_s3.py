@@ -29,8 +29,10 @@ import boto.s3.key
 #==== Config  =================================================================
 
 DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME = 'psiphon3.exe'
+EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME = 'psiphon3.asc'
 
 DOWNLOAD_SITE_ANDROID_BUILD_FILENAME = 'PsiphonAndroid.apk'
+EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME = 'PsiphonAndroid.apk'
 
 DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME = 'server_list'
 

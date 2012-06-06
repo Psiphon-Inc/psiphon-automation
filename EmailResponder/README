@@ -260,7 +260,13 @@ Email Responder Configuration
   and readable by mail_responder.
   
 * The file is in JSON format, with these fields:
-{"email_addr": {"body": [["mimetype", "body"], ...], "attachment_bucket": "bucketname"}, ...}
+{
+  "email_addr": {
+    "body": [["mimetype", "body"], ...], 
+    "attachments": null | [["bucketname", "bucketfilename", "attachmentfilename"], ...]
+  },
+  ...
+}
 
 For example:
 {
@@ -271,7 +277,8 @@ For example:
       ["plain", "English - https://example.com/en.html\n\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html"], 
       ["html", "<a href=\"https://example.com/en.html\">English - https://example.com/en.html</a><br>\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html<br>"]
     ],
-  "attachment_bucket": null
+  "attachments": [["aaaa-bbbb-cccc-dddd", "Psiphon3.exe", "Psiphon3.asc"],
+                  ["aaaa-bbbb-cccc-dddd", "PsiphonAndroid.apk", "PsiphonAndroid.apk"]]
 }, 
 "justtext@example.com":
 {
@@ -279,10 +286,10 @@ For example:
     [
       ["plain", "English - https://example2.com/en.html\n\u0420\u0443\u0441\u0441\u043a\u0438\u0439 - https://example2.com/ru.html"]
     ], 
-  "attachment_bucket": null
+  "attachments": null
 },
-"simplebody@example2.com": { "body": "Just a string", "attachment_bucket": null },
-"attachment@example3.com": { "body": "I have an attachment", "attachment_bucket": "aaaa-bbbb-cccc-dddd" }
+"simplebody@example2.com": { "body": "Just a string", "attachments": null },
+"attachment@example3.com": { "body": "I have an attachment", "attachments": [["aaaa-bbbb-cccc-dddd", "Psiphon3.exe", "Psiphon3.asc"]] }
 }
 
 * Things to notice about the format:
@@ -293,8 +300,12 @@ For example:
   * There can be multiple domains served by the same responder server, so the
     whole email address is important.
   * The attachment can be null.
-  * There can only be one attachment specified.
-  * The attachment file will have to exist at: {attachment_bucket}/{settings.S3_EXE_NAME}
+  * The attachment file will have to exist at: {bucketname}/{bucketfilename}
+  * The "attachmentfilename" value is the name of the attachment that's 
+    displayed in the email. It must be a filetype that Amazon SES accepts as a 
+    MIME type. But we also want it to be a filetype that doesn't usually have a 
+    file association (since we don't want anyone accidentally double-clicking 
+    and trying to open it).
 
 * NOTE: The *last* mimetype will be the one that's preferred by mail clients,
   so you should put the 'html' body last.

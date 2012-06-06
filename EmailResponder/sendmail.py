@@ -27,22 +27,23 @@ from boto.ses.connection import SESConnection
 
 
 # Adapted from http://radix.twistedmatrix.com/2010/07/how-to-send-good-unicode-email-with.html
-def create_raw_email(recipient, from_address, subject, body, attachment=None, extra_headers=None):
+def create_raw_email(recipient, from_address, subject, body, attachments=None, extra_headers=None):
     '''
     Creates a i18n-compatible raw email.
     body may be an array of MIME parts in the form:
         [['plain', plainbody], ['html', htmlbody], ...]
     May raise exceptions, such as if character encodings fail.
-    attachment should be a tuple of (file-type-object, display-filename).
+    attachment should be an array of tuples of (file-type-object, display-filename).
     extra_headers should be a dictionary of header-name:header-string values.
     '''
     
-    # For email with an attachment, the MIME structure will be as follows: 
+    # For email with attachments, the MIME structure will be as follows: 
     #    multipart/mixed
     #        multipart/alternative
     #            text/plain - the plain text message
     #            text/html - the html message
-    #        application/octet-stream - the attachment
+    #        application/octet-stream - the first attachment
+    #        application/octet-stream - the second attachment, etc.
     #
     # For email without an attachment, it will be the same, but we'll omit the
     # last piece.
@@ -93,20 +94,21 @@ def create_raw_email(recipient, from_address, subject, body, attachment=None, ex
         msgpart = MIMEText(content.encode('utf-8'), mimetype, 'UTF-8')
         msgAlternative.attach(msgpart)
         
-    # Attach the attachment
-    if attachment:
-        fp, filename = attachment
-
-        msgAttachment = MIMEBase('application', 'octet-stream')
-
-        msgAttachment.add_header('Content-Disposition', 'attachment', filename=filename)
-        
-        msgAttachment.set_payload(fp.read())
-        fp.close()
-        
-        encoders.encode_base64(msgAttachment)
-        
-        msgRoot.attach(msgAttachment)
+    # Attach the attachments
+    if attachments:
+        for attachment in attachments:
+            fp, filename = attachment
+    
+            msgAttachment = MIMEBase('application', 'octet-stream')
+    
+            msgAttachment.add_header('Content-Disposition', 'attachment', filename=filename)
+            
+            msgAttachment.set_payload(fp.read())
+            fp.close()
+            
+            encoders.encode_base64(msgAttachment)
+            
+            msgRoot.attach(msgAttachment)
 
     # And here we have to instantiate a Generator object to convert the multipart
     # object to a string (can't use multipart.as_string, because that escapes

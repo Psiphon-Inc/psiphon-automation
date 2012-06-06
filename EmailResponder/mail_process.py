@@ -17,9 +17,9 @@
 
 import sys
 import os
+import errno
 import syslog
 import email
-import email.header
 import json
 import re
 import traceback
@@ -28,8 +28,6 @@ import tempfile
 import hashlib
 import dkim
 from boto.s3.connection import S3Connection
-from boto.s3.key import Key
-from boto.exception import S3ResponseError
 from boto.exception import BotoServerError
 
 import settings
@@ -64,7 +62,7 @@ class MailResponder:
             # Do some validation
             for key in self._conf.keys():
                 item = self._conf[key]
-                if not item.has_key('body') or not item.has_key('attachment_bucket'):
+                if not item.has_key('body') or not item.has_key('attachments'):
                     raise Exception('invalid config item: %s:%s', (key, repr(item)))
             
         except Exception as ex:
@@ -98,10 +96,12 @@ class MailResponder:
             syslog.syslog(syslog.LOG_INFO, 'fail: blacklist')
             return False
         
-        attachment = None
-        if self._conf[self.requested_addr]['attachment_bucket']:
-            attachment = (get_s3_attachment(self._conf[self.requested_addr]['attachment_bucket']),
-                          settings.ATTACHMENT_NAME)
+        attachments = None
+        if self._conf[self.requested_addr]['attachments']:
+            for attachment_info in self._conf[self.requested_addr]['attachments']:
+                bucketname, bucket_filename, attachment_filename = attachment_info
+                attachments.append((get_s3_attachment(bucketname, bucket_filename),
+                                    attachment_filename))
         
         extra_headers = { 'Reply-To': self.requested_addr }
         
@@ -113,7 +113,7 @@ class MailResponder:
                                                  self._response_from_addr,
                                                  self._subject,
                                                  self._conf[self.requested_addr]['body'],
-                                                 attachment,
+                                                 attachments,
                                                  extra_headers)
 
         if not raw_response:
@@ -230,14 +230,14 @@ class MailResponder:
         return sig + raw_email
     
     def send_test_email(self, recipient, from_address, subject, body, 
-                        attachment=None, extra_headers=None):
+                        attachments=None, extra_headers=None):
         '''
         Used for debugging purposes to send an email that's approximately like
         a response email. 
         NOTE: from_address must be a sender that's verified with Amazon SES.
         '''
         raw = sendmail.create_raw_email(recipient, from_address, subject, body, 
-                                        attachment, extra_headers)
+                                        attachments, extra_headers)
         if not raw:
             print 'create_raw_email failed'
             return False
@@ -278,35 +278,38 @@ def decode_header(header_val):
         
         hdr = email.header.decode_header(header_val)
         if not hdr: return None
-        decoded = u''
         
         return ' '.join([text.decode(encoding) if encoding else text for text,encoding in hdr])
     except:
         return None
 
 
-def get_s3_attachment(bucketname):
+def get_s3_attachment(bucketname, bucket_filename):
     '''
     Returns a file-type object for the Psiphon 3 executable in the requested 
-    bucket.
+    bucket with the given filename.
     This function checks if the file has already been downloaded. If it has, 
     it checks that the checksum still matches the file in S3. If the file doesn't
     exist, or if it the checksum doesn't match, the 
     '''
     
     # Make the attachment cache dir, if it doesn't exist 
-    if not os.path.isdir(settings.ATTACHMENT_CACHE_DIR):
-        os.mkdir(settings.ATTACHMENT_CACHE_DIR)
+    try:
+        os.makedirs(settings.ATTACHMENT_CACHE_DIR)
+    except OSError as exc: # Python >2.5
+        if exc.errno == errno.EEXIST:
+            pass
+        else: raise
     
     # Make the connection using the credentials in the boto config file.
     conn = S3Connection()
     
     bucket = conn.get_bucket(bucketname)
-    key = bucket.get_key(settings.S3_EXE_NAME)
+    key = bucket.get_key(bucket_filename)
     etag = key.etag.strip('"').lower()
     
     # We store the cached file with the bucket name as the filename
-    cache_path = os.path.join(settings.ATTACHMENT_CACHE_DIR, bucketname)
+    cache_path = os.path.join(settings.ATTACHMENT_CACHE_DIR, bucketname+bucket_filename)
     
     # Check if the file exists. If so, check if it's stale.
     if os.path.isfile(cache_path):
