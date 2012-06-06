@@ -217,6 +217,8 @@ RemoteServerSigningKeyPair = psi_utils.recordtype(
 # database, so we don't require a secret key pair wrapping password
 REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD = 'none'
 
+CLIENT_PLATFORM_WINDOWS = 'Windows'
+CLIENT_PLATFORM_ANDROID = 'Android'
 
 class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
@@ -233,7 +235,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__propagation_channels = {}
         self.__hosts = {}
         self.__servers = {}
-        self.__client_versions = []
+        self.__client_versions = {
+            CLIENT_PLATFORM_WINDOWS : [],
+            CLIENT_PLATFORM_ANDROID : []
+        }
         self.__email_server_account = EmailServerAccount()
         self.__stats_server_account = StatsServerAccount()
         self.__aws_account = AwsAccount()
@@ -242,13 +247,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__elastichosts_accounts = []
         self.__deploy_implementation_required_for_hosts = set()
         self.__deploy_data_required_for_all = False
-        self.__deploy_builds_required_for_campaigns = set()
+        self.__deploy_builds_required_for_campaigns = {
+            CLIENT_PLATFORM_WINDOWS : set(),
+            CLIENT_PLATFORM_ANDROID : set()
+        }
         self.__deploy_stats_config_required = False
         self.__deploy_email_config_required = False
         self.__speed_test_urls = []
         self.__remote_server_list_signing_key_pair = None
 
-    class_version = '0.7'
+    class_version = '0.8'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -282,29 +290,41 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.7')) < 0:
             self.__remote_server_list_signing_key_pair = None
             self.version = '0.7'
+        if cmp(parse_version(self.version), parse_version('0.8')) < 0:
+            self.__client_versions = {
+                CLIENT_PLATFORM_WINDOWS : self.__client_versions,
+                CLIENT_PLATFORM_ANDROID : []
+            }
+            self.__deploy_builds_required_for_campaigns = {
+                CLIENT_PLATFORM_WINDOWS : self.__deploy_builds_required_for_campaigns,
+                CLIENT_PLATFORM_ANDROID : set()
+            }
+            self.version = '0.8'
 
     def show_status(self):
         # NOTE: verbose mode prints credentials to stdout
         print textwrap.dedent('''
-            Sponsors:             %d
-            Channels:             %d
-            Twitter Campaigns:    %d
-            Email Campaigns:      %d
-            Total Campaigns:      %d
-            Hosts:                %d
-            Servers:              %d
-            Email Server:         %s
-            Stats Server:         %s
-            Client Version:       %s %s
-            AWS Account:          %s
-            Provider Ranks:       %s
-            Linode Account:       %s
-            ElasticHosts Account: %s
-            Deploys Pending:      Host Implementations    %d                              
-                                  Host Data               %s
-                                  Campaign Builds         %d
-                                  Stats Server Config     %s
-                                  Email Server Config     %s
+            Sponsors:               %d
+            Channels:               %d
+            Twitter Campaigns:      %d
+            Email Campaigns:        %d
+            Total Campaigns:        %d
+            Hosts:                  %d
+            Servers:                %d
+            Email Server:           %s
+            Stats Server:           %s
+            Windows Client Version: %s %s
+            Android Client Version: %s %s
+            AWS Account:            %s
+            Provider Ranks:         %s
+            Linode Account:         %s
+            ElasticHosts Account:   %s
+            Deploys Pending:        Host Implementations    %d                              
+                                    Host Data               %s
+                                    Windows Campaign Builds %d
+                                    Android Campaign Builds %d
+                                    Stats Server Config     %s
+                                    Email Server Config     %s
             ''') % (
                 len(self.__sponsors),
                 len(self.__propagation_channels),
@@ -318,15 +338,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 len(self.__servers),
                 self.__email_server_account.ip_address if self.__email_server_account else 'None',
                 self.__stats_server_account.ip_address if self.__stats_server_account else 'None',
-                self.__client_versions[-1].version if self.__client_versions else 'None',
-                self.__client_versions[-1].description if self.__client_versions else '',
+                self.__client_versions[CLIENT_PLATFORM_WINDOWS][-1].version if self.__client_versions[CLIENT_PLATFORM_WINDOWS] else 'None',
+                self.__client_versions[CLIENT_PLATFORM_WINDOWS][-1].description if self.__client_versions[CLIENT_PLATFORM_WINDOWS] else '',
+                self.__client_versions[CLIENT_PLATFORM_ANDROID][-1].version if self.__client_versions[CLIENT_PLATFORM_ANDROID] else 'None',
+                self.__client_versions[CLIENT_PLATFORM_ANDROID][-1].description if self.__client_versions[CLIENT_PLATFORM_ANDROID] else '',
                 'Configured' if self.__aws_account.access_id else 'None',
                 'Configured' if self.__provider_ranks else 'None',
                 'Configured' if self.__linode_account.api_key else 'None',
                 'Configured' if self.__elastichosts_accounts else 'None',
                 len(self.__deploy_implementation_required_for_hosts),
                 'Yes' if self.__deploy_data_required_for_all else 'No',
-                len(self.__deploy_builds_required_for_campaigns),
+                len(self.__deploy_builds_required_for_campaigns[CLIENT_PLATFORM_WINDOWS]),
+                len(self.__deploy_builds_required_for_campaigns[CLIENT_PLATFORM_ANDROID]),
                 'Yes' if self.__deploy_stats_config_required else 'No',
                 'Yes' if self.__deploy_email_config_required else 'No')
 
@@ -551,8 +574,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         sponsor.banner = banner
         sponsor.log('set banner')
         for campaign in sponsor.campaigns:
-            self.__deploy_builds_required_for_campaigns.add(
-                (campaign.propagation_channel_id, sponsor.id))
+            for platform in __deploy_builds_required_for_campaigns.iterkeys():
+                self.__deploy_builds_required_for_campaigns[platform].add(
+                    (campaign.propagation_channel_id, sponsor.id))
             campaign.log('marked for build and publish (new banner)')
 
     def add_sponsor_email_campaign(self, sponsor_name, propagation_channel_name, email_account):
@@ -569,8 +593,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
             sponsor.log('add email campaign %s' % (email_account,))
-            self.__deploy_builds_required_for_campaigns.add(
-                    (campaign.propagation_channel_id, sponsor.id))
+            for platform in __deploy_builds_required_for_campaigns.iterkeys():
+                self.__deploy_builds_required_for_campaigns[platform].add(
+                        (campaign.propagation_channel_id, sponsor.id))
             campaign.log('marked for build and publish (new campaign)')
 
     def add_sponsor_twitter_campaign(self, sponsor_name,
@@ -597,8 +622,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
             sponsor.log('add twitter campaign %s' % (twitter_account_name,))
-            self.__deploy_builds_required_for_campaigns.add(
-                    (campaign.propagation_channel_id, sponsor.id))
+            for platform in __deploy_builds_required_for_campaigns.iterkeys():
+                self.__deploy_builds_required_for_campaigns[platform].add(
+                        (campaign.propagation_channel_id, sponsor.id))
             campaign.log('marked for build and publish (new campaign)')
 
     def add_sponsor_static_download_campaign(self, sponsor_name, propagation_channel_name):
@@ -614,8 +640,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
             sponsor.log('add static download campaign')
-            self.__deploy_builds_required_for_campaigns.add(
-                    (campaign.propagation_channel_id, sponsor.id))
+            for platform in __deploy_builds_required_for_campaigns.iterkeys():
+                self.__deploy_builds_required_for_campaigns[platform].add(
+                        (campaign.propagation_channel_id, sponsor.id))
             campaign.log('marked for build and publish (new campaign)')
 
     def set_sponsor_campaign_s3_bucket_name(self, sponsor_name, propagation_channel_name, account, s3_bucket_name):
@@ -627,8 +654,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 campaign.account[0] == account):
                     campaign.s3_bucket_name = s3_bucket_name
                     campaign.log('set campaign s3 bucket name to %s' % (s3_bucket_name,))
-                    self.__deploy_builds_required_for_campaigns.add(
-                        (campaign.propagation_channel_id, sponsor.id))
+                    for platform in __deploy_builds_required_for_campaigns.iterkeys():
+                        self.__deploy_builds_required_for_campaigns[platform].add(
+                            (campaign.propagation_channel_id, sponsor.id))
                     campaign.log('marked for build and publish (modified campaign)')
             
     def set_sponsor_home_page(self, sponsor_name, region, url):
@@ -954,8 +982,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for sponsor in self.__sponsors.itervalues():
                 for campaign in sponsor.campaigns:
                     if campaign.propagation_channel_id == propagation_channel.id:
-                        self.__deploy_builds_required_for_campaigns.add(
-                                (campaign.propagation_channel_id, sponsor.id))
+                        for platform in __deploy_builds_required_for_campaigns.iterkeys():
+                            self.__deploy_builds_required_for_campaigns[platform].add(
+                                    (campaign.propagation_channel_id, sponsor.id))
                         campaign.log('marked for build and publish (new embedded server)')
 
         # Ensure new server configuration is saved to CMS before deploying new
@@ -1097,11 +1126,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             platforms=None,
             test=False):
         if not platforms:
-            platforms = ['Windows', 'Android']
+            platforms = [CLIENT_PLATFORM_WINDOWS, CLIENT_PLATFORM_ANDROID]
 
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
         sponsor = self.__get_sponsor_by_name(sponsor_name)
-        version = self.__client_versions[-1].version
         encoded_server_list, expected_egress_ip_addresses = \
                     self.__get_encoded_server_list(propagation_channel.id)
         
@@ -1111,8 +1139,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD)
         
         builders = {
-            'Windows' : psi_ops_build_windows.build_client,
-            'Android' : psi_ops_build_android.build_client
+            CLIENT_PLATFORM_WINDOWS : psi_ops_build_windows.build_client,
+            CLIENT_PLATFORM_ANDROID : psi_ops_build_android.build_client
         }
 
         return [builders[platform](
@@ -1122,7 +1150,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         encoded_server_list,
                         remote_server_list_signature_public_key,
                         remote_server_list_url,
-                        version,
+                        self.__client_versions[platform][-1].version if self.__client_versions[platform] else 0,
                         test) for platform in platforms]
 
     def deploy(self):
@@ -1151,82 +1179,80 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # Build
 
-        for target in self.__deploy_builds_required_for_campaigns.copy():
+        for platform in __deploy_builds_required_for_campaigns.iterkeys():
+            for target in self.__deploy_builds_required_for_campaigns[platform].copy():
 
-            propagation_channel_id, sponsor_id = target
-            propagation_channel = self.__propagation_channels[propagation_channel_id]
-            sponsor = self.__sponsors[sponsor_id]
+                propagation_channel_id, sponsor_id = target
+                propagation_channel = self.__propagation_channels[propagation_channel_id]
+                sponsor = self.__sponsors[sponsor_id]
 
-            for campaign in filter(lambda x:x.propagation_channel_id == propagation_channel_id, sponsor.campaigns):
+                for campaign in filter(lambda x:x.propagation_channel_id == propagation_channel_id, sponsor.campaigns):
 
-                if not campaign.s3_bucket_name:
-                    campaign.s3_bucket_name = psi_ops_s3.create_s3_bucket(self.__aws_account)
-                    campaign.log('created s3 bucket %s' % (campaign.s3_bucket_name,))
-                    self.save() # don't leak buckets
+                    if not campaign.s3_bucket_name:
+                        campaign.s3_bucket_name = psi_ops_s3.create_s3_bucket(self.__aws_account)
+                        campaign.log('created s3 bucket %s' % (campaign.s3_bucket_name,))
+                        self.save() # don't leak buckets
 
-                # Remote server list: for clients to get new servers via S3, we embed the
-                # bucket URL in the build. So now we're ensuring the bucket exists and we
-                # have its URL before the build is uploaded to S3. The remote server list
-                # is placed in the S3 bucket.
+                    # Remote server list: for clients to get new servers via S3, we embed the
+                    # bucket URL in the build. So now we're ensuring the bucket exists and we
+                    # have its URL before the build is uploaded to S3. The remote server list
+                    # is placed in the S3 bucket.
 
-                remote_server_list_url = psi_ops_s3.get_s3_bucket_remote_server_list_url(campaign.s3_bucket_name)
-    
-                remote_server_list = \
-                    psi_ops_server_entry_auth.make_signed_data(
-                        self.__get_remote_server_list_signing_key_pair().pem_key_pair,
-                        REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD,
-                        '\n'.join(self.__get_encoded_server_list(propagation_channel.id)[0]))
-            
-                # Build for each client platform
+                    remote_server_list_url = psi_ops_s3.get_s3_bucket_remote_server_list_url(campaign.s3_bucket_name)
+        
+                    remote_server_list = \
+                        psi_ops_server_entry_auth.make_signed_data(
+                            self.__get_remote_server_list_signing_key_pair().pem_key_pair,
+                            REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD,
+                            '\n'.join(self.__get_encoded_server_list(propagation_channel.id)[0]))
+                
+                    # Build for each client platform
 
-                client_builds = [
-                    ('Windows', psi_ops_s3.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME),
-                    ('Android', psi_ops_s3.DOWNLOAD_SITE_ANDROID_BUILD_FILENAME)
-                ]
-    
-                build_filenames = self.build(
-                                    propagation_channel.name,
-                                    sponsor.name,
-                                    remote_server_list_url,
-                                    [platform for (platform, _) in client_builds])
-    
-                # Upload client builds
-                # We only upload the builds for Propagation Channel IDs that need to be known for the host.
-                # UPDATE: Now we copy all builds.  We know that this breaks compartmentalization.
-                # However, we do not want to prevent an upgrade in the case where a user has
-                # downloaded from multiple propagation channels, and might therefore be connecting
-                # to a server from one propagation channel using a build from a different one.
-                for build_filename in build_filenames:
+                    client_build_filenames = {
+                        CLIENT_PLATFORM_WINDOWS : psi_ops_s3.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME,
+                        CLIENT_PLATFORM_ANDROID : psi_ops_s3.DOWNLOAD_SITE_ANDROID_BUILD_FILENAME
+                    }
+        
+                    build_filename = self.build(
+                                        propagation_channel.name,
+                                        sponsor.name,
+                                        remote_server_list_url,
+                                        [platform])
+        
+                    # Upload client builds
+                    # We only upload the builds for Propagation Channel IDs that need to be known for the host.
+                    # UPDATE: Now we copy all builds.  We know that this breaks compartmentalization.
+                    # However, we do not want to prevent an upgrade in the case where a user has
+                    # downloaded from multiple propagation channels, and might therefore be connecting
+                    # to a server from one propagation channel using a build from a different one.
                     psi_ops_deploy.deploy_build_to_hosts(self.__hosts.itervalues(), build_filename)
-    
-                # Publish to propagation mechanisms
-                # NOTE: assumes client_builds/build_filenames have corresponding order
+        
+                    # Publish to propagation mechanisms
 
-                psi_ops_s3.update_s3_download(
-                    self.__aws_account,
-                    [(build_filenames[i], target_filename)
-                        for i, (_, target_filename) in enumerate(client_builds)],
-                    remote_server_list,
-                    campaign.s3_bucket_name)
-                campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
+                    psi_ops_s3.update_s3_download(
+                        self.__aws_account,
+                        [(build_filename, client_build_filenames[platform])],
+                        remote_server_list,
+                        campaign.s3_bucket_name)
+                    campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
 
-                if campaign.propagation_mechanism_type == 'twitter':
-                    message = psi_templates.get_tweet_message(campaign.s3_bucket_name)
-                    psi_ops_twitter.tweet(campaign.account, message)
-                    campaign.log('tweeted')
-                elif campaign.propagation_mechanism_type == 'email-autoresponder':
-                    if not self.__deploy_email_config_required:
-                        self.__deploy_email_config_required = True
-                        campaign.log('email push scheduled')
-                    
-            # NOTE: before we added remote server lists, it used to be that
-            # multiple campaigns with different buckets but the same prop/sponsor IDs
-            # could share one build. The "deploy_builds_required_for_campaigns" dirty
-            # flag granularity is a hold-over from that. In the current code, this
-            # means some builds may be repeated unnecessarily in a failure case.
+                    if campaign.propagation_mechanism_type == 'twitter':
+                        message = psi_templates.get_tweet_message(campaign.s3_bucket_name)
+                        psi_ops_twitter.tweet(campaign.account, message)
+                        campaign.log('tweeted')
+                    elif campaign.propagation_mechanism_type == 'email-autoresponder':
+                        if not self.__deploy_email_config_required:
+                            self.__deploy_email_config_required = True
+                            campaign.log('email push scheduled')
+                        
+                # NOTE: before we added remote server lists, it used to be that
+                # multiple campaigns with different buckets but the same prop/sponsor IDs
+                # could share one build. The "deploy_builds_required_for_campaigns" dirty
+                # flag granularity is a hold-over from that. In the current code, this
+                # means some builds may be repeated unnecessarily in a failure case.
 
-            self.__deploy_builds_required_for_campaigns.remove(target)
-            self.save()
+                self.__deploy_builds_required_for_campaigns[platform].remove(target)
+                self.save()
 
         # Host data
 
@@ -1333,20 +1359,21 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__deploy_implementation_required_for_hosts.add(host.id)
             host.log('marked for implementation deployment')
 
-    def add_client_version(self, description):
+    def add_client_version(self, platform, description):
         assert(self.is_locked)
+        assert(platform in [CLIENT_PLATFORM_WINDOWS, CLIENT_PLATFORM_ANDROID])
         # Records the new version number to trigger upgrades
         next_version = 1
-        if len(self.__client_versions) > 0:
-            next_version = int(self.__client_versions[-1].version)+1
+        if len(self.__client_versions[platform]) > 0:
+            next_version = int(self.__client_versions[platform][-1].version)+1
         client_version = ClientVersion(str(next_version), description)
-        self.__client_versions.append(client_version)
+        self.__client_versions[platform].append(client_version)
         # Mark deploy flag to rebuild and upload all clients
         for sponsor in self.__sponsors.itervalues():
             for campaign in sponsor.campaigns:
-                self.__deploy_builds_required_for_campaigns.add(
+                self.__deploy_builds_required_for_campaigns[platform].add(
                         (campaign.propagation_channel_id, sponsor.id))
-                campaign.log('marked for build and publish (upgraded client)')
+                campaign.log('marked for build and publish (upgraded %s client)' % (platform,))
         # Need to deploy data as well for auto-update
         self.__deploy_data_required_for_all = True
 
@@ -1567,18 +1594,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         sponsor = self.__sponsors[sponsor_id]
         return sponsor.https_request_regexes
     
-    def __check_upgrade(self, client_version):
+    def __check_upgrade(self, platform, client_version):
         # check last version number against client version number
         # assumes versions list is in ascending version order
-        if not self.__client_versions:
+        if not self.__client_versions[platform]:
             return None
-        last_version = self.__client_versions[-1].version
+        last_version = self.__client_versions[platform][-1].version
         if int(last_version) > int(client_version):
             return last_version
         return None    
     
     def handshake(self, server_ip_address, client_ip_address,
-                  propagation_channel_id, sponsor_id, client_version, event_logger=None):
+                  propagation_channel_id, sponsor_id,
+                  client_platform_string, client_version, event_logger=None):
         # Legacy handshake output is a series of Name:Value lines returned to 
         # the client. That format will continue to be supported (old client 
         # versions expect it), but the new format of a JSON-ified object will
@@ -1589,8 +1617,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Give client a set of landing pages to open when connection established
         config['homepages'] = self.__get_sponsor_home_pages(sponsor_id, client_ip_address)
 
+        # Match a client platform to client_platform_string
+        platform = CLIENT_PLATFORM_WINDOWS
+        if CLIENT_PLATFORM_ANDROID.lower() in client_platform_string.lower():
+            platform = CLIENT_PLATFORM_ANDROID
+
         # Tell client if an upgrade is available
-        config['upgrade_client_version'] = self.__check_upgrade(client_version)
+        config['upgrade_client_version'] = self.__check_upgrade(platform, client_version)
 
         # Discovery
         config['encoded_server_list'], _ = \
@@ -1722,10 +1755,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 copy_sponsor.home_pages[region] = home_pages
             copy.__sponsors[copy_sponsor.id] = copy_sponsor
 
-        for client_version in self.__client_versions:
-            copy.__client_versions.append(ClientVersion(
-                                            client_version.version,
-                                            '')) # Omit description
+        for platform in self.__client_versions.iterkeys():
+            for client_version in self.__client_versions[platform]:
+                copy.__client_versions[platform].append(ClientVersion(
+                                                client_version.version,
+                                                '')) # Omit description
 
         for speed_test_url in self.__speed_test_urls:
             copy.__speed_test_urls.append(
@@ -1807,7 +1841,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 server.web_server_port,
                                 server.web_server_secret,
                                 [self.__get_encoded_server_entry(server)],
-                                self.__client_versions[-1].version,
+                                self.__client_versions[CLIENT_PLATFORM_WINDOWS][-1].version, # This uses the Windows client
                                 [server.egress_ip_address],
                                 test_cases)
 
