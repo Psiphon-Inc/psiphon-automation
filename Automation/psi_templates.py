@@ -22,10 +22,14 @@ def get_tweet_message(s3_bucket_name):
     bucket_root_url = 'https://s3.amazonaws.com/' + s3_bucket_name
     return 'Get Psiphon 3 here: %s/en.html' % (bucket_root_url,)
 
-def get_plaintext_email_content(s3_bucket_name):
+def get_plaintext_email_content(
+        s3_bucket_name,
+        windows_attachment_filename,
+        android_attachment_filename):
     bucket_root_url = 'https://s3.amazonaws.com/' + s3_bucket_name
-    return '''To use Psiphon 3, save the attached file with a .exe extension.
-Or click the link below.
+    return '''To use Psiphon 3 for Windows, save the attached file {1} with a ".exe" extension.
+To use Psiphon 3 for Android, install the attached file {2}.
+For more information or to download the files again, click the link below.
 {0}/en.html
 
 برای استفاده از سایفون ۳، فایل پیوست شده را با پسوند زیر ذخیره کنید‪:‬
@@ -49,13 +53,20 @@ Yoki quyidagi ulanishni bosing.
 Türkmençe - {0}/tk.html
 العربي - {0}/ar.html
 ภาษาไทย - {0}/th.html
-Uyghurche - {0}/ug@Latn.html'''.format(bucket_root_url)
+Uyghurche - {0}/ug@Latn.html'''.format(
+    bucket_root_url,
+    windows_attachment_filename,
+    android_attachment_filename)
 
-def get_html_email_content(s3_bucket_name):
+def get_html_email_content(
+        s3_bucket_name,
+        windows_attachment_filename,
+        android_attachment_filename):
     bucket_root_url = 'https://s3.amazonaws.com/' + s3_bucket_name
     return '''<div style="direction: ltr;">
-To use Psiphon 3, save the attached file with a .exe extension.<br>
-Or click the link below.<br>
+To use Psiphon 3 for Windows, save the attached file {1} with a ".exe" extension.<br>
+To use Psiphon 3 for Android, install the attached file {2}.<br>
+For more information or to download the files again, click the link below.<br>
 <a href="{0}/en.html">{0}/en.html</a><br>
 </div>
 <br>
@@ -94,4 +105,7 @@ Türkmençe - <a href="{0}/tk.html">{0}/tk.html</a><br>
 <div style="direction: ltr;">
 ภาษาไทย - <a href="{0}/th.html">{0}/th.html</a><br>
 Uyghurche - <a href="{0}/ug@Latn.html">{0}/ug@Latn.html</a><br>
-</div>'''.format(bucket_root_url)
+</div>'''.format(
+    bucket_root_url,
+    windows_attachment_filename,
+    android_attachment_filename)

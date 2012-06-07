@@ -1324,8 +1324,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     {
                      'body': 
                         [
-                            ['plain', psi_templates.get_plaintext_email_content(campaign.s3_bucket_name)],
-                            ['html', psi_templates.get_html_email_content(campaign.s3_bucket_name)]
+                            ['plain', psi_templates.get_plaintext_email_content(
+                                            campaign.s3_bucket_name,
+                                            psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME,
+                                            psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME)],
+                            ['html', psi_templates.get_html_email_content(
+                                            campaign.s3_bucket_name,
+                                            psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME,
+                                            psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME)]
                         ],
                      'attachments': [
                                      [campaign.s3_bucket_name, 
