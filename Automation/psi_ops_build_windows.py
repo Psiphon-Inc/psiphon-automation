@@ -91,6 +91,7 @@ def write_embedded_values(propagation_channel_id,
                           embedded_server_list,
                           remote_server_list_signature_public_key,
                           remote_server_list_url,
+                          info_link_url,
                           ignore_system_server_list=False):
     template = textwrap.dedent('''
         #pragma once
@@ -115,6 +116,10 @@ def write_embedded_values(propagation_channel_id,
         static const char* REMOTE_SERVER_LIST_ADDRESS = "%s";
         
         static const char* REMOTE_SERVER_LIST_REQUEST_PATH = "%s";
+
+        // NOTE: Info link may be opened when not tunneled
+        static const TCHAR* INFO_LINK_URL
+            = _T("%s");
         ''')
     with open(EMBEDDED_VALUES_FILENAME, 'w') as file:
         file.write(template % (propagation_channel_id,
@@ -124,7 +129,8 @@ def write_embedded_values(propagation_channel_id,
                                (1 if ignore_system_server_list else 0),
                                remote_server_list_signature_public_key,
                                remote_server_list_url[1],
-                               remote_server_list_url[2]))
+                               remote_server_list_url[2],
+                               info_link_url))
 
 
 def build_client(
@@ -134,6 +140,7 @@ def build_client(
         encoded_server_list,
         remote_server_list_signature_public_key,
         remote_server_list_url,
+        info_link_url,
         version,
         test=False):
 
@@ -160,6 +167,7 @@ def build_client(
             encoded_server_list,
             remote_server_list_signature_public_key,
             remote_server_list_url,
+            info_link_url,
             ignore_system_server_list=test)
 
         # build

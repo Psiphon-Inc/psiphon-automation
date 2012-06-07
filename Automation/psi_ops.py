@@ -1123,6 +1123,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             propagation_channel_name,
             sponsor_name,
             remote_server_list_url,
+            info_link_url,
             platforms=None,
             test=False):
         if not platforms:
@@ -1150,6 +1151,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         encoded_server_list,
                         remote_server_list_signature_public_key,
                         remote_server_list_url,
+                        info_link_url,
                         self.__client_versions[platform][-1].version if self.__client_versions[platform] else 0,
                         test) for platform in platforms]
 
@@ -1199,6 +1201,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     # is placed in the S3 bucket.
 
                     remote_server_list_url = psi_ops_s3.get_s3_bucket_remote_server_list_url(campaign.s3_bucket_name)
+                    info_link_url = psi_ops_s3.get_s3_bucket_home_page_url(campaign.s3_bucket_name)
         
                     remote_server_list = \
                         psi_ops_server_entry_auth.make_signed_data(
@@ -1217,6 +1220,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         propagation_channel.name,
                                         sponsor.name,
                                         remote_server_list_url,
+                                        info_link_url,
                                         [platform])
         
                     # Upload client builds

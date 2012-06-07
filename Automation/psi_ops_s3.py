@@ -48,6 +48,14 @@ def get_s3_bucket_remote_server_list_url(bucket_id):
                 DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME))
 
 
+def get_s3_bucket_home_page_url(bucket_id):
+    # TODO: add a campaign language and direct to that page; or have the client
+    # supply its system language and direct to that page.
+
+    # Assumes USEast
+    return "https://s3.amazonaws.com/%s/en.html" % (bucket_id,)
+
+
 def create_s3_bucket(aws_account):
 
     # Connect to AWS

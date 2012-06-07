@@ -202,6 +202,7 @@ def test_server(ip_address, web_server_port, web_server_secret, encoded_server_l
                                     encoded_server_list,
                                     '',   # remote_server_list_signature_public_key
                                     '',   # remote_server_list_url
+                                    '',   # info_link_url
                                     version,
                                     True)
             try:

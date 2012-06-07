@@ -85,6 +85,7 @@ def write_embedded_values(propagation_channel_id,
                           embedded_server_list,
                           remote_server_list_signature_public_key,
                           remote_server_list_url,
+                          info_link_url,
                           ignore_system_server_list=False):
     template = textwrap.dedent('''
         package com.psiphon3;
@@ -102,6 +103,9 @@ def write_embedded_values(propagation_channel_id,
             final String REMOTE_SERVER_LIST_URL = "%s://%s/%s";
         
             final String REMOTE_SERVER_LIST_SIGNATURE_PUBLIC_KEY = "%s";
+
+            // NOTE: Info link may be opened when not tunneled
+            final String INFO_LINK_URL = "%s";
         }
         ''')
     with open(EMBEDDED_VALUES_FILENAME, 'w') as file:
@@ -112,7 +116,8 @@ def write_embedded_values(propagation_channel_id,
                                remote_server_list_url[0],
                                remote_server_list_url[1],
                                remote_server_list_url[2],
-                               remote_server_list_signature_public_key))
+                               remote_server_list_signature_public_key,
+                               infor_link_url))
 
 
 def write_android_manifest_version(client_version):
@@ -133,6 +138,7 @@ def build_client(
         encoded_server_list,
         remote_server_list_signature_public_key,
         remote_server_list_url,
+        info_link_url,
         version,
         test=False):
 
@@ -156,6 +162,7 @@ def build_client(
             encoded_server_list,
             remote_server_list_signature_public_key,
             remote_server_list_url,
+            info_link_url,
             ignore_system_server_list=test)
 
         # build
