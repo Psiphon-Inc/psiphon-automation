@@ -117,7 +117,7 @@ def write_embedded_values(propagation_channel_id,
                                remote_server_list_url[1],
                                remote_server_list_url[2],
                                remote_server_list_signature_public_key,
-                               infor_link_url))
+                               info_link_url))
 
 
 def write_android_manifest_version(client_version):
