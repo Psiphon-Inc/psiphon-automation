@@ -186,25 +186,6 @@ Logging
     > sudo service rsyslog restart
 
 
-Amazon SES
-----------------------------------------
-
-1. Install boto
-    > sudo easy_install boto
-
-2. It's best if the AWS user being used for the email sending is created through
-   the AWS IAM interface and has limited privileges.
-
-3. Put AWS credentials into boto config file. Info here:
-    http://code.google.com/p/boto/wiki/BotoConfig
-   We've found that using ~/.boto doesn't work, so create /etc/boto.cfg and put
-   these lines into it:
-      [Credentials]
-      aws_access_key_id = <your access key>
-      aws_secret_access_key = <your secret key>
-   Ensure that the file is readable by the mail_responder user.
-
-
 Stats
 ----------------------------------------
 
@@ -214,8 +195,7 @@ Stats
   basic statisitics to a desired email address. Edit that file so that 
   RECIPIENT_ADDRESS and SENDER_ADDRESS meet your needs.
 
-* The emailing is done with the same SES code and credentials that the 
-  responder itself uses.
+* The emailing is done with the same code that the responder itself uses.
 
 
 Blacklist
@@ -302,10 +282,11 @@ For example:
   * The attachment can be null.
   * The attachment file will have to exist at: {bucketname}/{bucketfilename}
   * The "attachmentfilename" value is the name of the attachment that's 
-    displayed in the email. It must be a filetype that Amazon SES accepts as a 
-    MIME type. But we also want it to be a filetype that doesn't usually have a 
-    file association (since we don't want anyone accidentally double-clicking 
-    and trying to open it).
+    displayed in the email. It must be a filetype that won't be rejected by most
+    mail clients (so, for example, not .exe). When using a fake file extension,
+    we don't want to use an extension that typically has a file association 
+    (since we don't want anyone accidentally double-clicking and trying to open 
+    it before renaming it).
 
 * NOTE: The *last* mimetype will be the one that's preferred by mail clients,
   so you should put the 'html' body last.
@@ -318,13 +299,8 @@ In order for our responses to not be flagged as spam, these guidelines should be
 followed:
 http://docs.amazonwebservices.com/ses/latest/DeveloperGuide/index.html?SPFSenderIDDKIM.html
 
-
-Possible Issues
---------------------------------------------------------------------------------
-
-* There is no In-Reply-To header being used, so, for example, Gmail's 
-  conversation view is broken.
-
+(Those instructions are specifically for Amazon SES, but generally informative
+for setting up SPF and DKIM. At least until we can find a better reference.)
 
 
 Sample main.cf
@@ -390,4 +366,4 @@ smtpd_hard_error_limit = 3
 smtpd_junk_command_limit = 2
 
 # Reduce the message size limit. There's no reason for large messages to be coming in.
-message_size_limit = 2048000
+message_size_limit = 4096000
