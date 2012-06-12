@@ -68,6 +68,10 @@ COMPLAINTS_ADDRESS = '<complaints@example.com>'
 
 BLACKLIST_DAILY_LIMIT = 3
 
+# Email addresses from domains in this list will never be blacklisted.
+# Leave empty if functionality is not desired.
+BLACKLIST_EXEMPTION_DOMAINS = ['example.com']
+
 
 #
 # Stats stuff
