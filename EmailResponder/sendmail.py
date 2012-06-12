@@ -134,10 +134,11 @@ def send_raw_email_smtp(raw_email,
                         smtp_server='localhost'):
     '''
     Sends the raw email via the specified SMTP server.
-    Raises exception on error.
+    Raises exception on error. Returns true otherwise.
     '''
 
     s = smtplib.SMTP(smtp_server)
     s.sendmail(from_address, recipient, raw_email)
     s.quit()
     
+    return True

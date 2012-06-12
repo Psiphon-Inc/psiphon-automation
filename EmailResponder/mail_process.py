@@ -221,7 +221,9 @@ class MailResponder:
         raw = self._dkim_sign_email(raw)
 
         # Throws exception on error
-        sendmail.send_raw_email_smtp(raw, from_address, recipient)
+        if not sendmail.send_raw_email_smtp(raw, from_address, recipient):
+            print 'send_raw_email_smtp failed'
+            return False
 
         print 'Email sent'
         return True
