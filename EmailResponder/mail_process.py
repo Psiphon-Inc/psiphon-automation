@@ -28,7 +28,6 @@ import tempfile
 import hashlib
 import dkim
 from boto.s3.connection import S3Connection
-from boto.exception import BotoServerError
 
 import settings
 import sendmail
