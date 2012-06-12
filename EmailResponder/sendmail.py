@@ -1,4 +1,4 @@
-# Copyright (c) 2011, Psiphon Inc.
+# Copyright (c) 2012, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -23,11 +23,15 @@ from email import Charset
 from email.generator import Generator
 from email import encoders
 import smtplib
-from boto.ses.connection import SESConnection
 
 
 # Adapted from http://radix.twistedmatrix.com/2010/07/how-to-send-good-unicode-email-with.html
-def create_raw_email(recipient, from_address, subject, body, attachments=None, extra_headers=None):
+def create_raw_email(recipient, 
+                     from_address, 
+                     subject, 
+                     body, 
+                     attachments=None, 
+                     extra_headers=None):
     '''
     Creates a i18n-compatible raw email.
     body may be an array of MIME parts in the form:
@@ -68,7 +72,10 @@ def create_raw_email(recipient, from_address, subject, body, attachments=None, e
     # You may want to avoid this if your headers are already ASCII, just so people
     # can read the raw message without getting a headache.
 
-    #TODO: encoding the email addresses in UTF-8 does not work with AmazonSES for now.
+    # NOTE: encoding the email addresses in UTF-8 did not work with AmazonSES, 
+    # and it's not clear if it's necessary to do so. Some day we should determine
+    # a) if there's a reason to UTF-8 encode, and b) if it's okay to UTF-8 encode
+    # now that we're sending directly with SMTP.
     #multipart['To'] = Header(recipient.encode('utf-8'), 'UTF-8').encode()
     #multipart['From'] = Header(from_address.encode('utf-8'), 'UTF-8').encode()
 
@@ -127,38 +134,11 @@ def send_raw_email_smtp(raw_email,
                         smtp_server='localhost'):
     '''
     Sends the raw email via the specified SMTP server.
-    Returns True on success (raises exception otherwise).
+    Raises exception on error. Returns true otherwise.
     '''
 
     s = smtplib.SMTP(smtp_server)
     s.sendmail(from_address, recipient, raw_email)
     s.quit()
-
-    return True
-
-def send_raw_email_amazonses(raw_email, 
-                             from_address, 
-                             recipient=None,
-                             aws_key=None,
-                             aws_secret_key=None):
-    '''
-    Send the raw email via Amazon SES.
-    If the credential arguments are None, boto will attempt to retrieve the
-    values from environment variables and config files.
-    recipient seems to be redudant with the values in the raw email headers.
-    '''
-
-    conn = SESConnection(aws_key, aws_secret_key) 
-
-    if isinstance(recipient, str) or isinstance(recipient, unicode): 
-        recipient = [recipient]
-
-    conn.send_raw_email(raw_email, source=from_address, destinations=recipient)
     
-    # Getting an error when we try to call this. See:
-    # http://code.google.com/p/boto/issues/detail?id=518
-    #conn.close()
-
     return True
-
-    

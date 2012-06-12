@@ -1,4 +1,4 @@
-# Copyright (c) 2011, Psiphon Inc.
+# Copyright (c) 2012, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -15,9 +15,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 '''
-Intended to be run as a cron job to send SES quota and stats to desired email
-address (using SES itself). Credentials for SES are expected to be in boto 
-conf file or environment variables.
+Intended to be run as a cron job to send autoresponder stats to desired email
+address.
 
 The MailStats class can be used to record stats about the mail responder.
 '''
@@ -27,26 +26,10 @@ import re
 import os
 import subprocess
 import shlex
-from boto.ses.connection import SESConnection
 
 import settings
 import sendmail
 
-
-def get_ses_quota():
-    '''
-    Returns the simple Amazon SES quota info, in text. 
-    '''
-    # Open the connection. Uses creds from boto conf or env vars.
-    conn = SESConnection()
-
-    quota = conn.get_send_quota()
-    
-    # Getting an error when we try to call this. See:
-    # http://code.google.com/p/boto/issues/detail?id=518
-    #conn.close()
-
-    return json.dumps(quota, indent=2)
 
 def process_log_file(logfile):
     '''
@@ -137,8 +120,6 @@ if __name__ == '__main__':
     email_body += '\n\n\n'
     email_body += get_exception_info()
     email_body += '\n\n\n'
-    email_body += 'SES quota info\n----------------------\n' + get_ses_quota()
-    email_body += '\n\n\n'
     email_body += 'Postfix queue counts\n----------------------\n' + queue_check
     email_body += '\n\n\n'
     email_body += 'Logwatch Basic\n----------------------\n' + logwatch_basic
@@ -157,7 +138,9 @@ if __name__ == '__main__':
     if not raw_email:
         exit(1)
 
-    if not sendmail.send_raw_email_amazonses(raw_email, settings.STATS_SENDER_ADDRESS):
+    if not sendmail.send_raw_email_smtp(raw_email, 
+                                        settings.STATS_SENDER_ADDRESS,
+                                        settings.STATS_RECIPIENT_ADDRESS):
         exit(1)
 
     exit(0)

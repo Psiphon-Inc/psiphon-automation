@@ -1,4 +1,4 @@
-# Copyright (c) 2011, Psiphon Inc.
+# Copyright (c) 2012, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -28,7 +28,6 @@ import tempfile
 import hashlib
 import dkim
 from boto.s3.connection import S3Connection
-from boto.exception import BotoServerError
 
 import settings
 import sendmail
@@ -82,10 +81,6 @@ class MailResponder:
         if not self._parse_email(email_string):
             return False
 
-        # Is this a verification email from Amazon SES?
-        if self._check_verification_email():
-            return False
-
         # Look up requested email address.
         if not self._conf.has_key(self.requested_addr):
             syslog.syslog(syslog.LOG_INFO, 'fail: invalid requested address: %s' % self.requested_addr)
@@ -104,7 +99,10 @@ class MailResponder:
                 attachments.append((get_s3_attachment(bucketname, bucket_filename),
                                     attachment_filename))
 
-        extra_headers = { 'Reply-To': self.requested_addr }
+        extra_headers = { 
+                         'Reply-To': self.requested_addr,
+                         'Return-Path': settings.COMPLAINTS_ADDRESS
+                        }
 
         if self._requester_msgid:
             extra_headers['In-Reply-To'] = self._requester_msgid
@@ -122,8 +120,9 @@ class MailResponder:
 
         raw_response = self._dkim_sign_email(raw_response)
 
-        if not sendmail.send_raw_email_amazonses(raw_response,
-                                                 self._response_from_addr):
+        if not sendmail.send_raw_email_smtp(raw_response,
+                                            self._response_from_addr,
+                                            self._requester_addr):
             return False
 
         return True
@@ -162,6 +161,11 @@ class MailResponder:
         # do a case-insensitive check.
         self.requested_addr = self.requested_addr.lower()
 
+        # Was this sent to our complaints address?
+        if self.requested_addr == settings.COMPLAINTS_ADDRESS:
+            syslog.syslog(syslog.LOG_INFO, 'fail: complaint')
+            dump_to_exception_file('fail: unparsable requester address\n\n%s' % self._email_string)
+
         # Extract and parse the sender's (requester's) address
 
         self._requester_addr = decode_header(self._email['Return-Path'])
@@ -171,15 +175,8 @@ class MailResponder:
 
         self._requester_addr = strip_email(self._requester_addr)
         if not self._requester_addr:
-            # Amazon SES complaints and bounces have '<>' for Return-Path,
-            # so they end up here.
-            if self._email['From'] == 'MAILER-DAEMON@email-bounces.amazonses.com':
-                syslog.syslog(syslog.LOG_INFO, 'fail: bounce')
-            elif self._email['From'] == 'complaints@email-abuse.amazonses.com':
-                syslog.syslog(syslog.LOG_INFO, 'fail: complaint')
-            else:
-                syslog.syslog(syslog.LOG_INFO, 'fail: unparsable requester address')
-                dump_to_exception_file('fail: unparsable requester address\n\n%s' % self._email_string)
+            syslog.syslog(syslog.LOG_INFO, 'fail: unparsable requester address')
+            dump_to_exception_file('fail: unparsable requester address\n\n%s' % self._email_string)
 
             return False
 
@@ -193,27 +190,6 @@ class MailResponder:
         if not self._requester_msgid: self._requester_msgid = None
 
         return True
-
-
-    def _check_verification_email(self):
-        '''
-        Check if the incoming email is an Amazon SES verification email that
-        we should write to file so that we use the link in it.
-        '''
-        if settings.VERIFY_EMAIL_ADDRESS \
-           and settings.VERIFY_EMAIL_ADDRESS == self.requested_addr:
-
-            # Write the email to disk so that we can get the verification link
-            # out of it.
-            f = open(settings.VERIFY_FILENAME, 'w')
-            f.write(self._email.as_string())
-            f.close()
-
-            syslog.syslog(syslog.LOG_INFO, 'info: verification email received to: %s' % self.requested_addr)
-
-            return True
-
-        return False
 
     def _dkim_sign_email(self, raw_email):
         '''
@@ -235,7 +211,6 @@ class MailResponder:
         '''
         Used for debugging purposes to send an email that's approximately like
         a response email.
-        NOTE: from_address must be a sender that's verified with Amazon SES.
         '''
         raw = sendmail.create_raw_email(recipient, from_address, subject, body,
                                         attachments, extra_headers)
@@ -245,8 +220,9 @@ class MailResponder:
 
         raw = self._dkim_sign_email(raw)
 
-        if not sendmail.send_raw_email_amazonses(raw, from_address):
-            print 'send_raw_email_amazonses failed'
+        # Throws exception on error
+        if not sendmail.send_raw_email_smtp(raw, from_address, recipient):
+            print 'send_raw_email_smtp failed'
             return False
 
         print 'Email sent'
@@ -354,15 +330,8 @@ def process_input(email_string):
     if not responder.read_conf(settings.CONFIG_FILEPATH):
         return False
 
-    try:
-        if not responder.process_email(email_string):
-            return False
-    except BotoServerError as ex:
-        if ex.error_message == 'Address blacklisted.':
-            syslog.syslog(syslog.LOG_CRIT, 'fail: requester address blacklisted by SES')
-            return False
-        else:
-            raise
+    if not responder.process_email(email_string):
+        return False
 
     return responder.requested_addr
 
