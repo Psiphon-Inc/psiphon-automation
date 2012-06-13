@@ -23,6 +23,38 @@ def get_tweet_message(s3_bucket_name):
     return 'Get Psiphon 3 here: %s/en.html' % (bucket_root_url,)
 
 def get_plaintext_email_content(
+        s3_bucket_name):
+    bucket_root_url = 'https://s3.amazonaws.com/' + s3_bucket_name
+    return '''English - {0}/en.html
+فارسی - {0}/fa.html
+中文 - {0}/zh.html
+Ўзбекча - {0}/uz@cyrillic.html
+O'zbekcha - {0}/uz@Latn.html
+Русский - {0}/ru.html
+Türkmençe - {0}/tk.html
+العربي - {0}/ar.html
+ภาษาไทย - {0}/th.html
+Uyghurche - {0}/ug@Latn.html
+'''.format(bucket_root_url)
+
+
+def get_html_email_content(
+        s3_bucket_name):
+    bucket_root_url = 'https://s3.amazonaws.com/' + s3_bucket_name
+    return '''<div style="direction: ltr;">
+English - <a href="{0}/en.html">{0}/en.html</a><br>
+فارسی - <a href="{0}/fa.html">{0}/fa.html</a><br>
+中文 - <a href="{0}/zh.html">{0}/zh.html</a><br>
+Ўзбекча - <a href="{0}/uz@cyrillic.html">{0}/uz@cyrillic.html</a><br>
+O'zbekcha - <a href="{0}/uz@Latn.html">{0}/uz@Latn.html</a><br>
+Русский - <a href="{0}/ru.html">{0}/ru.html</a><br>
+Türkmençe - <a href="{0}/tk.html">{0}/tk.html</a><br>
+العربي - <a href="{0}/ar.html">{0}/ar.html</a><br>
+ภาษาไทย - <a href="{0}/th.html">{0}/th.html</a><br>
+Uyghurche - <a href="{0}/ug@Latn.html">{0}/ug@Latn.html</a><br>
+'''.format(bucket_root_url)
+
+def get_plaintext_attachment_email_content(
         s3_bucket_name,
         windows_attachment_filename,
         android_attachment_filename):
@@ -62,7 +94,7 @@ Uyghurche - {0}/ug@Latn.html'''.format(
     windows_attachment_filename,
     android_attachment_filename)
 
-def get_html_email_content(
+def get_html_attachment_email_content(
         s3_bucket_name,
         windows_attachment_filename,
         android_attachment_filename):
