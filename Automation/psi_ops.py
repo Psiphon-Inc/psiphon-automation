@@ -1319,33 +1319,55 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(self.is_locked)
         print 'push email config...'
         
-        emails = {}
+        emails = []
         for sponsor in self.__sponsors.itervalues():
             for campaign in sponsor.campaigns:
                 if (campaign.propagation_mechanism_type == 'email-autoresponder' and
                     campaign.s3_bucket_name != None):
-                    emails[campaign.account.email_address] = \
-                    {
-                     'body': 
-                        [
-                            ['plain', psi_templates.get_plaintext_email_content(
-                                            campaign.s3_bucket_name,
-                                            psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME,
-                                            psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME)],
-                            ['html', psi_templates.get_html_email_content(
-                                            campaign.s3_bucket_name,
-                                            psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME,
-                                            psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME)]
-                        ],
-                     'attachments': [
-                                     [campaign.s3_bucket_name, 
-                                      psi_ops_s3.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME, 
-                                      psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME],
-                                     [campaign.s3_bucket_name, 
-                                      psi_ops_s3.DOWNLOAD_SITE_ANDROID_BUILD_FILENAME, 
-                                      psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME],
-                                    ]
-                    }
+                    
+                    # Email without attachments
+                    emails.append(
+                        {
+                         'email_addr': campaign.account.email_address,
+                         'body': 
+                            [
+                                ['plain', psi_templates.get_plaintext_email_content(
+                                                campaign.s3_bucket_name,
+                                                psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME,
+                                                psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME)],
+                                ['html', psi_templates.get_html_email_content(
+                                                campaign.s3_bucket_name,
+                                                psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME,
+                                                psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME)]
+                            ],
+                         'attachments': None
+                        })
+                                  
+                    # Email with attachments
+                    emails.append(
+                        {
+                         'email_addr': campaign.account.email_address,
+                         'body': 
+                            [
+                                ['plain', psi_templates.get_plaintext_email_content(
+                                                campaign.s3_bucket_name,
+                                                psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME,
+                                                psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME)],
+                                ['html', psi_templates.get_html_email_content(
+                                                campaign.s3_bucket_name,
+                                                psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME,
+                                                psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME)]
+                            ],
+                         'attachments': [
+                                         [campaign.s3_bucket_name, 
+                                          psi_ops_s3.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME, 
+                                          psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME],
+                                         [campaign.s3_bucket_name, 
+                                          psi_ops_s3.DOWNLOAD_SITE_ANDROID_BUILD_FILENAME, 
+                                          psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME],
+                                        ]
+                        })
+                                  
                     campaign.log('configuring email')
         
         temp_file = tempfile.NamedTemporaryFile(delete=False)

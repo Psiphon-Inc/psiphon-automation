@@ -50,26 +50,27 @@ class MailResponder:
         Return True if successful, False otherwise.
         '''
 
+        self._response_from_addr = settings.RESPONSE_FROM_ADDR
+
         try:
             conffile = open(conf_filepath, 'r')
-
-            self._response_from_addr = settings.RESPONSE_FROM_ADDR
 
             # Note that json.load reads in unicode strings
             self._conf = json.load(conffile)
 
             # Do some validation
-            for key in self._conf.keys():
-                item = self._conf[key]
-                if not item.has_key('body') or not item.has_key('attachments'):
-                    raise Exception('invalid config item: %s:%s', (key, repr(item)))
+            for item in self._conf:
+                if not item.has_key('email_addr') \
+                        or not item.has_key('body') \
+                        or not item.has_key('attachments'):
+                    raise Exception('invalid config item: %s' % repr(item))
 
         except Exception as ex:
             syslog.syslog(syslog.LOG_CRIT, 'error: config file read failed: %s; file: %s' % (ex, conf_filepath))
             return False
 
         return True
-
+    
     def process_email(self, email_string):
         '''
         Processes the given email and sends a response.
@@ -81,8 +82,11 @@ class MailResponder:
         if not self._parse_email(email_string):
             return False
 
-        # Look up requested email address.
-        if not self._conf.has_key(self.requested_addr):
+        # Look up all config entries matching the requested address.
+        request_conf = [item for item in self._conf if item['email_addr'] == self.requested_addr]
+        
+        # If we didn't find anything for that address, exit.
+        if not request_conf:
             syslog.syslog(syslog.LOG_INFO, 'fail: invalid requested address: %s' % self.requested_addr)
             return False
 
@@ -91,39 +95,41 @@ class MailResponder:
             syslog.syslog(syslog.LOG_INFO, 'fail: blacklist')
             return False
 
-        attachments = None
-        if self._conf[self.requested_addr]['attachments']:
-            attachments = []
-            for attachment_info in self._conf[self.requested_addr]['attachments']:
-                bucketname, bucket_filename, attachment_filename = attachment_info
-                attachments.append((get_s3_attachment(bucketname, bucket_filename),
-                                    attachment_filename))
-
-        extra_headers = { 
-                         'Reply-To': self.requested_addr,
-                         'Return-Path': settings.COMPLAINTS_ADDRESS
-                        }
-
-        if self._requester_msgid:
-            extra_headers['In-Reply-To'] = self._requester_msgid
-            extra_headers['References'] = self._requester_msgid
-
-        raw_response = sendmail.create_raw_email(self._requester_addr,
-                                                 self._response_from_addr,
-                                                 self._subject,
-                                                 self._conf[self.requested_addr]['body'],
-                                                 attachments,
-                                                 extra_headers)
-
-        if not raw_response:
-            return False
-
-        raw_response = self._dkim_sign_email(raw_response)
-
-        if not sendmail.send_raw_email_smtp(raw_response,
-                                            self._response_from_addr,
-                                            self._requester_addr):
-            return False
+        # Process each config entry found the for the requested address separately.
+        for conf in request_conf:
+            attachments = None
+            if conf['attachments']:
+                attachments = []
+                for attachment_info in conf['attachments']:
+                    bucketname, bucket_filename, attachment_filename = attachment_info
+                    attachments.append((get_s3_attachment(bucketname, bucket_filename),
+                                        attachment_filename))
+    
+            extra_headers = { 
+                             'Reply-To': self.requested_addr,
+                             'Return-Path': settings.COMPLAINTS_ADDRESS
+                            }
+    
+            if self._requester_msgid:
+                extra_headers['In-Reply-To'] = self._requester_msgid
+                extra_headers['References'] = self._requester_msgid
+    
+            raw_response = sendmail.create_raw_email(self._requester_addr,
+                                                     self._response_from_addr,
+                                                     self._subject,
+                                                     conf['body'],
+                                                     attachments,
+                                                     extra_headers)
+    
+            if not raw_response:
+                return False
+    
+            raw_response = self._dkim_sign_email(raw_response)
+    
+            if not sendmail.send_raw_email_smtp(raw_response,
+                                                self._response_from_addr,
+                                                self._requester_addr):
+                return False
 
         return True
 
