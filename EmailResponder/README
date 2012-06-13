@@ -240,39 +240,73 @@ Email Responder Configuration
   and readable by mail_responder.
   
 * The file is in JSON format, with these fields:
-{
-  "email_addr": {
-    "body": [["mimetype", "body"], ...], 
-    "attachments": null | [["bucketname", "bucketfilename", "attachmentfilename"], ...]
-  },
-  ...
-}
+[
+  {
+    "email_addr": <emailaddress>, 
+    "body": [[<mimetype>, <body>], ...], 
+    "attachments": null | [[<bucketname>, <bucketfilename>, <attachmentfilename>], ...]
+  }
+...
+]
 
 For example:
-{
-"multipart-email@example.com":
-{
-  "body": 
-    [
-      ["plain", "English - https://example.com/en.html\n\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html"], 
-      ["html", "<a href=\"https://example.com/en.html\">English - https://example.com/en.html</a><br>\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html<br>"]
-    ],
-  "attachments": [["aaaa-bbbb-cccc-dddd", "Psiphon3.exe", "Psiphon3.asc"],
+[
+  {
+    "email_addr": "multipart-email@example.com",
+    "body": 
+        [
+          ["plain", "English - https://example.com/en.html\n\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html"], 
+          ["html", "<a href=\"https://example.com/en.html\">English - https://example.com/en.html</a><br>\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html<br>"]
+        ],
+    "attachments": null
+  }, 
+  {
+    "email_addr": "multipart-email@example.com",
+    "body": 
+        [
+          ["plain", "English - https://example.com/en.html\n\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html"], 
+          ["html", "<a href=\"https://example.com/en.html\">English - https://example.com/en.html</a><br>\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html<br>"]
+        ],
+    "attachments": [["aaaa-bbbb-cccc-dddd", "Psiphon3.exe", "Psiphon3.asc"],
                   ["aaaa-bbbb-cccc-dddd", "PsiphonAndroid.apk", "PsiphonAndroid.apk"]]
-}, 
-"justtext@example.com":
-{
-  "body": 
-    [
-      ["plain", "English - https://example2.com/en.html\n\u0420\u0443\u0441\u0441\u043a\u0438\u0439 - https://example2.com/ru.html"]
-    ], 
-  "attachments": null
-},
-"simplebody@example2.com": { "body": "Just a string", "attachments": null },
-"attachment@example3.com": { "body": "I have an attachment", "attachments": [["aaaa-bbbb-cccc-dddd", "Psiphon3.exe", "Psiphon3.asc"]] }
-}
+  }, 
+  {
+    "email_addr": "justtext@example.com",
+    "body": 
+        [
+          ["plain", "Here's a download link. Please expect another email with attachments. https://example2.com/en.html"]
+        ], 
+    "attachments": null
+  },
+  {
+    "email_addr": "justtext@example.com",
+    "body": 
+        [
+          ["plain", "Here's a download link. Please expect another email with attachments. https://example2.com/en.html"]
+        ], 
+    "attachments": [["aaaa-bbbb-cccc-dddd", "Psiphon3.exe", "Psiphon3.asc"],
+                  ["aaaa-bbbb-cccc-dddd", "PsiphonAndroid.apk", "PsiphonAndroid.apk"]]
+  },
+  {
+    "email_addr": "simplebody@example2.com",
+    "body": "Just a string", 
+    "attachments": null 
+  },
+  {
+    "email_addr": "attachment@example3.com",
+    "body": "I have an attachment", 
+    "attachments": [["aaaa-bbbb-cccc-dddd", "Psiphon3.exe", "Psiphon3.asc"]]
+  }
+]
 
 * Things to notice about the format:
+  * There can be multiple entries for the same email address. This will result
+    in multiple emails being sent in response to a request. The intention is 
+    that one email will not have attachments (and so will likely not be flagged
+    as spam), and the second email will have attachments. NOTE: The order of
+    entries is important -- responses will be sent in the order of the entries
+    (so put the non-attachment entry before the attachment entry).
+  * The email address must be lower-case.
   * The email body can be a just a string, which will be interpreted as 'plain'
     mimetype, or an array of one or more tuples which are ["mimetype", "body"].
     Mimetypes can be 'plain' or 'html' (so there's really no reason to specify
