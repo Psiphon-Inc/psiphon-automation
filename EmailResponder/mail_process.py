@@ -202,11 +202,6 @@ class MailResponder:
         email (which is the original with extra signature headers).
         '''
 
-        # Disabling DKIM signing for now. It adds a significant processing
-        # overhead, and it's not clear that it adds a significant benefit.
-        # If bounces increase, we'll re-enable it and see.
-        return raw_email
-
         sig = dkim.sign(raw_email, settings.DKIM_SELECTOR, settings.DKIM_DOMAIN,
                         open(settings.DKIM_PRIVATE_KEY).read())
         return sig + raw_email
