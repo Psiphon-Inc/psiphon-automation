@@ -32,9 +32,9 @@ To use Psiphon 3 for Android, install the attached file {2}.
 For more information or to download the files again, click the link below.
 {0}/en.html
 
-برای استفاده از سایفون ۳، فایل پیوست شده را با پسوند زیر ذخیره کنید‪:‬
+برای استفاده از سایفون ۳، فایل پیوست شده را با پسوند زیر ذخیره کنید:
 .exe
-یا بر روی لینک  زیر کلیک کنید‪.‬
+یا بر روی لینک  زیر کلیک کنید.
 {0}/fa.html
 
 要使用Psiphon 3, 保存文件.exe扩展名。
@@ -49,7 +49,11 @@ Psiphon 3 dan foydalanish uchun ilova qilingan faylni .exe kyengaytirishda saqla
 Yoki quyidagi ulanishni bosing.
 {0}/uz@Latn.html
 
-Русский - {0}/ru.html
+Psiphon 3 для Windows - сохраните прикрепленный файл {1} с расширением ".exe".
+Psiphon 3 для Android - инсталлируйте прикрепленный файл {2}.
+Для получения дополнительной информации или скачивания файлов, кликните на ссылку:
+{0}/ru.html
+
 Türkmençe - {0}/tk.html
 العربي - {0}/ar.html
 ภาษาไทย - {0}/th.html
@@ -71,9 +75,9 @@ For more information or to download the files again, click the link below.<br>
 </div>
 <br>
 <div style="direction: rtl;">
-برای استفاده از سایفون ۳، فایل پیوست شده را با پسوند زیر ذخیره کنید‪:‬<br>
+برای استفاده از سایفون ۳، فایل پیوست شده را با پسوند زیر ذخیره کنید:<br>
 .exe<br>
-یا بر روی لینک  زیر کلیک کنید‪.‬<br>
+یا بر روی لینک  زیر کلیک کنید.<br>
 <a href="{0}/fa.html">{0}/fa.html</a><br>
 </div>
 <br>
