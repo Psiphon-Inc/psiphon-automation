@@ -403,4 +403,4 @@ smtpd_junk_command_limit = 2
 message_size_limit = 4096000
 
 # Setting this to 0 indicates that "mail delivery should be tried only once"
-bounce_queue_lifetime = 0
+#bounce_queue_lifetime = 0
