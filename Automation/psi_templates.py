@@ -45,6 +45,14 @@ Psiphon 3 dan foydalanish uchun ilova qilingan faylni .exe kyengaytirishda saqla
 Yoki quyidagi ulanishni bosing.
 {0}/uz@Latn.html
 
+Psiphon 3 құралын қолдану үшін тіркелген файлды.exe пішімінде сақтаңыз.
+Немесе төмендегі сілтемені басыңыз.
+{0}/kk.html
+
+Psiphon 3-dən istifadə etmək üçün .exe genişlənməsində olan qoşma faylını saxlayın.
+Və ya aşağıdakı əlaqəyə klikləyin.
+{0}/az.html
+
 Русский - {0}/ru.html
 Türkmençe - {0}/tk.html
 العربي - {0}/ar.html
@@ -82,6 +90,18 @@ Psiphon 3 дан фойдаланиш учун илова қилинган фа�
 Psiphon 3 dan foydalanish uchun ilova qilingan faylni .exe formatida saqlang.<br>
 Yoki mana bu linkni bosing.<br> 
 <a href="{0}/uz@Latn.html">{0}/uz@Latn.html</a><br>
+</div>
+<br>
+<div style="direction: ltr;">
+Psiphon 3 құралын қолдану үшін тіркелген файлды.exe пішімінде сақтаңыз.<br>
+Немесе төмендегі сілтемені басыңыз.<br> 
+<a href="{0}/kk.html">{0}/kk.html</a><br>
+</div>
+<br>
+<div style="direction: ltr;">
+Psiphon 3-dən istifadə etmək üçün .exe genişlənməsində olan qoşma faylını saxlayın.<br>
+Və ya aşağıdakı əlaqəyə klikləyin.<br> 
+<a href="{0}/az.html">{0}/az.html</a><br>
 </div>
 <br>
 <div style="direction: ltr;">
