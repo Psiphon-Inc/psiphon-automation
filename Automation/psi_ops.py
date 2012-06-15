@@ -1238,7 +1238,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for sponsor in self.__sponsors.itervalues():
             for campaign in sponsor.campaigns:
                 if campaign.s3_bucket_name:
-                    psi_ops_s3.update_s3_download(self.__aws_account, None, campaign.s3_bucket_name)
+                    psi_ops_s3.update_s3_download(self.__aws_account, None, None, campaign.s3_bucket_name)
                     campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
 
     def update_routes(self):
