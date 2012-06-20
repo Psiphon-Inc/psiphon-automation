@@ -1875,7 +1875,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         ssh.put_file(source_filename, dest_filename)
 
     def __test_server(self, server, test_cases):
-        return psi_ops_test.test_server(
+        return psi_ops_test_windows.test_server(
                                 server.ip_address,
                                 server.web_server_port,
                                 server.web_server_secret,
