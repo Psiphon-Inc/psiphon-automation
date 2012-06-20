@@ -574,7 +574,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         sponsor.banner = banner
         sponsor.log('set banner')
         for campaign in sponsor.campaigns:
-            for platform in __deploy_builds_required_for_campaigns.iterkeys():
+            for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
                 self.__deploy_builds_required_for_campaigns[platform].add(
                     (campaign.propagation_channel_id, sponsor.id))
             campaign.log('marked for build and publish (new banner)')
@@ -593,7 +593,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
             sponsor.log('add email campaign %s' % (email_account,))
-            for platform in __deploy_builds_required_for_campaigns.iterkeys():
+            for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
                 self.__deploy_builds_required_for_campaigns[platform].add(
                         (campaign.propagation_channel_id, sponsor.id))
             campaign.log('marked for build and publish (new campaign)')
@@ -622,7 +622,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
             sponsor.log('add twitter campaign %s' % (twitter_account_name,))
-            for platform in __deploy_builds_required_for_campaigns.iterkeys():
+            for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
                 self.__deploy_builds_required_for_campaigns[platform].add(
                         (campaign.propagation_channel_id, sponsor.id))
             campaign.log('marked for build and publish (new campaign)')
@@ -640,7 +640,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
             sponsor.log('add static download campaign')
-            for platform in __deploy_builds_required_for_campaigns.iterkeys():
+            for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
                 self.__deploy_builds_required_for_campaigns[platform].add(
                         (campaign.propagation_channel_id, sponsor.id))
             campaign.log('marked for build and publish (new campaign)')
@@ -654,7 +654,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 campaign.account[0] == account):
                     campaign.s3_bucket_name = s3_bucket_name
                     campaign.log('set campaign s3 bucket name to %s' % (s3_bucket_name,))
-                    for platform in __deploy_builds_required_for_campaigns.iterkeys():
+                    for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
                         self.__deploy_builds_required_for_campaigns[platform].add(
                             (campaign.propagation_channel_id, sponsor.id))
                     campaign.log('marked for build and publish (modified campaign)')
@@ -982,7 +982,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for sponsor in self.__sponsors.itervalues():
                 for campaign in sponsor.campaigns:
                     if campaign.propagation_channel_id == propagation_channel.id:
-                        for platform in __deploy_builds_required_for_campaigns.iterkeys():
+                        for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
                             self.__deploy_builds_required_for_campaigns[platform].add(
                                     (campaign.propagation_channel_id, sponsor.id))
                         campaign.log('marked for build and publish (new embedded server)')
@@ -1185,7 +1185,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # Build
 
-        for platform in __deploy_builds_required_for_campaigns.iterkeys():
+        for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
             for target in self.__deploy_builds_required_for_campaigns[platform].copy():
 
                 propagation_channel_id, sponsor_id = target
