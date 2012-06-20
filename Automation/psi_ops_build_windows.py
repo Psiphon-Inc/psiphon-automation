@@ -24,7 +24,7 @@ import textwrap
 import tempfile
 import traceback
 import sys
-
+import psi_utils
 
 #==== Build File Locations  ===================================================
 
@@ -38,7 +38,7 @@ CUSTOM_EMAIL_BANNER = 'email.bmp'
 EMAIL_BANNER_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', 'email.bmp')
 EMBEDDED_VALUES_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', 'embeddedvalues.h')
 EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, 'Release', 'psiphon.exe')
-BUILDS_ROOT = os.path.join('.', 'Builds')
+BUILDS_ROOT = os.path.join('.', 'Builds', 'Windows')
 BUILD_FILENAME_TEMPLATE = 'psiphon-%s-%s.exe'
 
 VISUAL_STUDIO_ENV_BATCH_FILENAME = 'C:\\Program Files\\Microsoft Visual Studio 10.0\\VC\\vcvarsall.bat'
@@ -49,22 +49,12 @@ SIGN_TOOL_FILENAME_ALT = 'C:\\Program Files\\Microsoft SDKs\\Windows\\v7.0A\\Bin
 
 UPX_FILENAME = '.\Tools\upx.exe'
 
-# Check usage restrictions here before using this service:
-# http://www.whatismyip.com/faq/automation.asp
-
-# Local service should be in same GeoIP region; local split tunnel will be in effect (not proxied)
-# Remote service should be in different GeoIP region; remote split tunnel will be in effect (proxied)
-CHECK_IP_ADDRESS_URL_LOCAL = 'http://automation.whatismyip.com/n09230945.asp'
-CHECK_IP_ADDRESS_URL_REMOTE = 'http://automation.whatismyip.com/n09230945.asp'
-
 # if psi_build_config.py exists, load it and use psi_build_config.DATA_ROOT as the data root dir
 
 if os.path.isfile('psi_data_config.py'):
     import psi_data_config
     BANNER_ROOT = os.path.join(psi_data_config.DATA_ROOT, 'Banners')
     CODE_SIGNING_PFX_FILENAME = os.path.join(psi_data_config.DATA_ROOT, 'CodeSigning', psi_data_config.CODE_SIGNING_PACKAGE_FILENAME)
-    CHECK_IP_ADDRESS_URL_LOCAL = psi_data_config.CHECK_IP_ADDRESS_URL_LOCAL
-    CHECK_IP_ADDRESS_URL_REMOTE = psi_data_config.CHECK_IP_ADDRESS_URL_REMOTE
 
 
 #==============================================================================
@@ -101,6 +91,7 @@ def write_embedded_values(propagation_channel_id,
                           embedded_server_list,
                           remote_server_list_signature_public_key,
                           remote_server_list_url,
+                          info_link_url,
                           ignore_system_server_list=False):
     template = textwrap.dedent('''
         #pragma once
@@ -125,6 +116,10 @@ def write_embedded_values(propagation_channel_id,
         static const char* REMOTE_SERVER_LIST_ADDRESS = "%s";
         
         static const char* REMOTE_SERVER_LIST_REQUEST_PATH = "%s";
+
+        // NOTE: Info link may be opened when not tunneled
+        static const TCHAR* INFO_LINK_URL
+            = _T("%s");
         ''')
     with open(EMBEDDED_VALUES_FILENAME, 'w') as file:
         file.write(template % (propagation_channel_id,
@@ -134,7 +129,8 @@ def write_embedded_values(propagation_channel_id,
                                (1 if ignore_system_server_list else 0),
                                remote_server_list_signature_public_key,
                                remote_server_list_url[1],
-                               remote_server_list_url[2]))
+                               remote_server_list_url[2],
+                               info_link_url))
 
 
 def build_client(
@@ -144,20 +140,14 @@ def build_client(
         encoded_server_list,
         remote_server_list_signature_public_key,
         remote_server_list_url,
+        info_link_url,
         version,
         test=False):
+
     try:
-        # Helper: store original files for restore after script
-        # (to minimize chance of checking values into source control)
-        def store_to_temporary_file(filename):
-            temporary_file = tempfile.NamedTemporaryFile()
-            with open(filename, 'rb') as file:
-                temporary_file.write(file.read())
-                temporary_file.flush()
-            return temporary_file
-        banner_tempfile = store_to_temporary_file(BANNER_FILENAME)
-        email_banner_tempfile = store_to_temporary_file(EMAIL_BANNER_FILENAME)
-        embedded_values_tempfile = store_to_temporary_file(EMBEDDED_VALUES_FILENAME)
+        # Backup/restore original files minimize chance of checking values into source control
+        backup = psi_utils.TemporaryBackup(
+            [BANNER_FILENAME, EMAIL_BANNER_FILENAME, EMBEDDED_VALUES_FILENAME])
 
         # Copy custom email banner from Data to source tree
         # (there's only one custom email banner for all sponsors)
@@ -177,6 +167,7 @@ def build_client(
             encoded_server_list,
             remote_server_list_signature_public_key,
             remote_server_list_url,
+            info_link_url,
             ignore_system_server_list=test)
 
         # build
@@ -204,15 +195,4 @@ def build_client(
         raise
 
     finally:
-
-        # attempt to restore original source files
-        try:
-            def restore_from_temporary_file(temporary_file, filename):
-                with open(filename, 'wb') as file:
-                    temporary_file.seek(0)
-                    file.write(temporary_file.read())
-            restore_from_temporary_file(banner_tempfile, BANNER_FILENAME)
-            restore_from_temporary_file(email_banner_tempfile, EMAIL_BANNER_FILENAME)
-            restore_from_temporary_file(embedded_values_tempfile, EMBEDDED_VALUES_FILENAME)
-        except:
-            pass
+        backup.restore_all()

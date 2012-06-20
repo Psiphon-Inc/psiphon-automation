@@ -28,7 +28,11 @@ import boto.s3.key
 
 #==== Config  =================================================================
 
-DOWNLOAD_SITE_BUILD_FILENAME = 'psiphon3.exe'
+DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME = 'psiphon3.exe'
+EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME = 'psiphon3.ex_'
+
+DOWNLOAD_SITE_ANDROID_BUILD_FILENAME = 'PsiphonAndroid.apk'
+EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME = 'PsiphonAndroid.apk'
 
 DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME = 'server_list'
 
@@ -42,6 +46,14 @@ def get_s3_bucket_remote_server_list_url(bucket_id):
     return ('https', 's3.amazonaws.com', "%s/%s" % (
                 bucket_id,
                 DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME))
+
+
+def get_s3_bucket_home_page_url(bucket_id):
+    # TODO: add a campaign language and direct to that page; or have the client
+    # supply its system language and direct to that page.
+
+    # Assumes USEast
+    return "https://s3.amazonaws.com/%s/en.html" % (bucket_id,)
 
 
 def create_s3_bucket(aws_account):
@@ -85,7 +97,7 @@ def create_s3_bucket(aws_account):
     return bucket_id
 
 
-def update_s3_download(aws_account, build_filename, remote_server_list, bucket_id):
+def update_s3_download(aws_account, builds, remote_server_list, bucket_id):
     
     # Connect to AWS
 
@@ -95,12 +107,12 @@ def update_s3_download(aws_account, build_filename, remote_server_list, bucket_i
                 
     bucket = s3.get_bucket(bucket_id)
     
-    set_s3_bucket_contents(bucket, build_filename, remote_server_list)
+    set_s3_bucket_contents(bucket, builds, remote_server_list)
 
     print 'updated download URL: https://s3.amazonaws.com/%s/en.html' % (bucket_id)
     
     
-def set_s3_bucket_contents(bucket, build_filename, remote_server_list):
+def set_s3_bucket_contents(bucket, builds, remote_server_list):
 
     try:
         def progress(complete, total):
@@ -117,13 +129,12 @@ def set_s3_bucket_contents(bucket, build_filename, remote_server_list):
                 key = bucket.new_key(name)
                 key.set_contents_from_filename(path, cb=progress)
                 key.close()
-        
-        # Upload the specific Propagation Channel/Spondor build as "psiphon3.exe"
-    
-        if build_filename:
-            key = bucket.new_key(DOWNLOAD_SITE_BUILD_FILENAME)
-            key.set_contents_from_filename(build_filename, cb=progress)
-            key.close()
+
+        if builds:
+            for (source_filename, target_filename) in builds:        
+                key = bucket.new_key(target_filename)
+                key.set_contents_from_filename(source_filename, cb=progress)
+                key.close()
 
         if remote_server_list:
             key = bucket.new_key(DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME)

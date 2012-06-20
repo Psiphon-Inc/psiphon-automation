@@ -181,6 +181,7 @@ class PersistentObject(object):
                 obj.version = '0.0'
             if obj.version != obj.class_version:
                 obj.upgrade()
+        obj.is_locked = False
         return obj
 
     @staticmethod

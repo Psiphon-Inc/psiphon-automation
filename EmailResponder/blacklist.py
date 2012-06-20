@@ -75,6 +75,10 @@ class Blacklist(object):
         reply, False otherwise.
         '''
         
+        # Is this an exempted address?
+        if email_addr[email_addr.rindex('@')+1:] in settings.BLACKLIST_EXEMPTION_DOMAINS:
+            return True
+        
         cur = self._conn.cursor()
         
         email_hash = self._hash_addr(email_addr)

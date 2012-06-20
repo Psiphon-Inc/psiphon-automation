@@ -195,25 +195,6 @@ Logging
     > sudo service rsyslog restart
 
 
-Amazon SES
-----------------------------------------
-
-1. Install boto
-    > sudo pip install boto
-
-2. It's best if the AWS user being used for the email sending is created through
-   the AWS IAM interface and has limited privileges.
-
-3. Put AWS credentials into boto config file. Info here:
-    http://code.google.com/p/boto/wiki/BotoConfig
-   We've found that using ~/.boto doesn't work, so create /etc/boto.cfg and put
-   these lines into it:
-      [Credentials]
-      aws_access_key_id = <your access key>
-      aws_secret_access_key = <your secret key>
-   Ensure that the file is readable by the mail_responder user.
-
-
 Stats
 ----------------------------------------
 
@@ -223,8 +204,7 @@ Stats
   basic statisitics to a desired email address. The sender and recipient addresses
   can be found (and modified) in `settings.py`.
 
-* The emailing is done with the same SES code and credentials that the 
-  responder itself uses.
+* The emailing is done with the same code that the responder itself uses.
 
 
 Blacklist
@@ -272,32 +252,73 @@ Email Responder Configuration
   and readable by mail_responder.
   
 * The file is in JSON format, with these fields:
-{"email_addr": {"body": [["mimetype", "body"], ...], "attachment_bucket": "bucketname"}, ...}
+[
+  {
+    "email_addr": <emailaddress>, 
+    "body": [[<mimetype>, <body>], ...], 
+    "attachments": null | [[<bucketname>, <bucketfilename>, <attachmentfilename>], ...]
+  }
+...
+]
 
 For example:
-{
-"multipart-email@example.com":
-{
-  "body": 
-    [
-      ["plain", "English - https://example.com/en.html\n\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html"], 
-      ["html", "<a href=\"https://example.com/en.html\">English - https://example.com/en.html</a><br>\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html<br>"]
-    ],
-  "attachment_bucket": null
-}, 
-"justtext@example.com":
-{
-  "body": 
-    [
-      ["plain", "English - https://example2.com/en.html\n\u0420\u0443\u0441\u0441\u043a\u0438\u0439 - https://example2.com/ru.html"]
-    ], 
-  "attachment_bucket": null
-},
-"simplebody@example2.com": { "body": "Just a string", "attachment_bucket": null },
-"attachment@example3.com": { "body": "I have an attachment", "attachment_bucket": "aaaa-bbbb-cccc-dddd" }
-}
+[
+  {
+    "email_addr": "multipart-email@example.com",
+    "body": 
+        [
+          ["plain", "English - https://example.com/en.html\n\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html"], 
+          ["html", "<a href=\"https://example.com/en.html\">English - https://example.com/en.html</a><br>\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html<br>"]
+        ],
+    "attachments": null
+  }, 
+  {
+    "email_addr": "multipart-email@example.com",
+    "body": 
+        [
+          ["plain", "English - https://example.com/en.html\n\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html"], 
+          ["html", "<a href=\"https://example.com/en.html\">English - https://example.com/en.html</a><br>\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html<br>"]
+        ],
+    "attachments": [["aaaa-bbbb-cccc-dddd", "Psiphon3.exe", "Psiphon3.asc"],
+                  ["aaaa-bbbb-cccc-dddd", "PsiphonAndroid.apk", "PsiphonAndroid.apk"]]
+  }, 
+  {
+    "email_addr": "justtext@example.com",
+    "body": 
+        [
+          ["plain", "Here's a download link. Please expect another email with attachments. https://example2.com/en.html"]
+        ], 
+    "attachments": null
+  },
+  {
+    "email_addr": "justtext@example.com",
+    "body": 
+        [
+          ["plain", "Here's a download link. Please expect another email with attachments. https://example2.com/en.html"]
+        ], 
+    "attachments": [["aaaa-bbbb-cccc-dddd", "Psiphon3.exe", "Psiphon3.asc"],
+                  ["aaaa-bbbb-cccc-dddd", "PsiphonAndroid.apk", "PsiphonAndroid.apk"]]
+  },
+  {
+    "email_addr": "simplebody@example2.com",
+    "body": "Just a string", 
+    "attachments": null 
+  },
+  {
+    "email_addr": "attachment@example3.com",
+    "body": "I have an attachment", 
+    "attachments": [["aaaa-bbbb-cccc-dddd", "Psiphon3.exe", "Psiphon3.asc"]]
+  }
+]
 
 * Things to notice about the format:
+  * There can be multiple entries for the same email address. This will result
+    in multiple emails being sent in response to a request. The intention is 
+    that one email will not have attachments (and so will likely not be flagged
+    as spam), and the second email will have attachments. NOTE: The order of
+    entries is important -- responses will be sent in the order of the entries
+    (so put the non-attachment entry before the attachment entry).
+  * The email address must be lower-case.
   * The email body can be a just a string, which will be interpreted as 'plain'
     mimetype, or an array of one or more tuples which are ["mimetype", "body"].
     Mimetypes can be 'plain' or 'html' (so there's really no reason to specify
@@ -305,8 +326,13 @@ For example:
   * There can be multiple domains served by the same responder server, so the
     whole email address is important.
   * The attachment can be null.
-  * There can only be one attachment specified.
-  * The attachment file will have to exist at: {attachment_bucket}/{settings.S3_EXE_NAME}
+  * The attachment file will have to exist at: {bucketname}/{bucketfilename}
+  * The "attachmentfilename" value is the name of the attachment that's 
+    displayed in the email. It must be a filetype that won't be rejected by most
+    mail clients (so, for example, not .exe). When using a fake file extension,
+    we don't want to use an extension that typically has a file association 
+    (since we don't want anyone accidentally double-clicking and trying to open 
+    it before renaming it).
 
 * NOTE: The *last* mimetype will be the one that's preferred by mail clients,
   so you should put the 'html' body last.
@@ -385,4 +411,7 @@ smtpd_hard_error_limit = 3
 smtpd_junk_command_limit = 2
 
 # Reduce the message size limit. There's no reason for large messages to be coming in.
-message_size_limit = 2048000
+message_size_limit = 4096000
+
+# Setting this to 0 indicates that "mail delivery should be tried only once"
+#bounce_queue_lifetime = 0
