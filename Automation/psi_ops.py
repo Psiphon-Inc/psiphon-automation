@@ -1362,9 +1362,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                          [campaign.s3_bucket_name, 
                                           psi_ops_s3.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME, 
                                           psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME],
-                                         [campaign.s3_bucket_name, 
-                                          psi_ops_s3.DOWNLOAD_SITE_ANDROID_BUILD_FILENAME, 
-                                          psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME],
+                                         # Temporarily not attaching Android client...
+                                         #[campaign.s3_bucket_name, 
+                                         # psi_ops_s3.DOWNLOAD_SITE_ANDROID_BUILD_FILENAME, 
+                                         # psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME],
                                         ]
                         })
                                   

@@ -64,7 +64,6 @@ def get_plaintext_attachment_email_content(
         android_attachment_filename):
     bucket_root_url = 'https://s3.amazonaws.com/' + s3_bucket_name
     return '''To use Psiphon 3 for Windows, save the attached file {1} with a ".exe" extension.
-To use Psiphon 3 for Android, install the attached file {2}.
 For more information or to download the files again, click the link below.
 {0}/en.html
 
@@ -86,7 +85,6 @@ Yoki quyidagi ulanishni bosing.
 {0}/uz@Latn.html
 
 Psiphon 3 для Windows - сохраните прикрепленный файл {1} с расширением ".exe".
-Psiphon 3 для Android - инсталлируйте прикрепленный файл {2}.
 Для получения дополнительной информации или скачивания файлов, кликните на ссылку:
 {0}/ru.html
 
@@ -113,7 +111,6 @@ def get_html_attachment_email_content(
     bucket_root_url = 'https://s3.amazonaws.com/' + s3_bucket_name
     return '''<div style="direction: ltr;">
 To use Psiphon 3 for Windows, save the attached file {1} with a ".exe" extension.<br>
-To use Psiphon 3 for Android, install the attached file {2}.<br>
 For more information or to download the files again, click the link below.<br>
 <a href="{0}/en.html">{0}/en.html</a><br>
 </div>
@@ -145,7 +142,6 @@ Yoki mana bu linkni bosing.<br>
 <br>
 <div style="direction: ltr;">
 Psiphon 3 для Windows - сохраните прикрепленный файл {1} с расширением ".exe".<br>
-Psiphon 3 для Android - инсталлируйте прикрепленный файл {2}.<br>
 Для получения дополнительной информации или скачивания файлов, кликните на ссылку: {0}/ru.html<br>
 <a href="{0}/ru.html">{0}/ru.html</a><br>
 </div>
@@ -163,7 +159,6 @@ Və ya aşağıdakı əlaqəyə klikləyin.<br>
 </div>
 <br>
 <div style="direction: ltr;">
-Русский - <a href="{0}/ru.html">{0}/ru.html</a><br>
 Türkmençe - <a href="{0}/tk.html">{0}/tk.html</a><br>
 </div>
 <div style="direction: rtl;">
