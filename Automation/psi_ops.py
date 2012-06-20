@@ -1225,7 +1225,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         sponsor.name,
                                         remote_server_list_url,
                                         info_link_url,
-                                        [platform])
+                                        [platform])[0]
         
                     # Upload client builds
                     # We only upload the builds for Propagation Channel IDs that need to be known for the host.
