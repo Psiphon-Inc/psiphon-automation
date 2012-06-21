@@ -67,14 +67,18 @@ def get_plaintext_attachment_email_content(
 For more information or to download the files again, click the link below.
 {0}/en.html
 
-برای استفاده از سایفون ۳، فایل پیوست شده را با پسوند زیر ذخیره کنید:
+برای استفاده از سایفون ۳، فایل پیوست شده را {1} با پسوند زیر ذخیره کنید:
 .exe
-یا بر روی لینک  زیر کلیک کنید.
+برای اطلاعات بیشتر یا دانلود دوباره فایل ها، لطفآ روی لینک زیرکلیک کنید.
 {0}/fa.html
 
 要使用Psiphon 3, 保存文件.exe扩展名。
 或者点击下面的链接。
 {0}/zh.html
+
+لاستخدام برنامج Psiphon 3 لنظام التشغيل Windows، قم بحفظ الملف المرفق {1} ذو الامتداد ".exe".
+لمزيد من المعلومات أو لإعادة تنزيل الملفات، انقر الارتباط أدناه.
+{0}/ar.html
 
 Psiphon 3 дан фойдаланиш учун илова қилинган файлни .exe кенгайтиришда сақланг.
 Ёки қуйидаги уланишни босинг. 
@@ -97,7 +101,6 @@ Və ya aşağıdakı əlaqəyə klikləyin.
 {0}/az.html
 
 Türkmençe - {0}/tk.html
-العربي - {0}/ar.html
 ภาษาไทย - {0}/th.html
 Uyghurche - {0}/ug@Latn.html'''.format(
     bucket_root_url,
@@ -116,9 +119,9 @@ For more information or to download the files again, click the link below.<br>
 </div>
 <br>
 <div style="direction: rtl;">
-برای استفاده از سایفون ۳، فایل پیوست شده را با پسوند زیر ذخیره کنید:<br>
+برای استفاده از سایفون ۳، فایل پیوست شده را {1} با پسوند زیر ذخیره کنید:<br>
 .exe<br>
-یا بر روی لینک  زیر کلیک کنید.<br>
+برای اطلاعات بیشتر یا دانلود دوباره فایل ها، لطفآ روی لینک زیرکلیک کنید.<br>
 <a href="{0}/fa.html">{0}/fa.html</a><br>
 </div>
 <br>
@@ -126,6 +129,13 @@ For more information or to download the files again, click the link below.<br>
 要使用Psiphon 3, 保存文件.exe扩展名。<br>
 或者点击下面的链接。<br>
 <a href="{0}/zh.html">{0}/zh.html</a><br>
+</div>
+<br>
+<br>
+<div style="direction: rtl;">
+لاستخدام برنامج Psiphon 3 لنظام التشغيل Windows، قم بحفظ الملف المرفق {1} ذو الامتداد ".exe".
+لمزيد من المعلومات أو لإعادة تنزيل الملفات، انقر الارتباط أدناه.
+<a href="{0}/ar.html">{0}/ar.html</a><br>
 </div>
 <br>
 <div style="direction: ltr;">
