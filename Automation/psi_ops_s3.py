@@ -119,17 +119,6 @@ def set_s3_bucket_contents(bucket, builds, remote_server_list):
             sys.stdout.write('.')
             sys.stdout.flush()
         
-        # Upload the download site static content. This include the download page in
-        # each available language and the associated images.
-        # The download URLs will be the main page referenced by language, for example:
-        # https://s3.amazonaws.com/[bucket_id]/en.html
-        for name in os.listdir(DOWNLOAD_SITE_CONTENT_ROOT):
-            path = os.path.join(DOWNLOAD_SITE_CONTENT_ROOT, name)
-            if os.path.isfile(path):
-                key = bucket.new_key(name)
-                key.set_contents_from_filename(path, cb=progress)
-                key.close()
-
         if builds:
             for (source_filename, target_filename) in builds:        
                 key = bucket.new_key(target_filename)
@@ -140,6 +129,19 @@ def set_s3_bucket_contents(bucket, builds, remote_server_list):
             key = bucket.new_key(DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME)
             key.set_contents_from_string(remote_server_list, cb=progress)
             key.close()
+
+        # Update the HTML after the builds, to ensure items it references exist
+
+        # Upload the download site static content. This include the download page in
+        # each available language and the associated images.
+        # The download URLs will be the main page referenced by language, for example:
+        # https://s3.amazonaws.com/[bucket_id]/en.html
+        for name in os.listdir(DOWNLOAD_SITE_CONTENT_ROOT):
+            path = os.path.join(DOWNLOAD_SITE_CONTENT_ROOT, name)
+            if os.path.isfile(path):
+                key = bucket.new_key(name)
+                key.set_contents_from_filename(path, cb=progress)
+                key.close()
 
     except:
         # TODO: delete all keys
