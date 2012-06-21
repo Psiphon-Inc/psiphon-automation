@@ -171,9 +171,6 @@ Və ya aşağıdakı əlaqəyə klikləyin.<br>
 <div style="direction: ltr;">
 Türkmençe - <a href="{0}/tk.html">{0}/tk.html</a><br>
 </div>
-<div style="direction: rtl;">
-العربي - <a href="{0}/ar.html">{0}/ar.html</a><br>
-</div>
 <div style="direction: ltr;">
 ภาษาไทย - <a href="{0}/th.html">{0}/th.html</a><br>
 Uyghurche - <a href="{0}/ug@Latn.html">{0}/ug@Latn.html</a><br>
