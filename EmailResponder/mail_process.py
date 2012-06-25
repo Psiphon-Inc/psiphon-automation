@@ -169,7 +169,7 @@ class MailResponder:
         # Was this sent to our complaints address?
         if self.requested_addr == settings.COMPLAINTS_ADDRESS:
             syslog.syslog(syslog.LOG_INFO, 'fail: complaint')
-            dump_to_exception_file('fail: unparsable requester address\n\n%s' % self._email_string)
+            dump_to_exception_file('fail: complaint\n\n%s' % self._email_string)
 
         # Extract and parse the sender's (requester's) address
 
