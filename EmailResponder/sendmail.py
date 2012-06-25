@@ -26,7 +26,7 @@ import smtplib
 
 
 # Adapted from http://radix.twistedmatrix.com/2010/07/how-to-send-good-unicode-email-with.html
-def create_raw_email(recipient, 
+def create_raw_email(recipients, 
                      from_address, 
                      subject, 
                      body, 
@@ -34,6 +34,7 @@ def create_raw_email(recipient,
                      extra_headers=None):
     '''
     Creates a i18n-compatible raw email.
+    recipients may be an array of address or a single address string.
     body may be an array of MIME parts in the form:
         [['plain', plainbody], ['html', htmlbody], ...]
     May raise exceptions, such as if character encodings fail.
@@ -79,7 +80,10 @@ def create_raw_email(recipient,
     #multipart['To'] = Header(recipient.encode('utf-8'), 'UTF-8').encode()
     #multipart['From'] = Header(from_address.encode('utf-8'), 'UTF-8').encode()
 
-    msgRoot['To'] = Header(recipient.encode('utf-8'), 'ascii').encode()
+    if type(recipients) == list:
+        recipients = ', '.join(recipients)
+        
+    msgRoot['To'] = Header(recipients.encode('utf-8'), 'ascii').encode()
     msgRoot['From'] = Header(from_address.encode('utf-8'), 'ascii').encode()
 
     msgRoot['Subject'] = Header(subject.encode('utf-8'), 'UTF-8').encode()
@@ -130,15 +134,16 @@ def create_raw_email(recipient,
 
 def send_raw_email_smtp(raw_email, 
                         from_address, 
-                        recipient, 
+                        recipients, 
                         smtp_server='localhost'):
     '''
     Sends the raw email via the specified SMTP server.
+    recipients may be an array of address or a single address string.
     Raises exception on error. Returns true otherwise.
     '''
 
     s = smtplib.SMTP(smtp_server)
-    s.sendmail(from_address, recipient, raw_email)
+    s.sendmail(from_address, recipients, raw_email)
     s.quit()
     
     return True

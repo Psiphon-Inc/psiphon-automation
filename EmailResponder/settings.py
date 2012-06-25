@@ -61,6 +61,10 @@ RESPONSE_FROM_ADDR = 'Example Responder <noreply@example.com>'
 # will typically receive complaints from senders and other mailservers.
 COMPLAINTS_ADDRESS = '<complaints@example.com>'
 
+# These addresses will receive forwarded complaints emails and other administriva.
+# Set to empty array if no such emails should be sent.
+ADMIN_FORWARD_ADDRESSES = ['mick@example.com', 'keith@example.com']
+
 
 #
 # Blacklist stuff

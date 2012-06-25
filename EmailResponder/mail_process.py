@@ -123,7 +123,7 @@ class MailResponder:
             if not raw_response:
                 return False
     
-            raw_response = self._dkim_sign_email(raw_response)
+            raw_response = _dkim_sign_email(raw_response)
     
             if not sendmail.send_raw_email_smtp(raw_response,
                                                 settings.COMPLAINTS_ADDRESS, # will be Return-Path
@@ -169,6 +169,7 @@ class MailResponder:
         # Was this sent to our complaints address?
         if self.requested_addr == settings.COMPLAINTS_ADDRESS:
             syslog.syslog(syslog.LOG_INFO, 'fail: complaint')
+            forward_to_administrator('Complaint', self._email_string)
             dump_to_exception_file('fail: complaint\n\n%s' % self._email_string)
 
         # Extract and parse the sender's (requester's) address
@@ -196,16 +197,6 @@ class MailResponder:
 
         return True
 
-    def _dkim_sign_email(self, raw_email):
-        '''
-        Signs the raw email according to DKIM standards and returns the resulting
-        email (which is the original with extra signature headers).
-        '''
-
-        sig = dkim.sign(raw_email, settings.DKIM_SELECTOR, settings.DKIM_DOMAIN,
-                        open(settings.DKIM_PRIVATE_KEY).read())
-        return sig + raw_email
-
     def send_test_email(self, recipient, from_address, subject, body,
                         attachments=None, extra_headers=None):
         '''
@@ -218,7 +209,7 @@ class MailResponder:
             print 'create_raw_email failed'
             return False
 
-        raw = self._dkim_sign_email(raw)
+        raw = _dkim_sign_email(raw)
 
         # Throws exception on error
         if not sendmail.send_raw_email_smtp(raw, from_address, recipient):
@@ -311,12 +302,49 @@ def get_s3_attachment(bucketname, bucket_filename):
     return cache_file
 
 
+def _dkim_sign_email(raw_email):
+    '''
+    Signs the raw email according to DKIM standards and returns the resulting
+    email (which is the original with extra signature headers).
+    '''
+
+    sig = dkim.sign(raw_email, settings.DKIM_SELECTOR, settings.DKIM_DOMAIN,
+                    open(settings.DKIM_PRIVATE_KEY).read())
+    return sig + raw_email
+
 def dump_to_exception_file(string):
     if settings.EXCEPTION_DIR:
         temp = tempfile.mkstemp(suffix='.txt', dir=settings.EXCEPTION_DIR)
         f = os.fdopen(temp[0], 'w')
         f.write(string)
         f.close()
+
+def forward_to_administrator(email_type, email_string):
+    '''
+    `email_type` should be something like "Complaint".
+    '''
+    
+    if settings.ADMIN_FORWARD_ADDRESSES:
+        raw = sendmail.create_raw_email(settings.ADMIN_FORWARD_ADDRESSES, 
+                                        settings.RESPONSE_FROM_ADDR, 
+                                        '[MailResponder] ' + email_type, 
+                                        email_string)
+        if not raw:
+            print 'create_raw_email failed'
+            return False
+
+        raw = _dkim_sign_email(raw)
+
+        # Throws exception on error
+        if not sendmail.send_raw_email_smtp(raw, 
+                                            settings.RESPONSE_FROM_ADDR, 
+                                            settings.ADMIN_FORWARD_ADDRESSES):
+            print 'send_raw_email_smtp failed'
+            return False
+
+        print 'Email sent'
+        return True        
+
 
 
 def process_input(email_string):
