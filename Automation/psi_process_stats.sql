@@ -31,6 +31,7 @@ CREATE TABLE connected
   client_platform text,
   relay_protocol text,
   session_id text,
+  processed integer NOT NULL DEFAULT 0,
   id bigserial NOT NULL,
   CONSTRAINT connected_pkey PRIMARY KEY (id),
   CONSTRAINT connected_unique UNIQUE ("timestamp", host_id, server_id, client_region, propagation_channel_id, sponsor_id, client_version, client_platform, relay_protocol, session_id)
@@ -52,6 +53,7 @@ CREATE TABLE disconnected
   host_id text,
   relay_protocol text,
   session_id text,
+  processed integer NOT NULL DEFAULT 0,
   id bigserial NOT NULL,
   CONSTRAINT disconnected_pkey PRIMARY KEY (id),
   CONSTRAINT disconnected_unique UNIQUE ("timestamp", host_id, relay_protocol, session_id)
@@ -199,6 +201,7 @@ CREATE TABLE status
   host_id text,
   relay_protocol text,
   session_id text,
+  processed integer NOT NULL DEFAULT 0,
   id bigserial NOT NULL,
   CONSTRAINT status_pkey PRIMARY KEY (id),
   CONSTRAINT status_unique UNIQUE ("timestamp", host_id, relay_protocol, session_id)
@@ -323,24 +326,6 @@ ALTER TABLE speed OWNER TO postgres;
 GRANT ALL ON TABLE speed TO postgres;
 GRANT ALL ON TABLE speed TO psiphon3;
 
--- Index: session_reconstruction_index
-
--- DROP INDEX session_reconstruction_index;
-
-CREATE INDEX session_reconstruction_index
-  ON disconnected
-  USING btree
-  (session_id, host_id, relay_protocol, "timestamp");
-
--- Index: existing_session_reconstruction_index
-
--- DROP INDEX existing_session_reconstruction_index;
-
-CREATE INDEX existing_session_reconstruction_index
-  ON disconnected
-  USING btree
-  (session_id);
-
 -- Table: "session"
 
 -- DROP TABLE "session";
@@ -373,14 +358,209 @@ ALTER TABLE "session" OWNER TO postgres;
 GRANT ALL ON TABLE "session" TO postgres;
 GRANT ALL ON TABLE "session" TO psiphon3;
 
--- Index: session_connected_id_index
+-- Session reconstruction
 
--- DROP INDEX session_connected_id_index;
+CREATE INDEX connected_unprocessed_index ON connected (processed) WHERE processed = 0;
 
-CREATE INDEX session_connected_id_index
-  ON "session"
-  USING btree
-  (connected_id);
+CREATE INDEX disconnected_session_reconstruction_index
+  ON disconnected
+  (processed, session_id, relay_protocol, host_id, "timestamp");    
+
+CREATE INDEX status_session_reconstruction_index
+  ON status
+  (processed, session_id, relay_protocol, host_id, "timestamp")
+
+-- Finds the /disconnected record that matches the given /connected record.
+-- Returns NULL (empty record) if not found.
+-- Has the side effect of marking earlier matching /disconnected records as processed.
+-- (But not the record being returned.) This is because they will never be 
+-- returned from this function, so it's faster to completely exclude them.
+CREATE OR REPLACE FUNCTION findMatchingDisconnect(connected_record connected) 
+RETURNS disconnected AS $$
+DECLARE
+  result disconnected%ROWTYPE;
+BEGIN
+
+  -- Select the *nearest* matching disconnected entry (youngest that's older).
+  SELECT * INTO result 
+    FROM disconnected 
+    WHERE processed = 0
+      AND session_id = connected_record.session_id 
+      AND relay_protocol = connected_record.relay_protocol
+      AND host_id = connected_record.host_id
+      -- And it has the closest following timestamp to the given connected record
+      AND timestamp > connected_record.timestamp
+    ORDER BY timestamp ASC
+    LIMIT 1;
+
+  -- Did we find a match?
+  IF result IS NOT NULL THEN
+    -- Mark any earlier matching /disconnected records as processed, since 
+    -- they'll never be used again.
+    UPDATE disconnected 
+      SET processed = 1
+      WHERE processed = 0
+        AND session_id = result.session_id 
+        AND relay_protocol = result.relay_protocol
+        AND host_id = result.host_id
+        -- Strictly-less-than means it won't match result.
+        AND timestamp < result.timestamp;
+
+    -- Also mark any matching /status records as processed, since they'll never
+    -- be used either.
+    UPDATE status 
+      SET processed = 1
+      WHERE processed = 0
+        AND session_id = result.session_id 
+        AND relay_protocol = result.relay_protocol
+        AND host_id = result.host_id
+        AND timestamp <= result.timestamp;
+
+    RETURN result;
+  END IF;
+
+  RETURN NULL;
+
+END;
+$$ LANGUAGE plpgsql;
+
+-- Finds the latest /status record that matches the given /connected record.
+-- Returns NULL (empty record) if not found.
+-- Has the side effect of marking earlier matching /status records as processed.
+-- (But not the record being returned.) This is because they will never be 
+-- returned from this function, so it's faster to completely exclude them.
+CREATE OR REPLACE FUNCTION findMatchingStatus(connected_record connected) 
+RETURNS status AS $$
+DECLARE
+  result status%ROWTYPE;
+BEGIN
+
+  -- Select the *oldest* matching status entry.
+  SELECT * INTO result 
+    FROM status 
+    WHERE processed = 0
+      AND session_id = connected_record.session_id 
+      AND relay_protocol = connected_record.relay_protocol
+      AND host_id = connected_record.host_id
+      -- And it has the closest following timestamp to the given connected record
+      AND timestamp > connected_record.timestamp
+    ORDER BY timestamp DESC
+    LIMIT 1;
+
+  -- Did we find a match?
+  IF result IS NOT NULL THEN
+    -- Mark the earlier matching /status record and any earlier matching /status
+    -- records as processed, since they'll never be used again.
+    UPDATE status
+      SET processed = 1
+      WHERE processed = 0
+        AND session_id = result.session_id 
+        AND relay_protocol = result.relay_protocol
+        AND host_id = result.host_id
+        -- Strictly-less-than means it won't match result.
+        AND timestamp < result.timestamp;
+
+    RETURN result;
+  END IF;
+
+  RETURN NULL;
+
+END;
+$$ LANGUAGE plpgsql;
+
+-- Reconstruct sessions from /connected, /disconnected, and /status records.
+CREATE OR REPLACE FUNCTION doSessionReconstruction() RETURNS integer AS $$
+DECLARE
+  connected_record connected%ROWTYPE;
+  disconnected_record disconnected%ROWTYPE;
+  status_record status%ROWTYPE;
+  result integer := 0;
+  disconnected_count integer := 0;
+  status_count integer := 0;
+  expired_count integer := 0;
+  nomatch_count integer := 0;
+  session_end timestamptz;
+BEGIN
+
+  FOR connected_record IN
+      SELECT * FROM connected
+        WHERE processed = 0
+        ORDER BY connected.timestamp ASC LOOP
+    result := result + 1;
+    session_end := NULL;
+
+    -- Look for a matching /disconnected entry.
+    SELECT * INTO disconnected_record FROM findMatchingDisconnect(connected_record);
+    IF disconnected_record IS NOT NULL THEN
+      -- Matching /disconnected entry found.
+      disconnected_count := disconnected_count + 1;
+
+      -- Setting this value will cause a session insert below
+      session_end := disconnected_record.timestamp;
+
+      -- Mark the connected and disconnected records as processed.
+      UPDATE connected SET processed = 1 WHERE id = connected_record.id;
+      UPDATE disconnected SET processed = 1 WHERE id = disconnected_record.id;
+    ELSE
+      -- No matching disconnected entry; look for a matching /status entry.
+      SELECT * INTO status_record FROM findMatchingStatus(connected_record);
+      IF status_record IS NOT NULL THEN
+        -- Matching /status entry found. Check if it's old enough that we should
+        -- close the session.
+        IF (NOW() - status_record.timestamp) > '24 hours'::interval THEN
+          status_count := status_count + 1;
+
+          -- Setting this value will cause a session insert below
+          session_end := status_record.timestamp;
+
+          -- Mark the connected and status records as processed.
+          UPDATE connected SET processed = 1 WHERE id = connected_record.id;
+          UPDATE status SET processed = 1 WHERE id = status_record.id;
+        END IF;
+      ELSE
+        -- No matching /disconnected or /status entry found.
+        -- If this /connected entry is old, give up on it: mark it as processed
+        -- so we don't have to keep checking it.
+        -- And create a zero-duration session for it.
+
+        IF (NOW() - connected_record.timestamp) > '24 hours'::interval THEN
+
+          -- Setting this value will cause a session insert below
+          session_end := connected_record.timestamp;
+
+          -- Mark /connected record as expired.
+          UPDATE connected 
+            SET processed = 2
+            WHERE id = connected_record.id;
+
+          expired_count := expired_count + 1;
+        ELSE
+          -- No matching /disconnected or /status, but not too old to expire it.
+          nomatch_count := nomatch_count + 1;
+        END IF;
+      END IF;
+    END IF;
+
+    IF session_end IS NOT NULL THEN
+      INSERT INTO session 
+        (host_id, server_id, client_region, propagation_channel_id,
+         sponsor_id, client_version, client_platform, relay_protocol, session_id,
+         session_start_timestamp, session_end_timestamp, connected_id)
+      VALUES
+        (connected_record.host_id, connected_record.server_id, 
+         connected_record.client_region, connected_record.propagation_channel_id,
+         connected_record.sponsor_id, connected_record.client_version, 
+         connected_record.client_platform, connected_record.relay_protocol, 
+         connected_record.session_id, connected_record.timestamp, 
+         session_end, connected_record.id);
+    END IF;
+
+  END LOOP;
+
+  RETURN result;
+
+END;
+$$ LANGUAGE plpgsql;
 
 -- Table: propagation_channel
 

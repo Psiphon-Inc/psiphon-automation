@@ -323,72 +323,15 @@ def process_stats(host, servers, db_cur, error_file=None):
 def reconstruct_sessions(db):
     # Populate the session table. For each connection, create a session. Some
     # connections will have no end time, depending on when the logs are pulled.
-    # Find the end time by selecting the 'disconnected' event with the same
-    # host_id and session_id soonest after the connected timestamp.
+    # Find the end time by selecting the 'disconnected' or 'status' event with
+    # the same host_id and session_id soonest after the connected timestamp.
 
     session_cursor = db.cursor()    
     
-    # There may be existing sessions that started before start_date that don't have an end
-    # time.  We first iterate through each of those and try to find a new 'disconnected'
-    # event for each, updating each when we find an end time.
-    
-    print 'Reconstructing previously incomplete sessions...'
+    print 'Reconstructing sessions...'
     start_time = time.time()
 
-    # Note: I tried adding an index on session((session_end_timestamp IS NULL)),
-    # and the query planner showed that it was being used instead of a Seq Scan,
-    # but it didn't speed up the operation at all.
-    session_cursor.execute(textwrap.dedent('''
-        UPDATE session
-        SET session_end_timestamp =
-            (SELECT disconnected.timestamp FROM disconnected
-             WHERE disconnected.timestamp > session.session_start_timestamp
-                 AND disconnected.host_id = session.host_id
-                 AND disconnected.relay_protocol = session.relay_protocol
-                 AND disconnected.session_id = session.session_id
-             ORDER BY disconnected.timestamp ASC LIMIT 1)
-        WHERE session_end_timestamp IS NULL
-        AND (session.relay_protocol = 'VPN' OR
-             EXISTS (SELECT 1 FROM disconnected WHERE disconnected.session_id = session.session_id))
-        '''))
-
-    session_cursor.execute('COMMIT')
-
-    print 'elapsed time: %fs' % (time.time()-start_time,)
-
-    # Reconstruct and insert all sessions.
-    # We do this in a single SQL statement, which we have found to perform much
-    # better than looping through results.
-
-    print "Reconstructing new sessions..."
-    start_time = time.time()
-    
-    session_cursor.execute(textwrap.dedent('''
-        INSERT INTO session (host_id, server_id, client_region, propagation_channel_id,
-                             sponsor_id, client_version, client_platform, relay_protocol, session_id,
-                             session_start_timestamp, session_end_timestamp, connected_id)
-            SELECT connected.host_id, connected.server_id, connected.client_region,
-                connected.propagation_channel_id, connected.sponsor_id, connected.client_version,
-                connected.client_platform, connected.relay_protocol, connected.session_id, connected.timestamp,
-                disconnected.timestamp, connected.id
-            FROM
-                connected
-            LEFT OUTER JOIN
-                disconnected
-            ON
-                -- Get the disconnect time that matches the connection
-                disconnected.timestamp =
-                    (SELECT d.timestamp FROM disconnected AS d
-                     WHERE d.timestamp > connected.timestamp
-                        AND d.host_id = connected.host_id
-                        AND d.relay_protocol = connected.relay_protocol
-                        AND d.session_id = connected.session_id
-                     ORDER BY d.timestamp ASC LIMIT 1)
-                AND connected.host_id = disconnected.host_id
-                AND connected.relay_protocol = disconnected.relay_protocol
-                AND connected.session_id = disconnected.session_id
-            WHERE NOT EXISTS (SELECT 1 FROM session WHERE connected_id = connected.id)
-        '''))
+    session_cursor.execute('SELECT doSessionReconstruction()')
 
     session_cursor.execute('COMMIT')
 
