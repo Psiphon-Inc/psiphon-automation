@@ -167,10 +167,11 @@ class MailResponder:
         self.requested_addr = self.requested_addr.lower()
 
         # Was this sent to our complaints address?
-        if self.requested_addr == settings.COMPLAINTS_ADDRESS:
+        if self.requested_addr == strip_email(settings.COMPLAINTS_ADDRESS):
             syslog.syslog(syslog.LOG_INFO, 'fail: complaint')
             forward_to_administrator('Complaint', self._email_string)
             dump_to_exception_file('fail: complaint\n\n%s' % self._email_string)
+            return False
 
         # Extract and parse the sender's (requester's) address
 

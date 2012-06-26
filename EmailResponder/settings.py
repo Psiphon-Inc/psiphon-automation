@@ -59,7 +59,7 @@ RESPONSE_FROM_ADDR = 'Example Responder <noreply@example.com>'
 
 # This address will be used as the Return-Path of sent messages. This address
 # will typically receive complaints from senders and other mailservers.
-COMPLAINTS_ADDRESS = '<complaints@example.com>'
+COMPLAINTS_ADDRESS = 'complaints@example.com'
 
 # These addresses will receive forwarded complaints emails and other administriva.
 # Set to empty array if no such emails should be sent.
