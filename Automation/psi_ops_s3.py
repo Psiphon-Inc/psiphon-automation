@@ -24,6 +24,8 @@ import string
 import random
 import boto.s3.connection
 import boto.s3.key
+import qrcode
+import cStringIO
 
 
 #==== Config  =================================================================
@@ -35,6 +37,8 @@ DOWNLOAD_SITE_ANDROID_BUILD_FILENAME = 'PsiphonAndroid.apk'
 EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME = 'PsiphonAndroid.apk'
 
 DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME = 'server_list'
+
+DOWNLOAD_SITE_QR_CODE_FILENAME = 'qr.png'
 
 DOWNLOAD_SITE_CONTENT_ROOT = os.path.join('.', 'DownloadSite')
 
@@ -107,12 +111,12 @@ def update_s3_download(aws_account, builds, remote_server_list, bucket_id):
                 
     bucket = s3.get_bucket(bucket_id)
     
-    set_s3_bucket_contents(bucket, builds, remote_server_list)
+    set_s3_bucket_contents(bucket, bucket_id, builds, remote_server_list)
 
     print 'updated download URL: https://s3.amazonaws.com/%s/en.html' % (bucket_id)
     
     
-def set_s3_bucket_contents(bucket, builds, remote_server_list):
+def set_s3_bucket_contents(bucket, bucket_id, builds, remote_server_list):
 
     try:
         def progress(complete, total):
@@ -130,6 +134,15 @@ def set_s3_bucket_contents(bucket, builds, remote_server_list):
             key.set_contents_from_string(remote_server_list, cb=progress)
             key.close()
 
+        # QR code image points to Android APK
+        
+        qr_code_url = 'https://s3.amazonaws.com/%s/%s' % (
+                            bucket_id, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME)
+
+        key = bucket.new_key(DOWNLOAD_SITE_QR_CODE_FILENAME)
+        key.set_contents_from_string(make_qr_code(qr_code_url), cb=progress)
+        key.close()
+
         # Update the HTML after the builds, to ensure items it references exist
 
         # Upload the download site static content. This include the download page in
@@ -138,7 +151,8 @@ def set_s3_bucket_contents(bucket, builds, remote_server_list):
         # https://s3.amazonaws.com/[bucket_id]/en.html
         for name in os.listdir(DOWNLOAD_SITE_CONTENT_ROOT):
             path = os.path.join(DOWNLOAD_SITE_CONTENT_ROOT, name)
-            if os.path.isfile(path):
+            if (os.path.isfile(path) and
+                os.path.split(path)[1] != DOWNLOAD_SITE_QR_CODE_FILENAME):
                 key = bucket.new_key(name)
                 key.set_contents_from_filename(path, cb=progress)
                 key.close()
@@ -154,3 +168,13 @@ def set_s3_bucket_contents(bucket, builds, remote_server_list):
     # Make the whole bucket public now that it's uploaded
     bucket.disable_logging()
     bucket.make_public(recursive=True)
+
+
+def make_qr_code(url):
+    qr = qrcode.QRCode(version=1, box_size=3, border=4)
+    qr.add_data(url)
+    qr.make(fit=True)
+    image = qr.make_image()
+    stream = cStringIO.StringIO()
+    image.save(stream, 'PNG')
+    return stream.getvalue()
