@@ -615,8 +615,8 @@ JOIN propagation_channel ON propagation_channel.id = discovery.propagation_chann
 JOIN sponsor ON  sponsor.id = discovery.sponsor_id;
 
 ALTER VIEW psiphon_discovery OWNER TO postgres;
-GRANT ALL ON VIEW psiphon_discovery TO postgres;
-GRANT ALL ON VIEW psiphon_discovery TO psiphon3;
+GRANT ALL ON psiphon_discovery TO postgres;
+GRANT ALL ON psiphon_discovery TO psiphon3;
 
 CREATE OR REPLACE VIEW psiphon_download AS
 SELECT
@@ -634,8 +634,8 @@ JOIN propagation_channel ON propagation_channel.id = download.propagation_channe
 JOIN sponsor ON  sponsor.id = download.sponsor_id;
 
 ALTER VIEW psiphon_download OWNER TO postgres;
-GRANT ALL ON VIEW psiphon_download TO postgres;
-GRANT ALL ON VIEW psiphon_download TO psiphon3;
+GRANT ALL ON psiphon_download TO postgres;
+GRANT ALL ON psiphon_download TO psiphon3;
 
 CREATE OR REPLACE VIEW psiphon_failed AS
 SELECT
@@ -655,8 +655,8 @@ JOIN propagation_channel ON propagation_channel.id = failed.propagation_channel_
 JOIN sponsor ON  sponsor.id = failed.sponsor_id;
 
 ALTER VIEW psiphon_failed OWNER TO postgres;
-GRANT ALL ON VIEW psiphon_failed TO postgres;
-GRANT ALL ON VIEW psiphon_failed TO psiphon3;
+GRANT ALL ON psiphon_failed TO postgres;
+GRANT ALL ON psiphon_failed TO psiphon3;
 
 CREATE OR REPLACE VIEW psiphon_handshake AS
 SELECT
@@ -675,8 +675,8 @@ JOIN propagation_channel ON propagation_channel.id = handshake.propagation_chann
 JOIN sponsor ON  sponsor.id = handshake.sponsor_id;
 
 ALTER VIEW psiphon_handshake OWNER TO postgres;
-GRANT ALL ON VIEW psiphon_handshake TO postgres;
-GRANT ALL ON VIEW psiphon_handshake TO psiphon3;
+GRANT ALL ON psiphon_handshake TO postgres;
+GRANT ALL ON psiphon_handshake TO psiphon3;
 
 CREATE OR REPLACE VIEW psiphon_bytes_transferred AS
 SELECT
@@ -696,8 +696,8 @@ JOIN propagation_channel ON propagation_channel.id = bytes_transferred.propagati
 JOIN sponsor ON  sponsor.id = bytes_transferred.sponsor_id;
 
 ALTER VIEW psiphon_bytes_transferred OWNER TO postgres;
-GRANT ALL ON VIEW psiphon_bytes_transferred TO postgres;
-GRANT ALL ON VIEW psiphon_bytes_transferred TO psiphon3;
+GRANT ALL ON psiphon_bytes_transferred TO postgres;
+GRANT ALL ON psiphon_bytes_transferred TO psiphon3;
 
 CREATE OR REPLACE VIEW psiphon_page_views AS
 SELECT
@@ -718,8 +718,8 @@ JOIN propagation_channel ON propagation_channel.id = page_views.propagation_chan
 JOIN sponsor ON  sponsor.id = page_views.sponsor_id;
 
 ALTER VIEW psiphon_page_views OWNER TO postgres;
-GRANT ALL ON VIEW psiphon_page_views TO postgres;
-GRANT ALL ON VIEW psiphon_page_views TO psiphon3;
+GRANT ALL ON psiphon_page_views TO postgres;
+GRANT ALL ON psiphon_page_views TO psiphon3;
 
 CREATE OR REPLACE VIEW psiphon_https_requests AS
 SELECT
@@ -740,8 +740,8 @@ JOIN propagation_channel ON propagation_channel.id = https_requests.propagation_
 JOIN sponsor ON  sponsor.id = https_requests.sponsor_id;
 
 ALTER VIEW psiphon_https_requests OWNER TO postgres;
-GRANT ALL ON VIEW psiphon_https_requests TO postgres;
-GRANT ALL ON VIEW psiphon_https_requests TO psiphon3;
+GRANT ALL ON psiphon_https_requests TO postgres;
+GRANT ALL ON psiphon_https_requests TO psiphon3;
 
 CREATE OR REPLACE VIEW psiphon_speed AS
 SELECT
@@ -764,8 +764,8 @@ JOIN propagation_channel ON propagation_channel.id = speed.propagation_channel_i
 JOIN sponsor ON  sponsor.id = speed.sponsor_id;
 
 ALTER VIEW psiphon_speed OWNER TO postgres;
-GRANT ALL ON VIEW psiphon_speed TO postgres;
-GRANT ALL ON VIEW psiphon_speed TO psiphon3;
+GRANT ALL ON psiphon_speed TO postgres;
+GRANT ALL ON psiphon_speed TO psiphon3;
 
 CREATE OR REPLACE VIEW psiphon_session AS
 SELECT
@@ -786,6 +786,6 @@ JOIN propagation_channel ON propagation_channel.id = "session".propagation_chann
 JOIN sponsor ON  sponsor.id = "session".sponsor_id;
 
 ALTER VIEW psiphon_session OWNER TO postgres;
-GRANT ALL ON VIEW psiphon_session TO postgres;
-GRANT ALL ON VIEW psiphon_session TO psiphon3;
+GRANT ALL ON psiphon_session TO postgres;
+GRANT ALL ON psiphon_session TO psiphon3;
 
