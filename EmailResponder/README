@@ -234,8 +234,7 @@ after which they are "blacklisted". The blacklist is cleared once a day
 (configurable).
 
 The blacklist code requires the following package be installed:
-> sudo apt-get install mysql-server
-> sudo apt-get install python-mysqldb
+> sudo apt-get install mysql-server python-mysqldb python-sqlalchemy
 
 The install.sh step above does the rest.
 
