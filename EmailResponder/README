@@ -195,6 +195,25 @@ Logging
     > sudo service rsyslog restart
 
 
+Amazon AWS services
+----------------------------------------
+
+1. Install boto
+    > sudo easy_install boto
+
+2. It's best if the AWS user being used is created through the AWS IAM interface 
+   and has only the necessary privileges.
+
+3. Put AWS credentials into boto config file. Info here:
+    http://code.google.com/p/boto/wiki/BotoConfig
+   We've found that using ~/.boto doesn't work, so create /etc/boto.cfg and put
+   these lines into it:
+      [Credentials]
+      aws_access_key_id = <your access key>
+      aws_secret_access_key = <your secret key>
+   Ensure that the file is readable by the mail_responder user.
+
+
 Stats
 ----------------------------------------
 
