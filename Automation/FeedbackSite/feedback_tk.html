@@ -1,0 +1,184 @@
+﻿<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <title>Psiphon 3 Feedback</title>
+    <style type="text/css">
+      /** Must be localized */
+      body {
+        direction:ltr;
+      }
+      /**/
+    </style>
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <script src="jquery-1.7.2.min.js"></script>
+    <script>
+      function highlight(obj) {
+        obj.find('div').removeClass("feedback_unselected");
+        obj.find('div').addClass("feedback_selected");
+        var img_src = obj.find('img').attr('src');
+        img_src = img_src.replace("_unselected", "_selected");
+        obj.find('img').attr('src', img_src);
+      }
+      function unhighlight(obj) {
+        obj.find('div').removeClass("feedback_selected");
+        obj.find('div').addClass("feedback_unselected");
+        var img_src = obj.find('img').attr('src');
+        img_src = img_src.replace("_selected", "_unselected");
+        obj.find('img').attr('src', img_src);
+      }
+      $(function() {
+        $('td.feedback_cell').click(
+          function() {
+            $(this).parent().find('td').each(function() {unhighlight($(this));});
+            highlight($(this));
+        });
+      })
+    </script>
+  </head>
+  <body>
+
+    <div class="lang_selector">
+      <span>
+        <a href="feedback_en.html">English</a>
+      </span>
+      <span>
+        <a href="feedback_fa.html">فارسی</a>
+      </span>
+      <span>
+        <a href="feedback_ru.html">Русский</a>
+      </span>
+      <span>
+        <a href="feedback_uz@cyrillic.html">Ўзбекча</a>
+      </span>
+      <span>
+        <a href="feedback_uz@Latn.html">O'zbekcha</a>
+      </span>
+      <span class="selectedlanguage">
+        <a href="feedback_tk.html">Türkmençe</a>
+      </span>
+      <span>
+        <a href="feedback_zh.html">中文</a>
+      </span>
+      <span>
+        <a href="feedback_ar.html">العربي</a>
+      </span>
+      <span>
+        <a href="feedback_th.html">ภาษาไทย</a>
+      </span>
+      <span>
+        <a href="feedback_az.html">azərbaycan dili</a>
+      </span>
+      <span>
+        <a href="feedback_ug@Latn.html">Uyghurche</a>
+      </span>
+      <span>
+        <a href="feedback_kk.html">қазақ тілі</a>
+      </span>
+    </div>
+    
+    <a href="http://psiphon.ca">
+      <img class="center" src="psiphon.jpg">
+    </a>
+
+    <h1>Give Us Your Feedback</h1>
+    
+    <p>
+      Let us know how Psiphon 3 is working for you so we can make the system better.
+    </p>
+
+  <form name="feedback" action="feedback" method="post">
+    <table>
+      <tr>
+        <td>
+          <div>
+            <h2>Connectivity</h2>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="feedback_cell">
+          <img src="happy_selected.png">
+          <div class="feedback_selected">
+            Psiphon consistently connects and stays connected.
+          </div>
+        </td>
+        <td class="feedback_cell">
+          <img src="ok_unselected.png">
+          <div class="feedback_unselected">
+            Psiphon often connects, but sometimes disconnects and reconnects.
+          </div>
+        </td>
+        <td class="feedback_cell">
+          <img src="sad_unselected.png">
+          <div class="feedback_unselected">
+            Psiphon often fails to connect or constantly get disconnected.
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <div>
+            <h2>Speed</h2>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="feedback_cell">
+          <img src="happy_selected.png">
+          <div class="feedback_selected">
+            I can browse the web through Psiphon and watch video; it is as fast or faster than other circumvention tools.
+          </div>
+        </td>
+        <td class="feedback_cell">
+          <img src="ok_unselected.png">
+          <div class="feedback_unselected">
+            I can browse the web through Psiphon but it’s slow.
+          </div>
+        </td>
+        <td class="feedback_cell">
+          <img src="sad_unselected.png">
+          <div class="feedback_unselected">
+            Browsing the web through Psiphon is too slow and I won’t continue to use it.
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <div>
+            <h2>Compatibility</h2>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="feedback_cell">
+          <img src="happy_selected.png">
+          <div class="feedback_selected">
+            My web sites work as normal when I access them through Psiphon.
+          </div>
+        </td>
+        <td class="feedback_cell">
+          <img src="ok_unselected.png">
+          <div class="feedback_unselected">
+            My web sites are sufficiently functional when I access them through Psiphon.
+          </div>
+        </td>
+        <td class="feedback_cell">
+          <img src="sad_unselected.png">
+          <div class="feedback_unselected">
+            My web sites load but I can't use certain important functions.
+          </div>
+        </td>
+      </tr>
+      <tr>
+      </tr>
+    </table>
+    <br/>
+    <center>
+    <input type="submit" value="Submit"/>
+    </center>
+  </form>
+
+  </body>
+</html>
