@@ -1610,7 +1610,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             return []
         sponsor = self.__sponsors[sponsor_id]
         if not region:
-            region = psi_geoip.get_region(client_ip_address)
+            region = psi_geoip.get_geoip(client_ip_address)['region']
         # case: lookup succeeded and corresponding region home page found
         sponsor_home_pages = []
         if region in sponsor.home_pages:
