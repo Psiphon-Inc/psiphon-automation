@@ -112,29 +112,85 @@ var lang = {
         "top_content_title": "Give Us Your Feedback", 
         "top_content": "<p>\n  Please complete the form below to let us know how Psiphon 3 is working for you so we can make the system better.\n</p>\n\n<p>\n If you have any specific comments, further information about web sites that do not work, or if this form is not working for you, please email <a href=\"m\n</p>\n", 
         "speed_happy": "I can browse the web through Psiphon and watch video; it is as fast or faster than other circumvention tools."
+    }, 
+    "uz@Latn":{
+        "connectivity_ok": "Psiphon ", 
+        "speed_sad": "Browsing the w", 
+        "compatibility_happy": "My web sites work as normal when I access them through Psiphon.", 
+        "connectivity_sad": "Psiphon ", 
+        "submit_button": "Submit", 
+        "compatibility_title": "Compatibility", 
+        "speed_ok": "I can ", 
+        "compatibility_ok": "", 
+        "connectivity_happy": "Psiphon ", 
+        "compatibility_sad": "My web sites load but I can't use certain important functions.", 
+        "speed_title": "Speed", 
+        "title": "Psiphon 3 Feedback - Uzbek", 
+        "connectivity_title": "Connectivity", 
+        "top_content_title": "Give Us Your Feedback ru", 
+        "top_content": "<p>\n  Please complete the form below to let us know how Psiphon 3 is working for you so we can make the system better.\n</p>\n\n<p>\n If you have any specific comments, further information about web sites that do not work, or if this form is not working for you, please email <a href=\"m\n</p>\n", 
+        "speed_happy": "I can browse the web through Psiphon and watch video; it is as fast or faster than other circumvention tools."
     } 
 };
 
+//extract language from hash URL
+function getLanguageNameFromURL(url)
+{
+    lname = url.split('#')[1];
+    if(lname != undefined)
+        return lname;
+    return 'en';
+}
+
+//sets page content and highlights coerresponding language button
+function setLanguage()
+{
+    langName = getLanguageNameFromURL(window.location.href);
+    currentLanguage = lang[langName];
+    if(currentLanguage === undefined)
+        currentLanguage = lang.en;
+
+    $.each(currentLanguage, function(name, val){
+        selector = '#' + name;
+        if(name == 'submit_button') {
+            $(selector).val(val); 
+        }
+        else if(name == 'title') {
+            document.title = val; //supported in all browsers
+        }
+        else {
+            $(selector).html(val); 
+        }
+    });
+    $('.lang_selector > span').each(function(index){
+        if(getLanguageNameFromURL($(this).children('a:first').attr('href')) == langName)
+        {
+            $(this).toggleClass("selectedlanguage", true);
+            $(this).siblings().toggleClass("selectedlanguage", false);
+        }
+    });
+}
+
 $(function() {
-        $.each(lang.en, function(name, val){
-            selector = '#' + name;
-            if(name == 'submit_button') {
-                $(selector).val(val); 
-            }
-            else if(name == 'title') {
-                document.title = val; //supported in all browsers:w
-            }
-            else {
-                $(selector).html(val); 
-            }
-        });
-})
-$(function() {
+        //set language onload from hash parameter on page load
+        setLanguage();
+
+        //set onClick listener to the feedback table cells
         $('td.feedback_cell').click(
             function() {
                 $(this).toggleClass("selected", true);
                 $(this).siblings().toggleClass("selected", false);
         });
+
+        //set onClick listener to the language buttons
+        $('.lang_selector > span > a').click(
+            function() {
+                window.location.href = $(this).attr('href');
+                setLanguage();
+        });
+
+})
+$(function() {
 })
 </script>
   </head>
