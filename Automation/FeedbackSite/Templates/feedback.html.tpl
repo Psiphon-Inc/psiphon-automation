@@ -91,6 +91,8 @@ li.selected {{
   color: #000;
   opacity: 1.0;
   filter:alpha(opacity=100); /* For IE8 and earlier */
+  background-color:#EEE;
+  border: 1px solid #888;
 }}
 
 </style>
