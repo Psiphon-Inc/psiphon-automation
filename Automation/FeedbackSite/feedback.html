@@ -58,30 +58,38 @@ img.center {
   color: #000000;
 }
 
-.feedback_cell div{
-  color: #CCCCCC;
+.feedback{
+  padding: 0px;
 }
 
-.feedback_cell {
-  padding: 1em;
-  vertical-align: top;
-}
-
-.feedback_cell:hover {
-  cursor: pointer;
-  cursor: hand;
-}
-
-.feedback_cell  img{
+.feedback li{
+  list-style-type: none;
+  padding: 9px 0px 9px 52px;
+  vertical-align: middle;
+  height:55px;
   opacity: 0.4;
   filter:alpha(opacity=40); /* For IE8 and earlier */
 }
 
-.selected div{
-  color: #000000;
+.feedback li:hover {
+  cursor: pointer;
+  cursor: hand;
 }
 
-.selected  img{
+li.happy {
+  background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAkdJREFUeNrsWettgzAQtjKBNygjZIN6g3oEj8AGZQNG8Ai0E9ANSCagG9BO0BrprF5PPM42Dvzgk05UCXXu7e9sIU6cOHECIJ0YJ9ZJ66RzMsBnh0YBSo/K/kxI4+TqpILnoVASxce/aycaDMPv+Xd6eKfYO10sUdww0qsh0RlTTe2hfEdSREbUSk8MeVhEsBfrxLWwIQOkWlZUSPky07o2MKJsXMmP5FjfN4QuhxEdWjxnS87yOwZ5P3cvx5HYLNL9RkXLhUIO01t5f8hVXDOwaONLQpuxcNfqwUfBbLFIsRJyxYiQDNx5bWpBl4wFDKEUcsEZoW1SrznwsrLACzzfV7xKacKcARJ1Gk5avJEoB8Nbr5jcaFhos5RDcfPa/0+V0sq4/Vswa0BFNJEmlp90Yl9UiLEG1cATPD+PPA5eVlroiPtBdL3FdKERXzsr/gzP71gDbgc4NIiKANfzGgothCcZaLmaobw34CPUgDuzPY7fvwZwJQmsVqKNcsk53vvBqayZFFoiisChvi2TX2EaH03mBuY+oNFOrBYMxQcCFSPNkmm8ZVCJKVJnETtVoOwQMFPjqFapHWB2F5yhH/i8hwr36KRBw0zyEFVHDDRa/B3ytqCQYSpTbjlOUhZpRF7gNNx0/sbDSK7BHns+C4HExx2N2G7ApwfFWQ615oaX1BzVpOizKj/F0WOPyDXZ0B555vSvLnDo/cWFWpjE6ok224sd7gioIbWYvmJa2hN6ccD7M38X1s4o34Kxh7srO3HixE74FWAArk8AQckCFBgAAAAASUVORK5CYII=') no-repeat left top;
+}
+
+li.ok {
+  background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAkFJREFUeNrsWettwjAQDhX/605Qd4NsUHeDjMAIbNB0gnSDdAPKBKEThE4AG4ROQI10lq6uhR3nzgGRk04UMM59977rXXbldDcBmADcOIA50725ZqFZwft3zQfNLXy+17zW/Al/XwQVmmvNneajxSs4Uzu+qwHUaLTQvHMI1mgugZXDQiUC24ECklLuELzuKchJ8xX6/SKV8EuH4HKgFZOBwH7cgiWoXNHcW6QQniP4FigmZMZ0uRGei1YoCZCRRBmjZnZRgZ5FFg8N8vkUOdtYe0dxmUKuk2fpaEdlhTqR67BYQSDtS0+MmKorzwjU9KgZOBai02qBfD8kc5zTWIPOdFTW97XTxufXnnMHyxrKc0YEWmGNFDko+xQB5m6sztPlZjE53riRGgJAZeORkWF5rRPZF7w+XiuAvRWPUQDEBQAYNNTnIwJQQwAY/3seEYDx/W0MgD2DBcy2ogy811jg2/XlLKCNNpX1RfMmoHJLS1sKWVFaBexU3B48wpua8RS7gmkhD1c9cnYorwJbiUHDzbJH/5LDwzqr72nQmqXo4TpHikLKMiH1sDzJaFlRTkg9lweKKnN053oSpuVBRXkxjgWRQPiW4wEsKw9LQazLA4GCqya8057oJKePUoJQ2d8Fcaq1zb8JTEQI3jiKWvKut0SBXXoEEGgzcbQKXfTMOyMAcfLXV1TkNtAL/cD7e6i8yjHkf2h+swb+0UhCJmk9/U8L50jcZcYIyFVBt9TanjMC2KQw+/SP7gnArQP4FWAAJNXstWpafx0AAAAASUVORK5CYII=') no-repeat left top;
+}
+
+li.sad {
+  background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAipJREFUeNrsWYttgzAQJVEHYAQ2KBvUG5QR3A0yAhswQroBI5BOAJmAbOBskDjSWbpaAc722aQqTzoligy+z/N9nCzbsOF/Y5doH4G+D1qur+6YSkurRWm5TUinpdZSvJryuZZ+RvEpY8Taipdajk+UU6BgAx43Xn+I1DKitS04ICmKJ4qPoHBJfIdEdFMOzwVDWjwPoUIOzycz4mh5XDC/N6oRWPljBN52yDF5TOVlxEymkINYOR9beVxLzF6CK9sYr9SJkkSHkgMbdfqEKVqgKBSh3qeEs0EtQj5T8A4OCplCd+DwfrtQiW9Wdppbo4DnS2g4Im+4XxGjNMVbQVgz90wQDxUxc/SwVi4cTJcUGZSNas5MgJziokw/xYA94eF3+PxhNOAEQsUVnSFnA5K3ty7YO3ptLQwcBqw9LP1pAwwu9g9vjpnj5OG5ElXdAeTiGYGLj9UtpLDGoRWuF24kemIVtgtk7hOBM2xGmY4qa8C5QtTOaM0nvOvhmG8tX8Q7Je/7JGopF1afM9fQCRShpbmic2SAdy/UO86ypu2QRPoEtdOUbrTmnJ6s8xfcxrB5Ys2RkhIFzsKlOLg/dVNQJVK+5+7FRORLJ5ydVCy6SrSBYIxunf2+6StjHzB88VQEKm7fryZp4QtrPGwhOgWB4weUInHxk9kKEJYh2JNYxom+aASDvLy+Y47Ig1ofVgf6rCUeYEQ9zQ0rrwKRJfzDYsOGDRvS4i7AAKt+ADTSw7VmAAAAAElFTkSuQmCC') no-repeat left top;
+}
+
+li.selected , li.selected:hover{
+  color: #000;
   opacity: 1.0;
   filter:alpha(opacity=100); /* For IE8 and earlier */
 }
@@ -141,7 +149,7 @@ $(function() {
         setLanguage();
 
         //set onClick listener to the feedback table cells
-        $('td.feedback_cell').click(
+        $('.feedback li').click(
             function() {
                 $(this).toggleClass("selected", true);
                 $(this).siblings().toggleClass("selected", false);
@@ -153,8 +161,6 @@ $(function() {
                 setLanguage(getLanguageNameFromURL( $(this).attr('href')));
         });
 
-})
-$(function() {
 })
 </script>
   </head>
@@ -207,90 +213,43 @@ $(function() {
     <h1 id="top_content_title"></h1>
     <div id="top_content">
     </div>
-
-  <form name="feedback" action="feedback" method="post">
-    <table>
-      <tr>
-        <td>
-          <div>
-            <h2 id="connectivity_title"></h2>
-          </div>
-        </td>
-      </tr>
-      <tr>
-        <td class="feedback_cell selected">
-          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAkdJREFUeNrsWettgzAQtjKBNygjZIN6g3oEj8AGZQNG8Ai0E9ANSCagG9BO0BrprF5PPM42Dvzgk05UCXXu7e9sIU6cOHECIJ0YJ9ZJ66RzMsBnh0YBSo/K/kxI4+TqpILnoVASxce/aycaDMPv+Xd6eKfYO10sUdww0qsh0RlTTe2hfEdSREbUSk8MeVhEsBfrxLWwIQOkWlZUSPky07o2MKJsXMmP5FjfN4QuhxEdWjxnS87yOwZ5P3cvx5HYLNL9RkXLhUIO01t5f8hVXDOwaONLQpuxcNfqwUfBbLFIsRJyxYiQDNx5bWpBl4wFDKEUcsEZoW1SrznwsrLACzzfV7xKacKcARJ1Gk5avJEoB8Nbr5jcaFhos5RDcfPa/0+V0sq4/Vswa0BFNJEmlp90Yl9UiLEG1cATPD+PPA5eVlroiPtBdL3FdKERXzsr/gzP71gDbgc4NIiKANfzGgothCcZaLmaobw34CPUgDuzPY7fvwZwJQmsVqKNcsk53vvBqayZFFoiisChvi2TX2EaH03mBuY+oNFOrBYMxQcCFSPNkmm8ZVCJKVJnETtVoOwQMFPjqFapHWB2F5yhH/i8hwr36KRBw0zyEFVHDDRa/B3ytqCQYSpTbjlOUhZpRF7gNNx0/sbDSK7BHns+C4HExx2N2G7ApwfFWQ615oaX1BzVpOizKj/F0WOPyDXZ0B555vSvLnDo/cWFWpjE6ok224sd7gioIbWYvmJa2hN6ccD7M38X1s4o34Kxh7srO3HixE74FWAArk8AQckCFBgAAAAASUVORK5CYII=">
-          <div id="connectivity_happy">
-          </div>
-        </td>
-        <td class="feedback_cell">
-          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAkFJREFUeNrsWettwjAQDhX/605Qd4NsUHeDjMAIbNB0gnSDdAPKBKEThE4AG4ROQI10lq6uhR3nzgGRk04UMM59977rXXbldDcBmADcOIA50725ZqFZwft3zQfNLXy+17zW/Al/XwQVmmvNneajxSs4Uzu+qwHUaLTQvHMI1mgugZXDQiUC24ECklLuELzuKchJ8xX6/SKV8EuH4HKgFZOBwH7cgiWoXNHcW6QQniP4FigmZMZ0uRGei1YoCZCRRBmjZnZRgZ5FFg8N8vkUOdtYe0dxmUKuk2fpaEdlhTqR67BYQSDtS0+MmKorzwjU9KgZOBai02qBfD8kc5zTWIPOdFTW97XTxufXnnMHyxrKc0YEWmGNFDko+xQB5m6sztPlZjE53riRGgJAZeORkWF5rRPZF7w+XiuAvRWPUQDEBQAYNNTnIwJQQwAY/3seEYDx/W0MgD2DBcy2ogy811jg2/XlLKCNNpX1RfMmoHJLS1sKWVFaBexU3B48wpua8RS7gmkhD1c9cnYorwJbiUHDzbJH/5LDwzqr72nQmqXo4TpHikLKMiH1sDzJaFlRTkg9lweKKnN053oSpuVBRXkxjgWRQPiW4wEsKw9LQazLA4GCqya8057oJKePUoJQ2d8Fcaq1zb8JTEQI3jiKWvKut0SBXXoEEGgzcbQKXfTMOyMAcfLXV1TkNtAL/cD7e6i8yjHkf2h+swb+0UhCJmk9/U8L50jcZcYIyFVBt9TanjMC2KQw+/SP7gnArQP4FWAAJNXstWpafx0AAAAASUVORK5CYII=">
-          <div id="connectivity_ok">
-          </div>
-        </td>
-        <td class="feedback_cell">
-          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAipJREFUeNrsWYttgzAQJVEHYAQ2KBvUG5QR3A0yAhswQroBI5BOAJmAbOBskDjSWbpaAc722aQqTzoligy+z/N9nCzbsOF/Y5doH4G+D1qur+6YSkurRWm5TUinpdZSvJryuZZ+RvEpY8Taipdajk+UU6BgAx43Xn+I1DKitS04ICmKJ4qPoHBJfIdEdFMOzwVDWjwPoUIOzycz4mh5XDC/N6oRWPljBN52yDF5TOVlxEymkINYOR9beVxLzF6CK9sYr9SJkkSHkgMbdfqEKVqgKBSh3qeEs0EtQj5T8A4OCplCd+DwfrtQiW9Wdppbo4DnS2g4Im+4XxGjNMVbQVgz90wQDxUxc/SwVi4cTJcUGZSNas5MgJziokw/xYA94eF3+PxhNOAEQsUVnSFnA5K3ty7YO3ptLQwcBqw9LP1pAwwu9g9vjpnj5OG5ElXdAeTiGYGLj9UtpLDGoRWuF24kemIVtgtk7hOBM2xGmY4qa8C5QtTOaM0nvOvhmG8tX8Q7Je/7JGopF1afM9fQCRShpbmic2SAdy/UO86ypu2QRPoEtdOUbrTmnJ6s8xfcxrB5Ys2RkhIFzsKlOLg/dVNQJVK+5+7FRORLJ5ydVCy6SrSBYIxunf2+6StjHzB88VQEKm7fryZp4QtrPGwhOgWB4weUInHxk9kKEJYh2JNYxom+aASDvLy+Y47Ig1ofVgf6rCUeYEQ9zQ0rrwKRJfzDYsOGDRvS4i7AAKt+ADTSw7VmAAAAAElFTkSuQmCC">
-          <div id="connectivity_sad">
-          </div>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <div>
-            <h2 id="speed_title"></h2>
-          </div>
-        </td>
-      </tr>
-      <tr>
-        <td class="feedback_cell selected">
-          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAkdJREFUeNrsWettgzAQtjKBNygjZIN6g3oEj8AGZQNG8Ai0E9ANSCagG9BO0BrprF5PPM42Dvzgk05UCXXu7e9sIU6cOHECIJ0YJ9ZJ66RzMsBnh0YBSo/K/kxI4+TqpILnoVASxce/aycaDMPv+Xd6eKfYO10sUdww0qsh0RlTTe2hfEdSREbUSk8MeVhEsBfrxLWwIQOkWlZUSPky07o2MKJsXMmP5FjfN4QuhxEdWjxnS87yOwZ5P3cvx5HYLNL9RkXLhUIO01t5f8hVXDOwaONLQpuxcNfqwUfBbLFIsRJyxYiQDNx5bWpBl4wFDKEUcsEZoW1SrznwsrLACzzfV7xKacKcARJ1Gk5avJEoB8Nbr5jcaFhos5RDcfPa/0+V0sq4/Vswa0BFNJEmlp90Yl9UiLEG1cATPD+PPA5eVlroiPtBdL3FdKERXzsr/gzP71gDbgc4NIiKANfzGgothCcZaLmaobw34CPUgDuzPY7fvwZwJQmsVqKNcsk53vvBqayZFFoiisChvi2TX2EaH03mBuY+oNFOrBYMxQcCFSPNkmm8ZVCJKVJnETtVoOwQMFPjqFapHWB2F5yhH/i8hwr36KRBw0zyEFVHDDRa/B3ytqCQYSpTbjlOUhZpRF7gNNx0/sbDSK7BHns+C4HExx2N2G7ApwfFWQ615oaX1BzVpOizKj/F0WOPyDXZ0B555vSvLnDo/cWFWpjE6ok224sd7gioIbWYvmJa2hN6ccD7M38X1s4o34Kxh7srO3HixE74FWAArk8AQckCFBgAAAAASUVORK5CYII=">
-          <div id="speed_happy">
-          </div>
-        </td>
-        <td class="feedback_cell">
-          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAkFJREFUeNrsWettwjAQDhX/605Qd4NsUHeDjMAIbNB0gnSDdAPKBKEThE4AG4ROQI10lq6uhR3nzgGRk04UMM59977rXXbldDcBmADcOIA50725ZqFZwft3zQfNLXy+17zW/Al/XwQVmmvNneajxSs4Uzu+qwHUaLTQvHMI1mgugZXDQiUC24ECklLuELzuKchJ8xX6/SKV8EuH4HKgFZOBwH7cgiWoXNHcW6QQniP4FigmZMZ0uRGei1YoCZCRRBmjZnZRgZ5FFg8N8vkUOdtYe0dxmUKuk2fpaEdlhTqR67BYQSDtS0+MmKorzwjU9KgZOBai02qBfD8kc5zTWIPOdFTW97XTxufXnnMHyxrKc0YEWmGNFDko+xQB5m6sztPlZjE53riRGgJAZeORkWF5rRPZF7w+XiuAvRWPUQDEBQAYNNTnIwJQQwAY/3seEYDx/W0MgD2DBcy2ogy811jg2/XlLKCNNpX1RfMmoHJLS1sKWVFaBexU3B48wpua8RS7gmkhD1c9cnYorwJbiUHDzbJH/5LDwzqr72nQmqXo4TpHikLKMiH1sDzJaFlRTkg9lweKKnN053oSpuVBRXkxjgWRQPiW4wEsKw9LQazLA4GCqya8057oJKePUoJQ2d8Fcaq1zb8JTEQI3jiKWvKut0SBXXoEEGgzcbQKXfTMOyMAcfLXV1TkNtAL/cD7e6i8yjHkf2h+swb+0UhCJmk9/U8L50jcZcYIyFVBt9TanjMC2KQw+/SP7gnArQP4FWAAJNXstWpafx0AAAAASUVORK5CYII=">
-          <div id="speed_ok">
-          </div>
-        </td>
-        <td class="feedback_cell">
-          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAipJREFUeNrsWYttgzAQJVEHYAQ2KBvUG5QR3A0yAhswQroBI5BOAJmAbOBskDjSWbpaAc722aQqTzoligy+z/N9nCzbsOF/Y5doH4G+D1qur+6YSkurRWm5TUinpdZSvJryuZZ+RvEpY8Taipdajk+UU6BgAx43Xn+I1DKitS04ICmKJ4qPoHBJfIdEdFMOzwVDWjwPoUIOzycz4mh5XDC/N6oRWPljBN52yDF5TOVlxEymkINYOR9beVxLzF6CK9sYr9SJkkSHkgMbdfqEKVqgKBSh3qeEs0EtQj5T8A4OCplCd+DwfrtQiW9Wdppbo4DnS2g4Im+4XxGjNMVbQVgz90wQDxUxc/SwVi4cTJcUGZSNas5MgJziokw/xYA94eF3+PxhNOAEQsUVnSFnA5K3ty7YO3ptLQwcBqw9LP1pAwwu9g9vjpnj5OG5ElXdAeTiGYGLj9UtpLDGoRWuF24kemIVtgtk7hOBM2xGmY4qa8C5QtTOaM0nvOvhmG8tX8Q7Je/7JGopF1afM9fQCRShpbmic2SAdy/UO86ypu2QRPoEtdOUbrTmnJ6s8xfcxrB5Ys2RkhIFzsKlOLg/dVNQJVK+5+7FRORLJ5ydVCy6SrSBYIxunf2+6StjHzB88VQEKm7fryZp4QtrPGwhOgWB4weUInHxk9kKEJYh2JNYxom+aASDvLy+Y47Ig1ofVgf6rCUeYEQ9zQ0rrwKRJfzDYsOGDRvS4i7AAKt+ADTSw7VmAAAAAElFTkSuQmCC">
-          <div id="speed_sad">
-          </div>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <div>
-            <h2 id="compatibility_title"></h2>
-          </div>
-        </td>
-      </tr>
-      <tr>
-        <td class="feedback_cell selected">
-          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAkdJREFUeNrsWettgzAQtjKBNygjZIN6g3oEj8AGZQNG8Ai0E9ANSCagG9BO0BrprF5PPM42Dvzgk05UCXXu7e9sIU6cOHECIJ0YJ9ZJ66RzMsBnh0YBSo/K/kxI4+TqpILnoVASxce/aycaDMPv+Xd6eKfYO10sUdww0qsh0RlTTe2hfEdSREbUSk8MeVhEsBfrxLWwIQOkWlZUSPky07o2MKJsXMmP5FjfN4QuhxEdWjxnS87yOwZ5P3cvx5HYLNL9RkXLhUIO01t5f8hVXDOwaONLQpuxcNfqwUfBbLFIsRJyxYiQDNx5bWpBl4wFDKEUcsEZoW1SrznwsrLACzzfV7xKacKcARJ1Gk5avJEoB8Nbr5jcaFhos5RDcfPa/0+V0sq4/Vswa0BFNJEmlp90Yl9UiLEG1cATPD+PPA5eVlroiPtBdL3FdKERXzsr/gzP71gDbgc4NIiKANfzGgothCcZaLmaobw34CPUgDuzPY7fvwZwJQmsVqKNcsk53vvBqayZFFoiisChvi2TX2EaH03mBuY+oNFOrBYMxQcCFSPNkmm8ZVCJKVJnETtVoOwQMFPjqFapHWB2F5yhH/i8hwr36KRBw0zyEFVHDDRa/B3ytqCQYSpTbjlOUhZpRF7gNNx0/sbDSK7BHns+C4HExx2N2G7ApwfFWQ615oaX1BzVpOizKj/F0WOPyDXZ0B555vSvLnDo/cWFWpjE6ok224sd7gioIbWYvmJa2hN6ccD7M38X1s4o34Kxh7srO3HixE74FWAArk8AQckCFBgAAAAASUVORK5CYII=">
-          <div id="compatibility_happy">
-          </div>
-        </td>
-        <td class="feedback_cell">
-          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAkFJREFUeNrsWettwjAQDhX/605Qd4NsUHeDjMAIbNB0gnSDdAPKBKEThE4AG4ROQI10lq6uhR3nzgGRk04UMM59977rXXbldDcBmADcOIA50725ZqFZwft3zQfNLXy+17zW/Al/XwQVmmvNneajxSs4Uzu+qwHUaLTQvHMI1mgugZXDQiUC24ECklLuELzuKchJ8xX6/SKV8EuH4HKgFZOBwH7cgiWoXNHcW6QQniP4FigmZMZ0uRGei1YoCZCRRBmjZnZRgZ5FFg8N8vkUOdtYe0dxmUKuk2fpaEdlhTqR67BYQSDtS0+MmKorzwjU9KgZOBai02qBfD8kc5zTWIPOdFTW97XTxufXnnMHyxrKc0YEWmGNFDko+xQB5m6sztPlZjE53riRGgJAZeORkWF5rRPZF7w+XiuAvRWPUQDEBQAYNNTnIwJQQwAY/3seEYDx/W0MgD2DBcy2ogy811jg2/XlLKCNNpX1RfMmoHJLS1sKWVFaBexU3B48wpua8RS7gmkhD1c9cnYorwJbiUHDzbJH/5LDwzqr72nQmqXo4TpHikLKMiH1sDzJaFlRTkg9lweKKnN053oSpuVBRXkxjgWRQPiW4wEsKw9LQazLA4GCqya8057oJKePUoJQ2d8Fcaq1zb8JTEQI3jiKWvKut0SBXXoEEGgzcbQKXfTMOyMAcfLXV1TkNtAL/cD7e6i8yjHkf2h+swb+0UhCJmk9/U8L50jcZcYIyFVBt9TanjMC2KQw+/SP7gnArQP4FWAAJNXstWpafx0AAAAASUVORK5CYII=">
-          <div id="compatibility_ok">
-          </div>
-        </td>
-        <td class="feedback_cell">
-          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAipJREFUeNrsWYttgzAQJVEHYAQ2KBvUG5QR3A0yAhswQroBI5BOAJmAbOBskDjSWbpaAc722aQqTzoligy+z/N9nCzbsOF/Y5doH4G+D1qur+6YSkurRWm5TUinpdZSvJryuZZ+RvEpY8Taipdajk+UU6BgAx43Xn+I1DKitS04ICmKJ4qPoHBJfIdEdFMOzwVDWjwPoUIOzycz4mh5XDC/N6oRWPljBN52yDF5TOVlxEymkINYOR9beVxLzF6CK9sYr9SJkkSHkgMbdfqEKVqgKBSh3qeEs0EtQj5T8A4OCplCd+DwfrtQiW9Wdppbo4DnS2g4Im+4XxGjNMVbQVgz90wQDxUxc/SwVi4cTJcUGZSNas5MgJziokw/xYA94eF3+PxhNOAEQsUVnSFnA5K3ty7YO3ptLQwcBqw9LP1pAwwu9g9vjpnj5OG5ElXdAeTiGYGLj9UtpLDGoRWuF24kemIVtgtk7hOBM2xGmY4qa8C5QtTOaM0nvOvhmG8tX8Q7Je/7JGopF1afM9fQCRShpbmic2SAdy/UO86ypu2QRPoEtdOUbrTmnJ6s8xfcxrB5Ys2RkhIFzsKlOLg/dVNQJVK+5+7FRORLJ5ydVCy6SrSBYIxunf2+6StjHzB88VQEKm7fryZp4QtrPGwhOgWB4weUInHxk9kKEJYh2JNYxom+aASDvLy+Y47Ig1ofVgf6rCUeYEQ9zQ0rrwKRJfzDYsOGDRvS4i7AAKt+ADTSw7VmAAAAAElFTkSuQmCC">
-          <div id="compatibility_sad">
-          </div>
-        </td>
-      </tr>
-      <tr>
-      </tr>
-    </table>
     <br/>
+
+    <form name="feedback" action="feedback" method="post" id="feedback">
+    <h2 id="connectivity_title"></h2>
+
+    <ul class="feedback">
+    <li class="happy selected" id="connectivity_happy"></li>
+
+    <li class="ok" id="connectivity_ok"></li>
+
+    <li class="sad" id="connectivity_sad"></li>
+    </ul>
+
+    <h2 id="speed_title"></h2>
+
+    <ul class="feedback">
+    <li class="happy selected" id="speed_happy"></li>
+
+    <li class="ok" id="speed_ok"></li>
+
+    <li class="sad" id="speed_sad"></li>
+    </ul>
+
+    <h2 id="compatibility_title"></h2>
+
+    <ul class="feedback">
+    <li class="happy selected" id="compatibility_happy"></li>
+
+    <li class="ok" id="compatibility_ok"></li>
+
+    <li class="sad" id="compatibility_sad"></li>
+    </ul><br />
+
     <center>
-    <input type="submit" value="" id="submit_button">
+    <input type="submit" value="" id="submit_button" />
     </center>
-  </form>
-  
+    </form> 
     </div>
 
   </body>
