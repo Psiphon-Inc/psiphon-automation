@@ -146,6 +146,9 @@ function setLanguage(langName)
 }
 
 $(function() {
+        //Windows client needs this to be set to null on load
+         window.returnValue = 0;
+
         //set language onload from hash parameter on page load
         setLanguage();
 
@@ -161,6 +164,37 @@ $(function() {
             function() {
                 setLanguage(getLanguageNameFromURL( $(this).attr('href')));
         });
+        $('ul#speed.feedback').data('hash', '44877c6aa8e93fa5a91c9361211464fb');
+        $('ul#connectivity.feedback').data('hash', '9bd9d0ebc081bd74f5bef4e136bb1aed');
+        $('ul#compatibility.feedback').data('hash', 'df9c715f20aaf58fb3926cc02b08ec53');
+
+        //submit button clicked.
+        $('#submit_button').click(
+                function(e) {
+                e.preventDefault();
+                responses = new Array();
+                //get all selected and their parents
+                selected = $('li.selected');
+                selected.each(function(){
+                    //get hash of parent ul
+                    hash = $(this).parent('ul.feedback').data('hash');
+
+                    if($(this).hasClass('happy')){
+                    responses.push({question:hash, answer: 0});
+                    }     
+                    if($(this).hasClass('ok')){
+                    responses.push({question:hash, answer: 1});
+                    }     
+                    if($(this).hasClass('sad')){
+                    responses.push({question:hash, answer: 2});
+                    }     
+                    })
+                console.debug(JSON.stringify(responses));
+                if(window.dialogArguments !== undefined){
+                    window.returnValue = JSON.stringify(responses);
+                    window.close();
+                }
+                });
 
 })
 </script>
@@ -219,7 +253,7 @@ $(function() {
     <form name="feedback" action="feedback" method="post" id="feedback">
     <h2 id="connectivity_title"></h2>
 
-    <ul class="feedback">
+    <ul class="feedback" id="connectivity">
     <li class="happy selected" id="connectivity_happy"></li>
 
     <li class="ok" id="connectivity_ok"></li>
@@ -229,7 +263,7 @@ $(function() {
 
     <h2 id="speed_title"></h2>
 
-    <ul class="feedback">
+    <ul class="feedback" id="speed">
     <li class="happy selected" id="speed_happy"></li>
 
     <li class="ok" id="speed_ok"></li>
@@ -239,7 +273,7 @@ $(function() {
 
     <h2 id="compatibility_title"></h2>
 
-    <ul class="feedback">
+    <ul class="feedback" id="compatibility">
     <li class="happy selected" id="compatibility_happy"></li>
 
     <li class="ok" id="compatibility_ok"></li>

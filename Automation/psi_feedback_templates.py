@@ -21,6 +21,7 @@
 import os
 import yaml
 import json
+import hashlib
 
 FEEDBACK_LANGUAGES = [
     'en',
@@ -45,8 +46,15 @@ def make_feedback_html():
     feedback_path = os.path.join('.', 'FeedbackSite', 'feedback.html')
     feedback_template_path = os.path.join('.', 'FeedbackSite', 'Templates', 'feedback.html.tpl')
 
+    format = {
+        "langJSON":json.JSONEncoder().encode(lang), 
+        "speed":hashlib.md5(lang['en']['speed_title']).hexdigest(), 
+        "connectivity":hashlib.md5(lang['en']['connectivity_title']).hexdigest(),
+        "compatibility":hashlib.md5(lang['en']['compatibility_title']).hexdigest()
+    }
+
     with open(feedback_template_path) as f:
-        str = (f.read()).format(json.JSONEncoder().encode(lang))
+        str = (f.read()).format(**format)
 
     with open(feedback_path, 'w') as f:
         f.write(str)
