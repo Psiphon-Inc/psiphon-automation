@@ -1,5 +1,4 @@
 ﻿<!DOCTYPE html>
-
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
@@ -146,8 +145,8 @@ function setLanguage(langName)
 }}
 
 $(function() {{
-        //Windows client needs this to be set to null on load
-         window.returnValue = 0;
+        //Windows client needs this 
+        window.returnValue = 0;
 
         //set language onload from hash parameter on page load
         setLanguage();
@@ -164,37 +163,38 @@ $(function() {{
             function() {{
                 setLanguage(getLanguageNameFromURL( $(this).attr('href')));
         }});
-        $('ul#speed.feedback').data('hash', '{speed}');
+
         $('ul#connectivity.feedback').data('hash', '{connectivity}');
+        $('ul#speed.feedback').data('hash', '{speed}');
         $('ul#compatibility.feedback').data('hash', '{compatibility}');
 
         //submit button clicked.
         $('#submit_button').click(
-                function(e) {{
-                e.preventDefault();
-                responses = new Array();
-                //get all selected and their parents
-                selected = $('li.selected');
-                selected.each(function(){{
-                    //get hash of parent ul
-                    hash = $(this).parent('ul.feedback').data('hash');
+            function(e) {{
+            e.preventDefault();
+            responses = new Array();
+            //get all selected and their parents
+            selected = $('li.selected');
+            selected.each(function(){{
+                //get hash of parent ul
+                hash = $(this).parent('ul.feedback').data('hash');
 
-                    if($(this).hasClass('happy')){{
+                if($(this).hasClass('happy')){{
                     responses.push({{question:hash, answer: 0}});
-                    }}     
-                    if($(this).hasClass('ok')){{
+                }}     
+                if($(this).hasClass('ok')){{
                     responses.push({{question:hash, answer: 1}});
-                    }}     
-                    if($(this).hasClass('sad')){{
+                }}     
+                if($(this).hasClass('sad')){{
                     responses.push({{question:hash, answer: 2}});
-                    }}     
-                    }})
-                console.debug(JSON.stringify(responses));
-                if(window.dialogArguments !== undefined){{
-                    window.returnValue = JSON.stringify(responses);
-                    window.close();
-                }}
-                }});
+                }}     
+            }})
+            console.debug(JSON.stringify(responses));
+
+            if(window.dialogArguments !== undefined) {{
+                window.close();
+            }}
+        }});
 
 }})
 </script>
@@ -255,9 +255,7 @@ $(function() {{
 
     <ul class="feedback" id="connectivity">
     <li class="happy selected" id="connectivity_happy"></li>
-
     <li class="ok" id="connectivity_ok"></li>
-
     <li class="sad" id="connectivity_sad"></li>
     </ul>
 
@@ -265,9 +263,7 @@ $(function() {{
 
     <ul class="feedback" id="speed">
     <li class="happy selected" id="speed_happy"></li>
-
     <li class="ok" id="speed_ok"></li>
-
     <li class="sad" id="speed_sad"></li>
     </ul>
 
@@ -275,9 +271,7 @@ $(function() {{
 
     <ul class="feedback" id="compatibility">
     <li class="happy selected" id="compatibility_happy"></li>
-
     <li class="ok" id="compatibility_ok"></li>
-
     <li class="sad" id="compatibility_sad"></li>
     </ul><br />
 
