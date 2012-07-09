@@ -88,7 +88,20 @@ function getLanguageNameFromURL(url)
 //sets page content and highlights coerresponding language button
 function setLanguage(langName)
 {
+    //get complete language code from the selector
+    //if langName is not an exact match
+    //i.e, if langName == uz it will match either
+    //uz@Latn or uz@cyrillic
+    matchElement = $('#language_selector option[value^="' + langName + '"]:first');
+    if(matchElement !== undefined) {
+        langName = matchElement.val();
+    }
+    else {
+        langName = 'en';
+    }
+
     currentLanguage = langJSON[langName];
+
     if(currentLanguage === undefined){
         currentLanguage = langJSON['en'];
         langName = 'en';
