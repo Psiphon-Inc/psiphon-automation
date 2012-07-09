@@ -29,34 +29,6 @@ body {
   }
 }
 
-img.center {
-  display: block;
-  margin: 30px auto;
-  max-width: 100%;
-  border: none;
-}
-
-.lang_selector {
-  overflow: auto;
-  width: 100%;
-}
-
-.lang_selector > span {
-  float: left;
-  margin: 3px;
-  padding: 5px;
-  background-color:#EEEEEE;
-}
-
-.lang_selector > span.selectedlanguage {
-  background-color: #BBBBBB;
-}
-
-.lang_selector a {
-  text-decoration: none;
-  color: #000000;
-}
-
 .feedback{
   padding: 0px;
 }
@@ -116,12 +88,11 @@ function getLanguageNameFromURL(url)
 //sets page content and highlights coerresponding language button
 function setLanguage(langName)
 {
-    console.debug(langName);
-    if(null == langName)
-        langName = getLanguageNameFromURL(window.location.href);
     currentLanguage = langJSON[langName];
-    if(currentLanguage === undefined)
+    if(currentLanguage === undefined){
         currentLanguage = langJSON['en'];
+        langName = 'en';
+    }
 
     $.each(currentLanguage, function(name, val){
         selector = '#' + name;
@@ -135,18 +106,12 @@ function setLanguage(langName)
             $(selector).html(val); 
         }
     });
-    $('.lang_selector > span').each(function(index){
-        if(getLanguageNameFromURL($(this).children('a:first').attr('href')) == langName)
-        {
-            $(this).toggleClass("selectedlanguage", true);
-            $(this).siblings().toggleClass("selectedlanguage", false);
-        }
-    });
+    $('#language_selector').val(langName);
 }
 
 $(function() {
         //set language from hash parameter on page load
-        setLanguage();
+        setLanguage(getLanguageNameFromURL(window.location.href));
 
         //set onClick listener to the feedback table cells
         $('.feedback li').click(
@@ -155,10 +120,10 @@ $(function() {
                 $(this).siblings().toggleClass("selected", false);
         });
 
-        //set onClick listener to the language buttons
-        $('.lang_selector > span > a').click(
+        //set onChange listener to language dropdown
+        $('#language_selector').change(
             function() {
-                setLanguage(getLanguageNameFromURL( $(this).attr('href')));
+                setLanguage($(this).val());
         });
 
         $('ul#connectivity.feedback').data('hash', '9bd9d0ebc081bd74f5bef4e136bb1aed');
@@ -205,44 +170,20 @@ $(function() {
   </head>
   <body>
 
-    <div class="lang_selector">
-      <span class="selectedlanguage">
-        <a href="#en">English</a>
-      </span>
-      <span>
-        <a href="#fa">فارسی</a>
-      </span>
-      <span>
-        <a href="#ru">Русский</a>
-      </span>
-      <span>
-        <a href="#uz@cyrillic">Ўзбекча</a>
-      </span>
-      <span>
-        <a href="#uz@Latn">O'zbekcha</a>
-      </span>
-      <span>
-        <a href="#tk">Türkmençe</a>
-      </span>
-      <span>
-        <a href="#zh">中文</a>
-      </span>
-      <span>
-        <a href="#ar">العربي</a>
-      </span>
-      <span>
-        <a href="#th">ภาษาไทย</a>
-      </span>
-      <span>
-        <a href="#az">azərbaycan dili</a>
-      </span>
-      <span>
-        <a href="#ug@Latn">Uyghurche</a>
-      </span>
-      <span>
-        <a href="#kk">қазақ тілі</a>
-      </span>
-    </div>
+  <select id="language_selector" style="float:right;">
+  <option value="en">English</option>
+  <option value="fa">فارسی</option>
+  <option value="ru">Русский</option>
+  <option value="uz@cyrillic">Ўзбекча</option>
+  <option value="uz@Latn">O'zbekcha</option>
+  <option value="tk">Türkmençe</option>
+  <option value="zh">中文</option>
+  <option value="ar">العربي</option>
+  <option value="th">ภาษาไทย</option>
+  <option value="az">azərbaycan dili</option>
+  <option value="ug@Latn">Uyghurche</option>
+  <option value="kk">қазақ тілі</option>
+  </select>
     
     <h1 id="top_content_title"></h1>
     <div id="top_content">
