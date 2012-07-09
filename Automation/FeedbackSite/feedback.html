@@ -189,10 +189,15 @@ $(function() {
                     responses.push({question:hash, answer: 2});
                 }     
             })
-            console.debug(JSON.stringify(responses));
+            s = JSON.stringify(responses);
 
             if(window.dialogArguments !== undefined) {
+                window.returnValue = s;
                 window.close();
+            }
+            else {
+                $('#formdata').val(s);
+                $('#feedback').submit();
             }
         });
 
@@ -250,7 +255,7 @@ $(function() {
     </div>
     <br/>
 
-    <form name="feedback" action="feedback" method="post" id="feedback">
+    <form name="feedback" action="feedback" method="get" id="feedback">
     <h2 id="connectivity_title"></h2>
 
     <ul class="feedback" id="connectivity">
@@ -278,6 +283,7 @@ $(function() {
     <center>
     <input type="submit" value="" id="submit_button" />
     </center>
+    <input type="hidden" value="" id="formdata" name="formdata">
     </form> 
     </div>
 
