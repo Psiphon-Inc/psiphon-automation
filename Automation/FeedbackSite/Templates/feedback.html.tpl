@@ -145,10 +145,7 @@ function setLanguage(langName)
 }}
 
 $(function() {{
-        //Windows client needs this 
-        window.returnValue = 0;
-
-        //set language onload from hash parameter on page load
+        //set language from hash parameter on page load
         setLanguage();
 
         //set onClick listener to the feedback table cells
@@ -189,14 +186,16 @@ $(function() {{
                     responses.push({{question:hash, answer: 2}});
                 }}     
             }})
-            s = JSON.stringify(responses);
+            s = JSON.stringify({{"responses":responses}});
 
-            if(window.dialogArguments !== undefined) {{
+            //Windows client expects result in the window.returnValue magic variable
+            //No need to actually submit data
+            if(window.dialogArguments !== undefined) {{ 
                 window.returnValue = s;
                 window.close();
             }}
             else {{
-                $('#formdata').val(s);
+                $('input[name=formdata]').val(s);
                 $('#feedback').submit();
             }}
         }});
