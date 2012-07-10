@@ -172,10 +172,9 @@ Logging
 ----------------------------------------
 
 * The install script copies the file `20-psiphon-logging.conf` to `/etc/rsyslog.d/`.
-  * This will prevent potentially sensitive user information from ending up in
-    the system logs.
-  * It also copies the mail responder logs to a dedicated log file that will be
+  * This copies the mail responder logs to a dedicated log file that will be
     processed to get statisitics about use.
+  * It also sends postfix logs to the Psiphon log processor.
     
 * Enable RFC 3339 compatible high resolution timestamp logging format (required
   for stats processing).
