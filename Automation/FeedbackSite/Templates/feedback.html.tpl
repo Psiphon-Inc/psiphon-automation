@@ -35,7 +35,7 @@ body {{
 
 .feedback li{{
   list-style-type: none;
-  padding: 25px 0px 25px 52px;
+  padding: 25px 10px 25px 52px;
   vertical-align: middle;
   opacity: 0.4;
   filter:alpha(opacity=40); /* For IE8 and earlier */
@@ -145,6 +145,24 @@ function setLanguage(langName)
         currentLanguage = langJSON['en'];
         langName = 'en';
     }}
+
+    //set direction 
+    if(langName == 'fa' || langName == 'ar') {{
+        direction = 'rtl';
+        float = 'left';
+        padding ='25px 52px 25px 10px';
+        bg_position_x = '100%';
+    }}
+    else {{
+        direction = 'ltr';
+        float = 'right';
+        padding ='25px 10px 25px 52px';
+        bg_position_x = '0';
+    }}
+    $('body').css('direction', direction);
+    $('#language_selector').css('float', float);
+    $('.feedback > li').css('padding', padding);
+    $('.feedback > li').css('background-position-x', bg_position_x);
 
     $.each(currentLanguage, function(name, val){{
         selector = '#' + name;
