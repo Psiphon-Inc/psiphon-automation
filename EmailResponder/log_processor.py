@@ -30,7 +30,7 @@ from sqlalchemy.ext.declarative import declarative_base
 Base = declarative_base()
 
 # Must match the pipe log redirect in 20-psiphon-logging.conf
-PIPE_NAME = '/tmp/mail_responder_log_pipe'
+PIPE_NAME = '/home/mail_responder/log_pipe'
 
 QUEUE_ID_LENGTH = 10
 

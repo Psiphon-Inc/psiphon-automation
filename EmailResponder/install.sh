@@ -47,7 +47,8 @@ sudo rm $MAIL_HOME/*.pyc
 # Put the log processor init file in the correct location
 sudo cp psiphon-log-processor.conf /etc/init
 
-# Start the log processor
+# Restart the log processor
+sudo restart psiphon-log-processor
 sudo start psiphon-log-processor
 
 # Create the FIFO pipe that log_processor will use to get logs.
