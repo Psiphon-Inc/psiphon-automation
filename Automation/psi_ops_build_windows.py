@@ -41,6 +41,9 @@ EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, 'Release', 'psiphon.exe')
 BUILDS_ROOT = os.path.join('.', 'Builds', 'Windows')
 BUILD_FILENAME_TEMPLATE = 'psiphon-%s-%s.exe'
 
+FEEDBACK_SOURCE_ROOT = os.path.join('.', 'FeedbackSite')
+FEEDBACK_HTML_PATH = os.path.join(FEEDBACK_SOURCE_ROOT, 'feedback.html')
+
 VISUAL_STUDIO_ENV_BATCH_FILENAME = 'C:\\Program Files\\Microsoft Visual Studio 10.0\\VC\\vcvarsall.bat'
 VISUAL_STUDIO_ENV_BATCH_FILENAME_x86 = 'C:\\Program Files (x86)\\Microsoft Visual Studio 10.0\\VC\\vcvarsall.bat'
 
@@ -169,6 +172,9 @@ def build_client(
             remote_server_list_url,
             info_link_url,
             ignore_system_server_list=test)
+
+        # copy feedback.html
+        shutil.copy(FEEDBACK_HTML_PATH, os.path.join(SOURCE_ROOT, 'psiclient'))
 
         # build
         build_client_executable()
