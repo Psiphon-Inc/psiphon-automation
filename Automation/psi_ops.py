@@ -1889,7 +1889,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         def do_copy_file_to_host(host):
             self.copy_file_to_host(host, source_filename, dest_filename)
                 
-        psi_ops_deploy.run_in_parallel(20, do_copy_file_to_host, self.__hosts.itervalues())
+        psi_ops_deploy.run_in_parallel(50, do_copy_file_to_host, self.__hosts.itervalues())
 
     def __test_server(self, server, test_cases):
         return psi_ops_test_windows.test_server(
