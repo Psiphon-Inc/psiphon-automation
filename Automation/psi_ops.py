@@ -152,7 +152,9 @@ SponsorRegex = psi_utils.recordtype(
 Host = psi_utils.recordtype(
     'Host',
     'id, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key, '+
-    'stats_ssh_username, stats_ssh_password')
+    'stats_ssh_username, stats_ssh_password, ' +
+    'datacenter_name', 
+    default=None)
 
 Server = psi_utils.recordtype(
     'Server',
@@ -188,7 +190,7 @@ LinodeAccount = psi_utils.recordtype(
 ElasticHostsAccount = psi_utils.recordtype(
     'ElasticHostsAccount',
     'zone, uuid, api_key, base_drive_id, cpu, mem, base_host_public_key, '+
-        'root_username, base_root_password, base_ssh_port, stats_username, rank', 
+    'root_username, base_root_password, base_ssh_port, stats_username, rank', 
     default=None)
 ElasticHostsAccount.zone_values = ('ELASTICHOSTS_US1', # sat-p
                                    'ELASTICHOSTS_UK1', # lon-p
@@ -256,7 +258,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__speed_test_urls = []
         self.__remote_server_list_signing_key_pair = None
 
-    class_version = '0.8'
+    class_version = '0.9'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -300,6 +302,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 CLIENT_PLATFORM_ANDROID : set()
             }
             self.version = '0.8'
+        if cmp(parse_version(self.version), parse_version('0.9')) < 0:
+            for host in self.__hosts.itervalues():
+                host.datacenter_name = ""
+            self.__upgrade_host_datacenter_names()
+            self.version = '0.9'
 
     def show_status(self):
         # NOTE: verbose mode prints credentials to stdout
@@ -797,6 +804,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         ssh_users = int(self.run_command_on_host(self.__hosts[host_id],
                                                  'ps ax | grep ssh | grep psiphon | wc -l')) / 2
         return vpn_users + ssh_users
+
+    def __upgrade_host_datacenter_names(self):
+        linode_datacenter_names = psi_linode.get_datacenter_names()
+        for host in self.__hosts:
+            if host.provider == 'linode':
+                host.datacenter_name = linode_datacenter_names[host.provider_id]
+            elif host.provider == 'elastichost':
+                host.datacenter_name = 'ElasticHost'
+            else:
+                host.datacenter_name = 'Other'
 
     def prune_propagation_channel_servers(self, propagation_channel_name,
                                           max_discovery_server_age_in_days=None,
@@ -1828,7 +1845,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             '', # Omit: root ssh password
                                             host.ssh_host_key,
                                             host.stats_ssh_username,
-                                            host.stats_ssh_password)
+                                            host.stats_ssh_password,
+                                            host.datacenter_name)
 
         for server in self.__servers.itervalues():
             copy.__servers[server.id] = Server(

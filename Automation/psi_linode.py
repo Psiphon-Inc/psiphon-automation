@@ -41,7 +41,10 @@ def wait_while_condition(condition, max_wait_seconds, description):
         
 
 def create_linode(linode_api):
-    datacenter_id = random.choice(linode_api.avail_datacenters())['DATACENTERID']
+    avail_datacenters = linode_api.avail_datacenters()
+    datacenter = random.choice(avail_datacenters)
+    datacenter_id = datacenter['DATACENTERID']
+    datacenter_name = make_datacenter_name(datacenter['LOCATION'])
     # We use PlanID = 3: linode 1024
     new_node_id = linode_api.linode_create(DatacenterID=datacenter_id, PlanID=3, PaymentTerm=1)['LinodeID']
     # Status flag values: (partial list)
@@ -51,7 +54,7 @@ def create_linode(linode_api):
                          60,
                          'create a linode')
     assert(linode_api.linode_list(LinodeID=new_node_id)[0]['STATUS'] == 0)
-    return new_node_id
+    return new_node_id, datacenter_name
 
 
 def create_linode_disks(linode_api, linode_id, bootstrap_password):
@@ -145,7 +148,7 @@ def launch_new_server(linode_account):
     try:
         # Create a new linode
         new_root_password = psi_utils.generate_password()
-        linode_id = create_linode(linode_api)
+        linode_id, datacenter_name = create_linode(linode_api)
         disk_ids = create_linode_disks(linode_api, linode_id, new_root_password)
         bootstrap_config_id, psiphon3_host_config_id = create_linode_configurations(linode_api, linode_id, ','.join(disk_ids))
         start_linode(linode_api, linode_id, bootstrap_config_id)
@@ -173,13 +176,29 @@ def launch_new_server(linode_account):
     return (hostname, None, str(linode_id), linode_ip_address,
             linode_account.base_ssh_port, 'root', new_root_password,
             ' '.join(new_host_public_key.split(' ')[:2]),
-            linode_account.base_stats_username, new_stats_password)
+            linode_account.base_stats_username, new_stats_password,
+            datacenter_name)
 
 
-def remove_server(linode_account, server_id):
+def remove_server(linode_account, linode_id):
     linode_api = linode.api.Api(key=linode_account.api_key)
-    linode_api.linode_delete(LinodeID=server_id, skipChecks=True)
-    
-    
+    linode_api.linode_delete(LinodeID=linode_id, skipChecks=True)
+
+
+def make_datacenter_name(location):
+    return 'Linode ' + location
+
+
+def get_datacenter_names(linode_account):
+    linode_api = linode.api.Api(key=linode_account.api_key)
+    datacenter_names = {}
+    for datacenter_info in linode_api.avail_datacenters():
+        datacenter_names[datacenter_info['DATACENTERID']] = make_datacenter_name(datacenter_info['LOCATION'])
+    linode_datacenter_names = {}
+    for linode_info in linode_api.linode_list():
+        datacenter_names[linode_info['LINODEID']] = datacenter_names[linode_info['DATACENTERID']]
+    return linode_datacenter_names
+
+
 if __name__ == "__main__":
     print launch_new_server()
