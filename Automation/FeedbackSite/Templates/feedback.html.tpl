@@ -243,16 +243,16 @@ $(function() {{
   <select id="language_selector" style="float:right;">
   <option value="en">English</option>
   <option value="fa">فارسی</option>
-  <option value="ru">Русский</option>
+  <option value="ar">العربي</option>
+  <option value="zh">中文</option>
   <option value="uz@cyrillic">Ўзбекча</option>
   <option value="uz@Latn">O'zbekcha</option>
-  <option value="tk">Türkmençe</option>
-  <option value="zh">中文</option>
-  <option value="ar">العربي</option>
-  <option value="th">ภาษาไทย</option>
-  <option value="az">azərbaycan dili</option>
-  <option value="ug@Latn">Uyghurche</option>
+  <option value="ru">Русский</option>
   <option value="kk">қазақ тілі</option>
+  <option value="az">azərbaycan dili</option>
+  <option value="tk">Türkmençe</option>
+  <option value="th">ภาษาไทย</option>
+  <option value="ug@Latn">Uyghurche</option>
   </select>
     
     <h1 id="top_content_title"></h1>
