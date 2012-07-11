@@ -42,7 +42,8 @@ BUILDS_ROOT = os.path.join('.', 'Builds', 'Windows')
 BUILD_FILENAME_TEMPLATE = 'psiphon-%s-%s.exe'
 
 FEEDBACK_SOURCE_ROOT = os.path.join('.', 'FeedbackSite')
-FEEDBACK_HTML_PATH = os.path.join(FEEDBACK_SOURCE_ROOT, 'feedback.html')
+FEEDBACK_HTML_SOURCE_PATH = os.path.join(FEEDBACK_SOURCE_ROOT, 'feedback.html')
+FEEDBACK_HTML_PATH = os.path.join(SOURCE_ROOT, 'psiclient', 'feedback.html')
 
 VISUAL_STUDIO_ENV_BATCH_FILENAME = 'C:\\Program Files\\Microsoft Visual Studio 10.0\\VC\\vcvarsall.bat'
 VISUAL_STUDIO_ENV_BATCH_FILENAME_x86 = 'C:\\Program Files (x86)\\Microsoft Visual Studio 10.0\\VC\\vcvarsall.bat'
@@ -150,7 +151,7 @@ def build_client(
     try:
         # Backup/restore original files minimize chance of checking values into source control
         backup = psi_utils.TemporaryBackup(
-            [BANNER_FILENAME, EMAIL_BANNER_FILENAME, EMBEDDED_VALUES_FILENAME])
+            [BANNER_FILENAME, EMAIL_BANNER_FILENAME, EMBEDDED_VALUES_FILENAME, FEEDBACK_HTML_PATH])
 
         # Copy custom email banner from Data to source tree
         # (there's only one custom email banner for all sponsors)
@@ -174,7 +175,7 @@ def build_client(
             ignore_system_server_list=test)
 
         # copy feedback.html
-        shutil.copy(FEEDBACK_HTML_PATH, os.path.join(SOURCE_ROOT, 'psiclient'))
+        shutil.copyfile(FEEDBACK_HTML_SOURCE_PATH, FEEDBACK_HTML_PATH)
 
         # build
         build_client_executable()
