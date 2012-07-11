@@ -532,7 +532,6 @@ def install_host(host, servers, existing_server_ids):
     ssh.exec_command('easy_install pyOpenSSL')
     ssh.exec_command('easy_install hiredis')
     ssh.exec_command('easy_install redis')
-    ssh.exec_command('easy_install iso8601')
     ssh.exec_command('apt-get install redis-server')
     
     ssh.close()
