@@ -172,10 +172,9 @@ Logging
 ----------------------------------------
 
 * The install script copies the file `20-psiphon-logging.conf` to `/etc/rsyslog.d/`.
-  * This will prevent potentially sensitive user information from ending up in
-    the system logs.
-  * It also copies the mail responder logs to a dedicated log file that will be
+  * This copies the mail responder logs to a dedicated log file that will be
     processed to get statisitics about use.
+  * It also sends postfix logs to the Psiphon log processor.
     
 * Enable RFC 3339 compatible high resolution timestamp logging format (required
   for stats processing).
@@ -193,6 +192,25 @@ Logging
     
 * Restart the logging service:
     > sudo service rsyslog restart
+
+
+Amazon AWS services
+----------------------------------------
+
+1. Install boto
+    > sudo easy_install boto
+
+2. It's best if the AWS user being used is created through the AWS IAM interface 
+   and has only the necessary privileges.
+
+3. Put AWS credentials into boto config file. Info here:
+    http://code.google.com/p/boto/wiki/BotoConfig
+   We've found that using ~/.boto doesn't work, so create /etc/boto.cfg and put
+   these lines into it:
+      [Credentials]
+      aws_access_key_id = <your access key>
+      aws_secret_access_key = <your secret key>
+   Ensure that the file is readable by the mail_responder user.
 
 
 Stats
@@ -215,8 +233,7 @@ after which they are "blacklisted". The blacklist is cleared once a day
 (configurable).
 
 The blacklist code requires the following package be installed:
-> sudo apt-get install mysql-server
-> sudo apt-get install python-mysqldb
+> sudo apt-get install mysql-server python-mysqldb python-sqlalchemy
 
 The install.sh step above does the rest.
 
