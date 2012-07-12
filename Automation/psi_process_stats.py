@@ -129,8 +129,6 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'last_connected'),
     'failed.8' :            ('server_id',
                              'client_region',
-                             'client_city',
-                             'client_isp',
                              'propagation_channel_id',
                              'sponsor_id',
                              'client_version',
@@ -139,6 +137,8 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'error_code'),
     'failed' :              ('server_id',
                              'client_region',
+                             'client_city',
+                             'client_isp',
                              'propagation_channel_id',
                              'sponsor_id',
                              'client_version',
@@ -377,7 +377,7 @@ def process_stats(host, servers, db_cur, error_file=None):
 
                     # Check for invalid bytes value for bytes_transferred
 
-                    if event_type == 'bytes_transferred.X':
+                    if event_type == 'bytes_transferred.8':
                         assert(field_names[9] == 'bytes')
                         if not (0 <= int(field_values[9]) < 2147483647):
                             err = 'invalid byte fields %s' % (line,)

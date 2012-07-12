@@ -806,14 +806,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return vpn_users + ssh_users
 
     def __upgrade_host_datacenter_names(self):
-        linode_datacenter_names = psi_linode.get_datacenter_names()
-        for host in self.__hosts:
-            if host.provider == 'linode':
-                host.datacenter_name = linode_datacenter_names[host.provider_id]
-            elif host.provider == 'elastichost':
-                host.datacenter_name = 'ElasticHost'
-            else:
-                host.datacenter_name = 'Other'
+        if self.__linode_account.api_key:
+            linode_datacenter_names = psi_linode.get_datacenter_names(self.__linode_account)
+            for host in self.__hosts:
+                if host.provider == 'linode':
+                    host.datacenter_name = linode_datacenter_names[host.provider_id]
+                elif host.provider == 'elastichost':
+                    host.datacenter_name = 'ElasticHost'
+                else:
+                    host.datacenter_name = 'Other'
 
     def prune_propagation_channel_servers(self, propagation_channel_name,
                                           max_discovery_server_age_in_days=None,
