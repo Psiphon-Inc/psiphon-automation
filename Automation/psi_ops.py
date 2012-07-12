@@ -1867,6 +1867,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         return ssh.exec_command(command)
 
+    def run_command_on_hosts(self, command):
+    
+        @psi_ops_deploy.retry_decorator_returning_exception
+        def do_run_command_on_host(host):
+            self.run_command_on_host(host, command)
+                
+        psi_ops_deploy.run_in_parallel(20, do_run_command_on_host, self.__hosts.itervalues())
+
     def copy_file_to_host(self, host, source_filename, dest_filename):
         ssh = psi_ssh.SSH(
                 host.ip_address, host.ssh_port,
@@ -1874,6 +1882,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 host.ssh_host_key)
 
         ssh.put_file(source_filename, dest_filename)
+
+    def copy_file_to_hosts(self, source_filename, dest_filename):
+    
+        @psi_ops_deploy.retry_decorator_returning_exception
+        def do_copy_file_to_host(host):
+            self.copy_file_to_host(host, source_filename, dest_filename)
+                
+        psi_ops_deploy.run_in_parallel(50, do_copy_file_to_host, self.__hosts.itervalues())
 
     def __test_server(self, server, test_cases):
         return psi_ops_test_windows.test_server(

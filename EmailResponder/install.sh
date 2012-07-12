@@ -30,7 +30,7 @@ fi
 echo "Copying source files..."
 
 # Copy the simple files
-sudo cp settings.py mail_process.py sendmail.py blacklist.py mail_stats.py mail_direct.py postfix_queue_check.pl $MAIL_HOME
+sudo cp settings.py mail_process.py sendmail.py blacklist.py mail_stats.py mail_direct.py postfix_queue_check.pl log_processor.py $MAIL_HOME
 
 # forward needs to be copied to .forward
 sudo cp forward $MAIL_HOME/.forward
@@ -43,6 +43,30 @@ sudo chmod a+r  $MAIL_HOME/* $MAIL_HOME/.forward
 
 # Nuke the compiled Python files, just in case.
 sudo rm $MAIL_HOME/*.pyc
+
+# Put the log processor init file in the correct location
+sudo cp psiphon-log-processor.conf /etc/init
+
+# Restart the log processor
+sudo restart psiphon-log-processor
+sudo start psiphon-log-processor
+
+# Create the FIFO pipe that log_processor will use to get logs.
+sudo -u$MAIL_USER mkfifo $MAIL_HOME/log_pipe 2> /dev/null
+
+
+# Update the rsyslog instructions for logrotate to include our step.
+# If run twice, this command will have no effect.
+sed '
+/reload/ {
+# found "reload" - read in next line
+  N
+# look for "endscript" on the second line
+  /\n.*endscript/ {
+# found it -- insert our command
+    s/\(.*reload.*\)\n\(.*endscript.*\)/\1\n                restart psiphon-log-processor >\/dev\/null 2>\&1 || true\n\2/
+  }
+}' /etc/logrotate.d/rsyslog | sudo tee /etc/logrotate.d/rsyslog > /dev/null
 
 
 # Copy the system/service config files.
@@ -64,3 +88,5 @@ if [ "$?" -ne "0" ]; then
 fi
 
 echo "Done"
+
+
