@@ -245,6 +245,17 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'info',
                              'milliseconds',
                              'size'),
+    'feedback' :            ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'question',
+                             'answer'),
     }
 
 
@@ -470,6 +481,23 @@ def update_sponsors(db, sponsors):
     cursor.execute('COMMIT')
 
 
+def update_servers(db, psinet):
+
+    cursor = db.cursor()
+
+    for server in psinet.get_servers():
+        host = psinet.get_host_for_server(server)
+        server_type = 'Discovery' if server.discovery_date_range else 'Propagation'
+        cursor.execute('UPDATE server SET type = %s, datacenter_name = %s WHERE id = %s',
+                       [server_type, host.datacenter_name, server.id])
+        cursor.execute('INSERT INTO server (id, type, datacenter_name) SELECT %s, %s, %s ' +
+                       'WHERE NOT EXISTS (SELECT 1 FROM server WHERE id = %s AND type = %s AND datacenter_name = %s)',
+                       [server.id, server_type, host.datacenter_name,
+                        server.id, server_type, host.datacenter_name])
+
+    cursor.execute('COMMIT')
+
+
 if __name__ == "__main__":
 
     start_time = time.time()
@@ -491,6 +519,7 @@ if __name__ == "__main__":
     try:
         update_propagation_channels(db_conn, propagation_channels)
         update_sponsors(db_conn, sponsors)
+        update_servers(db_conn, psinet)
 
         for host in hosts:
             db_cur = db_conn.cursor()

@@ -236,7 +236,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         }
         self.__propagation_channels = {}
         self.__hosts = {}
+        self.__deleted_hosts = []
         self.__servers = {}
+        self.__deleted_servers = {}
         self.__client_versions = {
             CLIENT_PLATFORM_WINDOWS : [],
             CLIENT_PLATFORM_ANDROID : []
@@ -306,6 +308,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for host in self.__hosts.itervalues():
                 host.datacenter_name = ""
             self.__upgrade_host_datacenter_names()
+            self.__deleted_hosts = []
+            self.__deleted_servers = {}
             self.version = '0.9'
 
     def show_status(self):
@@ -883,6 +887,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if new_propagation_servers_count > 0:
             self.add_servers(new_propagation_servers_count, propagation_channel_name, None)
 
+    def get_existing_server_ids(self):
+        return [server.id for server in self.__servers.itervalues()] + \
+               [deleted_server.id for deleted_server in self.__deleted_servers.itervalues()]
+
     def add_servers(self, count, propagation_channel_name, discovery_date_range, replace_others=True):
         assert(self.is_locked)
         propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
@@ -961,8 +969,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             # Install Psiphon 3 and generate configuration values
             # Here, we're assuming one server/IP address per host
-            existing_server_ids = [existing_server.id for existing_server in self.__servers.itervalues()]
-            psi_ops_install.install_host(host, [server], existing_server_ids)
+            psi_ops_install.install_host(host, [server], self.get_existing_server_ids())
             host.log('install')
 
             # Update database
@@ -1027,14 +1034,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Remove the actual host through the provider's API
         provider_remove_host(provider_account, host.provider_id)
         
-        # Delete the host and it's servers from the DB
+        # Mark host and its servers as delete in the database. We keep the
+        # records around for historical info and to ensure we never recycle
+        # server IDs
         server_ids_on_host = []
         for server in self.__servers.itervalues():
             if server.host_id == host.id:
                 server_ids_on_host.append(server.id)
         for server_id in server_ids_on_host:
-            self.__servers.pop(server_id)
-        self.__hosts.pop(host.id)
+            assert(server_id not in self.__deleted_servers)
+            self.__deleted_servers[server_id] = self.__servers.pop(server_id)
+        # We don't assign host IDs and can't guarentee uniqueness, so not
+        # archiving deleted host keyed by ID.
+        self.__deleted_hosts.append(self.__hosts.pop(host.id))
         
         # Clear flags that include this host id.  Update stats config.
         if host.id in self.__deploy_implementation_required_for_hosts:
@@ -1050,8 +1062,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(self.is_locked)
         host = self.__hosts[host_id]
         servers = [server for server in self.__servers.itervalues() if server.host_id == host_id]
-        existing_server_ids = [existing_server.id for existing_server in self.__servers.itervalues()]
-        psi_ops_install.install_host(host, servers, existing_server_ids)
+        psi_ops_install.install_host(host, servers, self.get_existing_server_ids())
         psi_ops_deploy.deploy_implementation(host)
         # New data might have been generated
         # NOTE that if the client version has been incremented but a full deploy has not yet been run,
@@ -1742,6 +1753,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if host.provider_id and host.provider_id == provider_id:
                 return host
     
+    def get_host_for_server(self, server):
+        return self.__hosts[server.host_id]
+        
     def get_hosts(self):
         return list(self.__hosts.itervalues())
         
