@@ -260,6 +260,7 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'client_version',
                              'client_platform',
                              'relay_protocol',
+                             'session_id',
                              'question',
                              'answer'),
     }

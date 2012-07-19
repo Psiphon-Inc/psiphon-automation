@@ -301,11 +301,12 @@ CREATE TABLE feedback
   client_version text,
   client_platform text,
   relay_protocol text,
+  session_id text,
   question text,
   answer text,
   id bigserial NOT NULL,
   CONSTRAINT feedback_pkey PRIMARY KEY (id),
-  CONSTRAINT feedback_unique UNIQUE ("timestamp", host_id, server_id, client_region, client_city, client_isp, propagation_channel_id, sponsor_id, client_version, client_platform, relay_protocol, question, answer)
+  CONSTRAINT feedback_unique UNIQUE ("timestamp", host_id, server_id, client_region, client_city, client_isp, propagation_channel_id, sponsor_id, client_version, client_platform, relay_protocol, session_id, question, answer)
 )
 WITH (
   OIDS=FALSE
@@ -815,3 +816,32 @@ FROM "session"
 JOIN propagation_channel ON propagation_channel.id = "session".propagation_channel_id
 JOIN sponsor ON  sponsor.id = "session".sponsor_id
 JOIN server ON server.id = "session".server_id;
+
+-- View: psiphon_feedback
+
+CREATE OR REPLACE VIEW psiphon_feedback AS
+(
+  feedback."timestamp",
+  feedback.host_id,
+  feedback.server_id,
+  server.type AS server_type,
+  server.datacenter_name AS server_datacenter_name,
+  feedback.client_region,
+  feedback.client_city,
+  feedback.client_isp,
+  feedback.propagation_channel_id,
+  feedback.sponsor_id,
+  propagation_channel.name AS propagation_channel_name,
+  sponsor.name AS sponsor_name,
+  feedback.client_version,
+  feedback.client_platform,
+  feedback.relay_protocol,
+  feedback.session_id,
+  feedback.question,
+  feedback.answer,
+  feedback.id
+FROM feedback 
+JOIN propagation_channel ON propagation_channel.id = feedback.propagation_channel_id
+JOIN sponsor ON  sponsor.id = feedback.sponsor_id
+JOIN server ON server.id = feedback.server_id;
+
