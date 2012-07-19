@@ -196,7 +196,7 @@ def get_datacenter_names(linode_account):
         datacenter_names[datacenter_info['DATACENTERID']] = make_datacenter_name(datacenter_info['LOCATION'])
     linode_datacenter_names = {}
     for linode_info in linode_api.linode_list():
-        datacenter_names[linode_info['LINODEID']] = datacenter_names[linode_info['DATACENTERID']]
+        linode_datacenter_names[str(linode_info['LINODEID'])] = datacenter_names[linode_info['DATACENTERID']]
     return linode_datacenter_names
 
 
