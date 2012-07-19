@@ -1908,6 +1908,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 
         psi_ops_deploy.run_in_parallel(20, do_run_command_on_host, self.__hosts.itervalues())
 
+    def copy_file_from_host(self, host, remote_source_filename, local_destination_filename):
+        ssh = psi_ssh.SSH(
+                host.ip_address, host.ssh_port,
+                host.ssh_username, host.ssh_password,
+                host.ssh_host_key)
+
+        ssh.get_file(remote_source_filename, local_destination_filename)
+
     def copy_file_to_host(self, host, source_filename, dest_filename):
         ssh = psi_ssh.SSH(
                 host.ip_address, host.ssh_port,
