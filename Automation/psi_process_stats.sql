@@ -194,10 +194,12 @@ CREATE TABLE bytes_transferred
   client_version text,
   client_platform text,
   relay_protocol text,
+  session_id text,
+  connected text,
   bytes integer NOT NULL,
   id bigserial NOT NULL,
   CONSTRAINT bytes_transferred_pkey PRIMARY KEY (id),
-  CONSTRAINT bytes_transferred_unique UNIQUE ("timestamp", host_id, server_id, client_region, client_city, client_isp, propagation_channel_id, sponsor_id, client_version, client_platform, relay_protocol, bytes)
+  CONSTRAINT bytes_transferred_unique UNIQUE ("timestamp", host_id, server_id, client_region, client_city, client_isp, propagation_channel_id, sponsor_id, client_version, client_platform, relay_protocol, session_id, connected, bytes)
 )
 WITH (
   OIDS=FALSE
@@ -218,11 +220,13 @@ CREATE TABLE page_views
   client_version text,
   client_platform text,
   relay_protocol text,
+  session_id text,
+  connected text,
   pagename text,
   viewcount integer NOT NULL,
   id bigserial NOT NULL,
   CONSTRAINT page_views_pkey PRIMARY KEY (id),
-  CONSTRAINT page_views_unique UNIQUE ("timestamp", host_id, server_id, client_region, client_city, client_isp, propagation_channel_id, sponsor_id, client_version, client_platform, relay_protocol, pagename, viewcount)
+  CONSTRAINT page_views_unique UNIQUE ("timestamp", host_id, server_id, client_region, client_city, client_isp, propagation_channel_id, sponsor_id, client_version, client_platform, relay_protocol, session_id, connected, pagename, viewcount)
 )
 WITH (
   OIDS=FALSE
@@ -243,11 +247,13 @@ CREATE TABLE https_requests
   client_version text,
   client_platform text,
   relay_protocol text,
+  session_id text,
+  connected text,
   "domain" text,
   count integer NOT NULL,
   id bigserial NOT NULL,
   CONSTRAINT https_requests_pkey PRIMARY KEY (id),
-  CONSTRAINT https_requests_unique UNIQUE ("timestamp", host_id, server_id, client_region, client_city, client_isp, propagation_channel_id, sponsor_id, client_version, client_platform, relay_protocol, "domain", count)
+  CONSTRAINT https_requests_unique UNIQUE ("timestamp", host_id, server_id, client_region, client_city, client_isp, propagation_channel_id, sponsor_id, client_version, client_platform, relay_protocol, session_id, connected, "domain", count)
 )
 WITH (
   OIDS=FALSE
@@ -694,6 +700,8 @@ SELECT
   bytes_transferred.client_version,
   bytes_transferred.client_platform,
   bytes_transferred.relay_protocol,
+  bytes_transferred.session_id,
+  bytes_transferred.connected,
   bytes_transferred.bytes,
   bytes_transferred.id
 FROM bytes_transferred
@@ -718,6 +726,8 @@ SELECT
   page_views.client_version,
   page_views.client_platform,
   page_views.relay_protocol,
+  page_views.session_id,
+  page_views.connected,
   page_views.pagename,
   page_views.viewcount,
   page_views.id
@@ -743,6 +753,8 @@ SELECT
   https_requests.client_version,
   https_requests.client_platform,
   https_requests.relay_protocol,
+  https_requests.session_id,
+  https_requests.connected,
   https_requests."domain",
   https_requests.count,
   https_requests.id
