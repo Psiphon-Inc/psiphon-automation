@@ -30,7 +30,6 @@ import psycopg2
 
 import psi_ssh
 import psi_ops
-import psi_ops_stats_credentials
 
 
 HOST_LOG_FILENAME_PATTERN = 'psiphonv.log*'
@@ -380,7 +379,12 @@ def process_stats(host, servers, db_cur, error_file=None):
                     if len(event_values) != len(event_fields):
                         # Backwards compatibility case
                         event_type = '%s.%d' % (event_type, len(event_values))
-                        event_fields = LOG_EVENT_TYPE_SCHEMA[event_type]
+                        if event_type not in LOG_EVENT_TYPE_SCHEMA:
+                            err = 'invalid log line fields %s' % (line,)
+                            if error_file:
+                                error_file.write(err + '\n')
+                            continue
+                       event_fields = LOG_EVENT_TYPE_SCHEMA[event_type]
 
                     if len(event_values) != len(event_fields):                       
                         err = 'invalid log line fields %s' % (line,)
