@@ -177,7 +177,8 @@ class ElasticHosts(object):
         return (random_name, None, str(server_id), ip_address,
                 ssh_info.port, ssh_info.username, new_root_password,
                 ' '.join(new_pub_key.split(' ')[:2]),
-                self._account.stats_username, new_stats_password)
+                self._account.stats_username, new_stats_password,
+                account.zone)
     
 
     def _refresh_credentials(self, ssh_info, new_root_password, new_stats_password):

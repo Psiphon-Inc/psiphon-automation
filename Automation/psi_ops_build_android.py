@@ -50,6 +50,10 @@ ZIPALIGNED_APK_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'bin', 'PsiphonAndro
 BUILDS_ROOT = os.path.join('.', 'Builds', 'Android')
 APK_FILENAME_TEMPLATE = 'PsiphonAndroid-%s-%s.apk'
 
+FEEDBACK_SOURCE_ROOT = os.path.join('.', 'FeedbackSite')
+FEEDBACK_HTML_PATH = os.path.join(FEEDBACK_SOURCE_ROOT, 'feedback.html')
+PSIPHON_ASSETS = os.path.join(PSIPHON_SOURCE_ROOT, 'assets')
+
 # if psi_build_config.py exists, load it and use psi_build_config.DATA_ROOT as the data root dir
 
 if os.path.isfile('psi_data_config.py'):
@@ -165,6 +169,9 @@ def build_client(
             info_link_url,
             ignore_system_server_list=test)
 
+        # copy feedback.html
+        shutil.copy(FEEDBACK_HTML_PATH, PSIPHON_ASSETS)
+        
         # build
         build_apk()
 

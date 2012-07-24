@@ -1,0 +1,38 @@
+title: Psiphon 3反馈
+
+top_content_title:  给我们您反馈    
+
+top_content: |
+    <p>
+      所以我们可以使系统更好地，请完成下面的表单以让我们知道怎么好Psiphon 3工作。
+    </p>
+    
+    <p>
+    如果你有任何具体意见，需要更多信息不工作的网站，或者表单也不工作，请发电子邮件<a href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>。
+    </p>
+
+connectivity_title:  连接性
+
+connectivity_happy:  Psiphon始终连接并保持连接。
+
+connectivity_ok:  Psiphon经常连接，但是有时断开并重新连接。   
+
+connectivity_sad:  Psiphon经常连接失败或常常断开。
+
+speed_title:  速度
+
+speed_happy:  我可以通过Psiphon上网浏览和观看视频；它是快速或比其他翻墙工具更快。
+
+speed_ok:  我可以通过Psiphon上网浏览，但很慢。
+
+speed_sad:  通过Psiphon上网浏览太慢并不要继续使用它。
+
+compatibility_title:  兼容性
+
+compatibility_happy:  当我访问网站通过Psiphon时，都是充分功能的。
+
+compatibility_ok:  当访问网站通过Psiphon时，有功能的。
+
+compatibility_sad:  我的网站加载好，但我不能使用某些重要功能。
+
+submit_button: 提交
