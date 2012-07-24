@@ -384,7 +384,7 @@ def process_stats(host, servers, db_cur, error_file=None):
                             if error_file:
                                 error_file.write(err + '\n')
                             continue
-                       event_fields = LOG_EVENT_TYPE_SCHEMA[event_type]
+                        event_fields = LOG_EVENT_TYPE_SCHEMA[event_type]
 
                     if len(event_values) != len(event_fields):                       
                         err = 'invalid log line fields %s' % (line,)
