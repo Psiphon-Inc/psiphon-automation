@@ -327,6 +327,7 @@ CREATE TABLE "session"
   client_platform text,
   relay_protocol text,
   session_id text,
+  last_connected timestamp with time zone DEFAULT NULL,
   session_start_timestamp timestamp with time zone,
   session_end_timestamp timestamp with time zone,
   id bigserial NOT NULL,
@@ -335,7 +336,7 @@ CREATE TABLE "session"
   CONSTRAINT connected_id FOREIGN KEY (connected_id)
       REFERENCES connected (id) MATCH SIMPLE
       ON UPDATE NO ACTION ON DELETE NO ACTION,
-  CONSTRAINT session_host_id_key UNIQUE (host_id, server_id, client_region, client_city, client_isp, propagation_channel_id, sponsor_id, client_version, client_platform, relay_protocol, session_id, session_start_timestamp, session_end_timestamp)
+  CONSTRAINT session_host_id_key UNIQUE (host_id, server_id, client_region, client_city, client_isp, propagation_channel_id, sponsor_id, client_version, client_platform, relay_protocol, session_id, last_connected, session_start_timestamp, session_end_timestamp)
 )
 WITH (
   OIDS=FALSE
@@ -820,7 +821,7 @@ JOIN server ON server.id = "session".server_id;
 -- View: psiphon_feedback
 
 CREATE OR REPLACE VIEW psiphon_feedback AS
-(
+SELECT
   feedback."timestamp",
   feedback.host_id,
   feedback.server_id,
