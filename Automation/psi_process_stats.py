@@ -30,6 +30,7 @@ import psycopg2
 
 import psi_ssh
 import psi_ops
+import psi_ops_stats_credentials
 
 
 HOST_LOG_FILENAME_PATTERN = 'psiphonv.log*'
