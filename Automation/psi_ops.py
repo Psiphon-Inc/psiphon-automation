@@ -1454,6 +1454,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         psi_ops_deploy.deploy_implementation(host)
         psi_ops_deploy.deploy_data(host, self.__compartmentalize_data_for_host(host.id))
 
+    def deploy_implementation_and_data_for_propagation_channel(self, propagation_channel_name):
+        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+        servers = [server for server in self.__servers.itervalues() if server.propagation_channel_id == propagation_channel.id]
+        for server in servers:
+            self.deploy_implementation_and_data_for_host_with_server(server.id)
+        
     def set_aws_account(self, access_id, secret_key):
         assert(self.is_locked)
         psi_utils.update_recordtype(
