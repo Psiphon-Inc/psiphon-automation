@@ -415,13 +415,13 @@ inet_interfaces = all
 # Notify postmaster of all errors
 # Note that if this results in too much pointless mail, we can just remove these values.
 #notify_classes = bounce, 2bounce, delay, policy, protocol, resource, software
-notify_classes = bounce, 2bounce, delay, policy, resource, software
+notify_classes = delay, policy, resource, software
 
 # Add a catch-all for all addresses
 local_recipient_maps =
 luser_relay = mail_responder+$local@localhost
 
-### Tarpit those bots/clients/spammers who send errors or scan for accounts
+# Tarpit those bots/clients/spammers who send errors or scan for accounts
 smtpd_error_sleep_time = 20
 smtpd_soft_error_limit = 1
 smtpd_hard_error_limit = 3
@@ -430,5 +430,19 @@ smtpd_junk_command_limit = 2
 # Reduce the message size limit. There's no reason for large messages to be coming in.
 message_size_limit = 4096000
 
-# Setting this to 0 indicates that "mail delivery should be tried only once"
-#bounce_queue_lifetime = 0
+# Reject messages that don't meet these criteria
+smtpd_recipient_restrictions =
+   permit_mynetworks,
+   reject_invalid_helo_hostname,
+   reject_non_fqdn_helo_hostname,
+   reject_non_fqdn_sender,
+   reject_non_fqdn_recipient,
+   reject_unknown_sender_domain,
+   reject_unknown_recipient_domain,
+   reject_unauth_destination,
+   reject_rbl_client sbl-xbl.spamhaus.org,
+   reject_rbl_client bl.spamcop.net,
+   permit
+
+# Without this, some of the above reject lines can be bypassed.
+smtpd_helo_required = yes
