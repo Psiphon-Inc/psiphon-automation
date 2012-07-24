@@ -431,7 +431,7 @@ def process_stats(host, servers, db_cur, error_file=None):
                             if field_name == 'last_connected':
                                 if field_values[index] == 'Unknown':
                                     field_values[index] = None
-                                else if field_values[index] == 'None':
+                                elif field_values[index] == 'None':
                                     field_values[index] = '0000-00-00T00:00:00Z'
 
                     # SQL injection note: the table name isn't parameterized
