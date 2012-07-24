@@ -432,7 +432,7 @@ def process_stats(host, servers, db_cur, error_file=None):
                                 if field_values[index] == 'Unknown':
                                     field_values[index] = None
                                 elif field_values[index] == 'None':
-                                    field_values[index] = '0000-00-00T00:00:00Z'
+                                    field_values[index] = '1900-01-01T00:00:00Z'
 
                     # SQL injection note: the table name isn't parameterized
                     # and comes from log file data, but it's implicitly
