@@ -152,7 +152,9 @@ SponsorRegex = psi_utils.recordtype(
 Host = psi_utils.recordtype(
     'Host',
     'id, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key, '+
-    'stats_ssh_username, stats_ssh_password')
+    'stats_ssh_username, stats_ssh_password, ' +
+    'datacenter_name', 
+    default=None)
 
 Server = psi_utils.recordtype(
     'Server',
@@ -188,7 +190,7 @@ LinodeAccount = psi_utils.recordtype(
 ElasticHostsAccount = psi_utils.recordtype(
     'ElasticHostsAccount',
     'zone, uuid, api_key, base_drive_id, cpu, mem, base_host_public_key, '+
-        'root_username, base_root_password, base_ssh_port, stats_username, rank', 
+    'root_username, base_root_password, base_ssh_port, stats_username, rank', 
     default=None)
 ElasticHostsAccount.zone_values = ('ELASTICHOSTS_US1', # sat-p
                                    'ELASTICHOSTS_UK1', # lon-p
@@ -234,7 +236,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         }
         self.__propagation_channels = {}
         self.__hosts = {}
+        self.__deleted_hosts = []
         self.__servers = {}
+        self.__deleted_servers = {}
         self.__client_versions = {
             CLIENT_PLATFORM_WINDOWS : [],
             CLIENT_PLATFORM_ANDROID : []
@@ -256,7 +260,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__speed_test_urls = []
         self.__remote_server_list_signing_key_pair = None
 
-    class_version = '0.8'
+    class_version = '0.9'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -300,6 +304,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 CLIENT_PLATFORM_ANDROID : set()
             }
             self.version = '0.8'
+        if cmp(parse_version(self.version), parse_version('0.9')) < 0:
+            for host in self.__hosts.itervalues():
+                host.datacenter_name = ""
+            self.__upgrade_host_datacenter_names()
+            self.__deleted_hosts = []
+            self.__deleted_servers = {}
+            self.version = '0.9'
 
     def show_status(self):
         # NOTE: verbose mode prints credentials to stdout
@@ -798,6 +809,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                  'ps ax | grep ssh | grep psiphon | wc -l')) / 2
         return vpn_users + ssh_users
 
+    def __upgrade_host_datacenter_names(self):
+        if self.__linode_account.api_key:
+            linode_datacenter_names = psi_linode.get_datacenter_names(self.__linode_account)
+            for host in self.__hosts.itervalues():
+                if host.provider.lower() == 'linode':
+                    host.datacenter_name = str(linode_datacenter_names[host.provider_id])
+                else:
+                    host.datacenter_name = str(host.provider)
+
     def prune_propagation_channel_servers(self, propagation_channel_name,
                                           max_discovery_server_age_in_days=None,
                                           max_propagation_server_age_in_days=None):
@@ -864,6 +884,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             new_propagation_servers_count = propagation_channel.new_propagation_servers_count
         if new_propagation_servers_count > 0:
             self.add_servers(new_propagation_servers_count, propagation_channel_name, None)
+
+    def get_existing_server_ids(self):
+        return [server.id for server in self.__servers.itervalues()] + \
+               [deleted_server.id for deleted_server in self.__deleted_servers.itervalues()]
 
     def add_servers(self, count, propagation_channel_name, discovery_date_range, replace_others=True):
         assert(self.is_locked)
@@ -943,8 +967,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             # Install Psiphon 3 and generate configuration values
             # Here, we're assuming one server/IP address per host
-            existing_server_ids = [existing_server.id for existing_server in self.__servers.itervalues()]
-            psi_ops_install.install_host(host, [server], existing_server_ids)
+            psi_ops_install.install_host(host, [server], self.get_existing_server_ids())
             host.log('install')
 
             # Update database
@@ -1009,14 +1032,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Remove the actual host through the provider's API
         provider_remove_host(provider_account, host.provider_id)
         
-        # Delete the host and it's servers from the DB
+        # Mark host and its servers as delete in the database. We keep the
+        # records around for historical info and to ensure we never recycle
+        # server IDs
         server_ids_on_host = []
         for server in self.__servers.itervalues():
             if server.host_id == host.id:
                 server_ids_on_host.append(server.id)
         for server_id in server_ids_on_host:
-            self.__servers.pop(server_id)
-        self.__hosts.pop(host.id)
+            assert(server_id not in self.__deleted_servers)
+            self.__deleted_servers[server_id] = self.__servers.pop(server_id)
+        # We don't assign host IDs and can't guarentee uniqueness, so not
+        # archiving deleted host keyed by ID.
+        self.__deleted_hosts.append(self.__hosts.pop(host.id))
         
         # Clear flags that include this host id.  Update stats config.
         if host.id in self.__deploy_implementation_required_for_hosts:
@@ -1032,8 +1060,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(self.is_locked)
         host = self.__hosts[host_id]
         servers = [server for server in self.__servers.itervalues() if server.host_id == host_id]
-        existing_server_ids = [existing_server.id for existing_server in self.__servers.itervalues()]
-        psi_ops_install.install_host(host, servers, existing_server_ids)
+        psi_ops_install.install_host(host, servers, self.get_existing_server_ids())
         psi_ops_deploy.deploy_implementation(host)
         # New data might have been generated
         # NOTE that if the client version has been incremented but a full deploy has not yet been run,
@@ -1427,6 +1454,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         psi_ops_deploy.deploy_implementation(host)
         psi_ops_deploy.deploy_data(host, self.__compartmentalize_data_for_host(host.id))
 
+    def deploy_implementation_and_data_for_propagation_channel(self, propagation_channel_name):
+        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+        servers = [server for server in self.__servers.itervalues() if server.propagation_channel_id == propagation_channel.id]
+        for server in servers:
+            self.deploy_implementation_and_data_for_host_with_server(server.id)
+        
     def set_aws_account(self, access_id, secret_key):
         assert(self.is_locked)
         psi_utils.update_recordtype(
@@ -1610,7 +1643,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             return []
         sponsor = self.__sponsors[sponsor_id]
         if not region:
-            region = psi_geoip.get_region(client_ip_address)
+            region = psi_geoip.get_geoip(client_ip_address)['region']
         # case: lookup succeeded and corresponding region home page found
         sponsor_home_pages = []
         if region in sponsor.home_pages:
@@ -1724,6 +1757,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if host.provider_id and host.provider_id == provider_id:
                 return host
     
+    def get_host_for_server(self, server):
+        return self.__hosts[server.host_id]
+        
     def get_hosts(self):
         return list(self.__hosts.itervalues())
         
@@ -1828,7 +1864,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             '', # Omit: root ssh password
                                             host.ssh_host_key,
                                             host.stats_ssh_username,
-                                            host.stats_ssh_password)
+                                            host.stats_ssh_password,
+                                            host.datacenter_name)
 
         for server in self.__servers.itervalues():
             copy.__servers[server.id] = Server(
@@ -1874,6 +1911,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.run_command_on_host(host, command)
                 
         psi_ops_deploy.run_in_parallel(20, do_run_command_on_host, self.__hosts.itervalues())
+
+    def copy_file_from_host(self, host, remote_source_filename, local_destination_filename):
+        ssh = psi_ssh.SSH(
+                host.ip_address, host.ssh_port,
+                host.ssh_username, host.ssh_password,
+                host.ssh_host_key)
+
+        ssh.get_file(remote_source_filename, local_destination_filename)
 
     def copy_file_to_host(self, host, source_filename, dest_filename):
         ssh = psi_ssh.SSH(
