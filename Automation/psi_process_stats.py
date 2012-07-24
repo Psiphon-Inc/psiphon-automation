@@ -328,7 +328,7 @@ def process_stats(host, servers, db_cur, error_file=None):
                         table_name,
                         ', '.join(event_columns[event_type]),
                         ', '.join(['%s']*len(event_columns[event_type])),
-                        event_type,
+                        table_name,
                         ' and '.join(['%s = %%s' % x for x in event_columns[event_type]]))
         event_sql[event_type] = command
 
