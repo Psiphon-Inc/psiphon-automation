@@ -423,6 +423,17 @@ def process_stats(host, servers, db_cur, error_file=None):
                         if field_name == 'server_id' or field_name == 'discovery_server_id':
                             field_values[index] = server_ip_address_to_id.get(field_values[index], 'Unknown')
 
+                    # Fixup for last_connected: this field (in the log) contains either a timestamp,
+                    # 'None' (meaning a first time connection), or 'Unknown' (meaning an old client that
+                    # doesn't send this info connected)
+                    if event_type.find('connected') == 0:
+                        for index, field_name in enumerate(field_names):
+                            if field_name == 'last_connected':
+                                if field_values[index] == 'Unknown':
+                                    field_values[index] = None
+                                else if field_values[index] == 'None':
+                                    field_values[index] = '0000-00-00T00:00:00Z'
+
                     # SQL injection note: the table name isn't parameterized
                     # and comes from log file data, but it's implicitly
                     # validated by hash table lookups
