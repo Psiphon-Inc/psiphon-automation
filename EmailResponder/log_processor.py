@@ -53,7 +53,8 @@ class FIFOPipe(object):
         self._fd = None
         
     def readlines(self):
-        if self._fd: os.close(self._fd) 
+        self.close()
+
         # NOTE: This call blocks until the writer opens its handle as well.
         self._fd = os.open(self._filename, os.O_RDONLY)
         
@@ -64,7 +65,11 @@ class FIFOPipe(object):
             if self._linesbuffer:
                 yield self._linesbuffer.pop(0)
             else:
-                self._process_data(os.read(self._fd, 1024))
+                new_data = os.read(self._fd, 1024)
+                if not new_data:
+                    # Empty string indicates EOF
+                    return
+                self._process_data(new_data)
             
     def _process_data(self, data):
         self._stringbuffer += data
@@ -564,9 +569,13 @@ def process_logs():
             
         if not handler_found:
             syslog.syslog(syslog.LOG_WARNING, 'no handler match found for: ' + log)
+    
+    # When we get to here, pipe.readlines() has hit EOF. Exit and allow Upstart
+    # to restart the process. 
 
 if __name__ == '__main__':
     process_logs()
+    sys.exit(0)
 
 
 '''
