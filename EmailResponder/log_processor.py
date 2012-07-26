@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 # Copyright (c) 2012, Psiphon Inc.
 # All rights reserved.
 #
@@ -16,7 +18,6 @@
 
 import os
 import sys
-import errno
 import re
 import syslog
 import time
@@ -29,56 +30,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 Base = declarative_base()
 
-# Must match the pipe log redirect in 20-psiphon-logging.conf
-PIPE_NAME = '/home/mail_responder/log_pipe'
-
 QUEUE_ID_LENGTH = 10
-
-class FIFOPipe(object):
-    def __init__(self, filename):
-        self._filename = filename
-        self._fd = None
-
-        try:
-            os.mkfifo(self._filename)
-        except OSError as e:
-            if e.errno == errno.EEXIST:
-                pass
-            else:
-                raise
-        
-    def close(self):
-        if self._fd:
-            os.close(self._fd)
-        self._fd = None
-        
-    def readlines(self):
-        self.close()
-
-        # NOTE: This call blocks until the writer opens its handle as well.
-        self._fd = os.open(self._filename, os.O_RDONLY)
-        
-        self._stringbuffer = ''
-        self._linesbuffer = []
-        
-        while True:
-            if self._linesbuffer:
-                yield self._linesbuffer.pop(0)
-            else:
-                new_data = os.read(self._fd, 1024)
-                if not new_data:
-                    # Empty string indicates EOF
-                    return
-                self._process_data(new_data)
-            
-    def _process_data(self, data):
-        self._stringbuffer += data
-        newlines = self._stringbuffer.split('\n')
-        
-        # The last item in the split is either empty, indicating a trailing newline,
-        # or non-empty, indicating a non-terminated, incomplete entry.
-        self._linesbuffer.extend(newlines[:-1])        
-        self._stringbuffer = newlines[-1]
 
 
 def now_milliseconds():
@@ -524,7 +476,7 @@ class curry:
 
         return self.fun(*(self.pending + args), **kw)
 
-def process_logs():
+def process_log(log_line):
     
     # This regex accomodates both default and high-precision date-times.
     # Jun 28 16:11:25
@@ -533,48 +485,43 @@ def process_logs():
     
     log_handlers = LogHandlers() 
     
-    pipe = FIFOPipe(PIPE_NAME)
-
-    syslog.syslog(syslog.LOG_INFO, 'Psiphon Log Processor running')
-
-    for log in pipe.readlines():
-        log_search_res = log_regex.search(log)
-        if log_search_res is None: continue
-        
-        logdict = log_search_res.groupdict()
-        
-        # Exclude logs created by this process to avoid circular disaster.
-        if logdict['process'] == os.path.basename(sys.argv[0]):
-            continue
-        
-        handler_found = False
-        
-        for handler in log_handlers.handlers:
-            if handler[0].match(logdict['process']) and handler[1].match(logdict['message']):
-                dbsession = Session()
-                
-                ret = handler[2](logdict, dbsession)
-                
-                if ret == LogHandlers.SUCCESS:
-                    dbsession.commit()
-                elif ret == LogHandlers.NO_RECORD_MATCH:
-                    syslog.syslog(syslog.LOG_WARNING, 'no record match for: ' + log)
-                    dbsession.rollback()
-                else:
-                    syslog.syslog(syslog.LOG_WARNING, 'handler failed for: ' + log)
-                    dbsession.rollback()
-                    
-                handler_found = True
-                break
-            
-        if not handler_found:
-            syslog.syslog(syslog.LOG_WARNING, 'no handler match found for: ' + log)
+    log_search_res = log_regex.search(log_line)
+    if log_search_res is None: 
+        return
     
-    # When we get to here, pipe.readlines() has hit EOF. Exit and allow Upstart
-    # to restart the process. 
+    logdict = log_search_res.groupdict()
+    
+    # Exclude logs created by this process to avoid circular disaster.
+    if logdict['process'] == os.path.basename(sys.argv[0]):
+        return
+    
+    handler_found = False
+    
+    for handler in log_handlers.handlers:
+        if handler[0].match(logdict['process']) and handler[1].match(logdict['message']):
+            dbsession = Session()
+            
+            ret = handler[2](logdict, dbsession)
+            
+            if ret == LogHandlers.SUCCESS:
+                dbsession.commit()
+            elif ret == LogHandlers.NO_RECORD_MATCH:
+                syslog.syslog(syslog.LOG_WARNING, 'no record match for: ' + log_line)
+                dbsession.rollback()
+            else:
+                syslog.syslog(syslog.LOG_WARNING, 'handler failed for: ' + log_line)
+                dbsession.rollback()
+                
+            handler_found = True
+            break
+        
+    if not handler_found:
+        syslog.syslog(syslog.LOG_WARNING, 'no handler match found for: ' + log_line)
+
 
 if __name__ == '__main__':
-    process_logs()
+    log_line = sys.stdin.readline()
+    if log_line: process_log(log_line)
     sys.exit(0)
 
 
