@@ -159,7 +159,7 @@ class MailResponder:
         if not self.requested_addr:
             # Bad address. Fail.
             syslog.syslog(syslog.LOG_INFO, 'fail: unparsable requested address')
-            dump_to_exception_file('fail: unparsable requested address\n\n%s' % self._email_string)
+            #dump_to_exception_file('fail: unparsable requested address\n\n%s' % self._email_string)
             return False
 
         # Convert to lowercase, since that's what's in the _conf and we want to
