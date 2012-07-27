@@ -28,6 +28,7 @@ import tempfile
 import hashlib
 import dkim
 from boto.s3.connection import S3Connection
+from boto.exception import BotoServerError
 
 import settings
 import sendmail
@@ -125,10 +126,22 @@ class MailResponder:
     
             raw_response = _dkim_sign_email(raw_response)
     
-            if not sendmail.send_raw_email_smtp(raw_response,
-                                                settings.COMPLAINTS_ADDRESS, # will be Return-Path
-                                                self._requester_addr):
-                return False
+            if conf.has_key('send_method') and conf['send_method'].upper() == 'SES':
+                try:
+                    if not sendmail.send_raw_email_amazonses(raw_response,
+                                                             self._response_from_addr):
+                        return False
+                except BotoServerError as ex:
+                    if ex.error_message == 'Address blacklisted.':
+                        syslog.syslog(syslog.LOG_CRIT, 'fail: requester address blacklisted by SES')
+                        return False
+                    else:
+                        raise
+            else:
+                if not sendmail.send_raw_email_smtp(raw_response,
+                                                    settings.COMPLAINTS_ADDRESS, # will be Return-Path
+                                                    self._requester_addr):
+                    return False
 
         return True
 
@@ -182,9 +195,16 @@ class MailResponder:
 
         self._requester_addr = strip_email(self._requester_addr)
         if not self._requester_addr:
-            syslog.syslog(syslog.LOG_INFO, 'fail: unparsable requester address')
-            dump_to_exception_file('fail: unparsable requester address\n\n%s' % self._email_string)
-
+            # Amazon SES complaints and bounces have '<>' for Return-Path,
+            # so they end up here.
+            if self._email['From'] == 'MAILER-DAEMON@email-bounces.amazonses.com':
+                syslog.syslog(syslog.LOG_INFO, 'fail: bounce')
+            elif self._email['From'] == 'complaints@email-abuse.amazonses.com':
+                syslog.syslog(syslog.LOG_INFO, 'fail: complaint')
+            else:
+                syslog.syslog(syslog.LOG_INFO, 'fail: unparsable requester address')
+                dump_to_exception_file('fail: unparsable requester address\n\n%s' % self._email_string)
+                
             return False
 
         self._subject = decode_header(self._email['Subject'])
@@ -219,7 +239,7 @@ class MailResponder:
 
         print 'Email sent'
         return True
-
+    
 
 def strip_email(email_address):
     '''

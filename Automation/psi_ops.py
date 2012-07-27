@@ -1367,7 +1367,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 ['html', psi_templates.get_html_email_content(
                                                 campaign.s3_bucket_name)]
                             ],
-                         'attachments': None
+                         'attachments': None,
+                         'send_method': 'SES'
                         })
                                   
                     # Email with attachments
@@ -1393,7 +1394,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                          #[campaign.s3_bucket_name, 
                                          # psi_ops_s3.DOWNLOAD_SITE_ANDROID_BUILD_FILENAME, 
                                          # psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME],
-                                        ]
+                                        ],
+                         'send_method': 'SMTP'
                         })
                                   
                     campaign.log('configuring email')
