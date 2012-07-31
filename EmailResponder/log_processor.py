@@ -520,9 +520,11 @@ def process_log(log_line):
 
 
 if __name__ == '__main__':
-    log_line = sys.stdin.readline()
-    if log_line: process_log(log_line)
-    sys.exit(0)
+    while True:
+        log_line = sys.stdin.readline()
+        # rsyslog's omprog sends an empty string to indicate that the processor should quit.
+        if log_line: process_log(log_line)
+        else: sys.exit(0)
 
 
 '''
