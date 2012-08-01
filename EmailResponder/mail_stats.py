@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 # Copyright (c) 2012, Psiphon Inc.
 # All rights reserved.
 #
@@ -55,17 +57,31 @@ def get_send_info():
     unsent_day = res.fetchone()[0]
     
     # The average time between queuing and sending of outgoing mail sent in the previous day
-    res = log_processor.dbengine.execute('SELECT AVG(sent-created) FROM outgoing_mail WHERE sent IS NOT NULL AND sent > UNIX_TIMESTAMP(NOW() - INTERVAL 1 DAY)*1000;')                                      
-    avg_send_time = res.fetchone()[0]
+    res = log_processor.dbengine.execute('SELECT AVG(sent-created), STDDEV(sent-created) FROM outgoing_mail WHERE sent IS NOT NULL AND sent > UNIX_TIMESTAMP(NOW() - INTERVAL 1 DAY)*1000;')                                      
+    send_time = res.fetchone()
+    
+    # The average time it takes to process a request message
+    res = log_processor.dbengine.execute('SELECT AVG(processing_end - processing_start), STDDEV(processing_end - processing_start) FROM incoming_mail WHERE created > UNIX_TIMESTAMP(NOW() - INTERVAL 1 DAY)*1000;')                                      
+    process_time = res.fetchone()
+    
+    # The number of messages that expired in the past day
+    res = log_processor.dbengine.execute('SELECT COUNT(*) FROM outgoing_mail WHERE expired > UNIX_TIMESTAMP(NOW() - INTERVAL 1 DAY)*1000;')                                      
+    expireds = res.fetchone()[0]
     
     return textwrap.dedent(
                '''
-               Unsent from past day: %(unsent_day)d
-               Avg send time in the past day: %(avg_send_time)ds
+               In the past day:
+                 Avg send time: %(send_time_avg)ds ± %(send_time_stddev)d
+                 Avg process time: %(process_time_avg)dms ± %(process_time_stddev)d
+                 Unsent: %(unsent_day)d
+                 Expired: %(expireds)d
                ''' % {'unsent_day': unsent_day, 
-                      'avg_send_time': avg_send_time/1000})
-               
-    
+                      'send_time_avg': send_time[0]/1000,
+                      'send_time_stddev': send_time[1]/1000,
+                      'process_time_avg': process_time[0],
+                      'process_time_stddev': process_time[1],
+                      'expireds': expireds
+                      })
 
 def process_log_file(logfile):
     '''
