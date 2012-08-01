@@ -155,7 +155,7 @@ if __name__ == '__main__':
     email_body += '\n\n\n'
     email_body += 'Postfix queue counts\n----------------------\n' + queue_check
     email_body += '\n\n\n'
-    email_body += get_send_info
+    email_body += get_send_info()
     email_body += '\n\n\n'
     email_body += get_exception_info()
     email_body += '\n\n\n'
