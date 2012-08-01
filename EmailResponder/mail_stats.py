@@ -71,8 +71,8 @@ def get_send_info():
     return textwrap.dedent(
                '''
                In the past day:
-                 Avg send time: %(send_time_avg)ds ± %(send_time_stddev)d
-                 Avg process time: %(process_time_avg)dms ± %(process_time_stddev)d
+                 Avg send time: %(send_time_avg)ds +/- %(send_time_stddev)d
+                 Avg process time: %(process_time_avg)dms +/- %(process_time_stddev)d
                  Unsent: %(unsent_day)d
                  Expired: %(expireds)d
                ''' % {'unsent_day': unsent_day, 
