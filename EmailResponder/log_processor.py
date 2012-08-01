@@ -55,6 +55,8 @@ class OutgoingMail(Base):
     size = Column(Integer)
     sent = Column(BIGINT)
     expired = Column(BIGINT)
+    mailserver2 = Column(String(256))
+    mailserver3 = Column(String(256))
 
 class MailError(Base):
     __tablename__ = 'mail_error'
@@ -149,6 +151,11 @@ class LogHandlers(object):
             (re.compile('^postfix/smtp$'), 
              re.compile('^'+self.queue_id_matcher+': .* status=sent '),
              self._process_response_sent),
+
+            # 2012-08-01T07:57:52.062087+00:00 myhostname postfix/local[20286]: 0415B22086: to=<user@myhostname>, orig_to=<postmaster>, relay=local, delay=0.05, delays=0.02/0.01/0/0.02, dsn=2.0.0, status=sent (delivered to mailbox)
+            (re.compile('^postfix/local$'), 
+             re.compile('^'+self.queue_id_matcher+': .* status=sent \(delivered to mailbox\)$'),
+             self._process_local_msg_sent),
                          
             # Jun 27 20:48:25 myhostname postfix/qmgr[821]: 5106A215C1: from=<complaints@psiphon3.com>, status=expired, returned to sender
             (re.compile('^postfix/qmgr$'), 
@@ -384,7 +391,8 @@ class LogHandlers(object):
         Process notification that an outgoing deferral occurred.
         Count the instances.
         '''
-        m = re.match('^(?P<queue_id>'+self.queue_id_matcher+'): .*(?P<reason>(?:bounce or trace service failure)|(?:Connection timed out)|(?:Host or domain name not found)).*$', 
+        
+        m = re.match('^(?P<queue_id>'+self.queue_id_matcher+'): to=<[^@]+@(?P<mail_domain>[^>]+)>.*(?P<reason>(?:bounce or trace service failure)|(?:Connection timed out)|(?:Host or domain name not found)).*$', 
                      logdict['message'])
         if not m: return self.FAILURE
         msgdict = m.groupdict()
@@ -394,13 +402,18 @@ class LogHandlers(object):
         mail.defer_count += 1
         mail.defer_last_reason = msgdict['reason']
         
+        mailserver2 = '.'.join(msgdict['mail_domain'].split('.')[-2:])[:OutgoingMail.mailserver2.property.columns[0].type.length]
+        mailserver3 = '.'.join(msgdict['mail_domain'].split('.')[-3:])[:OutgoingMail.mailserver3.property.columns[0].type.length]
+        mail.mailserver2 = mailserver2
+        mail.mailserver3 = mailserver3
+
         return self.SUCCESS
     
     def _process_response_sent(self, logdict, dbsession):
         '''
         Response successfully sent. Record the end time.
         '''
-        m = re.match('^(?P<queue_id>'+self.queue_id_matcher+'): .*', 
+        m = re.match('^(?P<queue_id>'+self.queue_id_matcher+'): to=<[^@]+@(?P<mail_domain>[^>]+)>.*', 
                      logdict['message'])
         if not m: return self.FAILURE
         msgdict = m.groupdict()
@@ -408,6 +421,28 @@ class LogHandlers(object):
         mail = dbsession.query(OutgoingMail).filter_by(queue_id=msgdict['queue_id']).first()
         if not mail: return self.NO_RECORD_MATCH
         mail.sent = now_milliseconds()
+
+        # Keep the last two and last three parts of the mail server domain separately
+        mailserver2 = '.'.join(msgdict['mail_domain'].split('.')[-2:])[:OutgoingMail.mailserver2.property.columns[0].type.length]
+        mailserver3 = '.'.join(msgdict['mail_domain'].split('.')[-3:])[:OutgoingMail.mailserver3.property.columns[0].type.length]
+        mail.mailserver2 = mailserver2
+        mail.mailserver3 = mailserver3
+        
+        return self.SUCCESS
+
+    def _process_local_msg_sent(self, logdict, dbsession):
+        '''
+        A message was sent to the postmaster or other local account.
+        Just delete the message rather than pollute the DB with it. (Some day we
+        might want to record additional information, but not now.) 
+        '''
+        m = re.match('^(?P<queue_id>'+self.queue_id_matcher+'): .*', 
+                     logdict['message'])
+        if not m: return self.FAILURE
+        msgdict = m.groupdict()
+
+        mail = dbsession.query(OutgoingMail).filter_by(queue_id=msgdict['queue_id']).first()
+        dbsession.delete(mail)
         
         return self.SUCCESS
     
