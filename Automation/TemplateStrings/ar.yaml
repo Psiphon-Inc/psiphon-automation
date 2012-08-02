@@ -1,21 +1,21 @@
-﻿---
-plaintext_email_no_attachment: |
-    العربي - {{0}}/{0}.html
+﻿ar:
+    plaintext_email_no_attachment: |
+        العربي - {{0}}/{0}.html
 
-html_email_no_attachment: |
-    <div style="direction: rtl;">
-    العربي - <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
-    </div>
+    html_email_no_attachment: |
+        <div style="direction: rtl;">
+        العربي - <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
+        </div>
 
-plaintext_email_with_attachment: |+
-    لاستخدام برنامج Psiphon 3 لنظام التشغيل Windows، قم بحفظ الملف المرفق {{1}} ذو الامتداد ".exe".
-    لمزيد من المعلومات أو لإعادة تنزيل الملفات، انقر الارتباط أدناه.
-    {{0}}/{0}.html
+    plaintext_email_with_attachment: |+
+        لاستخدام برنامج Psiphon 3 لنظام التشغيل Windows، قم بحفظ الملف المرفق {{1}} ذو الامتداد ".exe".
+        لمزيد من المعلومات أو لإعادة تنزيل الملفات، انقر الارتباط أدناه.
+        {{0}}/{0}.html
 
-html_email_with_attachment: |
-    <div style="direction: rtl;">
-    لاستخدام برنامج Psiphon 3 لنظام التشغيل Windows، قم بحفظ الملف المرفق {{1}} ذو الامتداد ".exe".<br>
-    لمزيد من المعلومات أو لإعادة تنزيل الملفات، انقر الارتباط أدناه.<br>
-    <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
-    </div>
-    <br>
+    html_email_with_attachment: |
+        <div style="direction: rtl;">
+        لاستخدام برنامج Psiphon 3 لنظام التشغيل Windows، قم بحفظ الملف المرفق {{1}} ذو الامتداد ".exe".<br>
+        لمزيد من المعلومات أو لإعادة تنزيل الملفات، انقر الارتباط أدناه.<br>
+        <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
+        </div>
+        <br>
