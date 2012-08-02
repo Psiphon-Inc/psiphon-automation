@@ -62,5 +62,5 @@ def make_feedback_html():
 def get_language_from_template(language):
     path = os.path.join('.', 'FeedbackSite', 'Templates', language + '.yaml')
     with open(path) as f:
-        return yaml.load(f.read())
+        return yaml.load(f.read())[language]
 

@@ -1,17 +1,17 @@
-﻿---
-plaintext_email_no_attachment: |
-    Türkmençe - {{0}}/{0}.html
+﻿tk:
+    plaintext_email_no_attachment: |
+        Türkmençe - {{0}}/{0}.html
 
-html_email_no_attachment: |
-    <div style="direction: ltr;">
-    Türkmençe - <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
-    </div>
+    html_email_no_attachment: |
+        <div style="direction: ltr;">
+        Türkmençe - <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
+        </div>
 
-plaintext_email_with_attachment: |+
-    Türkmençe - {{0}}/{0}.html
+    plaintext_email_with_attachment: |+
+        Türkmençe - {{0}}/{0}.html
 
-html_email_with_attachment: |
-    <div style="direction: ltr;">
-    Türkmençe - <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
-    </div>
-    <br>
+    html_email_with_attachment: |
+        <div style="direction: ltr;">
+        Türkmençe - <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
+        </div>
+        <br>
