@@ -1401,7 +1401,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         
         temp_file = tempfile.NamedTemporaryFile(delete=False)
         try:
-            temp_file.write(json.dumps(emails))
+            temp_file.write(json.dumps(emails, indent=2))
             temp_file.close()
             ssh = psi_ssh.SSH(
                     self.__email_server_account.ip_address,
