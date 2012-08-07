@@ -510,6 +510,37 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             s.discovery_date_range[1].isoformat())) if s.discovery_date_range else 'None')
         self.__show_logs(s)
 
+    def show_host(self, host_id, show_logs=False):
+        host = self.__hosts[host_id]
+        servers = [self.__servers[s].id 
+                   for s in self.__servers 
+                   if self.__servers[s].host_id == host_id]
+        
+        print textwrap.dedent('''
+            Host ID:                 %(id)s
+            Provider:                %(provider)s (%(provider_id)s)
+            Datacenter:              %(datacenter_name)s
+            IP Address:              %(ip_address)s
+            SSH:                     %(ssh_port)s %(ssh_username)s / %(ssh_password)s
+            Stats User:              %(stats_ssh_username)s / %(stats_ssh_password)s
+            Servers:                 %(servers)s
+            ''') % {
+                    'id': host.id,
+                    'provider': host.provider,
+                    'provider_id': host.provider_id,
+                    'datacenter_name': host.datacenter_name,
+                    'ip_address': host.ip_address,
+                    'ssh_port': host.ssh_port,
+                    'ssh_username': host.ssh_username,
+                    'ssh_password': host.ssh_password,
+                    'stats_ssh_username': host.stats_ssh_username,
+                    'stats_ssh_password': host.stats_ssh_password,
+                    'servers': '\n                         '.join(servers)
+                    }
+        
+        if show_logs: 
+            self.__show_logs(host)
+
     def show_provider_ranks(self):
         for r in self.__provider_ranks:
             print textwrap.dedent('''
