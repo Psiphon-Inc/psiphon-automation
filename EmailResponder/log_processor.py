@@ -557,10 +557,17 @@ def process_log(log_line):
 if __name__ == '__main__':
     while True:
         log_line = sys.stdin.readline()
-        # rsyslog's omprog sends an empty string to indicate that the processor should quit.
-        if log_line: process_log(log_line)
-        else: sys.exit(0)
 
+        # rsyslog's omprog sends an empty string to indicate that the processor should quit.
+        if not log_line:
+            sys.exit(0)
+        
+        try:
+            process_log(log_line)
+        except:
+            syslog.syslog(syslog.LOG_ERR, 'exception for log: ' + log_line)
+            raise
+        
 
 '''
 This is a what the syslogs look like for a (mostly successful) request response.
