@@ -352,7 +352,7 @@ CREATE INDEX disconnected_session_reconstruction_index
 
 CREATE INDEX status_session_reconstruction_index
   ON status
-  (processed, session_id, relay_protocol, host_id, "timestamp")
+  (processed, session_id, relay_protocol, host_id, "timestamp");
 
 -- Finds the /disconnected record that matches the given /connected record.
 -- Returns NULL (empty record) if not found.
