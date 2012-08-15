@@ -404,6 +404,10 @@ if __name__ == '__main__':
         if not requested_addr:
             exit(0)
 
+    except UnicodeDecodeError as ex:
+        # Bad input. Just log and exit.
+        syslog.syslog(syslog.LOG_CRIT, 'error: UnicodeDecodeError')
+
     except Exception as ex:
         syslog.syslog(syslog.LOG_CRIT, 'exception: %s: %s' % (ex, traceback.format_exc()))
 

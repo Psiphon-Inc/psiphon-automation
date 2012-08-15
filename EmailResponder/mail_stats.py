@@ -107,7 +107,6 @@ def process_log_file(logfile):
                           'results': {}
                           },
                 }
-    logtype_order = ('success', 'fail', 'exception', 'error')
     
     unmatched_lines = []
     
@@ -131,7 +130,40 @@ def process_log_file(logfile):
             unmatched_lines.append(line)
 
     text = ''
-    for logtype_name in logtype_order:
+
+    # Success logs
+    
+    results = logtypes['success']['results']
+    
+    text += '\nSuccessfully sent\n----------------------\n'
+    
+    text += 'TOTAL: %d\n' % sum(results.values())
+    
+    # Only itemize the entries with a reasonably large count
+    for item in filter(lambda (k,v): v >= 10, 
+                       sorted(results.iteritems(), 
+                              key=lambda (k,v): (v,k), 
+                              reverse=True)):
+        text += '%s %s\n' % (str(item[1]).rjust(4), item[0])
+    
+    # Fail logs
+    
+    results = logtypes['fail']['results']
+    
+    text += '\n\nFailures\n----------------------\n\n'
+    
+    text += 'TOTAL: %d\n' % sum(results.values())
+    
+    # Only itemize the entries with a reasonably large count
+    for item in filter(lambda (k,v): v >= 10, 
+                       sorted(results.iteritems(), 
+                              key=lambda (k,v): (v,k), 
+                              reverse=True)):
+        text += '%s %s\n' % (str(item[1]).rjust(4), item[0])
+    
+    # Process the rest of the log types
+    
+    for logtype_name in ('exception', 'error'):
         text += '\n%s\n----------------------\n\n' % logtype_name
         for info, count in logtypes[logtype_name]['results'].iteritems():
             text += '%s\nCOUNT: %d\n\n' % (info, count)
@@ -163,7 +195,6 @@ if __name__ == '__main__':
 
     queue_check = subprocess.Popen(shlex.split('sudo perl %s' % os.path.expanduser('~%s/postfix_queue_check.pl' % settings.MAIL_RESPONDER_USERNAME)), stdout=subprocess.PIPE).communicate()[0]
     logwatch_basic = subprocess.Popen(shlex.split('logwatch --output stdout --format text'), stdout=subprocess.PIPE).communicate()[0]
-
 
     email_body = '<pre>'
     
