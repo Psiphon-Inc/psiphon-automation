@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2011, Psiphon Inc.
+# Copyright (c) 2012, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -38,6 +38,7 @@ BUILDS_ROOT = os.path.join('.', 'Builds')
 SOURCE_FILES = [
     ('Automation',
      ['psi_ops.py',
+      'psi_ops_discovery.py',
       'psi_ops_cms.py',
       'psi_utils.py'
      ]),
