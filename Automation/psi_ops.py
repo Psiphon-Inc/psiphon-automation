@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2011, Psiphon Inc.
+# Copyright (c) 2012, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -38,6 +38,7 @@ from pkg_resources import parse_version
 
 import psi_utils
 import psi_ops_cms
+import psi_ops_discovery
 
 # Modules available only on the automation server
 
@@ -1646,22 +1647,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # discovery case
             if not discovery_date:
                 discovery_date = datetime.datetime.now()
-            # count servers for propagation channel ID to be discovered in current date range
-            servers = [server for server in self.__servers.itervalues()
-                       if server.propagation_channel_id == propagation_channel_id and (
-                           server.discovery_date_range is not None and
-                           server.discovery_date_range[0] <= discovery_date < server.discovery_date_range[1])]
-            # number of IP Address buckets is number of matching servers, so just
-            # give the client the one server in their bucket
-            # NOTE: when there are many servers, we could return more than one per bucket. For example,
-            # with 4 matching servers, we could make 2 buckets of 2. But if we have that many servers,
-            # it would be better to mix in an additional strategy instead of discovering extra servers
-            # for no additional "effort".
-            bucket_count = len(servers)
-            if bucket_count == 0:
-                return ([], None)
-            bucket = struct.unpack('!L',socket.inet_aton(client_ip_address))[0] % bucket_count
-            servers = [servers[bucket]]
+
+
+            # All discovery servers that are discoverable on this day are eligable for discovery.
+            # Note: use used to compartmentalize this list by propagation channel, but now we
+            # do not, making more discovery servers more broadly available and feeding into
+            # the following discovery strategies.
+
+            candidate_servers = [server for server in self.__servers.itervalues()
+                                 if server.discovery_date_range is not None and
+                                 server.discovery_date_range[0] <= discovery_date < server.discovery_date_range[1]]
+
+            servers = psi_ops_discovery.select_servers(candidate_servers, client_ip_address)
+
         # optional logger (used by server to log each server IP address disclosed)
         if event_logger:
             for server in servers:
