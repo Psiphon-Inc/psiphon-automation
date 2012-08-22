@@ -1,21 +1,19 @@
-﻿zh:
-    plaintext_email_no_attachment: |
-        中文 - {{0}}/{0}.html
+zh:
+  plaintext_email_no_attachment: |
+    中文 - {{0}}/{0}.html
+  html_email_no_attachment: |
+    <div style="direction: ltr;">
+    中文 - <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
+    </div>
+  plaintext_email_with_attachment: |+
+    要使用Psiphon 3, 保存文件.exe扩展名。
+    或者点击下面的链接。
+    {{0}}/{0}.html
 
-    html_email_no_attachment: |
-        <div style="direction: ltr;">
-        中文 - <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
-        </div>
-
-    plaintext_email_with_attachment: |+
-        要使用Psiphon 3, 保存文件.exe扩展名。
-        或者点击下面的链接。
-        {{0}}/{0}.html
-
-    html_email_with_attachment: |
-        <div style="direction: ltr;">
-        要使用Psiphon 3, 保存文件.exe扩展名。<br>
-        或者点击下面的链接。<br>
-        <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
-        </div>
-        <br>
+  html_email_with_attachment: |
+    <div style="direction: ltr;">
+    要使用Psiphon 3, 保存文件.exe扩展名。<br>
+    或者点击下面的链接。<br>
+    <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
+    </div>
+    <br>

@@ -33,7 +33,9 @@ LANGUAGES = [
     'az',
     'tk',
     'th',
-    'ug@Latn'
+    'ug@Latn',
+    'es',
+    'vi'
 ]
 
 def get_language_string(language, key):
