@@ -417,11 +417,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 campaign.account[0] if campaign.account else 'None',
                                 campaign.s3_bucket_name)
         
-    def show_propagation_channels(self):
+    def show_propagation_channels(self, verbose=True):
         for p in self.__propagation_channels.itervalues():
-            self.show_propagation_channel(p.name)
+            self.show_propagation_channel(p.name, verbose=verbose)
         
-    def show_propagation_channel(self, propagation_channel_name, now=None):
+    def show_propagation_channel(self, propagation_channel_name, now=None, verbose=True):
         if now == None:
             now = datetime.datetime.now()
         p = self.__get_propagation_channel_by_name(propagation_channel_name)
@@ -460,11 +460,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             Max Propagation Server Age (days): %s
             New Discovery Servers:             %s
             Max Discovery Server Age (days):   %s
-            Embedded Servers:                  %s
-            Discovery Servers:                 %s
-            Future Discovery Servers:          %s
-            Old Propagation Servers:           %s
-            Old Discovery Servers:             %s
             ''') % (
                 p.id,
                 p.name,
@@ -472,13 +467,22 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 str(p.new_propagation_servers_count),
                 str(p.max_propagation_server_age_in_days),
                 str(p.new_discovery_servers_count),
-                str(p.max_discovery_server_age_in_days),
-                '\n                                   '.join(embedded_servers),
-                '\n                                   '.join(current_discovery_servers),
-                '\n                                   '.join(future_discovery_servers),
-                '\n                                   '.join(old_propagation_servers),
-                '\n                                   '.join(old_discovery_servers))
-        self.__show_logs(p)
+                str(p.max_discovery_server_age_in_days))
+                
+        if verbose:
+            print textwrap.dedent('''
+                Embedded Servers:                  %s
+                Discovery Servers:                 %s
+                Future Discovery Servers:          %s
+                Old Propagation Servers:           %s
+                Old Discovery Servers:             %s
+                ''') % (
+                    '\n                                   '.join(embedded_servers),
+                    '\n                                   '.join(current_discovery_servers),
+                    '\n                                   '.join(future_discovery_servers),
+                    '\n                                   '.join(old_propagation_servers),
+                    '\n                                   '.join(old_discovery_servers))
+            self.__show_logs(p)
 
     def show_servers(self):
         for s in self.__servers.itervalues():
