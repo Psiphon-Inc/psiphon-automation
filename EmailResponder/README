@@ -440,7 +440,7 @@ smtpd_recipient_restrictions =
    reject_unknown_sender_domain,
    reject_unknown_recipient_domain,
    reject_unauth_destination,
-   reject_rbl_client sbl-xbl.spamhaus.org,
+   reject_rbl_client zen.spamhaus.org,
    reject_rbl_client bl.spamcop.net,
    permit
 

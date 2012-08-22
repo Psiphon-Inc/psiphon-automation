@@ -332,6 +332,17 @@ def process_stats(host, servers, db_cur, error_file=None):
                         ' and '.join(['%s = %%s' % x for x in event_columns[event_type]]))
         event_sql[event_type] = command
 
+        # Add special case statement to use when last_connected is NULL
+        if 'last_connected' in event_columns[event_type]:
+            command = 'insert into %s (%s) select %s where not exists (select 1 from %s where %s)' % (
+                            table_name,
+                            ', '.join(event_columns[event_type]),
+                            ', '.join(['%s']*len(event_columns[event_type])),
+                            table_name,
+                            ' and '.join([('%s is %%s' % x) if x == 'last_connected' else ('%s = %%s' % x)
+                                        for x in event_columns[event_type]]))
+            event_sql[event_type + '.last_connected_NULL'] = command
+
     for filename in os.listdir(directory):
         if re.match(HOST_LOG_FILENAME_PATTERN, filename):
             path = os.path.join(directory, filename)
@@ -374,7 +385,7 @@ def process_stats(host, servers, db_cur, error_file=None):
 
                     host_id = match.group(2)
                     event_type = match.group(3)
-                    event_values = match.group(4).split()
+                    event_values = [event_value.decode('utf-8', 'replace') for event_value in match.group(4).split()]
                     event_fields = LOG_EVENT_TYPE_SCHEMA[event_type]
 
                     if len(event_values) != len(event_fields):
@@ -422,6 +433,19 @@ def process_stats(host, servers, db_cur, error_file=None):
                     for index, field_name in enumerate(field_names):
                         if field_name == 'server_id' or field_name == 'discovery_server_id':
                             field_values[index] = server_ip_address_to_id.get(field_values[index], 'Unknown')
+
+                    # Fixup for last_connected: this field (in the log) contains either a timestamp,
+                    # 'None' (meaning a first time connection), or 'Unknown' (meaning an old client that
+                    # doesn't send this info connected)
+                    if event_type.find('connected') == 0:
+                        for index, field_name in enumerate(field_names):
+                            if field_name == 'last_connected':
+                                if field_values[index] == 'Unknown':
+                                    # Use alternate SQL that works with NULL values
+                                    event_type += '.last_connected_NULL'
+                                    field_values[index] = None
+                                elif field_values[index] == 'None':
+                                    field_values[index] = '1900-01-01T00:00:00Z'
 
                     # SQL injection note: the table name isn't parameterized
                     # and comes from log file data, but it's implicitly

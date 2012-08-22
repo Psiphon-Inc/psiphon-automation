@@ -23,6 +23,7 @@ from email import Charset
 from email.generator import Generator
 from email import encoders
 import smtplib
+from boto.ses.connection import SESConnection
 
 
 # Adapted from http://radix.twistedmatrix.com/2010/07/how-to-send-good-unicode-email-with.html
@@ -146,4 +147,29 @@ def send_raw_email_smtp(raw_email,
     s.sendmail(from_address, recipients, raw_email)
     s.quit()
     
+    return True
+
+def send_raw_email_amazonses(raw_email, 
+                             from_address, 
+                             recipient=None,
+                             aws_key=None,
+                             aws_secret_key=None):
+    '''
+    Send the raw email via Amazon SES.
+    If the credential arguments are None, boto will attempt to retrieve the
+    values from environment variables and config files.
+    recipient seems to be redudant with the values in the raw email headers.
+    '''
+
+    conn = SESConnection(aws_key, aws_secret_key) 
+
+    if isinstance(recipient, str) or isinstance(recipient, unicode): 
+        recipient = [recipient]
+
+    conn.send_raw_email(raw_email, source=from_address, destinations=recipient)
+    
+    # Getting an error when we try to call this. See:
+    # http://code.google.com/p/boto/issues/detail?id=518
+    #conn.close()
+
     return True

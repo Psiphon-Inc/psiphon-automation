@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2011, Psiphon Inc.
+# Copyright (c) 2012, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -38,6 +38,7 @@ from pkg_resources import parse_version
 
 import psi_utils
 import psi_ops_cms
+import psi_ops_discovery
 
 # Modules available only on the automation server
 
@@ -509,6 +510,37 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 ('%s - %s' % (s.discovery_date_range[0].isoformat(),
                             s.discovery_date_range[1].isoformat())) if s.discovery_date_range else 'None')
         self.__show_logs(s)
+
+    def show_host(self, host_id, show_logs=False):
+        host = self.__hosts[host_id]
+        servers = [self.__servers[s].id 
+                   for s in self.__servers 
+                   if self.__servers[s].host_id == host_id]
+        
+        print textwrap.dedent('''
+            Host ID:                 %(id)s
+            Provider:                %(provider)s (%(provider_id)s)
+            Datacenter:              %(datacenter_name)s
+            IP Address:              %(ip_address)s
+            SSH:                     %(ssh_port)s %(ssh_username)s / %(ssh_password)s
+            Stats User:              %(stats_ssh_username)s / %(stats_ssh_password)s
+            Servers:                 %(servers)s
+            ''') % {
+                    'id': host.id,
+                    'provider': host.provider,
+                    'provider_id': host.provider_id,
+                    'datacenter_name': host.datacenter_name,
+                    'ip_address': host.ip_address,
+                    'ssh_port': host.ssh_port,
+                    'ssh_username': host.ssh_username,
+                    'ssh_password': host.ssh_password,
+                    'stats_ssh_username': host.stats_ssh_username,
+                    'stats_ssh_password': host.stats_ssh_password,
+                    'servers': '\n                         '.join(servers)
+                    }
+        
+        if show_logs: 
+            self.__show_logs(host)
 
     def show_provider_ranks(self):
         for r in self.__provider_ranks:
@@ -1367,7 +1399,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 ['html', psi_templates.get_html_email_content(
                                                 campaign.s3_bucket_name)]
                             ],
-                         'attachments': None
+                         'attachments': None,
+                         'send_method': 'SES'
                         })
                                   
                     # Email with attachments
@@ -1389,18 +1422,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                          [campaign.s3_bucket_name, 
                                           psi_ops_s3.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME, 
                                           psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME],
-                                         # Temporarily not attaching Android client...
-                                         #[campaign.s3_bucket_name, 
-                                         # psi_ops_s3.DOWNLOAD_SITE_ANDROID_BUILD_FILENAME, 
-                                         # psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME],
-                                        ]
+                                         [campaign.s3_bucket_name, 
+                                          psi_ops_s3.DOWNLOAD_SITE_ANDROID_BUILD_FILENAME, 
+                                          psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME]
+                                        ],
+                         'send_method': 'SMTP'
                         })
                                   
                     campaign.log('configuring email')
         
         temp_file = tempfile.NamedTemporaryFile(delete=False)
         try:
-            temp_file.write(json.dumps(emails))
+            temp_file.write(json.dumps(emails, indent=2))
             temp_file.close()
             ssh = psi_ssh.SSH(
                     self.__email_server_account.ip_address,
@@ -1614,22 +1647,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # discovery case
             if not discovery_date:
                 discovery_date = datetime.datetime.now()
-            # count servers for propagation channel ID to be discovered in current date range
-            servers = [server for server in self.__servers.itervalues()
-                       if server.propagation_channel_id == propagation_channel_id and (
-                           server.discovery_date_range is not None and
-                           server.discovery_date_range[0] <= discovery_date < server.discovery_date_range[1])]
-            # number of IP Address buckets is number of matching servers, so just
-            # give the client the one server in their bucket
-            # NOTE: when there are many servers, we could return more than one per bucket. For example,
-            # with 4 matching servers, we could make 2 buckets of 2. But if we have that many servers,
-            # it would be better to mix in an additional strategy instead of discovering extra servers
-            # for no additional "effort".
-            bucket_count = len(servers)
-            if bucket_count == 0:
-                return ([], None)
-            bucket = struct.unpack('!L',socket.inet_aton(client_ip_address))[0] % bucket_count
-            servers = [servers[bucket]]
+
+
+            # All discovery servers that are discoverable on this day are eligable for discovery.
+            # Note: use used to compartmentalize this list by propagation channel, but now we
+            # do not, making more discovery servers more broadly available and feeding into
+            # the following discovery strategies.
+
+            candidate_servers = [server for server in self.__servers.itervalues()
+                                 if server.discovery_date_range is not None and
+                                 server.discovery_date_range[0] <= discovery_date < server.discovery_date_range[1]]
+
+            servers = psi_ops_discovery.select_servers(candidate_servers, client_ip_address)
+
         # optional logger (used by server to log each server IP address disclosed)
         if event_logger:
             for server in servers:
