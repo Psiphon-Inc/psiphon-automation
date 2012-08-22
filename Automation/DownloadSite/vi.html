@@ -107,7 +107,7 @@ SHA256: 76:DB:EF:15:F6:77:26:D4:51:A1:23:59:B8:57:9C:0D:
 Signature algorithm name: SHA256withRSA
 Version: 3</pre>    
     <p>Một APK có thể được xác thực bằng cách (1) xuất chứng nhận từ hồ sơ lưu trữ và đảm bảo rằng mã nhận dạng của nó khớp với giá trị bên trên và (2) đảm bảo rằng APK có chữ ký bằng chứng nhận. Ví dụ như, sử dụng các công cụ dòng lệnh của Unix và Java:</p>
-<pre>$ unzip -p PsiphonAndroid.apk META-INF/PSIPHON.RSA | keytool -printcert⏎ $ jarsigner -verbose -verify PsiphonAndroid.apk</pre>
+<pre>$ unzip -p PsiphonAndroid.apk META-INF/PSIPHON.RSA | keytool -printcert $ jarsigner -verbose -verify PsiphonAndroid.apk</pre>
     
     
     <p>Psiphon 3 dành cho Android sẽ tự động cập nhật, và quy trình này tự động xác nhận mỗi tập tin cập nhật là chính hãng.</p>
