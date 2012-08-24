@@ -267,6 +267,8 @@ $(function() {{
   <option value="tk">Türkmençe</option>
   <option value="th">ภาษาไทย</option>
   <option value="ug@Latn">Uyghurche</option>
+  <option value="es">Español</option>
+  <option value="vi">Tiếng Việt</option>
   </select>
     
     <h1 id="top_content_title"></h1>

@@ -35,7 +35,9 @@ FEEDBACK_LANGUAGES = [
     'az',
     'tk',
     'th',
-    'ug@Latn'
+    'ug@Latn',
+    'es',
+    'vi'
 ]
 
 def make_feedback_html():
