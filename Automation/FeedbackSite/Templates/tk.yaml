@@ -2,7 +2,12 @@ tk:
   title: Psiphon 3 seslenme
   top_content_title: Seslenme beriň
   top_content: |+
-    <p>⏎ Psiphon 3-iň sizde nähili işleýändigini habar bermek üçin aşakdaky maglumatnamany dolduryň, onsoň ulgamy hasam kämilleşdirip bileris.⏎ </p>⏎ ⏎ <p>⏎ Eger haýsydyr aýratyn teswirleriňiz, işlemeýän web saýtlar barada has giňişleýin maglumat bolsa ýa-da bu maglumatnama siziň üçin dogry işlemeýän bolsa, e-poçta iberiň <a href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>.
+    <p>
+    Psiphon 3-iň sizde nähili işleýändigini habar bermek üçin aşakdaky maglumatnamany dolduryň, onsoň ulgamy hasam kämilleşdirip bileris.
+    </p>
+
+    <p>
+    Eger haýsydyr aýratyn teswirleriňiz, işlemeýän web saýtlar barada has giňişleýin maglumat bolsa ýa-da bu maglumatnama siziň üçin dogry işlemeýän bolsa, e-poçta iberiň <a href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>.
     </p>
 
   connectivity_title: Birikme ýagdaýy
