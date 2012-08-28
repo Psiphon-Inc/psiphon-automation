@@ -1971,6 +1971,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         psi_ops_deploy.run_in_parallel(50, do_copy_file_to_host, self.__hosts.itervalues())
 
     def __test_server(self, server, test_cases):
+        test_propagation_channel = None
+        try:
+            test_propagation_channel = self.get_propagation_channel_by_name('Testing')
+        except:
+            pass
+        test_propagation_channel_id = test_propagation_channel.id if test_propagation_channel else '0'
         return psi_ops_test_windows.test_server(
                                 server.ip_address,
                                 server.web_server_port,
@@ -1978,6 +1984,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 [self.__get_encoded_server_entry(server)],
                                 self.__client_versions[CLIENT_PLATFORM_WINDOWS][-1].version, # This uses the Windows client
                                 [server.egress_ip_address],
+                                test_propagation_channel_id,
                                 test_cases)
 
     def __test_servers(self, servers, test_cases):
