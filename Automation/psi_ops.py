@@ -403,7 +403,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__show_logs(s)
 
     def show_campaigns_on_propagation_channel(self, propagation_channel_name):
-        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+        propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         for sponsor in self.__sponsors.itervalues():
             for campaign in sponsor.campaigns:
                 if campaign.propagation_channel_id == propagation_channel.id:
@@ -424,7 +424,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def show_propagation_channel(self, propagation_channel_name, now=None, verbose=True):
         if now == None:
             now = datetime.datetime.now()
-        p = self.__get_propagation_channel_by_name(propagation_channel_name)
+        p = self.get_propagation_channel_by_name(propagation_channel_name)
         embedded_servers = [server.id for server in self.__servers.itervalues()
                             if server.propagation_channel_id == p.id and server.is_embedded]
         old_propagation_servers = [server.id for server in self.__servers.itervalues()
@@ -558,7 +558,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         chars = '0123456789ABCDEF'
         return ''.join([chars[ord(os.urandom(1))%len(chars)] for i in range(count)])
 
-    def __get_propagation_channel_by_name(self, name):
+    def get_propagation_channel_by_name(self, name):
         return filter(lambda x:x.name == name,
                       self.__propagation_channels.itervalues())[0]
 
@@ -576,25 +576,25 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def set_propagation_channel_new_discovery_servers_count(self, propagation_channel_name, count):
         assert(self.is_locked)
-        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+        propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         propagation_channel.new_discovery_servers_count = count
         propagation_channel.log('New discovery servers count set to %d' % (count,))
     
     def set_propagation_channel_new_propagation_servers_count(self, propagation_channel_name, count):
         assert(self.is_locked)
-        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+        propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         propagation_channel.new_propagation_servers_count = count
         propagation_channel.log('New propagation servers count set to %d' % (count,))
         
     def set_propagation_channel_max_discovery_server_age_in_days(self, propagation_channel_name, age):
         assert(self.is_locked)
-        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+        propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         propagation_channel.max_discovery_server_age_in_days = age
         propagation_channel.log('Max discovery server age set to %d days' % (age,))
         
     def set_propagation_channel_max_propagation_server_age_in_days(self, propagation_channel_name, age):
         assert(self.is_locked)
-        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+        propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         propagation_channel.max_propagation_server_age_in_days = age
         propagation_channel.log('Max propagation server age set to %d days' % (age,))
         
@@ -629,7 +629,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def add_sponsor_email_campaign(self, sponsor_name, propagation_channel_name, email_account):
         assert(self.is_locked)
         sponsor = self.__get_sponsor_by_name(sponsor_name)
-        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+        propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         propagation_mechanism_type = 'email-autoresponder'
         assert(propagation_mechanism_type in propagation_channel.propagation_mechanism_types)
         # TODO: assert(email_account not in ...)
@@ -654,7 +654,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                      twitter_account_access_token_secret):
         assert(self.is_locked)
         sponsor = self.__get_sponsor_by_name(sponsor_name)
-        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+        propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         propagation_mechanism_type = 'twitter'
         assert(propagation_mechanism_type in propagation_channel.propagation_mechanism_types)
         campaign = SponsorCampaign(propagation_channel.id,
@@ -677,7 +677,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def add_sponsor_static_download_campaign(self, sponsor_name, propagation_channel_name):
         assert(self.is_locked)
         sponsor = self.__get_sponsor_by_name(sponsor_name)
-        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+        propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         propagation_mechanism_type = 'static-download'
         assert(propagation_mechanism_type in propagation_channel.propagation_mechanism_types)
         campaign = SponsorCampaign(propagation_channel.id,
@@ -695,7 +695,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def set_sponsor_campaign_s3_bucket_name(self, sponsor_name, propagation_channel_name, account, s3_bucket_name):
         assert(self.is_locked)
         sponsor = self.__get_sponsor_by_name(sponsor_name)
-        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+        propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         for campaign in sponsor.campaigns:
             if (campaign.propagation_channel_id == propagation_channel.id and
                 campaign.account[0] == account):
@@ -859,7 +859,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                           max_propagation_server_age_in_days=None):
         assert(self.is_locked)
 
-        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+        propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         now = datetime.datetime.now()
         today = datetime.datetime(now.year, now.month, now.day)
 
@@ -904,7 +904,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             new_propagation_servers_count=None):
         assert(self.is_locked)
         
-        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+        propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         now = datetime.datetime.now()
         today = datetime.datetime(now.year, now.month, now.day)
 
@@ -927,7 +927,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def add_servers(self, count, propagation_channel_name, discovery_date_range, replace_others=True):
         assert(self.is_locked)
-        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+        propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
 
         # Embedded servers (aka "propagation servers") are embedded in client
         # builds, where as discovery servers are only revealed when clients
@@ -1113,7 +1113,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             
     def set_servers_propagation_channel_and_discovery_date_range(self, server_names, propagation_channel_name, discovery_date_range, replace_others=True):
         assert(self.is_locked)
-        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+        propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
 
         if replace_others:
             self.__replace_propagation_channel_discovery_servers(propagation_channel.id)
@@ -1196,7 +1196,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if not platforms:
             platforms = [CLIENT_PLATFORM_WINDOWS, CLIENT_PLATFORM_ANDROID]
 
-        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+        propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         sponsor = self.__get_sponsor_by_name(sponsor_name)
         encoded_server_list, expected_egress_ip_addresses = \
                     self.__get_encoded_server_list(propagation_channel.id)
@@ -1492,7 +1492,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         psi_ops_deploy.deploy_data(host, self.__compartmentalize_data_for_host(host.id))
 
     def deploy_implementation_and_data_for_propagation_channel(self, propagation_channel_name):
-        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+        propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         servers = [server for server in self.__servers.itervalues() if server.propagation_channel_id == propagation_channel.id]
         for server in servers:
             self.deploy_implementation_and_data_for_host_with_server(server.id)
@@ -2034,7 +2034,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__test_servers(servers, test_cases)
 
     def test_propagation_channel(self, propagation_channel_name, test_cases=None):
-        propagation_channel = self.__get_propagation_channel_by_name(propagation_channel_name)
+        propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         servers = [server for server in self.__servers.itervalues() if server.propagation_channel_id == propagation_channel.id]
         self.__test_servers(servers, test_cases)
 
