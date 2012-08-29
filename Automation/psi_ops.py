@@ -1723,11 +1723,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         config['upgrade_client_version'] = self.__check_upgrade(platform, client_version)
 
         # Discovery
-        config['encoded_server_list'], _ = \
-                    self.__get_encoded_server_list(
-                                                propagation_channel_id,
-                                                client_ip_address,
-                                                event_logger=event_logger)
+        if client_ip_address:
+            config['encoded_server_list'], _ = \
+                        self.__get_encoded_server_list(
+                                                    propagation_channel_id,
+                                                    client_ip_address,
+                                                    event_logger=event_logger)
 
         # VPN relay protocol info
         # Note: The VPN PSK will be added in higher up the call stack
