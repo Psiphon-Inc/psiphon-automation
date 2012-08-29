@@ -106,14 +106,6 @@ try:
 except ImportError as error:
     print error
     
-# Modules available only on the node server
-
-try:
-    sys.path.insert(0, os.path.abspath(os.path.join('..', 'Server')))
-    import psi_geoip
-except ImportError:
-    pass
-
 # NOTE: update compartmentalize() functions when adding fields
 
 PropagationChannel = psi_utils.recordtype(
@@ -1671,13 +1663,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return ([self.__get_encoded_server_entry(server) for server in servers],
                 [server.egress_ip_address for server in servers])
         
-    def __get_sponsor_home_pages(self, sponsor_id, client_ip_address, region=None):
+    def __get_sponsor_home_pages(self, sponsor_id, region):
         # Web server support function: fails gracefully
         if sponsor_id not in self.__sponsors:
             return []
         sponsor = self.__sponsors[sponsor_id]
-        if not region:
-            region = psi_geoip.get_geoip(client_ip_address)['region']
         # case: lookup succeeded and corresponding region home page found
         sponsor_home_pages = []
         if region in sponsor.home_pages:
@@ -1712,7 +1702,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return None    
     
     def handshake(self, server_ip_address, client_ip_address,
-                  propagation_channel_id, sponsor_id,
+                  client_region, propagation_channel_id, sponsor_id,
                   client_platform_string, client_version, event_logger=None):
         # Legacy handshake output is a series of Name:Value lines returned to 
         # the client. That format will continue to be supported (old client 
@@ -1722,7 +1712,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         config = {}
 
         # Give client a set of landing pages to open when connection established
-        config['homepages'] = self.__get_sponsor_home_pages(sponsor_id, client_ip_address)
+        config['homepages'] = self.__get_sponsor_home_pages(sponsor_id, client_region)
 
         # Match a client platform to client_platform_string
         platform = CLIENT_PLATFORM_WINDOWS
@@ -1733,11 +1723,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         config['upgrade_client_version'] = self.__check_upgrade(platform, client_version)
 
         # Discovery
-        config['encoded_server_list'], _ = \
-                    self.__get_encoded_server_list(
-                                                propagation_channel_id,
-                                                client_ip_address,
-                                                event_logger=event_logger)
+        if client_ip_address:
+            config['encoded_server_list'], _ = \
+                        self.__get_encoded_server_list(
+                                                    propagation_channel_id,
+                                                    client_ip_address,
+                                                    event_logger=event_logger)
 
         # VPN relay protocol info
         # Note: The VPN PSK will be added in higher up the call stack
