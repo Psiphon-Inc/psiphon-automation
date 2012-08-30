@@ -1896,7 +1896,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             copy.__servers[server.id] = Server(
                                             server.id,
                                             server.host_id,
-                                            server.ip_address)
+                                            server.ip_address,
+                                            None,
+                                            None,
+                                            None,
+                                            server.discovery_date_range)
                                             # Omit: propagation, web server, ssh info
     
         for propagation_channel in self.__propagation_channels.itervalues():
