@@ -18,7 +18,6 @@
 #
 
 import time
-import struct
 import socket
 import math
 import collections
@@ -62,7 +61,10 @@ def select_servers(servers, ip_address, time_in_seconds=None):
 
     # Use the lowest octet of the client's IP address, as
     # discussed in the design document.
-    ip_value = struct.unpack('!L',socket.inet_aton(ip_address))[0]
+    try:
+        ip_value = ord(socket.inet_aton(ip_address)[-1])
+    except socket.error:
+        return []
 
     # Time-of-day is actually current time (epoch) truncated to an hour
     if not time_in_seconds:
