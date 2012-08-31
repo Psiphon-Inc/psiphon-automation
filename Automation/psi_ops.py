@@ -1723,6 +1723,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         config['upgrade_client_version'] = self.__check_upgrade(platform, client_version)
 
         # Discovery
+        # NOTE: Clients are expecting at least an empty list
+        config['encoded_server_list'] = []
         if client_ip_address:
             config['encoded_server_list'], _ = \
                         self.__get_encoded_server_list(
