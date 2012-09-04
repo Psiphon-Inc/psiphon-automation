@@ -34,6 +34,7 @@ import struct
 import socket
 import random
 import optparse
+import operator
 from pkg_resources import parse_version
 
 import psi_utils
