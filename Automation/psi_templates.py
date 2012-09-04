@@ -33,13 +33,15 @@ LANGUAGES = [
     'az',
     'tk',
     'th',
-    'ug@Latn'
+    'ug@Latn',
+    'es',
+    'vi'
 ]
 
 def get_language_string(language, key):
     path = os.path.join('.', 'TemplateStrings', language + '.yaml')
     with open(path) as f:
-        str = yaml.load(f.read())[key]
+        str = yaml.load(f.read())[language][key]
     # Assumes strings have one {0} format specifier to receive the language name
     # Other format specifiers, to be substituted later, should be escaped: {{N}}
     return str.format(language)

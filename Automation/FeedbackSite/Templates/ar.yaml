@@ -1,38 +1,25 @@
-title: Psiphon 3 Feedback
-
-top_content_title:  Give Us Your Feedback    
-
-top_content: |
-    <p>
-      Please complete the form below to let us know how Psiphon 3 is working for you so we can make the system better.
-    </p>
-
-    <p>
-     If you have any specific comments, further information about web sites that do not work, or if this form is not working for you, please email <a href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>.
-    </p>
-
-connectivity_title:  Connectivity
-
-connectivity_happy:  Psiphon consistently connects and stays connected.
-
-connectivity_ok:  Psiphon often connects, but sometimes disconnects and reconnects.   
-
-connectivity_sad:  Psiphon often fails to connect or constantly get disconnected.
-
-speed_title:  Speed
-
-speed_happy:  I can browse the web through Psiphon and watch video; it is as fast or faster than other circumvention tools.
-
-speed_ok:  I can browse the web through Psiphon but it’s slow.
-
-speed_sad:  Browsing the web through Psiphon is too slow and I won’t continue to use it.
-
-compatibility_title:  Compatibility
-
-compatibility_happy:  My web sites work as normal when I access them through Psiphon.
-
-compatibility_ok:  My web sites are sufficiently functional when I access them through Psiphon.
-
-compatibility_sad:  My web sites load but I can't use certain important functions.
-
-submit_button: Submit
+ar:
+  title: ردود سايفون ٣
+  top_content_title: وافينا بردك
+  top_content: "<p>\n  آتمم الاستماره من فضلك لإعلامنا بعمل سايفون بالنسبه لك حتى\
+    \ نتمكن من تحسن النظام<\n</p>\n\n<p>\n إذا كانت لديك أي تعليقات محدده، أو معلومات\
+    \ إضافيه حول مواقع ويب لا تعمل، أو إذا لم تعمل هذه الاستماره بالنسبه لك، أرسل\
+    \ آيميل إلى: \n<a href=\"mailto:feedback@psiphon.ca\">feedback@psiphon.ca</a>.\n\
+    </p>\n"
+  connectivity_title: الاتصال
+  connectivity_happy: يقوم سايفون بالاتصال على الداوام ويبقى متصلاً.
+  connectivity_ok: يقوم سايفون بالاتصال في معظم الحالات٫ لكنه أحيانا يفقد الاتصال
+    ويعيده.
+  connectivity_sad: سايفون غالبا ما يفشل في الاتصال آو يفقد الاتصال على الدوام.
+  speed_title: السرعه
+  speed_happy: بإمكاني تصفح الإنترنت من خلال سايفون ومشاهدة الفيديو، إنه لا يقل سرعه
+    عن أدوات الحمايه الأخرى أو أسرع منها.
+  speed_ok: أستطيع تصفح الويب من خلال سايفون٫ لكنه بطيء.
+  speed_sad: 'تصفح الويب من خلال سايفون بطيء جداً٫ ،ولن أواصل استخدامه. '
+  compatibility_title: التوافق
+  compatibility_happy: مواقع الويب الخاصه بي تعمل بشكل طبيعي عند دخولها من خلال سايفون.
+  compatibility_ok: مواقع الويب الخاصه بي فعاله بما فيه الكفايه عندما أدخلها من خلال
+    سايفون.
+  compatibility_sad: يتم تحميل مواقع الويب الخاصه بي٫ لكن هناك وظائف محدده هامه لا
+    أتمكن من استخدامها.
+  submit_button: إرسال

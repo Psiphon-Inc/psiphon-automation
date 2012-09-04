@@ -66,6 +66,11 @@ li.selected {{
   border: 1px solid #888;
 }}
 
+input[type="submit"] {{
+  font-size: 1.5em;
+  padding: 1em;
+}}
+
 </style>
 <!--[if lt IE 9]>
 <style type="text/css">
@@ -173,6 +178,8 @@ function setLanguage(langName)
     $('.feedback > li').css('padding', padding);
     $('.feedback > li').css('background-position-x', bg_position_x);
 
+    var platform = (window.dialogArguments !== undefined) ? "win" : "android";
+
     $.each(currentLanguage, function(name, val){{
         selector = '#' + name;
         if(name == 'submit_button') {{
@@ -180,6 +187,9 @@ function setLanguage(langName)
         }}
         else if(name == 'title') {{
             document.title = val; //supported in all browsers
+        }}
+        else if(name == 'top_content') {{
+           $(selector).html(val.replace(/feedback@psiphon.ca/g, "feedback+" + platform+ "@psiphon.ca"));
         }}
         else {{
             $(selector).html(val); 
@@ -262,6 +272,8 @@ $(function() {{
   <option value="tk">Türkmençe</option>
   <option value="th">ภาษาไทย</option>
   <option value="ug@Latn">Uyghurche</option>
+  <option value="es">Español</option>
+  <option value="vi">Tiếng Việt</option>
   </select>
     
     <h1 id="top_content_title"></h1>

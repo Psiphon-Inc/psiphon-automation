@@ -72,9 +72,10 @@ def retry_on_exception_decorator(function):
 
 
 @retry_on_exception_decorator
-def __test_web_server(ip_address, web_server_port, web_server_secret):
+def __test_web_server(ip_address, web_server_port, propagation_channel_id, web_server_secret):
     print 'Testing web server at %s...' % (ip_address,)
-    get_request = 'https://%s:%s/handshake?propagation_channel_id=0&sponsor_id=0&client_version=1&server_secret=%s&relay_protocol=SSH' % (ip_address, web_server_port, web_server_secret)
+    get_request = 'https://%s:%s/handshake?propagation_channel_id=%s&sponsor_id=0&client_version=1&server_secret=%s&relay_protocol=SSH' % (
+                    ip_address, web_server_port, propagation_channel_id, web_server_secret)
     # Reset the proxy settings (see comment below)
     urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler()))
     response = urllib2.urlopen(get_request, timeout=10).read()
@@ -169,7 +170,7 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
             
 
 def test_server(ip_address, web_server_port, web_server_secret, encoded_server_list, version,
-                expected_egress_ip_addresses, test_cases = None):
+                expected_egress_ip_addresses, test_propagation_channel_id = '0', test_cases = None):
 
     if not test_cases:
         test_cases = ['handshake', 'VPN', 'SSH+', 'SSH']
@@ -184,19 +185,19 @@ def test_server(ip_address, web_server_port, web_server_secret, encoded_server_l
 
         if test_case == 'handshake':
             try:
-                result = __test_web_server(ip_address, web_server_port, web_server_secret)
+                result = __test_web_server(ip_address, web_server_port, test_propagation_channel_id, web_server_secret)
                 results['WEB'] = 'PASS' if result else 'FAIL'
             except Exception as ex:
                 results['WEB'] = 'FAIL: ' + str(ex)
             try:
-                result = __test_web_server(ip_address, '443', web_server_secret)
+                result = __test_web_server(ip_address, '443', test_propagation_channel_id, web_server_secret)
                 results['443'] = 'PASS' if result else 'FAIL'
             except Exception as ex:
                 results['443'] = 'FAIL: ' + str(ex)
         elif test_case in ['VPN', 'SSH+', 'SSH']:
             if not executable_path:
                 executable_path = psi_ops_build_windows.build_client(
-                                    '0',        # propagation_channel_id
+                                    test_propagation_channel_id,
                                     '0',        # sponsor_id
                                     None,       # banner
                                     encoded_server_list,

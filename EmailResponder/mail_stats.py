@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 # Copyright (c) 2012, Psiphon Inc.
 # All rights reserved.
 #
@@ -26,10 +28,12 @@ import re
 import os
 import subprocess
 import shlex
+import textwrap
 from boto.ses.connection import SESConnection
 
 import settings
 import sendmail
+import log_processor
 
 def get_ses_quota():
     '''
@@ -45,6 +49,39 @@ def get_ses_quota():
     #conn.close()
 
     return json.dumps(quota, indent=2)
+
+def get_send_info():
+    
+    # The number of outgoing mail queued but not sent in the previous day
+    res = log_processor.dbengine.execute('SELECT COUNT(*) FROM outgoing_mail WHERE sent IS NULL AND created > UNIX_TIMESTAMP(NOW() - INTERVAL 1 DAY)*1000;')
+    unsent_day = res.fetchone()[0]
+    
+    # The average time between queuing and sending of outgoing mail sent in the previous day
+    res = log_processor.dbengine.execute('SELECT AVG(sent-created), STDDEV(sent-created) FROM outgoing_mail WHERE sent IS NOT NULL AND sent > UNIX_TIMESTAMP(NOW() - INTERVAL 1 DAY)*1000;')                                      
+    send_time = res.fetchone()
+    
+    # The average time it takes to process a request message
+    res = log_processor.dbengine.execute('SELECT AVG(processing_end - processing_start), STDDEV(processing_end - processing_start) FROM incoming_mail WHERE created > UNIX_TIMESTAMP(NOW() - INTERVAL 1 DAY)*1000;')                                      
+    process_time = res.fetchone()
+    
+    # The number of messages that expired in the past day
+    res = log_processor.dbengine.execute('SELECT COUNT(*) FROM outgoing_mail WHERE expired > UNIX_TIMESTAMP(NOW() - INTERVAL 1 DAY)*1000;')                                      
+    expireds = res.fetchone()[0]
+    
+    return textwrap.dedent(
+               u'''
+               In the past day:
+                 Avg send time: %(send_time_avg)ds ± %(send_time_stddev)d
+                 Avg process time: %(process_time_avg)dms ± %(process_time_stddev)d
+                 Unsent: %(unsent_day)d
+                 Expired: %(expireds)d
+               ''' % {'unsent_day': unsent_day, 
+                      'send_time_avg': send_time[0]/1000,
+                      'send_time_stddev': send_time[1]/1000,
+                      'process_time_avg': process_time[0],
+                      'process_time_stddev': process_time[1],
+                      'expireds': expireds
+                      })
 
 def process_log_file(logfile):
     '''
@@ -70,7 +107,6 @@ def process_log_file(logfile):
                           'results': {}
                           },
                 }
-    logtype_order = ('success', 'fail', 'exception', 'error')
     
     unmatched_lines = []
     
@@ -94,7 +130,40 @@ def process_log_file(logfile):
             unmatched_lines.append(line)
 
     text = ''
-    for logtype_name in logtype_order:
+
+    # Success logs
+    
+    results = logtypes['success']['results']
+    
+    text += '\nSuccessfully sent\n----------------------\n'
+    
+    text += 'TOTAL: %d\n' % sum(results.values())
+    
+    # Only itemize the entries with a reasonably large count
+    for item in filter(lambda (k,v): v >= 10, 
+                       sorted(results.iteritems(), 
+                              key=lambda (k,v): (v,k), 
+                              reverse=True)):
+        text += '%s %s\n' % (str(item[1]).rjust(4), item[0])
+    
+    # Fail logs
+    
+    results = logtypes['fail']['results']
+    
+    text += '\n\nFailures\n----------------------\n\n'
+    
+    text += 'TOTAL: %d\n' % sum(results.values())
+    
+    # Only itemize the entries with a reasonably large count
+    for item in filter(lambda (k,v): v >= 10, 
+                       sorted(results.iteritems(), 
+                              key=lambda (k,v): (v,k), 
+                              reverse=True)):
+        text += '%s %s\n' % (str(item[1]).rjust(4), item[0])
+    
+    # Process the rest of the log types
+    
+    for logtype_name in ('exception', 'error'):
         text += '\n%s\n----------------------\n\n' % logtype_name
         for info, count in logtypes[logtype_name]['results'].iteritems():
             text += '%s\nCOUNT: %d\n\n' % (info, count)
@@ -126,22 +195,20 @@ if __name__ == '__main__':
 
     queue_check = subprocess.Popen(shlex.split('sudo perl %s' % os.path.expanduser('~%s/postfix_queue_check.pl' % settings.MAIL_RESPONDER_USERNAME)), stdout=subprocess.PIPE).communicate()[0]
     logwatch_basic = subprocess.Popen(shlex.split('logwatch --output stdout --format text'), stdout=subprocess.PIPE).communicate()[0]
-    logwatch_postfix = subprocess.Popen(shlex.split('logwatch --service postfix --range yesterday --detail 12 --output stdout --format text'), stdout=subprocess.PIPE).communicate()[0]
-
 
     email_body = '<pre>'
     
     email_body += loginfo
     email_body += '\n\n\n'
+    email_body += 'Postfix queue counts\n----------------------\n' + queue_check
+    email_body += '\n\n\n'
+    email_body += get_send_info()
+    email_body += '\n\n\n'
     email_body += get_exception_info()
     email_body += '\n\n\n'
     email_body += 'SES quota info\n----------------------\n' + get_ses_quota()
     email_body += '\n\n\n'
-    email_body += 'Postfix queue counts\n----------------------\n' + queue_check
-    email_body += '\n\n\n'
     email_body += 'Logwatch Basic\n----------------------\n' + logwatch_basic
-    email_body += '\n\n\n'
-    email_body += 'Logwatch Postfix\n----------------------\n' + logwatch_postfix
 
     email_body += '</pre>'
 

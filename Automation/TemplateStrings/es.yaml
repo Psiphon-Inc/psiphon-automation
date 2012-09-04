@@ -1,0 +1,19 @@
+es:
+  plaintext_email_no_attachment: |
+    Español - {{0}}/{0}.html
+  html_email_no_attachment: |
+    <div style="direction: ltr;">
+    Español - <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
+    </div>
+  plaintext_email_with_attachment: |+
+    Para usar Psiphon 3 para Windows, guarde el archivo adjunto {{1}} que tiene extensión ".exe".
+    Para mayor información o para descarghar nuevamente los archivos, haga click en la siguiente liga.
+    {{0}}/{0}.html
+
+  html_email_with_attachment: |
+    <div style="direction: ltr;">
+    Para usar Psiphon 3 para Windows, guarde el archivo adjunto {{1}} que tiene extensión ".exe".<br>
+    Para mayor información o para descargar nuevamente los archivos, haga click en la siguiente liga.<br>
+    <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
+    </div>
+    <br>

@@ -124,9 +124,8 @@ class MailResponder:
             if not raw_response:
                 return False
     
-            raw_response = _dkim_sign_email(raw_response)
-    
             if conf.has_key('send_method') and conf['send_method'].upper() == 'SES':
+                # If sending via SES, we'll use its DKIM facility -- so don't do it here.
                 try:
                     if not sendmail.send_raw_email_amazonses(raw_response,
                                                              self._response_from_addr):
@@ -138,6 +137,8 @@ class MailResponder:
                     else:
                         raise
             else:
+                raw_response = _dkim_sign_email(raw_response)
+    
                 if not sendmail.send_raw_email_smtp(raw_response,
                                                     settings.COMPLAINTS_ADDRESS, # will be Return-Path
                                                     self._requester_addr):
@@ -402,6 +403,10 @@ if __name__ == '__main__':
         requested_addr = process_input(email_string)
         if not requested_addr:
             exit(0)
+
+    except UnicodeDecodeError as ex:
+        # Bad input. Just log and exit.
+        syslog.syslog(syslog.LOG_CRIT, 'error: UnicodeDecodeError')
 
     except Exception as ex:
         syslog.syslog(syslog.LOG_CRIT, 'exception: %s: %s' % (ex, traceback.format_exc()))
