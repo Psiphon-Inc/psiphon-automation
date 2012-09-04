@@ -2055,6 +2055,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         servers = [server for server in self.__servers.itervalues() if server.propagation_channel_id != None]
         self.__test_servers(servers, test_cases)
 
+    def server_distribution(self):
+        users_on_host = {}
+        total_users = 0
+        for host in self.get_hosts():
+            user_count = self.__count_users_on_host(host.id)
+            total_users += user_count
+            users_on_host[host.id] = user_count
+        sorted_users_on_host = sorted(users_on_host.iteritems(), key=operator.itemgetter(1))
+        print 'Total users: %d\n' % (total_users,)
+        for host_user_count in sorted_users_on_host:
+            print host_user_count[1]
+            
     def save(self):
         assert(self.is_locked)
         print 'saving...'
