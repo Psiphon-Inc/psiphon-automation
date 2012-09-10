@@ -24,6 +24,7 @@ import posixpath
 import sys
 import psi_ssh
 import psi_routes
+import psi_ops_install
 from multiprocessing.pool import ThreadPool
 from functools import wraps
 
@@ -267,3 +268,30 @@ def deploy_routes_to_hosts(hosts):
             
     run_in_parallel(10, do_deploy_routes, hosts)
 
+
+def deploy_geoip_database(host):
+
+    print 'deploy geoip database to host %s...' % (host.id)
+
+    ssh = psi_ssh.SSH(
+            host.ip_address, host.ssh_port,
+            host.ssh_username, host.ssh_password,
+            host.ssh_host_key)
+
+    psi_ops_install.install_geoip_database(ssh)
+
+    # Restart the web server because it caches the geoip database
+    remote_init_file_path = posixpath.join(psi_config.HOST_INIT_DIR, 'psiphonv')
+    ssh.exec_command('%s restart' % (remote_init_file_path,))
+    ssh.close()
+
+    host.log('deploy geoip')
+
+
+def deploy_geoip_database_to_hosts(hosts):
+
+    @retry_decorator_returning_exception
+    def do_deploy_geoip_database(host):
+        deploy_geoip_database(host)
+
+    run_in_parallel(10, do_deploy_geoip_database, hosts)
