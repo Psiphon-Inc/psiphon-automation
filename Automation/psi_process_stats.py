@@ -424,19 +424,25 @@ def process_stats(host, servers, db_cur, psinet, error_file=None):
 
                     if event_type == 'bytes_transferred.8':
                         assert(field_names[9] == 'bytes')
-                        if not (0 <= int(field_values[9]) < 2147483647):
-                            err = 'invalid byte fields %s' % (line,)
-                            print err
-                            if error_file:
-                                error_file.write(err + '\n')
-                            continue
-
                         # Client version 24 had a bug which resulted in
                         # corrupt byte transferred values, so discard them
-                        
                         assert(field_names[6] == 'client_version')
                         if int(field_values[6]) == 24:
                             continue
+
+                    invalid_byte_field = False
+                    for index, field_name in enumerate(field_names):
+                        if field_name == 'bytes':
+                            # This is an integer field
+                            if not (0 <= int(field_values[index]) < 2147483647):
+                                err = 'invalid byte fields %s' % (line,)
+                                print err
+                                if error_file:
+                                    error_file.write(err + '\n')
+                                invalid_byte_field = True
+                                break
+                    if invalid_byte_field:
+                        continue
 
                     # Don't record entries for testing or deployment-validation logs
                     try:
