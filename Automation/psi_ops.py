@@ -1017,6 +1017,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             psi_ops_deploy.deploy_data(
                                 host,
                                 self.__compartmentalize_data_for_host(host.id))
+            psi_ops_deploy.deploy_geoip_database_autoupdates(host)
             psi_ops_deploy.deploy_routes(host)
             host.log('initial deployment')
 
