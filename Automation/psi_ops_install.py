@@ -535,8 +535,6 @@ def install_host(host, servers, existing_server_ids):
     ssh.exec_command('easy_install iso8601')
     ssh.exec_command('apt-get install redis-server')
 
-    install_geoip_database(ssh)
-    
     ssh.close()
 
     #
@@ -582,15 +580,3 @@ def install_firewall_rules(host):
     ssh.exec_command('/etc/init.d/fail2ban restart')
     ssh.close()
     
-
-def install_geoip_database(ssh):
-
-    #
-    # Upload the local GeoIP databases (if they exist)
-    #
-
-    REMOTE_GEOIP_DIRECTORY = '/usr/local/share/GeoIP/'
-    for geo_ip_file in ['GeoIPCity.dat', 'GeoIPISP.dat']:
-        if os.path.isfile(geo_ip_file):
-            ssh.put_file(os.path.join(os.path.abspath('.'), geo_ip_file),
-                         posixpath.join(REMOTE_GEOIP_DIRECTORY, geo_ip_file))

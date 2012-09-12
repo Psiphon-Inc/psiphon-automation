@@ -22,6 +22,7 @@ import tempfile
 import os
 import posixpath
 import sys
+import textwrap
 import psi_ssh
 import psi_routes
 import psi_ops_install
@@ -271,21 +272,34 @@ def deploy_routes_to_hosts(hosts):
 
 def deploy_geoip_database(host):
 
-    print 'deploy geoip database to host %s...' % (host.id)
+    geo_ip_config_file = 'GeoIP.conf'
+    if os.path.isfile(geo_ip_config_file):
 
-    ssh = psi_ssh.SSH(
-            host.ip_address, host.ssh_port,
-            host.ssh_username, host.ssh_password,
-            host.ssh_host_key)
+        print 'deploy geoip database to host %s...' % (host.id)
 
-    psi_ops_install.install_geoip_database(ssh)
+        ssh = psi_ssh.SSH(
+                host.ip_address, host.ssh_port,
+                host.ssh_username, host.ssh_password,
+                host.ssh_host_key)
 
-    # Restart the web server because it caches the geoip database
-    remote_init_file_path = posixpath.join(psi_config.HOST_INIT_DIR, 'psiphonv')
-    ssh.exec_command('%s restart' % (remote_init_file_path,))
-    ssh.close()
+        ssh.put_file(os.path.join(os.path.abspath('.'), geo_ip_config_file),
+                     posixpath.join('/usr/local/etc/', geo_ip_config_file))
 
-    host.log('deploy geoip')
+        # Set up weekly updates
+        cron_filename = '/etc/cron.weekly/update-geoip-db'
+        cron_file_contents = textwrap.dedent('''
+            #!/bin/sh
+            
+            /usr/local/bin/geoipupdate && %s restart
+            ''' % (posixpath.join(psi_config.HOST_INIT_DIR, 'psiphonv'),))
+        ssh.exec_command('echo "%s" > %s' % (cron_file_contents, cron_filename))
+        ssh.exec_command('chmod +x %s' % (cron_filename,))
+
+        # Run the first update
+        ssh.exec_command(cron_filename)
+        ssh.close()
+
+        host.log('deploy geoip')
 
 
 def deploy_geoip_database_to_hosts(hosts):
