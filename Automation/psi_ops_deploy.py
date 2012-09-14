@@ -22,8 +22,10 @@ import tempfile
 import os
 import posixpath
 import sys
+import textwrap
 import psi_ssh
 import psi_routes
+import psi_ops_install
 from multiprocessing.pool import ThreadPool
 from functools import wraps
 
@@ -267,3 +269,44 @@ def deploy_routes_to_hosts(hosts):
             
     run_in_parallel(10, do_deploy_routes, hosts)
 
+
+def deploy_geoip_database_autoupdates(host):
+
+    geo_ip_config_file = 'GeoIP.conf'
+    if os.path.isfile(geo_ip_config_file):
+
+        print 'deploy geoip database autoupdates to host %s...' % (host.id)
+
+        ssh = psi_ssh.SSH(
+                host.ip_address, host.ssh_port,
+                host.ssh_username, host.ssh_password,
+                host.ssh_host_key)
+
+        ssh.put_file(os.path.join(os.path.abspath('.'), geo_ip_config_file),
+                     posixpath.join('/usr/local/etc/', geo_ip_config_file))
+
+        # Set up weekly updates
+        cron_filename = '/etc/cron.weekly/update-geoip-db'
+        cron_file_contents = textwrap.dedent('''
+            #!/bin/sh
+            
+            /usr/local/bin/geoipupdate
+            %s restart
+            ''' % (posixpath.join(psi_config.HOST_INIT_DIR, 'psiphonv'),))
+        ssh.exec_command('echo "%s" > %s' % (cron_file_contents, cron_filename))
+        ssh.exec_command('chmod +x %s' % (cron_filename,))
+
+        # Run the first update
+        ssh.exec_command(cron_filename)
+        ssh.close()
+
+        host.log('deploy geoip autoupdates')
+
+
+def deploy_geoip_database_autoupdates_to_hosts(hosts):
+
+    @retry_decorator_returning_exception
+    def do_deploy_geoip_database_autoupdates(host):
+        deploy_geoip_database_autoupdates(host)
+
+    run_in_parallel(10, do_deploy_geoip_database_autoupdates, hosts)
