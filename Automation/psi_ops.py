@@ -152,7 +152,7 @@ Host = psi_utils.recordtype(
 
 Server = psi_utils.recordtype(
     'Server',
-    'id, host_id, ip_address, egress_ip_address, '+
+    'id, host_id, ip_address, egress_ip_address, internal_ip_address, '+
     'propagation_channel_id, is_embedded, discovery_date_range, '+
     'web_server_port, web_server_secret, web_server_certificate, web_server_private_key, '+
     'ssh_port, ssh_username, ssh_password, ssh_host_key, ssh_obfuscated_port, ssh_obfuscated_key',
@@ -254,7 +254,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__speed_test_urls = []
         self.__remote_server_list_signing_key_pair = None
 
-    class_version = '0.9'
+    class_version = '0.10'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -305,6 +305,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__deleted_hosts = []
             self.__deleted_servers = {}
             self.version = '0.9'
+        if cmp(parse_version(self.version), parse_version('0.10')) < 0:
+            for server in self.__servers.itervalues():
+                server.internal_ip_address = server.ip_address
+            self.version = '0.10'
 
     def show_status(self):
         # NOTE: verbose mode prints credentials to stdout
@@ -788,6 +792,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             return servers[0]
         return None
 
+    def get_server_by_internal_ip_address(self, ip_address):
+        servers = filter(lambda x:x.internal_ip_address == ip_address, self.__servers.itervalues())
+        if len(servers) == 1:
+            return servers[0]
+        return None
+
     def import_host(self, id, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
                     stats_ssh_username, stats_ssh_password):
         assert(self.is_locked)
@@ -806,8 +816,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(host.id not in self.__hosts)
         self.__hosts[host.id] = host
 
-    def import_server(self, server_id, host_id, ip_address, egress_ip_address, propagation_channel_id,
-                      is_embedded, discovery_date_range, web_server_port, web_server_secret,
+    def import_server(self, server_id, host_id, ip_address, egress_ip_address, internal_ip_address,
+                      propagation_channel_id, is_embedded, discovery_date_range, web_server_port, web_server_secret,
                       web_server_certificate, web_server_private_key, ssh_port, ssh_username,
                       ssh_password, ssh_host_key):
         assert(self.is_locked)
@@ -816,6 +826,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     host_id,
                     ip_address,
                     egress_ip_address,
+                    internal_ip_address,
                     propagation_channel_id,
                     is_embedded,
                     discovery_date_range,
@@ -979,6 +990,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             server = Server(
                         None,
                         host.id,
+                        host.ip_address,
                         host.ip_address,
                         host.ip_address,
                         propagation_channel.id,
@@ -1833,6 +1845,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 '', # Omit host_id
                                                 server.ip_address,
                                                 server.egress_ip_address,
+                                                server.internal_ip_address,
                                                 server.propagation_channel_id,
                                                 server.is_embedded,
                                                 server.discovery_date_range,
@@ -1902,6 +1915,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             server.host_id,
                                             server.ip_address,
                                             None,
+                                            server.internal_ip_address,
                                             None,
                                             None,
                                             server.discovery_date_range)
