@@ -938,6 +938,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                [deleted_server.id for deleted_server in self.__deleted_servers.itervalues()]
 
     def setup_server(self, host, server):
+        # Install Psiphon 3 and generate configuration values
+        # Here, we're assuming one server/IP address per host
+        psi_ops_install.install_host(host, [server], self.get_existing_server_ids())
+        host.log('install')
+        
         # Update database
 
         # Add new server (we also add a host; here, the host and server are
@@ -1039,11 +1044,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         None,
                         None,
                         '995')
-
-            # Install Psiphon 3 and generate configuration values
-            # Here, we're assuming one server/IP address per host
-            psi_ops_install.install_host(host, [server], self.get_existing_server_ids())
-            host.log('install')
 
             self.setup_server(host, server)
            
@@ -1767,7 +1767,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # client-side session duration reporting
         #
         server = next(server for server in self.__servers.itervalues() 
-                      if server.ip_address == server_ip_address)
+                      if server.internal_ip_address == server_ip_address)
 
         config['ssh_port'] = int(server.ssh_port)
         config['ssh_username'] = server.ssh_username
