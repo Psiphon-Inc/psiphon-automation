@@ -936,6 +936,31 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return [server.id for server in self.__servers.itervalues()] + \
                [deleted_server.id for deleted_server in self.__deleted_servers.itervalues()]
 
+    def setup_server(self, host, server):
+        # Update database
+
+        # Add new server (we also add a host; here, the host and server are
+        # one-to-one, but legacy networks have many servers per host and we
+        # retain support for this in the data model and general functionality)
+        # Note: this must be done before deploy_data otherwise the deployed
+        # data will not include this host and server
+        assert(host.id not in self.__hosts)
+        self.__hosts[host.id] = host
+        assert(server.id not in self.__servers)
+        self.__servers[server.id] = server
+
+        # Deploy will upload web server source database data and client builds
+        # (Only deploying for the new host, not broadcasting info yet...)
+        psi_ops_deploy.deploy_implementation(host)
+        psi_ops_deploy.deploy_data(
+                            host,
+                            self.__compartmentalize_data_for_host(host.id))
+        psi_ops_deploy.deploy_geoip_database_autoupdates(host)
+        psi_ops_deploy.deploy_routes(host)
+        host.log('initial deployment')
+
+        self.test_server(server.id, ['handshake'])
+ 
     def add_servers(self, count, propagation_channel_name, discovery_date_range, replace_others=True):
         assert(self.is_locked)
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
@@ -1019,30 +1044,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             psi_ops_install.install_host(host, [server], self.get_existing_server_ids())
             host.log('install')
 
-            # Update database
-
-            # Add new server (we also add a host; here, the host and server are
-            # one-to-one, but legacy networks have many servers per host and we
-            # retain support for this in the data model and general functionality)
-            # Note: this must be done before deploy_data otherwise the deployed
-            # data will not include this host and server
-            assert(host.id not in self.__hosts)
-            self.__hosts[host.id] = host
-            assert(server.id not in self.__servers)
-            self.__servers[server.id] = server
-
-            # Deploy will upload web server source database data and client builds
-            # (Only deploying for the new host, not broadcasting info yet...)
-            psi_ops_deploy.deploy_implementation(host)
-            psi_ops_deploy.deploy_data(
-                                host,
-                                self.__compartmentalize_data_for_host(host.id))
-            psi_ops_deploy.deploy_geoip_database_autoupdates(host)
-            psi_ops_deploy.deploy_routes(host)
-            host.log('initial deployment')
-
-            self.test_server(server.id, ['handshake'])
-            
+            self.setup_server(host, server)
+           
             self.save()
             
         self.__deploy_data_required_for_all = True
