@@ -316,10 +316,10 @@ def make_xinetd_config_file_command(servers):
     for server in servers:
         if server.ssh_port is not None:
             service_sections.append(ssh_service_section_template %
-                                (service_name_for_port(server.ssh_port), server.ip_address, server.ip_address, server.ip_address))
+                                (service_name_for_port(server.ssh_port), server.internal_ip_address, server.internal_ip_address, server.internal_ip_address))
         if server.ssh_obfuscated_port is not None:
             service_sections.append(obfuscated_ssh_service_section_template %
-                                (service_name_for_port(server.ssh_obfuscated_port), server.ip_address, server.ip_address, server.ip_address))
+                                (service_name_for_port(server.ssh_obfuscated_port), server.internal_ip_address, server.internal_ip_address, server.internal_ip_address))
             
     file_contents = defaults_section + '\n'.join(service_sections)
     return 'echo "%s" > /etc/xinetd.conf' % (file_contents,)
@@ -433,7 +433,7 @@ def install_host(host, servers, existing_server_ids):
 
     for index, server in enumerate(servers):
         ssh.exec_command(
-            make_ipsec_config_file_connection_command(index, server.ip_address))
+            make_ipsec_config_file_connection_command(index, server.internal_ip_address))
 
     ssh.exec_command(make_ipsec_secrets_file_command())
 
@@ -446,7 +446,7 @@ def install_host(host, servers, existing_server_ids):
 
     for index, server in enumerate(servers):
         ssh.exec_command(
-            make_xl2tpd_config_file_command(index, server.ip_address))
+            make_xl2tpd_config_file_command(index, server.internal_ip_address))
 
     ssh.exec_command(make_xl2tpd_options_file_command())
 
@@ -491,11 +491,11 @@ def install_host(host, servers, existing_server_ids):
                 binascii.hexlify(os.urandom(SSH_RANDOM_USERNAME_SUFFIX_BYTE_LENGTH)),)
             server.ssh_password = binascii.hexlify(os.urandom(SSH_PASSWORD_BYTE_LENGTH))
         if server.ssh_host_key is None:
-            ssh.exec_command('rm /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (server.ip_address,))
-            ssh.exec_command('ssh-keygen -t rsa -N \"\" -f /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (server.ip_address,))
+            ssh.exec_command('rm /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (server.internal_ip_address,))
+            ssh.exec_command('ssh-keygen -t rsa -N \"\" -f /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (server.internal_ip_address,))
             try:
                 # TODO: use temp dir?
-                ssh.get_file('/etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s.pub' % (server.ip_address,), 'ssh_host_key')
+                ssh.get_file('/etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s.pub' % (server.internal_ip_address,), 'ssh_host_key')
                 with open('ssh_host_key') as file:
                     key = file.read()
             finally:
@@ -508,11 +508,11 @@ def install_host(host, servers, existing_server_ids):
         #      the user already exists
         ssh.exec_command('useradd -d /dev/null -s /bin/false %s && echo \"%s:%s\"|chpasswd' % (
                             server.ssh_username, server.ssh_username, server.ssh_password))
-        ssh.exec_command(make_sshd_config_file_command(server.ip_address, server.ssh_username))
+        ssh.exec_command(make_sshd_config_file_command(server.internal_ip_address, server.ssh_username))
         if server.ssh_obfuscated_port is not None:
             if server.ssh_obfuscated_key is None:
                 server.ssh_obfuscated_key = binascii.hexlify(os.urandom(SSH_OBFUSCATED_KEY_BYTE_LENGTH))
-            ssh.exec_command(make_obfuscated_sshd_config_file_command(server.ip_address, server.ssh_username,
+            ssh.exec_command(make_obfuscated_sshd_config_file_command(server.internal_ip_address, server.ssh_username,
                                                     server.ssh_obfuscated_port, server.ssh_obfuscated_key))
         # NOTE we do not write the ssh host key back to the server because it is generated
         #      on the server in the first place.

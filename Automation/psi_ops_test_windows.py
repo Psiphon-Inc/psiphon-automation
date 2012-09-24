@@ -169,12 +169,17 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
             proc.wait()
             
 
-def test_server(ip_address, web_server_port, web_server_secret, encoded_server_list, version,
+def test_server(ip_address, capabilities, web_server_port, web_server_secret, encoded_server_list, version,
                 expected_egress_ip_addresses, test_propagation_channel_id = '0', test_cases = None):
 
     if not test_cases:
         test_cases = ['handshake', 'VPN', 'SSH+', 'SSH']
 
+    for test_case in test_cases:
+        if not capabilities[test_case]:
+            print 'Server does not support %s' % (test_case,)
+            test_cases.remove(test_case)
+    
     results = {}
 
     executable_path = None
