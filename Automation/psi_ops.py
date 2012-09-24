@@ -158,10 +158,11 @@ Server = psi_utils.recordtype(
     'ssh_port, ssh_username, ssh_password, ssh_host_key, ssh_obfuscated_port, ssh_obfuscated_key',
     default=None)
 
-ServerCapabilities = psi_utils.recordtype(
-    'ServerCapabilities',
-    'handshake, VPN, SSH, SSH+',
-    default=True)
+def ServerCapabilities():
+    capabilities = {}
+    for capability in ('handshake', 'VPN', 'SSH', 'SSH+'):
+        capabilities[capability] = True
+    return capabilities
 
 ClientVersion = psi_utils.recordtype(
     'ClientVersion',

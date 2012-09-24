@@ -176,7 +176,7 @@ def test_server(ip_address, capabilities, web_server_port, web_server_secret, en
         test_cases = ['handshake', 'VPN', 'SSH+', 'SSH']
 
     for test_case in test_cases:
-        if not getattr(server.capabilities, test_case):
+        if not capabilities[test_case]):
             print 'Server does not support %s' % (test_case,)
             test_cases.remove(test_case)
     
