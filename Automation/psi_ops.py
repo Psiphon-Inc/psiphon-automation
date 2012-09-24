@@ -153,10 +153,15 @@ Host = psi_utils.recordtype(
 Server = psi_utils.recordtype(
     'Server',
     'id, host_id, ip_address, egress_ip_address, internal_ip_address, '+
-    'propagation_channel_id, is_embedded, discovery_date_range, '+
+    'propagation_channel_id, is_embedded, discovery_date_range, capabilities, '+
     'web_server_port, web_server_secret, web_server_certificate, web_server_private_key, '+
     'ssh_port, ssh_username, ssh_password, ssh_host_key, ssh_obfuscated_port, ssh_obfuscated_key',
     default=None)
+
+ServerCapabilities = psi_utils.recordtype(
+    'ServerCapabilities',
+    'handshake, VPN, SSH, SSH+',
+    default=True)
 
 ClientVersion = psi_utils.recordtype(
     'ClientVersion',
@@ -308,6 +313,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.10')) < 0:
             for server in self.__servers.itervalues():
                 server.internal_ip_address = server.ip_address
+                server.capabilities = ServerCapabilities()
             self.version = '0.10'
 
     def show_status(self):
@@ -817,8 +823,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__hosts[host.id] = host
 
     def import_server(self, server_id, host_id, ip_address, egress_ip_address, internal_ip_address,
-                      propagation_channel_id, is_embedded, discovery_date_range, web_server_port, web_server_secret,
-                      web_server_certificate, web_server_private_key, ssh_port, ssh_username,
+                      propagation_channel_id, is_embedded, discovery_date_range, capabilities, web_server_port,
+                      web_server_secret, web_server_certificate, web_server_private_key, ssh_port, ssh_username,
                       ssh_password, ssh_host_key):
         assert(self.is_locked)
         server = Server(
@@ -830,6 +836,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     propagation_channel_id,
                     is_embedded,
                     discovery_date_range,
+                    capabilities,
                     web_server_port,
                     web_server_secret,
                     web_server_certificate,
@@ -996,6 +1003,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         propagation_channel.id,
                         is_embedded_server,
                         discovery,
+                        ServerCapabilities(),
                         '8080',
                         None,
                         None,
@@ -1849,6 +1857,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 server.propagation_channel_id,
                                                 server.is_embedded,
                                                 server.discovery_date_range,
+                                                server.capabilities,
                                                 server.web_server_port,
                                                 server.web_server_secret,
                                                 server.web_server_certificate,
@@ -1990,8 +1999,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         except:
             pass
         test_propagation_channel_id = test_propagation_channel.id if test_propagation_channel else '0'
+        
         return psi_ops_test_windows.test_server(
                                 server.ip_address,
+                                server.capabilities,
                                 server.web_server_port,
                                 server.web_server_secret,
                                 [self.__get_encoded_server_entry(server)],
