@@ -580,16 +580,14 @@ def install_firewall_rules(host, servers):
         other_service_ports.add(server.ssh_port)
         other_service_ports.add(server.ssh_obfuscated_port)
         
-    file contents = '''
+    file_contents = '''
 *filter
     -A INPUT -i lo -p tcp -m tcp --dport 6379 -j ACCEPT
     -A INPUT -i lo -p tcp -m tcp --dport 6000 -j ACCEPT
     -A INPUT -d 127.0.0.0/8 ! -i lo -j REJECT --reject-with icmp-port-unreachable
-    -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT''' +
-                    ''.join(['''
+    -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT''' + ''.join(['''
     -A INPUT -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
-                    % (str(port),) for port in web_service_ports]) +
-                    ''.join(['''
+                    % (str(port),) for port in web_service_ports]) + ''.join(['''
     -A INPUT -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
                     % (str(port),) for port in other_service_ports]) + '''
     -A INPUT -p esp -j ACCEPT
@@ -605,8 +603,7 @@ def install_firewall_rules(host, servers):
     -A FORWARD -s 10.0.0.0/8 -d 8.8.4.4 -p tcp --dport 53 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.4.4 -p udp --dport 53 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 10.0.0.0/8 -j DROP
-    -A FORWARD -s 10.0.0.0/8 -j DROP''' +
-                    ''.join(['''
+    -A FORWARD -s 10.0.0.0/8 -j DROP''' + ''.join(['''
     -A OUTPUT -o lo -p tcp -m tcp --dport %s -j ACCEPT
     -A OUTPUT -o lo -p tcp -m tcp --sport %s -j ACCEPT'''
                     % (str(port), str(port)) for port in web_service_ports]) + '''
@@ -618,11 +615,9 @@ def install_firewall_rules(host, servers):
     -A OUTPUT -o lo -j DROP
     -A OUTPUT -p tcp -m multiport --dports 53,80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
     -A OUTPUT -p udp -m multiport --dports 53,80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
-    -A OUTPUT -p udp -m udp --dport 123 -j ACCEPT''' +
-                    ''.join(['''
+    -A OUTPUT -p udp -m udp --dport 123 -j ACCEPT''' + ''.join(['''
     -A OUTPUT -p tcp -m tcp --sport %s -j ACCEPT'''
-                    % (str(port),) for port in web_service_ports]) +
-                    ''.join(['''
+                    % (str(port),) for port in web_service_ports]) + ''.join(['''
     -A OUTPUT -p tcp -m tcp --sport %s -j ACCEPT'''
                     % (str(port),) for port in other_service_ports]) + '''
     -A OUTPUT -p esp -j ACCEPT
@@ -639,6 +634,7 @@ COMMIT
 COMMIT
 '''
 
+#*** TODO: servers behind NAT - nat OUTPUT DNAT (or REDIRECT?); filter OUTPUT ACCEPT
     ssh = psi_ssh.SSH(
             host.ip_address, host.ssh_port,
             host.ssh_username, host.ssh_password,
