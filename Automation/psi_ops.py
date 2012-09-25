@@ -315,6 +315,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for server in self.__servers.itervalues():
                 server.internal_ip_address = server.ip_address
                 server.capabilities = ServerCapabilities()
+            for server in self.__deleted_servers.itervalues():
+                server.internal_ip_address = server.ip_address
+                server.capabilities = ServerCapabilities()
             self.version = '0.10'
 
     def show_status(self):
