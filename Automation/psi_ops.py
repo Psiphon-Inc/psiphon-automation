@@ -1324,7 +1324,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     psi_ops_s3.update_s3_download(
                         self.__aws_account,
                         [(build_filename, client_build_filenames[platform])],
-                        remote_server_list,
+                        None,
                         campaign.s3_bucket_name)
                     campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
 
