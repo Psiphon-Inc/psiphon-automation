@@ -572,11 +572,11 @@ def install_host(host, servers, existing_server_ids):
     
 def install_firewall_rules(host, servers):
 
-    web_service_ports = set()
+    web_services = set()
     other_service_ports = set()
     other_service_ports.add(host.ssh_port)
     for server in servers:
-        web_service_ports.add(server.web_server_port)
+        web_services.add((server.internal_ip_address, server.web_server_port))
         other_service_ports.add(server.ssh_port)
         other_service_ports.add(server.ssh_obfuscated_port)
         
@@ -587,7 +587,7 @@ def install_firewall_rules(host, servers):
     -A INPUT -d 127.0.0.0/8 ! -i lo -j REJECT --reject-with icmp-port-unreachable
     -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT''' + ''.join(['''
     -A INPUT -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
-                    % (str(port),) for port in web_service_ports]) + ''.join(['''
+                    % (str(port),) for _, port in web_services]) + ''.join(['''
     -A INPUT -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
                     % (str(port),) for port in other_service_ports]) + '''
     -A INPUT -p esp -j ACCEPT
@@ -606,7 +606,7 @@ def install_firewall_rules(host, servers):
     -A FORWARD -s 10.0.0.0/8 -j DROP''' + ''.join(['''
     -A OUTPUT -o lo -p tcp -m tcp --dport %s -j ACCEPT
     -A OUTPUT -o lo -p tcp -m tcp --sport %s -j ACCEPT'''
-                    % (str(port), str(port)) for port in web_service_ports]) + '''
+                    % (str(port), str(port)) for _, port in web_services]) + '''
     -A OUTPUT -o lo -p tcp -m tcp --dport 6379 -m owner --uid-owner root -j ACCEPT
     -A OUTPUT -o lo -p tcp -m tcp --dport 6000 -m owner --uid-owner root -j ACCEPT
     -A OUTPUT -o lo -p tcp -m tcp --dport 6379 -m owner --uid-owner www-data -j ACCEPT
@@ -617,7 +617,7 @@ def install_firewall_rules(host, servers):
     -A OUTPUT -p udp -m multiport --dports 53,80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
     -A OUTPUT -p udp -m udp --dport 123 -j ACCEPT''' + ''.join(['''
     -A OUTPUT -p tcp -m tcp --sport %s -j ACCEPT'''
-                    % (str(port),) for port in web_service_ports]) + ''.join(['''
+                    % (str(port),) for _, port in web_services]) + ''.join(['''
     -A OUTPUT -p tcp -m tcp --sport %s -j ACCEPT'''
                     % (str(port),) for port in other_service_ports]) + '''
     -A OUTPUT -p esp -j ACCEPT
@@ -628,8 +628,9 @@ def install_firewall_rules(host, servers):
     -A OUTPUT -j DROP
 COMMIT
 
-*nat
-    -A PREROUTING -i eth+ -p tcp --dport 443 -j DNAT --to-destination :8080
+*nat''' + ''.join(['''
+    -A PREROUTING -i eth+ -p tcp -d %s --dport 443 -j DNAT --to-destination :%s'''
+                    % (str(ip_address), str(port)) for ip_address, port in web_services]) + '''
     -A POSTROUTING -s 10.0.0.0/8 -o eth+ -j MASQUERADE
 COMMIT
 '''

@@ -1038,7 +1038,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         is_embedded_server,
                         discovery,
                         ServerCapabilities(),
-                        '8080',
+                        str(random.randrange(8000, 9000)),
                         None,
                         None,
                         None,
@@ -1046,7 +1046,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         None,
                         None,
                         None,
-                        '995')
+                        '465')
 
             self.setup_server(host, server)
            
