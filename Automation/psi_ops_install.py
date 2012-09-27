@@ -575,12 +575,13 @@ def install_firewall_rules(host, servers):
     web_services = set()
     other_service_ports = set()
     other_service_ports.add(host.ssh_port)
-    external_ip_addresses = set()
+    nat_ip_addresses = set()
     for server in servers:
         web_services.add((server.internal_ip_address, server.web_server_port))
         other_service_ports.add(server.ssh_port)
         other_service_ports.add(server.ssh_obfuscated_port)
-        external_ip_addresses.add(server.ip_address) if server.ip_address != server.internal_ip_address
+        if server.ip_address != server.internal_ip_address:
+            nat_ip_addresses.add((server.ip_address, server.internal_ip_address))
         
     file_contents = '''
 *filter
@@ -618,8 +619,9 @@ def install_firewall_rules(host, servers):
     -A OUTPUT -p tcp -m multiport --dports 53,80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
     -A OUTPUT -p udp -m multiport --dports 53,80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
     -A OUTPUT -p udp -m udp --dport 123 -j ACCEPT''' + ''.join(['''
+    -A OUTPUT -p tcp -m tcp --dport %s -j ACCEPT
     -A OUTPUT -p tcp -m tcp --sport %s -j ACCEPT'''
-                    % (str(port),) for _, port in web_services]) + ''.join(['''
+                    % (str(port), str(port)) for _, port in web_services]) + ''.join(['''
     -A OUTPUT -p tcp -m tcp --sport %s -j ACCEPT'''
                     % (str(port),) for port in other_service_ports]) + '''
     -A OUTPUT -p esp -j ACCEPT
@@ -634,8 +636,8 @@ COMMIT
     -A PREROUTING -i eth+ -p tcp -d %s --dport 443 -j DNAT --to-destination :%s'''
                     % (str(ip_address), str(port)) for ip_address, port in web_services]) + '''
     -A POSTROUTING -s 10.0.0.0/8 -o eth+ -j MASQUERADE''' + ''.join(['''
-    -A OUTPUT -p tcp -m tcp --destination %s -j REDIRECT'''
-                    % (str(ip_address),) for ip_address in external_ip_addresses]) + '''
+    -A OUTPUT -p tcp -m tcp --destination %s -j DNAT --to-destination %s'''
+                    % (str(ip_address), str(internal_ip_address)) for ip_address, internal_ip_address in nat_ip_addresses]) + '''
 COMMIT
 '''
 
