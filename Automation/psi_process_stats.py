@@ -291,7 +291,7 @@ def process_stats(host, servers, db_cur, psinet, error_file=None):
 
     server_ip_address_to_id = {}
     for server in servers:
-        server_ip_address_to_id[server.ip_address] = server.id
+        server_ip_address_to_id[server.internal_ip_address] = server.id
 
     line_re = re.compile(LOG_LINE_PATTERN)
 
