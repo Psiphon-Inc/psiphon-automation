@@ -409,7 +409,7 @@ def generate_self_signed_certificate():
 
 def install_host(host, servers, existing_server_ids):
 
-    install_firewall_rules(host)
+    install_firewall_rules(host, servers)
     
     # NOTE:
     # For partially configured hosts we need to completely reconfigure
@@ -570,14 +570,78 @@ def install_host(host, servers, existing_server_ids):
     # NOTE: call psi_ops_deploy.deploy_host() to complete the install process
 
     
-def install_firewall_rules(host):
+def install_firewall_rules(host, servers):
 
+    web_services = set()
+    other_service_ports = set()
+    other_service_ports.add(host.ssh_port)
+    for server in servers:
+        web_services.add((server.internal_ip_address, server.web_server_port))
+        other_service_ports.add(server.ssh_port)
+        other_service_ports.add(server.ssh_obfuscated_port)
+        
+    file_contents = '''
+*filter
+    -A INPUT -i lo -p tcp -m tcp --dport 6379 -j ACCEPT
+    -A INPUT -i lo -p tcp -m tcp --dport 6000 -j ACCEPT
+    -A INPUT -d 127.0.0.0/8 ! -i lo -j REJECT --reject-with icmp-port-unreachable
+    -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT''' + ''.join(['''
+    -A INPUT -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
+                    % (str(port),) for _, port in web_services]) + ''.join(['''
+    -A INPUT -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
+                    % (str(port),) for port in other_service_ports]) + '''
+    -A INPUT -p esp -j ACCEPT
+    -A INPUT -p ah -j ACCEPT
+    -A INPUT -p udp --dport 500 -j ACCEPT
+    -A INPUT -p udp --dport 4500 -j ACCEPT
+    -A INPUT -i ipsec+ -p udp -m udp --dport l2tp -j ACCEPT
+    -A INPUT -j REJECT --reject-with icmp-port-unreachable
+    -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 8.8.8.8 -p tcp --dport 53 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 8.8.8.8 -p udp --dport 53 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 8.8.4.4 -p tcp --dport 53 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 8.8.4.4 -p udp --dport 53 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 10.0.0.0/8 -j DROP
+    -A FORWARD -s 10.0.0.0/8 -j DROP''' + ''.join(['''
+    -A OUTPUT -o lo -p tcp -m tcp --dport %s -j ACCEPT
+    -A OUTPUT -o lo -p tcp -m tcp --sport %s -j ACCEPT'''
+                    % (str(port), str(port)) for _, port in web_services]) + '''
+    -A OUTPUT -o lo -p tcp -m tcp --dport 6379 -m owner --uid-owner root -j ACCEPT
+    -A OUTPUT -o lo -p tcp -m tcp --dport 6000 -m owner --uid-owner root -j ACCEPT
+    -A OUTPUT -o lo -p tcp -m tcp --dport 6379 -m owner --uid-owner www-data -j ACCEPT
+    -A OUTPUT -o lo -p tcp -m tcp --sport 6379 -j ACCEPT
+    -A OUTPUT -o lo -p tcp -m tcp --sport 6000 -j ACCEPT
+    -A OUTPUT -o lo -j DROP
+    -A OUTPUT -p tcp -m multiport --dports 53,80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
+    -A OUTPUT -p udp -m multiport --dports 53,80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
+    -A OUTPUT -p udp -m udp --dport 123 -j ACCEPT''' + ''.join(['''
+    -A OUTPUT -p tcp -m tcp --sport %s -j ACCEPT'''
+                    % (str(port),) for _, port in web_services]) + ''.join(['''
+    -A OUTPUT -p tcp -m tcp --sport %s -j ACCEPT'''
+                    % (str(port),) for port in other_service_ports]) + '''
+    -A OUTPUT -p esp -j ACCEPT
+    -A OUTPUT -p ah -j ACCEPT
+    -A OUTPUT -p udp --sport 500 -j ACCEPT
+    -A OUTPUT -p udp --sport 4500 -j ACCEPT
+    -A OUTPUT -o ipsec+ -p udp -m udp --dport l2tp -j ACCEPT
+    -A OUTPUT -j DROP
+COMMIT
+
+*nat''' + ''.join(['''
+    -A PREROUTING -i eth+ -p tcp -d %s --dport 443 -j DNAT --to-destination :%s'''
+                    % (str(ip_address), str(port)) for ip_address, port in web_services]) + '''
+    -A POSTROUTING -s 10.0.0.0/8 -o eth+ -j MASQUERADE
+COMMIT
+'''
+
+#*** TODO: servers behind NAT - nat OUTPUT DNAT (or REDIRECT?); filter OUTPUT ACCEPT
     ssh = psi_ssh.SSH(
             host.ip_address, host.ssh_port,
             host.ssh_username, host.ssh_password,
             host.ssh_host_key)
 
-    ssh.put_file('iptables.rules', '/etc/iptables.rules')
+    ssh.exec_command('echo "%s" > /etc/iptables.rules' % (file_contents,))
     ssh.exec_command('iptables-restore < /etc/iptables.rules')
     ssh.exec_command('/etc/init.d/fail2ban restart')
     ssh.close()
