@@ -575,10 +575,12 @@ def install_firewall_rules(host, servers):
     web_services = set()
     other_service_ports = set()
     other_service_ports.add(host.ssh_port)
+    external_ip_addresses = set()
     for server in servers:
         web_services.add((server.internal_ip_address, server.web_server_port))
         other_service_ports.add(server.ssh_port)
         other_service_ports.add(server.ssh_obfuscated_port)
+        external_ip_addresses.add(server.ip_address) if server.ip_address != server.internal_ip_address
         
     file_contents = '''
 *filter
@@ -631,11 +633,12 @@ COMMIT
 *nat''' + ''.join(['''
     -A PREROUTING -i eth+ -p tcp -d %s --dport 443 -j DNAT --to-destination :%s'''
                     % (str(ip_address), str(port)) for ip_address, port in web_services]) + '''
-    -A POSTROUTING -s 10.0.0.0/8 -o eth+ -j MASQUERADE
+    -A POSTROUTING -s 10.0.0.0/8 -o eth+ -j MASQUERADE''' + ''.join(['''
+    -A OUTPUT -p tcp -m tcp --destination %s -j REDIRECT'''
+                    % (str(ip_address),) for ip_address in external_ip_addresses]) + '''
 COMMIT
 '''
 
-#*** TODO: servers behind NAT - nat OUTPUT DNAT (or REDIRECT?); filter OUTPUT ACCEPT
     ssh = psi_ssh.SSH(
             host.ip_address, host.ssh_port,
             host.ssh_username, host.ssh_password,
