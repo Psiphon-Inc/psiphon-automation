@@ -163,6 +163,12 @@ def ServerCapabilities():
     for capability in ('handshake', 'VPN', 'SSH', 'SSH+'):
         capabilities[capability] = True
     return capabilities
+    
+def copy_server_capabilities(caps):
+    capabilities = {}
+    for capability in ('handshake', 'VPN', 'SSH', 'SSH+'):
+        capabilities[capability] = caps[capability]
+    return capabilities
 
 ClientVersion = psi_utils.recordtype(
     'ClientVersion',
@@ -970,7 +976,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         self.test_server(server.id, ['handshake'])
  
-    def add_servers(self, count, propagation_channel_name, discovery_date_range, replace_others=True):
+    def add_servers(self, count, propagation_channel_name, discovery_date_range, replace_others=True, server_capabilities=None):
         assert(self.is_locked)
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
 
@@ -1028,6 +1034,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # So create a copy instead.
             discovery = self.__copy_date_range(discovery_date_range) if discovery_date_range else None
             
+            capabilities = ServerCapabilities()
+            if server_capabilities:
+                capabilities = copy_server_capabilities(server_capabilities)
+            
             server = Server(
                         None,
                         host.id,
@@ -1037,7 +1047,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         propagation_channel.id,
                         is_embedded_server,
                         discovery,
-                        ServerCapabilities(),
+                        capabilities,
                         str(random.randrange(8000, 9000)),
                         None,
                         None,
