@@ -575,7 +575,11 @@ def install_firewall_rules(host, servers):
     file_contents = '''
 *filter
     -A INPUT -i lo -p tcp -m tcp --dport 6379 -j ACCEPT
-    -A INPUT -i lo -p tcp -m tcp --dport 6000 -j ACCEPT
+    -A INPUT -i lo -p tcp -m tcp --dport 6000 -j ACCEPT''' + ''.join(
+    # tunneled web requests
+    ['''
+    -A INPUT -i lo -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers]) + '''
     -A INPUT -d 127.0.0.0/8 ! -i lo -j REJECT --reject-with icmp-port-unreachable
     -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
     -A INPUT -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT''' % (host.ssh_port,) + ''.join(
