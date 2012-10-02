@@ -22,6 +22,7 @@ import urllib2
 import subprocess
 import time
 import random
+import copy
 from functools import wraps
 try:
     import win32ui
@@ -175,7 +176,7 @@ def test_server(ip_address, capabilities, web_server_port, web_server_secret, en
     if not test_cases:
         test_cases = ['handshake', 'VPN', 'SSH+', 'SSH']
 
-    for test_case in test_cases:
+    for test_case in copy.copy(test_cases):
         if not capabilities[test_case]:
             print 'Server does not support %s' % (test_case,)
             test_cases.remove(test_case)
