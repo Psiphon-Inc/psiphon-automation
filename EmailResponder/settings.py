@@ -42,18 +42,18 @@ DB_ROOT_PASSWORD = ''
 
 #
 # General processing/sending stuff
-# 
+#
 
 MAIL_RESPONDER_USERNAME = 'mail_responder'
 
 # The location of the config files.
-CONFIG_DIR =  '/mail_responder_config'
+CONFIG_DIR = '/mail_responder_config'
 CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'conf.json')
 
 # The directory where attachment files are cached.
 ATTACHMENT_CACHE_DIR = os.path.expanduser('~%s/attach_cache' % MAIL_RESPONDER_USERNAME)
 
-# We're going to use a fixed address to reply to all email from. 
+# We're going to use a fixed address to reply to all email from.
 # If this becomes a problem in the future, it can be changed.
 RESPONSE_FROM_ADDR = 'Example Responder <noreply@example.com>'
 
@@ -76,6 +76,10 @@ BLACKLIST_DAILY_LIMIT = 3
 # Leave empty if functionality is not desired.
 BLACKLIST_EXEMPTION_DOMAINS = ['example.com']
 
+# Email addresses from domains in this list will always be blacklisted.
+# Leave empty if functionality is not desired.
+BLACKLISTED_DOMAINS = ['example.com']
+
 
 #
 # Stats stuff
@@ -93,8 +97,8 @@ LOG_FILENAME = '/var/log/mail_responder.log'
 
 #
 # DKIM email signing stuff
-# 
-DKIM_DOMAIN = STATS_SENDER_ADDRESS_BARE[STATS_SENDER_ADDRESS_BARE.index('@')+1:]
+#
+DKIM_DOMAIN = STATS_SENDER_ADDRESS_BARE[STATS_SENDER_ADDRESS_BARE.index('@') + 1:]
 DKIM_SELECTOR = 'key1'
 DKIM_PRIVATE_KEY = os.path.join(CONFIG_DIR, 'dkim.key')
 
@@ -105,7 +109,7 @@ DKIM_PRIVATE_KEY = os.path.join(CONFIG_DIR, 'dkim.key')
 
 # When exceptions occur, we may want to see the email that caused the exception.
 # If the following value is not None, an email that triggers an exception will
-# be written raw to a files in this directory. 
+# be written raw to a files in this directory.
 # Note: This should be used only when necessary. Recording user information is
 # undesireable.
 EXCEPTION_DIR = os.path.expanduser('~%s/exceptions' % MAIL_RESPONDER_USERNAME)
