@@ -580,7 +580,7 @@ def install_firewall_rules(host, servers):
     ['''
     -A INPUT -i lo -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
             % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers]) + '''
-    -A INPUT -d 127.0.0.0/8 ! -i lo -j REJECT --reject-with icmp-port-unreachable
+    -A INPUT -d 127.0.0.0/8 ! -i lo -j DROP
     -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
     -A INPUT -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT''' % (host.ssh_port,) + ''.join(
     # web servers
@@ -607,7 +607,8 @@ def install_firewall_rules(host, servers):
     -A INPUT -d {0} -i ipsec+ -p udp -m udp --dport l2tp -j ACCEPT'''.format(
             str(s.internal_ip_address)) for s in servers
                 if s.capabilities['VPN']]) + '''
-    -A INPUT -j REJECT --reject-with icmp-port-unreachable
+    -A INPUT -p tcp -j REJECT --reject-with tcp-reset
+    -A INPUT -j DROP
     -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.8.8 -p tcp --dport 53 -j ACCEPT
@@ -615,7 +616,7 @@ def install_firewall_rules(host, servers):
     -A FORWARD -s 10.0.0.0/8 -d 8.8.4.4 -p tcp --dport 53 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.4.4 -p udp --dport 53 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 10.0.0.0/8 -j DROP
-    -A FORWARD -s 10.0.0.0/8 -j DROP''' + ''.join(
+    -A FORWARD -s 10.0.0.0/8 -j REJECT''' + ''.join(
     # tunneled web requests (always provided, regardless of capabilities)
     ['''
     -A OUTPUT -d {0} -o lo -p tcp -m tcp --dport {1} -j ACCEPT
@@ -626,7 +627,7 @@ def install_firewall_rules(host, servers):
     -A OUTPUT -o lo -p tcp -m tcp --dport 6379 -m owner --uid-owner www-data -j ACCEPT
     -A OUTPUT -o lo -p tcp -m tcp --sport 6379 -j ACCEPT
     -A OUTPUT -o lo -p tcp -m tcp --sport 6000 -j ACCEPT
-    -A OUTPUT -o lo -j DROP
+    -A OUTPUT -o lo -j REJECT
     -A OUTPUT -p tcp -m multiport --dports 53,80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
     -A OUTPUT -p udp -m multiport --dports 53,80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
     -A OUTPUT -p udp -m udp --dport 123 -j ACCEPT
@@ -660,7 +661,7 @@ def install_firewall_rules(host, servers):
     -A OUTPUT -s {0} -o ipsec+ -p udp -m udp --dport l2tp -j ACCEPT'''.format(
             str(s.internal_ip_address)) for s in servers
                 if s.capabilities['VPN']]) + '''
-    -A OUTPUT -j DROP
+    -A OUTPUT -j REJECT
 COMMIT
 
 *nat''' + ''.join(
