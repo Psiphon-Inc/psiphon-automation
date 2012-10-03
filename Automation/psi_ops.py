@@ -152,11 +152,23 @@ Host = psi_utils.recordtype(
 
 Server = psi_utils.recordtype(
     'Server',
-    'id, host_id, ip_address, egress_ip_address, '+
-    'propagation_channel_id, is_embedded, discovery_date_range, '+
+    'id, host_id, ip_address, egress_ip_address, internal_ip_address, '+
+    'propagation_channel_id, is_embedded, discovery_date_range, capabilities, '+
     'web_server_port, web_server_secret, web_server_certificate, web_server_private_key, '+
     'ssh_port, ssh_username, ssh_password, ssh_host_key, ssh_obfuscated_port, ssh_obfuscated_key',
     default=None)
+
+def ServerCapabilities():
+    capabilities = {}
+    for capability in ('handshake', 'VPN', 'SSH', 'SSH+'):
+        capabilities[capability] = True
+    return capabilities
+    
+def copy_server_capabilities(caps):
+    capabilities = {}
+    for capability in ('handshake', 'VPN', 'SSH', 'SSH+'):
+        capabilities[capability] = caps[capability]
+    return capabilities
 
 ClientVersion = psi_utils.recordtype(
     'ClientVersion',
@@ -254,7 +266,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__speed_test_urls = []
         self.__remote_server_list_signing_key_pair = None
 
-    class_version = '0.9'
+    class_version = '0.10'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -305,6 +317,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__deleted_hosts = []
             self.__deleted_servers = {}
             self.version = '0.9'
+        if cmp(parse_version(self.version), parse_version('0.10')) < 0:
+            for server in self.__servers.itervalues():
+                server.internal_ip_address = server.ip_address
+                server.capabilities = ServerCapabilities()
+            for server in self.__deleted_servers.itervalues():
+                server.internal_ip_address = server.ip_address
+                server.capabilities = ServerCapabilities()
+            self.version = '0.10'
 
     def show_status(self):
         # NOTE: verbose mode prints credentials to stdout
@@ -788,6 +808,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             return servers[0]
         return None
 
+    def get_server_by_internal_ip_address(self, ip_address):
+        servers = filter(lambda x:x.internal_ip_address == ip_address, self.__servers.itervalues())
+        if len(servers) == 1:
+            return servers[0]
+        return None
+
     def import_host(self, id, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
                     stats_ssh_username, stats_ssh_password):
         assert(self.is_locked)
@@ -806,9 +832,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(host.id not in self.__hosts)
         self.__hosts[host.id] = host
 
-    def import_server(self, server_id, host_id, ip_address, egress_ip_address, propagation_channel_id,
-                      is_embedded, discovery_date_range, web_server_port, web_server_secret,
-                      web_server_certificate, web_server_private_key, ssh_port, ssh_username,
+    def import_server(self, server_id, host_id, ip_address, egress_ip_address, internal_ip_address,
+                      propagation_channel_id, is_embedded, discovery_date_range, capabilities, web_server_port,
+                      web_server_secret, web_server_certificate, web_server_private_key, ssh_port, ssh_username,
                       ssh_password, ssh_host_key):
         assert(self.is_locked)
         server = Server(
@@ -816,9 +842,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     host_id,
                     ip_address,
                     egress_ip_address,
+                    internal_ip_address,
                     propagation_channel_id,
                     is_embedded,
                     discovery_date_range,
+                    capabilities,
                     web_server_port,
                     web_server_secret,
                     web_server_certificate,
@@ -918,7 +946,37 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return [server.id for server in self.__servers.itervalues()] + \
                [deleted_server.id for deleted_server in self.__deleted_servers.itervalues()]
 
-    def add_servers(self, count, propagation_channel_name, discovery_date_range, replace_others=True):
+    def setup_server(self, host, server):
+        # Install Psiphon 3 and generate configuration values
+        # Here, we're assuming one server/IP address per host
+        psi_ops_install.install_host(host, [server], self.get_existing_server_ids())
+        host.log('install')
+        
+        # Update database
+
+        # Add new server (we also add a host; here, the host and server are
+        # one-to-one, but legacy networks have many servers per host and we
+        # retain support for this in the data model and general functionality)
+        # Note: this must be done before deploy_data otherwise the deployed
+        # data will not include this host and server
+        assert(host.id not in self.__hosts)
+        self.__hosts[host.id] = host
+        assert(server.id not in self.__servers)
+        self.__servers[server.id] = server
+
+        # Deploy will upload web server source database data and client builds
+        # (Only deploying for the new host, not broadcasting info yet...)
+        psi_ops_deploy.deploy_implementation(host)
+        psi_ops_deploy.deploy_data(
+                            host,
+                            self.__compartmentalize_data_for_host(host.id))
+        psi_ops_deploy.deploy_geoip_database_autoupdates(host)
+        psi_ops_deploy.deploy_routes(host)
+        host.log('initial deployment')
+
+        self.test_server(server.id, ['handshake'])
+ 
+    def add_servers(self, count, propagation_channel_name, discovery_date_range, replace_others=True, server_capabilities=None):
         assert(self.is_locked)
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
 
@@ -976,15 +1034,21 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # So create a copy instead.
             discovery = self.__copy_date_range(discovery_date_range) if discovery_date_range else None
             
+            capabilities = ServerCapabilities()
+            if server_capabilities:
+                capabilities = copy_server_capabilities(server_capabilities)
+            
             server = Server(
                         None,
                         host.id,
                         host.ip_address,
                         host.ip_address,
+                        host.ip_address,
                         propagation_channel.id,
                         is_embedded_server,
                         discovery,
-                        '8080',
+                        capabilities,
+                        str(random.randrange(8000, 9000)),
                         None,
                         None,
                         None,
@@ -992,37 +1056,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         None,
                         None,
                         None,
-                        '995')
+                        random.choice(['465', '587', '993', '995']))
 
-            # Install Psiphon 3 and generate configuration values
-            # Here, we're assuming one server/IP address per host
-            psi_ops_install.install_host(host, [server], self.get_existing_server_ids())
-            host.log('install')
-
-            # Update database
-
-            # Add new server (we also add a host; here, the host and server are
-            # one-to-one, but legacy networks have many servers per host and we
-            # retain support for this in the data model and general functionality)
-            # Note: this must be done before deploy_data otherwise the deployed
-            # data will not include this host and server
-            assert(host.id not in self.__hosts)
-            self.__hosts[host.id] = host
-            assert(server.id not in self.__servers)
-            self.__servers[server.id] = server
-
-            # Deploy will upload web server source database data and client builds
-            # (Only deploying for the new host, not broadcasting info yet...)
-            psi_ops_deploy.deploy_implementation(host)
-            psi_ops_deploy.deploy_data(
-                                host,
-                                self.__compartmentalize_data_for_host(host.id))
-            psi_ops_deploy.deploy_geoip_database_autoupdates(host)
-            psi_ops_deploy.deploy_routes(host)
-            host.log('initial deployment')
-
-            self.test_server(server.id, ['handshake'])
-            
+            self.setup_server(host, server)
+           
             self.save()
             
         self.__deploy_data_required_for_all = True
@@ -1743,7 +1780,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # client-side session duration reporting
         #
         server = next(server for server in self.__servers.itervalues() 
-                      if server.ip_address == server_ip_address)
+                      if server.internal_ip_address == server_ip_address)
 
         config['ssh_port'] = int(server.ssh_port)
         config['ssh_username'] = server.ssh_username
@@ -1833,9 +1870,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 '', # Omit host_id
                                                 server.ip_address,
                                                 server.egress_ip_address,
+                                                server.internal_ip_address,
                                                 server.propagation_channel_id,
                                                 server.is_embedded,
                                                 server.discovery_date_range,
+                                                server.capabilities,
                                                 server.web_server_port,
                                                 server.web_server_secret,
                                                 server.web_server_certificate,
@@ -1902,6 +1941,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             server.host_id,
                                             server.ip_address,
                                             None,
+                                            server.internal_ip_address,
                                             None,
                                             None,
                                             server.discovery_date_range)
@@ -1976,8 +2016,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         except:
             pass
         test_propagation_channel_id = test_propagation_channel.id if test_propagation_channel else '0'
+        
         return psi_ops_test_windows.test_server(
                                 server.ip_address,
+                                server.capabilities,
                                 server.web_server_port,
                                 server.web_server_secret,
                                 [self.__get_encoded_server_entry(server)],

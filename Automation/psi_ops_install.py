@@ -316,10 +316,10 @@ def make_xinetd_config_file_command(servers):
     for server in servers:
         if server.ssh_port is not None:
             service_sections.append(ssh_service_section_template %
-                                (service_name_for_port(server.ssh_port), server.ip_address, server.ip_address, server.ip_address))
+                                (service_name_for_port(server.ssh_port), server.internal_ip_address, server.internal_ip_address, server.internal_ip_address))
         if server.ssh_obfuscated_port is not None:
             service_sections.append(obfuscated_ssh_service_section_template %
-                                (service_name_for_port(server.ssh_obfuscated_port), server.ip_address, server.ip_address, server.ip_address))
+                                (service_name_for_port(server.ssh_obfuscated_port), server.internal_ip_address, server.internal_ip_address, server.internal_ip_address))
             
     file_contents = defaults_section + '\n'.join(service_sections)
     return 'echo "%s" > /etc/xinetd.conf' % (file_contents,)
@@ -409,7 +409,7 @@ def generate_self_signed_certificate():
 
 def install_host(host, servers, existing_server_ids):
 
-    install_firewall_rules(host)
+    install_firewall_rules(host, servers)
     
     # NOTE:
     # For partially configured hosts we need to completely reconfigure
@@ -433,7 +433,7 @@ def install_host(host, servers, existing_server_ids):
 
     for index, server in enumerate(servers):
         ssh.exec_command(
-            make_ipsec_config_file_connection_command(index, server.ip_address))
+            make_ipsec_config_file_connection_command(index, server.internal_ip_address))
 
     ssh.exec_command(make_ipsec_secrets_file_command())
 
@@ -446,7 +446,7 @@ def install_host(host, servers, existing_server_ids):
 
     for index, server in enumerate(servers):
         ssh.exec_command(
-            make_xl2tpd_config_file_command(index, server.ip_address))
+            make_xl2tpd_config_file_command(index, server.internal_ip_address))
 
     ssh.exec_command(make_xl2tpd_options_file_command())
 
@@ -491,11 +491,11 @@ def install_host(host, servers, existing_server_ids):
                 binascii.hexlify(os.urandom(SSH_RANDOM_USERNAME_SUFFIX_BYTE_LENGTH)),)
             server.ssh_password = binascii.hexlify(os.urandom(SSH_PASSWORD_BYTE_LENGTH))
         if server.ssh_host_key is None:
-            ssh.exec_command('rm /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (server.ip_address,))
-            ssh.exec_command('ssh-keygen -t rsa -N \"\" -f /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (server.ip_address,))
+            ssh.exec_command('rm /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (server.internal_ip_address,))
+            ssh.exec_command('ssh-keygen -t rsa -N \"\" -f /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (server.internal_ip_address,))
             try:
                 # TODO: use temp dir?
-                ssh.get_file('/etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s.pub' % (server.ip_address,), 'ssh_host_key')
+                ssh.get_file('/etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s.pub' % (server.internal_ip_address,), 'ssh_host_key')
                 with open('ssh_host_key') as file:
                     key = file.read()
             finally:
@@ -508,11 +508,11 @@ def install_host(host, servers, existing_server_ids):
         #      the user already exists
         ssh.exec_command('useradd -d /dev/null -s /bin/false %s && echo \"%s:%s\"|chpasswd' % (
                             server.ssh_username, server.ssh_username, server.ssh_password))
-        ssh.exec_command(make_sshd_config_file_command(server.ip_address, server.ssh_username))
+        ssh.exec_command(make_sshd_config_file_command(server.internal_ip_address, server.ssh_username))
         if server.ssh_obfuscated_port is not None:
             if server.ssh_obfuscated_key is None:
                 server.ssh_obfuscated_key = binascii.hexlify(os.urandom(SSH_OBFUSCATED_KEY_BYTE_LENGTH))
-            ssh.exec_command(make_obfuscated_sshd_config_file_command(server.ip_address, server.ssh_username,
+            ssh.exec_command(make_obfuscated_sshd_config_file_command(server.internal_ip_address, server.ssh_username,
                                                     server.ssh_obfuscated_port, server.ssh_obfuscated_key))
         # NOTE we do not write the ssh host key back to the server because it is generated
         #      on the server in the first place.
@@ -570,14 +570,120 @@ def install_host(host, servers, existing_server_ids):
     # NOTE: call psi_ops_deploy.deploy_host() to complete the install process
 
     
-def install_firewall_rules(host):
+def install_firewall_rules(host, servers):
+
+    file_contents = '''
+*filter
+    -A INPUT -i lo -p tcp -m tcp --dport 6379 -j ACCEPT
+    -A INPUT -i lo -p tcp -m tcp --dport 6000 -j ACCEPT''' + ''.join(
+    # tunneled web requests
+    ['''
+    -A INPUT -i lo -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers]) + '''
+    -A INPUT -d 127.0.0.0/8 ! -i lo -j REJECT --reject-with icmp-port-unreachable
+    -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+    -A INPUT -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT''' % (host.ssh_port,) + ''.join(
+    # web servers
+    ['''
+    -A INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers
+                if s.capabilities['handshake']]) + ''.join(
+    # SSH
+    ['''
+    -A INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.ssh_port)) for s in servers
+                if s.capabilities['SSH']]) + ''.join(
+    # SSH+
+    ['''
+    -A INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
+                if s.capabilities['SSH+']]) + ''.join(
+    # VPN
+    ['''
+    -A INPUT -d {0} -p esp -j ACCEPT
+    -A INPUT -d {0} -p ah -j ACCEPT
+    -A INPUT -d {0} -p udp --dport 500 -j ACCEPT
+    -A INPUT -d {0} -p udp --dport 4500 -j ACCEPT
+    -A INPUT -d {0} -i ipsec+ -p udp -m udp --dport l2tp -j ACCEPT'''.format(
+            str(s.internal_ip_address)) for s in servers
+                if s.capabilities['VPN']]) + '''
+    -A INPUT -j REJECT --reject-with icmp-port-unreachable
+    -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 8.8.8.8 -p tcp --dport 53 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 8.8.8.8 -p udp --dport 53 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 8.8.4.4 -p tcp --dport 53 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 8.8.4.4 -p udp --dport 53 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 10.0.0.0/8 -j DROP
+    -A FORWARD -s 10.0.0.0/8 -j DROP''' + ''.join(
+    # tunneled web requests (always provided, regardless of capabilities)
+    ['''
+    -A OUTPUT -d {0} -o lo -p tcp -m tcp --dport {1} -j ACCEPT
+    -A OUTPUT -s {0} -o lo -p tcp -m tcp --sport {1} -j ACCEPT'''.format(
+            str(s.internal_ip_address), str(s.web_server_port)) for s in servers]) + '''
+    -A OUTPUT -o lo -p tcp -m tcp --dport 6379 -m owner --uid-owner root -j ACCEPT
+    -A OUTPUT -o lo -p tcp -m tcp --dport 6000 -m owner --uid-owner root -j ACCEPT
+    -A OUTPUT -o lo -p tcp -m tcp --dport 6379 -m owner --uid-owner www-data -j ACCEPT
+    -A OUTPUT -o lo -p tcp -m tcp --sport 6379 -j ACCEPT
+    -A OUTPUT -o lo -p tcp -m tcp --sport 6000 -j ACCEPT
+    -A OUTPUT -o lo -j DROP
+    -A OUTPUT -p tcp -m multiport --dports 53,80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
+    -A OUTPUT -p udp -m multiport --dports 53,80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
+    -A OUTPUT -p udp -m udp --dport 123 -j ACCEPT
+    -A OUTPUT -p tcp -m tcp --sport %s -j ACCEPT''' % (host.ssh_port,) + ''.join(
+    # tunneled web requests on NATed servers don't go out lo
+    ['''
+    -A OUTPUT -d %s -p tcp -m tcp --dport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers
+                if s.ip_address != s.internal_ip_address]) + ''.join(
+    # web servers
+    ['''
+    -A OUTPUT -s %s -p tcp -m tcp --sport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers
+                if s.capabilities['handshake']]) + ''.join(
+    # SSH
+    ['''
+    -A OUTPUT -s %s -p tcp -m tcp --sport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.ssh_port)) for s in servers
+                if s.capabilities['SSH']]) + ''.join(
+    # SSH+
+    ['''
+    -A OUTPUT -s %s -p tcp -m tcp --sport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
+                if s.capabilities['SSH+']]) + ''.join(
+    # VPN
+    ['''
+    -A OUTPUT -s {0} -p esp -j ACCEPT
+    -A OUTPUT -s {0} -p ah -j ACCEPT
+    -A OUTPUT -s {0} -p udp --sport 500 -j ACCEPT
+    -A OUTPUT -s {0} -p udp --sport 4500 -j ACCEPT
+    -A OUTPUT -s {0} -o ipsec+ -p udp -m udp --dport l2tp -j ACCEPT'''.format(
+            str(s.internal_ip_address)) for s in servers
+                if s.capabilities['VPN']]) + '''
+    -A OUTPUT -j DROP
+COMMIT
+
+*nat''' + ''.join(
+    # Port forward from 443 to web servers
+    ['''
+    -A PREROUTING -i eth+ -p tcp -d %s --dport 443 -j DNAT --to-destination :%s'''
+            % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers
+                if s.capabilities['handshake']]) + '''
+    -A POSTROUTING -s 10.0.0.0/8 -o eth+ -j MASQUERADE''' + ''.join(
+    # tunneled web requests on NATed servers need to be redirected to the servers' internal ip addresses
+    ['''
+    -A OUTPUT -p tcp -m tcp -d %s --dport %s -j DNAT --to-destination %s'''
+            % (str(s.ip_address), str(s.web_server_port), str(s.internal_ip_address)) for s in servers
+                if s.ip_address != s.internal_ip_address]) + '''
+COMMIT
+'''
 
     ssh = psi_ssh.SSH(
             host.ip_address, host.ssh_port,
             host.ssh_username, host.ssh_password,
             host.ssh_host_key)
 
-    ssh.put_file('iptables.rules', '/etc/iptables.rules')
+    ssh.exec_command('echo "%s" > /etc/iptables.rules' % (file_contents,))
     ssh.exec_command('iptables-restore < /etc/iptables.rules')
     ssh.exec_command('/etc/init.d/fail2ban restart')
     ssh.close()
