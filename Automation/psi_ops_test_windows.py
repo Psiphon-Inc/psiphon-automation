@@ -100,6 +100,11 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
     has_remote_check = len(CHECK_IP_ADDRESS_URL_REMOTE) > 0
     has_local_check = len(CHECK_IP_ADDRESS_URL_LOCAL) > 0
 
+    # Internally we refer to "OSSH", but the display name is "SSH+", which is also used
+    # in the registry setting to control which transport is used.
+    if transport == 'OSSH':
+        transport = 'SSH+'
+        
     # Split tunnelling is not implemented for VPN.
     # Also, if there is no remote check, don't use split tunnel mode because we always want
     # to test at least one proxied case.
@@ -173,7 +178,7 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
 def test_server(ip_address, capabilities, web_server_port, web_server_secret, encoded_server_list, version,
                 expected_egress_ip_addresses, test_propagation_channel_id = '0', test_cases = None):
 
-    local_test_cases = copy.copy(test_cases) if test_cases else ['handshake', 'VPN', 'SSH+', 'SSH']
+    local_test_cases = copy.copy(test_cases) if test_cases else ['handshake', 'VPN', 'OSSH', 'SSH']
 
     for test_case in copy.copy(local_test_cases):
         if not capabilities[test_case]:
@@ -199,7 +204,7 @@ def test_server(ip_address, capabilities, web_server_port, web_server_secret, en
                 results['443'] = 'PASS' if result else 'FAIL'
             except Exception as ex:
                 results['443'] = 'FAIL: ' + str(ex)
-        elif test_case in ['VPN', 'SSH+', 'SSH']:
+        elif test_case in ['VPN', 'OSSH', 'SSH']:
             if not executable_path:
                 executable_path = psi_ops_build_windows.build_client(
                                     test_propagation_channel_id,

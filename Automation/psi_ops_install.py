@@ -593,11 +593,11 @@ def install_firewall_rules(host, servers):
     -A INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
             % (str(s.internal_ip_address), str(s.ssh_port)) for s in servers
                 if s.capabilities['SSH']]) + ''.join(
-    # SSH+
+    # OSSH
     ['''
     -A INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
             % (str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
-                if s.capabilities['SSH+']]) + ''.join(
+                if s.capabilities['OSSH']]) + ''.join(
     # VPN
     ['''
     -A INPUT -d {0} -p esp -j ACCEPT
@@ -646,11 +646,11 @@ def install_firewall_rules(host, servers):
     -A OUTPUT -s %s -p tcp -m tcp --sport %s -j ACCEPT'''
             % (str(s.internal_ip_address), str(s.ssh_port)) for s in servers
                 if s.capabilities['SSH']]) + ''.join(
-    # SSH+
+    # OSSH
     ['''
     -A OUTPUT -s %s -p tcp -m tcp --sport %s -j ACCEPT'''
             % (str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
-                if s.capabilities['SSH+']]) + ''.join(
+                if s.capabilities['OSSH']]) + ''.join(
     # VPN
     ['''
     -A OUTPUT -s {0} -p esp -j ACCEPT

@@ -156,14 +156,14 @@ Server = psi_utils.recordtype(
 
 def ServerCapabilities():
     capabilities = {}
-    for capability in ('handshake', 'VPN', 'SSH', 'SSH+'):
+    for capability in ('handshake', 'VPN', 'SSH', 'OSSH'):
         capabilities[capability] = True
     return capabilities
 
 
 def copy_server_capabilities(caps):
     capabilities = {}
-    for capability in ('handshake', 'VPN', 'SSH', 'SSH+'):
+    for capability in ('handshake', 'VPN', 'SSH', 'OSSH'):
         capabilities[capability] = caps[capability]
     return capabilities
 
@@ -265,7 +265,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__speed_test_urls = []
         self.__remote_server_list_signing_key_pair = None
 
-    class_version = '0.10'
+    class_version = '0.11'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -324,6 +324,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 server.internal_ip_address = server.ip_address
                 server.capabilities = ServerCapabilities()
             self.version = '0.10'
+        if cmp(parse_version(self.version), parse_version('0.11')) < 0:
+            for server in self.__servers.itervalues():
+                server.capabilities['OSSH'] = server.capabilities['SSH+']
+                server.capabilities.pop('SSH+')
+            for server in self.__deleted_servers.itervalues():
+                server.capabilities['OSSH'] = server.capabilities['SSH+']
+                server.capabilities.pop('SSH+')
+            self.version = '0.11'
 
     def show_status(self):
         # NOTE: verbose mode prints credentials to stdout
@@ -2200,8 +2208,8 @@ if __name__ == "__main__":
     parser.add_option("-r", "--read-only", dest="readonly", action="store_true",
                       help="don't lock the network object")
     parser.add_option("-t", "--test", dest="test", action="append",
-                      choices=('handshake', 'VPN', 'SSH+', 'SSH'),
-                      help="specify once for each of: handshake, VPN, SSH+, SSH")
+                      choices=('handshake', 'VPN', 'OSSH', 'SSH'),
+                      help="specify once for each of: handshake, VPN, OSSH, SSH")
     parser.add_option("-p", "--prune", dest="prune", action="store_true",
                       help="prune all propagation channels")
     parser.add_option("-n", "--new-servers", dest="channel", action="store", type="string",
