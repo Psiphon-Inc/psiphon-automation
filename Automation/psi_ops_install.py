@@ -572,32 +572,41 @@ def install_host(host, servers, existing_server_ids):
     
 def install_firewall_rules(host, servers):
 
-    web_services = set()
-    other_service_ports = set()
-    other_service_ports.add(host.ssh_port)
-    nat_ip_addresses = set()
-    for server in servers:
-        web_services.add((server.internal_ip_address, server.web_server_port))
-        other_service_ports.add(server.ssh_port)
-        other_service_ports.add(server.ssh_obfuscated_port)
-        if server.ip_address != server.internal_ip_address:
-            nat_ip_addresses.add((server.ip_address, server.internal_ip_address))
-        
     file_contents = '''
 *filter
     -A INPUT -i lo -p tcp -m tcp --dport 6379 -j ACCEPT
-    -A INPUT -i lo -p tcp -m tcp --dport 6000 -j ACCEPT
+    -A INPUT -i lo -p tcp -m tcp --dport 6000 -j ACCEPT''' + ''.join(
+    # tunneled web requests
+    ['''
+    -A INPUT -i lo -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers]) + '''
     -A INPUT -d 127.0.0.0/8 ! -i lo -j REJECT --reject-with icmp-port-unreachable
-    -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT''' + ''.join(['''
-    -A INPUT -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
-                    % (str(port),) for _, port in web_services]) + ''.join(['''
-    -A INPUT -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
-                    % (str(port),) for port in other_service_ports]) + '''
-    -A INPUT -p esp -j ACCEPT
-    -A INPUT -p ah -j ACCEPT
-    -A INPUT -p udp --dport 500 -j ACCEPT
-    -A INPUT -p udp --dport 4500 -j ACCEPT
-    -A INPUT -i ipsec+ -p udp -m udp --dport l2tp -j ACCEPT
+    -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+    -A INPUT -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT''' % (host.ssh_port,) + ''.join(
+    # web servers
+    ['''
+    -A INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers
+                if s.capabilities['handshake']]) + ''.join(
+    # SSH
+    ['''
+    -A INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.ssh_port)) for s in servers
+                if s.capabilities['SSH']]) + ''.join(
+    # SSH+
+    ['''
+    -A INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
+                if s.capabilities['SSH+']]) + ''.join(
+    # VPN
+    ['''
+    -A INPUT -d {0} -p esp -j ACCEPT
+    -A INPUT -d {0} -p ah -j ACCEPT
+    -A INPUT -d {0} -p udp --dport 500 -j ACCEPT
+    -A INPUT -d {0} -p udp --dport 4500 -j ACCEPT
+    -A INPUT -d {0} -i ipsec+ -p udp -m udp --dport l2tp -j ACCEPT'''.format(
+            str(s.internal_ip_address)) for s in servers
+                if s.capabilities['VPN']]) + '''
     -A INPUT -j REJECT --reject-with icmp-port-unreachable
     -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
@@ -606,10 +615,12 @@ def install_firewall_rules(host, servers):
     -A FORWARD -s 10.0.0.0/8 -d 8.8.4.4 -p tcp --dport 53 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.4.4 -p udp --dport 53 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 10.0.0.0/8 -j DROP
-    -A FORWARD -s 10.0.0.0/8 -j DROP''' + ''.join(['''
-    -A OUTPUT -o lo -p tcp -m tcp --dport %s -j ACCEPT
-    -A OUTPUT -o lo -p tcp -m tcp --sport %s -j ACCEPT'''
-                    % (str(port), str(port)) for _, port in web_services]) + '''
+    -A FORWARD -s 10.0.0.0/8 -j DROP''' + ''.join(
+    # tunneled web requests (always provided, regardless of capabilities)
+    ['''
+    -A OUTPUT -d {0} -o lo -p tcp -m tcp --dport {1} -j ACCEPT
+    -A OUTPUT -s {0} -o lo -p tcp -m tcp --sport {1} -j ACCEPT'''.format(
+            str(s.internal_ip_address), str(s.web_server_port)) for s in servers]) + '''
     -A OUTPUT -o lo -p tcp -m tcp --dport 6379 -m owner --uid-owner root -j ACCEPT
     -A OUTPUT -o lo -p tcp -m tcp --dport 6000 -m owner --uid-owner root -j ACCEPT
     -A OUTPUT -o lo -p tcp -m tcp --dport 6379 -m owner --uid-owner www-data -j ACCEPT
@@ -618,26 +629,52 @@ def install_firewall_rules(host, servers):
     -A OUTPUT -o lo -j DROP
     -A OUTPUT -p tcp -m multiport --dports 53,80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
     -A OUTPUT -p udp -m multiport --dports 53,80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
-    -A OUTPUT -p udp -m udp --dport 123 -j ACCEPT''' + ''.join(['''
-    -A OUTPUT -p tcp -m tcp --dport %s -j ACCEPT
-    -A OUTPUT -p tcp -m tcp --sport %s -j ACCEPT'''
-                    % (str(port), str(port)) for _, port in web_services]) + ''.join(['''
-    -A OUTPUT -p tcp -m tcp --sport %s -j ACCEPT'''
-                    % (str(port),) for port in other_service_ports]) + '''
-    -A OUTPUT -p esp -j ACCEPT
-    -A OUTPUT -p ah -j ACCEPT
-    -A OUTPUT -p udp --sport 500 -j ACCEPT
-    -A OUTPUT -p udp --sport 4500 -j ACCEPT
-    -A OUTPUT -o ipsec+ -p udp -m udp --dport l2tp -j ACCEPT
+    -A OUTPUT -p udp -m udp --dport 123 -j ACCEPT
+    -A OUTPUT -p tcp -m tcp --sport %s -j ACCEPT''' % (host.ssh_port,) + ''.join(
+    # tunneled web requests on NATed servers don't go out lo
+    ['''
+    -A OUTPUT -d %s -p tcp -m tcp --dport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers
+                if s.ip_address != s.internal_ip_address]) + ''.join(
+    # web servers
+    ['''
+    -A OUTPUT -s %s -p tcp -m tcp --sport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers
+                if s.capabilities['handshake']]) + ''.join(
+    # SSH
+    ['''
+    -A OUTPUT -s %s -p tcp -m tcp --sport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.ssh_port)) for s in servers
+                if s.capabilities['SSH']]) + ''.join(
+    # SSH+
+    ['''
+    -A OUTPUT -s %s -p tcp -m tcp --sport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
+                if s.capabilities['SSH+']]) + ''.join(
+    # VPN
+    ['''
+    -A OUTPUT -s {0} -p esp -j ACCEPT
+    -A OUTPUT -s {0} -p ah -j ACCEPT
+    -A OUTPUT -s {0} -p udp --sport 500 -j ACCEPT
+    -A OUTPUT -s {0} -p udp --sport 4500 -j ACCEPT
+    -A OUTPUT -s {0} -o ipsec+ -p udp -m udp --dport l2tp -j ACCEPT'''.format(
+            str(s.internal_ip_address)) for s in servers
+                if s.capabilities['VPN']]) + '''
     -A OUTPUT -j DROP
 COMMIT
 
-*nat''' + ''.join(['''
+*nat''' + ''.join(
+    # Port forward from 443 to web servers
+    ['''
     -A PREROUTING -i eth+ -p tcp -d %s --dport 443 -j DNAT --to-destination :%s'''
-                    % (str(ip_address), str(port)) for ip_address, port in web_services]) + '''
-    -A POSTROUTING -s 10.0.0.0/8 -o eth+ -j MASQUERADE''' + ''.join(['''
-    -A OUTPUT -p tcp -m tcp --destination %s -j DNAT --to-destination %s'''
-                    % (str(ip_address), str(internal_ip_address)) for ip_address, internal_ip_address in nat_ip_addresses]) + '''
+            % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers
+                if s.capabilities['handshake']]) + '''
+    -A POSTROUTING -s 10.0.0.0/8 -o eth+ -j MASQUERADE''' + ''.join(
+    # tunneled web requests on NATed servers need to be redirected to the servers' internal ip addresses
+    ['''
+    -A OUTPUT -p tcp -m tcp -d %s --dport %s -j DNAT --to-destination %s'''
+            % (str(s.ip_address), str(s.web_server_port), str(s.internal_ip_address)) for s in servers
+                if s.ip_address != s.internal_ip_address]) + '''
 COMMIT
 '''
 
