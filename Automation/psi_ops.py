@@ -946,10 +946,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return [server.id for server in self.__servers.itervalues()] + \
                [deleted_server.id for deleted_server in self.__deleted_servers.itervalues()]
 
-    def setup_server(self, host, server):
+    def setup_server(self, host, servers):
         # Install Psiphon 3 and generate configuration values
         # Here, we're assuming one server/IP address per host
-        psi_ops_install.install_host(host, [server], self.get_existing_server_ids())
+        psi_ops_install.install_host(host, servers, self.get_existing_server_ids())
         host.log('install')
         
         # Update database
@@ -961,8 +961,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # data will not include this host and server
         assert(host.id not in self.__hosts)
         self.__hosts[host.id] = host
-        assert(server.id not in self.__servers)
-        self.__servers[server.id] = server
+        
+        for server in servers:
+            assert(server.id not in self.__servers)
+            self.__servers[server.id] = server
 
         # Deploy will upload web server source database data and client builds
         # (Only deploying for the new host, not broadcasting info yet...)
@@ -974,7 +976,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         psi_ops_deploy.deploy_routes(host)
         host.log('initial deployment')
 
-        self.test_server(server.id, ['handshake'])
+        for server in servers:
+            self.test_server(server.id, ['handshake'])
  
     def add_servers(self, count, propagation_channel_name, discovery_date_range, replace_others=True, server_capabilities=None):
         assert(self.is_locked)
@@ -1058,7 +1061,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         None,
                         random.choice(['465', '587', '993', '995']))
 
-            self.setup_server(host, server)
+            self.setup_server(host, [server])
            
             self.save()
             
