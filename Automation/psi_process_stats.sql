@@ -27,10 +27,11 @@ CREATE TABLE connected
   relay_protocol text,
   session_id text,
   last_connected timestamp with time zone DEFAULT NULL,
+  tunnel_whole_device int NOT NULL DEFAULT 0,
   processed integer NOT NULL DEFAULT 0,
   id bigserial NOT NULL,
   CONSTRAINT connected_pkey PRIMARY KEY (id),
-  CONSTRAINT connected_unique UNIQUE ("timestamp", host_id, server_id, client_region, client_city, client_isp, propagation_channel_id, sponsor_id, client_version, client_platform, relay_protocol, session_id, last_connected)
+  CONSTRAINT connected_unique UNIQUE ("timestamp", host_id, server_id, client_region, client_city, client_isp, propagation_channel_id, sponsor_id, client_version, client_platform, relay_protocol, session_id, last_connected, tunnel_whole_device)
 )
 WITH (
   OIDS=FALSE
@@ -328,6 +329,7 @@ CREATE TABLE "session"
   relay_protocol text,
   session_id text,
   last_connected timestamp with time zone DEFAULT NULL,
+  tunnel_whole_device int NOT NULL DEFAULT 0,
   session_start_timestamp timestamp with time zone,
   session_end_timestamp timestamp with time zone,
   id bigserial NOT NULL,
@@ -336,7 +338,7 @@ CREATE TABLE "session"
   CONSTRAINT connected_id FOREIGN KEY (connected_id)
       REFERENCES connected (id) MATCH SIMPLE
       ON UPDATE NO ACTION ON DELETE NO ACTION,
-  CONSTRAINT session_host_id_key UNIQUE (host_id, server_id, client_region, client_city, client_isp, propagation_channel_id, sponsor_id, client_version, client_platform, relay_protocol, session_id, last_connected, session_start_timestamp, session_end_timestamp)
+  CONSTRAINT session_host_id_key UNIQUE (host_id, server_id, client_region, client_city, client_isp, propagation_channel_id, sponsor_id, client_version, client_platform, relay_protocol, session_id, last_connected, tunnel_whole_device, session_start_timestamp, session_end_timestamp)
 )
 WITH (
   OIDS=FALSE
@@ -532,6 +534,7 @@ BEGIN
          propagation_channel_id,
          sponsor_id, client_version, client_platform, relay_protocol, session_id,
          last_connected,
+         tunnel_whole_device,
          session_start_timestamp, session_end_timestamp, connected_id)
       VALUES
         (connected_record.host_id, connected_record.server_id, 
@@ -543,6 +546,7 @@ BEGIN
          connected_record.client_platform, connected_record.relay_protocol,
          connected_record.session_id,
          connected_record.last_connected,
+         connected_record.tunnel_whole_device,
          connected_record.timestamp, 
          session_end, connected_record.id);
     END IF;
@@ -810,6 +814,7 @@ SELECT
   "session".relay_protocol,
   "session".session_id,
   "session".last_connected,
+  "session".tunnel_whole_device,
   "session".session_start_timestamp,
   "session".session_end_timestamp,
   "session".id
