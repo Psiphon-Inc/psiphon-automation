@@ -1674,7 +1674,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         extended_config['sshObfuscatedPort'] = int(server.ssh_obfuscated_port) if server.ssh_obfuscated_port else 0
         extended_config['sshObfuscatedKey'] = server.ssh_obfuscated_key if server.ssh_obfuscated_key else ''
 
-        extended_config['capabilities'] = server.capabilities.keys() if server.capabilities else []
+        extended_config['capabilities'] = [capability for capability, enabled in server.capabilities.iteritems() if enabled] if server.capabilities else []
 
         return binascii.hexlify('%s %s %s %s %s' % (
                                     server.ip_address,
