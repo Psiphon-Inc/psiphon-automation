@@ -143,16 +143,16 @@ class Blacklist(object):
         hashvalue = self._hash_addr(email_or_domain)
 
         if '@' in email_or_domain:
-            if self.is_domain_blacklisted(email_or_domain, dbsession):
-                print 'Domain already blacklisted'
-                return
-            newrecord = _BlacklistDomain(domainhash=hashvalue)
-            dbsession.add(newrecord)
-        else:
             if self.is_email_blacklisted(email_or_domain, dbsession):
                 print 'Email already blacklisted'
                 return
             newrecord = _BlacklistEmail(emailhash=hashvalue)
+            dbsession.add(newrecord)
+        else:
+            if self.is_domain_blacklisted(email_or_domain, dbsession):
+                print 'Domain already blacklisted'
+                return
+            newrecord = _BlacklistDomain(domainhash=hashvalue)
             dbsession.add(newrecord)
 
         dbsession.commit()
@@ -179,6 +179,30 @@ class Blacklist(object):
         match = dbsession.query(_BlacklistEmail).filter_by(emailhash=hashvalue).first()
 
         return match is not None
+
+    def add_to_whitelist(self, email_or_domain):
+        '''
+        Add a new email address or domain to the perma-whitelist.
+        '''
+
+        dbsession = _Session()
+
+        hashvalue = self._hash_addr(email_or_domain)
+
+        if '@' in email_or_domain:
+            if self.is_email_whitelisted(email_or_domain, dbsession):
+                print 'Email already whitelisted'
+                return
+            newrecord = _WhitelistEmail(emailhash=hashvalue)
+            dbsession.add(newrecord)
+        else:
+            if self.is_domain_whitelisted(email_or_domain, dbsession):
+                print 'Domain already whitelisted'
+                return
+            newrecord = _WhitelistDomain(domainhash=hashvalue)
+            dbsession.add(newrecord)
+
+        dbsession.commit()
 
     def is_domain_whitelisted(self, domain, dbsession=None):
         if not dbsession:
@@ -208,14 +232,18 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Interact with the blacklist table')
     parser.add_argument('--clear-adhoc', action='store_true', help='clear all blacklist entries')
-    parser.add_argument('--add', action='store', help='add email or domain to blacklist')
+    parser.add_argument('--add-blacklist', action='store', help='add email or domain to blacklist')
+    parser.add_argument('--add-whitelist', action='store', help='add email or domain to whitelist')
     args = parser.parse_args()
 
     if args.clear_adhoc:
         blacklist = Blacklist()
         blacklist.clear_adhoc()
-    if args.add:
+    elif args.add_blacklist:
         blacklist = Blacklist()
-        blacklist.add_to_blacklist(args.add)
+        blacklist.add_to_blacklist(args.add_blacklist)
+    elif args.add_whitelist:
+        blacklist = Blacklist()
+        blacklist.add_to_whitelist(args.add_whitelist)
     else:
         parser.error('no valid arg')
