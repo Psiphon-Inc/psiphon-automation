@@ -61,7 +61,7 @@ class CronCreator(object):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Interact with the blacklist table')
+    parser = argparse.ArgumentParser(description='Create mail responder cron jobs')
     parser.add_argument('--mailuser', action='store', required=True, help="the name of the reduced-privilege mail user")
     parser.add_argument('--normaluser', action='store', required=True, help="the name of a normal (sudoer) user")
     parser.add_argument('--dir', action='store', required=True, help="specifies the location of the command files")
@@ -69,4 +69,3 @@ if __name__ == '__main__':
 
     cron_creator = CronCreator(args.normaluser, args.mailuser, args.dir)
     cron_creator.go()
-
