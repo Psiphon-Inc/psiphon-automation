@@ -410,6 +410,7 @@ def generate_self_signed_certificate():
 def install_host(host, servers, existing_server_ids):
 
     install_firewall_rules(host, servers)
+    install_malware_blacklist(host)
     
     # NOTE:
     # For partially configured hosts we need to completely reconfigure
@@ -700,7 +701,30 @@ iptables-restore < %s
     ssh.exec_command(if_up_script_path)
     ssh.close()
     
+    
+def install_malware_blacklist(host):
 
+    psi_ip_blacklist = 'psi_ipblacklist.py'
+    psi_ip_blacklist_host_path = posixpath.join('/usr/local/bin', psi_ip_blacklist)
+    if_up_script_path = '/etc/network/if-up.d/set_blocklist'
+    cron_script_path = '/etc/cron.daily/set_blocklist'
+
+    ssh = psi_ssh.SSH(
+            host.ip_address, host.ssh_port,
+            host.ssh_username, host.ssh_password,
+            host.ssh_host_key)
+
+    ssh.exec_command('apt-get install -y module-assistant ipset xtables-addons-source')
+    ssh.exec_command('module-assistant -i auto-install xtables-addons')
+    
+    ssh.put_file(os.path.join(os.path.abspath('.'), psi_ip_blacklist),
+                 psi_ip_blacklist_host_path)
+    ssh.exec_command('ln -s %s %s' % (psi_ip_blacklist_host_path, if_up_script_path))
+    ssh.exec_command('ln -s %s %s' % (psi_ip_blacklist_host_path, cron_script_path)
+    ssh.exec_command(psi_ip_blacklist_host_path)
+    ssh.close()
+    
+    
 def install_geoip_database(ssh):
 
     #
