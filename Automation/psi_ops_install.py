@@ -720,7 +720,7 @@ def install_malware_blacklist(host):
     ssh.put_file(os.path.join(os.path.abspath('.'), psi_ip_blacklist),
                  psi_ip_blacklist_host_path)
     ssh.exec_command('ln -s %s %s' % (psi_ip_blacklist_host_path, if_up_script_path))
-    ssh.exec_command('ln -s %s %s' % (psi_ip_blacklist_host_path, cron_script_path)
+    ssh.exec_command('ln -s %s %s' % (psi_ip_blacklist_host_path, cron_script_path))
     ssh.exec_command(psi_ip_blacklist_host_path)
     ssh.close()
     
