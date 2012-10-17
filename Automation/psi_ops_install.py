@@ -572,7 +572,8 @@ def install_host(host, servers, existing_server_ids):
     
 def install_firewall_rules(host, servers):
 
-    file_contents = '''
+    iptables_rules_path = '/etc/iptables.rules'
+    iptables_rules_contents = '''
 *filter
     -A INPUT -i lo -p tcp -m tcp --dport 6379 -j ACCEPT
     -A INPUT -i lo -p tcp -m tcp --dport 6000 -j ACCEPT''' + ''.join(
@@ -679,14 +680,24 @@ COMMIT
 COMMIT
 '''
 
+    # NOTE that we restart fail2ban after applying firewall rules because iptables-restore
+    # flushes iptables which will remove any chains and rules that fail2ban creates on starting up
+    if_up_script_path = '/etc/network/if-up.d/firewall'
+    if_up_script_contents = '''#!/bin/sh
+
+iptables-restore < %s
+/etc/init.d/fail2ban restart
+''' % (iptables_rules_path,)
+
     ssh = psi_ssh.SSH(
             host.ip_address, host.ssh_port,
             host.ssh_username, host.ssh_password,
             host.ssh_host_key)
 
-    ssh.exec_command('echo "%s" > /etc/iptables.rules' % (file_contents,))
-    ssh.exec_command('iptables-restore < /etc/iptables.rules')
-    ssh.exec_command('/etc/init.d/fail2ban restart')
+    ssh.exec_command('echo "%s" > %s' % (iptables_rules_contents, iptables_rules_path))
+    ssh.exec_command('echo "%s" > %s' % (if_up_script_contents, if_up_script_path))
+    ssh.exec_command('chmod +x %s' % (if_up_script_path,))
+    ssh.exec_command(if_up_script_path)
     ssh.close()
     
 
