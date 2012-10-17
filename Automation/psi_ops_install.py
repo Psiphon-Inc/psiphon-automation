@@ -714,11 +714,12 @@ def install_malware_blacklist(host):
             host.ssh_username, host.ssh_password,
             host.ssh_host_key)
 
-    ssh.exec_command('apt-get install -y module-assistant ipset xtables-addons-source')
+    ssh.exec_command('apt-get install -y module-assistant xtables-addons-source')
     ssh.exec_command('module-assistant -i auto-install xtables-addons')
     
     ssh.put_file(os.path.join(os.path.abspath('.'), psi_ip_blacklist),
                  psi_ip_blacklist_host_path)
+    ssh.exec_command('chmod +x %s' % (psi_ip_blacklist_host_path,))
     ssh.exec_command('ln -s %s %s' % (psi_ip_blacklist_host_path, if_up_script_path))
     ssh.exec_command('ln -s %s %s' % (psi_ip_blacklist_host_path, cron_script_path))
     ssh.exec_command(psi_ip_blacklist_host_path)
