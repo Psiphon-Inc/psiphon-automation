@@ -41,6 +41,7 @@ def build_malware_dictionary(url):
                                  'rawlist': item,
                                  'ipset_file': ''.join([name[0], '.ipset']),
                                  'ip_list': '',
+                                 'set_name': name[0],
                                 }
     
     return  malware_dicts
@@ -100,13 +101,13 @@ if __name__ == "__main__":
     mal_lists = build_malware_dictionary(LISTS_URL)
     #lists to use:    
     for item in mal_lists:
-        update_list(item)
-        item['ip_list'] = parse_ip_list(item['rawlist'], 'r')
-        create_ipset_commands(item)
-        write_ipset_script(item)
-        run_ipset_script(item)
-        modify_iptables(item, '-D', 'OUTPUT')
-        modify_iptables(item, '-I', 'OUTPUT')
-        modify_iptables(item, '-D', 'FORWARD')
-        modify_iptables(item, '-I', 'FORWARD')
+        update_list(mal_lists[item])
+        mal_lists[item]['ip_list'] = parse_ip_list(mal_lists[item]['rawlist'], 'r')
+        create_ipset_commands(mal_lists[item])
+        write_ipset_script(mal_lists[item])
+        run_ipset_script(mal_lists[item])
+        modify_iptables(mal_lists[item], '-D', 'OUTPUT')
+        modify_iptables(mal_lists[item], '-I', 'OUTPUT')
+        modify_iptables(mal_lists[item], '-D', 'FORWARD')
+        modify_iptables(mal_lists[item], '-I', 'FORWARD')
         
