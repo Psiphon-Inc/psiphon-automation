@@ -32,19 +32,26 @@ LIST_DIR = os.path.abspath(os.path.join(BASE_PATH, BLACKLIST_DIR, 'lists'))
 LISTS_URL = 'https://s3.amazonaws.com/p3_malware_lists/'
 
 def build_malware_dictionary(url):
-    resp = urllib2.urlopen(url).read()
-    malware_lists = re.findall('\w+\.list', resp)
-    malware_dicts = {}
-    for item in malware_lists:
-        name = item.split('.')
-        malware_dicts[name[0]] = {'url': ''.join([url, item]),
-                                 'rawlist': item,
-                                 'ipset_file': ''.join([name[0], '.ipset']),
-                                 'ip_list': '',
-                                 'set_name': name[0],
-                                }
-    
-    return  malware_dicts
+    req = urllib2.Request(url)
+    try:
+        resp urllib2.urlopen(url).read()
+        malware_lists = re.findall('\w+\.list', resp)
+        malware_dicts = {}
+        for item in malware_lists:
+            name = item.split('.')
+            malware_dicts[name[0]] = {'url': ''.join([url, item]),
+                                     'rawlist': item,
+                                     'ipset_file': ''.join([name[0], '.ipset']),
+                                     'ip_list': '',
+                                     'set_name': name[0],
+                                    }
+        
+        return  malware_dicts
+    except urllib2.URLError, er:
+        if hasattr(er, 'reason'):
+            print 'Failed: ', er.reason
+        elif hasattr(er, 'code'):
+            print 'Error code: ', er.code
 
 # Used to update each ip block list
 def update_list(tracker):
