@@ -29,19 +29,21 @@ BLACKLIST_DIR = 'malware_blacklist'
 IPSET_DIR = os.path.abspath(os.path.join(BASE_PATH, BLACKLIST_DIR, 'ipset'))
 LIST_DIR = os.path.abspath(os.path.join(BASE_PATH, BLACKLIST_DIR, 'lists'))
 
-SPYEYETRACKER = {'url': "https://s3.amazonaws.com/psiphon3_stats/spyeyetracker.list",
-                 'rawlist': 'spyeyetracker.list',
-                 'ipset_file': 'spyeyetracker.ipset',
-                 'set_name': 'SPYEYETRACKER',
-                 'ip_list': '',
-                }
+LISTS_URL = 'https://s3.amazonaws.com/p3_malware_lists/'
 
-MDL = {'url': "https://s3.amazonaws.com/psiphon3_stats/mdlip.list",
-       'rawlist': 'mdlip.list',
-       'ipset_file': 'mdlip.ipset',
-       'set_name': 'MDL',
-       'ip_list': '',
-      }
+def build_malware_dictionary(url):
+    resp = urllib2.urlopen(url).read()
+    malware_lists = re.findall('\w+\.list', resp)
+    malware_dicts = {}
+    for item in malware_lists:
+        name = item.split('.')
+        malware_dicts[name[0]] = {'url': ''.join([url, item]),
+                                 'rawlist': item,
+                                 'ipset_file': ''.join([name[0], '.ipset']),
+                                 'ip_list': '',
+                                }
+    
+    return  malware_dicts
 
 # Used to update each ip block list
 def update_list(tracker):
@@ -95,8 +97,8 @@ def modify_iptables(tracker, opt, chain):
 
 if __name__ == "__main__":
     
-    #lists to use:
-    mal_lists = [SPYEYETRACKER, MDL]
+    mal_lists = build_malware_dictionary(LISTS_URL)
+    #lists to use:    
     for item in mal_lists:
         update_list(item)
         item['ip_list'] = parse_ip_list(item['rawlist'], 'r')
