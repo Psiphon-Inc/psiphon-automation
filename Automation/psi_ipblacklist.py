@@ -20,6 +20,7 @@
 import os
 import re
 import subprocess
+import sys
 import urllib
 import urllib2
 
@@ -33,10 +34,10 @@ LISTS_URL = 'https://s3.amazonaws.com/p3_malware_lists/'
 
 def build_malware_dictionary(url):
     req = urllib2.Request(url)
+    malware_dicts = {}
     try:
-        resp urllib2.urlopen(url).read()
+        resp = urllib2.urlopen(url).read()
         malware_lists = re.findall('\w+\.list', resp)
-        malware_dicts = {}
         for item in malware_lists:
             name = item.split('.')
             malware_dicts[name[0]] = {'url': ''.join([url, item]),
@@ -46,12 +47,13 @@ def build_malware_dictionary(url):
                                      'set_name': name[0],
                                     }
         
-        return  malware_dicts
     except urllib2.URLError, er:
         if hasattr(er, 'reason'):
             print 'Failed: ', er.reason
         elif hasattr(er, 'code'):
             print 'Error code: ', er.code
+    finally:
+        return malware_dicts
 
 # Used to update each ip block list
 def update_list(tracker):
@@ -60,9 +62,9 @@ def update_list(tracker):
     try:
         subprocess.call(['mkdir', '-p', LIST_DIR])
         urllib.urlretrieve(tracker['url'], os.path.join(LIST_DIR, tracker['rawlist']))
-    except:
-        print 'Could not find location'
-        raise
+    except Error er:
+        print 'Had an issue creating updating the lists: ', er
+        sys.exit()
 
 def parse_ip_list(raw_list_filename, read_mode):
     blackhole_list = []
@@ -106,15 +108,20 @@ def modify_iptables(tracker, opt, chain):
 if __name__ == "__main__":
     
     mal_lists = build_malware_dictionary(LISTS_URL)
-    #lists to use:    
-    for item in mal_lists:
-        update_list(mal_lists[item])
-        mal_lists[item]['ip_list'] = parse_ip_list(mal_lists[item]['rawlist'], 'r')
-        create_ipset_commands(mal_lists[item])
-        write_ipset_script(mal_lists[item])
-        run_ipset_script(mal_lists[item])
-        modify_iptables(mal_lists[item], '-D', 'OUTPUT')
-        modify_iptables(mal_lists[item], '-I', 'OUTPUT')
-        modify_iptables(mal_lists[item], '-D', 'FORWARD')
-        modify_iptables(mal_lists[item], '-I', 'FORWARD')
+    
+    if mal_lists:
+        #lists to use:
+        for item in mal_lists:
+            update_list(mal_lists[item])
+            mal_lists[item]['ip_list'] = parse_ip_list(mal_lists[item]['rawlist'], 'r')
+            create_ipset_commands(mal_lists[item])
+            write_ipset_script(mal_lists[item])
+            run_ipset_script(mal_lists[item])
+            modify_iptables(mal_lists[item], '-D', 'OUTPUT')
+            modify_iptables(mal_lists[item], '-I', 'OUTPUT')
+            modify_iptables(mal_lists[item], '-D', 'FORWARD')
+            modify_iptables(mal_lists[item], '-I', 'FORWARD')
+    else:
+        print 'Malware list is empty, exiting'
+        sys.exit()
         
