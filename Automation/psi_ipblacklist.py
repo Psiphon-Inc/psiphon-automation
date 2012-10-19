@@ -62,7 +62,7 @@ def update_list(tracker):
     try:
         subprocess.call(['mkdir', '-p', LIST_DIR])
         urllib.urlretrieve(tracker['url'], os.path.join(LIST_DIR, tracker['rawlist']))
-    except Error er:
+    except Error, er:
         print 'Had an issue creating updating the lists: ', er
         sys.exit()
 
