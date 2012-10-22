@@ -100,9 +100,9 @@ def run_ipset_script(tracker):
 
 def modify_iptables(tracker, opt, chain):
     #iptables command:
-    #iptables -D <chain> -m set --set $setname src -j DROP
-    #iptables -I <chain> -m set --set $setname src -j DROP
-    cmd = "iptables %s %s -m set --set %s src -j DROP" % (opt, chain, tracker['set_name'])
+    #iptables -D <chain> -m set --set $setname dst -j DROP
+    #iptables -I <chain> -m set --set $setname dst -j DROP
+    cmd = "iptables %s %s -m set --set %s dst -j DROP" % (opt, chain, tracker['set_name'])
     subprocess.call(cmd, shell=True)
 
 if __name__ == "__main__":
