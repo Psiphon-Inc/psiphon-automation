@@ -2,6 +2,7 @@ import json
 
 import decryptor
 from emailgetter import EmailGetter
+import emailsender
 
 
 _CONFIG_FILENAME = 'conf.json'
@@ -18,14 +19,14 @@ def go():
 
     emailgetter = EmailGetter(config['popServer'],
                               config['popPort'],
-                              config['popUsername'],
-                              config['popPassword'])
+                              config['emailUsername'],
+                              config['emailPassword'])
 
     # Retrieve and process email
     for msg in emailgetter.get():
         print(repr(msg))
         print('===================================')
-        print('got message: ' + msg['subject'])
+        print('got message: ' + repr(msg['subject']))
 
         for attachment in msg['attachments']:
             # Not all attachments will be in our format, so expect exceptions.
@@ -35,6 +36,19 @@ def go():
                 encrypted_info = json.loads(encrypted_info)
 
                 diagnostic_info = decryptor.decrypt(encrypted_info)
+
+                # If we get to here, then we have a valid diagnostic email.
+                # Reply with the decrypted content.
+
+                emailsender.send(config['smtpServer'],
+                                 config['smtpPort'],
+                                 config['emailUsername'],
+                                 config['emailPassword'],
+                                 config['emailUsername'],
+                                 config['emailUsername'],
+                                 u'Re: ' + msg['subject'] if msg['subject'] else '',
+                                 diagnostic_info,
+                                 msg['msgobj']['Message-ID'])
 
                 open('diag.txt', 'w').write(diagnostic_info)
 
