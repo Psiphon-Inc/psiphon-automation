@@ -39,6 +39,8 @@ def go():
                               config['emailUsername'],
                               config['emailPassword'])
 
+    private_key_pem = open(config['privateKeyPemFile']).read()
+
     # Retrieve and process email
     for msg in emailgetter.get():
         for attachment in msg['attachments']:
@@ -48,7 +50,7 @@ def go():
 
                 encrypted_info = json.loads(encrypted_info)
 
-                diagnostic_info = decryptor.decrypt(encrypted_info)
+                diagnostic_info = decryptor.decrypt(private_key_pem, encrypted_info)
 
                 diagnostic_info = diagnostic_info.strip()
 

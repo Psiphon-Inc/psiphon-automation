@@ -32,7 +32,7 @@ class DecryptorException(Exception):
     pass
 
 
-def decrypt(data):
+def decrypt(private_key_pem, data):
     '''
     `data` is a dict containing the object given in the diagnostic feedback
     attachment. The decrypted content string is returned. A DecryptorException
@@ -43,7 +43,7 @@ def decrypt(data):
 
     # Ready our private key, with which we'll unwrap the encryption and MAC
     # keys.
-    rsaPrivKey = RSA.importKey(open('newpriv.pem').read())
+    rsaPrivKey = RSA.importKey(private_key_pem)
     rsaCipher = PKCS1_v1_5.new(rsaPrivKey)
 
     # Unwrap the MAC key
