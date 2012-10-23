@@ -4,7 +4,7 @@ import time
 import mailparser
 
 
-_SLEEP_TIME_SECS = 5  # DEBUG: should really be 60
+_SLEEP_TIME_SECS = 60
 _DEBUG = True
 
 

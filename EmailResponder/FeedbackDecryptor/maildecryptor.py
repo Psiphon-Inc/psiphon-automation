@@ -1,5 +1,4 @@
 import json
-from base64 import b64decode
 
 import decryptor
 from emailgetter import EmailGetter
@@ -31,11 +30,7 @@ def go():
         for attachment in msg['attachments']:
             # Not all attachments will be in our format, so expect exceptions.
             try:
-                encrypted_info = b64decode(attachment.getvalue())
-
-                # b64decode will often return an empty string on error
-                if not encrypted_info:
-                    raise TypeError('attachment is not base64 encoded')
+                encrypted_info = attachment.getvalue()
 
                 encrypted_info = json.loads(encrypted_info)
 
