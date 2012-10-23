@@ -1,3 +1,20 @@
+# Copyright (c) 2012, Psiphon Inc.
+# All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
 import json
 
 import decryptor
@@ -24,10 +41,6 @@ def go():
 
     # Retrieve and process email
     for msg in emailgetter.get():
-        print(repr(msg))
-        print('===================================')
-        print('got message: ' + repr(msg['subject']))
-
         for attachment in msg['attachments']:
             # Not all attachments will be in our format, so expect exceptions.
             try:
@@ -36,6 +49,8 @@ def go():
                 encrypted_info = json.loads(encrypted_info)
 
                 diagnostic_info = decryptor.decrypt(encrypted_info)
+
+                diagnostic_info = diagnostic_info.strip()
 
                 # If we get to here, then we have a valid diagnostic email.
                 # Reply with the decrypted content.
@@ -50,12 +65,6 @@ def go():
                                  diagnostic_info,
                                  msg['msgobj']['Message-ID'])
 
-                open('diag.txt', 'w').write(diagnostic_info)
-
-                print('===================================')
-                print(diagnostic_info)
-
-            except (ValueError, TypeError) as e:
+            except (ValueError, TypeError):
                 # Try the next attachment/message
-                print(e)
                 pass
