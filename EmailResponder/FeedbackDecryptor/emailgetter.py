@@ -17,12 +17,13 @@
 
 import poplib
 import time
+import os
 
 import mailparser
 
 
 _SLEEP_TIME_SECS = 60
-_DEBUG = True
+_DEBUG = ('DEBUG' in os.environ) and os.environ['DEBUG']
 
 
 class EmailGetter():

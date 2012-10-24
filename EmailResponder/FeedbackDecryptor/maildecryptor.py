@@ -16,6 +16,11 @@
 
 
 import json
+import os
+try:
+    import syslog
+except:
+    pass
 
 import decryptor
 from emailgetter import EmailGetter
@@ -23,6 +28,23 @@ import emailsender
 
 
 _CONFIG_FILENAME = 'conf.json'
+_DEBUG = ('DEBUG' in os.environ) and os.environ['DEBUG']
+
+
+def _debug_log(s):
+    if not _DEBUG:
+        return
+    _log(s)
+
+
+def _log(s):
+    if 'syslog' in globals():
+        syslog.syslog(syslog.LOG_ERR, s)
+        if _DEBUG:
+            print(s)
+    else:
+        if _DEBUG:
+            print(s)
 
 
 def _read_config(conf_file):
@@ -43,6 +65,8 @@ def go():
 
     # Retrieve and process email
     for msg in emailgetter.get():
+        _debug_log('maildecryptor: msg has %d attachments' % len(msg['attachments']))
+
         for attachment in msg['attachments']:
             # Not all attachments will be in our format, so expect exceptions.
             try:
@@ -67,6 +91,6 @@ def go():
                                  diagnostic_info,
                                  msg['msgobj']['Message-ID'])
 
-            except (ValueError, TypeError):
+            except (ValueError, TypeError) as e:
                 # Try the next attachment/message
-                pass
+                _debug_log('maildecryptor: expected exception: %s' % e)
