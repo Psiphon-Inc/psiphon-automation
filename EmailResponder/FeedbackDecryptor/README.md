@@ -20,9 +20,4 @@ sudo cp maildecryptor.conf /etc/init/
 
 ### Code stuff
 
-- Use Gmail cert pinning for pop and smtp. (I think it'll work...)
-  - To make it less likely that a MitM-with-bad-cert attack would work.
-  - Steps:
-    - Pull down certs for `pop.gmail.com` and `smtp.gmail.com` and save to files. 
-    - Specify those files in `conf.json`.
-    - Pass cert to `certfile` arg of `poplib.POP3_SSL` and `smtplib.SMTP_SSL`.
+- Chinese/Farsi characters in subject okay?
