@@ -267,10 +267,11 @@ def make_xinetd_config_file_command(servers):
         ''')
 
     ssh_service_section_template = textwrap.dedent('''
-        service %s
+        service psiphon_ssh.%s
         {
-            id              = psiphon_ssh.%s
+            type            = UNLISTED
             bind            = %s
+            port            = %s
             socket_type     = stream
             protocol        = tcp
             wait            = no
@@ -282,10 +283,11 @@ def make_xinetd_config_file_command(servers):
         ''')
         
     obfuscated_ssh_service_section_template = textwrap.dedent('''
-        service %s
+        service psiphon_ssh.obfuscated.%s
         {
-            id              = psiphon_ssh.obfuscated.%s
+            type            = UNLISTED
             bind            = %s
+            port            = %s
             socket_type     = stream
             protocol        = tcp
             wait            = no
@@ -296,30 +298,14 @@ def make_xinetd_config_file_command(servers):
         }
         ''')
 
-    def service_name_for_port(port):
-        if port == '22':
-            return 'ssh'
-        elif port == '80':
-            return 'http'
-        elif port == '465':
-            return 'ssmtp'
-        elif port == '587':
-            return 'submission'
-        elif port == '993':
-            return 'imaps'
-        elif port == '995':
-            return 'pop3s'
-        else:
-            assert(False)
-        
     service_sections = []
     for server in servers:
         if server.ssh_port is not None:
             service_sections.append(ssh_service_section_template %
-                                (service_name_for_port(server.ssh_port), server.internal_ip_address, server.internal_ip_address, server.internal_ip_address))
+                                (server.internal_ip_address, server.internal_ip_address, server.ssh_port, server.internal_ip_address))
         if server.ssh_obfuscated_port is not None:
             service_sections.append(obfuscated_ssh_service_section_template %
-                                (service_name_for_port(server.ssh_obfuscated_port), server.internal_ip_address, server.internal_ip_address, server.internal_ip_address))
+                                (server.internal_ip_address, server.internal_ip_address, server.ssh_obfuscated_port, server.internal_ip_address))
             
     file_contents = defaults_section + '\n'.join(service_sections)
     return 'echo "%s" > /etc/xinetd.conf' % (file_contents,)
