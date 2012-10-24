@@ -676,6 +676,20 @@ iptables-restore < %s
 /etc/init.d/fail2ban restart
 ''' % (iptables_rules_path,)
 
+    ssh_ports = set([str(host.ssh_port)])
+    for server in servers:
+        ssh_ports.add(str(server.ssh_port)) if server.capabilities['SSH'] else None
+        ssh_ports.add(str(server.ssh_obfuscated_port)) if server.capabilities['OSSH'] else None
+    
+    fail2ban_local_path = '/etc/fail2ban/jail.local'
+    fail2ban_local_contents = textwrap.dedent('''
+        [ssh]
+        port    = {0}
+
+        [ssh-ddos]
+        port    = {0}
+        '''.format(','.join(ssh_ports)))
+        
     ssh = psi_ssh.SSH(
             host.ip_address, host.ssh_port,
             host.ssh_username, host.ssh_password,
@@ -684,6 +698,7 @@ iptables-restore < %s
     ssh.exec_command('echo "%s" > %s' % (iptables_rules_contents, iptables_rules_path))
     ssh.exec_command('echo "%s" > %s' % (if_up_script_contents, if_up_script_path))
     ssh.exec_command('chmod +x %s' % (if_up_script_path,))
+    ssh.exec_command('echo "%s" > %s' % (fail2ban_local_contents, fail2ban_local_path))
     ssh.exec_command(if_up_script_path)
     ssh.close()
     
