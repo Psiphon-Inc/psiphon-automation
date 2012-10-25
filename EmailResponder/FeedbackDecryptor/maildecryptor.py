@@ -87,7 +87,7 @@ def go():
                                  config['emailPassword'],
                                  config['emailUsername'],
                                  config['emailUsername'],
-                                 u'Re: ' + msg['subject'] if msg['subject'] else '',
+                                 u'Re: %s' % (msg['subject'] or ''),
                                  diagnostic_info,
                                  msg['msgobj']['Message-ID'])
 
