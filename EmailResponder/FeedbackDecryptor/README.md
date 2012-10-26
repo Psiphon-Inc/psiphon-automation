@@ -56,6 +56,8 @@ sudo jk_init -j /var/chroot/maildecryptor maildecryptor
 
 Figure out the user stuff.
 
+Make note about running `jk_update` periodically (after `apt-get update`).
+
 
 ## TODO:
 
