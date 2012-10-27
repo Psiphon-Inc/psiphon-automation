@@ -1,5 +1,14 @@
 # Diagnostic Feedback Email Attachment Decryptor
 
+## Get source files
+
+TODO:
+
+* config file, pem, etc.
+
+* make sure chmod a+r
+
+
 ## System Configuration
 
 ```shell
@@ -31,7 +40,7 @@ Edit `/etc/jailkit/jk_init.ini` and add this to the top:
 ```ini
 [maildecryptor]
 comment = Psiphon maildecryptor
-paths = /maildecryptor
+paths = /maildecryptor, /bin/false
 includesections = python
 
 [python]
@@ -52,9 +61,26 @@ mkdir -p /var/choot/maildecryptor
 sudo jk_init -j /var/chroot/maildecryptor maildecryptor
 ```
 
+Create the user to run as.
+
+```shell
+sudo useradd -s /bin/false maildecryptor
+sudo jk_jailuser -v --shell=/bin/false --jail=/var/chroot/maildecryptor maildecryptor maildecryptor
+```
+
 #### TODO
 
-Figure out the user stuff.
+##### Get the Upstart chroot working.
+
+This works:
+
+```shell
+sudo chroot --userspec=maildecryptor:maildecryptor /var/chroot/maildecryptor python /maildecryptor/maildecryptor_runner.py
+```
+
+And so does Upstart without `chroot=`. But not with it. And not with `setuid` or `start-stop-daemon`.
+
+##### Other
 
 Make note about running `jk_update` periodically (after `apt-get update`).
 
