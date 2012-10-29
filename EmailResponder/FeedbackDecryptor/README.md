@@ -64,7 +64,7 @@ sudo jk_init -j /var/chroot/maildecryptor maildecryptor
 Create the user to run as.
 
 ```shell
-sudo useradd -s /bin/false maildecryptor
+sudo useradd -m -s /bin/false maildecryptor
 sudo jk_jailuser -v --shell=/bin/false --jail=/var/chroot/maildecryptor maildecryptor maildecryptor
 ```
 

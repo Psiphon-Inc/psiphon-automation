@@ -16,6 +16,7 @@
 
 
 import json
+import re
 import os
 try:
     import syslog
@@ -53,6 +54,14 @@ def _read_config(conf_file):
     return config
 
 
+def _remove_ip_addresses(yaml_string):
+    '''
+    Removes IP addresses from the YAML. We don't want to email them around in
+    the clear.
+    '''
+    return re.sub(r'ipAddress: .*\n', 'ipAddress: "[redacted]"\n', yaml_string)
+
+
 def go():
     config = _read_config(_CONFIG_FILENAME)
 
@@ -77,6 +86,8 @@ def go():
                 diagnostic_info = decryptor.decrypt(private_key_pem, encrypted_info)
 
                 diagnostic_info = diagnostic_info.strip()
+
+                diagnostic_info = _remove_ip_addresses(diagnostic_info)
 
                 # If we get to here, then we have a valid diagnostic email.
                 # Reply with the decrypted content.
