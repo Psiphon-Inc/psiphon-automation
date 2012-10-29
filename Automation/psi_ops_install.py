@@ -410,6 +410,7 @@ def generate_self_signed_certificate():
 def install_host(host, servers, existing_server_ids):
 
     install_firewall_rules(host, servers)
+    install_malware_blacklist(host)
     
     # NOTE:
     # For partially configured hosts we need to completely reconfigure
@@ -572,7 +573,8 @@ def install_host(host, servers, existing_server_ids):
     
 def install_firewall_rules(host, servers):
 
-    file_contents = '''
+    iptables_rules_path = '/etc/iptables.rules'
+    iptables_rules_contents = '''
 *filter
     -A INPUT -i lo -p tcp -m tcp --dport 6379 -j ACCEPT
     -A INPUT -i lo -p tcp -m tcp --dport 6000 -j ACCEPT''' + ''.join(
@@ -679,17 +681,51 @@ COMMIT
 COMMIT
 '''
 
+    # NOTE that we restart fail2ban after applying firewall rules because iptables-restore
+    # flushes iptables which will remove any chains and rules that fail2ban creates on starting up
+    if_up_script_path = '/etc/network/if-up.d/firewall'
+    if_up_script_contents = '''#!/bin/sh
+
+iptables-restore < %s
+/etc/init.d/fail2ban restart
+''' % (iptables_rules_path,)
+
     ssh = psi_ssh.SSH(
             host.ip_address, host.ssh_port,
             host.ssh_username, host.ssh_password,
             host.ssh_host_key)
 
-    ssh.exec_command('echo "%s" > /etc/iptables.rules' % (file_contents,))
-    ssh.exec_command('iptables-restore < /etc/iptables.rules')
-    ssh.exec_command('/etc/init.d/fail2ban restart')
+    ssh.exec_command('echo "%s" > %s' % (iptables_rules_contents, iptables_rules_path))
+    ssh.exec_command('echo "%s" > %s' % (if_up_script_contents, if_up_script_path))
+    ssh.exec_command('chmod +x %s' % (if_up_script_path,))
+    ssh.exec_command(if_up_script_path)
     ssh.close()
     
+    
+def install_malware_blacklist(host):
 
+    psi_ip_blacklist = 'psi_ipblacklist.py'
+    psi_ip_blacklist_host_path = posixpath.join('/usr/local/bin', psi_ip_blacklist)
+    if_up_script_path = '/etc/network/if-up.d/set_blocklist'
+    cron_script_path = '/etc/cron.daily/set_blocklist'
+
+    ssh = psi_ssh.SSH(
+            host.ip_address, host.ssh_port,
+            host.ssh_username, host.ssh_password,
+            host.ssh_host_key)
+
+    ssh.exec_command('apt-get install -y module-assistant xtables-addons-source')
+    ssh.exec_command('module-assistant -i auto-install xtables-addons')
+    
+    ssh.put_file(os.path.join(os.path.abspath('.'), psi_ip_blacklist),
+                 psi_ip_blacklist_host_path)
+    ssh.exec_command('chmod +x %s' % (psi_ip_blacklist_host_path,))
+    ssh.exec_command('ln -s %s %s' % (psi_ip_blacklist_host_path, if_up_script_path))
+    ssh.exec_command('ln -s %s %s' % (psi_ip_blacklist_host_path, cron_script_path))
+    ssh.exec_command(psi_ip_blacklist_host_path)
+    ssh.close()
+    
+    
 def install_geoip_database(ssh):
 
     #
