@@ -48,7 +48,7 @@ def _log(s):
 
 
 def _read_config(conf_file):
-    with open(conf_file) as conf_fp:
+    with open(conf_file, 'r') as conf_fp:
         config = json.load(conf_fp)
     return config
 
@@ -61,7 +61,7 @@ def go():
                               config['emailUsername'],
                               config['emailPassword'])
 
-    private_key_pem = open(config['privateKeyPemFile']).read()
+    private_key_pem = open(config['privateKeyPemFile'], 'r').read()
 
     # Retrieve and process email
     for msg in emailgetter.get():

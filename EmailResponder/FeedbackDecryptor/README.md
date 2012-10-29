@@ -57,7 +57,7 @@ paths = /lib/i386-linux-gnu/libnsl*, /usr/lib/i386-linux-gnu/libnsl*, /lib/libns
 Create the `chroot` (will take a while):
 
 ```shell
-mkdir -p /var/choot/maildecryptor
+sudo mkdir -p /var/chroot/maildecryptor
 sudo jk_init -j /var/chroot/maildecryptor maildecryptor
 ```
 
