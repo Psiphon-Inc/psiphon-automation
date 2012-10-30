@@ -50,6 +50,7 @@ def main(key_password):
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
+        _log('Need key password')
         raise Exception('Need key password')
     key_password = sys.argv[1]
 
