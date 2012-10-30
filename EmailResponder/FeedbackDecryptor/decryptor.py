@@ -16,10 +16,8 @@
 
 
 from base64 import b64decode
-from Crypto.PublicKey import RSA
-from Crypto.Cipher import AES
-from Crypto.Cipher import PKCS1_v1_5
-from Crypto.Hash import HMAC, SHA256
+import cStringIO
+import M2Crypto
 
 
 '''
@@ -32,7 +30,7 @@ class DecryptorException(Exception):
     pass
 
 
-def decrypt(private_key_pem, data):
+def decrypt(private_key_pem, key_password, data):
     '''
     `data` is a dict containing the object given in the diagnostic feedback
     attachment. The decrypted content string is returned. A DecryptorException
@@ -43,35 +41,51 @@ def decrypt(private_key_pem, data):
 
     # Ready our private key, with which we'll unwrap the encryption and MAC
     # keys.
-    rsaPrivKey = RSA.importKey(private_key_pem)
-    rsaCipher = PKCS1_v1_5.new(rsaPrivKey)
+    rsaPrivKey = M2Crypto.RSA.load_key_string(private_key_pem, lambda _: key_password)
 
     # Unwrap the MAC key
-    macKey = rsaCipher.decrypt(b64decode(data['wrappedMacKey']), 'fail')
-    if macKey == 'fail':
+    try:
+        macKey = rsaPrivKey.private_decrypt(b64decode(data['wrappedMacKey']),
+                                            M2Crypto.RSA.pkcs1_padding)
+    except:
         raise DecryptorException("can't unwrap MAC key")
 
     # Calculate and verify the MAC.
-    mac = HMAC.new(macKey, digestmod=SHA256.new())
+    mac = M2Crypto.EVP.HMAC(macKey, algo='sha256')
     mac.update(ciphertext)
-    if mac.digest() != b64decode(data['contentMac']):
+    if mac.final() != b64decode(data['contentMac']):
         raise DecryptorException('MAC verifiication failed')
 
     # Unwrap the encryption key.
-    aesKey = rsaCipher.decrypt(b64decode(data['wrappedEncryptionKey']), 'fail')
-    if aesKey == 'fail':
+    try:
+        aesKey = rsaPrivKey.private_decrypt(b64decode(data['wrappedEncryptionKey']),
+                                            M2Crypto.RSA.pkcs1_padding)
+    except:
         raise DecryptorException("can't unwrap encryption key")
 
     # Decrypt the content.
-    aesCipher = AES.new(aesKey, IV=b64decode(data['iv']), mode=AES.MODE_CBC)
-    rsaCipher = PKCS1_v1_5.new(rsaPrivKey)
-    cleartext = aesCipher.decrypt(ciphertext)
 
-    # Remove the padding
-    cleartext = _pkcs5_unpad(cleartext)
+    # From http://svn.osafoundation.org/m2crypto/trunk/tests/test_evp.py
+    def cipher_filter(cipher, inf, outf):
+        while 1:
+            buf = inf.read()
+            if not buf:
+                break
+            outf.write(cipher.update(buf))
+        outf.write(cipher.final())
+        return outf.getvalue()
 
-    return cleartext
+    aesCipher = M2Crypto.EVP.Cipher(alg='aes_128_cbc',
+                                    key=aesKey,
+                                    iv=b64decode(data['iv']),
+                                    op=M2Crypto.decrypt)
 
+    pbuf = cStringIO.StringIO()
+    cbuf = cStringIO.StringIO(ciphertext)
 
-def _pkcs5_unpad(padded):
-    return padded[0:-ord(padded[-1])]
+    plaintext = cipher_filter(aesCipher, cbuf, pbuf)
+
+    pbuf.close()
+    cbuf.close()
+
+    return plaintext

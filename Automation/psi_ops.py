@@ -39,7 +39,7 @@ import psi_ops_discovery
 # Modules available only on the automation server
 
 try:
-    import psi_ops_server_entry_auth
+    import psi_ops_crypto_tools
 except ImportError as error:
     print error
 
@@ -223,6 +223,10 @@ RemoteServerSigningKeyPair = psi_utils.recordtype(
 # database, so we don't require a secret key pair wrapping password
 REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD = 'none'
 
+FeedbackEncryptionKeyPair = psi_utils.recordtype(
+    'FeedbackEncryptionKeyPair',
+    'pem_key_pair, password')
+
 CLIENT_PLATFORM_WINDOWS = 'Windows'
 CLIENT_PLATFORM_ANDROID = 'Android'
 
@@ -264,8 +268,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__deploy_email_config_required = False
         self.__speed_test_urls = []
         self.__remote_server_list_signing_key_pair = None
+        self.__feedback_encryption_signing_key_pair = None
 
-    class_version = '0.11'
+    class_version = '0.12'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -332,6 +337,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 server.capabilities['OSSH'] = server.capabilities['SSH+']
                 server.capabilities.pop('SSH+')
             self.version = '0.11'
+        if cmp(parse_version(self.version), parse_version('0.12')) < 0:
+            self.__feedback_encryption_key_pair = None
+            self.version = '0.12'
 
     def show_status(self):
         # NOTE: verbose mode prints credentials to stdout
@@ -969,7 +977,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # data will not include this host and server
         assert(host.id not in self.__hosts)
         self.__hosts[host.id] = host
-        
+
         for server in servers:
             assert(server.id not in self.__servers)
             self.__servers[server.id] = server
@@ -1218,14 +1226,30 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             assert(self.is_locked)
             self.__remote_server_list_signing_key_pair = \
                 RemoteServerSigningKeyPair(
-                    psi_ops_server_entry_auth.generate_signing_key_pair(
+                    psi_ops_crypto_tools.generate_key_pair(
                         REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD))
+
+    def create_feedback_encryption_key_pair(self, password):
+        '''
+        Generate a feedback encryption key pair. This must be done before trying
+        to use the key pair.
+        '''
+        assert(self.is_locked)
+        self.__feedback_encryption_key_pair = \
+            FeedbackEncryptionKeyPair(
+                psi_ops_crypto_tools.generate_key_pair(password),
+                password)
+
+    def __get_feedback_encryption_key_pair(self):
+        if not self.__feedback_encryption_key_pair:
+            print 'Must first generate a key pair using create_feedback_encryption_key_pair'
+            assert(False)
 
         # This may be serialized/deserialized into a unicode string, but M2Crypto won't accept that.
         # The key pair should only contain ascii anyways, so encoding to ascii should be safe.
-        self.__remote_server_list_signing_key_pair.pem_key_pair = \
-            self.__remote_server_list_signing_key_pair.pem_key_pair.encode('ascii', 'ignore')
-        return self.__remote_server_list_signing_key_pair
+        self.__feedback_encryption_key_pair.pem_key_pair = \
+            self.__feedback_encryption_key_pair.pem_key_pair.encode('ascii', 'ignore')
+        return self.__feedback_encryption_key_pair
 
     def build(
             self,
@@ -1244,9 +1268,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     self.__get_encoded_server_list(propagation_channel.id)
 
         remote_server_list_signature_public_key = \
-            psi_ops_server_entry_auth.get_base64_der_public_key(
+            psi_ops_crypto_tools.get_base64_der_public_key(
                 self.__get_remote_server_list_signing_key_pair().pem_key_pair,
                 REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD)
+
+        feedback_encryption_public_key = \
+            psi_ops_crypto_tools.get_base64_der_public_key(
+                self.__get_feedback_encryption_key_pair().pem_key_pair,
+                self.__get_feedback_encryption_key_pair().password)
 
         builders = {
             CLIENT_PLATFORM_WINDOWS: psi_ops_build_windows.build_client,
@@ -1259,6 +1288,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         base64.b64decode(sponsor.banner),
                         encoded_server_list,
                         remote_server_list_signature_public_key,
+                        feedback_encryption_public_key,
                         remote_server_list_url,
                         info_link_url,
                         self.__client_versions[platform][-1].version if self.__client_versions[platform] else 0,
@@ -1313,7 +1343,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     info_link_url = psi_ops_s3.get_s3_bucket_home_page_url(campaign.s3_bucket_name)
 
                     remote_server_list = \
-                        psi_ops_server_entry_auth.make_signed_data(
+                        psi_ops_crypto_tools.make_signed_data(
                             self.__get_remote_server_list_signing_key_pair().pem_key_pair,
                             REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD,
                             '\n'.join(self.__get_encoded_server_list(propagation_channel.id)[0]))

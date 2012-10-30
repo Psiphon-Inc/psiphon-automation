@@ -34,14 +34,14 @@ def _do_exit(signum, frame):
     sys.exit(0)
 
 
-def main():
+def main(key_password):
     _log('Starting up')
 
     signal.signal(signal.SIGTERM, _do_exit)
 
     while True:
         try:
-            maildecryptor.go()
+            maildecryptor.go(key_password)
         except Exception as e:
             _log('Exception: %s' % (e,))
             time.sleep(60)
@@ -49,4 +49,8 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    if len(sys.argv) < 2:
+        raise Exception('Need key password')
+    key_password = sys.argv[1]
+
+    main(key_password)
