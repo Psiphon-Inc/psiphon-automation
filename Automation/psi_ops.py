@@ -895,7 +895,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 else:
                     host.datacenter_name = str(host.provider)
 
-    def __prune_servers(servers):
+    def __prune_servers(self, servers):
         number_removed = 0
         number_disabled = 0
         for server in servers:
