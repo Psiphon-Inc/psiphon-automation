@@ -1967,7 +1967,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for host in self.__hosts.itervalues():
             copy.__hosts[host.id] = Host(
                                             host.id,
-                                            '',  # Omit: provider isn't needed
+                                            host.provider,
                                             '',  # Omit: provider id isn't needed
                                             host.ip_address,
                                             host.ssh_port,
