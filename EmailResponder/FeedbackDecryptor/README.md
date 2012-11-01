@@ -1,22 +1,34 @@
 # Diagnostic Feedback Email Attachment Decryptor
 
-## Get source files
+## Setup
 
-TODO: Put them where?
-
-## System Configuration
+### System Configuration
 
 ```shell
 # Prereqs
 sudo apt-get install -y python-pip python-dev libssl-dev swig
 sudo pip install rfc6266
 sudo pip install M2Crypto
-
-# Install the Upstart service file
-sudo cp maildecryptor.conf /etc/init/
 ```
 
-### M2Crypto issues
+#### Create limited-privilege user
+
+The daemon will run as this user.
+
+```shell
+sudo useradd -s /bin/false maildecryptor
+```
+
+### Get source files
+
+Use Mercurial to get the source files. Also acquire the necessary
+configuration files from your secure document repository. These files are: 
+`conf.json` and the PEM file (the latter can be extracted from psinet).
+
+Copy the source and config files to `/maildecryptor`. (Permissions will be set
+by the daemon script.)
+
+#### M2Crypto issues
 
 Check that M2Crypto installed properly. Open a Python REPL, and then type `import M2Crypto`. If you receive either of these errors:
 
@@ -31,10 +43,13 @@ http://chandlerproject.org/Projects/MeTooCrypto
 ...and follow the instructions for code mods here:  
 http://code.google.com/p/grr/wiki/M2CryptoFromSource
 
-### Create limited-privilege user
+## Running
 
-The daemon will run as this user.
+Use the included script:
 
 ```shell
-sudo useradd -s /bin/false maildecryptor
+/maildecryptor/maildecryptor_daemon.sh start
+/maildecryptor/maildecryptor_daemon.sh stop
 ```
+
+(You may need to `sudo` that script the first time.)

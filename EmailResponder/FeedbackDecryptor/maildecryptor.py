@@ -62,7 +62,7 @@ def _remove_ip_addresses(yaml_string):
     return re.sub(r'ipAddress: .*\n', 'ipAddress: "[redacted]"\n', yaml_string)
 
 
-def go(key_password):
+def go():
     config = _read_config(_CONFIG_FILENAME)
 
     emailgetter = EmailGetter(config['popServer'],
@@ -84,7 +84,7 @@ def go(key_password):
                 encrypted_info = json.loads(encrypted_info)
 
                 diagnostic_info = decryptor.decrypt(private_key_pem,
-                                                    key_password,
+                                                    config['privateKeyPassword'],
                                                     encrypted_info)
 
                 diagnostic_info = diagnostic_info.strip()
