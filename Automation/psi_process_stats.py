@@ -37,6 +37,8 @@ HOST_LOG_FILENAME_PATTERN = 'psiphonv.log*'
 LOCAL_LOG_ROOT = os.path.join(os.path.abspath('.'), 'logs')
 PSI_OPS_DB_FILENAME = os.path.join(os.path.abspath('.'), 'psi_ops_stats.dat')
 
+TESTING_PROPAGATION_CHANNEL_NAME = 'Testing'
+
 
 # Stats database schema consists of one table per event type. The tables
 # have a column per log line field.
@@ -79,7 +81,7 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'client_version',
                              'client_platform',
                              'relay_protocol'),
-    'handshake' :           ('server_id',
+    'handshake.9' :         ('server_id',
                              'client_region',
                              'client_city',
                              'client_isp',
@@ -88,8 +90,29 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'client_version',
                              'client_platform',
                              'relay_protocol'),
+    'handshake' :           ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'tunnel_whole_device'),
     'discovery.9' :         ('server_id',
                              'client_region',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'discovery_server_id',
+                             'client_unknown'),
+    'discovery.11' :        ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
                              'propagation_channel_id',
                              'sponsor_id',
                              'client_version',
@@ -106,6 +129,7 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'client_version',
                              'client_platform',
                              'relay_protocol',
+                             'tunnel_whole_device',
                              'discovery_server_id',
                              'client_unknown'),
     'connected.8' :         ('server_id',
@@ -116,7 +140,7 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'client_platform',
                              'relay_protocol',
                              'session_id'),
-    'connected' :           ('server_id',
+    'connected.11' :        ('server_id',
                              'client_region',
                              'client_city',
                              'client_isp',
@@ -127,8 +151,30 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'relay_protocol',
                              'session_id',
                              'last_connected'),
+    'connected' :           ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'tunnel_whole_device',
+                             'session_id',
+                             'last_connected'),
     'failed.8' :            ('server_id',
                              'client_region',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'error_code'),
+    'failed.10' :           ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
                              'propagation_channel_id',
                              'sponsor_id',
                              'client_version',
@@ -144,9 +190,18 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'client_version',
                              'client_platform',
                              'relay_protocol',
+                             'tunnel_whole_device',
                              'error_code'),
     'download.6' :          ('server_id',
                              'client_region',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform'),
+    'download.8' :          ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
                              'propagation_channel_id',
                              'sponsor_id',
                              'client_version',
@@ -158,7 +213,9 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'propagation_channel_id',
                              'sponsor_id',
                              'client_version',
-                             'client_platform'),
+                             'client_platform',
+                             'relay_protocol',
+                             'tunnel_whole_device'),
     'disconnected' :        ('relay_protocol',
                              'session_id'),
     'status' :              ('relay_protocol',
@@ -171,6 +228,18 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'client_platform',
                              'relay_protocol',
                              'bytes'),
+    'bytes_transferred.12' :('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'session_id',
+                             'connected',
+                             'bytes'),
     'bytes_transferred' :   ('server_id',
                              'client_region',
                              'client_city',
@@ -180,6 +249,7 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'client_version',
                              'client_platform',
                              'relay_protocol',
+                             'tunnel_whole_device',
                              'session_id',
                              'connected',
                              'bytes'),
@@ -192,6 +262,19 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'relay_protocol',
                              'pagename',
                              'viewcount'),
+    'page_views.13' :       ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'session_id',
+                             'connected',
+                             'pagename',
+                             'viewcount'),
     'page_views' :          ('server_id',
                              'client_region',
                              'client_city',
@@ -201,6 +284,7 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'client_version',
                              'client_platform',
                              'relay_protocol',
+                             'tunnel_whole_device',
                              'session_id',
                              'connected',
                              'pagename',
@@ -214,7 +298,7 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'relay_protocol',
                              'domain',
                              'count'),
-    'https_requests' :      ('server_id',
+    'https_requests.13' :   ('server_id',
                              'client_region',
                              'client_city',
                              'client_isp',
@@ -227,8 +311,35 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'connected',
                              'domain',
                              'count'),
+    'https_requests' :      ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'tunnel_whole_device',
+                             'session_id',
+                             'connected',
+                             'domain',
+                             'count'),
     'speed.11' :            ('server_id',
                              'client_region',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'operation',
+                             'info',
+                             'milliseconds',
+                             'size'),
+    'speed.13' :            ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
                              'propagation_channel_id',
                              'sponsor_id',
                              'client_version',
@@ -247,10 +358,23 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'client_version',
                              'client_platform',
                              'relay_protocol',
+                             'tunnel_whole_device',
                              'operation',
                              'info',
                              'milliseconds',
                              'size'),
+    'feedback.12' :         ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'session_id',
+                             'question',
+                             'answer'),
     'feedback' :            ('server_id',
                              'client_region',
                              'client_city',
@@ -260,6 +384,7 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'client_version',
                              'client_platform',
                              'relay_protocol',
+                             'tunnel_whole_device',
                              'session_id',
                              'question',
                              'answer'),
@@ -283,13 +408,13 @@ def iso8601_to_utc(timestamp):
     return (localized_datetime - timezone_delta).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
 
 
-def process_stats(host, servers, db_cur, error_file=None):
+def process_stats(host, servers, db_cur, psinet, error_file=None):
 
     print 'process stats from host %s...' % (host.id,)
 
     server_ip_address_to_id = {}
     for server in servers:
-        server_ip_address_to_id[server.ip_address] = server.id
+        server_ip_address_to_id[server.internal_ip_address] = server.id
 
     line_re = re.compile(LOG_LINE_PATTERN)
 
@@ -342,6 +467,15 @@ def process_stats(host, servers, db_cur, error_file=None):
                             ' and '.join([('%s is %%s' % x) if x == 'last_connected' else ('%s = %%s' % x)
                                         for x in event_columns[event_type]]))
             event_sql[event_type + '.last_connected_NULL'] = command
+
+    # Don't record entries for testing or deployment-validation logs.
+    # Manual and automated testing are typically done with a propagation channel
+    # name of 'Testing' (which we're going to look up in psinet to get the ID). 
+    # All logs that use this propagation channel will be discarded to prevent 
+    # stats confusion.
+    excluded_propagation_channel_ids = []
+    if TESTING_PROPAGATION_CHANNEL_NAME:
+        excluded_propagation_channel_ids += [psinet.get_propagation_channel_by_name(TESTING_PROPAGATION_CHANNEL_NAME).id]
 
     for filename in os.listdir(directory):
         if re.match(HOST_LOG_FILENAME_PATTERN, filename):
@@ -413,19 +547,33 @@ def process_stats(host, servers, db_cur, error_file=None):
 
                     if event_type == 'bytes_transferred.8':
                         assert(field_names[9] == 'bytes')
-                        if not (0 <= int(field_values[9]) < 2147483647):
-                            err = 'invalid byte fields %s' % (line,)
-                            print err
-                            if error_file:
-                                error_file.write(err + '\n')
-                            continue
-
                         # Client version 24 had a bug which resulted in
                         # corrupt byte transferred values, so discard them
-                        
                         assert(field_names[6] == 'client_version')
                         if int(field_values[6]) == 24:
                             continue
+
+                    invalid_byte_field = False
+                    for index, field_name in enumerate(field_names):
+                        if field_name == 'bytes':
+                            # This is an integer field
+                            if not (0 <= int(field_values[index]) < 2147483647):
+                                err = 'invalid byte fields %s' % (line,)
+                                print err
+                                if error_file:
+                                    error_file.write(err + '\n')
+                                invalid_byte_field = True
+                                break
+                    if invalid_byte_field:
+                        continue
+
+                    # Don't record entries for testing or deployment-validation logs
+                    try:
+                        if field_values[field_names.index('propagation_channel_id')] in excluded_propagation_channel_ids:
+                            continue
+                    except:
+                        # propagation_channel_id is not present
+                        pass
 
                     # Replace server IP addresses with server IDs in
                     # stats to keep IP addresses confidental in reporting.
@@ -559,7 +707,7 @@ if __name__ == "__main__":
 
         for host in hosts:
             db_cur = db_conn.cursor()
-            process_stats(host, servers, db_cur)
+            process_stats(host, servers, db_cur, psinet)
             db_cur.close()
             db_conn.commit()
         reconstruct_sessions(db_conn)

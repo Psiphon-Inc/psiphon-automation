@@ -31,28 +31,28 @@ class CronCreator(object):
         self.normal_tab = CronTab(user=normal_user)
         self.mail_tab = CronTab(user=mail_user)
         self.dir = dir
-        
+
     def go(self):
         self._maintenance_jobs()
         self._blacklist_jobs()
         self.normal_tab.write()
         self.mail_tab.write()
-    
+
     @staticmethod
     def _make_daily(cron):
         cron.minute().on(0)
         cron.hour().on(0)
-        
+
     def _blacklist_jobs(self):
-        command = '/usr/bin/python %s' % os.path.join(self.dir, 'blacklist.py --clear')
+        command = '/usr/bin/python %s' % os.path.join(self.dir, 'blacklist.py --clear-adhoc')
         self.mail_tab.remove_all(command)
         cron = self.mail_tab.new(command=command)
         self._make_daily(cron)
-        
+
     def _maintenance_jobs(self):
         # Disabled
         return
-    
+
         # Clears the postfix message queue
         command = "sudo postsuper -d ALL"
         self.normal_tab.remove_all(command)
@@ -61,13 +61,11 @@ class CronCreator(object):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Interact with the blacklist table')
-    parser.add_argument('--mailuser', action='store', required=True, help="the name of the reduced-privilege mail user") 
-    parser.add_argument('--normaluser', action='store', required=True, help="the name of a normal (sudoer) user") 
-    parser.add_argument('--dir', action='store', required=True, help="specifies the location of the command files") 
+    parser = argparse.ArgumentParser(description='Create mail responder cron jobs')
+    parser.add_argument('--mailuser', action='store', required=True, help="the name of the reduced-privilege mail user")
+    parser.add_argument('--normaluser', action='store', required=True, help="the name of a normal (sudoer) user")
+    parser.add_argument('--dir', action='store', required=True, help="specifies the location of the command files")
     args = parser.parse_args()
-    
+
     cron_creator = CronCreator(args.normaluser, args.mailuser, args.dir)
     cron_creator.go()
-    
-    
