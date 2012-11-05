@@ -41,7 +41,10 @@ def decrypt(private_key_pem, key_password, data):
 
     # Ready our private key, with which we'll unwrap the encryption and MAC
     # keys.
-    rsaPrivKey = M2Crypto.RSA.load_key_string(private_key_pem, lambda _: key_password)
+    # We need to explicitly call `str()` on the password, because if it has
+    # been extracted from a JSON config file it will be of type `unicode`
+    # which will cause a key unwrap error ("bad password read").
+    rsaPrivKey = M2Crypto.RSA.load_key_string(private_key_pem, lambda _: str(key_password))
 
     # Unwrap the MAC key
     try:
