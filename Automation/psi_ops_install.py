@@ -410,7 +410,6 @@ def generate_self_signed_certificate():
 def install_host(host, servers, existing_server_ids):
 
     install_firewall_rules(host, servers)
-    install_malware_blacklist(host)
     
     # NOTE:
     # For partially configured hosts we need to completely reconfigure
@@ -643,17 +642,17 @@ def install_firewall_rules(host, servers):
     ['''
     -A OUTPUT -s %s -p tcp -m tcp --sport %s -j ACCEPT'''
             % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers
-                if s.capabilities['handshake']]) + ''.join(
+                if s.web_server_port]) + ''.join(
     # SSH
     ['''
     -A OUTPUT -s %s -p tcp -m tcp --sport %s -j ACCEPT'''
             % (str(s.internal_ip_address), str(s.ssh_port)) for s in servers
-                if s.capabilities['SSH']]) + ''.join(
+                if s.ssh_port]) + ''.join(
     # OSSH
     ['''
     -A OUTPUT -s %s -p tcp -m tcp --sport %s -j ACCEPT'''
             % (str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
-                if s.capabilities['OSSH']]) + ''.join(
+                if s.ssh_obfuscated_port]) + ''.join(
     # VPN
     ['''
     -A OUTPUT -s {0} -p esp -j ACCEPT
@@ -700,6 +699,8 @@ iptables-restore < %s
     ssh.exec_command('chmod +x %s' % (if_up_script_path,))
     ssh.exec_command(if_up_script_path)
     ssh.close()
+    
+    install_malware_blacklist(host)
     
     
 def install_malware_blacklist(host):
