@@ -1259,12 +1259,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         to use the key pair.
         '''
         assert(self.is_locked)
+
+        if self.__feedback_encryption_key_pair:
+            print('WARNING: You are overwriting the previous value')
+
         self.__feedback_encryption_key_pair = \
             FeedbackEncryptionKeyPair(
                 psi_ops_crypto_tools.generate_key_pair(password),
                 password)
 
-    def __get_feedback_encryption_key_pair(self):
+    def get_feedback_encryption_key_pair(self):
         if not self.__feedback_encryption_key_pair:
             print 'Must first generate a key pair using create_feedback_encryption_key_pair'
             assert(False)
@@ -1298,8 +1302,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         feedback_encryption_public_key = \
             psi_ops_crypto_tools.get_base64_der_public_key(
-                self.__get_feedback_encryption_key_pair().pem_key_pair,
-                self.__get_feedback_encryption_key_pair().password)
+                self.get_feedback_encryption_key_pair().pem_key_pair,
+                self.get_feedback_encryption_key_pair().password)
 
         builders = {
             CLIENT_PLATFORM_WINDOWS: psi_ops_build_windows.build_client,
