@@ -38,11 +38,6 @@ sudo chmod 0400 $MAILDECRYPTOR_DIR/*.pem
 sudo chmod 0400 $MAILDECRYPTOR_DIR/*.json
 sudo chown $MAILDECRYPTOR_USER:$MAILDECRYPTOR_USER $MAILDECRYPTOR_DIR/*
 
-if [ `stat --printf "%a" $MAILDECRYPTOR_DIR/*.pem` != "400" -o `stat --printf "%a" $MAILDECRYPTOR_DIR/*.json` != "400" ] ; then
-  echo "Permissions on sensitive files are not sufficiently restricted"
-  exit 1
-fi
-
 if [ "$1" = "$START" ] ; then
   ARGS="--start --background"
 else
