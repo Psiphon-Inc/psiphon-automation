@@ -11,23 +11,6 @@ sudo pip install rfc6266
 sudo pip install M2Crypto
 ```
 
-#### Create limited-privilege user
-
-The daemon will run as this user.
-
-```shell
-sudo useradd -s /bin/false maildecryptor
-```
-
-### Get source files
-
-Use Mercurial to get the source files. Also acquire the necessary
-configuration files from your secure document repository. These files are: 
-`conf.json` and the PEM file (the latter can be extracted from psinet).
-
-Copy the source and config files to `/maildecryptor`. (Permissions will be set
-by the daemon script.)
-
 #### M2Crypto issues
 
 Check that M2Crypto installed properly. Open a Python REPL, and then type `import M2Crypto`. If you receive either of these errors:
@@ -43,13 +26,35 @@ http://chandlerproject.org/Projects/MeTooCrypto
 ...and follow the instructions for code mods here:  
 http://code.google.com/p/grr/wiki/M2CryptoFromSource
 
-## Running
+#### Create limited-privilege user
+
+The daemon will run as this user.
+
+```shell
+sudo useradd -s /bin/false maildecryptor
+```
+
+### Get source files
+
+Use Mercurial to get the source files. Also acquire the necessary
+configuration files from your secure document repository. These files are: 
+`conf.json` and the PEM file (the latter can be extracted from psinet).
+
+## Installing
 
 Use the included script:
 
 ```shell
-/maildecryptor/maildecryptor_daemon.sh start
-/maildecryptor/maildecryptor_daemon.sh stop
+/maildecryptor/maildecryptor_install.sh
 ```
 
-(You may need to `sudo` that script the first time.)
+This will create the directory to run from, copy the files, and set the file
+permissions.
+
+## Running
+
+Use the Upstart utilities.
+
+```shell
+sudo start maildecryptor
+```

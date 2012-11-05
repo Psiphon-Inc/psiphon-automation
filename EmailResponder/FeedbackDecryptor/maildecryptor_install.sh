@@ -16,35 +16,22 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-MAILDECRYPTOR_DIR="/maildecryptor"
+MAILDECRYPTOR_DIR="/opt/psiphon/maildecryptor"
 MAILDECRYPTOR_USER="maildecryptor"
 
-START=start
-STOP=stop
+echo "You must already have created the user $MAILDECRYPTOR_USER, otherwise this script will fail. See the README for details."
+echo ""
 
-if [ -z $1 ] ; then
-  echo "Missing argument: $START|$STOP"
-  exit 1
-fi
+sudo cp maildecryptor.conf /etc/init
 
-if [ "$1" != "$START" -a "$1" != "$STOP" ] ; then
-  echo "Bad argument; must be: $START|$STOP"
-  exit 1
-fi
+sudo mkdir -p $MAILDECRYPTOR_DIR
+sudo cp * $MAILDECRYPTOR_DIR
 
 sudo chmod 0444 $MAILDECRYPTOR_DIR/*
-sudo chmod 0555 $MAILDECRYPTOR_DIR/maildecryptor_runner.py $MAILDECRYPTOR_DIR/maildecryptor_daemon.sh
+sudo chmod 0555 $MAILDECRYPTOR_DIR/maildecryptor_runner.py
 sudo chmod 0400 $MAILDECRYPTOR_DIR/*.pem
 sudo chmod 0400 $MAILDECRYPTOR_DIR/*.json
 sudo chown $MAILDECRYPTOR_USER:$MAILDECRYPTOR_USER $MAILDECRYPTOR_DIR/*
 
-if [ "$1" = "$START" ] ; then
-  ARGS="--start --background"
-else
-  ARGS="--stop"
-fi
-
-sudo start-stop-daemon $ARGS --user $MAILDECRYPTOR_USER --chuid $MAILDECRYPTOR_USER:$MAILDECRYPTOR_USER --chdir $MAILDECRYPTOR_DIR --startas $MAILDECRYPTOR_DIR/maildecryptor_runner.py
-
-sleep 2
-tail --lines=3 /var/log/syslog
+echo "Done. To start the daemon execute:"
+echo " > sudo start maildecryptor"
