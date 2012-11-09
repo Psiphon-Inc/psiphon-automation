@@ -105,7 +105,7 @@ jQuery.extend({{
         stringify: this.JSON && this.JSON.stringify ? this.JSON.stringify : function stringify(obj) {{
                 var t = typeof(obj);
                 if (t != "object" || obj === null) {{
-                        if (t == "string") 
+                        if (t == "string")
                                 obj = '"' + obj + '"';
                         return String(obj);
                 }}
@@ -127,6 +127,22 @@ jQuery.extend({{
                 }}
         }}
 }});
+
+// From: http://stackoverflow.com/questions/901115/how-can-i-get-query-string-values
+function getParameterByName(name, parameterString)
+{{
+  if (parameterString.slice(0, 1) !== '?') {
+    parameterString = '?' + parameterString;
+  }
+  name = name.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
+  var regexS = "[\\?&]" + name + "=([^&#]*)";
+  var regex = new RegExp(regexS);
+  var results = regex.exec(parameterString);
+  if(results == null)
+    return "";
+  else
+    return decodeURIComponent(results[1].replace(/\+/g, " "));
+}}
 
 //extract language from hash URL
 function getLanguageNameFromURL(url)
@@ -160,7 +176,7 @@ function setLanguage(langName)
         langName = 'en';
     }}
 
-    //set direction 
+    //set direction
     if(langName == 'fa' || langName == 'ar') {{
         direction = 'rtl';
         float = 'left';
@@ -180,19 +196,33 @@ function setLanguage(langName)
 
     var platform = (window.dialogArguments !== undefined) ? "win" : "android";
 
+    // If diagnostic info has been provided, set it as the default email body.
+    var defaultBody = '';
+    if (window.dialogArguments) {{
+        var diagnosticInfo = getParameterByName('diagnosticInfo', window.dialogArguments);
+        if (diagnosticInfo) {{
+            defaultBody = '\n---\n'+diagnosticInfo;
+        }}
+    }}
+
     $.each(currentLanguage, function(name, val){{
         selector = '#' + name;
         if(name == 'submit_button') {{
-            $(selector).val(val); 
+            $(selector).val(val);
         }}
         else if(name == 'title') {{
             document.title = val; //supported in all browsers
         }}
         else if(name == 'top_content') {{
-           $(selector).html(val.replace(/feedback@psiphon.ca/g, "feedback+" + platform+ "@psiphon.ca"));
+            // Replace the feedback address mailto link with a platform specific
+            // value, possibly containing a default body.
+            val = val.replace(
+                        /mailto:(([^@]+)@([^"]+))(.*)\1/g,
+                        "mailto:$2+" + platform + "@$3?body=" + encodeURIComponent(defaultBody) + "$4$2+" + platform + "@$3");
+            $(selector).html(val);
         }}
         else {{
-            $(selector).html(val); 
+            $(selector).html(val);
         }}
     }});
     $('#language_selector').val(langName);
@@ -232,19 +262,19 @@ $(function() {{
 
                 if($(this).hasClass('happy')){{
                     responses.push({{question:hash, answer: 0}});
-                }}     
+                }}
                 if($(this).hasClass('ok')){{
                     responses.push({{question:hash, answer: 1}});
-                }}     
+                }}
                 if($(this).hasClass('sad')){{
                     responses.push({{question:hash, answer: 2}});
-                }}     
+                }}
             }})
             s = $.stringify({{"responses":responses}});
 
             //Windows client expects result in the window.returnValue magic variable
             //No need to actually submit data
-            if(window.dialogArguments !== undefined) {{ 
+            if(window.dialogArguments !== undefined) {{
                 window.returnValue = s;
                 window.close();
             }}
@@ -275,7 +305,7 @@ $(function() {{
   <option value="es">Español</option>
   <option value="vi">Tiếng Việt</option>
   </select>
-    
+
     <h1 id="top_content_title"></h1>
     <div id="top_content">
     </div>
@@ -310,7 +340,7 @@ $(function() {{
     <input type="submit" value="" id="submit_button" />
     </center>
     <input type="hidden" value="" id="formdata" name="formdata">
-    </form> 
+    </form>
     </div>
 
   </body>
