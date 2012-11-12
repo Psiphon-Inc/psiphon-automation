@@ -49,7 +49,7 @@ def decrypt(private_key_pem, key_password, data):
     # Unwrap the MAC key
     try:
         macKey = rsaPrivKey.private_decrypt(b64decode(data['wrappedMacKey']),
-                                            M2Crypto.RSA.pkcs1_padding)
+                                            M2Crypto.RSA.pkcs1_oaep_padding)
     except:
         raise DecryptorException("can't unwrap MAC key")
 
@@ -62,7 +62,7 @@ def decrypt(private_key_pem, key_password, data):
     # Unwrap the encryption key.
     try:
         aesKey = rsaPrivKey.private_decrypt(b64decode(data['wrappedEncryptionKey']),
-                                            M2Crypto.RSA.pkcs1_padding)
+                                            M2Crypto.RSA.pkcs1_oaep_padding)
     except:
         raise DecryptorException("can't unwrap encryption key")
 

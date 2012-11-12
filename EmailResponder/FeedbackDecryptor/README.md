@@ -20,7 +20,9 @@ ImportError: No module named __m2crypto
 ImportError: /usr/local/lib/python2.7/dist-packages/M2Crypto-0.21.1-py2.7-linux-x86_64.exx/__m2crypto.so: undefined symbol: SSLv2_method
 ```
 
-Then pull the source from here:  
+Then `sudo pip uninstall M2Crypto`.
+
+...and then pull the source from here:  
 http://chandlerproject.org/Projects/MeTooCrypto
 
 ...and follow the instructions for code mods here:  
