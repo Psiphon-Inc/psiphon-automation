@@ -104,6 +104,18 @@ def go():
                                  diagnostic_info,
                                  msg['msgobj']['Message-ID'])
 
+            except decryptor.DecryptorException as e:
+                # Something bad happened while decrypting. Report it via email.
+                emailsender.send(config['smtpServer'],
+                                 config['smtpPort'],
+                                 config['emailUsername'],
+                                 config['emailPassword'],
+                                 config['emailUsername'],
+                                 config['emailUsername'],
+                                 u'Re: %s' % (msg['subject'] or ''),
+                                 'Decrypt failed: %s' % e,
+                                 msg['msgobj']['Message-ID'])
+
             except (ValueError, TypeError) as e:
                 # Try the next attachment/message
                 _debug_log('maildecryptor: expected exception: %s' % e)
