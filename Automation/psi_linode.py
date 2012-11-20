@@ -142,8 +142,9 @@ def launch_new_server(linode_account):
     linode_id = None
     linode_api = linode.api.Api(key=linode_account.api_key)
     
-    # Power on the base image linode
-    start_linode(linode_api, linode_account.base_id, None)
+    # Power on the base image linode if it is not already running
+    if linode_api.linode_list(LinodeID=linode_account.base_id)[0]['STATUS'] != 1:
+        start_linode(linode_api, linode_account.base_id, None)
     
     try:
         # Create a new linode
