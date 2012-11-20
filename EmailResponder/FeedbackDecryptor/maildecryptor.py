@@ -72,7 +72,9 @@ def go():
 
     private_key_pem = open(config['privateKeyPemFile'], 'r').read()
 
-    # Retrieve and process email
+    # Retrieve and process email.
+    # Note that `emailgetter.get` throttles itself if/when there are no emails
+    # immediately available.
     for msg in emailgetter.get():
         _debug_log('maildecryptor: msg has %d attachments' % len(msg['attachments']))
 
