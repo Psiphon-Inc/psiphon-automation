@@ -1,0 +1,10 @@
+{
+  "popServer": "pop.gmail.com",
+  "popPort": 995,
+  "smtpServer": "smtp.gmail.com",
+  "smtpPort": 465,
+  "emailUsername": "feedback@example.com",
+  "emailPassword": "password1",
+  "privateKeyPemFile": "priv.pem",
+  "privateKeyPassword": "password2"
+}

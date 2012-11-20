@@ -1,7 +1,7 @@
 en:
     title: Psiphon 3 Feedback
 
-    top_content_title:  Give Us Your Feedback    
+    top_content_title:  Give Us Your Feedback
 
     top_content: |
         <p>
@@ -10,12 +10,17 @@ en:
 
         <p>
          If you have any specific comments, further information about web sites that do not work, or if this form is not working for you, please email <a href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>.
+         <span class="diagnostic-info-warning"></span>
         </p>
+
+    diagnostic_info_warning_android: Please note that some diagnostic information will be attached to the email. This attachment does not contain private information about you, and it will help us to keep Psiphon running smoothly.
+    diagnostic_info_warning_windows:
+
     connectivity_title:  Connectivity
 
     connectivity_happy:  Psiphon consistently connects and stays connected.
 
-    connectivity_ok:  Psiphon often connects, but sometimes disconnects and reconnects.   
+    connectivity_ok:  Psiphon often connects, but sometimes disconnects and reconnects.
 
     connectivity_sad:  Psiphon often fails to connect or constantly get disconnected.
 
