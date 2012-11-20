@@ -68,27 +68,12 @@ def decrypt(private_key_pem, key_password, data):
 
     # Decrypt the content.
 
-    # From http://svn.osafoundation.org/m2crypto/trunk/tests/test_evp.py
-    def cipher_filter(cipher, inf, outf):
-        while 1:
-            buf = inf.read()
-            if not buf:
-                break
-            outf.write(cipher.update(buf))
-        outf.write(cipher.final())
-        return outf.getvalue()
-
     aesCipher = M2Crypto.EVP.Cipher(alg='aes_128_cbc',
                                     key=aesKey,
                                     iv=b64decode(data['iv']),
                                     op=M2Crypto.decrypt)
 
-    pbuf = cStringIO.StringIO()
-    cbuf = cStringIO.StringIO(ciphertext)
-
-    plaintext = cipher_filter(aesCipher, cbuf, pbuf)
-
-    pbuf.close()
-    cbuf.close()
+    plaintext = aesCipher.update(ciphertext)
+    plaintext += aesCipher.final()
 
     return plaintext
