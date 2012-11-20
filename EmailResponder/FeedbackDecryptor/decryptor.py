@@ -38,6 +38,7 @@ def decrypt(private_key_pem, key_password, data):
     '''
 
     ciphertext = b64decode(data['contentCiphertext'])
+    iv = b64decode(data['iv'])
 
     # Ready our private key, with which we'll unwrap the encryption and MAC
     # keys.
@@ -55,6 +56,8 @@ def decrypt(private_key_pem, key_password, data):
 
     # Calculate and verify the MAC.
     mac = M2Crypto.EVP.HMAC(macKey, algo='sha256')
+    # Include the IV in the MAC'd data, as per http://tools.ietf.org/html/draft-mcgrew-aead-aes-cbc-hmac-sha2-01
+    mac.update(iv)
     mac.update(ciphertext)
     if mac.final() != b64decode(data['contentMac']):
         raise DecryptorException('MAC verification failed')
@@ -70,7 +73,7 @@ def decrypt(private_key_pem, key_password, data):
 
     aesCipher = M2Crypto.EVP.Cipher(alg='aes_128_cbc',
                                     key=aesKey,
-                                    iv=b64decode(data['iv']),
+                                    iv=iv,
                                     op=M2Crypto.decrypt)
 
     plaintext = aesCipher.update(ciphertext)
