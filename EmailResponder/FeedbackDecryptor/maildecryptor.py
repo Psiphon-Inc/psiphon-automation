@@ -72,7 +72,9 @@ def go():
 
     private_key_pem = open(config['privateKeyPemFile'], 'r').read()
 
-    # Retrieve and process email
+    # Retrieve and process email.
+    # Note that `emailgetter.get` throttles itself if/when there are no emails
+    # immediately available.
     for msg in emailgetter.get():
         _debug_log('maildecryptor: msg has %d attachments' % len(msg['attachments']))
 
@@ -102,6 +104,18 @@ def go():
                                  config['emailUsername'],
                                  u'Re: %s' % (msg['subject'] or ''),
                                  diagnostic_info,
+                                 msg['msgobj']['Message-ID'])
+
+            except decryptor.DecryptorException as e:
+                # Something bad happened while decrypting. Report it via email.
+                emailsender.send(config['smtpServer'],
+                                 config['smtpPort'],
+                                 config['emailUsername'],
+                                 config['emailPassword'],
+                                 config['emailUsername'],
+                                 config['emailUsername'],
+                                 u'Re: %s' % (msg['subject'] or ''),
+                                 'Decrypt failed: %s' % e,
                                  msg['msgobj']['Message-ID'])
 
             except (ValueError, TypeError) as e:

@@ -1253,15 +1253,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     psi_ops_crypto_tools.generate_key_pair(
                         REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD))
 
-    def create_feedback_encryption_key_pair(self, password):
+    def create_feedback_encryption_key_pair(self):
         '''
-        Generate a feedback encryption key pair. This must be done before trying
-        to use the key pair.
+        Generate a feedback encryption key pair and wrapping password.
+        Overwrites any existing values.
         '''
+
         assert(self.is_locked)
 
         if self.__feedback_encryption_key_pair:
             print('WARNING: You are overwriting the previous value')
+
+        password = psi_utils.generate_password()
 
         self.__feedback_encryption_key_pair = \
             FeedbackEncryptionKeyPair(
@@ -1269,9 +1272,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 password)
 
     def get_feedback_encryption_key_pair(self):
+        '''
+        Retrieves the feedback encryption keypair and wrapping password.
+        Generates those values if they don't already exist.
+        '''
+
         if not self.__feedback_encryption_key_pair:
-            print 'Must first generate a key pair using create_feedback_encryption_key_pair'
-            assert(False)
+            self.create_feedback_encryption_key_pair()
 
         # This may be serialized/deserialized into a unicode string, but M2Crypto won't accept that.
         # The key pair should only contain ascii anyways, so encoding to ascii should be safe.

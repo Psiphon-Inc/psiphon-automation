@@ -84,8 +84,8 @@ body {{
 <!--[if IE]>
 <style type="text/css">
 html {{
-	width:720px;
-	height:900px;
+  width:720px;
+  height:900px;
   }}
 </style>
 <![endif]-->
@@ -127,22 +127,6 @@ jQuery.extend({{
                 }}
         }}
 }});
-
-// From: http://stackoverflow.com/questions/901115/how-can-i-get-query-string-values
-function getParameterByName(name, parameterString)
-{{
-  if (parameterString.slice(0, 1) !== '?') {
-    parameterString = '?' + parameterString;
-  }
-  name = name.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
-  var regexS = "[\\?&]" + name + "=([^&#]*)";
-  var regex = new RegExp(regexS);
-  var results = regex.exec(parameterString);
-  if(results == null)
-    return "";
-  else
-    return decodeURIComponent(results[1].replace(/\+/g, " "));
-}}
 
 //extract language from hash URL
 function getLanguageNameFromURL(url)
@@ -196,15 +180,6 @@ function setLanguage(langName)
 
     var platform = (window.dialogArguments !== undefined) ? "win" : "android";
 
-    // If diagnostic info has been provided, set it as the default email body.
-    var defaultBody = '';
-    if (window.dialogArguments) {{
-        var diagnosticInfo = getParameterByName('diagnosticInfo', window.dialogArguments);
-        if (diagnosticInfo) {{
-            defaultBody = '\n---\n'+diagnosticInfo;
-        }}
-    }}
-
     $.each(currentLanguage, function(name, val){{
         selector = '#' + name;
         if(name == 'submit_button') {{
@@ -214,12 +189,19 @@ function setLanguage(langName)
             document.title = val; //supported in all browsers
         }}
         else if(name == 'top_content') {{
-            // Replace the feedback address mailto link with a platform specific
-            // value, possibly containing a default body.
-            val = val.replace(
-                        /mailto:(([^@]+)@([^"]+))(.*)\1/g,
-                        "mailto:$2+" + platform + "@$3?body=" + encodeURIComponent(defaultBody) + "$4$2+" + platform + "@$3");
+            val = val.replace(/feedback@psiphon.ca/g, "feedback+" + platform+ "@psiphon.ca");
             $(selector).html(val);
+
+            // The top content contains different diagnostic info warnings
+            // depending on the platform.
+            var diagnostic_info_warning = '';
+            if (platform === 'android') {{
+              diagnostic_info_warning = currentLanguage['diagnostic_info_warning_android'];
+            }}
+            else if (platform === 'win') {{
+              diagnostic_info_warning = currentLanguage['diagnostic_info_warning_windows'];
+            }}
+            $('.diagnostic-info-warning', selector).html(diagnostic_info_warning);
         }}
         else {{
             $(selector).html(val);
