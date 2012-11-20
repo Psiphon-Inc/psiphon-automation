@@ -57,7 +57,7 @@ def decrypt(private_key_pem, key_password, data):
     mac = M2Crypto.EVP.HMAC(macKey, algo='sha256')
     mac.update(ciphertext)
     if mac.final() != b64decode(data['contentMac']):
-        raise DecryptorException('MAC verifiication failed')
+        raise DecryptorException('MAC verification failed')
 
     # Unwrap the encryption key.
     try:
