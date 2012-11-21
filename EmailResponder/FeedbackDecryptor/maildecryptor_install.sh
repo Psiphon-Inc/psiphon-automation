@@ -16,22 +16,23 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-MAILDECRYPTOR_DIR="/opt/psiphon/maildecryptor"
 MAILDECRYPTOR_USER="maildecryptor"
+
+if [ ! -f ./maildecryptor.conf ]; then
+  echo "This script must be run from the source directory."
+  exit 1
+fi
 
 echo "You must already have created the user $MAILDECRYPTOR_USER, otherwise this script will fail. See the README for details."
 echo ""
 
-sudo cp maildecryptor.conf /etc/init
+sed "s|fill-in-with-path-to-source|\"`pwd`\"|" maildecryptor.conf > maildecryptor.conf.configured
 
-sudo mkdir -p $MAILDECRYPTOR_DIR
-sudo cp * $MAILDECRYPTOR_DIR
+sudo cp maildecryptor.conf.configured /etc/init/maildecryptor.conf
 
-sudo chmod 0444 $MAILDECRYPTOR_DIR/*
-sudo chmod 0555 $MAILDECRYPTOR_DIR/maildecryptor_runner.py
-sudo chmod 0400 $MAILDECRYPTOR_DIR/*.pem
-sudo chmod 0400 $MAILDECRYPTOR_DIR/*.json
-sudo chown $MAILDECRYPTOR_USER:$MAILDECRYPTOR_USER $MAILDECRYPTOR_DIR/*
+sudo chmod 0400 *.pem conf.json
+sudo chown $MAILDECRYPTOR_USER:$MAILDECRYPTOR_USER *.pem conf.json
 
 echo "Done. To start the daemon execute:"
 echo " > sudo start maildecryptor"
+echo ""
