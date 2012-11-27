@@ -590,6 +590,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return filter(lambda x: x.name == name,
                       self.__propagation_channels.itervalues())[0]
 
+    def get_propagation_channel_by_id(self, id):
+        return self.__propagation_channels[id] if id in self.__propagation_channels else None
+
     def add_propagation_channel(self, name, propagation_mechanism_types):
         assert(self.is_locked)
         self.import_propagation_channel(self.__generate_id(), name, propagation_mechanism_types)
@@ -630,6 +633,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def __get_sponsor_by_name(self, name):
         return filter(lambda x: x.name == name,
                       self.__sponsors.itervalues())[0]
+
+    def get_sponsor_by_id(self, id):
+        return self.__sponsors[id] if id in self.__sponsors else None
 
     def add_sponsor(self, name):
         assert(self.is_locked)
