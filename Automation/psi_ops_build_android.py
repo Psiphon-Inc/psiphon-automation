@@ -19,9 +19,7 @@
 
 import os
 import shutil
-import subprocess
 import textwrap
-import traceback
 import sys
 import fileinput
 import psi_utils
@@ -88,25 +86,28 @@ def write_embedded_values(propagation_channel_id,
                           client_version,
                           embedded_server_list,
                           remote_server_list_signature_public_key,
+                          feedback_encryption_public_key,
                           remote_server_list_url,
                           info_link_url,
                           ignore_system_server_list=False):
     template = textwrap.dedent('''
         package com.psiphon3;
-        
+
         public interface EmbeddedValues
         {
             final String PROPAGATION_CHANNEL_ID = "%s";
-            
+
             final String SPONSOR_ID = "%s";
-            
+
             final String CLIENT_VERSION = "%s";
-            
+
             final String EMBEDDED_SERVER_LIST = "%s";
-        
+
             final String REMOTE_SERVER_LIST_URL = "%s://%s/%s";
-        
+
             final String REMOTE_SERVER_LIST_SIGNATURE_PUBLIC_KEY = "%s";
+
+            final String FEEDBACK_ENCRYPTION_PUBLIC_KEY = "%s";
 
             // NOTE: Info link may be opened when not tunneled
             final String INFO_LINK_URL = "%s";
@@ -121,6 +122,7 @@ def write_embedded_values(propagation_channel_id,
                                remote_server_list_url[1],
                                remote_server_list_url[2],
                                remote_server_list_signature_public_key,
+                               feedback_encryption_public_key,
                                info_link_url))
 
 
@@ -141,6 +143,7 @@ def build_client(
         banner,
         encoded_server_list,
         remote_server_list_signature_public_key,
+        feedback_encryption_public_key,
         remote_server_list_url,
         info_link_url,
         version,
@@ -165,13 +168,14 @@ def build_client(
             version,
             encoded_server_list,
             remote_server_list_signature_public_key,
+            feedback_encryption_public_key,
             remote_server_list_url,
             info_link_url,
             ignore_system_server_list=test)
 
         # copy feedback.html
         shutil.copy(FEEDBACK_HTML_PATH, PSIPHON_ASSETS)
-        
+
         # build
         build_apk()
 

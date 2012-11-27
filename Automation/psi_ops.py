@@ -39,7 +39,7 @@ import psi_ops_discovery
 # Modules available only on the automation server
 
 try:
-    import psi_ops_server_entry_auth
+    import psi_ops_crypto_tools
 except ImportError as error:
     print error
 
@@ -223,6 +223,10 @@ RemoteServerSigningKeyPair = psi_utils.recordtype(
 # database, so we don't require a secret key pair wrapping password
 REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD = 'none'
 
+FeedbackEncryptionKeyPair = psi_utils.recordtype(
+    'FeedbackEncryptionKeyPair',
+    'pem_key_pair, password')
+
 CLIENT_PLATFORM_WINDOWS = 'Windows'
 CLIENT_PLATFORM_ANDROID = 'Android'
 
@@ -264,8 +268,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__deploy_email_config_required = False
         self.__speed_test_urls = []
         self.__remote_server_list_signing_key_pair = None
+        self.__feedback_encryption_signing_key_pair = None
 
-    class_version = '0.11'
+    class_version = '0.12'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -332,6 +337,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 server.capabilities['OSSH'] = server.capabilities['SSH+']
                 server.capabilities.pop('SSH+')
             self.version = '0.11'
+        if cmp(parse_version(self.version), parse_version('0.12')) < 0:
+            self.__feedback_encryption_key_pair = None
+            self.version = '0.12'
 
     def show_status(self):
         # NOTE: verbose mode prints credentials to stdout
@@ -867,6 +875,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(server.id not in self.__servers)
         self.__servers[server.id] = server
 
+    def __disable_server(self, server):
+        assert(self.is_locked)
+        # Prevent users from establishing new connections to this server,
+        # while allowing existing connections to be maintained.
+        server.capabilities['handshake'] = False
+        server.capabilities['SSH'] = False
+        server.capabilities['OSSH'] = False
+        host = self.__hosts[server.host_id]
+        servers = [s for s in self.__servers.itervalues() if s.host_id == server.host_id]
+        psi_ops_install.install_firewall_rules(host, servers)
+        self.save()
+
     def __count_users_on_host(self, host_id):
         vpn_users = int(self.run_command_on_host(self.__hosts[host_id],
                                                  'ifconfig | grep ppp | wc -l'))
@@ -883,6 +903,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 else:
                     host.datacenter_name = str(host.provider)
 
+    def __prune_servers(self, servers):
+        number_removed = 0
+        number_disabled = 0
+        for server in servers:
+            users_on_host = self.__count_users_on_host(server.host_id)
+            if users_on_host == 0:
+                self.remove_host(server.host_id)
+                number_removed += 1
+            elif users_on_host < 5:
+                self.__disable_server(server)
+                number_disabled += 1
+        return number_removed, number_disabled
+
     def prune_propagation_channel_servers(self, propagation_channel_name,
                                           max_discovery_server_age_in_days=None,
                                           max_propagation_server_age_in_days=None):
@@ -894,6 +927,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # Remove old servers with low activity
         number_removed = 0
+        number_disabled = 0
 
         if max_discovery_server_age_in_days == None:
             max_discovery_server_age_in_days = propagation_channel.max_discovery_server_age_in_days
@@ -903,10 +937,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 and server.discovery_date_range
                 and server.discovery_date_range[1] < (today - datetime.timedelta(days=max_discovery_server_age_in_days))
                 and self.__hosts[server.host_id].provider == 'linode']
-            for server in old_discovery_servers:
-                if self.__count_users_on_host(server.host_id) == 0:
-                    self.remove_host(server.host_id)
-                    number_removed += 1
+            removed, disabled = self.__prune_servers(old_discovery_servers)
+            number_removed += removed
+            number_disabled += disabled
 
         if max_propagation_server_age_in_days == None:
             max_propagation_server_age_in_days = propagation_channel.max_propagation_server_age_in_days
@@ -917,16 +950,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 and not server.is_embedded
                 and server.logs[0][0] < (today - datetime.timedelta(days=max_propagation_server_age_in_days))
                 and self.__hosts[server.host_id].provider == 'linode']
-            for server in old_propagation_servers:
-                if self.__count_users_on_host(server.host_id) == 0:
-                    self.remove_host(server.host_id)
-                    number_removed += 1
+            removed, disabled = self.__prune_servers(old_propagation_servers)
+            number_removed += removed
+            number_disabled += disabled
 
         # This deploy will update the stats server, so it doesn't try to pull stats from
         # hosts that no longer exist
         self.deploy()
 
-        return number_removed
+        return number_removed, number_disabled
 
     def replace_propagation_channel_servers(self, propagation_channel_name,
                                             new_discovery_servers_count=None,
@@ -969,7 +1001,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # data will not include this host and server
         assert(host.id not in self.__hosts)
         self.__hosts[host.id] = host
-        
+
         for server in servers:
             assert(server.id not in self.__servers)
             self.__servers[server.id] = server
@@ -1227,7 +1259,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             assert(self.is_locked)
             self.__remote_server_list_signing_key_pair = \
                 RemoteServerSigningKeyPair(
-                    psi_ops_server_entry_auth.generate_signing_key_pair(
+                    psi_ops_crypto_tools.generate_key_pair(
                         REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD))
 
         # This may be serialized/deserialized into a unicode string, but M2Crypto won't accept that.
@@ -1235,6 +1267,39 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__remote_server_list_signing_key_pair.pem_key_pair = \
             self.__remote_server_list_signing_key_pair.pem_key_pair.encode('ascii', 'ignore')
         return self.__remote_server_list_signing_key_pair
+
+    def create_feedback_encryption_key_pair(self):
+        '''
+        Generate a feedback encryption key pair and wrapping password.
+        Overwrites any existing values.
+        '''
+
+        assert(self.is_locked)
+
+        if self.__feedback_encryption_key_pair:
+            print('WARNING: You are overwriting the previous value')
+
+        password = psi_utils.generate_password()
+
+        self.__feedback_encryption_key_pair = \
+            FeedbackEncryptionKeyPair(
+                psi_ops_crypto_tools.generate_key_pair(password),
+                password)
+
+    def get_feedback_encryption_key_pair(self):
+        '''
+        Retrieves the feedback encryption keypair and wrapping password.
+        Generates those values if they don't already exist.
+        '''
+
+        if not self.__feedback_encryption_key_pair:
+            self.create_feedback_encryption_key_pair()
+
+        # This may be serialized/deserialized into a unicode string, but M2Crypto won't accept that.
+        # The key pair should only contain ascii anyways, so encoding to ascii should be safe.
+        self.__feedback_encryption_key_pair.pem_key_pair = \
+            self.__feedback_encryption_key_pair.pem_key_pair.encode('ascii', 'ignore')
+        return self.__feedback_encryption_key_pair
 
     def build(
             self,
@@ -1253,9 +1318,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     self.__get_encoded_server_list(propagation_channel.id)
 
         remote_server_list_signature_public_key = \
-            psi_ops_server_entry_auth.get_base64_der_public_key(
+            psi_ops_crypto_tools.get_base64_der_public_key(
                 self.__get_remote_server_list_signing_key_pair().pem_key_pair,
                 REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD)
+
+        feedback_encryption_public_key = \
+            psi_ops_crypto_tools.get_base64_der_public_key(
+                self.get_feedback_encryption_key_pair().pem_key_pair,
+                self.get_feedback_encryption_key_pair().password)
 
         builders = {
             CLIENT_PLATFORM_WINDOWS: psi_ops_build_windows.build_client,
@@ -1268,6 +1338,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         base64.b64decode(sponsor.banner),
                         encoded_server_list,
                         remote_server_list_signature_public_key,
+                        feedback_encryption_public_key,
                         remote_server_list_url,
                         info_link_url,
                         self.__client_versions[platform][-1].version if self.__client_versions[platform] else 0,
@@ -1322,7 +1393,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     info_link_url = psi_ops_s3.get_s3_bucket_home_page_url(campaign.s3_bucket_name)
 
                     remote_server_list = \
-                        psi_ops_server_entry_auth.make_signed_data(
+                        psi_ops_crypto_tools.make_signed_data(
                             self.__get_remote_server_list_signing_key_pair().pem_key_pair,
                             REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD,
                             '\n'.join(self.__get_encoded_server_list(propagation_channel.id)[0]))
@@ -1946,7 +2017,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for host in self.__hosts.itervalues():
             copy.__hosts[host.id] = Host(
                                             host.id,
-                                            '',  # Omit: provider isn't needed
+                                            host.provider,
                                             '',  # Omit: provider id isn't needed
                                             host.ip_address,
                                             host.ssh_port,
@@ -2198,8 +2269,9 @@ def prune_all_propagation_channels():
     psinet.show_status()
     try:
         for propagation_channel in psinet._PsiphonNetwork__propagation_channels.itervalues():
-            number_removed = psinet.prune_propagation_channel_servers(propagation_channel.name)
+            number_removed, number_disabled = psinet.prune_propagation_channel_servers(propagation_channel.name)
             sys.stderr.write('Pruned %d servers from %s\n' % (number_removed, propagation_channel.name))
+            sys.stderr.write('Disabled %d servers from %s\n' % (number_disabled, propagation_channel.name))
     finally:
         psinet.show_status()
         psinet.release()

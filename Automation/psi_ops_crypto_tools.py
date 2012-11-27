@@ -52,21 +52,24 @@ import json
 RSA_KEY_LENGTH_BITS = 4096
 RSA_EXPONENT = 3
 
-def generate_signing_key_pair(private_key_password):
+
+def generate_key_pair(private_key_password):
     rsa_key = M2Crypto.RSA.gen_key(RSA_KEY_LENGTH_BITS, RSA_EXPONENT)
     buffer = M2Crypto.BIO.MemoryBuffer()
     assert(1 == rsa_key.save_key_bio(
-                    buffer, callback=lambda _:private_key_password))
+                    buffer, callback=lambda _: str(private_key_password)))
     return buffer.read_all()
+
 
 def get_base64_der_public_key(key_pair, private_key_password):
     rsa_key = M2Crypto.RSA.load_key_string(
-                key_pair, callback=lambda _:private_key_password)
+                key_pair, callback=lambda _: str(private_key_password))
     buffer = M2Crypto.BIO.MemoryBuffer()
     assert(1 == rsa_key.save_pub_key_bio(buffer))
     pem = buffer.read_all()
     # convert to Base64/DER
     return ''.join(pem.split('\n')[1:-2])
+
 
 def make_signed_data(key_pair, private_key_password, data):
     sha = M2Crypto.EVP.MessageDigest('sha256')
@@ -78,10 +81,10 @@ def make_signed_data(key_pair, private_key_password, data):
     public_key_digest = sha.digest()
 
     rsa_key = M2Crypto.RSA.load_key_string(
-                key_pair, callback=lambda _:private_key_password)
+                key_pair, callback=lambda _: str(private_key_password))
     signature = rsa_key.sign(data_digest, algo='sha256')
-    
+
     return json.dumps(
-        {"data" : data,
-         "signature" : base64.b64encode(signature),
-         "signingPublicKeyDigest" : base64.b64encode(public_key_digest)})
+        {"data": data,
+         "signature": base64.b64encode(signature),
+         "signingPublicKeyDigest": base64.b64encode(public_key_digest)})

@@ -181,7 +181,9 @@ def test_server(ip_address, capabilities, web_server_port, web_server_secret, en
     local_test_cases = copy.copy(test_cases) if test_cases else ['handshake', 'VPN', 'OSSH', 'SSH']
 
     for test_case in copy.copy(local_test_cases):
-        if not capabilities[test_case]:
+        if (not capabilities[test_case]
+            or (test_case == 'VPN' # VPN requires handshake, SSH or SSH+
+                and not (capabilities['handshake'] or capabilities['OSSH'] or capabilities['SSH']))):
             print 'Server does not support %s' % (test_case,)
             local_test_cases.remove(test_case)
 
@@ -212,6 +214,7 @@ def test_server(ip_address, capabilities, web_server_port, web_server_secret, en
                                     None,       # banner
                                     encoded_server_list,
                                     '',         # remote_server_list_signature_public_key
+                                    '',         # feedback_encryption_public_key
                                     ('','',''), # remote_server_list_url
                                     '',   # info_link_url
                                     version,
