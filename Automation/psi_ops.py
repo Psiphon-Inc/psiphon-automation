@@ -1875,14 +1875,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server = next(server for server in self.__servers.itervalues()
                       if server.internal_ip_address == server_ip_address)
 
-        config['ssh_port'] = int(server.ssh_port)
         config['ssh_username'] = server.ssh_username
         config['ssh_password'] = server.ssh_password
         ssh_host_key_type, config['ssh_host_key'] = server.ssh_host_key.split(' ')
         assert(ssh_host_key_type == 'ssh-rsa')
         config['ssh_session_id'] = binascii.hexlify(os.urandom(8))
-        config['ssh_obfuscated_port'] = int(server.ssh_obfuscated_port)
-        config['ssh_obfuscated_key'] = server.ssh_obfuscated_key
+        if server.ssh_port:
+            config['ssh_port'] = int(server.ssh_port)
+        if server.ssh_obfuscated_port:
+            config['ssh_obfuscated_port'] = int(server.ssh_obfuscated_port)
+            config['ssh_obfuscated_key'] = server.ssh_obfuscated_key
 
         # Give client a set of regexes indicating which pages should have individual stats
         config['page_view_regexes'] = []
