@@ -1009,7 +1009,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             else:
                 self.__replace_propagation_channel_discovery_servers(propagation_channel.id)
 
-        for _ in range(count):
+        for new_server_number in range(count):
             provider = self._weighted_random_choice(self.__provider_ranks).provider
 
             # This is pretty dirty. We should use some proper OO technique.
@@ -1045,9 +1045,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # So create a copy instead.
             discovery = self.__copy_date_range(discovery_date_range) if discovery_date_range else None
 
+            ssh_port = '22'
+            ossh_port = random.choice(['465', '587', '993', '995'])
             capabilities = ServerCapabilities()
             if server_capabilities:
                 capabilities = copy_server_capabilities(server_capabilities)
+            elif new_server_number % 2 == 1:
+                # We would like every other new server created to be somewhat obfuscated
+                capabilities['handshake'] = False
+                capabilities['VPN'] = False
+                capabilities['SSH'] = False
+                ssh_port = None
+                ossh_port = random.choice(range(1,1023))
 
             server = Server(
                         None,
@@ -1063,11 +1072,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         None,
                         None,
                         None,
-                        '22',
+                        ssh_port,
                         None,
                         None,
                         None,
-                        random.choice(['465', '587', '993', '995']))
+                        ossh_port)
 
             self.setup_server(host, [server])
 
