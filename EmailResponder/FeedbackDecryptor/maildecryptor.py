@@ -84,8 +84,11 @@ def _convert_psinet_values(psinet, yaml_docs):
     for path, val in objwalk(yaml_docs):
         if path[-1] == 'ipAddress':
             server = psinet.get_server_by_ip_address(val)
-            if server:
-                _assign_value_to_obj_at_path(yaml_docs, path, server.id)
+            # If the psinet DB is stale, we might not find the IP address, but
+            # we still want to redact it.
+            _assign_value_to_obj_at_path(yaml_docs,
+                                         path,
+                                         server.id if server else '[UNKNOWN]')
         elif path[-1] == 'PROPAGATION_CHANNEL_ID':
             propagation_channel = psinet.get_propagation_channel_by_id(val)
             if propagation_channel:
