@@ -836,6 +836,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             return servers[0]
         return None
 
+    def get_deleted_server_by_ip_address(self, ip_address):
+        servers = filter(lambda x: x.ip_address == ip_address, self.__deleted_servers.itervalues())
+        if len(servers) == 1:
+            return servers[0]
+        return None
+
     def import_host(self, id, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
                     stats_ssh_username, stats_ssh_password):
         assert(self.is_locked)

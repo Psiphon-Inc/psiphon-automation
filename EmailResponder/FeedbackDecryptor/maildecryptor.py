@@ -27,6 +27,7 @@ except:
 import decryptor
 from emailgetter import EmailGetter
 import emailsender
+import mailformatter
 
 
 _CONFIG_FILENAME = 'conf.json'
@@ -84,6 +85,11 @@ def _convert_psinet_values(psinet, yaml_docs):
     for path, val in objwalk(yaml_docs):
         if path[-1] == 'ipAddress':
             server = psinet.get_server_by_ip_address(val)
+            if not server:
+                server = psinet.get_deleted_server_by_ip_address(val)
+                if server:
+                    server.id += ' [DELETED]'
+
             # If the psinet DB is stale, we might not find the IP address, but
             # we still want to redact it.
             _assign_value_to_obj_at_path(yaml_docs,
@@ -152,7 +158,13 @@ def go():
                 _convert_psinet_values(psinet, yaml_docs)
 
                 # Convert the modified YAML back into a string for emailing.
-                diagnostic_info = yaml.safe_dump_all(yaml_docs, default_flow_style=False)
+                diagnostic_info_text = yaml.safe_dump_all(yaml_docs,
+                                                          default_flow_style=False)
+
+                try:
+                    diagnostic_info_html = mailformatter.format(yaml_docs)
+                except Exception as e:
+                    diagnostic_info_html = None
 
                 # If we get to here, then we have a valid diagnostic email.
                 # Reply with the decrypted content.
@@ -164,7 +176,8 @@ def go():
                                  config['emailUsername'],
                                  config['emailUsername'],
                                  u'Re: %s' % (msg['subject'] or ''),
-                                 diagnostic_info,
+                                 diagnostic_info_text,
+                                 diagnostic_info_html,
                                  msg['msgobj']['Message-ID'])
 
             except decryptor.DecryptorException as e:
