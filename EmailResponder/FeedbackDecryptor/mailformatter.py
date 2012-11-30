@@ -92,6 +92,11 @@ import yaml
 
     .status-entry .timestamp {
         font-size: 0.8em;
+        font-family: monospace;
+    }
+
+    .status-entry-id {
+        font-weight: bold;
     }
 
     hr {
@@ -190,15 +195,25 @@ import yaml
 % endif
 
 <%def name="status_history_row(entry, last_timestamp)">
+    <%
+    timestamp_diff_secs = 0.0
+    if last_timestamp:
+        timestamp_diff_secs = (entry['timestamp'] - last_timestamp).total_seconds()
+    timestamp_diff_str = '{:.3f}'.format(timestamp_diff_secs)
+
+    timestamp_str = '{:%Y-%m-%dT%H:%M:%S}.{:03}Z'.format(entry['timestamp'], entry['timestamp'].microsecond/1000)
+    %>
+
     ## Put a separator between entries that are separated in time.
-    % if last_timestamp and (entry['timestamp'] - last_timestamp).seconds > 30:
+    % if timestamp_diff_secs > 10:
     <hr>
     % endif
 
     <div class="status-entry">
         <div class="status-first-line">
-            <b>${entry['id']}:</b>
-            <span class="timestamp">${entry['timestamp']}Z</span>
+            <span class="timestamp">${timestamp_str} [+${timestamp_diff_str}s]</span>
+
+            <span class="status-entry-id">${entry['id']}</span>
 
             <span class="format-args">
                 % if entry['formatArgs'] and len(entry['formatArgs']) == 1:
