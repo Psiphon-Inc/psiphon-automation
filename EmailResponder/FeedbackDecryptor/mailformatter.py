@@ -100,6 +100,12 @@ import yaml
         background-color: lightGrey;
         height: 1px;
     }
+
+    /* Make integers easier to visually compare. */
+    .intcompare {
+        text-align: right;
+        font-family: monospace;
+    }
 </style>
 
 <h1>System Info</h1>
@@ -163,7 +169,7 @@ import yaml
     %>
     <tr>
         <th>${name}</th>
-        <td class=${ping_class}>${ping_str}</td>
+        <td class="intcompare ${ping_class}">${ping_str}</td>
     </tr>
 </%def>
 
@@ -193,13 +199,15 @@ import yaml
         <div class="status-first-line">
             <b>${entry['id']}:</b>
             <span class="timestamp">${entry['timestamp']}Z</span>
-        </div>
 
-        % if entry['formatArgs']:
-            <div class="status-latter-line">
-                ${repr(entry['formatArgs'])}
-            </div>
-        %endif
+            <span class="format-args">
+                % if entry['formatArgs'] and len(entry['formatArgs']) == 1:
+                    ${entry['formatArgs'][0]}
+                % elif entry['formatArgs'] and len(entry['formatArgs']) > 1:
+                    ${repr(entry['formatArgs'])}
+                %endif
+            </span>
+        </div>
 
         % if entry['throwable']:
             <div class="status-latter-line">
