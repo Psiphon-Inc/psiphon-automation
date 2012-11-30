@@ -167,7 +167,7 @@ import yaml
     </tr>
 </%def>
 
-<h2>Server Response Checks</h2>
+<h1>Server Response Checks</h1>
 <table>
     % for resp in server_responses:
         ${server_response_row(resp['ipAddress'], resp['responseTime'])}
@@ -175,7 +175,7 @@ import yaml
 </table>
 
 % if diagnostic_history:
-<h2>Diagnostic History</h2>
+<h1>Diagnostic History</h1>
 <table>
     % for entry in diagnostic_history:
         <tr><td>${entry}</td></tr>
@@ -209,7 +209,7 @@ import yaml
     </div>
 </%def>
 
-<h2>Status History</h2>
+<h1>Status History</h1>
 <% last_timestamp = None %>
 % for entry in status_history:
     ${status_history_row(entry, last_timestamp)}
