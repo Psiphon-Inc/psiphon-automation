@@ -87,7 +87,8 @@ def _convert_psinet_values(psinet, yaml_docs):
             server = psinet.get_server_by_ip_address(val)
             if not server:
                 server = psinet.get_deleted_server_by_ip_address(val)
-                server.id = server.id + ' [DELETED]'
+                if server:
+                    server.id += ' [DELETED]'
 
             # If the psinet DB is stale, we might not find the IP address, but
             # we still want to redact it.
