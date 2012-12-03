@@ -90,7 +90,7 @@ import yaml
         margin-left: 2em;
     }
 
-    .status-entry .timestamp {
+    .timestamp {
         font-size: 0.8em;
         font-family: monospace;
     }
@@ -99,10 +99,18 @@ import yaml
         font-weight: bold;
     }
 
+    .priority-info {
+        color: green;
+    }
+
+    .priority-error {
+        color: red;
+    }
+
     hr {
         width: 80%;
         border: 0;
-        background-color: lightGrey;
+        background-color: lightGray;
         height: 1px;
     }
 
@@ -111,7 +119,16 @@ import yaml
         text-align: right;
         font-family: monospace;
     }
+
+    .server-response-checks .separated th,
+    .server-response-checks .separated td {
+        border-top: dotted thin gray;
+    }
 </style>
+
+##
+## System Info
+##
 
 <h1>System Info</h1>
 
@@ -162,28 +179,45 @@ import yaml
     % endfor
 </table>
 
-<%def name="server_response_row(name, ping)">
+##
+## Server Response Checks
+##
+
+<%def name="server_response_row(entry, last_timestamp)">
     <%
+    # Put a separator between entries that are separated in time.
+    timestamp_separated_class = ''
+    if last_timestamp and 'timestamp' in entry:
+        if (entry['timestamp'] - last_timestamp).total_seconds() > 20:
+            timestamp_separated_class = 'separated'
+
     ping_class = 'good'
-    ping_str = '%dms' % ping
-    if ping < 0:
+    ping_str = '%dms' % entry['responseTime']
+    if entry['responseTime'] < 0:
         ping_class = 'bad'
         ping_str = 'none'
-    elif ping > 2000:
+    elif entry['responseTime'] > 2000:
         ping_class = 'warn'
     %>
-    <tr>
-        <th>${name}</th>
+    <tr class="${timestamp_separated_class}">
+        <th>${entry['ipAddress']}</th>
         <td class="intcompare ${ping_class}">${ping_str}</td>
+        <td class="timestamp">${entry['timestamp'] if 'timestamp' in entry else ''}</td>
     </tr>
 </%def>
 
 <h1>Server Response Checks</h1>
-<table>
-    % for resp in server_responses:
-        ${server_response_row(resp['ipAddress'], resp['responseTime'])}
+<table class="server-response-checks">
+    <% last_timestamp = None %>
+    % for entry in server_responses:
+        ${server_response_row(entry, last_timestamp)}
+        <% last_timestamp = entry['timestamp'] if 'timestamp' in entry else None %>
     % endfor
 </table>
+
+##
+## Diagnostic History
+##
 
 % if diagnostic_history:
 <h1>Diagnostic History</h1>
@@ -194,6 +228,10 @@ import yaml
 </table>
 % endif
 
+##
+## Status History
+##
+
 <%def name="status_history_row(entry, last_timestamp)">
     <%
     timestamp_diff_secs = 0.0
@@ -202,6 +240,18 @@ import yaml
     timestamp_diff_str = '{:.3f}'.format(timestamp_diff_secs)
 
     timestamp_str = '{:%Y-%m-%dT%H:%M:%S}.{:03}Z'.format(entry['timestamp'], entry['timestamp'].microsecond/1000)
+
+    # These values come from the Java definitions for Log.VERBOSE, etc.
+    PRIORITY_CLASSES = {
+        2: 'priority-verbose',
+        3: 'priority-debug',
+        4: 'priority-info',
+        5: 'priority-warn',
+        6: 'priority-error',
+        7: 'priority-assert' }
+    priority_class = ''
+    if 'priority' in entry and entry['priority'] in PRIORITY_CLASSES:
+        priority_class = PRIORITY_CLASSES[entry['priority']]
     %>
 
     ## Put a separator between entries that are separated in time.
@@ -213,7 +263,7 @@ import yaml
         <div class="status-first-line">
             <span class="timestamp">${timestamp_str} [+${timestamp_diff_str}s]</span>
 
-            <span class="status-entry-id">${entry['id']}</span>
+            <span class="status-entry-id ${priority_class}">${entry['id']}</span>
 
             <span class="format-args">
                 % if entry['formatArgs'] and len(entry['formatArgs']) == 1:
