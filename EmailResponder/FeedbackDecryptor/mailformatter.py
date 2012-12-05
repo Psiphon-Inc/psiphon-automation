@@ -43,6 +43,7 @@ _template = \
 '''
 <%!
 import yaml
+from operator import itemgetter
 %>
 
 <%
@@ -82,7 +83,7 @@ import yaml
         color: red;
     }
 
-    .status-entry {
+    .status-entry, .diagnostic-entry {
         margin-bottom: 0.3em;
     }
 
@@ -105,6 +106,10 @@ import yaml
 
     .priority-error {
         color: red;
+    }
+
+    .diagnostic-entry-msg {
+        color: purple;
     }
 
     hr {
@@ -185,19 +190,19 @@ import yaml
 
 <%def name="server_response_row(entry, last_timestamp)">
     <%
-    # Put a separator between entries that are separated in time.
-    timestamp_separated_class = ''
-    if last_timestamp and 'timestamp' in entry:
-        if (entry['timestamp'] - last_timestamp).total_seconds() > 20:
-            timestamp_separated_class = 'separated'
+        # Put a separator between entries that are separated in time.
+        timestamp_separated_class = ''
+        if last_timestamp and 'timestamp' in entry:
+            if (entry['timestamp'] - last_timestamp).total_seconds() > 20:
+                timestamp_separated_class = 'separated'
 
-    ping_class = 'good'
-    ping_str = '%dms' % entry['responseTime']
-    if entry['responseTime'] < 0:
-        ping_class = 'bad'
-        ping_str = 'none'
-    elif entry['responseTime'] > 2000:
-        ping_class = 'warn'
+        ping_class = 'good'
+        ping_str = '%dms' % entry['responseTime']
+        if entry['responseTime'] < 0:
+            ping_class = 'bad'
+            ping_str = 'none'
+        elif entry['responseTime'] > 2000:
+            ping_class = 'warn'
     %>
     <tr class="${timestamp_separated_class}">
         <th>${entry['ipAddress']}</th>
@@ -216,47 +221,34 @@ import yaml
 </table>
 
 ##
-## Diagnostic History
-##
-
-% if diagnostic_history:
-<h1>Diagnostic History</h1>
-<table>
-    % for entry in diagnostic_history:
-        <tr><td>${entry}</td></tr>
-    % endfor
-</table>
-% endif
-
-##
-## Status History
+## Status History and Diagnostic History
 ##
 
 <%def name="status_history_row(entry, last_timestamp)">
     <%
-    timestamp_diff_secs = 0.0
-    if last_timestamp:
-        timestamp_diff_secs = (entry['timestamp'] - last_timestamp).total_seconds()
-    timestamp_diff_str = '{:.3f}'.format(timestamp_diff_secs)
+        timestamp_diff_secs = 0.0
+        if last_timestamp:
+            timestamp_diff_secs = (entry['timestamp'] - last_timestamp).total_seconds()
+        timestamp_diff_str = '{:.3f}'.format(timestamp_diff_secs)
 
-    timestamp_str = '{:%Y-%m-%dT%H:%M:%S}.{:03}Z'.format(entry['timestamp'], entry['timestamp'].microsecond/1000)
+        timestamp_str = '{:%Y-%m-%dT%H:%M:%S}.{:03}Z'.format(entry['timestamp'], entry['timestamp'].microsecond/1000)
 
-    # These values come from the Java definitions for Log.VERBOSE, etc.
-    PRIORITY_CLASSES = {
-        2: 'priority-verbose',
-        3: 'priority-debug',
-        4: 'priority-info',
-        5: 'priority-warn',
-        6: 'priority-error',
-        7: 'priority-assert' }
-    priority_class = ''
-    if 'priority' in entry and entry['priority'] in PRIORITY_CLASSES:
-        priority_class = PRIORITY_CLASSES[entry['priority']]
+        # These values come from the Java definitions for Log.VERBOSE, etc.
+        PRIORITY_CLASSES = {
+            2: 'priority-verbose',
+            3: 'priority-debug',
+            4: 'priority-info',
+            5: 'priority-warn',
+            6: 'priority-error',
+            7: 'priority-assert' }
+        priority_class = ''
+        if 'priority' in entry and entry['priority'] in PRIORITY_CLASSES:
+            priority_class = PRIORITY_CLASSES[entry['priority']]
     %>
 
     ## Put a separator between entries that are separated in time.
     % if timestamp_diff_secs > 10:
-    <hr>
+        <hr>
     % endif
 
     <div class="status-entry">
@@ -282,10 +274,47 @@ import yaml
     </div>
 </%def>
 
+<%def name="diagnostic_history_row(entry, last_timestamp)">
+    <%
+        timestamp_diff_secs = 0.0
+        if last_timestamp:
+            timestamp_diff_secs = (entry['timestamp'] - last_timestamp).total_seconds()
+        timestamp_diff_str = '{:.3f}'.format(timestamp_diff_secs)
+
+        timestamp_str = '{:%Y-%m-%dT%H:%M:%S}.{:03}Z'.format(entry['timestamp'], entry['timestamp'].microsecond/1000)
+    %>
+
+    ## Put a separator between entries that are separated in time.
+    % if timestamp_diff_secs > 10:
+        <hr>
+    % endif
+
+    <div class="diagnostic-entry">
+        <div class="diagnostic-first-line">
+            <span class="timestamp">${timestamp_str} [+${timestamp_diff_str}s]</span>
+
+            <span class="diagnostic-entry-msg">${entry['msg']}</span>
+
+            <span>${repr(entry['data'])}</span>
+        </div>
+    </div>
+</%def>
+
 <h1>Status History</h1>
-<% last_timestamp = None %>
-% for entry in status_history:
-    ${status_history_row(entry, last_timestamp)}
+<%
+    last_timestamp = None
+
+    # We want the diagnostic entries to appear inline chronologically with the
+    # status entries, so we'll merge the lists and process them together.
+    status_diagnostic_history = sorted(status_history + diagnostic_history,
+                                       key=itemgetter('timestamp'))
+%>
+% for entry in status_diagnostic_history:
+    % if 'formatArgs' in entry:
+        ${status_history_row(entry, last_timestamp)}
+    % else
+        ${diagnostic_history_row(entry, last_timestamp)}
+    % endif
     <% last_timestamp = entry['timestamp'] %>
 % endfor
 '''
