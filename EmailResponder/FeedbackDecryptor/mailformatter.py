@@ -319,7 +319,10 @@ def get_timestamp_diff(last_timestamp, timestamp):
 
     # We want the diagnostic entries to appear inline chronologically with the
     # status entries, so we'll merge the lists and process them together.
-    status_diagnostic_history = sorted(status_history + diagnostic_history,
+    status_diagnostic_history = status_history
+    if diagnostic_history:
+        status_diagnostic_history += diagnostic_history
+    status_diagnostic_history = sorted(status_diagnostic_history,
                                        key=itemgetter('timestamp'))
 %>
 % for entry in status_diagnostic_history:
