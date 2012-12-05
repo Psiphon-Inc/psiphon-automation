@@ -96,7 +96,7 @@ from operator import itemgetter
         font-family: monospace;
     }
 
-    .status-entry-id {
+    .status-entry-id, .diagnostic-entry-msg {
         font-weight: bold;
     }
 
@@ -290,13 +290,16 @@ from operator import itemgetter
     % endif
 
     <div class="diagnostic-entry">
-        <div class="diagnostic-first-line">
-            <span class="timestamp">${timestamp_str} [+${timestamp_diff_str}s]</span>
+        <span class="timestamp">${timestamp_str} [+${timestamp_diff_str}s]</span>
 
-            <span class="diagnostic-entry-msg">${entry['msg']}</span>
+        <span class="diagnostic-entry-msg">${entry['msg']}</span>
 
+        ## We special-case some of the common diagnostic entries
+        % if entry['msg'] == 'ConnectingServer':
+            <span>${entry['data']['ipAddress']}</span>
+        % else:
             <span>${repr(entry['data'])}</span>
-        </div>
+        % endif
     </div>
 </%def>
 
@@ -312,7 +315,7 @@ from operator import itemgetter
 % for entry in status_diagnostic_history:
     % if 'formatArgs' in entry:
         ${status_history_row(entry, last_timestamp)}
-    % else
+    % else:
         ${diagnostic_history_row(entry, last_timestamp)}
     % endif
     <% last_timestamp = entry['timestamp'] %>
