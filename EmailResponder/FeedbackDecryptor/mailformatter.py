@@ -41,9 +41,29 @@ def format(data):
 
 _template = \
 '''
+## SECURITY IMPORTANT: This causes HTML escaping to be applied to all expression
+## tags (${...}) in this template. Because we're output untrusted user-supplied
+## data, this is essential.
+<%page expression_filter="h"/>
+
 <%!
 import yaml
 from operator import itemgetter
+
+
+# To be used to format datetimes
+def timestamp_display(timestamp):
+    return '{:%Y-%m-%dT%H:%M:%S}.{:03}Z'.format(timestamp, timestamp.microsecond/1000)
+
+
+# Returns a tuple of (diff_float, diff_display_string). Arguments must be
+# datetimes. `last_timestamp` may be None.
+def get_timestamp_diff(last_timestamp, timestamp):
+    timestamp_diff_secs = 0.0
+    if last_timestamp:
+        timestamp_diff_secs = (timestamp - last_timestamp).total_seconds()
+    timestamp_diff_str = '{:.3f}'.format(timestamp_diff_secs)
+    return (timestamp_diff_secs, timestamp_diff_str)
 %>
 
 <%
@@ -226,12 +246,7 @@ from operator import itemgetter
 
 <%def name="status_history_row(entry, last_timestamp)">
     <%
-        timestamp_diff_secs = 0.0
-        if last_timestamp:
-            timestamp_diff_secs = (entry['timestamp'] - last_timestamp).total_seconds()
-        timestamp_diff_str = '{:.3f}'.format(timestamp_diff_secs)
-
-        timestamp_str = '{:%Y-%m-%dT%H:%M:%S}.{:03}Z'.format(entry['timestamp'], entry['timestamp'].microsecond/1000)
+        timestamp_diff_secs, timestamp_diff_str = get_timestamp_diff(last_timestamp, entry['timestamp'])
 
         # These values come from the Java definitions for Log.VERBOSE, etc.
         PRIORITY_CLASSES = {
@@ -253,7 +268,7 @@ from operator import itemgetter
 
     <div class="status-entry">
         <div class="status-first-line">
-            <span class="timestamp">${timestamp_str} [+${timestamp_diff_str}s]</span>
+            <span class="timestamp">${timestamp_display(entry['timestamp'])} [+${timestamp_diff_str}s]</span>
 
             <span class="status-entry-id ${priority_class}">${entry['id']}</span>
 
@@ -276,12 +291,7 @@ from operator import itemgetter
 
 <%def name="diagnostic_history_row(entry, last_timestamp)">
     <%
-        timestamp_diff_secs = 0.0
-        if last_timestamp:
-            timestamp_diff_secs = (entry['timestamp'] - last_timestamp).total_seconds()
-        timestamp_diff_str = '{:.3f}'.format(timestamp_diff_secs)
-
-        timestamp_str = '{:%Y-%m-%dT%H:%M:%S}.{:03}Z'.format(entry['timestamp'], entry['timestamp'].microsecond/1000)
+        timestamp_diff_secs, timestamp_diff_str = get_timestamp_diff(last_timestamp, entry['timestamp'])
     %>
 
     ## Put a separator between entries that are separated in time.
@@ -290,7 +300,7 @@ from operator import itemgetter
     % endif
 
     <div class="diagnostic-entry">
-        <span class="timestamp">${timestamp_str} [+${timestamp_diff_str}s]</span>
+        <span class="timestamp">${timestamp_display(entry['timestamp'])} [+${timestamp_diff_str}s]</span>
 
         <span class="diagnostic-entry-msg">${entry['msg']}</span>
 
