@@ -40,6 +40,7 @@ FEEDBACK_LANGUAGES = [
     'vi'
 ]
 
+
 def make_feedback_html():
     lang = {}
     for language in FEEDBACK_LANGUAGES:
@@ -49,10 +50,10 @@ def make_feedback_html():
     feedback_template_path = os.path.join('.', 'FeedbackSite', 'Templates', 'feedback.html.tpl')
 
     format = {
-        "langJSON":json.JSONEncoder().encode(lang), 
-        "speed":hashlib.md5(lang['en']['speed_title']).hexdigest(), 
-        "connectivity":hashlib.md5(lang['en']['connectivity_title']).hexdigest(),
-        "compatibility":hashlib.md5(lang['en']['compatibility_title']).hexdigest()
+        "langJSON": json.JSONEncoder().encode(lang),
+        "speed": hashlib.md5(lang['en']['speed_title']).hexdigest(),
+        "connectivity": hashlib.md5(lang['en']['connectivity_title']).hexdigest(),
+        "compatibility": hashlib.md5(lang['en']['compatibility_title']).hexdigest()
     }
 
     with open(feedback_template_path) as f:
@@ -61,8 +62,12 @@ def make_feedback_html():
     with open(feedback_path, 'w') as f:
         f.write(str)
 
+
 def get_language_from_template(language):
     path = os.path.join('.', 'FeedbackSite', 'Templates', language + '.yaml')
     with open(path) as f:
         return yaml.load(f.read())[language]
 
+
+if __name__ == '__main__':
+    make_feedback_html()

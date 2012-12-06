@@ -590,6 +590,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return filter(lambda x: x.name == name,
                       self.__propagation_channels.itervalues())[0]
 
+    def get_propagation_channel_by_id(self, id):
+        return self.__propagation_channels[id] if id in self.__propagation_channels else None
+
     def add_propagation_channel(self, name, propagation_mechanism_types):
         assert(self.is_locked)
         self.import_propagation_channel(self.__generate_id(), name, propagation_mechanism_types)
@@ -630,6 +633,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def __get_sponsor_by_name(self, name):
         return filter(lambda x: x.name == name,
                       self.__sponsors.itervalues())[0]
+
+    def get_sponsor_by_id(self, id):
+        return self.__sponsors[id] if id in self.__sponsors else None
 
     def add_sponsor(self, name):
         assert(self.is_locked)
@@ -826,6 +832,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def get_server_by_internal_ip_address(self, ip_address):
         servers = filter(lambda x: x.internal_ip_address == ip_address, self.__servers.itervalues())
+        if len(servers) == 1:
+            return servers[0]
+        return None
+
+    def get_deleted_server_by_ip_address(self, ip_address):
+        servers = filter(lambda x: x.ip_address == ip_address, self.__deleted_servers.itervalues())
         if len(servers) == 1:
             return servers[0]
         return None
@@ -1041,7 +1053,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             else:
                 self.__replace_propagation_channel_discovery_servers(propagation_channel.id)
 
-        for _ in range(count):
+        for new_server_number in range(count):
             provider = self._weighted_random_choice(self.__provider_ranks).provider
 
             # This is pretty dirty. We should use some proper OO technique.
@@ -1077,9 +1089,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # So create a copy instead.
             discovery = self.__copy_date_range(discovery_date_range) if discovery_date_range else None
 
+            ssh_port = '22'
+            ossh_port = random.choice(['465', '587', '993', '995'])
             capabilities = ServerCapabilities()
             if server_capabilities:
                 capabilities = copy_server_capabilities(server_capabilities)
+            elif new_server_number % 2 == 1:
+                # We would like every other new server created to be somewhat obfuscated
+                capabilities['handshake'] = False
+                capabilities['VPN'] = False
+                capabilities['SSH'] = False
+                ssh_port = None
+                ossh_port = random.choice(range(1,1023))
 
             server = Server(
                         None,
@@ -1095,11 +1116,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         None,
                         None,
                         None,
-                        '22',
+                        ssh_port,
                         None,
                         None,
                         None,
-                        random.choice(['465', '587', '993', '995']))
+                        ossh_port)
 
             self.setup_server(host, [server])
 
@@ -1252,6 +1273,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 RemoteServerSigningKeyPair(
                     psi_ops_crypto_tools.generate_key_pair(
                         REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD))
+
+        # This may be serialized/deserialized into a unicode string, but M2Crypto won't accept that.
+        # The key pair should only contain ascii anyways, so encoding to ascii should be safe.
+        self.__remote_server_list_signing_key_pair.pem_key_pair = \
+            self.__remote_server_list_signing_key_pair.pem_key_pair.encode('ascii', 'ignore')
+        return self.__remote_server_list_signing_key_pair
 
     def create_feedback_encryption_key_pair(self):
         '''
@@ -1860,14 +1887,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server = next(server for server in self.__servers.itervalues()
                       if server.internal_ip_address == server_ip_address)
 
-        config['ssh_port'] = int(server.ssh_port)
         config['ssh_username'] = server.ssh_username
         config['ssh_password'] = server.ssh_password
         ssh_host_key_type, config['ssh_host_key'] = server.ssh_host_key.split(' ')
         assert(ssh_host_key_type == 'ssh-rsa')
         config['ssh_session_id'] = binascii.hexlify(os.urandom(8))
-        config['ssh_obfuscated_port'] = int(server.ssh_obfuscated_port)
-        config['ssh_obfuscated_key'] = server.ssh_obfuscated_key
+        if server.ssh_port:
+            config['ssh_port'] = int(server.ssh_port)
+        if server.ssh_obfuscated_port:
+            config['ssh_obfuscated_port'] = int(server.ssh_obfuscated_port)
+            config['ssh_obfuscated_key'] = server.ssh_obfuscated_key
 
         # Give client a set of regexes indicating which pages should have individual stats
         config['page_view_regexes'] = []

@@ -7,7 +7,7 @@
 ```shell
 # Prereqs
 sudo apt-get install -y python-pip python-dev libssl-dev swig
-sudo pip install rfc6266
+sudo pip install rfc6266 pynliner cssutils BeautifulSoup mako
 sudo pip install M2Crypto
 ```
 

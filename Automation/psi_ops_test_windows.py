@@ -214,6 +214,7 @@ def test_server(ip_address, capabilities, web_server_port, web_server_secret, en
                                     None,       # banner
                                     encoded_server_list,
                                     '',         # remote_server_list_signature_public_key
+                                    '',         # feedback_encryption_public_key
                                     ('','',''), # remote_server_list_url
                                     '',   # info_link_url
                                     version,
