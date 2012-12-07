@@ -201,7 +201,10 @@ function setLanguage(langName)
             else if (platform === 'win') {{
               diagnostic_info_warning = currentLanguage['diagnostic_info_warning_windows'];
             }}
-            $('.diagnostic-info-warning', selector).html(diagnostic_info_warning);
+
+            if (diagnostic_info_warning) {{
+                $('.diagnostic-info-warning', selector).html(diagnostic_info_warning);
+            }}
         }}
         else {{
             $(selector).html(val);

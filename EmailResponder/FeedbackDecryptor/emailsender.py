@@ -16,11 +16,12 @@
 
 
 import smtplib
-from email.message import Message as EmailMessage
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 
 def send(server, port, username, password,
-         fromaddr, toaddrs, subject, body, replyid):
+         fromaddr, toaddrs, subject, body_text, body_html, replyid):
     '''
     Send email via SMTP. Throws exception on error.
     '''
@@ -28,15 +29,25 @@ def send(server, port, username, password,
     if type(toaddrs) == str:
         toaddrs = [toaddrs]
 
-    msg = EmailMessage()
+    msg = MIMEMultipart('alternative')
 
-    msg.set_payload(body)
     msg['Subject'] = subject
     msg['From'] = fromaddr
     msg['To'] = toaddrs
     msg['In-Reply-To'] = replyid
 
+    # Attach parts into message container.
+    # According to RFC 2046, the last part of a multipart message, in this case
+    # the HTML message, is best and preferred.
+
+    if body_text:
+        msg.attach(MIMEText(body_text, 'plain'))
+
+    if body_html:
+        msg.attach(MIMEText(body_html, 'html'))
+
     mailserver = smtplib.SMTP_SSL(server, port)
     mailserver.login(username, password)
 
     mailserver.sendmail(fromaddr, toaddrs, msg.as_string())
+    mailserver.quit()

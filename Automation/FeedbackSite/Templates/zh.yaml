@@ -9,6 +9,7 @@ zh:
     <p>
     如果你有任何具体意见，需要更多信息不工作的网站，或者表单也不工作，请发电子邮件<a href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>。
     </p>
+  diagnostic_info_warning_android: 请注意一些诊断信息将被附加到电子邮件。此附件不包含您的私人信息，而它将帮助我们保持赛风软件运行顺利。
   connectivity_title: 连接性
   connectivity_happy: Psiphon始终连接并保持连接。
   connectivity_ok: Psiphon经常连接，但是有时断开并重新连接。
