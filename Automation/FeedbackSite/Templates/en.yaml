@@ -3,18 +3,16 @@ en:
 
     top_content_title:  Give Us Your Feedback
 
-    top_content: |
-        <p>
-          Please complete the form below to let us know how Psiphon 3 is working for you so we can make the system better.
-        </p>
+    top_para_1: Please complete the form below to let us know how Psiphon 3 is working for you so we can make the system better.
 
-        <p>
-         If you have any specific comments, further information about web sites that do not work, or if this form is not working for you, please email <a href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>.
-         <span class="diagnostic-info-warning"></span>
-        </p>
+    top_para_2_android: |
+        If you have any specific comments, further information about web sites that do not work, or if this form is not working for you, please email <a href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>.
+        Please note that some diagnostic information will be attached to the email. This attachment does not contain private information about you, and it will help us to keep Psiphon running smoothly.
 
-    diagnostic_info_warning_android: Please note that some diagnostic information will be attached to the email. This attachment does not contain private information about you, and it will help us to keep Psiphon running smoothly.
-    diagnostic_info_warning_windows:
+    top_para_2_windows: |
+        If you have any specific comments, further information about web sites that do not work, or if this form is not working for you, please email <button id="emailAddress">feedback@psiphon.ca</button><input type="checkbox" checked id="sendDiagnostic"><label for="sendDiagnostic">and upload diagnostic information.</label>
+        (When you click the button, the email address is copied to the clipboard, so if your email program does not open, you can paste the address into a new email.)
+        Please note that this diagnostic information does not contain private information about you, and it will help us to keep Psiphon running smoothly.
 
     connectivity_title:  Connectivity
 

@@ -178,33 +178,46 @@ function setLanguage(langName)
     $('.feedback > li').css('padding', padding);
     $('.feedback > li').css('background-position-x', bg_position_x);
 
-    var platform = (window.dialogArguments !== undefined) ? "win" : "android";
+    var PLATFORM_WINDOWS = 'windows', PLATFORM_ANDROID = 'android';
+    var platform = (window.dialogArguments !== undefined) ? PLATFORM_WINDOWS : PLATFORM_ANDROID;
+
+    var emailModifier = '';
+    if (platform === PLATFORM_WINDOWS) {{
+      emailModifier = $.parseJSON(window.dialogArguments)['emailModifier'];
+    }}
 
     $.each(currentLanguage, function(name, val){{
-        selector = '#' + name;
+        // Not all strings are for all platforms.
+        var targetPlatform = null;
+        if (name.slice(-(('_'+PLATFORM_WINDOWS).length)) === '_'+PLATFORM_WINDOWS) {{
+          targetPlatform = PLATFORM_WINDOWS;
+        }}
+        else if (name.slice(-(('_'+PLATFORM_ANDROID).length)) === '_'+PLATFORM_ANDROID) {{
+          targetPlatform = PLATFORM_ANDROID;
+        }}
+
+        if (targetPlatform) {{
+          if (targetPlatform !== platform) {{
+            // Not for this platform, so skip it.
+            return;
+          }}
+          // Strip the platform suffix.
+          name = name.slice(0, -(('_'+PLATFORM_ANDROID).length));
+        }}
+
+        var selector = '#' + name;
         if(name == 'submit_button') {{
             $(selector).val(val);
         }}
         else if(name == 'title') {{
             document.title = val; //supported in all browsers
         }}
-        else if(name == 'top_content') {{
-            val = val.replace(/feedback@psiphon.ca/g, "feedback+" + platform+ "@psiphon.ca");
+        else if(name == 'top_para_2') {{
+            // Replace the feedback address with a platform specific value.
+            val = val.replace(
+                        /([a-z0-9]+)@([^\.]+)\.([a-z]+)/g,
+                        "$1+" + platform + emailModifier + "@$2.$3");
             $(selector).html(val);
-
-            // The top content contains different diagnostic info warnings
-            // depending on the platform.
-            var diagnostic_info_warning = '';
-            if (platform === 'android') {{
-              diagnostic_info_warning = currentLanguage['diagnostic_info_warning_android'];
-            }}
-            else if (platform === 'win') {{
-              diagnostic_info_warning = currentLanguage['diagnostic_info_warning_windows'];
-            }}
-
-            if (diagnostic_info_warning) {{
-                $('.diagnostic-info-warning', selector).html(diagnostic_info_warning);
-            }}
         }}
         else {{
             $(selector).html(val);
@@ -214,62 +227,71 @@ function setLanguage(langName)
 }}
 
 $(function() {{
-        //set language from hash parameter on page load
-        setLanguage(getLanguageNameFromURL(window.location.href));
+  //set language from hash parameter on page load
+  setLanguage(getLanguageNameFromURL(window.location.href));
 
-        //set onClick listener to the feedback table cells
-        $('.feedback li').click(
-            function() {{
-                $(this).toggleClass("selected", true);
-                $(this).siblings().toggleClass("selected", false);
-        }});
+  //set onClick listener to the feedback table cells
+  $('.feedback li').click(function() {{
+    $(this).toggleClass("selected", true);
+    $(this).siblings().toggleClass("selected", false);
+  }});
 
-        //set onChange listener to language dropdown
-        $('#language_selector').change(
-            function() {{
-                setLanguage($(this).val());
-        }});
+  //set onChange listener to language dropdown
+  $('#language_selector').change(function() {{
+    setLanguage($(this).val());
+  }});
 
-        $('ul#connectivity.feedback').data('hash', '{connectivity}');
-        $('ul#speed.feedback').data('hash', '{speed}');
-        $('ul#compatibility.feedback').data('hash', '{compatibility}');
+  $('ul#connectivity.feedback').data('hash', '{connectivity}');
+  $('ul#speed.feedback').data('hash', '{speed}');
+  $('ul#compatibility.feedback').data('hash', '{compatibility}');
 
-        //submit button clicked.
-        $('#submit_button').click(
-            function(e) {{
-            e.preventDefault();
-            responses = new Array();
-            //get all selected and their parents
-            selected = $('li.selected');
-            selected.each(function(){{
-                //get hash of parent ul
-                hash = $(this).parent('ul.feedback').data('hash');
+  //submit button clicked.
+  $('#submit_button').click(function(e) {{
+    e.preventDefault();
+    responses = new Array();
+    //get all selected and their parents
+    selected = $('li.selected');
+    selected.each(function() {{
+      //get hash of parent ul
+      hash = $(this).parent('ul.feedback').data('hash');
 
-                if($(this).hasClass('happy')){{
-                    responses.push({{question:hash, answer: 0}});
-                }}
-                if($(this).hasClass('ok')){{
-                    responses.push({{question:hash, answer: 1}});
-                }}
-                if($(this).hasClass('sad')){{
-                    responses.push({{question:hash, answer: 2}});
-                }}
-            }})
-            s = $.stringify({{"responses":responses}});
+      if($(this).hasClass('happy')) {{
+        responses.push({{question:hash, answer: 0}});
+      }}
+      if($(this).hasClass('ok')) {{
+        responses.push({{question:hash, answer: 1}});
+      }}
+      if($(this).hasClass('sad')) {{
+        responses.push({{question:hash, answer: 2}});
+      }}
+    }});
+    s = $.stringify({{"responses":responses}});
 
-            //Windows client expects result in the window.returnValue magic variable
-            //No need to actually submit data
-            if(window.dialogArguments !== undefined) {{
-                window.returnValue = s;
-                window.close();
-            }}
-            else {{
-                $('input[name=formdata]').val(s);
-                $('#feedback').submit();
-            }}
-        }});
+    //Windows client expects result in the window.returnValue magic variable
+    //No need to actually submit data
+    if(window.dialogArguments !== undefined) {{
+      window.returnValue = s;
+      window.close();
+    }}
+    else {{
+      $('input[name=formdata]').val(s);
+      $('#feedback').submit();
+    }}
+  }});
 
-}})
+  // Feedback email button clicked
+  $('#emailAddress').click(function(e) {{
+    e.preventDefault();
+    if(window.dialogArguments !== undefined) {{
+      window.returnValue = $.stringify({{
+        "emailAddress": encodeURIComponent($('#emailAddress').text()),
+        "sendDiagnostic": !!$('#sendDiagnostic').attr('checked')
+      }});
+      window.close();
+    }}
+  }});
+}});
+
 </script>
   </head>
   <body>
@@ -292,7 +314,9 @@ $(function() {{
   </select>
 
     <h1 id="top_content_title"></h1>
-    <div id="top_content">
+    <div>
+      <p id="top_para_1"></p>
+      <p id="top_para_2"></p>
     </div>
     <br/>
 
