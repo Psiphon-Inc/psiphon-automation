@@ -19,6 +19,7 @@ import json
 import yaml
 import os
 import sys
+import smtplib
 try:
     import syslog
 except:
@@ -191,6 +192,10 @@ def go():
                                  u'Re: %s' % (msg['subject'] or ''),
                                  'Decrypt failed: %s' % e,
                                  msg['msgobj']['Message-ID'])
+
+            except smtplib.SMTPException as e:
+                # Something went wrong with the sending of the response. Log it.
+                _log(str(e))
 
             except (ValueError, TypeError) as e:
                 # Try the next attachment/message
