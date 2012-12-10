@@ -205,6 +205,10 @@ function setLanguage(langName)
           name = name.slice(0, -(('_'+PLATFORM_ANDROID).length));
         }}
 
+        if (!val) {{
+          return;
+        }}
+
         var selector = '#' + name;
         if(name == 'submit_button') {{
             $(selector).val(val);
@@ -284,7 +288,8 @@ $(function() {{
     e.preventDefault();
     if(window.dialogArguments !== undefined) {{
       window.returnValue = $.stringify({{
-        "emailAddress": encodeURIComponent($('#emailAddress').text()),
+        "emailAddress": $('#emailAddress').text(),
+        "emailAddressEncoded": encodeURIComponent($('#emailAddress').text()),
         "sendDiagnostic": !!$('#sendDiagnostic').attr('checked')
       }});
       window.close();
@@ -317,6 +322,7 @@ $(function() {{
     <div>
       <p id="top_para_1"></p>
       <p id="top_para_2"></p>
+      <p id="top_para_3"></p>
     </div>
     <br/>
 

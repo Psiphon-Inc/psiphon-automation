@@ -10,8 +10,13 @@ en:
         Please note that some diagnostic information will be attached to the email. This attachment does not contain private information about you, and it will help us to keep Psiphon running smoothly.
 
     top_para_2_windows: |
-        If you have any specific comments, further information about web sites that do not work, or if this form is not working for you, please email <button id="emailAddress">feedback@psiphon.ca</button><input type="checkbox" checked id="sendDiagnostic"><label for="sendDiagnostic">and upload diagnostic information.</label>
-        (When you click the button, the email address is copied to the clipboard, so if your email program does not open, you can paste the address into a new email.)
+        If you have any specific comments, further information about web sites that do not work, or if this form is not working for you, please email <a id="emailAddress" href="#">feedback@psiphon.ca</a>
+        (When you click the link, the email address is copied to the clipboard, so if your email program does not open, you can paste the address into a new email.)
+
+    top_para_3_android:
+
+    top_para_3_windows: |
+        <input type="checkbox" checked id="sendDiagnostic"><label for="sendDiagnostic">Upload diagnostic information.</label>
         Please note that this diagnostic information does not contain private information about you, and it will help us to keep Psiphon running smoothly.
 
     connectivity_title:  Connectivity
