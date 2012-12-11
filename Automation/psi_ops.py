@@ -2054,6 +2054,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             server.discovery_date_range)
                                             # Omit: propagation, web server, ssh info
 
+        for deleted_server in self.__deleted_servers.itervalues():
+            copy.__deleted_servers[deleted_server.id] = Server(
+                                            deleted_server.id,
+                                            deleted_server.host_id,
+                                            deleted_server.ip_address,
+                                            None,
+                                            deleted_server.internal_ip_address,
+                                            None,
+                                            None,
+                                            deleted_server.discovery_date_range)
+                                            # Omit: propagation, web server, ssh info
+
         for propagation_channel in self.__propagation_channels.itervalues():
             copy.__propagation_channels[propagation_channel.id] = PropagationChannel(
                                         propagation_channel.id,
