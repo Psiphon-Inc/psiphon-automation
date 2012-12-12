@@ -12,12 +12,9 @@ en:
         give us, <a id="showTextFeedback" href="#">just click here</a>.
 
     questionnaire_diagnostic_check: |
-        <input type="checkbox" checked id="questionnaireSendDiagnostic">
-        <label for="questionnaireSendDiagnostic">
         Also upload diagnostic information. Please note that this diagnostic
         information does not contain private information about you, and it will
         help us to keep Psiphon running smoothly.
-        </label>
 
     connectivity_title:  Connectivity
 
@@ -57,10 +54,7 @@ en:
         (When you click the link, the email address is copied to the clipboard, so if your email program does not open, you can paste the address into a new email.)
 
     text_feedback_diagnostic_check: |
-        <input type="checkbox" checked id="textFeedbackSendDiagnostic">
-        <label for="textFeedbackSendDiagnostic">
         Also upload diagnostic information. Please note that this diagnostic
         information does not contain private information about you, and it will
         help us to keep Psiphon running smoothly.
-        </label>
 

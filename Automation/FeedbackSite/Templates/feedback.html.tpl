@@ -71,6 +71,11 @@ input[type="submit"] {{
   padding: 1em;
 }}
 
+.clickable {{
+  cursor: pointer;
+  cursor: hand;
+}}
+
 </style>
 <!--[if lt IE 9]>
 <style type="text/css">
@@ -102,39 +107,40 @@ var langJSON = {langJSON} ;
 //workaround for JSON.stringify on Windows
 //https://gist.github.com/953765
 jQuery.extend({{
-        stringify: this.JSON && this.JSON.stringify ? this.JSON.stringify : function stringify(obj) {{
-                var t = typeof(obj);
-                if (t != "object" || obj === null) {{
-                        if (t == "string")
-                                obj = '"' + obj + '"';
-                        return String(obj);
-                }}
-                else {{
-                        var n, v, json = [], arr = (obj && obj.constructor == Array);
+  stringify: this.JSON && this.JSON.stringify ? this.JSON.stringify : function stringify(obj) {{
+    var t = typeof(obj);
+    if (t != "object" || obj === null) {{
+      if (t == "string") {{
+        obj = '"' + obj + '"';
+      }}
+      return String(obj);
+    }}
+    else {{
+      var n, v, json = [], arr = (obj && obj.constructor == Array);
 
-                        for (n in obj) {{
-                                v = obj[n];
-                                t = typeof(v);
-                                if (obj.hasOwnProperty(n)) {{
-                                        if (t == "string")
-                                                v = '"' + v + '"';
-                                        else if (t == "object" && v !== null)
-                                                v = jQuery.stringify(v);
-                                        json.push((arr ? "" : '"' + n + '":') + String(v));
-                                }}
-                        }}
-                        return (arr ? "[" : "{{") + String(json) + (arr ? "]" : "}}");
-                }}
+      for (n in obj) {{
+        v = obj[n];
+        t = typeof(v);
+        if (obj.hasOwnProperty(n)) {{
+          if (t == "string")
+            v = '"' + v + '"';
+          else if (t == "object" && v !== null)
+            v = jQuery.stringify(v);
+          json.push((arr ? "" : '"' + n + '":') + String(v));
         }}
+      }}
+      return (arr ? "[" : "{{") + String(json) + (arr ? "]" : "}}");
+    }}
+  }}
 }});
 
 //extract language from hash URL
 function getLanguageNameFromURL(url)
 {{
-    lname = url.split('#')[1];
-    if(lname != undefined)
-        return lname;
-    return 'en';
+  lname = url.split('#')[1];
+  if(lname != undefined)
+      return lname;
+  return 'en';
 }}
 
 var PLATFORM_WINDOWS = 'windows', PLATFORM_ANDROID = 'android';
@@ -149,7 +155,7 @@ function setLanguage(langName)
   //i.e, if langName == 'uz' it will match either
   //uz@Latn or uz@cyrillic whichever comes first
   matchElement = $('#language_selector option[value^="' + langName + '"]:first');
-  if(matchElement.length > 0) {{
+  if (matchElement.length > 0) {{
     langName = matchElement.val();
   }}
   else {{
@@ -158,13 +164,13 @@ function setLanguage(langName)
 
   currentLanguage = langJSON[langName];
 
-  if(currentLanguage === undefined){{
+  if (currentLanguage === undefined){{
     currentLanguage = langJSON['en'];
     langName = 'en';
   }}
 
   //set direction
-  if(langName == 'fa' || langName == 'ar') {{
+  if (langName == 'fa' || langName == 'ar') {{
     direction = 'rtl';
     float = 'left';
     padding ='25px 52px 25px 10px';
@@ -180,8 +186,6 @@ function setLanguage(langName)
   $('#language_selector').css('float', float);
   $('.feedback > li').css('padding', padding);
   $('.feedback > li').css('background-position-x', bg_position_x);
-
-  platform = (window.dialogArguments !== undefined) ? PLATFORM_WINDOWS : PLATFORM_ANDROID;
 
   var diagnosticInfoIDEmailModifier = '';
   if (platform === PLATFORM_WINDOWS) {{
@@ -234,8 +238,19 @@ function setLanguage(langName)
 }}
 
 $(function() {{
+  platform = (window.dialogArguments !== undefined) ? PLATFORM_WINDOWS : PLATFORM_ANDROID;
+
   //set language from hash parameter on page load
   setLanguage(getLanguageNameFromURL(window.location.href));
+
+  $('label, input[type="checkbox"]').addClass('clickable');
+
+  if (platform === PLATFORM_ANDROID) {{
+    $('.not-android').hide();
+  }}
+  else if (platform === PLATFORM_WINDOWS) {{
+    $('.not-windows').hide();
+  }}
 
   //set onClick listener to the feedback table cells
   $('.feedback li').click(function() {{
@@ -367,23 +382,44 @@ $(function() {{
 
       <center>
         <input type="submit" value="" id="submit_button" />
-        <div id="questionnaire_diagnostic_check">
-        </div>
       </center>
       <input type="hidden" value="" id="formdata" name="formdata">
     </form>
-    </div>
+
+    <table>
+      <tr>
+        <td>
+          <input type="checkbox" checked id="questionnaireSendDiagnostic">
+        </td>
+        <td>
+          <label for="questionnaireSendDiagnostic">
+            <span id="questionnaire_diagnostic_check"></span>
+          </label>
+        </td>
+      </tr>
+    </table>
+
   </div>
 
   <div id="textFeedbackContent" style="display:none">
     <p>
-      <div id="text_feedback_top_para">
-      </div>
+      <span id="text_feedback_top_para"></span>
     </p>
-    <p>
-      <div id="text_feedback_diagnostic_check">
-      </div>
-    </p>
+
+    <div class="not-android">
+      <table>
+        <tr>
+          <td>
+            <input type="checkbox" checked id="textFeedbackSendDiagnostic">
+          </td>
+          <td>
+            <label for="textFeedbackSendDiagnostic">
+              <span id="text_feedback_diagnostic_check"></span>
+            </label>
+          </td>
+        </tr>
+      </table>
+    </div>
   </div>
 
 </body>
