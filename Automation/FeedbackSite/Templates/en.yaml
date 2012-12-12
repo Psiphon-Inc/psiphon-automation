@@ -3,21 +3,21 @@ en:
 
     top_content_title:  Give Us Your Feedback
 
-    top_para_1: Please complete the form below to let us know how Psiphon 3 is working for you so we can make the system better.
+    top_para_1: |
+        Please complete the form below to let us know how Psiphon 3 is working
+        for you so we can make the system better!
 
-    top_para_2_android: |
-        If you have any specific comments, further information about web sites that do not work, or if this form is not working for you, please email <a href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>.
-        Please note that some diagnostic information will be attached to the email. This attachment does not contain private information about you, and it will help us to keep Psiphon running smoothly.
+    top_para_2: |
+        If you have any other feedback, bug reports, etc., that you'd like to
+        give us, <a id="showTextFeedback" href="#">just click here</a>.
 
-    top_para_2_windows: |
-        If you have any specific comments, further information about web sites that do not work, or if this form is not working for you, please email <a id="emailAddress" href="#">feedback@psiphon.ca</a>
-        (When you click the link, the email address is copied to the clipboard, so if your email program does not open, you can paste the address into a new email.)
-
-    top_para_3_android:
-
-    top_para_3_windows: |
-        <input type="checkbox" checked id="sendDiagnostic"><label for="sendDiagnostic">Upload diagnostic information.</label>
-        Please note that this diagnostic information does not contain private information about you, and it will help us to keep Psiphon running smoothly.
+    questionnaire_diagnostic_check: |
+        <input type="checkbox" checked id="questionnaireSendDiagnostic">
+        <label for="questionnaireSendDiagnostic">
+        Also upload diagnostic information. Please note that this diagnostic
+        information does not contain private information about you, and it will
+        help us to keep Psiphon running smoothly.
+        </label>
 
     connectivity_title:  Connectivity
 
@@ -47,3 +47,20 @@ en:
     compatibility_sad:  My web sites load but I can't use certain important functions.
 
     submit_button: Submit
+
+    text_feedback_top_para_android: |
+        If you have any specific comments, further information about web sites that do not work, or if this form is not working for you, please email <a href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>.
+        Please note that some diagnostic information will be attached to the email. This attachment does not contain private information about you, and it will help us to keep Psiphon running smoothly.
+
+    text_feedback_top_para_windows: |
+        If you have any specific comments, further information about web sites that do not work, or if this form is not working for you, please email <a id="emailAddress" href="#">feedback@psiphon.ca</a>
+        (When you click the link, the email address is copied to the clipboard, so if your email program does not open, you can paste the address into a new email.)
+
+    text_feedback_diagnostic_check: |
+        <input type="checkbox" checked id="textFeedbackSendDiagnostic">
+        <label for="textFeedbackSendDiagnostic">
+        Also upload diagnostic information. Please note that this diagnostic
+        information does not contain private information about you, and it will
+        help us to keep Psiphon running smoothly.
+        </label>
+

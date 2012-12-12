@@ -137,100 +137,100 @@ function getLanguageNameFromURL(url)
     return 'en';
 }}
 
-var diagnosticInfoID = '';
+var PLATFORM_WINDOWS = 'windows', PLATFORM_ANDROID = 'android';
+var diagnosticInfoID = '', platform = '';
 
 //sets page content and highlights coerresponding language button
 function setLanguage(langName)
 {{
-    //get complete language code from the selector
-    //if langName is not an exact match
-    //using 'starts with' logic
-    //i.e, if langName == 'uz' it will match either
-    //uz@Latn or uz@cyrillic whichever comes first
-    matchElement = $('#language_selector option[value^="' + langName + '"]:first');
-    if(matchElement.length > 0) {{
-        langName = matchElement.val();
+  //get complete language code from the selector
+  //if langName is not an exact match
+  //using 'starts with' logic
+  //i.e, if langName == 'uz' it will match either
+  //uz@Latn or uz@cyrillic whichever comes first
+  matchElement = $('#language_selector option[value^="' + langName + '"]:first');
+  if(matchElement.length > 0) {{
+    langName = matchElement.val();
+  }}
+  else {{
+    langName = 'en';
+  }}
+
+  currentLanguage = langJSON[langName];
+
+  if(currentLanguage === undefined){{
+    currentLanguage = langJSON['en'];
+    langName = 'en';
+  }}
+
+  //set direction
+  if(langName == 'fa' || langName == 'ar') {{
+    direction = 'rtl';
+    float = 'left';
+    padding ='25px 52px 25px 10px';
+    bg_position_x = '100%';
+  }}
+  else {{
+    direction = 'ltr';
+    float = 'right';
+    padding ='25px 10px 25px 52px';
+    bg_position_x = '0';
+  }}
+  $('body').css('direction', direction);
+  $('#language_selector').css('float', float);
+  $('.feedback > li').css('padding', padding);
+  $('.feedback > li').css('background-position-x', bg_position_x);
+
+  platform = (window.dialogArguments !== undefined) ? PLATFORM_WINDOWS : PLATFORM_ANDROID;
+
+  var diagnosticInfoIDEmailModifier = '';
+  if (platform === PLATFORM_WINDOWS) {{
+    diagnosticInfoID = $.parseJSON(window.dialogArguments)['diagnosticInfoID'];
+    diagnosticInfoIDEmailModifier = '+' + diagnosticInfoID;
+  }}
+
+  $.each(currentLanguage, function(name, val){{
+    // Not all strings are for all platforms.
+    var targetPlatform = null;
+    if (name.slice(-(('_'+PLATFORM_WINDOWS).length)) === '_'+PLATFORM_WINDOWS) {{
+      targetPlatform = PLATFORM_WINDOWS;
+    }}
+    else if (name.slice(-(('_'+PLATFORM_ANDROID).length)) === '_'+PLATFORM_ANDROID) {{
+      targetPlatform = PLATFORM_ANDROID;
+    }}
+
+    if (targetPlatform) {{
+      if (targetPlatform !== platform) {{
+        // Not for this platform, so skip it.
+        return;
+      }}
+      // Strip the platform suffix.
+      name = name.slice(0, -(('_'+PLATFORM_ANDROID).length));
+    }}
+
+    if (!val) {{
+      return;
+    }}
+
+    var selector = '#' + name;
+    if (name === 'submit_button') {{
+      $(selector).val(val);
+    }}
+    else if (name === 'title') {{
+      document.title = val; //supported in all browsers
+    }}
+    else if (name === 'text_feedback_top_para') {{
+      // Replace the feedback address with a platform specific value.
+      val = val.replace(
+                  /([a-z0-9]+)@([^\.]+)\.([a-z]+)/g,
+                  "$1+" + platform + diagnosticInfoIDEmailModifier + "@$2.$3");
+      $(selector).html(val);
     }}
     else {{
-        langName = 'en';
+      $(selector).html(val);
     }}
-
-    currentLanguage = langJSON[langName];
-
-    if(currentLanguage === undefined){{
-        currentLanguage = langJSON['en'];
-        langName = 'en';
-    }}
-
-    //set direction
-    if(langName == 'fa' || langName == 'ar') {{
-        direction = 'rtl';
-        float = 'left';
-        padding ='25px 52px 25px 10px';
-        bg_position_x = '100%';
-    }}
-    else {{
-        direction = 'ltr';
-        float = 'right';
-        padding ='25px 10px 25px 52px';
-        bg_position_x = '0';
-    }}
-    $('body').css('direction', direction);
-    $('#language_selector').css('float', float);
-    $('.feedback > li').css('padding', padding);
-    $('.feedback > li').css('background-position-x', bg_position_x);
-
-    var PLATFORM_WINDOWS = 'windows', PLATFORM_ANDROID = 'android';
-    var platform = (window.dialogArguments !== undefined) ? PLATFORM_WINDOWS : PLATFORM_ANDROID;
-
-    var diagnosticInfoIDEmailModifier = '';
-    if (platform === PLATFORM_WINDOWS) {{
-      diagnosticInfoID = $.parseJSON(window.dialogArguments)['diagnosticInfoID'];
-      diagnosticInfoIDEmailModifier = '+' + diagnosticInfoID;
-    }}
-
-    $.each(currentLanguage, function(name, val){{
-        // Not all strings are for all platforms.
-        var targetPlatform = null;
-        if (name.slice(-(('_'+PLATFORM_WINDOWS).length)) === '_'+PLATFORM_WINDOWS) {{
-          targetPlatform = PLATFORM_WINDOWS;
-        }}
-        else if (name.slice(-(('_'+PLATFORM_ANDROID).length)) === '_'+PLATFORM_ANDROID) {{
-          targetPlatform = PLATFORM_ANDROID;
-        }}
-
-        if (targetPlatform) {{
-          if (targetPlatform !== platform) {{
-            // Not for this platform, so skip it.
-            return;
-          }}
-          // Strip the platform suffix.
-          name = name.slice(0, -(('_'+PLATFORM_ANDROID).length));
-        }}
-
-        if (!val) {{
-          return;
-        }}
-
-        var selector = '#' + name;
-        if(name == 'submit_button') {{
-            $(selector).val(val);
-        }}
-        else if(name == 'title') {{
-            document.title = val; //supported in all browsers
-        }}
-        else if(name == 'top_para_2') {{
-            // Replace the feedback address with a platform specific value.
-            val = val.replace(
-                        /([a-z0-9]+)@([^\.]+)\.([a-z]+)/g,
-                        "$1+" + platform + diagnosticInfoIDEmailModifier + "@$2.$3");
-            $(selector).html(val);
-        }}
-        else {{
-            $(selector).html(val);
-        }}
-    }});
-    $('#language_selector').val(langName);
+  }});
+  $('#language_selector').val(langName);
 }}
 
 $(function() {{
@@ -274,7 +274,7 @@ $(function() {{
     }});
     s = $.stringify({{
       'responses':responses,
-      'diagnosticInfoID': $('#sendDiagnostic').attr('checked') ? diagnosticInfoID : ''
+      'diagnosticInfoID': $('#questionnaireSendDiagnostic').attr('checked') ? diagnosticInfoID : null
     }});
 
     //Windows client expects result in the window.returnValue magic variable
@@ -289,6 +289,13 @@ $(function() {{
     }}
   }});
 
+  // Freeform (email) feedback link clicked
+  $('#showTextFeedback').click(function(e) {{
+    e.preventDefault();
+    $('#questionnaireContent').hide();
+    $('#textFeedbackContent').show();
+  }});
+
   // Feedback email button clicked
   $('#emailAddress').click(function(e) {{
     e.preventDefault();
@@ -296,7 +303,7 @@ $(function() {{
       window.returnValue = $.stringify({{
         'emailAddress': $('#emailAddress').text(),
         'emailAddressEncoded': encodeURIComponent($('#emailAddress').text()),
-        'diagnosticInfoID': $('#sendDiagnostic').attr('checked') ? diagnosticInfoID : ''
+        'diagnosticInfoID': $('#textFeedbackSendDiagnostic').attr('checked') ? diagnosticInfoID : null
       }});
       window.close();
     }}
@@ -304,8 +311,8 @@ $(function() {{
 }});
 
 </script>
-  </head>
-  <body>
+</head>
+<body>
 
   <select id="language_selector" style="float:right;">
   <option value="en">English</option>
@@ -324,45 +331,60 @@ $(function() {{
   <option value="vi">Tiếng Việt</option>
   </select>
 
-    <h1 id="top_content_title"></h1>
+  <h1 id="top_content_title"></h1>
+
+  <div id="questionnaireContent">
     <div>
       <p id="top_para_1"></p>
       <p id="top_para_2"></p>
-      <p id="top_para_3"></p>
     </div>
     <br/>
 
     <form name="feedback" action="feedback" method="get" id="feedback">
-    <h2 id="connectivity_title"></h2>
+      <h2 id="connectivity_title"></h2>
 
-    <ul class="feedback" id="connectivity">
-    <li class="happy selected" id="connectivity_happy"></li>
-    <li class="ok" id="connectivity_ok"></li>
-    <li class="sad" id="connectivity_sad"></li>
-    </ul>
+      <ul class="feedback" id="connectivity">
+        <li class="happy selected" id="connectivity_happy"></li>
+        <li class="ok" id="connectivity_ok"></li>
+        <li class="sad" id="connectivity_sad"></li>
+        </ul>
 
-    <h2 id="speed_title"></h2>
+      <h2 id="speed_title"></h2>
 
-    <ul class="feedback" id="speed">
-    <li class="happy selected" id="speed_happy"></li>
-    <li class="ok" id="speed_ok"></li>
-    <li class="sad" id="speed_sad"></li>
-    </ul>
+      <ul class="feedback" id="speed">
+        <li class="happy selected" id="speed_happy"></li>
+        <li class="ok" id="speed_ok"></li>
+        <li class="sad" id="speed_sad"></li>
+      </ul>
 
-    <h2 id="compatibility_title"></h2>
+      <h2 id="compatibility_title"></h2>
 
-    <ul class="feedback" id="compatibility">
-    <li class="happy selected" id="compatibility_happy"></li>
-    <li class="ok" id="compatibility_ok"></li>
-    <li class="sad" id="compatibility_sad"></li>
-    </ul><br />
+      <ul class="feedback" id="compatibility">
+        <li class="happy selected" id="compatibility_happy"></li>
+        <li class="ok" id="compatibility_ok"></li>
+        <li class="sad" id="compatibility_sad"></li>
+      </ul><br />
 
-    <center>
-    <input type="submit" value="" id="submit_button" />
-    </center>
-    <input type="hidden" value="" id="formdata" name="formdata">
+      <center>
+        <input type="submit" value="" id="submit_button" />
+        <div id="questionnaire_diagnostic_check">
+        </div>
+      </center>
+      <input type="hidden" value="" id="formdata" name="formdata">
     </form>
     </div>
+  </div>
 
-  </body>
+  <div id="textFeedbackContent" style="display:none">
+    <p>
+      <div id="text_feedback_top_para">
+      </div>
+    </p>
+    <p>
+      <div id="text_feedback_diagnostic_check">
+      </div>
+    </p>
+  </div>
+
+</body>
 </html>
