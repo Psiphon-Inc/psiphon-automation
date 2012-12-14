@@ -8,6 +8,7 @@
   "emailPassword": "password1",
   "privateKeyPemFile": "priv.pem",
   "privateKeyPassword": "password2",
+  "decryptedEmailRecipient": "user-talk@example.com",
 
   // Directory where the psi_ops.py file can be found.
   "psiOpsPath": "../../Automation",

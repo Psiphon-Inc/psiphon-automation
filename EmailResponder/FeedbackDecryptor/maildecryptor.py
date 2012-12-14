@@ -175,7 +175,7 @@ def go():
                                  config['emailUsername'],
                                  config['emailPassword'],
                                  config['emailUsername'],
-                                 config['emailUsername'],
+                                 config['decryptedEmailRecipient'],
                                  u'Re: %s' % (msg['subject'] or ''),
                                  diagnostic_info_text,
                                  diagnostic_info_html,
@@ -188,7 +188,7 @@ def go():
                                  config['emailUsername'],
                                  config['emailPassword'],
                                  config['emailUsername'],
-                                 config['emailUsername'],
+                                 config['decryptedEmailRecipient'],
                                  u'Re: %s' % (msg['subject'] or ''),
                                  'Decrypt failed: %s' % e,
                                  msg['msgobj']['Message-ID'])
