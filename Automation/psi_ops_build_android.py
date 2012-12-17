@@ -94,7 +94,7 @@ def write_embedded_values(propagation_channel_id,
                           info_link_url,
                           ignore_system_server_list=False):
     template = textwrap.dedent('''
-        package com.psiphon3;
+        package com.psiphon3.psiphonlibrary;
 
         public interface EmbeddedValues
         {
