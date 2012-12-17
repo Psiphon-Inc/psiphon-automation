@@ -68,8 +68,10 @@ def build_apk():
 
     commands = [
         'android update lib-project -p "%s"' % (ZIRCO_SOURCE_ROOT,),
+        'android update lib-project -p "%s"' % (PSIPHON_LIB_SOURCE_ROOT,),
         'android update project -p "%s"' % (PSIPHON_SOURCE_ROOT,),
         'ant -q -f "%s" clean' % (os.path.join(ZIRCO_SOURCE_ROOT, 'build.xml'),),
+        'ant -q -f "%s" clean' % (os.path.join(PSIPHON_LIB_SOURCE_ROOT, 'build.xml'),),
         'ant -q -f "%s" clean' % (os.path.join(PSIPHON_SOURCE_ROOT, 'build.xml'),),
         'ant -q -f "%s" release' % (os.path.join(PSIPHON_SOURCE_ROOT, 'build.xml'),),
         'jarsigner -sigalg SHA1withRSA -digestalg SHA1 -keystore "%s" -storepass %s "%s" psiphon' % (
