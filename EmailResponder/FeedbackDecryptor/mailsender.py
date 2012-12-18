@@ -27,7 +27,7 @@ import time
 from config import config
 import logger
 import datastore
-import emailsender
+import sendmail
 import mailformatter
 
 
@@ -69,16 +69,16 @@ def go():
         # If we get to here, then we have a valid diagnostic email.
         # Reply with the decrypted content.
         try:
-            emailsender.send(config['smtpServer'],
-                             config['smtpPort'],
-                             config['emailUsername'],
-                             config['emailPassword'],
-                             config['emailUsername'],
-                             config['emailUsername'],
-                             u'Re: %s' % (email_diagnostic_info['email_subject'] or ''),
-                             diagnostic_info_text,
-                             diagnostic_info_html,
-                             email_diagnostic_info['email_id'])
+            sendmail.send(config['smtpServer'],
+                          config['smtpPort'],
+                          config['emailUsername'],
+                          config['emailPassword'],
+                          config['emailUsername'],
+                          config['emailUsername'],
+                          u'Re: %s' % (email_diagnostic_info['email_subject'] or ''),
+                          diagnostic_info_text,
+                          diagnostic_info_html,
+                          email_diagnostic_info['email_id'])
         except smtplib.SMTPException as e:
             # Something went wrong with the sending of the response. Log it.
             logger.log(str(e))
