@@ -19,6 +19,8 @@ from base64 import b64decode
 import cStringIO
 import M2Crypto
 
+from config import config
+
 
 '''
 Note that the algorithms, key lengths, etc., are dictated by what the client is

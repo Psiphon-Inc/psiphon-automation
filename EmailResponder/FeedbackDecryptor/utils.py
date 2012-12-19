@@ -15,6 +15,72 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import sys
+
+
+###########################
+# Helpers primarily used in templates
+###########################
+
+# To be used to format datetimes
+def timestamp_display(timestamp):
+    return '{:%Y-%m-%dT%H:%M:%S}.{:03}Z'.format(timestamp,
+                                                timestamp.microsecond / 1000)
+
+
+# Returns a tuple of (diff_float, diff_display_string). Arguments must be
+# datetimes. `last_timestamp` may be None.
+def get_timestamp_diff(last_timestamp, timestamp):
+    timestamp_diff_secs = 0.0
+    if last_timestamp:
+        timestamp_diff_secs = (timestamp - last_timestamp).total_seconds()
+    timestamp_diff_str = '{:.3f}'.format(timestamp_diff_secs)
+    return (timestamp_diff_secs, timestamp_diff_str)
+
+
+###########################
+
+_psinet = None
+def convert_psinet_values(config, obj):
+    '''
+    Converts sensitive or non-human-readable values in the YAML to IDs and
+    names. Modifies the YAML directly.
+    '''
+
+    global _psinet
+    if not _psinet:
+        # Load the psinet DB
+        sys.path.append(config['psiOpsPath'])
+        import psi_ops
+        _psinet = psi_ops.PsiphonNetwork.load_from_file(config['psinetFilePath'])
+
+    for path, val in objwalk(obj):
+        if path[-1] == 'ipAddress':
+            server = _psinet.get_server_by_ip_address(val)
+            if not server:
+                server = _psinet.get_deleted_server_by_ip_address(val)
+                if server:
+                    server.id += ' [DELETED]'
+
+            # If the psinet DB is stale, we might not find the IP address, but
+            # we still want to redact it.
+            assign_value_to_obj_at_path(obj,
+                                        path,
+                                        server.id if server else '[UNKNOWN]')
+        elif path[-1] == 'PROPAGATION_CHANNEL_ID':
+            propagation_channel = _psinet.get_propagation_channel_by_id(val)
+            if propagation_channel:
+                assign_value_to_obj_at_path(obj,
+                                            path,
+                                            propagation_channel.name)
+        elif path[-1] == 'SPONSOR_ID':
+            sponsor = _psinet.get_sponsor_by_id(val)
+            if sponsor:
+                assign_value_to_obj_at_path(obj,
+                                            path,
+                                            sponsor.name)
+
+
 ###
 # From http://code.activestate.com/recipes/577982-recursively-walk-python-objects/
 ###

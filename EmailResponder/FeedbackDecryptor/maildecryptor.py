@@ -26,7 +26,6 @@ Periodically checks feedback email. There are three types of email:
 
 import json
 import yaml
-import sys
 import os
 import binascii
 import re
@@ -36,14 +35,14 @@ import utils
 from config import config
 import decryptor
 from emailgetter import EmailGetter
-import emailsender
+import sendmail
 import datastore
 
 
 def _upgrade_old_object(yaml_docs):
     # Our old YAML had '.' in some key names, which is illegal.
     for path, val in utils.objwalk(yaml_docs):
-        if path[-1].find('.') >= 0:
+        if type(path[-1]) == str and path[-1].find('.') >= 0:
             utils.rename_key_in_obj_at_path(yaml_docs,
                                             path,
                                             path[-1].replace('.', '__'))
@@ -51,20 +50,30 @@ def _upgrade_old_object(yaml_docs):
     # Our old YAML format was multiple YAML docs in a single string. We'll
     # convert that to the new format.
     obj = {}
-    obj['StatusHistory'] = yaml_docs.pop()
-
-    # The presence of DiagnosticHistory was optional once upon a time
-    obj['DiagnosticHistory'] = yaml_docs.pop() if len(yaml_docs) > 2 else []
-
-    obj['ServerResponseCheck'] = yaml_docs.pop()
-    obj['SystemInformation'] = yaml_docs.pop()
 
     # Old YAML had no Metadata section
     metadata = {}
     metadata['platform'] = 'android'
-    metadata['version'] = 0
+    metadata['version'] = 1
     metadata['id'] = binascii.hexlify(os.urandom(8))
     obj['Metadata'] = metadata
+
+    idx = 0
+    obj['SystemInformation'] = yaml_docs[idx]
+    idx += 1
+
+    obj['ServerResponseCheck'] = yaml_docs[idx]
+    idx += 1
+
+    # The presence of DiagnosticHistory was optional once upon a time
+    if len(yaml_docs) > 3:
+        obj['DiagnosticHistory'] = yaml_docs[idx]
+        idx += 1
+    else:
+        obj['DiagnosticHistory'] = []
+
+    obj['StatusHistory'] = yaml_docs[idx]
+    idx += 1
 
     return obj
 
@@ -85,38 +94,6 @@ def _load_yaml(yaml_string):
     return obj
 
 
-def _convert_psinet_values(psinet, obj):
-    '''
-    Converts sensitive or non-human-readable values in the YAML to IDs and
-    names. Modifies the YAML directly.
-    '''
-    for path, val in utils.objwalk(obj):
-        if path[-1] == 'ipAddress':
-            server = psinet.get_server_by_ip_address(val)
-            if not server:
-                server = psinet.get_deleted_server_by_ip_address(val)
-                if server:
-                    server.id += ' [DELETED]'
-
-            # If the psinet DB is stale, we might not find the IP address, but
-            # we still want to redact it.
-            utils.assign_value_to_obj_at_path(obj,
-                                              path,
-                                              server.id if server else '[UNKNOWN]')
-        elif path[-1] == 'PROPAGATION_CHANNEL_ID':
-            propagation_channel = psinet.get_propagation_channel_by_id(val)
-            if propagation_channel:
-                utils.assign_value_to_obj_at_path(obj,
-                                                  path,
-                                                  propagation_channel.name)
-        elif path[-1] == 'SPONSOR_ID':
-            sponsor = psinet.get_sponsor_by_id(val)
-            if sponsor:
-                utils.assign_value_to_obj_at_path(obj,
-                                                  path,
-                                                  sponsor.name)
-
-
 def _get_id_from_email_address(email_address):
     r = r'\b(?P<addr>[a-z]+)\+(?P<platform>[a-z]+)\+(?P<id>[a-fA-F0-9]+)@'
     m = re.match(r, email_address)
@@ -126,11 +103,6 @@ def _get_id_from_email_address(email_address):
 
 
 def go():
-    # Load the psinet DB
-    sys.path.append(config['psiOpsPath'])
-    import psi_ops
-    psinet = psi_ops.PsiphonNetwork.load_from_file(config['psinetFilePath'])
-
     emailgetter = EmailGetter(config['popServer'],
                               config['popPort'],
                               config['emailUsername'],
@@ -165,7 +137,7 @@ def go():
                 diagnostic_info = _load_yaml(diagnostic_info)
 
                 # Modifies diagnostic_info
-                _convert_psinet_values(psinet, diagnostic_info)
+                utils.convert_psinet_values(config, diagnostic_info)
 
                 # Store the diagnostic info
                 datastore.insert_diagnostic_info(diagnostic_info)
@@ -179,7 +151,7 @@ def go():
 
             except decryptor.DecryptorException as e:
                 # Something bad happened while decrypting. Report it via email.
-                emailsender.send(config['smtpServer'],
+                sendmail.send(config['smtpServer'],
                                  config['smtpPort'],
                                  config['emailUsername'],
                                  config['emailPassword'],
