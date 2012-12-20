@@ -34,7 +34,7 @@ import mailformatter
 _SLEEP_TIME_SECS = 60
 
 
-def _email_diagnostic_info_records():
+def _email_diagnostic_info_records_iterator():
     '''
     Generator for obtaining email_diagnostic_info records.
     '''
@@ -47,19 +47,34 @@ def _email_diagnostic_info_records():
         time.sleep(_SLEEP_TIME_SECS)
 
 
+def _clean_diagnostic_info_for_yaml_dumping(diagnostic_info):
+    '''
+    When we pull the `diagnostic_info` out of the database, it has a '_id'
+    field added that is a non-safe-YAML-able object. We'll make sure that
+    the object is okay to dump.
+    Modifies `diagnostic_info`.
+    '''
+    for key, value in diagnostic_info.iteritems():
+        if key.startswith('_'):
+            diagnostic_info[key] = str(value)
+
+
 def go():
     # Retrieve and process email-to-diagnostic-info records.
     # Note that `_email_diagnostic_info_records` throttles itself if/when
     # there are no records immediately available.
-    for email_diagnostic_info in _email_diagnostic_info_records():
+    for email_diagnostic_info in _email_diagnostic_info_records_iterator():
         # Check if there is (yet) a corresponding diagnostic info record
         diagnostic_info = datastore.find_diagnostic_info(email_diagnostic_info['diagnostic_info_id'])
         if not diagnostic_info:
             continue
 
+        # Modifies diagnostic_info
+        _clean_diagnostic_info_for_yaml_dumping(diagnostic_info)
+
         # Convert the modified YAML back into a string for emailing.
-        diagnostic_info_text = yaml.safe_dump_all(diagnostic_info,
-                                                  default_flow_style=False)
+        diagnostic_info_text = yaml.safe_dump(diagnostic_info,
+                                              default_flow_style=False)
 
         try:
             diagnostic_info_html = mailformatter.format(diagnostic_info)

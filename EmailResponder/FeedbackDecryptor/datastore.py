@@ -51,7 +51,7 @@ def get_email_diagnostic_info_iterator():
 
 
 def find_diagnostic_info(diagnostic_info_id):
-    return _diagnostic_info_store.find({'Metadata.id': diagnostic_info_id})
+    return _diagnostic_info_store.find_one({'Metadata.id': diagnostic_info_id})
 
 
 def remove_email_diagnostic_info(email_diagnostic_info):
