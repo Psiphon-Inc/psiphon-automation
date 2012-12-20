@@ -80,7 +80,8 @@ def go():
             # Store the diagnostic info
             datastore.insert_diagnostic_info(diagnostic_info)
 
-        except decryptor.DecryptorException as e:
+        except decryptor.DecryptorException:
+            logger.exception()
             try:
                 # Something bad happened while decrypting. Report it via email.
                 sendmail.send(config['smtpServer'],
@@ -92,9 +93,9 @@ def go():
                               u'S3Decryptor: bad object',
                               encrypted_info_json,
                               None)
-            except smtplib.SMTPException as e:
-                logger.log(str(e))
+            except smtplib.SMTPException:
+                logger.exception()
 
-        except (ValueError, TypeError) as e:
+        except (ValueError, TypeError):
             # Try the next attachment/message
-            logger.debug_log('s3decryptor: expected exception: %s' % e)
+            logger.exception()

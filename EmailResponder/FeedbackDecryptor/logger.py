@@ -14,27 +14,29 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+'''
+Our logging helpers. Note that some work will be required to make this work
+properly on Windows.
+'''
 
 import os
-try:
-    import syslog
-except:
-    pass
+import logging
+import logging.handlers
 
 _DEBUG = ('DEBUG' in os.environ) and os.environ['DEBUG']
 
+_my_logger = logging.getLogger('MyLogger')
+_my_logger.setLevel(logging.DEBUG if _DEBUG else logging.WARNING)
+_my_logger.addHandler(logging.handlers.SysLogHandler(address='/dev/log'))
+
 
 def debug_log(s):
-    if not _DEBUG:
-        return
-    log(s)
+    _my_logger.debug(s)
 
 
 def log(s):
-    if 'syslog' in globals():
-        syslog.syslog(syslog.LOG_ERR, s)
-        if _DEBUG:
-            print(s)
-    else:
-        if _DEBUG:
-            print(s)
+    _my_logger.critical(s)
+
+
+def exception(s=''):
+    _my_logger.exception(s)

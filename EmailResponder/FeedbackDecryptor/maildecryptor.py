@@ -148,7 +148,7 @@ def go():
 
             except decryptor.DecryptorException as e:
                 # Something bad happened while decrypting. Report it via email.
-                logger.log(str(e))
+                logger.exception()
                 try:
                     sendmail.send(config['smtpServer'],
                                   config['smtpPort'],
@@ -159,13 +159,13 @@ def go():
                                   u'Re: %s' % (msg['subject'] or ''),
                                   'Decrypt failed: %s' % e,
                                   msg['msgobj']['Message-ID'])
-                except smtplib.SMTPException as e:
+                except smtplib.SMTPException:
                     # Something went wrong with the sending of the response. Log it.
-                    logger.log(str(e))
+                    logger.exception()
 
-            except (ValueError, TypeError) as e:
+            except (ValueError, TypeError):
                 # Try the next attachment/message
-                logger.debug_log('maildecryptor: expected exception: %s' % e)
+                logger.exception()
 
         if email_processed_successfully:
             break

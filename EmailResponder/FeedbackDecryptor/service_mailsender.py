@@ -18,31 +18,27 @@
 
 import signal
 import sys
-import syslog
 import time
 
+import logger
 import mailsender
 
 
-def _log(s):
-    syslog.syslog(syslog.LOG_ERR, s)
-
-
 def _do_exit(signum, frame):
-    _log('Shutting down')
+    logger.log('Shutting down')
     sys.exit(0)
 
 
 def main():
-    _log('Starting up')
+    logger.log('Starting up')
 
     signal.signal(signal.SIGTERM, _do_exit)
 
     while True:
         try:
             mailsender.go()
-        except Exception as e:
-            _log('Exception: %s' % (e,))
+        except Exception:
+            logger.exception()
             time.sleep(60)
             continue
 
