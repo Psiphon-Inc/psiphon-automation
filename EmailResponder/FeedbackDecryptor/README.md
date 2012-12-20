@@ -7,7 +7,7 @@
 ```shell
 # Prereqs
 sudo apt-get install -y python-pip python-dev libssl-dev swig mongodb
-sudo pip install rfc6266 pynliner cssutils BeautifulSoup mako pymongo
+sudo pip install rfc6266 pynliner cssutils BeautifulSoup mako pymongo boto
 sudo pip install M2Crypto
 ```
 

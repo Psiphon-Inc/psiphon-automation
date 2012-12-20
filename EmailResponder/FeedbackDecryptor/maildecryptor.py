@@ -108,8 +108,6 @@ def go():
                               config['emailUsername'],
                               config['emailPassword'])
 
-    private_key_pem = open(config['privateKeyPemFile'], 'r').read()
-
     # Retrieve and process email.
     # Note that `emailgetter.get` throttles itself if/when there are no emails
     # immediately available.
@@ -128,9 +126,7 @@ def go():
 
                 encrypted_info = json.loads(encrypted_info)
 
-                diagnostic_info = decryptor.decrypt(private_key_pem,
-                                                    config['privateKeyPassword'],
-                                                    encrypted_info)
+                diagnostic_info = decryptor.decrypt(encrypted_info)
 
                 diagnostic_info = diagnostic_info.strip()
 
@@ -152,14 +148,14 @@ def go():
             except decryptor.DecryptorException as e:
                 # Something bad happened while decrypting. Report it via email.
                 sendmail.send(config['smtpServer'],
-                                 config['smtpPort'],
-                                 config['emailUsername'],
-                                 config['emailPassword'],
-                                 config['emailUsername'],
-                                 config['emailUsername'],
-                                 u'Re: %s' % (msg['subject'] or ''),
-                                 'Decrypt failed: %s' % e,
-                                 msg['msgobj']['Message-ID'])
+                              config['smtpPort'],
+                              config['emailUsername'],
+                              config['emailPassword'],
+                              config['emailUsername'],
+                              config['emailUsername'],
+                              u'Re: %s' % (msg['subject'] or ''),
+                              'Decrypt failed: %s' % e,
+                              msg['msgobj']['Message-ID'])
 
             except (ValueError, TypeError) as e:
                 # Try the next attachment/message

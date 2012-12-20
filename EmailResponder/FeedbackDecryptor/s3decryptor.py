@@ -19,13 +19,78 @@ Periodically checks S3 upload bucket for new items. Gets them, deletes them.
 Decrypts them and stores them in the diagnostic-info-DB.
 '''
 
+import time
 import json
+import yaml
 from boto.s3.connection import S3Connection
-from boto.s3.key import Key
 
 from config import config
+import logger
 import utils
+import decryptor
+import datastore
+import sendmail
+
+
+_SLEEP_TIME_SECS = 60
+_BUCKET_ITEM_MIN_SIZE = 100
+_BUCKET_ITEM_MAX_SIZE = (1024 * 1024 * 1024)  # 1 MB
+
+
+def _is_bucket_item_sane(key):
+    if key.size < _BUCKET_ITEM_MIN_SIZE or key.size > _BUCKET_ITEM_MAX_SIZE:
+        return False
+    return True
+
+
+def _bucket_iterator(bucket):
+    while True:
+        for key in bucket.list():
+            # Do basic sanity checks before trying to download the object
+            if _is_bucket_item_sane(key):
+                yield key.get_contents_as_string()
+
+            bucket.delete_key(key)
+
+        time.sleep(_SLEEP_TIME_SECS)
 
 
 def go():
-    pass
+    s3_conn = S3Connection(config['aws_access_key_id'], config['aws_secret_access_key'])
+    bucket = s3_conn.get_bucket(config['s3_bucket_name'])
+
+    # Note that `_bucket_iterator` throttles itself if/when there are no
+    # available objects in the bucket.
+    for encrypted_info_json in _bucket_iterator(bucket):
+        # In theory, all bucket items should be usable by us, but there's
+        # always the possibility that a user (or attacker) is messing with us.
+        try:
+            encrypted_info = json.loads(encrypted_info_json)
+
+            diagnostic_info = decryptor.decrypt(encrypted_info)
+
+            diagnostic_info = diagnostic_info.strip()
+
+            diagnostic_info = yaml.safe_load(diagnostic_info)
+
+            # Modifies diagnostic_info
+            utils.convert_psinet_values(config, diagnostic_info)
+
+            # Store the diagnostic info
+            datastore.insert_diagnostic_info(diagnostic_info)
+
+        except decryptor.DecryptorException as e:
+            # Something bad happened while decrypting. Report it via email.
+            sendmail.send(config['smtpServer'],
+                          config['smtpPort'],
+                          config['emailUsername'],
+                          config['emailPassword'],
+                          config['emailUsername'],
+                          config['emailUsername'],
+                          u'S3Decryptor: bad object',
+                          encrypted_info_json,
+                          None)
+
+        except (ValueError, TypeError) as e:
+            # Try the next attachment/message
+            logger.debug_log('s3decryptor: expected exception: %s' % e)
