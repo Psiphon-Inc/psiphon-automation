@@ -16,16 +16,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-'''
-Runs the `mailsender` service. See `mailsender.py` for more information.
-'''
-
 import signal
 import sys
 import syslog
 import time
 
-import mailsender
+import s3decryptor
 
 
 def _log(s):
@@ -44,7 +40,7 @@ def main():
 
     while True:
         try:
-            mailsender.go()
+            s3decryptor.go()
         except Exception as e:
             _log('Exception: %s' % (e,))
             time.sleep(60)

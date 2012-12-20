@@ -18,7 +18,7 @@
 
 MAILDECRYPTOR_USER="maildecryptor"
 
-if [ ! -f ./maildecryptor.conf ]; then
+if [ ! -f ./feedbackdecryptor.conf ]; then
   echo "This script must be run from the source directory."
   exit 1
 fi
@@ -27,12 +27,28 @@ echo "You must already have created the user $MAILDECRYPTOR_USER, otherwise this
 echo ""
 
 sed "s|fill-in-with-path-to-source|\"`pwd`\"|" maildecryptor.conf > maildecryptor.conf.configured
+sed "s|fill-in-with-path-to-source|\"`pwd`\"|" s3decryptor.conf > s3decryptor.conf.configured
+sed "s|fill-in-with-path-to-source|\"`pwd`\"|" mailsender.conf > mailsender.conf.configured
 
 sudo cp maildecryptor.conf.configured /etc/init/maildecryptor.conf
+sudo cp s3decryptor.conf.configured /etc/init/s3decryptor.conf
+sudo cp mailsender.conf.configured /etc/init/mailsender.conf
+sudo cp feedbackdecryptor.conf /etc/init/feedbackdecryptor.conf
 
 sudo chmod 0400 *.pem conf.json
 sudo chown $MAILDECRYPTOR_USER:$MAILDECRYPTOR_USER *.pem conf.json
 
-echo "Done. To start the daemon execute:"
+sudo stop maildecryptor
+sudo stop s3decryptor
+sudo stop mailsender
+sudo stop feedbackdecryptor
+
+echo "Done."
+echo "To start all the feedback daemons execute:"
+echo " > sudo start feedbackdecryptor"
+echo ""
+echo "To start the individual daemons execute:"
 echo " > sudo start maildecryptor"
+echo " > sudo start s3decryptor"
+echo " > sudo start mailsender"
 echo ""
