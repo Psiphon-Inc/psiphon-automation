@@ -54,6 +54,9 @@ def convert_psinet_values(config, obj):
         import psi_ops
         _psinet = psi_ops.PsiphonNetwork.load_from_file(config['psinetFilePath'])
 
+    if isinstance(obj, string_types):
+        return
+
     for path, val in objwalk(obj):
         if path[-1] == 'ipAddress':
             server = _psinet.get_server_by_ip_address(val)
@@ -79,6 +82,16 @@ def convert_psinet_values(config, obj):
                 assign_value_to_obj_at_path(obj,
                                             path,
                                             sponsor.name)
+
+
+def is_diagnostic_info_sane(obj):
+    '''
+    Returns true if `obj` is a sane-looking diagnostic info object.
+    TODO: Add better checks.
+    '''
+    if not isinstance(obj, object):
+        return False
+    return True
 
 
 ###

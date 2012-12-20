@@ -136,6 +136,10 @@ def go():
                 # Modifies diagnostic_info
                 utils.convert_psinet_values(config, diagnostic_info)
 
+                if not utils.is_diagnostic_info_sane(diagnostic_info):
+                    # Something is wrong. Delete and continue.
+                    continue
+
                 # Store the diagnostic info
                 datastore.insert_diagnostic_info(diagnostic_info)
 
