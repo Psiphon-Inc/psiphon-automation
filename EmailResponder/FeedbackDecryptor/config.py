@@ -20,12 +20,5 @@ import json
 _CONFIG_FILENAME = 'conf.json'
 
 config = {}
-
-
-def _read_config(conf_file):
-    with open(conf_file, 'r') as conf_fp:
-        config = json.load(conf_fp)
-    return config
-
-
-_read_config(_CONFIG_FILENAME)
+with open(_CONFIG_FILENAME, 'r') as conf_fp:
+    config = json.load(conf_fp)
