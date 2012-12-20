@@ -8,6 +8,7 @@
   "emailPassword": "password1",
   "privateKeyPemFile": "priv.pem",
   "privateKeyPassword": "password2",
+  "decryptedEmailRecipient": "user-talk@example.com",
 
   // Should belong to an IAM user with only necessary permissions:
   //  - list keys in upload bucket

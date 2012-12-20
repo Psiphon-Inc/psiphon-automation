@@ -74,13 +74,12 @@ def go():
                           config['emailUsername'],
                           config['emailPassword'],
                           config['emailUsername'],
-                          config['emailUsername'],
+                          config['decryptedEmailRecipient'],
                           u'Re: %s' % (email_diagnostic_info['email_subject'] or ''),
                           diagnostic_info_text,
                           diagnostic_info_html,
                           email_diagnostic_info['email_id'])
         except smtplib.SMTPException as e:
-            # Something went wrong with the sending of the response. Log it.
             logger.log(str(e))
 
         # Delete the processed record. (Note that sending the email might have

@@ -20,6 +20,7 @@ Decrypts them and stores them in the diagnostic-info-DB.
 '''
 
 import time
+import smtplib
 import json
 import yaml
 from boto.s3.connection import S3Connection
@@ -80,16 +81,19 @@ def go():
             datastore.insert_diagnostic_info(diagnostic_info)
 
         except decryptor.DecryptorException as e:
-            # Something bad happened while decrypting. Report it via email.
-            sendmail.send(config['smtpServer'],
-                          config['smtpPort'],
-                          config['emailUsername'],
-                          config['emailPassword'],
-                          config['emailUsername'],
-                          config['emailUsername'],
-                          u'S3Decryptor: bad object',
-                          encrypted_info_json,
-                          None)
+            try:
+                # Something bad happened while decrypting. Report it via email.
+                sendmail.send(config['smtpServer'],
+                              config['smtpPort'],
+                              config['emailUsername'],
+                              config['emailPassword'],
+                              config['emailUsername'],
+                              config['decryptedEmailRecipient'],
+                              u'S3Decryptor: bad object',
+                              encrypted_info_json,
+                              None)
+            except smtplib.SMTPException as e:
+                logger.log(str(e))
 
         except (ValueError, TypeError) as e:
             # Try the next attachment/message

@@ -29,6 +29,7 @@ import yaml
 import os
 import binascii
 import re
+import smtplib
 
 import logger
 import utils
@@ -147,15 +148,20 @@ def go():
 
             except decryptor.DecryptorException as e:
                 # Something bad happened while decrypting. Report it via email.
-                sendmail.send(config['smtpServer'],
-                              config['smtpPort'],
-                              config['emailUsername'],
-                              config['emailPassword'],
-                              config['emailUsername'],
-                              config['emailUsername'],
-                              u'Re: %s' % (msg['subject'] or ''),
-                              'Decrypt failed: %s' % e,
-                              msg['msgobj']['Message-ID'])
+                logger.log(str(e))
+                try:
+                    sendmail.send(config['smtpServer'],
+                                  config['smtpPort'],
+                                  config['emailUsername'],
+                                  config['emailPassword'],
+                                  config['emailUsername'],
+                                  config['decryptedEmailRecipient'],
+                                  u'Re: %s' % (msg['subject'] or ''),
+                                  'Decrypt failed: %s' % e,
+                                  msg['msgobj']['Message-ID'])
+                except smtplib.SMTPException as e:
+                    # Something went wrong with the sending of the response. Log it.
+                    logger.log(str(e))
 
             except (ValueError, TypeError) as e:
                 # Try the next attachment/message
