@@ -16,6 +16,8 @@
 
 
 import sys
+import types
+import re
 
 
 ###########################
@@ -87,11 +89,56 @@ def convert_psinet_values(config, obj):
 def is_diagnostic_info_sane(obj):
     '''
     Returns true if `obj` is a sane-looking diagnostic info object.
-    TODO: Add better checks.
     '''
+    # TODO: Add better, more comprehensive checks.
+    # TODO: Need to implement per-version, per-platform checks.
+    # TODO: Having to increase the sane version range every time the version
+    #       changes (and per-platform) is going to cause problems.
+
     if not isinstance(obj, object):
         return False
+
+    exemplar = {
+                'Metadata': {
+                             'platform': lambda val: val in ['android', 'windows'],
+                             'version': lambda val: val in range(1, 2),
+                             'id': lambda val: re.match(r'^[a-fA-F0-9]{16}', val) is not None
+                             }
+                }
+
+    if not _check_exemplar(obj, exemplar):
+        return False
+
     return True
+
+
+def _check_exemplar(check, exemplar):
+    if isinstance(exemplar, types.DictType):
+        if not isinstance(check, types.DictType):
+            return False
+
+        for k in exemplar.iterkeys():
+            if not k in check:
+                return False
+
+            if not _check_exemplar(check[k], exemplar[k]):
+                return False
+
+        return True
+
+    elif isinstance(exemplar, types.FunctionType):
+        return exemplar(check)
+
+    elif exemplar is None:
+        return True
+
+    else:
+        # We don't support whatever this is
+        assert(False)
+        return False
+
+    # Should have hit an exit condition above
+    assert(False)
 
 
 ###
