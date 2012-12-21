@@ -267,10 +267,11 @@ def make_xinetd_config_file_command(servers):
         ''')
 
     ssh_service_section_template = textwrap.dedent('''
-        service %s
+        service psiphon_ssh.%s
         {
-            id              = psiphon_ssh.%s
+            type            = UNLISTED
             bind            = %s
+            port            = %s
             socket_type     = stream
             protocol        = tcp
             wait            = no
@@ -282,10 +283,11 @@ def make_xinetd_config_file_command(servers):
         ''')
         
     obfuscated_ssh_service_section_template = textwrap.dedent('''
-        service %s
+        service psiphon_ssh.obfuscated.%s
         {
-            id              = psiphon_ssh.obfuscated.%s
+            type            = UNLISTED
             bind            = %s
+            port            = %s
             socket_type     = stream
             protocol        = tcp
             wait            = no
@@ -296,30 +298,14 @@ def make_xinetd_config_file_command(servers):
         }
         ''')
 
-    def service_name_for_port(port):
-        if port == '22':
-            return 'ssh'
-        elif port == '80':
-            return 'http'
-        elif port == '465':
-            return 'ssmtp'
-        elif port == '587':
-            return 'submission'
-        elif port == '993':
-            return 'imaps'
-        elif port == '995':
-            return 'pop3s'
-        else:
-            assert(False)
-        
     service_sections = []
     for server in servers:
         if server.ssh_port is not None:
             service_sections.append(ssh_service_section_template %
-                                (service_name_for_port(server.ssh_port), server.internal_ip_address, server.internal_ip_address, server.internal_ip_address))
+                                (server.internal_ip_address, server.internal_ip_address, server.ssh_port, server.internal_ip_address))
         if server.ssh_obfuscated_port is not None:
             service_sections.append(obfuscated_ssh_service_section_template %
-                                (service_name_for_port(server.ssh_obfuscated_port), server.internal_ip_address, server.internal_ip_address, server.internal_ip_address))
+                                (server.internal_ip_address, server.internal_ip_address, server.ssh_obfuscated_port, server.internal_ip_address))
             
     file_contents = defaults_section + '\n'.join(service_sections)
     return 'echo "%s" > /etc/xinetd.conf' % (file_contents,)
@@ -610,8 +596,8 @@ def install_firewall_rules(host, servers):
                 if s.capabilities['VPN']]) + '''
     -A INPUT -p tcp -j REJECT --reject-with tcp-reset
     -A INPUT -j DROP
-    -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
-    -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.8.8 -p tcp --dport 53 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.8.8 -p udp --dport 53 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.4.4 -p tcp --dport 53 -j ACCEPT
@@ -629,8 +615,8 @@ def install_firewall_rules(host, servers):
     -A OUTPUT -o lo -p tcp -m tcp --sport 6379 -j ACCEPT
     -A OUTPUT -o lo -p tcp -m tcp --sport 6000 -j ACCEPT
     -A OUTPUT -o lo -j REJECT
-    -A OUTPUT -p tcp -m multiport --dports 53,80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
-    -A OUTPUT -p udp -m multiport --dports 53,80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
+    -A OUTPUT -p tcp -m multiport --dports 53,80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
+    -A OUTPUT -p udp -m multiport --dports 53,80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
     -A OUTPUT -p udp -m udp --dport 123 -j ACCEPT
     -A OUTPUT -p tcp -m tcp --sport %s -j ACCEPT''' % (host.ssh_port,) + ''.join(
     # tunneled web requests on NATed servers don't go out lo
@@ -689,6 +675,20 @@ iptables-restore < %s
 /etc/init.d/fail2ban restart
 ''' % (iptables_rules_path,)
 
+    ssh_ports = set([str(host.ssh_port)])
+    for server in servers:
+        ssh_ports.add(str(server.ssh_port)) if server.capabilities['SSH'] else None
+        ssh_ports.add(str(server.ssh_obfuscated_port)) if server.capabilities['OSSH'] else None
+    
+    fail2ban_local_path = '/etc/fail2ban/jail.local'
+    fail2ban_local_contents = textwrap.dedent('''
+        [ssh]
+        port    = {0}
+
+        [ssh-ddos]
+        port    = {0}
+        '''.format(','.join(ssh_ports)))
+        
     ssh = psi_ssh.SSH(
             host.ip_address, host.ssh_port,
             host.ssh_username, host.ssh_password,
@@ -697,6 +697,7 @@ iptables-restore < %s
     ssh.exec_command('echo "%s" > %s' % (iptables_rules_contents, iptables_rules_path))
     ssh.exec_command('echo "%s" > %s' % (if_up_script_contents, if_up_script_path))
     ssh.exec_command('chmod +x %s' % (if_up_script_path,))
+    ssh.exec_command('echo "%s" > %s' % (fail2ban_local_contents, fail2ban_local_path))
     ssh.exec_command(if_up_script_path)
     ssh.close()
     

@@ -19,9 +19,7 @@
 
 import os
 import shutil
-import subprocess
 import textwrap
-import traceback
 import sys
 import fileinput
 import psi_utils
@@ -32,6 +30,7 @@ import psi_utils
 SOURCE_ROOT = os.path.join(os.path.abspath('..'), 'Android')
 
 PSIPHON_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'PsiphonAndroid')
+PSIPHON_LIB_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'PsiphonAndroidLibrary')
 ZIRCO_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'zirco-browser')
 
 BANNER_ROOT = os.path.join(os.path.abspath('..'), 'Data', 'Banners')
@@ -40,7 +39,7 @@ KEYSTORE_FILENAME = os.path.join(os.path.abspath('..'), 'Data', 'CodeSigning', '
 KEYSTORE_PASSWORD = 'password'
 
 BANNER_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'res', 'drawable', 'banner.bmp')
-EMBEDDED_VALUES_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'src', 'com', 'psiphon3', 'EmbeddedValues.java')
+EMBEDDED_VALUES_FILENAME = os.path.join(PSIPHON_LIB_SOURCE_ROOT, 'src', 'com', 'psiphon3', 'psiphonlibrary', 'EmbeddedValues.java')
 ANDROID_MANIFEST_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'AndroidManifest.xml')
 
 RELEASE_UNSIGNED_APK_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'bin', 'PsiphonAndroid-release-unsigned.apk')
@@ -69,8 +68,10 @@ def build_apk():
 
     commands = [
         'android update lib-project -p "%s"' % (ZIRCO_SOURCE_ROOT,),
+        'android update lib-project -p "%s"' % (PSIPHON_LIB_SOURCE_ROOT,),
         'android update project -p "%s"' % (PSIPHON_SOURCE_ROOT,),
         'ant -q -f "%s" clean' % (os.path.join(ZIRCO_SOURCE_ROOT, 'build.xml'),),
+        'ant -q -f "%s" clean' % (os.path.join(PSIPHON_LIB_SOURCE_ROOT, 'build.xml'),),
         'ant -q -f "%s" clean' % (os.path.join(PSIPHON_SOURCE_ROOT, 'build.xml'),),
         'ant -q -f "%s" release' % (os.path.join(PSIPHON_SOURCE_ROOT, 'build.xml'),),
         'jarsigner -sigalg SHA1withRSA -digestalg SHA1 -keystore "%s" -storepass %s "%s" psiphon' % (
@@ -88,25 +89,28 @@ def write_embedded_values(propagation_channel_id,
                           client_version,
                           embedded_server_list,
                           remote_server_list_signature_public_key,
+                          feedback_encryption_public_key,
                           remote_server_list_url,
                           info_link_url,
                           ignore_system_server_list=False):
     template = textwrap.dedent('''
-        package com.psiphon3;
-        
+        package com.psiphon3.psiphonlibrary;
+
         public interface EmbeddedValues
         {
             final String PROPAGATION_CHANNEL_ID = "%s";
-            
+
             final String SPONSOR_ID = "%s";
-            
+
             final String CLIENT_VERSION = "%s";
-            
+
             final String EMBEDDED_SERVER_LIST = "%s";
-        
+
             final String REMOTE_SERVER_LIST_URL = "%s://%s/%s";
-        
+
             final String REMOTE_SERVER_LIST_SIGNATURE_PUBLIC_KEY = "%s";
+
+            final String FEEDBACK_ENCRYPTION_PUBLIC_KEY = "%s";
 
             // NOTE: Info link may be opened when not tunneled
             final String INFO_LINK_URL = "%s";
@@ -121,6 +125,7 @@ def write_embedded_values(propagation_channel_id,
                                remote_server_list_url[1],
                                remote_server_list_url[2],
                                remote_server_list_signature_public_key,
+                               feedback_encryption_public_key,
                                info_link_url))
 
 
@@ -141,6 +146,7 @@ def build_client(
         banner,
         encoded_server_list,
         remote_server_list_signature_public_key,
+        feedback_encryption_public_key,
         remote_server_list_url,
         info_link_url,
         version,
@@ -165,13 +171,14 @@ def build_client(
             version,
             encoded_server_list,
             remote_server_list_signature_public_key,
+            feedback_encryption_public_key,
             remote_server_list_url,
             info_link_url,
             ignore_system_server_list=test)
 
         # copy feedback.html
         shutil.copy(FEEDBACK_HTML_PATH, PSIPHON_ASSETS)
-        
+
         # build
         build_apk()
 
