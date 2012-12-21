@@ -1100,7 +1100,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 capabilities['VPN'] = False
                 capabilities['SSH'] = False
                 ssh_port = None
-                ossh_port = random.choice(range(1,1023))
+                ossh_ports = range(1,1023)
+                ossh_ports.remove(135)
+                ossh_ports.remove(136)
+                ossh_ports.remove(137)
+                ossh_ports.remove(138)
+                ossh_ports.remove(139)
+                ossh_port = random.choice(ossh_ports)
 
             server = Server(
                         None,
