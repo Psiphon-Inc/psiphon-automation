@@ -79,6 +79,7 @@ def go():
 
             if not utils.is_diagnostic_info_sane(diagnostic_info):
                 # Something is wrong. Delete and continue.
+                logger.log('non-sane object found')
                 continue
 
             # Store the diagnostic info
