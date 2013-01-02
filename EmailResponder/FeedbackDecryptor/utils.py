@@ -61,17 +61,20 @@ def convert_psinet_values(config, obj):
 
     for path, val in objwalk(obj):
         if path[-1] == 'ipAddress':
+            server_id = None
             server = _psinet.get_server_by_ip_address(val)
-            if not server:
+            if server:
+                server_id = server.id
+            else:
                 server = _psinet.get_deleted_server_by_ip_address(val)
                 if server:
-                    server.id += ' [DELETED]'
+                    server_id = server.id + ' [DELETED]'
 
             # If the psinet DB is stale, we might not find the IP address, but
             # we still want to redact it.
             assign_value_to_obj_at_path(obj,
                                         path,
-                                        server.id if server else '[UNKNOWN]')
+                                        server_id if server_id else '[UNKNOWN]')
         elif path[-1] == 'PROPAGATION_CHANNEL_ID':
             propagation_channel = _psinet.get_propagation_channel_by_id(val)
             if propagation_channel:
