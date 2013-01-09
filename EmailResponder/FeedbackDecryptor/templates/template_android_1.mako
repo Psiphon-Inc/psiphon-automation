@@ -160,7 +160,7 @@
 
     ping_class = 'good'
     ping_str = '%dms' % entry['responseTime']
-    if entry['responseTime'] < 0:
+    if not entry['responded'] or entry['responseTime'] < 0:
         ping_class = 'bad'
         ping_str = 'none'
     elif entry['responseTime'] > 2000:
