@@ -1,4 +1,4 @@
-## Copyright (c) 2012, Psiphon Inc.
+## Copyright (c) 2013, Psiphon Inc.
 ## All rights reserved.
 ##
 ## This program is free software: you can redistribute it and/or modify
@@ -30,18 +30,6 @@
   th {
     text-align: right;
     padding-right: 0.3em;
-  }
-
-  .good {
-    color: green;
-  }
-
-  .warn {
-    color: orange;
-  }
-
-  .bad {
-    color: red;
   }
 
   .status-entry {
