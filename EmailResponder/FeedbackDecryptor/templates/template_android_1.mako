@@ -249,6 +249,19 @@
     ## We special-case some of the common diagnostic entries
     % if entry['msg'] == 'ConnectingServer':
       <span>${entry['data']['ipAddress']}</span>
+    % elif entry['msg'] == 'ServerResponseCheck':
+      <%
+        ping_class = 'good'
+        ping_value = int(entry['data']['responseTime'])
+        ping_str = '%dms' % ping_value 
+        if entry['data']['responded'] == 'No' or ping_value < 0:
+          ping_class = 'bad'
+          ping_str = 'none'
+        elif ping_value > 2000:
+          ping_class = 'warn'
+      %>
+      <span class="intcompare ${ping_class}">${ping_str}</span>
+      <span>${entry['data']['ipAddress']}</span>
     % else:
       <span>${repr(entry['data'])}</span>
     % endif
