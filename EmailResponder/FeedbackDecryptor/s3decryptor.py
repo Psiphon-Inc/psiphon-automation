@@ -35,7 +35,7 @@ import sendmail
 
 _SLEEP_TIME_SECS = 60
 _BUCKET_ITEM_MIN_SIZE = 100
-_BUCKET_ITEM_MAX_SIZE = (1024 * 1024 * 1024)  # 1 MB
+_BUCKET_ITEM_MAX_SIZE = (1024 * 1024)  # 1 MB
 
 
 def _is_bucket_item_sane(key):
