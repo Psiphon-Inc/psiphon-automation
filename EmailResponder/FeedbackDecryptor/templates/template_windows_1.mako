@@ -68,11 +68,6 @@
   }
   </style>
 
-##
-## System Info
-##
-
-<h1>System Info</h1>
 
 ## Display more human-friendly field names
 <%def name="sys_info_key_map(key)">
@@ -97,85 +92,22 @@
   </tr>
 </%def>
 
-<h2>OS Info</h2>
-<h3>${sys_info['OSInfo']['name']}</h3>
 
-## User Info
+##
+## Brief System Info
+##
 
-<h3>User info</h3>
 <table>
-  % for k, v in sorted(sys_info['UserInfo'].items()):
-    ${sys_info_row(k, v)}
-  % endfor
+
+  ${sys_info_row('OS', sys_info['OSInfo']['name'])}
+  ${sys_info_row('User is', ', '.join([k for (k,v) in sys_info['UserInfo'].iteritems() if v]))}
+  ${sys_info_row('AV', ', '.join([av['displayName'] for av in sys_info['SecurityInfo']['AntiVirusInfo']]))}
+  ${sys_info_row('Uses proxy', 'yes' if [proxy for proxy in sys_info['NetworkInfo']['OriginalProxyInfo'] if proxy['flags'] != 'PROXY_TYPE_DIRECT'] else 'no')}
+
 </table>
 
-## Network Info
+<a href="#sys_info">See full System Info</a>
 
-<h3>Network Info</h3>
-<h4>Original Proxy</h4>
-% for connection in sys_info['NetworkInfo']['OriginalProxyInfo']:
-  <table>
-    % for k, v in sorted(connection.items()):
-      <% if k == 'connectionName' and not v: v = '[default]' %>
-      ${sys_info_row(k, v)}
-    % endfor
-  </table>
-% endfor
-<h4>Current Connection Info</h4>
-<table>
-  % for k, v in sorted(sys_info['NetworkInfo'].items()):
-    <% if k == 'OriginalProxyInfo': continue %>
-    ${sys_info_row(k, v)}
-  % endfor
-</table>
-
-## Security Info
-
-<h3>Security Info</h3>
-<h4>Anti-Virus</h4>
-% for item in sys_info['SecurityInfo']['AntiVirusInfo']:
-  <table>
-    ${sys_info_row('', item['displayName'])}
-    % for k, v in sorted(item[item['version']].items()):
-      ${sys_info_row(k, v)}
-    % endfor
-  </table>
-% endfor
-
-## The anti-spyware info seems to often be identical to the anti-virus info,
-## in which case we won't output it.
-% if sys_info['SecurityInfo']['AntiSpywareInfo'] != sys_info['SecurityInfo']['AntiVirusInfo']:
-  <h4>Anti-Spyware</h4>
-  % for item in sys_info['SecurityInfo']['AntiSpywareInfo']:
-    <table>
-      ${sys_info_row('', item['displayName'])}
-      % for k, v in sorted(item[item['version']].items()):
-        ${sys_info_row(k, v)}
-      % endfor
-    </table>
-  % endfor
-% endif
-
-% if sys_info['SecurityInfo']['FirewallInfo']:
-  <h4>Firewall</h4>
-  % for item in sys_info['SecurityInfo']['FirewallInfo']:
-    <table>
-      ${sys_info_row('', item['displayName'])}
-      % for k, v in sorted(item[item['version']].items()):
-        ${sys_info_row(k, v)}
-      % endfor
-    </table>
-  % endfor
-% endif
-
-## Psiphon Info
-
-<h2>Psiphon Info</h2>
-<table>
-  % for k, v in sorted(sys_info['psiphonEmbeddedValues'].items()):
-    ${sys_info_row(k, v)}
-  % endfor
-</table>
 
 ##
 ## Server Response Checks
@@ -246,3 +178,88 @@
   ${status_history_row(entry, last_timestamp)}
   <% last_timestamp = entry['timestamp'] %>
 % endfor
+
+
+##
+## System Info
+##
+
+<a name="sys_info"></a>
+<h1>System Info</h1>
+
+## OS Info
+
+<h2>OS Info</h2>
+<table>
+  % for k, v in sorted(sys_info['OSInfo'].items()):
+    ${sys_info_row(k, v)}
+  % endfor
+</table>
+
+## Network Info
+
+<h2>Network Info</h2>
+<h3>Original Proxy</h3>
+% for connection in sys_info['NetworkInfo']['OriginalProxyInfo']:
+  <table>
+    % for k, v in sorted(connection.items()):
+      <% if k == 'connectionName' and not v: v = '[default]' %>
+      ${sys_info_row(k, v)}
+    % endfor
+  </table>
+% endfor
+<h3>Current Connection Info</h3>
+<table>
+  % for k, v in sorted(sys_info['NetworkInfo'].items()):
+    <% if k == 'OriginalProxyInfo': continue %>
+    ${sys_info_row(k, v)}
+  % endfor
+</table>
+
+## Security Info
+
+<h2>Security Info</h2>
+<h3>Anti-Virus</h3>
+% for item in sys_info['SecurityInfo']['AntiVirusInfo']:
+  <table>
+    ${sys_info_row('', item['displayName'])}
+    % for k, v in sorted(item[item['version']].items()):
+      ${sys_info_row(k, v)}
+    % endfor
+  </table>
+% endfor
+
+## The anti-spyware info seems to often be identical to the anti-virus info,
+## in which case we won't output it.
+% if sys_info['SecurityInfo']['AntiSpywareInfo'] != sys_info['SecurityInfo']['AntiVirusInfo']:
+  <h3>Anti-Spyware</h3>
+  % for item in sys_info['SecurityInfo']['AntiSpywareInfo']:
+    <table>
+      ${sys_info_row('', item['displayName'])}
+      % for k, v in sorted(item[item['version']].items()):
+        ${sys_info_row(k, v)}
+      % endfor
+    </table>
+  % endfor
+% endif
+
+% if sys_info['SecurityInfo']['FirewallInfo']:
+  <h3>Firewall</h3>
+  % for item in sys_info['SecurityInfo']['FirewallInfo']:
+    <table>
+      ${sys_info_row('', item['displayName'])}
+      % for k, v in sorted(item[item['version']].items()):
+        ${sys_info_row(k, v)}
+      % endfor
+    </table>
+  % endfor
+% endif
+
+## Psiphon Info
+
+<h2>Psiphon Info</h2>
+<table>
+  % for k, v in sorted(sys_info['psiphonEmbeddedValues'].items()):
+    ${sys_info_row(k, v)}
+  % endfor
+</table>
