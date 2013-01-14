@@ -102,7 +102,7 @@
   ${sys_info_row('OS', sys_info['OSInfo']['name'])}
   ${sys_info_row('User is', ', '.join([k for (k,v) in sys_info['UserInfo'].iteritems() if v]))}
   ${sys_info_row('AV', ', '.join([av['displayName'] for av in sys_info['SecurityInfo']['AntiVirusInfo']]))}
-  ${sys_info_row('Uses proxy', 'yes' if [proxy for proxy in sys_info['NetworkInfo']['OriginalProxyInfo'] if proxy['flags'] != 'PROXY_TYPE_DIRECT'] else 'no')}
+  ${sys_info_row('Uses proxy', 'yes' if [proxy for proxy in sys_info['NetworkInfo']['Original']['Proxy'] if proxy['flags'] != 'PROXY_TYPE_DIRECT'] else 'no')}
 
 </table>
 
@@ -199,8 +199,9 @@
 ## Network Info
 
 <h2>Network Info</h2>
+
 <h3>Original Proxy</h3>
-% for connection in sys_info['NetworkInfo']['OriginalProxyInfo']:
+% for connection in sys_info['NetworkInfo']['Original']['Proxy']:
   <table>
     % for k, v in sorted(connection.items()):
       <% if k == 'connectionName' and not v: v = '[default]' %>
@@ -208,10 +209,17 @@
     % endfor
   </table>
 % endfor
-<h3>Current Connection Info</h3>
+
+<h3>Original Internet</h3>
 <table>
-  % for k, v in sorted(sys_info['NetworkInfo'].items()):
-    <% if k == 'OriginalProxyInfo': continue %>
+  % for k, v in sorted(sys_info['NetworkInfo']['Original']['Internet'].items()):
+    ${sys_info_row(k, v)}
+  % endfor
+</table>
+
+<h3>Current Internet</h3>
+<table>
+  % for k, v in sorted(sys_info['NetworkInfo']['Current']['Internet'].items()):
     ${sys_info_row(k, v)}
   % endfor
 </table>
@@ -224,7 +232,11 @@
   <table>
     ${sys_info_row('', item['displayName'])}
     % for k, v in sorted(item[item['version']].items()):
-      ${sys_info_row(k, v)}
+        % if k == 'productState' and v:
+          ${sys_info_row(k, hex(v))}
+        % else:
+          ${sys_info_row(k, v)}
+        % endif
     % endfor
   </table>
 % endfor
@@ -237,7 +249,11 @@
     <table>
       ${sys_info_row('', item['displayName'])}
       % for k, v in sorted(item[item['version']].items()):
-        ${sys_info_row(k, v)}
+        % if k == 'productState' and v:
+          ${sys_info_row(k, hex(v))}
+        % else:
+          ${sys_info_row(k, v)}
+        % endif
       % endfor
     </table>
   % endfor
