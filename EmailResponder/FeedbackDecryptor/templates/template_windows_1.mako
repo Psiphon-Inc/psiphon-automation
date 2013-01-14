@@ -259,7 +259,7 @@
 
 <h2>Psiphon Info</h2>
 <table>
-  % for k, v in sorted(sys_info['psiphonEmbeddedValues'].items()):
+  % for k, v in sorted(sys_info['PsiphonInfo'].items()):
     ${sys_info_row(k, v)}
   % endfor
 </table>
