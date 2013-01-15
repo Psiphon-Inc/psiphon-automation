@@ -87,11 +87,14 @@
   }
 </style>
 
+
+<h1>Android</h1>
+
 ##
 ## System Info
 ##
 
-<h1>System Info</h1>
+<h2>System Info</h2>
 
 ## Display more human-friendly field names
 <%def name="sys_info_key_map(key)">
@@ -125,7 +128,7 @@
   </tr>
 </%def>
 
-<h2>Build Info</h2>
+<h3>Build Info</h3>
 <table>
   % for k, v in sorted(sys_info['Build'].iteritems()):
     ${sys_info_row(k, v)}
@@ -133,7 +136,7 @@
   ${sys_info_row('isRooted', sys_info['isRooted'])}
 </table>
 
-<h2>Psiphon Info</h2>
+<h3>Psiphon Info</h3>
 <table>
   % for k, v in sorted(sys_info['PsiphonInfo'].iteritems()):
     ${sys_info_row(k, v)}
@@ -227,7 +230,7 @@
   </div>
 </%def>
 
-<h1>Status History</h1>
+<h2>Status History</h2>
 <%
   last_timestamp = None
 

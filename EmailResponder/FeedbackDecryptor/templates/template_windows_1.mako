@@ -78,7 +78,10 @@
   .server-response-checks .separated td {
     border-top: dotted thin gray;
   }
-  </style>
+</style>
+
+
+<h1>Windows</h1>
 
 
 ## Display more human-friendly field names
@@ -113,7 +116,7 @@
 
   ${sys_info_row('OS', sys_info['OSInfo']['name'])}
   ${sys_info_row('User is', ', '.join([k for (k,v) in sys_info['UserInfo'].iteritems() if v]))}
-  ${sys_info_row('AV', ', '.join([av['displayName'] for av in sys_info['SecurityInfo']['AntiVirusInfo'] if av['enabled']]))}
+  ${sys_info_row('AV', ', '.join([av['displayName'] for av in sys_info['SecurityInfo']['AntiVirusInfo'] if av[av['version']]['enabled']]))}
   ${sys_info_row('Uses proxy', 'yes' if [proxy for proxy in sys_info['NetworkInfo']['Original']['Proxy'] if proxy['flags'] != 'PROXY_TYPE_DIRECT'] else 'no')}
 
 </table>
@@ -148,7 +151,7 @@
   </tr>
 </%def>
 
-<h1>Server Response Checks</h1>
+<h2>Server Response Checks</h2>
 <table class="server-response-checks">
   <% last_timestamp = None %>
   % for entry in server_responses:
@@ -182,7 +185,7 @@
   </div>
 </%def>
 
-<h1>Status History</h1>
+<h2>Status History</h2>
 <%
   last_timestamp = None
 %>
@@ -197,11 +200,11 @@
 ##
 
 <a name="sys_info"></a>
-<h1>System Info</h1>
+<h2>System Info</h2>
 
 ## OS Info
 
-<h2>OS Info</h2>
+<h3>OS Info</h3>
 <table>
   % for k, v in sorted(sys_info['OSInfo'].items()):
     ${sys_info_row(k, v)}
@@ -210,9 +213,9 @@
 
 ## Network Info
 
-<h2>Network Info</h2>
+<h3>Network Info</h3>
 
-<h3>Original Proxy</h3>
+<h4>Original Proxy</h4>
 % for connection in sys_info['NetworkInfo']['Original']['Proxy']:
   <table>
     % for k, v in sorted(connection.items()):
@@ -222,14 +225,14 @@
   </table>
 % endfor
 
-<h3>Original Internet</h3>
+<h4>Original Internet</h4>
 <table>
   % for k, v in sorted(sys_info['NetworkInfo']['Original']['Internet'].items()):
     ${sys_info_row(k, v)}
   % endfor
 </table>
 
-<h3>Current Internet</h3>
+<h4>Current Internet</h4>
 <table>
   % for k, v in sorted(sys_info['NetworkInfo']['Current']['Internet'].items()):
     ${sys_info_row(k, v)}
@@ -238,8 +241,8 @@
 
 ## Security Info
 
-<h2>Security Info</h2>
-<h3>Anti-Virus</h3>
+<h3>Security Info</h3>
+<h4>Anti-Virus</h4>
 % for item in sys_info['SecurityInfo']['AntiVirusInfo']:
   <table>
     ${sys_info_row('', item['displayName'])}
@@ -256,7 +259,7 @@
 ## The anti-spyware info seems to often be identical to the anti-virus info,
 ## in which case we won't output it.
 % if sys_info['SecurityInfo']['AntiSpywareInfo'] != sys_info['SecurityInfo']['AntiVirusInfo']:
-  <h3>Anti-Spyware</h3>
+  <h4>Anti-Spyware</h4>
   % for item in sys_info['SecurityInfo']['AntiSpywareInfo']:
     <table>
       ${sys_info_row('', item['displayName'])}
@@ -272,7 +275,7 @@
 % endif
 
 % if sys_info['SecurityInfo']['FirewallInfo']:
-  <h3>Firewall</h3>
+  <h4>Firewall</h4>
   % for item in sys_info['SecurityInfo']['FirewallInfo']:
     <table>
       ${sys_info_row('', item['displayName'])}
@@ -285,7 +288,7 @@
 
 ## Psiphon Info
 
-<h2>Psiphon Info</h2>
+<h3>Psiphon Info</h3>
 <table>
   % for k, v in sorted(sys_info['PsiphonInfo'].items()):
     ${sys_info_row(k, v)}
