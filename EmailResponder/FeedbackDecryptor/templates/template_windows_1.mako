@@ -113,7 +113,7 @@
 
   ${sys_info_row('OS', sys_info['OSInfo']['name'])}
   ${sys_info_row('User is', ', '.join([k for (k,v) in sys_info['UserInfo'].iteritems() if v]))}
-  ${sys_info_row('AV', ', '.join([av['displayName'] for av in sys_info['SecurityInfo']['AntiVirusInfo']]))}
+  ${sys_info_row('AV', ', '.join([av['displayName'] for av in sys_info['SecurityInfo']['AntiVirusInfo'] if av['enabled']]))}
   ${sys_info_row('Uses proxy', 'yes' if [proxy for proxy in sys_info['NetworkInfo']['Original']['Proxy'] if proxy['flags'] != 'PROXY_TYPE_DIRECT'] else 'no')}
 
 </table>
