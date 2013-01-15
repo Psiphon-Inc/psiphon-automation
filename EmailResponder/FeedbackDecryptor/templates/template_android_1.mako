@@ -91,7 +91,7 @@
   .server-response-checks .separated td {
     border-top: dotted thin gray;
   }
-  </style>
+</style>
 
 ##
 ## System Info
@@ -253,7 +253,7 @@
       <%
         ping_class = 'good'
         ping_value = int(entry['data']['responseTime'])
-        ping_str = '%dms' % ping_value 
+        ping_str = '%dms' % ping_value
         if entry['data']['responded'] == 'No' or ping_value < 0:
           ping_class = 'bad'
           ping_str = 'none'

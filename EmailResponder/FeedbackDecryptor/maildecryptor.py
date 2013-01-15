@@ -41,6 +41,16 @@ import datastore
 
 
 def _upgrade_old_object(yaml_docs):
+    '''
+    The diagnostic info stuff was released for Android before versioning was
+    added.
+    Returns the appropriately modified YAML dict.
+    '''
+
+    # The non-versioned YAML used multiple docs, so that's the main test
+    if len(yaml_docs) == 1:
+        return yaml_docs.pop()
+
     # Our old YAML had '.' in some key names, which is illegal.
     for path, val in utils.objwalk(yaml_docs):
         if type(path[-1]) == str and path[-1].find('.') >= 0:
@@ -86,11 +96,7 @@ def _load_yaml(yaml_string):
     for yaml_doc in yaml.safe_load_all(yaml_string):
         yaml_docs.append(yaml_doc)
 
-    obj = None
-    if len(yaml_docs) == 1:
-        obj = yaml_docs.pop()
-    elif len(yaml_docs) > 1:
-        obj = _upgrade_old_object(yaml_docs)
+    obj = _upgrade_old_object(yaml_docs)
 
     return obj
 
