@@ -32,6 +32,18 @@
     padding-right: 0.3em;
   }
 
+  .good {
+    color: green;
+  }
+
+  .warn {
+    color: orange;
+  }
+
+  .bad {
+    color: red;
+  }
+
   .status-entry {
     margin-bottom: 0.3em;
   }
