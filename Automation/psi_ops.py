@@ -132,7 +132,7 @@ SponsorHomePage = psi_utils.recordtype(
 
 SponsorCampaign = psi_utils.recordtype(
     'SponsorCampaign',
-    'propagation_channel_id, propagation_mechanism_type, account, s3_bucket_name')
+    'propagation_channel_id, propagation_mechanism_type, account, s3_bucket_name, languages')
 
 SponsorRegex = psi_utils.recordtype(
     'SponsorRegex',
@@ -270,7 +270,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__remote_server_list_signing_key_pair = None
         self.__feedback_encryption_signing_key_pair = None
 
-    class_version = '0.12'
+    class_version = '0.13'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -340,6 +340,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.12')) < 0:
             self.__feedback_encryption_key_pair = None
             self.version = '0.12'
+        if cmp(parse_version(self.version), parse_version('0.13')) < 0:
+            for sponsor in self.__sponsors.itervalues():
+                for campaign in sponsor.campaigns:
+                    campaign.languages = None
+            self.version = '0.13'
 
     def show_status(self):
         # NOTE: verbose mode prints credentials to stdout
@@ -671,6 +676,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         campaign = SponsorCampaign(propagation_channel.id,
                                    propagation_mechanism_type,
                                    EmailPropagationAccount(email_account),
+                                   None,
                                    None)
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
@@ -700,6 +706,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         twitter_account_consumer_secret,
                                         twitter_account_access_token_key,
                                         twitter_account_access_token_secret),
+                                   None,
                                    None)
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
@@ -717,6 +724,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(propagation_mechanism_type in propagation_channel.propagation_mechanism_types)
         campaign = SponsorCampaign(propagation_channel.id,
                                    propagation_mechanism_type,
+                                   None,
                                    None,
                                    None)
         if campaign not in sponsor.campaigns:
@@ -1100,7 +1108,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 capabilities['VPN'] = False
                 capabilities['SSH'] = False
                 ssh_port = None
-                ossh_port = random.choice(range(1,1023))
+                ossh_ports = range(1,1023)
+                ossh_ports.remove(135)
+                ossh_ports.remove(136)
+                ossh_ports.remove(137)
+                ossh_ports.remove(138)
+                ossh_ports.remove(139)
+                ossh_port = random.choice(ossh_ports)
 
             server = Server(
                         None,
@@ -1533,9 +1547,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                          'body':
                             [
                                 ['plain', psi_templates.get_plaintext_email_content(
-                                                campaign.s3_bucket_name)],
+                                                campaign.s3_bucket_name,
+                                                campaign.languages)],
                                 ['html', psi_templates.get_html_email_content(
-                                                campaign.s3_bucket_name)]
+                                                campaign.s3_bucket_name,
+                                                campaign.languages)]
                             ],
                          'attachments': None,
                          'send_method': 'SES'
@@ -1550,11 +1566,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 ['plain', psi_templates.get_plaintext_attachment_email_content(
                                                 campaign.s3_bucket_name,
                                                 psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME,
-                                                psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME)],
+                                                psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME,
+                                                campaign.languages)],
                                 ['html', psi_templates.get_html_attachment_email_content(
                                                 campaign.s3_bucket_name,
                                                 psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME,
-                                                psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME)]
+                                                psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME,
+                                                campaign.languages)]
                             ],
                          'attachments': [
                                          [campaign.s3_bucket_name,
