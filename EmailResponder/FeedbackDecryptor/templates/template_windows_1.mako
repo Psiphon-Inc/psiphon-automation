@@ -21,9 +21,11 @@
 %>
 
 <%
-  sys_info = data['SystemInformation']
-  server_responses = data['ServerResponseCheck']
-  status_history = data['StatusHistory']
+  diagnostic_info = data['DiagnosticInfo'] if 'DiagnosticInfo' in data else None
+  sys_info = diagnostic_info['SystemInformation'] if diagnostic_info else None
+  server_responses = diagnostic_info['ServerResponseCheck'] if diagnostic_info else None
+  status_history = diagnostic_info['StatusHistory'] if diagnostic_info else None
+  feedback = data['Feedback'] if 'Feedback' in data else None
 %>
 
 <style>
@@ -83,6 +85,13 @@
 
 <h1>Windows</h1>
 
+% if feedback:
+  <h2>Feedback</h2>
+  ${feedback['message']}
+% endif
+
+## Start of diagnostic info
+% if diagnostic_info:
 
 ## Display more human-friendly field names
 <%def name="sys_info_key_map(key)">
@@ -111,6 +120,8 @@
 ##
 ## Brief System Info
 ##
+
+<h2>System Brief</h2>
 
 <table>
 
@@ -294,3 +305,6 @@
     ${sys_info_row(k, v)}
   % endfor
 </table>
+
+## end of diagnostic info
+% endif

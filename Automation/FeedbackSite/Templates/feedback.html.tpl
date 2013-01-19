@@ -76,6 +76,17 @@ input[type="submit"] {{
   cursor: hand;
 }}
 
+#text_feedback_form {{
+  width: 90%;
+  margin: auto;
+}}
+
+textarea {{
+  width: 100%;
+  height: 20em;
+  display: block;
+}}
+
 </style>
 <!--[if lt IE 9]>
 <style type="text/css">
@@ -143,8 +154,10 @@ function getLanguageNameFromURL(url)
   return 'en';
 }}
 
+
 var PLATFORM_WINDOWS = 'windows', PLATFORM_ANDROID = 'android';
 var diagnosticInfoID = '', platform = '';
+
 
 //sets page content and highlights coerresponding language button
 function setLanguage(langName)
@@ -187,12 +200,6 @@ function setLanguage(langName)
   $('.feedback > li').css('padding', padding);
   $('.feedback > li').css('background-position-x', bg_position_x);
 
-  var diagnosticInfoIDEmailModifier = '';
-  if (platform === PLATFORM_WINDOWS) {{
-    diagnosticInfoID = $.parseJSON(window.dialogArguments)['diagnosticInfoID'];
-    diagnosticInfoIDEmailModifier = '+' + diagnosticInfoID;
-  }}
-
   $.each(currentLanguage, function(name, val){{
     // Not all strings are for all platforms.
     var targetPlatform = null;
@@ -217,17 +224,17 @@ function setLanguage(langName)
     }}
 
     var selector = '#' + name;
-    if (name === 'submit_button') {{
+    if (name === 'submit_button' || name === 'text_feedback_submit') {{
       $(selector).val(val);
     }}
     else if (name === 'title') {{
       document.title = val; //supported in all browsers
     }}
-    else if (name === 'text_feedback_top_para') {{
+    else if (name === 'text_feedback_top_para' || name === 'text_feedback_bottom_para') {{
       // Replace the feedback address with a platform specific value.
       val = val.replace(
                   /([a-z0-9]+)@([^\.]+)\.([a-z]+)/g,
-                  "$1+" + platform + diagnosticInfoIDEmailModifier + "@$2.$3");
+                  "$1+" + platform + "@$2.$3");
       $(selector).html(val);
     }}
     else {{
@@ -236,6 +243,14 @@ function setLanguage(langName)
   }});
   $('#language_selector').val(langName);
 }}
+
+
+// From: http://ecmanaut.blogspot.ca/2006/07/encoding-decoding-utf8-in-javascript.html
+function encode_utf8(s)
+{{
+  return unescape(encodeURIComponent(s));
+}}
+
 
 $(function() {{
   platform = (window.dialogArguments !== undefined) ? PLATFORM_WINDOWS : PLATFORM_ANDROID;
@@ -287,9 +302,10 @@ $(function() {{
         responses.push({{question:hash, answer: 2}});
       }}
     }});
+
     s = $.stringify({{
-      'responses':responses,
-      'diagnosticInfoID': $('#questionnaireSendDiagnostic').attr('checked') ? diagnosticInfoID : null
+      'responses': responses,
+      'sendDiagnosticInfo': $('#questionnaireSendDiagnostic').attr('checked')
     }});
 
     //Windows client expects result in the window.returnValue magic variable
@@ -304,23 +320,31 @@ $(function() {{
     }}
   }});
 
-  // Freeform (email) feedback link clicked
+  // Freeform (text) feedback link clicked
   $('#showTextFeedback').click(function(e) {{
     e.preventDefault();
     $('#questionnaireContent').hide();
     $('#textFeedbackContent').show();
   }});
 
-  // Feedback email button clicked
-  $('#emailAddress').click(function(e) {{
+  // Freeform (text) feedback submit
+  $('#text_feedback_submit').click(function(e) {{
     e.preventDefault();
-    if(window.dialogArguments !== undefined) {{
-      window.returnValue = $.stringify({{
-        'emailAddress': $('#emailAddress').text(),
-        'emailAddressEncoded': encodeURIComponent($('#emailAddress').text()),
-        'diagnosticInfoID': $('#textFeedbackSendDiagnostic').attr('checked') ? diagnosticInfoID : null
-      }});
+    responses = new Array();
+    s = $.stringify({{
+      'feedback': encode_utf8($('#text_feedback_textarea').val()),
+      'sendDiagnosticInfo': $('#questionnaireSendDiagnostic').attr('checked')
+    }});
+
+    //Windows client expects result in the window.returnValue magic variable
+    //No need to actually submit data
+    if (window.dialogArguments !== undefined) {{
+      window.returnValue = s;
       window.close();
+    }}
+    else {{
+      $('input[name=formdata]').val(s);
+      $('#feedback').submit();
     }}
   }});
 }});
@@ -407,18 +431,29 @@ $(function() {{
     </p>
 
     <div class="not-android">
-      <table>
-        <tr>
-          <td>
-            <input type="checkbox" checked id="textFeedbackSendDiagnostic">
-          </td>
-          <td>
-            <label for="textFeedbackSendDiagnostic">
-              <span id="text_feedback_diagnostic_check"></span>
-            </label>
-          </td>
-        </tr>
-      </table>
+      <div id="text_feedback_form">
+
+        <textarea id="text_feedback_textarea"></textarea>
+
+        <table>
+          <tr>
+            <td>
+              <input type="checkbox" checked id="textFeedbackSendDiagnostic">
+            </td>
+            <td>
+              <label for="textFeedbackSendDiagnostic">
+                <span id="text_feedback_diagnostic_check"></span>
+              </label>
+            </td>
+          </tr>
+        </table>
+
+        <input type="submit" value="" id="text_feedback_submit" />
+      </div>
+
+      <p>
+        <span id="text_feedback_bottom_para"></span>
+      </p>
     </div>
   </div>
 
