@@ -19,11 +19,11 @@ import utils
 
 
 def _windows_1(data):
-    if 'Feedback' in data and 'message' in data['Feedback']:
-        trans = utils.translate_message(data['Feedback']['message'])
-        data['Feedback']['message_lang_code'] = trans[0]
-        data['Feedback']['message_lang_name'] = trans[1]
-        data['Feedback']['message_translated'] = trans[2]
+    if 'Feedback' in data and 'Message' in data['Feedback']:
+        trans = utils.translate_message(data['Feedback']['Message']['text'])
+        data['Feedback']['Message']['text_lang_code'] = trans[0]
+        data['Feedback']['Message']['text_lang_name'] = trans[1]
+        data['Feedback']['Message']['text_translated'] = trans[2]
 
 
 _transformations = {

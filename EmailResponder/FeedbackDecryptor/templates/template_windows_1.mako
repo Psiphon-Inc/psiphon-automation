@@ -113,12 +113,12 @@
 
 <h1>Windows</h1>
 
-% if feedback and feedback['message']:
+% if feedback and feedback.get('Message') and feedback['Message'].get('text'):
   <h2>Feedback</h2>
-  <div class="english_message">${feedback['message_translated']}</div>
-  % if feedback['message'] != feedback['message_translated']:
+  <div class="english_message">${feedback['Message']['text_translated']}</div>
+  % if feedback['Message']['text'] != feedback['Message']['text_translated']:
     <div class="smaller">
-      Auto-translated from ${feedback['message_lang_name']}.
+      Auto-translated from ${feedback['Message']['text_lang_name']}.
       <a href="#feedback_message">See original.</a>
     </div>
   % endif
@@ -344,11 +344,11 @@
 % endif
 
 ## Full message, including original language
-% if feedback and feedback['message']:
-  % if feedback['message'] != feedback['message_translated']:
+% if feedback and feedback.get('Message') and feedback['Message'].get('text'):
+  % if feedback['Message']['text'] != feedback['Message']['text_translated']:
     <a name="feedback_message"></a>
-    <h2>Feedback (original ${feedback['message_lang_name']})</h2>
-    <% direction = 'rtl' if feedback['message_lang_code'] in ['fa', 'ar', 'iw', 'yi'] else '' %>
-    <div class="original_message ${direction}">${feedback['message']}</div>
+    <h2>Feedback (original ${feedback['Message']['text_lang_name']})</h2>
+    <% direction = 'rtl' if feedback['Message']['text_lang_code'] in ['fa', 'ar', 'iw', 'yi'] else '' %>
+    <div class="original_message ${direction}">${feedback['Message']['text']}</div>
   % endif
 % endif
