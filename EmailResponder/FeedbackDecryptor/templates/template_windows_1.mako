@@ -80,14 +80,48 @@
   .server-response-checks .separated td {
     border-top: dotted thin gray;
   }
+
+  .english_message {
+    margin: 1em 0px;
+    border-left-width: 4px;
+    border-left-style: solid;
+    border-left-color: rgb(221, 221, 221);
+    padding: 0px 1em;
+    /* This renders newlines as newlines */
+    white-space: pre-wrap;
+  }
+
+  .original_message {
+    margin: 1em 0px;
+    border-left-width: 4px;
+    border-left-style: solid;
+    border-left-color: rgb(221, 221, 221);
+    padding: 0px 1em;
+    /* This renders newlines as newlines */
+    white-space: pre-wrap;
+  }
+
+  .smaller {
+    font-size: small;
+  }
+
+  .rtl {
+    direction: rtl;
+  }
 </style>
 
 
 <h1>Windows</h1>
 
-% if feedback:
+% if feedback and feedback['message']:
   <h2>Feedback</h2>
-  ${feedback['message']}
+  <div class="english_message">${feedback['message_translated']}</div>
+  % if feedback['message'] != feedback['message_translated']:
+    <div class="smaller">
+      Auto-translated from ${feedback['message_lang_name']}.
+      <a href="#feedback_message">See original.</a>
+    </div>
+  % endif
 % endif
 
 ## Start of diagnostic info
@@ -132,7 +166,7 @@
 
 </table>
 
-<a href="#sys_info">See full System Info</a>
+<a class="smaller" href="#sys_info">See full System Info</a>
 
 
 ##
@@ -307,4 +341,14 @@
 </table>
 
 ## end of diagnostic info
+% endif
+
+## Full message, including original language
+% if feedback and feedback['message']:
+  % if feedback['message'] != feedback['message_translated']:
+    <a name="feedback_message"></a>
+    <h2>Feedback (original ${feedback['message_lang_name']})</h2>
+    <% direction = 'rtl' if feedback['message_lang_code'] in ['fa', 'ar', 'iw', 'yi'] else '' %>
+    <div class="original_message ${direction}">${feedback['message']}</div>
+  % endif
 % endif

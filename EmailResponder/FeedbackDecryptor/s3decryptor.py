@@ -31,11 +31,12 @@ import utils
 import decryptor
 import datastore
 import sendmail
+import datatransformer
 
 
 _SLEEP_TIME_SECS = 60
 _BUCKET_ITEM_MIN_SIZE = 100
-_BUCKET_ITEM_MAX_SIZE = (1024 * 1024)  # 1 MB
+_BUCKET_ITEM_MAX_SIZE = (2 * 1024 * 1024)  # 2 MB
 
 
 def _is_bucket_item_sane(key):
@@ -81,6 +82,9 @@ def go():
                 # Something is wrong. Delete and continue.
                 logger.log('non-sane object found')
                 continue
+
+            # Modifies diagnostic_info
+            datatransformer.transform(diagnostic_info)
 
             # Store the diagnostic info
             datastore.insert_diagnostic_info(diagnostic_info)
