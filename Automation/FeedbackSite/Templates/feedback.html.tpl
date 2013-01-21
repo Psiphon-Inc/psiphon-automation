@@ -105,7 +105,7 @@ jQuery.extend({{
         stringify: this.JSON && this.JSON.stringify ? this.JSON.stringify : function stringify(obj) {{
                 var t = typeof(obj);
                 if (t != "object" || obj === null) {{
-                        if (t == "string") 
+                        if (t == "string")
                                 obj = '"' + obj + '"';
                         return String(obj);
                 }}
@@ -160,7 +160,7 @@ function setLanguage(langName)
         langName = 'en';
     }}
 
-    //set direction 
+    //set direction
     if(langName == 'fa' || langName == 'ar') {{
         direction = 'rtl';
         float = 'left';
@@ -183,16 +183,31 @@ function setLanguage(langName)
     $.each(currentLanguage, function(name, val){{
         selector = '#' + name;
         if(name == 'submit_button') {{
-            $(selector).val(val); 
+            $(selector).val(val);
         }}
         else if(name == 'title') {{
             document.title = val; //supported in all browsers
         }}
         else if(name == 'top_content') {{
-           $(selector).html(val.replace(/feedback@psiphon.ca/g, "feedback+" + platform+ "@psiphon.ca"));
+            val = val.replace(/feedback@psiphon.ca/g, "feedback+" + platform+ "@psiphon.ca");
+            $(selector).html(val);
+
+            // The top content contains different diagnostic info warnings
+            // depending on the platform.
+            var diagnostic_info_warning = '';
+            if (platform === 'android') {{
+              diagnostic_info_warning = currentLanguage['diagnostic_info_warning_android'];
+            }}
+            else if (platform === 'win') {{
+              diagnostic_info_warning = currentLanguage['diagnostic_info_warning_windows'];
+            }}
+
+            if (diagnostic_info_warning) {{
+                $('.diagnostic-info-warning', selector).html(diagnostic_info_warning);
+            }}
         }}
         else {{
-            $(selector).html(val); 
+            $(selector).html(val);
         }}
     }});
     $('#language_selector').val(langName);
@@ -232,19 +247,19 @@ $(function() {{
 
                 if($(this).hasClass('happy')){{
                     responses.push({{question:hash, answer: 0}});
-                }}     
+                }}
                 if($(this).hasClass('ok')){{
                     responses.push({{question:hash, answer: 1}});
-                }}     
+                }}
                 if($(this).hasClass('sad')){{
                     responses.push({{question:hash, answer: 2}});
-                }}     
+                }}
             }})
             s = $.stringify({{"responses":responses}});
 
             //Windows client expects result in the window.returnValue magic variable
             //No need to actually submit data
-            if(window.dialogArguments !== undefined) {{ 
+            if(window.dialogArguments !== undefined) {{
                 window.returnValue = s;
                 window.close();
             }}
@@ -275,7 +290,7 @@ $(function() {{
   <option value="es">Español</option>
   <option value="vi">Tiếng Việt</option>
   </select>
-    
+
     <h1 id="top_content_title"></h1>
     <div id="top_content">
     </div>
@@ -310,7 +325,7 @@ $(function() {{
     <input type="submit" value="" id="submit_button" />
     </center>
     <input type="hidden" value="" id="formdata" name="formdata">
-    </form> 
+    </form>
     </div>
 
   </body>

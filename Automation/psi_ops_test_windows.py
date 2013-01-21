@@ -22,6 +22,7 @@ import urllib2
 import subprocess
 import time
 import random
+import copy
 from functools import wraps
 try:
     import win32ui
@@ -72,9 +73,10 @@ def retry_on_exception_decorator(function):
 
 
 @retry_on_exception_decorator
-def __test_web_server(ip_address, web_server_port, web_server_secret):
+def __test_web_server(ip_address, web_server_port, propagation_channel_id, web_server_secret):
     print 'Testing web server at %s...' % (ip_address,)
-    get_request = 'https://%s:%s/handshake?propagation_channel_id=0&sponsor_id=0&client_version=1&server_secret=%s&relay_protocol=SSH' % (ip_address, web_server_port, web_server_secret)
+    get_request = 'https://%s:%s/handshake?propagation_channel_id=%s&sponsor_id=0&client_version=1&server_secret=%s&relay_protocol=SSH' % (
+                    ip_address, web_server_port, propagation_channel_id, web_server_secret)
     # Reset the proxy settings (see comment below)
     urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler()))
     response = urllib2.urlopen(get_request, timeout=10).read()
@@ -98,6 +100,11 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
     has_remote_check = len(CHECK_IP_ADDRESS_URL_REMOTE) > 0
     has_local_check = len(CHECK_IP_ADDRESS_URL_LOCAL) > 0
 
+    # Internally we refer to "OSSH", but the display name is "SSH+", which is also used
+    # in the registry setting to control which transport is used.
+    if transport == 'OSSH':
+        transport = 'SSH+'
+        
     # Split tunnelling is not implemented for VPN.
     # Also, if there is no remote check, don't use split tunnel mode because we always want
     # to test at least one proxied case.
@@ -168,39 +175,46 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
             proc.wait()
             
 
-def test_server(ip_address, web_server_port, web_server_secret, encoded_server_list, version,
-                expected_egress_ip_addresses, test_cases = None):
+def test_server(ip_address, capabilities, web_server_port, web_server_secret, encoded_server_list, version,
+                expected_egress_ip_addresses, test_propagation_channel_id = '0', test_cases = None):
 
-    if not test_cases:
-        test_cases = ['handshake', 'VPN', 'SSH+', 'SSH']
+    local_test_cases = copy.copy(test_cases) if test_cases else ['handshake', 'VPN', 'OSSH', 'SSH']
+
+    for test_case in copy.copy(local_test_cases):
+        if (not capabilities[test_case]
+            or (test_case == 'VPN' # VPN requires handshake, SSH or SSH+
+                and not (capabilities['handshake'] or capabilities['OSSH'] or capabilities['SSH']))):
+            print 'Server does not support %s' % (test_case,)
+            local_test_cases.remove(test_case)
 
     results = {}
 
     executable_path = None
 
-    for test_case in test_cases:
+    for test_case in local_test_cases:
 
         print 'test case %s...' % (test_case,)
 
         if test_case == 'handshake':
             try:
-                result = __test_web_server(ip_address, web_server_port, web_server_secret)
+                result = __test_web_server(ip_address, web_server_port, test_propagation_channel_id, web_server_secret)
                 results['WEB'] = 'PASS' if result else 'FAIL'
             except Exception as ex:
                 results['WEB'] = 'FAIL: ' + str(ex)
             try:
-                result = __test_web_server(ip_address, '443', web_server_secret)
+                result = __test_web_server(ip_address, '443', test_propagation_channel_id, web_server_secret)
                 results['443'] = 'PASS' if result else 'FAIL'
             except Exception as ex:
                 results['443'] = 'FAIL: ' + str(ex)
-        elif test_case in ['VPN', 'SSH+', 'SSH']:
+        elif test_case in ['VPN', 'OSSH', 'SSH']:
             if not executable_path:
                 executable_path = psi_ops_build_windows.build_client(
-                                    '0',        # propagation_channel_id
+                                    test_propagation_channel_id,
                                     '0',        # sponsor_id
                                     None,       # banner
                                     encoded_server_list,
                                     '',         # remote_server_list_signature_public_key
+                                    '',         # feedback_encryption_public_key
                                     ('','',''), # remote_server_list_url
                                     '',   # info_link_url
                                     version,

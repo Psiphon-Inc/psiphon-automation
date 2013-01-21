@@ -118,7 +118,7 @@ def write_embedded_values(propagation_channel_id,
         static const char* REMOTE_SERVER_LIST_SIGNATURE_PUBLIC_KEY = "%s";
 
         static const char* REMOTE_SERVER_LIST_ADDRESS = "%s";
-        
+
         static const char* REMOTE_SERVER_LIST_REQUEST_PATH = "%s";
 
         // NOTE: Info link may be opened when not tunneled
@@ -143,6 +143,7 @@ def build_client(
         banner,
         encoded_server_list,
         remote_server_list_signature_public_key,
+        feedback_encryption_public_key,  # unused
         remote_server_list_url,
         info_link_url,
         version,

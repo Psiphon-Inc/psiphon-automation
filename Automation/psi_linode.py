@@ -96,7 +96,7 @@ def start_linode(linode_api, linode_id, config_id):
 def stop_linode(linode_api, linode_id):
     shutdown_job_id = linode_api.linode_shutdown(LinodeID=linode_id)['JobID']
     wait_while_condition(lambda: linode_api.linode_job_list(LinodeID=linode_id, JobID=shutdown_job_id)[0]['HOST_SUCCESS'] == '',
-                         60,
+                         150,
                          'shutdown the linode')
     assert(linode_api.linode_job_list(LinodeID=linode_id, JobID=shutdown_job_id)[0]['HOST_SUCCESS'] == 1)
     
@@ -142,8 +142,9 @@ def launch_new_server(linode_account):
     linode_id = None
     linode_api = linode.api.Api(key=linode_account.api_key)
     
-    # Power on the base image linode
-    start_linode(linode_api, linode_account.base_id, None)
+    # Power on the base image linode if it is not already running
+    if linode_api.linode_list(LinodeID=linode_account.base_id)[0]['STATUS'] != 1:
+        start_linode(linode_api, linode_account.base_id, None)
     
     try:
         # Create a new linode
