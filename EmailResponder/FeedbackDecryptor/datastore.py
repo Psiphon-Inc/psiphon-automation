@@ -1,4 +1,4 @@
-# Copyright (c) 2012, Psiphon Inc.
+# Copyright (c) 2013, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -15,6 +15,21 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # TODO: Create indexes
+
+'''
+There are currently two tables in MongoDB:
+
+- diagnostic_info: Holds diagnostic info sent by users. This typically includes
+  info about client version, OS, server response time, etc. Data in this table
+  is permanent. The idea is that we can mine it to find out relationships
+  between Psiphon performance and user environment.
+
+- email_diagnostic_info: This is a little less concrete. The short version is:
+  This table indicates that a particlar diagnostic_info record should be
+  formatted and emailed. It might also record additional information (like the
+  email ID and subject) about the email that should be sent. Once the diagnostic_info
+  has been sent, the associated record is removed from this table.
+'''
 
 import datetime
 from pymongo import MongoClient

@@ -89,6 +89,9 @@ def go():
             # Store the diagnostic info
             datastore.insert_diagnostic_info(diagnostic_info)
 
+            # Record in the DB that the diagnostic info should be emailed
+            datastore.insert_email_diagnostic_info(diagnostic_info['Metadata']['id'],
+                                                   None, None)
         except decryptor.DecryptorException:
             logger.exception()
             try:

@@ -34,7 +34,9 @@ def send(server, port, username, password,
     msg['Subject'] = subject
     msg['From'] = fromaddr
     msg['To'] = toaddrs
-    msg['In-Reply-To'] = replyid
+
+    if replyid:
+        msg['In-Reply-To'] = replyid
 
     # Attach parts into message container.
     # According to RFC 2046, the last part of a multipart message, in this case
