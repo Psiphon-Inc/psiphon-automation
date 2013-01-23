@@ -45,7 +45,7 @@ def get_timestamp_diff(last_timestamp, timestamp):
 _languages = {}
 def translate_message(msg):
     '''
-    Tranlsates msg to English. Returns a tuple of:
+    Translates msg to English. Returns a tuple of:
       (original-language-code, original-language-fullname, translated-msg)
 
     Special values: `original-language-code` may have the values:

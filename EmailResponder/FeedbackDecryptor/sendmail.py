@@ -26,13 +26,17 @@ def send(server, port, username, password,
     Send email via SMTP. Throws exception on error.
     '''
 
+    # TODO: Is `encode('utf8')` the right thing to do here? Or should we be
+    # using something like http://docs.python.org/2/library/email.charset.html
+
     if type(toaddrs) == str:
         toaddrs = [toaddrs]
+    toaddrs = [addr.encode('utf8') for addr in toaddrs]
 
     msg = MIMEMultipart('alternative')
 
-    msg['Subject'] = subject
-    msg['From'] = fromaddr
+    msg['Subject'] = subject.encode('utf8')
+    msg['From'] = fromaddr.encode('utf8')
     msg['To'] = toaddrs
 
     if replyid:
@@ -43,10 +47,10 @@ def send(server, port, username, password,
     # the HTML message, is best and preferred.
 
     if body_text:
-        msg.attach(MIMEText(body_text, 'plain'))
+        msg.attach(MIMEText(body_text.encode('utf8'), 'plain'))
 
     if body_html:
-        msg.attach(MIMEText(body_html, 'html'))
+        msg.attach(MIMEText(body_html.encode('utf8'), 'html'))
 
     mailserver = smtplib.SMTP_SSL(server, port)
     mailserver.login(username, password)

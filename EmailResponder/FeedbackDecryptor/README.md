@@ -11,6 +11,11 @@ sudo pip install --upgrade rfc6266 pynliner cssutils BeautifulSoup mako pymongo 
 sudo pip install --upgrade M2Crypto
 ```
 
+#### pynliner issues
+
+The pynliner library has a [Unicode-related issue that affects us](https://github.com/rennat/pynliner/issues/10). Until it is resolved/released, we will need to [manually patch the code](https://github.com/rmgorman/pynliner/commit/f21f7aa44d1077f781a278ccb62f792bc4bec150).
+
+
 #### M2Crypto issues
 
 Check that M2Crypto installed properly. Open a Python REPL, and then type `import M2Crypto`. If you receive either of these errors:
