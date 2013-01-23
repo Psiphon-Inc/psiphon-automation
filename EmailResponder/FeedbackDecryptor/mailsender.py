@@ -86,7 +86,8 @@ def go():
 
         # If no subject is pre-determined, create one.
         if email_diagnostic_info.get('email_subject') is None:
-            email_diagnostic_info['email_subject'] = u'DiagnosticInfo: %s' % (diagnostic_info['Metadata'].get('platform'),)
+            email_diagnostic_info['email_subject'] = u'DiagnosticInfo: %s (%s)' % (diagnostic_info['Metadata'].get('platform', '[NO_PLATFORM]').capitalize(),
+                                                                                   diagnostic_info['Metadata'].get('id', '[NO_ID]'))
         else:
             email_diagnostic_info['email_subject'] = u'Re: %s' % (email_diagnostic_info['email_subject'],)
 

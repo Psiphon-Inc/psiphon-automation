@@ -21,11 +21,12 @@
 %>
 
 <%
-  diagnostic_info = data['DiagnosticInfo'] if 'DiagnosticInfo' in data else None
-  sys_info = diagnostic_info['SystemInformation'] if diagnostic_info else None
-  server_responses = diagnostic_info['ServerResponseCheck'] if diagnostic_info else None
-  status_history = diagnostic_info['StatusHistory'] if diagnostic_info else None
-  feedback = data['Feedback'] if 'Feedback' in data else None
+  metadata = data['Metadata']
+  diagnostic_info = data.get('DiagnosticInfo')
+  sys_info = diagnostic_info.get('SystemInformation') if diagnostic_info else None
+  server_responses = diagnostic_info.get('ServerResponseCheck') if diagnostic_info else None
+  status_history = diagnostic_info.get('StatusHistory') if diagnostic_info else None
+  feedback = data.get('Feedback')
 %>
 
 <style>
@@ -119,7 +120,7 @@
   % if feedback['Message']['text'] != feedback['Message']['text_translated']:
     <div class="smaller">
       Auto-translated from ${feedback['Message']['text_lang_name']}.
-      <a href="#feedback_message">See original.</a>
+      <a href="#feedback_message_${metadata['id']}">See original.</a>
     </div>
   % endif
 % endif
@@ -166,7 +167,7 @@
 
 </table>
 
-<a class="smaller" href="#sys_info">See full System Info</a>
+<a class="smaller" href="#sys_info_${metadata['id']}">See full System Info</a>
 
 
 ##
@@ -244,7 +245,7 @@
 ## System Info
 ##
 
-<a name="sys_info"></a>
+<a name="sys_info_${metadata['id']}"></a>
 <h2>System Info</h2>
 
 ## OS Info
@@ -346,7 +347,7 @@
 ## Full message, including original language
 % if feedback and feedback.get('Message') and feedback['Message'].get('text'):
   % if feedback['Message']['text'] != feedback['Message']['text_translated']:
-    <a name="feedback_message"></a>
+    <a name="feedback_message_${metadata['id']}"></a>
     <h2>Feedback (original ${feedback['Message']['text_lang_name']})</h2>
     <% direction = 'rtl' if feedback['Message']['text_lang_code'] in ['fa', 'ar', 'iw', 'yi'] else '' %>
     <div class="original_message ${direction}">${feedback['Message']['text']}</div>
