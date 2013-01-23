@@ -31,12 +31,11 @@ def send(server, port, username, password,
 
     if type(toaddrs) == str:
         toaddrs = [toaddrs]
-    toaddrs = [addr.encode('utf8') for addr in toaddrs]
 
     msg = MIMEMultipart('alternative')
 
     msg['Subject'] = subject.encode('utf8')
-    msg['From'] = fromaddr.encode('utf8')
+    msg['From'] = fromaddr
     msg['To'] = toaddrs
 
     if replyid:
