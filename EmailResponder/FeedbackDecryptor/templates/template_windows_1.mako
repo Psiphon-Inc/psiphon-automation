@@ -103,7 +103,7 @@
   }
 
   .smaller {
-    font-size: small;
+    font-size: 0.8em;
   }
 
   .rtl {
