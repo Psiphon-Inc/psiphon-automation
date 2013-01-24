@@ -139,7 +139,7 @@ function getLanguageNameFromURL(url)
 
 
 var PLATFORM_WINDOWS = 'windows', PLATFORM_ANDROID = 'android';
-var diagnosticInfoID = '', platform = '';
+var diagnosticInfoID = '', platform = '', currentLangName;
 
 
 //sets page content and highlights coerresponding language button
@@ -158,9 +158,10 @@ function setLanguage(langName)
     langName = 'en';
   }}
 
-  currentLanguage = langJSON[langName];
+  currentLangName = langName;
+  var currentLanguage = langJSON[langName];
 
-  if (currentLanguage === undefined){{
+  if (currentLanguage === undefined) {{
     currentLanguage = langJSON['en'];
     langName = 'en';
   }}
@@ -331,6 +332,12 @@ $(function() {{
       $('input[name=formdata]').val(s);
       $('#feedback').submit();
     }}
+  }});
+
+  // Some of our links go to our download page. Switch to the correct language.
+  // No-op if it's a different kind of link.
+  $('a').click(function(e) {{
+    e.currentTarget.href = e.currentTarget.href.replace('/en.html', '/'+currentLangName+'.html');
   }});
 }});
 
