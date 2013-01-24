@@ -16,6 +16,7 @@
 
 
 import utils
+import json
 
 
 def _windows_1(data):
@@ -24,6 +25,13 @@ def _windows_1(data):
         data['Feedback']['Message']['text_lang_code'] = trans[0]
         data['Feedback']['Message']['text_lang_name'] = trans[1]
         data['Feedback']['Message']['text_translated'] = trans[2]
+
+    if 'Feedback' in data and 'Survey' in data['Feedback']:
+        try:
+            data['Feedback']['Survey']['results'] = json.loads(data['Feedback']['Survey']['json'])
+        except:
+            # Illegal JSON
+            data['Feedback']['Survey']['results'] = None
 
 
 _transformations = {

@@ -255,8 +255,11 @@ $(function() {{
   }});
 
   $('ul#connectivity.feedback').data('hash', '{connectivity}');
+  $('ul#connectivity.feedback').data('title', '{connectivity_en}');
   $('ul#speed.feedback').data('hash', '{speed}');
+  $('ul#speed.feedback').data('title', '{speed_en}');
   $('ul#compatibility.feedback').data('hash', '{compatibility}');
+  $('ul#compatibility.feedback').data('title', '{compatibility_en}');
 
   //submit button clicked.
   $('#submit_button').click(function(e) {{
@@ -266,22 +269,26 @@ $(function() {{
     selected = $('li.selected');
     selected.each(function() {{
       //get hash of parent ul
-      hash = $(this).parent('ul.feedback').data('hash');
+      var hash = $(this).parent('ul.feedback').data('hash');
+      var title = $(this).parent('ul.feedback').data('title');
+      var answer = null;
 
-      if($(this).hasClass('happy')) {{
-        responses.push({{question:hash, answer: 0}});
+      if ($(this).hasClass('happy')) {{
+        answer = 0;
       }}
-      if($(this).hasClass('ok')) {{
-        responses.push({{question:hash, answer: 1}});
+      else if ($(this).hasClass('ok')) {{
+        answer = 1;
       }}
-      if($(this).hasClass('sad')) {{
-        responses.push({{question:hash, answer: 2}});
+      else if ($(this).hasClass('sad')) {{
+        answer = 2;
       }}
+
+      responses.push({{title: title, question: hash, answer: answer}});
     }});
 
     s = JSON.stringify({{
       'responses': responses,
-      'sendDiagnosticInfo': $('#questionnaire_send_diagnostic').attr('checked')
+      'sendDiagnosticInfo': !!$('#questionnaire_send_diagnostic').attr('checked')
     }});
 
     //Windows client expects result in the window.returnValue magic variable
@@ -311,7 +318,7 @@ $(function() {{
     s = JSON.stringify({{
       'feedback': $('#text_feedback_textarea').val(),
       'email': $('#text_feedback_email').val(),
-      'sendDiagnosticInfo': $('#text_feedback_send_diagnostic').attr('checked')
+      'sendDiagnosticInfo': !!$('#text_feedback_send_diagnostic').attr('checked')
     }});
 
     //Windows client expects result in the window.returnValue magic variable

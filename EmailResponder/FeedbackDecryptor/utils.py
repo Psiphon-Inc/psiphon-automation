@@ -58,6 +58,9 @@ def translate_message(msg):
 
     TARGET_LANGUAGE = 'en'
 
+    if not msg:
+        return ('[EMPTY]', '[EMPTY]', '')
+
     service = build('translate', 'v2', developerKey=config['googleApiKey'])
 
     try:

@@ -129,6 +129,15 @@
   </div>
 % endif
 
+% if feedback and feedback.get('Survey') and feedback['Survey'].get('results'):
+  <h2>Survey</h2>
+  <table>
+    % for result in feedback['Survey']['results']:
+      ${sys_info_row(result['title'], [':-)', ':-|', ':-('][result['answer']])}
+    % endfor
+  </table>
+% endif
+
 ## Start of diagnostic info
 % if diagnostic_info:
 
