@@ -57,6 +57,9 @@ en:
     text_feedback_bottom_para_windows: |
         If the above form is not working, or you would like to send screenshots, please email us at <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>
 
+    text_feedback_email_prompt: |
+        If you would like us to respond to you, please enter your email address:
+
     text_feedback_diagnostic_check: |
         Also upload diagnostic information. Please note that this diagnostic
         information does not contain private information about you, and it will

@@ -123,6 +123,10 @@
       <a href="#feedback_message_${metadata['id']}">See original.</a>
     </div>
   % endif
+  <br>
+  <div>
+    User email: ${feedback['email'] if feedback['email'] else '(not supplied)'}
+  </div>
 % endif
 
 ## Start of diagnostic info
@@ -134,11 +138,16 @@
   map = {
           'CLIENT_VERSION': 'Client Version',
           'PROPAGATION_CHANNEL_ID': 'Prop. Channel',
-          'SPONSOR_ID': 'Sponsor'
+          'SPONSOR_ID': 'Sponsor',
+          'language': '<a href="http://msdn.microsoft.com/en-ca/goglobal/bb964664.aspx">language</a>',
+          'locale': '<a href="http://msdn.microsoft.com/en-ca/goglobal/bb964664.aspx">locale</a>',
+          'codeSet': '<a href="http://msdn.microsoft.com/en-us/library/windows/desktop/dd317756%28v=vs.85%29.aspx">codeSet</a>',
+          'productState': '<a href="http://neophob.com/2010/03/wmi-query-windows-securitycenter2/">productState</a>'
         }
   %>
   % if key in map:
-    ${map[key]}
+    ## Disabling filtering/escaping for our overrides.
+    ${map[key] | n}
   % else:
     ${key}
   % endif
@@ -351,5 +360,9 @@
     <h2>Feedback (original ${feedback['Message']['text_lang_name']})</h2>
     <% direction = 'rtl' if feedback['Message']['text_lang_code'] in ['fa', 'ar', 'iw', 'yi'] else '' %>
     <div class="original_message ${direction}">${feedback['Message']['text']}</div>
+
+    <div>
+      User email: ${feedback['email'] if feedback['email'] else '(not supplied)'}
+    </div>
   % endif
 % endif
