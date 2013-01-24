@@ -18,6 +18,7 @@
 import sys
 import types
 import re
+import urllib
 from apiclient.discovery import build
 from config import config
 
@@ -40,6 +41,10 @@ def get_timestamp_diff(last_timestamp, timestamp):
         timestamp_diff_secs = (timestamp - last_timestamp).total_seconds()
     timestamp_diff_str = '{:.3f}'.format(timestamp_diff_secs)
     return (timestamp_diff_secs, timestamp_diff_str)
+
+
+def urlencode(s):
+    return urllib.quote_plus(s)
 
 
 _languages = {}

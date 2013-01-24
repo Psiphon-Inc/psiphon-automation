@@ -370,6 +370,10 @@
     <% direction = 'rtl' if feedback['Message']['text_lang_code'] in ['fa', 'ar', 'iw', 'yi'] else '' %>
     <div class="original_message ${direction}">${feedback['Message']['text']}</div>
 
+    <div class="smaller">
+      <a href="http://translate.google.com/#auto/en/${utils.urlencode(feedback['Message']['text'].encode('utf8'))}">Google Translate.</a>
+    </div>
+
     <div>
       User email: ${feedback['email'] if feedback['email'] else '(not supplied)'}
     </div>
