@@ -24,8 +24,8 @@
   metadata = data['Metadata']
   diagnostic_info = data.get('DiagnosticInfo')
   sys_info = diagnostic_info.get('SystemInformation') if diagnostic_info else None
-  server_responses = diagnostic_info.get('ServerResponseCheck') if diagnostic_info else None
-  status_history = diagnostic_info.get('StatusHistory') if diagnostic_info else None
+  status_history = diagnostic_info.get('StatusHistory') if diagnostic_info else []
+  diagnostic_history = diagnostic_info.get('DiagnosticHistory') if diagnostic_info else []
   feedback = data.get('Feedback')
 %>
 
@@ -47,7 +47,7 @@
     color: red;
   }
 
-  .status-entry {
+  .status-entry, .diagnostic-entry {
     margin-bottom: 0.3em;
   }
 
@@ -56,12 +56,16 @@
     font-family: monospace;
   }
 
-  .status-entry-message {
+  .status-entry-message, .diagnostic-entry-msg {
     font-weight: bold;
   }
 
   .status-entry .debug {
     color: gray;
+  }
+
+  .diagnostic-entry-msg {
+    color: purple;
   }
 
   hr {
@@ -189,42 +193,6 @@
 
 
 ##
-## Server Response Checks
-##
-
-<%def name="server_response_row(entry, last_timestamp)">
-  <%
-    # Put a separator between entries that are separated in time.
-    timestamp_separated_class = ''
-    if last_timestamp and 'timestamp' in entry:
-        if (entry['timestamp'] - last_timestamp).total_seconds() > 20:
-            timestamp_separated_class = 'separated'
-
-    ping_class = 'good'
-    ping_str = '%dms' % entry['responseTime']
-    if not entry['responded'] or entry['responseTime'] < 0:
-        ping_class = 'bad'
-        ping_str = 'none'
-    elif entry['responseTime'] > 2000:
-        ping_class = 'warn'
-  %>
-  <tr class="${timestamp_separated_class}">
-    <th>${entry['ipAddress']}</th>
-    <td class="intcompare ${ping_class}">${ping_str}</td>
-    <td class="timestamp">${entry['timestamp'] if 'timestamp' in entry else ''}</td>
-  </tr>
-</%def>
-
-<h2>Server Response Checks</h2>
-<table class="server-response-checks">
-  <% last_timestamp = None %>
-  % for entry in server_responses:
-    ${server_response_row(entry, last_timestamp)}
-    <% last_timestamp = entry['timestamp'] if 'timestamp' in entry else None %>
-  % endfor
-</table>
-
-##
 ## Status History and Diagnostic History
 ##
 
@@ -249,12 +217,57 @@
   </div>
 </%def>
 
+<%def name="diagnostic_history_row(entry, last_timestamp)">
+  <%
+    timestamp_diff_secs, timestamp_diff_str = utils.get_timestamp_diff(last_timestamp, entry['timestamp'])
+  %>
+
+  ## Put a separator between entries that are separated in time.
+  % if timestamp_diff_secs > 10:
+    <hr>
+  % endif
+
+  <div class="diagnostic-entry">
+    <span class="timestamp">${utils.timestamp_display(entry['timestamp'])} [+${timestamp_diff_str}s]</span>
+
+    <span class="diagnostic-entry-msg">${entry['msg']}</span>
+
+    ## We special-case some of the common diagnostic entries
+    % if entry['msg'] == 'ConnectingServer':
+      <span>${entry['data']['ipAddress']}</span>
+    % elif entry['msg'] == 'ServerResponseCheck':
+      <%
+        ping_class = 'good'
+        ping_str = '%dms' % entry['data']['responseTime']
+        if not entry['data']['responded'] or entry['data']['responseTime'] < 0:
+          ping_class = 'bad'
+          ping_str = 'none'
+        elif entry['data']['responseTime'] > 2000:
+          ping_class = 'warn'
+      %>
+      <span class="intcompare ${ping_class}">${ping_str}</span>
+      <span>${entry['data']['ipAddress']}</span>
+    % else:
+      <span>${repr(entry['data'])}</span>
+    % endif
+  </div>
+</%def>
+
 <h2>Status History</h2>
 <%
   last_timestamp = None
+
+  # We want the diagnostic entries to appear inline chronologically with the
+  # status entries, so we'll merge the lists and process them together.
+  status_diagnostic_history = sorted(status_history + diagnostic_history,
+                                     key=itemgetter('timestamp'))
 %>
-% for entry in status_history:
-  ${status_history_row(entry, last_timestamp)}
+% for entry in status_diagnostic_history:
+  % if 'debug' in entry:
+    ${status_history_row(entry, last_timestamp)}
+  % else:
+    ${diagnostic_history_row(entry, last_timestamp)}
+  % endif
   <% last_timestamp = entry['timestamp'] %>
 % endfor
 
