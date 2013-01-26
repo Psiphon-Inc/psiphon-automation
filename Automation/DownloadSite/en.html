@@ -61,11 +61,11 @@
 </span>
 
     </div>
-    
+
     <a href="http://psiphon.ca">
       <img class="center" src="image03.jpg">
     </a>
-    
+
     <h1>
       <a href="psiphon3.exe">Try Psiphon 3 for Windows</a>
     </h1>
@@ -73,7 +73,7 @@
       New! <a href="PsiphonAndroid.apk">Try Psiphon 3 for Android</a>
     </h1>
     <img src="qr.png">
-    
+
     <br/>
 
     <div class="toc">
@@ -86,44 +86,44 @@
       <a href="#what_user_information_does_psiphon_3_collect">What user information does Psiphon 3 collect?</a><br/>
       <a href="#other_frequently_asked_questions">Other frequently asked questions</a><br/>
     </div>
-    
+
     <br/>
-    
+
     <a name="what_is_psiphon_3"></a>
     <h2>What is Psiphon 3?</h2>
-    
+
     <p>
       Psiphon 3 is a circumvention tool from Psiphon Inc. that utilizes VPN, SSH and HTTP Proxy technology to provide you with uncensored access to Internet content. Your Psiphon 3 client will automatically learn about new access points to maximize your chances of bypassing censorship.
     </p>
-    
+
     <p>
       Psiphon 3 is designed to provide you with open access to online content. Psiphon does not increase your online privacy, and should not be considered or used as an online security tool.
     </p>
-    
+
     <a name="how_do_i_get_psiphon_3"></a>
     <h2>How do I get Psiphon 3?</h2>
-    
+
     <p>
       Click the link to download the client program for <a href="psiphon3.exe">Windows XP/Vista/7</a> or <a href="PsiphonAndroid.apk">Android 2.2+</a>.
     </p>
-    
+
     <p>
       Psiphon 3 clients for iOS and Mac OS X are coming soon.
     </p>
-    
+
     <p>
       Psiphon 3 is an open source project. You can find source code and design documents on the <a href="https://bitbucket.org/psiphon/psiphon-circumvention-system">project home page</a>.
     </p>
-    
+
     <a name="is_my_psiphon_3_for_windows_authentic"></a>
     <h2>Is my Psiphon 3 for Windows authentic?</h2>
-    
+
     <p>
       Psiphon 3 for Windows is never distributed as an installable package. Each Psiphon 3 for Windows client is a single executable file (".exe") that is digitally signed by Psiphon Inc. Windows automatically checks this signature when you run the client. You can also manually inspect the signature before running the client by invoking the Properties dialog for the file and inspecting the Digital Signatures tab.
     </p>
-    
+
     <img class="center" src="image07.png">
-    
+
     <p>
       The SHA1 thumbprint for the Psiphon Inc. certificate public key is displayed in the Certificate dialog Details tab. For the certificate valid for the period <strong>June 16, 2011 to June 21, 2012</strong> the SHA1 thumbprint is:
       <pre class="center">8f:b7:ef:bd:20:a9:20:3a:38:37:08:a2:1e:0a:1d:2e:ad:7b:ee:6d</pre>
@@ -133,43 +133,43 @@
     <p>
       Psiphon 3 for Windows auto-updates itself, and this process automatically verifies that each update is authentic.
     </p>
-    
+
     <a name="how_do_i_run_psiphon_3_for_windows"></a>
     <h2>How do I run Psiphon 3 for Windows?</h2>
-    
+
     <p>
       Download the client program and run it. When you run it, you should see a security prompt showing that this program is a legitimate product of Psiphon Inc.
     </p>
 
     <img class="center" src="image08.png">
-    
+
     <p>
       Psiphon 3 automatically starts connecting when you run it. While it is connecting, a spinning icon is displayed. You may select one of the following tunnel modes: VPN (L2TP over IPSec), SSH, or SSH+ (SSH plus obfuscation, a randomized layer on top of SSH to avoid protocol fingerprinting).
     </p>
-    
+
     <img class="center" src="image09.png">
 
     <p>
       Connection to the Psiphon server is established when the green icon is displayed. In VPN mode, all of your traffic automatically tunnels through Psiphon 3.
     </p>
-    
+
     <p>
       In SSH and SSH+ modes, Psiphon 3 automatically sets the Windows system proxy settings and traffic for applications that respect these settings tunnel through Psiphon 3. These settings are respected by default by all major web browsers.
     </p>
-    
+
     <p>
       Furthermore, in SSH and SSH+ modes, Psiphon 3 offers a split tunnel option where international traffic is tunneled through the proxy and domestic traffic is not. Check the &ldquo;Don&rsquo;t proxy...&rdquo; option to enable split tunneling. When this option is on, unproxied domains are reported in the message area.
     </p>
-    
+
     <img class="center" src="image10.png">
 
     <p>
       When you close the program, Psiphon 3 automatically disconnects. You can also click on the icon to toggle the connection.
     </p>
-    
+
     <a name="is_my_psiphon_3_for_android_authentic"></a>
     <h2>Is my Psiphon 3 for Android authentic?</h2>
-    
+
     <p>
       Each Psiphon 3 for Android client is shipped as an Android APK file (".apk") that is digitally signed by Psiphon Inc. The Psiphon Inc. certificate public key is as follows:
       <pre>
@@ -195,14 +195,14 @@ $ unzip -p PsiphonAndroid.apk META-INF/PSIPHON.RSA | keytool -printcert
 $ jarsigner -verbose -verify PsiphonAndroid.apk
       </pre>
     </p>
-    
+
     <p>
       Psiphon 3 for Android auto-updates itself, and this process automatically verifies that each update is authentic.
     </p>
-    
+
     <a name="how_do_i_run_psiphon_3_for_android"></a>
     <h2>How do I run Psiphon 3 for Android?</h2>
-    
+
     <p>Click on a Psiphon APK link from within your Android email or browser to begin the installation.</p>
 
     <p>
@@ -220,16 +220,16 @@ $ jarsigner -verbose -verify PsiphonAndroid.apk
     <p>
       Once the app has connected to the network, it will launch the built-in Psiphon browser. Psiphon 3 for Android does not automatically tunnel the traffic for the default Android browser or other apps. By default, only the Psiphon browser is tunneled through the Psiphon 3 network.
     </p>
-    
+
     <img class="center" src="image13.png">
 
     <a name="what_user_information_does_psiphon_3_collect"></a>
     <h2>What user information does Psiphon 3 collect?</h2>
-    
+
     <p>
       We collect the following data to find out how well Psiphon is working, what sites are popular and what propagation strategies are effective. This information is shared with our partners so that they can see, for example, how often their sites are visited through Psiphon and from which countries.
     </p>
-    
+
     <p>
       <ul>
         <li>Number of email requests for client download link</li>
@@ -243,17 +243,37 @@ $ jarsigner -verbose -verify PsiphonAndroid.apk
         <li>Client platform (simplified operating system list; e.g, not a detailed browser user agent)</li>
       </ul>
     </p>
-    
+
     <p>
       User IP addresses and email addresses are never collected; users are not required to create accounts to use the system.
     </p>
-    
+
     <p>
       Event logs include timestamps, region codes (GeoIP country code) and non-identifying attributes including sponsor ID (determined by which Psiphon client is used), client version, and protocol type. Page views are aggregated by time and/or session before being logged.
     </p>
 
     <p>
       All statistics shared with sponsors are further aggregated by date, sponsor, and region.
+    </p>
+
+    <p>
+      When you choose to submit feedback through Psiphon you will have the option of including diagnostic data. We use this data to help us troubleshoot any problems you might be having and to help us keep Psiphon running smoothly. Sending this data is entirely optional. The information in the data varies by platform, but it may include:
+    </p>
+    <p>
+      Windows:
+      <ul>
+        <li>Operating system version</li>
+        <li>Anti-virus version</li>
+        <li>How you're connected to the internet (for example, if you're using dial-up or connected via a proxy)</li>
+        <li>How much free memory your computer has</li>
+      </ul>
+
+      Android:
+      <ul>
+        <li>Android version</li>
+        <li>Model of phone</li>
+        <li>Whether your phone is rooted</li>
+      </ul>
     </p>
 
     <p>
@@ -284,7 +304,7 @@ $ jarsigner -verbose -verify PsiphonAndroid.apk
         </ul>
       </p>
     </div>
-    
+
     <div class="faq-q">
       <p>
         Q: Why does my Psiphon 3 IP address frequently change?
@@ -329,7 +349,7 @@ $ jarsigner -verbose -verify PsiphonAndroid.apk
       </p>
     </div>
 
-    <div class="faq-q">    
+    <div class="faq-q">
       <p>
         Q: What is the file "psiphon3.exe.orig"?
       </p>
@@ -362,7 +382,7 @@ $ jarsigner -verbose -verify PsiphonAndroid.apk
       </p>
     </div>
 
-    <div class="faq-q">    
+    <div class="faq-q">
       <p>
         Q: Are there any port restrictions in VPN mode? Why can't I send email using my mail client in VPN mode?
       </p>
