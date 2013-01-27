@@ -84,12 +84,13 @@ def go():
         # If we get to here, then we have a valid diagnostic email.
         # Reply with the decrypted content.
 
+        # If this is not a reply, set a subject
         # If no subject is pre-determined, create one.
-        if email_diagnostic_info.get('email_subject') is None:
-            email_diagnostic_info['email_subject'] = u'DiagnosticInfo: %s (%s)' % (diagnostic_info['Metadata'].get('platform', '[NO_PLATFORM]').capitalize(),
+        if email_diagnostic_info.get('email_id') is None:
+            subject = u'DiagnosticInfo: %s (%s)' % (diagnostic_info['Metadata'].get('platform', '[NO_PLATFORM]').capitalize(),
                                                                                    diagnostic_info['Metadata'].get('id', '[NO_ID]'))
         else:
-            email_diagnostic_info['email_subject'] = u'Re: %s' % (email_diagnostic_info['email_subject'],)
+            subject = u'Re: %s' % (email_diagnostic_info['email_subject'] or '')
 
         try:
             sendmail.send(config['smtpServer'],
@@ -98,7 +99,7 @@ def go():
                           config['emailPassword'],
                           config['emailUsername'],
                           config['decryptedEmailRecipient'],
-                          email_diagnostic_info['email_subject'],
+                          subject,
                           diagnostic_info_text,
                           diagnostic_info_html,
                           email_diagnostic_info.get('email_id'))  # may be None
