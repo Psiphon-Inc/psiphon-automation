@@ -32,7 +32,7 @@ import pynliner
 
 import logger
 from config import config
-import sendmail
+import sender
 import datastore
 
 
@@ -56,16 +56,12 @@ def _send(template_name, data):
     rendered = pynliner.fromString(rendered)
 
     try:
-        sendmail.send(config['smtpServer'],
-                      config['smtpPort'],
-                      config['emailUsername'],
-                      config['emailPassword'],
-                      config['emailUsername'],
-                      config['statsEmailRecipients'],
-                      u'FeedbackDecryptor: ' + template_name.capitalize(),
-                      yaml.safe_dump(data),
-                      rendered,
-                      None)
+        sender.send(config['emailUsername'],
+                    config['emailPassword'],
+                    config['statsEmailRecipients'],
+                    u'FeedbackDecryptor: ' + template_name.capitalize(),
+                    yaml.safe_dump(data),
+                    rendered)
     except smtplib.SMTPException:
         logger.exception()
 

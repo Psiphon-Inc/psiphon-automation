@@ -27,7 +27,7 @@ import time
 from config import config
 import logger
 import datastore
-import sendmail
+import sender
 import mailformatter
 
 
@@ -93,16 +93,12 @@ def go():
             subject = u'Re: %s' % (email_diagnostic_info['email_subject'] or '')
 
         try:
-            sendmail.send(config['smtpServer'],
-                          config['smtpPort'],
-                          config['emailUsername'],
-                          config['emailPassword'],
-                          config['emailUsername'],
-                          config['decryptedEmailRecipient'],
-                          subject,
-                          diagnostic_info_text,
-                          diagnostic_info_html,
-                          email_diagnostic_info.get('email_id'))  # may be None
+            sender.send(config['decryptedEmailRecipient'],
+                        config['emailUsername'],
+                        subject,
+                        diagnostic_info_text,
+                        diagnostic_info_html,
+                        email_diagnostic_info.get('email_id'))  # may be None
         except smtplib.SMTPException:
             logger.exception()
 

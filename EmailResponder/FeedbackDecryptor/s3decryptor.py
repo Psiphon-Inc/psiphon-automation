@@ -30,7 +30,7 @@ import logger
 import utils
 import decryptor
 import datastore
-import sendmail
+import sender
 import datatransformer
 
 
@@ -96,15 +96,11 @@ def go():
             logger.exception()
             try:
                 # Something bad happened while decrypting. Report it via email.
-                sendmail.send(config['smtpServer'],
-                              config['smtpPort'],
-                              config['emailUsername'],
-                              config['emailPassword'],
-                              config['emailUsername'],
-                              config['decryptedEmailRecipient'],
-                              u'S3Decryptor: bad object',
-                              encrypted_info_json,
-                              None)
+                sender.send(config['decryptedEmailRecipient'],
+                            config['emailUsername'],
+                            u'S3Decryptor: bad object',
+                            encrypted_info_json,
+                            None)  # no html body
             except smtplib.SMTPException:
                 logger.exception()
 

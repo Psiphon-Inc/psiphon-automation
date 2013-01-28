@@ -36,7 +36,7 @@ import utils
 from config import config
 import decryptor
 from emailgetter import EmailGetter
-import sendmail
+import sender
 import datastore
 
 
@@ -160,15 +160,11 @@ def go():
                 # Something bad happened while decrypting. Report it via email.
                 logger.exception()
                 try:
-                    sendmail.send(config['smtpServer'],
-                                  config['smtpPort'],
-                                  config['emailUsername'],
-                                  config['emailPassword'],
-                                  config['emailUsername'],
-                                  config['decryptedEmailRecipient'],
-                                  u'Re: %s' % (msg['subject'] or ''),
-                                  'Decrypt failed: %s' % e,
-                                  msg['msgobj']['Message-ID'])
+                    sender.send(config['decryptedEmailRecipient'],
+                                config['emailUsername'],
+                                u'Re: %s' % (msg['subject'] or ''),
+                                'Decrypt failed: %s' % e,
+                                msg['msgobj']['Message-ID'])
                 except smtplib.SMTPException:
                     # Something went wrong with the sending of the response. Log it.
                     logger.exception()
