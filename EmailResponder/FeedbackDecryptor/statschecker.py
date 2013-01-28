@@ -56,9 +56,8 @@ def _send(template_name, data):
     rendered = pynliner.fromString(rendered)
 
     try:
-        sender.send(config['emailUsername'],
-                    config['emailPassword'],
-                    config['statsEmailRecipients'],
+        sender.send(config['statsEmailRecipients'],
+                    config['emailUsername'],
                     u'FeedbackDecryptor: ' + template_name.capitalize(),
                     yaml.safe_dump(data),
                     rendered)
