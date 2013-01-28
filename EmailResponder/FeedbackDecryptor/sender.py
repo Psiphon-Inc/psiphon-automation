@@ -19,7 +19,7 @@ import smtplib
 
 sys.path.append('..')
 import sendmail
-import config
+from config import config
 
 
 def send(recipients, from_address,
