@@ -59,7 +59,7 @@ def _send(template_name, data):
         sender.send(config['statsEmailRecipients'],
                     config['emailUsername'],
                     u'FeedbackDecryptor: ' + template_name.capitalize(),
-                    yaml.safe_dump(data),
+                    yaml.safe_dump(data, default_flow_style=False),
                     rendered)
     except smtplib.SMTPException:
         logger.exception()
