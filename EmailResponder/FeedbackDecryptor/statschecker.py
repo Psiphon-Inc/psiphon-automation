@@ -96,7 +96,7 @@ def go():
                                  'warning_threshold': config['statsWarningThresholdPerMinute']})
 
         # If we just passed midnight, send the stats email
-        if not last_send_time or (last_send_time - midnight).total_seconds() > 0:
+        if not last_send_time or (last_send_time - midnight).total_seconds() < 0:
             _send_stats_mail(last_send_time)
             last_send_time = datetime.datetime.now()
             datastore.set_stats_last_send_time(last_send_time)
