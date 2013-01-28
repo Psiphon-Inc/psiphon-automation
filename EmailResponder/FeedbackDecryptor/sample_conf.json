@@ -26,5 +26,11 @@
 
   // Used for making requests to the Google Translate API.
   // You can get a key here: https://code.google.com/apis/console
-  "googleApiKey": "..."
+  "googleApiKey": "...",
+
+  // The email addresses to which the daily stats email should be sent.
+  "statsEmailRecipients": ["a@example.com", "b@example.com"],
+  // If the number of diagnostic data records created per minute exceeds this
+  // value, a warning email should be sent to the statsEmailRecipients.
+  "statsWarningThresholdPerMinute": 1
 }

@@ -17,7 +17,7 @@
 # TODO: Create indexes
 
 '''
-There are currently two tables in MongoDB:
+There are currently three tables in our Mongo DB:
 
 - diagnostic_info: Holds diagnostic info sent by users. This typically includes
   info about client version, OS, server response time, etc. Data in this table
@@ -29,6 +29,9 @@ There are currently two tables in MongoDB:
   formatted and emailed. It might also record additional information (like the
   email ID and subject) about the email that should be sent. Once the diagnostic_info
   has been sent, the associated record is removed from this table.
+
+- stats: A dumb DB that is really just used for maintaining state between stats
+  service restarts.
 '''
 
 import datetime
@@ -42,6 +45,7 @@ _connection = MongoClient()
 _db = _connection.maildecryptor
 _diagnostic_info_store = _db.diagnostic_info
 _email_diagnostic_info_store = _db.email_diagnostic_info
+_stats = _db.stats
 
 
 def insert_diagnostic_info(obj):
@@ -76,3 +80,37 @@ def remove_email_diagnostic_info(email_diagnostic_info):
 def expire_old_email_diagnostic_info_records():
     expiry_datetime = datetime.datetime.now() - datetime.timedelta(minutes=_EXPIRY_MINUTES)
     return _email_diagnostic_info_store.remove({'datetime': {'$lt': expiry_datetime}})
+
+
+#
+# Functions for the stats DB
+#
+
+def set_stats_last_send_time(timestamp):
+    '''
+    Sets the last send time to `timestamp`.
+    '''
+    _stats.update({}, {'$set': {'last_send_time': timestamp}}, upsert=True)
+
+
+def get_stats_last_send_time():
+    rec = _stats.find_one()
+    return rec['last_send_time'] if rec else None
+
+
+def get_new_stats_count(since_time):
+    assert(since_time)
+    return _diagnostic_info_store.find({'datetime': {'$gt': since_time}}).count()
+
+
+def get_stats(since_time):
+    if not since_time:
+        # Pick a sufficiently old date
+        since_time = datetime.datetime(2000, 1, 1)
+
+    return {
+        'since_timestamp': since_time,
+        'now_timestamp': datetime.datetime.now(),
+        'new_android_records': _diagnostic_info_store.find({'Metadata.platform': 'android', 'datetime': {'$gt': since_time}}).count(),
+        'new_windows_records': _diagnostic_info_store.find({'Metadata.platform': 'windows', 'datetime': {'$gt': since_time}}).count(),
+    }

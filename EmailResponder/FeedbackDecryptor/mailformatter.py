@@ -1,4 +1,4 @@
-# Copyright (c) 2012, Psiphon Inc.
+# Copyright (c) 2013, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -26,7 +26,7 @@ _cached_templates = {}
 
 def format(data):
     '''
-    Will throw exception is data does not match expected structure (that is,
+    Will throw exception if data does not match expected structure (that is,
     if the template rendering fails).
     '''
 
