@@ -14,26 +14,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Upstart script for running the maildecryptor.
-# Copy to /etc/init/
+import json
 
-description "Psiphon maildecryptor daemon"
-author "Psiphon Inc."
 
-env MAILDECRYPTOR_DIR=fill-in-with-path-to-source
+_CONFIG_FILENAME = 'conf.json'
 
-# Start manually.
-start on (local-filesystems and net-device-up IFACE!=lo)
-
-stop on shutdown
-
-respawn
-respawn limit 99 5
-
-# Must be outside of the script block, apparently.
-setuid maildecryptor
-
-script
-  chdir $MAILDECRYPTOR_DIR
-  exec python service_maildecryptor.py
-end script
+config = {}
+with open(_CONFIG_FILENAME, 'r') as conf_fp:
+    config = json.load(conf_fp)

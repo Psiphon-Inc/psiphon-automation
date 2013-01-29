@@ -96,7 +96,7 @@ def start_linode(linode_api, linode_id, config_id):
 def stop_linode(linode_api, linode_id):
     shutdown_job_id = linode_api.linode_shutdown(LinodeID=linode_id)['JobID']
     wait_while_condition(lambda: linode_api.linode_job_list(LinodeID=linode_id, JobID=shutdown_job_id)[0]['HOST_SUCCESS'] == '',
-                         60,
+                         150,
                          'shutdown the linode')
     assert(linode_api.linode_job_list(LinodeID=linode_id, JobID=shutdown_job_id)[0]['HOST_SUCCESS'] == 1)
     

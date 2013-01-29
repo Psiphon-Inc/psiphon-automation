@@ -1,4 +1,6 @@
-# Copyright (c) 2012, Psiphon Inc.
+#!/usr/bin/env python
+
+# Copyright (c) 2013, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -14,26 +16,32 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Upstart script for running the maildecryptor.
-# Copy to /etc/init/
+import signal
+import sys
+import time
 
-description "Psiphon maildecryptor daemon"
-author "Psiphon Inc."
+import logger
+import statschecker
 
-env MAILDECRYPTOR_DIR=fill-in-with-path-to-source
 
-# Start manually.
-start on (local-filesystems and net-device-up IFACE!=lo)
+def _do_exit(signum, frame):
+    logger.log('Shutting down')
+    sys.exit(0)
 
-stop on shutdown
 
-respawn
-respawn limit 99 5
+def main():
+    logger.log('Starting up')
 
-# Must be outside of the script block, apparently.
-setuid maildecryptor
+    signal.signal(signal.SIGTERM, _do_exit)
 
-script
-  chdir $MAILDECRYPTOR_DIR
-  exec python service_maildecryptor.py
-end script
+    while True:
+        try:
+            statschecker.go()
+        except Exception:
+            logger.exception()
+            time.sleep(60)
+            continue
+
+
+if __name__ == '__main__':
+    main()

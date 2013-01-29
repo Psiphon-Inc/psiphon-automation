@@ -6,10 +6,15 @@
 
 ```shell
 # Prereqs
-sudo apt-get install -y python-pip python-dev libssl-dev swig
-sudo pip install rfc6266 pynliner cssutils BeautifulSoup mako
-sudo pip install M2Crypto
+sudo apt-get install -y python-pip python-dev libssl-dev swig mongodb
+sudo pip install --upgrade rfc6266 pynliner cssutils BeautifulSoup mako pymongo boto google-api-python-client
+sudo pip install --upgrade M2Crypto
 ```
+
+#### pynliner issues
+
+The pynliner library has a [Unicode-related issue that affects us](https://github.com/rennat/pynliner/issues/10). Until it is resolved/released, we will need to [manually patch the code](https://github.com/rmgorman/pynliner/commit/f21f7aa44d1077f781a278ccb62f792bc4bec150).
+
 
 #### M2Crypto issues
 

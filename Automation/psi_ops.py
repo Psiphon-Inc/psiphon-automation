@@ -132,7 +132,7 @@ SponsorHomePage = psi_utils.recordtype(
 
 SponsorCampaign = psi_utils.recordtype(
     'SponsorCampaign',
-    'propagation_channel_id, propagation_mechanism_type, account, s3_bucket_name')
+    'propagation_channel_id, propagation_mechanism_type, account, s3_bucket_name, languages')
 
 SponsorRegex = psi_utils.recordtype(
     'SponsorRegex',
@@ -227,6 +227,10 @@ FeedbackEncryptionKeyPair = psi_utils.recordtype(
     'FeedbackEncryptionKeyPair',
     'pem_key_pair, password')
 
+FeedbackUploadInfo = psi_utils.recordtype(
+    'FeedbackUploadInfo',
+    'upload_server, upload_path, upload_server_headers')
+
 CLIENT_PLATFORM_WINDOWS = 'Windows'
 CLIENT_PLATFORM_ANDROID = 'Android'
 
@@ -269,8 +273,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__speed_test_urls = []
         self.__remote_server_list_signing_key_pair = None
         self.__feedback_encryption_signing_key_pair = None
+        self.__feedback_upload_info = None
 
-    class_version = '0.12'
+    class_version = '0.14'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -340,6 +345,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.12')) < 0:
             self.__feedback_encryption_key_pair = None
             self.version = '0.12'
+        if cmp(parse_version(self.version), parse_version('0.13')) < 0:
+            for sponsor in self.__sponsors.itervalues():
+                for campaign in sponsor.campaigns:
+                    campaign.languages = None
+            self.version = '0.13'
+        if cmp(parse_version(self.version), parse_version('0.14')) < 0:
+            self.__feedback_upload_info = None
+            self.version = '0.14'
 
     def show_status(self):
         # NOTE: verbose mode prints credentials to stdout
@@ -671,6 +684,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         campaign = SponsorCampaign(propagation_channel.id,
                                    propagation_mechanism_type,
                                    EmailPropagationAccount(email_account),
+                                   None,
                                    None)
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
@@ -700,6 +714,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         twitter_account_consumer_secret,
                                         twitter_account_access_token_key,
                                         twitter_account_access_token_secret),
+                                   None,
                                    None)
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
@@ -717,6 +732,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(propagation_mechanism_type in propagation_channel.propagation_mechanism_types)
         campaign = SponsorCampaign(propagation_channel.id,
                                    propagation_mechanism_type,
+                                   None,
                                    None,
                                    None)
         if campaign not in sponsor.campaigns:
@@ -1100,7 +1116,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 capabilities['VPN'] = False
                 capabilities['SSH'] = False
                 ssh_port = None
-                ossh_port = random.choice(range(1,1023))
+                ossh_ports = range(1,1023)
+                ossh_ports.remove(135)
+                ossh_ports.remove(136)
+                ossh_ports.remove(137)
+                ossh_ports.remove(138)
+                ossh_ports.remove(139)
+                ossh_port = random.choice(ossh_ports)
 
             server = Server(
                         None,
@@ -1313,6 +1335,21 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__feedback_encryption_key_pair.pem_key_pair.encode('ascii', 'ignore')
         return self.__feedback_encryption_key_pair
 
+    def get_feedback_upload_info(self):
+        assert(self.__feedback_upload_info)
+        return self.__feedback_upload_info
+
+    def set_feedback_upload_info(self, upload_server, upload_path, upload_server_headers):
+        assert(self.is_locked)
+        if not self.__feedback_upload_info:
+            self.__feedback_upload_info = FeedbackUploadInfo(upload_server, upload_path, upload_server_headers)
+            self.__feedback_upload_info.log('FeedbackUploadInfo set for first time to: "%s", "%s", "%s"', (upload_server, upload_path, upload_server_headers))
+        else:
+            self.__feedback_upload_info.upload_server = upload_server
+            self.__feedback_upload_info.upload_path = upload_path
+            self.__feedback_upload_info.upload_server_headers = upload_server_headers
+            self.__feedback_upload_info.log('FeedbackUploadInfo modified to: "%s", "%s", "%s"', (upload_server, upload_path, upload_server_headers))
+
     def build(
             self,
             propagation_channel_name,
@@ -1339,6 +1376,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 self.get_feedback_encryption_key_pair().pem_key_pair,
                 self.get_feedback_encryption_key_pair().password)
 
+        feedback_upload_info = self.get_feedback_upload_info()
+
         builders = {
             CLIENT_PLATFORM_WINDOWS: psi_ops_build_windows.build_client,
             CLIENT_PLATFORM_ANDROID: psi_ops_build_android.build_client
@@ -1350,11 +1389,51 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         base64.b64decode(sponsor.banner),
                         encoded_server_list,
                         remote_server_list_signature_public_key,
-                        feedback_encryption_public_key,
                         remote_server_list_url,
+                        feedback_encryption_public_key,
+                        feedback_upload_info.upload_server,
+                        feedback_upload_info.upload_path,
+                        feedback_upload_info.upload_server_headers,
                         info_link_url,
                         self.__client_versions[platform][-1].version if self.__client_versions[platform] else 0,
                         test) for platform in platforms]
+
+    def build_android_library(
+            self,
+            propagation_channel_name,
+            sponsor_name):
+
+        propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
+        sponsor = self.__get_sponsor_by_name(sponsor_name)
+
+        campaigns = filter(lambda x: x.propagation_channel_id == propagation_channel.id, sponsor.campaigns)
+        assert campaigns
+
+        encoded_server_list, _ = \
+                    self.__get_encoded_server_list(propagation_channel.id)
+
+        remote_server_list_signature_public_key = \
+            psi_ops_crypto_tools.get_base64_der_public_key(
+                self.__get_remote_server_list_signing_key_pair().pem_key_pair,
+                REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD)
+
+        feedback_encryption_public_key = \
+            psi_ops_crypto_tools.get_base64_der_public_key(
+                self.get_feedback_encryption_key_pair().pem_key_pair,
+                self.get_feedback_encryption_key_pair().password)
+
+        remote_server_list_url = psi_ops_s3.get_s3_bucket_remote_server_list_url(campaigns[0].s3_bucket_name)
+        info_link_url = psi_ops_s3.get_s3_bucket_home_page_url(campaigns[0].s3_bucket_name)
+
+        return psi_ops_build_android.build_library(
+                        propagation_channel.id,
+                        sponsor.id,
+                        encoded_server_list,
+                        remote_server_list_signature_public_key,
+                        feedback_encryption_public_key,
+                        remote_server_list_url,
+                        info_link_url,
+                        self.__client_versions[CLIENT_PLATFORM_ANDROID][-1].version if self.__client_versions[CLIENT_PLATFORM_ANDROID] else 0)
 
     def deploy(self):
         # Deploy as required:
@@ -1533,9 +1612,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                          'body':
                             [
                                 ['plain', psi_templates.get_plaintext_email_content(
-                                                campaign.s3_bucket_name)],
+                                                campaign.s3_bucket_name,
+                                                campaign.languages)],
                                 ['html', psi_templates.get_html_email_content(
-                                                campaign.s3_bucket_name)]
+                                                campaign.s3_bucket_name,
+                                                campaign.languages)]
                             ],
                          'attachments': None,
                          'send_method': 'SES'
@@ -1550,11 +1631,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 ['plain', psi_templates.get_plaintext_attachment_email_content(
                                                 campaign.s3_bucket_name,
                                                 psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME,
-                                                psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME)],
+                                                psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME,
+                                                campaign.languages)],
                                 ['html', psi_templates.get_html_attachment_email_content(
                                                 campaign.s3_bucket_name,
                                                 psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME,
-                                                psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME)]
+                                                psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME,
+                                                campaign.languages)]
                             ],
                          'attachments': [
                                          [campaign.s3_bucket_name,
