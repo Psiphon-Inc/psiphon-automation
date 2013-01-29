@@ -16,7 +16,8 @@
   //  - delete objects in upload bucket
   "aws_access_key_id": "...",
   "aws_secret_access_key": "...",
-  // TODO: Specify correct permission for upload bucket
+
+  // S3 bucket where some clients upload diagnostic data and feedback
   "s3_bucket_name": "...",
 
   // Directory where the psi_ops.py file can be found.
