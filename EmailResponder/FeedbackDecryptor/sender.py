@@ -30,7 +30,7 @@ def send(recipients, from_address,
     `recipients` may be an array of address or a single address string.
     '''
 
-    reply_to_header = {'Reply-To': replyid} if replyid else None
+    reply_to_header = {'In-Reply-To': replyid} if replyid else None
 
     body = []
     if body_text:
