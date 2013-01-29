@@ -25,11 +25,11 @@
 </p>
 
 <p>
-  Records per minute: ${data['recs_per_min']}
+  Records per minute: ${'{:.2f}'.format(data['recs_per_min'])}
   <br>
-  Interval duration: ${data['interval_mins']} mins
+  Interval duration: ${'{:.2f}'.format(data['interval_mins'])} mins
   <br>
-  Warning threshold records per minute: ${data['warning_threshold']}
+  Warning threshold records per minute: ${'{:.2f}'.format(data['warning_threshold'])}
 </p>
 
 <p>

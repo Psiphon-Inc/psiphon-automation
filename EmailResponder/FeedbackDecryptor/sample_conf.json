@@ -32,5 +32,5 @@
   "statsEmailRecipients": ["a@example.com", "b@example.com"],
   // If the number of diagnostic data records created per minute exceeds this
   // value, a warning email should be sent to the statsEmailRecipients.
-  "statsWarningThresholdPerMinute": 1
+  "statsWarningThresholdPerMinute": 1.0
 }
