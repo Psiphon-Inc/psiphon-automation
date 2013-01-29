@@ -21,9 +21,12 @@
 %>
 
 <%
-  sys_info = data['SystemInformation']
-  diagnostic_history = data['DiagnosticHistory']
-  status_history = data['StatusHistory']
+  metadata = data['Metadata']
+  diagnostic_info = data['DiagnosticInfo']
+
+  sys_info = diagnostic_info['SystemInformation']
+  status_history = diagnostic_info['StatusHistory']
+  diagnostic_history = diagnostic_info['DiagnosticHistory']
 %>
 
 <style>
