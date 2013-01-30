@@ -168,6 +168,8 @@ def _make_request(apiServers, apiKey, action, params=None):
     Throws exception on error.
     '''
 
+    global _lastGoodApiServer
+
     assert(action in ('languages', 'detect', 'translate'))
 
     if action == 'translate':
@@ -204,6 +206,8 @@ def _make_request(apiServers, apiKey, action, params=None):
 
         try:
             req = requests.post(url, headers=headers, data=params)
+
+            _lastGoodApiServer = apiServer
 
         # These exceptions are the ones we've seen when the API server is
         # being flaky.
