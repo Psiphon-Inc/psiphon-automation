@@ -17,7 +17,7 @@
 
 import json
 import translation
-import config
+from config import config
 
 
 def _windows_1(data):
