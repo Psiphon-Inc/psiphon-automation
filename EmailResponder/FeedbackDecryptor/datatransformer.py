@@ -15,13 +15,16 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-import utils
 import json
+import translation
+import config
 
 
 def _windows_1(data):
     if 'Feedback' in data and 'Message' in data['Feedback']:
-        trans = utils.translate_message(data['Feedback']['Message']['text'])
+        trans = translation.translate(config['googleApiServers'],
+                                      config['googleApiKey'],
+                                      data['Feedback']['Message']['text'])
         data['Feedback']['Message']['text_lang_code'] = trans[0]
         data['Feedback']['Message']['text_lang_name'] = trans[1]
         data['Feedback']['Message']['text_translated'] = trans[2]

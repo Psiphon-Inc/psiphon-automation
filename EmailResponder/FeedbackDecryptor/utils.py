@@ -1,4 +1,4 @@
-# Copyright (c) 2012, Psiphon Inc.
+# Copyright (c) 2013, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -19,8 +19,6 @@ import sys
 import types
 import re
 import urllib
-from apiclient.discovery import build
-from config import config
 
 
 ###########################
@@ -45,60 +43,6 @@ def get_timestamp_diff(last_timestamp, timestamp):
 
 def urlencode(s):
     return urllib.quote_plus(s)
-
-
-_languages = {}
-def translate_message(msg):
-    '''
-    Translates msg to English. Returns a tuple of:
-      (original-language-code, original-language-fullname, translated-msg)
-
-    Special values: `original-language-code` may have the values:
-      - "[INDETERMINATE]": If the language of `msg` can't be determined.
-      - "[TRANSLATION_FAIL]": If the translation process threw an exception.
-        In this case, `original-language-fullname` will have the exception message.
-    '''
-
-    global _languages
-
-    TARGET_LANGUAGE = 'en'
-
-    if not msg:
-        return ('[EMPTY]', '[EMPTY]', '')
-
-    service = build('translate', 'v2', developerKey=config['googleApiKey'])
-
-    try:
-        if not _languages:
-            # Get the full set of possible languages
-            langs = service.languages().list(target='en').execute()
-            # Convert to a dict of {'lang_code': 'full_lang_name'}
-            _languages = dict((lang['language'], lang['name']) for lang in langs['languages'])
-
-        # Detect the language. We won't use the entire string, since we pay per
-        # character, and the #characters-to-accuracy curve is probably logarithmic.
-        lang_detect = service.detections().list(q=[msg[:100]]).execute()
-        from_lang = lang_detect['detections'][0][0]['language']
-
-        if from_lang not in _languages:
-            # This probably means that the detection failed
-            retval = ('[INDETERMINATE]', 'Language could not be determined', msg)
-        elif from_lang != TARGET_LANGUAGE:
-            # Translate the string.
-            # TODO: There is a size limit on the REST API, but it is handled
-            # within the Python library or do we need to break the string up here?
-            # We can probably wait for an error to occur and then figure it out.
-            trans = service.translations().list(source=from_lang, target=TARGET_LANGUAGE,
-                                                format='text', q=[msg]).execute()
-            msg_translated = trans['translations'][0]['translatedText']
-            retval = (from_lang, _languages[from_lang], msg_translated)
-        else:
-            retval = (from_lang, _languages[from_lang], msg)
-
-    except Exception as e:
-        retval = ('[TRANSLATION_FAIL]', str(e), msg)
-
-    return retval
 
 
 ###########################

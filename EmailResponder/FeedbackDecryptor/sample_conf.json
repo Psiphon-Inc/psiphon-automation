@@ -29,6 +29,10 @@
   // You can get a key here: https://code.google.com/apis/console
   "googleApiKey": "...",
 
+  // Used for Google API failover. Must be []/null or correspond to entries in
+  // the `/etc/hosts` file.
+  "googleApiServers": ["...", "..."],
+
   // The email addresses to which the daily stats email should be sent.
   "statsEmailRecipients": ["a@example.com", "b@example.com"],
   // If the number of diagnostic data records created per minute exceeds this
