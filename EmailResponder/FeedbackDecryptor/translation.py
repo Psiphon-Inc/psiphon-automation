@@ -157,6 +157,9 @@ def _translate_request_helper(apiServers, apiKey, from_lang, msg):
     return result_accumulator
 
 
+_lastGoodApiServer = None
+
+
 def _make_request(apiServers, apiKey, action, params=None):
     '''
     Make the specified request, employing server failover if necessary.
@@ -182,6 +185,12 @@ def _make_request(apiServers, apiKey, action, params=None):
     # If `apiServers` is empty, we not doing failover.
     if not apiServers:
         apiServers = ['www.googleapis.com']
+
+    # If we have a _lastGoodApiServer, then move it to the front of the
+    # failover list.
+    if _lastGoodApiServer in apiServers:
+        apiServers.remove(_lastGoodApiServer)
+        apiServers.insert(0, _lastGoodApiServer)
 
     # This header is required to make a POST request.
     # See https://developers.google.com/translate/v2/using_rest
