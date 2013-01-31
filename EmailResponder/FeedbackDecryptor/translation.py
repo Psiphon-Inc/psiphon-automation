@@ -198,6 +198,8 @@ def _make_request(apiServers, apiKey, action, params=None):
     # See https://developers.google.com/translate/v2/using_rest
     headers = {'X-HTTP-Method-Override': 'GET'}
 
+    ex = None
+
     # Fail over between available servers
     for apiServer in apiServers:
         success = True
@@ -207,27 +209,30 @@ def _make_request(apiServers, apiKey, action, params=None):
         try:
             req = requests.post(url, headers=headers, data=params)
 
-            _lastGoodApiServer = apiServer
+            if req.ok:
+                _lastGoodApiServer = apiServer
+                break
+            else:
+                success = False
+                err = 'translate request not ok; failing over: %s; %d; %s; %s' \
+                        % (apiServer, req.status_code, req.reason, req.text)
+                log(err)
+                ex = Exception(err)
+                success = False
 
         # These exceptions are the ones we've seen when the API server is
         # being flaky.
-        except (requests.ConnectionError, requests.Timeout) as e:
+        except (requests.ConnectionError, requests.Timeout) as ex:
             success = False
-            log('translate.py: API error; failing over: %s' % str(e))
-        except Exception as e:
-            log('translate.py: request error: %s' % str(e))
+            log('translate.py: API error; failing over: %s' % str(ex))
+        except Exception as ex:
+            # Unexpected error. Not going to fail over.
+            log('translate.py: request error: %s' % str(ex))
             raise
 
     if not success:
         # We failed over through all our servers with no luck. Re-raise the
         # last exception.
-        raise e
-
-    if not req.ok:
-        err = 'translate request not ok: %d; %s; %s' % (req.status_code,
-                                                        req.reason,
-                                                        req.text)
-        log(err)
-        raise Exception(err)
+        raise ex if ex else Exception('translation fail')
 
     return req.json()
