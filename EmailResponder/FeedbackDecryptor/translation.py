@@ -69,32 +69,32 @@ def translate(apiServers, apiKey, msg):
         message.
     '''
 
-    if not _languages:
-        _load_languages(apiServers, apiKey)
-
-    # Detect the language. We won't use the entire string, since we pay per
-    # character, and the #characters-to-accuracy curve is probably logarithmic.
-    # Note that truncating the request means we don't have to worry about the
-    # max request size yet.
-    detected = _make_request(apiServers, apiKey,
-                             'detect', {'q': msg[:200]})
-    from_lang = detected['data']['detections'][0][0]['language']
-
-    # 'zh-CN' will be returned as a detected language, but it is not in the
-    # _languages set. So we might need to massage the detected language.
-    if from_lang not in _languages:
-        from_lang = from_lang.split('-')[0]
-        if from_lang not in _languages:
-            # This probably means that the detection failed
-            return ('[INDETERMINATE]',
-                    'Language could not be determined',
-                    None)
-
-    if from_lang == _TARGET_LANGUAGE:
-        # msg is already in the target language
-        return (from_lang, _languages[from_lang], msg)
-
     try:
+        if not _languages:
+            _load_languages(apiServers, apiKey)
+
+        # Detect the language. We won't use the entire string, since we pay per
+        # character, and the #characters-to-accuracy curve is probably logarithmic.
+        # Note that truncating the request means we don't have to worry about the
+        # max request size yet.
+        detected = _make_request(apiServers, apiKey,
+                                 'detect', {'q': msg[:200]})
+        from_lang = detected['data']['detections'][0][0]['language']
+
+        # 'zh-CN' will be returned as a detected language, but it is not in the
+        # _languages set. So we might need to massage the detected language.
+        if from_lang not in _languages:
+            from_lang = from_lang.split('-')[0]
+            if from_lang not in _languages:
+                # This probably means that the detection failed
+                return ('[INDETERMINATE]',
+                        'Language could not be determined',
+                        None)
+
+        if from_lang == _TARGET_LANGUAGE:
+            # msg is already in the target language
+            return (from_lang, _languages[from_lang], msg)
+
         msg_translated = _translate_request_helper(apiServers, apiKey,
                                                    from_lang, msg)
         return (from_lang, _languages[from_lang], msg_translated)
