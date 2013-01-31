@@ -164,11 +164,11 @@
     </div>
 
     <br>
-
-    <div>
-      User email: ${feedback['email'] if feedback['email'] else '(not supplied)'}
-    </div>
   % endif
+
+  <div>
+    User email: ${feedback['email'] if feedback['email'] else '(not supplied)'}
+  </div>
 % endif
 
 % if feedback and feedback.get('Survey') and feedback['Survey'].get('results'):
