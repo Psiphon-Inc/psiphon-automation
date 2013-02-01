@@ -466,7 +466,7 @@ def install_host(host, servers, existing_server_ids):
     # Upload and install badvpn-udpgw
     #
 
-    ssh.exec_command('apt-get install cmake')
+    ssh.exec_command('apt-get install -y cmake')
     ssh.exec_command('rm -rf %(key)s; mkdir -p %(key)s' % {"key": psi_config.HOST_BADVPN_SRC_DIR})
     remote_badvpn_file_path = posixpath.join(psi_config.HOST_BADVPN_SRC_DIR, 'badvpn.tar.gz')
     ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', '3rdParty', 'badvpn.tar.gz'),
