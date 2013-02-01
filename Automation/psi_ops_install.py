@@ -463,6 +463,18 @@ def install_host(host, servers, existing_server_ids):
             %(psi_config.HOST_OSSH_SRC_DIR,))
 
     #
+    # Upload and install badvpn-udpgw
+    #
+
+    ssh.exec_command('apt-get install cmake')
+    ssh.exec_command('rm -rf %(key)s; mkdir -p %(key)s' % {"key": psi_config.HOST_BADVPN_SRC_DIR})
+    remote_badvpn_file_path = posixpath.join(psi_config.HOST_BADVPN_SRC_DIR, 'badvpn.tar.gz')
+    ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', '3rdParty', 'badvpn.tar.gz'),
+                 remote_badvpn_file_path)
+    ssh.exec_command('cd %s; tar xfz badvpn.tar.gz; mkdir build; cd build; cmake ../badvpn -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_NOTHING_BY_DEFAULT=1 -DBUILD_UDPGW=1 > /dev/null; make > /dev/null && make install > /dev/null' 
+            %(psi_config.HOST_BADVPN_SRC_DIR,))
+
+    #
     # Generate and upload sshd_config files and xinetd.conf
     #
 
@@ -561,6 +573,7 @@ def install_firewall_rules(host, servers):
     iptables_rules_path = '/etc/iptables.rules'
     iptables_rules_contents = '''
 *filter
+    -A INPUT -i lo -p tcp -m tcp --dport 7300 -j ACCEPT
     -A INPUT -i lo -p tcp -m tcp --dport 6379 -j ACCEPT
     -A INPUT -i lo -p tcp -m tcp --dport 6000 -j ACCEPT''' + ''.join(
     # tunneled web requests
@@ -609,9 +622,11 @@ def install_firewall_rules(host, servers):
     -A OUTPUT -d {0} -o lo -p tcp -m tcp --dport {1} -j ACCEPT
     -A OUTPUT -s {0} -o lo -p tcp -m tcp --sport {1} -j ACCEPT'''.format(
             str(s.internal_ip_address), str(s.web_server_port)) for s in servers]) + '''
+    -A OUTPUT -o lo -p tcp -m tcp --dport 7300 -j ACCEPT
     -A OUTPUT -o lo -p tcp -m tcp --dport 6379 -m owner --uid-owner root -j ACCEPT
     -A OUTPUT -o lo -p tcp -m tcp --dport 6000 -m owner --uid-owner root -j ACCEPT
     -A OUTPUT -o lo -p tcp -m tcp --dport 6379 -m owner --uid-owner www-data -j ACCEPT
+    -A OUTPUT -o lo -p tcp -m tcp --sport 7300 -j ACCEPT
     -A OUTPUT -o lo -p tcp -m tcp --sport 6379 -j ACCEPT
     -A OUTPUT -o lo -p tcp -m tcp --sport 6000 -j ACCEPT
     -A OUTPUT -o lo -j REJECT
