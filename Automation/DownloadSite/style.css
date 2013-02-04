@@ -54,11 +54,21 @@ pre.center {
   background-color:#EEEEEE;
 }
 
-.lang_selector > span.selectedlanguage {
+.lang_selector > .selectedlanguage {
   background-color: #BBBBBB;
 }
 
 .lang_selector a {
   text-decoration: none;
   color: #000000;
+}
+
+/*
+`:target` is a pseudo-selector that matches the page element with the ID
+that's the same as the current URL hash. So if the URL ends with "#rtl", then
+`:target` will match `<body id="rtl">`, and `body` will have the following
+style(s).
+*/
+:target {
+  direction: rtl;
 }

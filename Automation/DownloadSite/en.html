@@ -4,15 +4,8 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-
   <title>Psiphon 3 Download Page</title>
-
   <link rel="stylesheet" type="text/css" href="style.css">
-  <style type="text/css">
-  :target {
-    direction: rtl;
-  }
-  </style>
 </head>
 
 <body id="rtl">
@@ -481,20 +474,6 @@
   </div>
 
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
-  <script>
-  $(function() {
-      // In case the `:target` CSS pseudo-class isn't supported, we'll also set
-      // the text direction via JavaScript. (And we'll use `:target` in case JS
-      // isn't supported.)
-  if (window.location.hash === '#rtl') {
-    $('#rtl').css({direction: 'rtl'});
-  }
-
-      // Highlight the language picker of the language we're currently on.
-      var lang_file = window.location.pathname.split('/').pop();
-      var lang_link = $('.lang_selector').find('a[href^="' + lang_file + '"]');
-      lang_link.parent().addClass('selectedlanguage');
-    });
-  </script>
+  <script src="download.js"></script>
 </body>
 </html>
