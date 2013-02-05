@@ -20,6 +20,8 @@ import types
 import re
 import urllib
 
+import logger
+
 
 ###########################
 # Helpers primarily used in templates
@@ -115,6 +117,7 @@ def is_diagnostic_info_sane(obj):
                 }
 
     if not _check_exemplar(obj, exemplar):
+        logger.error('is_diagnostic_info_sane: exemplar fail')
         return False
 
     return True

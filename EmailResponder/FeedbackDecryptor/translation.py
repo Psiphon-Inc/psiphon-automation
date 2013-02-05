@@ -39,13 +39,8 @@ If you don't want any failover, just leave `apiServers` empty or None.
 
 import requests
 
-try:
-    import logger
-    log = logger.log
-except:
-    def _log(msg):
-        print(msg)
-    log = _log
+import logger
+
 
 # See https://developers.google.com/translate/v2/using_rest
 _MAX_GET_REQUEST_SIZE = 2000
@@ -219,7 +214,7 @@ def _make_request(apiServers, apiKey, action, params=None):
                 success = False
                 err = 'translate request not ok; failing over: %s; %d; %s; %s' \
                         % (apiServer, req.status_code, req.reason, req.text)
-                log(err)
+                logger.error(err)
                 ex = Exception(err)
                 success = False
 
@@ -227,10 +222,10 @@ def _make_request(apiServers, apiKey, action, params=None):
         # being flaky.
         except (requests.ConnectionError, requests.Timeout) as ex:
             success = False
-            log('translate.py: API error; failing over: %s' % str(ex))
+            logger.error('translate.py: API error; failing over: %s' % str(ex))
         except Exception as ex:
             # Unexpected error. Not going to fail over.
-            log('translate.py: request error: %s' % str(ex))
+            logger.error('translate.py: request error: %s' % str(ex))
             raise
 
     if not success:

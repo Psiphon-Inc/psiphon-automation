@@ -24,11 +24,19 @@ import sys
 import logging
 import logging.handlers
 
+import datastore
+
+
 _DEBUG = ('DEBUG' in os.environ) and os.environ['DEBUG']
 
 _my_logger = logging.getLogger('MyLogger')
 _my_logger.setLevel(logging.DEBUG if _DEBUG else logging.WARNING)
-_my_logger.addHandler(logging.handlers.SysLogHandler(address='/dev/log'))
+
+# syslog won't work on Windows
+try:
+    _my_logger.addHandler(logging.handlers.SysLogHandler(address='/dev/log'))
+except:
+    _my_logger.addHandler(logging.StreamHandler())
 
 # Before Python 3.3, there is no way to specify a "tag" or "ident" to syslog
 # entries. So we'll hack it in manually.
@@ -46,3 +54,12 @@ def log(s):
 
 def exception(s=''):
     _my_logger.exception('%s: %s' % (_main, s))
+
+
+def error(s):
+    '''
+    This function also write the message to the datastore, so that it will
+    show up in the daily stats email.
+    '''
+    log(s)
+    datastore.add_error(s)

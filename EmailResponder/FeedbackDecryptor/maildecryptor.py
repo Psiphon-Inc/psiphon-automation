@@ -143,7 +143,7 @@ def go():
                 utils.convert_psinet_values(config, diagnostic_info)
 
                 if not utils.is_diagnostic_info_sane(diagnostic_info):
-                    # Something is wrong. Delete and continue.
+                    # Something is wrong. Skip and continue.
                     continue
 
                 # Store the diagnostic info
@@ -165,13 +165,15 @@ def go():
                                 u'Re: %s' % (msg['subject'] or ''),
                                 'Decrypt failed: %s' % e,
                                 msg['msgobj']['Message-ID'])
-                except smtplib.SMTPException:
+                except smtplib.SMTPException as e:
                     # Something went wrong with the sending of the response. Log it.
                     logger.exception()
+                    logger.error(str(e))
 
-            except (ValueError, TypeError):
+            except (ValueError, TypeError) as e:
                 # Try the next attachment/message
                 logger.exception()
+                logger.error(str(e))
 
         if email_processed_successfully:
             break

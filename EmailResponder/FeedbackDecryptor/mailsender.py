@@ -78,7 +78,9 @@ def go():
 
         try:
             diagnostic_info_html = mailformatter.format(diagnostic_info)
-        except Exception:
+        except Exception as e:
+            logger.error('format failed: %s' % str(e))
+
             diagnostic_info_html = None
 
         # If we get to here, then we have a valid diagnostic email.
@@ -99,8 +101,9 @@ def go():
                         diagnostic_info_text,
                         diagnostic_info_html,
                         email_diagnostic_info.get('email_id'))  # may be None
-        except smtplib.SMTPException:
+        except smtplib.SMTPException as e:
             logger.exception()
+            logger.error(str(e))
 
         # Delete the processed record. (Note that sending the email might have
         # failed, but we're deleting it anyway. This is a debatable decision.)

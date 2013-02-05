@@ -45,7 +45,8 @@ _connection = MongoClient()
 _db = _connection.maildecryptor
 _diagnostic_info_store = _db.diagnostic_info
 _email_diagnostic_info_store = _db.email_diagnostic_info
-_stats = _db.stats
+_stats_store = _db.stats
+_errors_store = _db.stats
 
 
 def insert_diagnostic_info(obj):
@@ -90,11 +91,11 @@ def set_stats_last_send_time(timestamp):
     '''
     Sets the last send time to `timestamp`.
     '''
-    _stats.update({}, {'$set': {'last_send_time': timestamp}}, upsert=True)
+    _stats_store.update({}, {'$set': {'last_send_time': timestamp}}, upsert=True)
 
 
 def get_stats_last_send_time():
-    rec = _stats.find_one()
+    rec = _stats_store.find_one()
     return rec['last_send_time'] if rec else None
 
 
@@ -113,4 +114,9 @@ def get_stats(since_time):
         'now_timestamp': datetime.datetime.now(),
         'new_android_records': _diagnostic_info_store.find({'Metadata.platform': 'android', 'datetime': {'$gt': since_time}}).count(),
         'new_windows_records': _diagnostic_info_store.find({'Metadata.platform': 'windows', 'datetime': {'$gt': since_time}}).count(),
+        'new_errors': _errors_store.find({'datetime': {'$gt': since_time}}),
     }
+
+
+def add_error(error):
+    _errors_store.insert({'error': error, 'datetime': datetime.datetime.now()})

@@ -36,11 +36,13 @@ import datatransformer
 
 _SLEEP_TIME_SECS = 60
 _BUCKET_ITEM_MIN_SIZE = 100
-_BUCKET_ITEM_MAX_SIZE = (2 * 1024 * 1024)  # 2 MB
+_BUCKET_ITEM_MAX_SIZE = (500 * 1024)  # 500 KB
 
 
 def _is_bucket_item_sane(key):
     if key.size < _BUCKET_ITEM_MIN_SIZE or key.size > _BUCKET_ITEM_MAX_SIZE:
+        err = 's3decryptor: item not sane size: %d' % key.size
+        logger.error(err)
         return False
     return True
 
@@ -79,8 +81,7 @@ def go():
             utils.convert_psinet_values(config, diagnostic_info)
 
             if not utils.is_diagnostic_info_sane(diagnostic_info):
-                # Something is wrong. Delete and continue.
-                logger.log('non-sane object found')
+                # Something is wrong. Skip and continue.
                 continue
 
             # Modifies diagnostic_info
@@ -92,8 +93,9 @@ def go():
             # Record in the DB that the diagnostic info should be emailed
             datastore.insert_email_diagnostic_info(diagnostic_info['Metadata']['id'],
                                                    None, None)
-        except decryptor.DecryptorException:
+        except decryptor.DecryptorException as e:
             logger.exception()
+            logger.error(str(e))
             try:
                 # Something bad happened while decrypting. Report it via email.
                 sender.send(config['decryptedEmailRecipient'],
@@ -101,9 +103,11 @@ def go():
                             u'S3Decryptor: bad object',
                             encrypted_info_json,
                             None)  # no html body
-            except smtplib.SMTPException:
+            except smtplib.SMTPException as e:
                 logger.exception()
+                logger.error(str(e))
 
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as e:
             # Try the next attachment/message
             logger.exception()
+            logger.error(str(e))

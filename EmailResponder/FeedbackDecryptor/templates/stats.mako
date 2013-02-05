@@ -15,6 +15,10 @@
 ## along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 <style>
+  .timestamp {
+    font-size: 0.8em;
+    font-family: monospace;
+  }
 
 </style>
 
@@ -33,3 +37,18 @@
   <br>
   Last stats time: ${data['since_timestamp']}
 </p>
+
+<h2>New Errors</h2>
+
+<% no_errors = True %>
+% for err in data['new_errors']:
+  <% no_errors = False %>
+  <p>
+    <div class="timestamp">${err['datetime']}</div>
+    <div>${repr(err['error'])}</div>
+  </p>
+% endfor
+
+% if no_errors:
+  <p>None</p>
+% endif
