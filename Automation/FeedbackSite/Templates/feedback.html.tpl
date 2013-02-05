@@ -226,6 +226,23 @@ function setLanguage(langName)
     }}
   }});
   $('#language_selector').val(langName);
+
+  // NOTE: Link handlers need to be added every time the language changes
+  // because the links are inline in the translations.
+
+  // Freeform (text) feedback link clicked
+  $('#showTextFeedback').click(function(e) {{
+    e.preventDefault();
+    $('#questionnaireContent').hide();
+    $('#textFeedbackContent').show();
+    $('#text_feedback_textarea').focus();
+  }});
+
+  // Some of our links go to our download page. Switch to the correct language.
+  // No-op if it's a different kind of link.
+  $('a').click(function(e) {{
+    e.currentTarget.href = e.currentTarget.href.replace('/en.html', '/'+currentLangName+'.html');
+  }});
 }}
 
 
@@ -304,14 +321,6 @@ $(function() {{
     }}
   }});
 
-  // Freeform (text) feedback link clicked
-  $('#showTextFeedback').click(function(e) {{
-    e.preventDefault();
-    $('#questionnaireContent').hide();
-    $('#textFeedbackContent').show();
-    $('#text_feedback_textarea').focus();
-  }});
-
   // Freeform (text) feedback submit
   $('#text_feedback_submit').click(function(e) {{
     e.preventDefault();
@@ -332,12 +341,6 @@ $(function() {{
       $('input[name=formdata]').val(s);
       $('#feedback').submit();
     }}
-  }});
-
-  // Some of our links go to our download page. Switch to the correct language.
-  // No-op if it's a different kind of link.
-  $('a').click(function(e) {{
-    e.currentTarget.href = e.currentTarget.href.replace('/en.html', '/'+currentLangName+'.html');
   }});
 }});
 
