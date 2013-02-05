@@ -117,9 +117,18 @@ def get_stats(since_time):
 
         # WARNING: This is potentially unbounded. But using a generator seems
         # pointless because it needs to be reified for the email anyway.
-        'new_errors': [e for e in _errors_store.find({'datetime': {'$gt': since_time}})],
+        'new_errors': [_clean_record(e) for e in _errors_store.find({'datetime': {'$gt': since_time}})],
     }
 
 
 def add_error(error):
     _errors_store.insert({'error': error, 'datetime': datetime.datetime.now()})
+
+
+def _clean_record(rec):
+    '''
+    Remove the _id field. Both alters the `rec` param and returns it.
+    '''
+    if '_id' in rec:
+        del rec['_id']
+    return rec
