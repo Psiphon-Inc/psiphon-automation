@@ -62,4 +62,4 @@ def error(s):
     show up in the daily stats email.
     '''
     log(s)
-    datastore.add_error(s)
+    datastore.add_error({'module': _main, 'error': s})
