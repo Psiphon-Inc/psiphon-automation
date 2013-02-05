@@ -27,15 +27,19 @@ import logger
 # Helpers primarily used in templates
 ###########################
 
-# To be used to format datetimes
 def timestamp_display(timestamp):
+    '''
+    To be used to format datetimes
+    '''
     return '{:%Y-%m-%dT%H:%M:%S}.{:03}Z'.format(timestamp,
                                                 timestamp.microsecond / 1000)
 
 
-# Returns a tuple of (diff_float, diff_display_string). Arguments must be
-# datetimes. `last_timestamp` may be None.
 def get_timestamp_diff(last_timestamp, timestamp):
+    '''
+    Returns a tuple of (diff_float, diff_display_string). Arguments must be
+    datetimes. `last_timestamp` may be None.
+    '''
     timestamp_diff_secs = 0.0
     if last_timestamp:
         timestamp_diff_secs = (timestamp - last_timestamp).total_seconds()
@@ -45,6 +49,15 @@ def get_timestamp_diff(last_timestamp, timestamp):
 
 def urlencode(s):
     return urllib.quote_plus(s)
+
+
+def safe_str(ex):
+    '''
+    Intended primarily to be used with exceptions. Calling `str(ex)` (on
+    Linx) will throw an exception if the string representation of `ex` contains
+    Unicode. This function will safely give a UTF-8 representation.
+    '''
+    return unicode(ex).encode('utf8')
 
 
 ###########################

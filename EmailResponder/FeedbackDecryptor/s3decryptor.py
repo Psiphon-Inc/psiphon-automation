@@ -41,7 +41,7 @@ _BUCKET_ITEM_MAX_SIZE = (500 * 1024)  # 500 KB
 
 def _is_bucket_item_sane(key):
     if key.size < _BUCKET_ITEM_MIN_SIZE or key.size > _BUCKET_ITEM_MAX_SIZE:
-        err = 's3decryptor: item not sane size: %d' % key.size
+        err = 'item not sane size: %d' % key.size
         logger.error(err)
         return False
     return True

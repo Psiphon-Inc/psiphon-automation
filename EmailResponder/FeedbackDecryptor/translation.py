@@ -40,6 +40,7 @@ If you don't want any failover, just leave `apiServers` empty or None.
 import requests
 
 import logger
+import utils
 
 
 # See https://developers.google.com/translate/v2/using_rest
@@ -94,7 +95,7 @@ def translate(apiServers, apiKey, msg):
                                                    from_lang, msg)
         return (from_lang, _languages[from_lang], msg_translated)
     except Exception as e:
-        return ('[TRANSLATION_FAIL]', str(e), None)
+        return ('[TRANSLATION_FAIL]', utils.safe_str(e), None)
 
 
 def _load_languages(apiServers, apiKey):
@@ -222,10 +223,10 @@ def _make_request(apiServers, apiKey, action, params=None):
         # being flaky.
         except (requests.ConnectionError, requests.Timeout) as ex:
             success = False
-            logger.error('translate.py: API error; failing over: %s' % str(ex))
+            logger.error('translate.py: API error; failing over: %s' % utils.safe_str(ex))
         except Exception as ex:
             # Unexpected error. Not going to fail over.
-            logger.error('translate.py: request error: %s' % str(ex))
+            logger.error('translate.py: request error: %s' % utils.safe_str(ex))
             raise
 
     if not success:
