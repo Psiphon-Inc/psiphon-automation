@@ -184,6 +184,9 @@ def _make_request(apiServers, apiKey, action, params=None):
     params['key'] = apiKey
     params['target'] = _TARGET_LANGUAGE
 
+    # Without this, the input is assumed to be HTML and newlines get stripped.
+    params['format'] = 'text'
+
     # If `apiServers` is empty, we not doing failover.
     if not apiServers:
         apiServers = ['www.googleapis.com']
