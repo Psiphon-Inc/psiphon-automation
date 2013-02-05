@@ -114,7 +114,10 @@ def get_stats(since_time):
         'now_timestamp': datetime.datetime.now(),
         'new_android_records': _diagnostic_info_store.find({'Metadata.platform': 'android', 'datetime': {'$gt': since_time}}).count(),
         'new_windows_records': _diagnostic_info_store.find({'Metadata.platform': 'windows', 'datetime': {'$gt': since_time}}).count(),
-        'new_errors': _errors_store.find({'datetime': {'$gt': since_time}}),
+
+        # WARNING: This is potentially unbounded. But using a generator seems
+        # pointless because it needs to be reified for the email anyway.
+        'new_errors': [e for e in _errors_store.find({'datetime': {'$gt': since_time}})],
     }
 
 
