@@ -474,6 +474,12 @@ def install_host(host, servers, existing_server_ids):
     ssh.exec_command('cd %s; tar xfz badvpn.tar.gz; mkdir build; cd build; cmake ../badvpn -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_NOTHING_BY_DEFAULT=1 -DBUILD_UDPGW=1 > /dev/null; make > /dev/null && make install > /dev/null' 
             %(psi_config.HOST_BADVPN_SRC_DIR,))
 
+    remote_init_file_path = posixpath.join(psi_config.HOST_INIT_DIR, 'badvpn-udpgw')
+    ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', 'udpgw-init'),
+                 remote_init_file_path)
+    ssh.exec_command('chmod +x %s' % (remote_init_file_path,))
+    ssh.exec_command('update-rc.d %s defaults' % ('badvpn-udpgw',))
+
     #
     # Generate and upload sshd_config files and xinetd.conf
     #
