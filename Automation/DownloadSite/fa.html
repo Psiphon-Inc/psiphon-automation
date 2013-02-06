@@ -5,9 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>صفحه دانلود سایفون ۳</title>
 <link rel="stylesheet" type="text/css" href="style.css">
-<style type="text/css">:target {
-    direction: rtl;
-  }</style>
 </head>
 <body id="rtl">
   <div class="lang_selector">
@@ -184,7 +181,7 @@ SSH plus obfuscation, a randomized layer on top of SSH to avoid protocol finger 
 
   <p>کلیه آمارهای به اشتراک گذاشته شده با ضامنین بر مبنای تاریخ، ضامن و منطقه دسته بندی می گردند.</p>
 
-  <p>وقتی شما حاضر به فرستادن نظر خود از طریق سایفون میشوید، امکان فرستادن اطلاعات تشخیصی را نیز دارد. ما این اطلاعات را برای شناسایی و عیب زدایی مشکل شما استفاده میکنیم و به ما کمک میکند که سایفون بهترکارکند. فرستادن این اطلاعات کاملا اختیاری است. این اطلاعات به نسبت سیستم فرق میکنند ولی امکان دارد که شامل   این اطلاعات باشد:    </p>
+  <p>وقتی شما حاضر به فرستادن نظر خود از طریق سایفون میشوید، امکان فرستادن اطلاعات تشخیصی را نیز دارید. ما این اطلاعات را برای شناسایی و عیب زدایی مشکل شما استفاده میکنیم و به ما کمک میکند که سایفون بهترکارکند. فرستادن این اطلاعات کاملا اختیاری است. این اطلاعات رمز گذاری میشود و فقط به توسط ما قابل به رمز گشایی است و کسی دیگری به اطلاعات دسترسی نخواهد پیدا اکرد. این اطلاعات به نسبت سیستم فرق میکنند ولی امکان دارد که شامل این اطلاعات باشد:</p>
   <p>ویندوز </p>
 <ul>
 <li>نسخه سیستم عامل</li>
@@ -370,18 +367,6 @@ AutoProxy
     <p>روی کلید "اجرا" (run ) کلیک کنید و کلمه  Regedit را تایپ کنید تا یک ادیتور رجیستری باز شود.  "HKEY_CURRENT_USER\Software\Psiphon3" را پیدا و سپس باز کنید، و در سمت راست  "UserSkipProxySettings" را مشاهده می کنید.  ارزش آنرا ۱ قرار دهید و سایفون ۳ دیگر بطور اتوماتیک نمی تواند تنظیمات پراکسی را انجام دهد.</p>
   </div>
 
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script><script>$(function() {
-      // In case the `:target` CSS pseudo-class isn't supported, we'll also set
-      // the text direction via JavaScript. (And we'll use `:target` in case JS
-      // isn't supported.)
-  if (window.location.hash === '#rtl') {
-    $('#rtl').css({direction: 'rtl'});
-  }
-
-      // Highlight the language picker of the language we're currently on.
-      var lang_file = window.location.pathname.split('/').pop();
-      var lang_link = $('.lang_selector').find('a[href^="' + lang_file + '"]');
-      lang_link.parent().addClass('selectedlanguage');
-    });</script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script><script src="download.js"></script>
 </body>
 </html>

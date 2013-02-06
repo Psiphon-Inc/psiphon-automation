@@ -5,9 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Скачать Psiphon 3</title>
 <link rel="stylesheet" type="text/css" href="style.css">
-<style type="text/css">:target {
-    direction: rtl;
-  }</style>
 </head>
 <body id="rtl">
   <div class="lang_selector">
@@ -145,7 +142,7 @@
 
   <p>Вся статистика доступная для спонсоров далее агрегирована по дате, спонсору и региону.</p>
 
-  <p>При отсылке отзыва Вы можете выбрать хотите ли вы также переслать Ваши диагностические данные. Мы используем эти данные для решения проблем, которые могут возникать при использовании Psiphon.  </p>
+  <p>When you choose to submit feedback through Psiphon you will have the option of including diagnostic data. We use this data to help us troubleshoot any problems you might be having and to help us keep Psiphon running smoothly. Sending this data is entirely optional. The data is encrypted before you send it, and can only be decrypted by us. The information in the data varies by platform, but it may include:</p>
   <p>Windows:</p>
 <ul>
 <li>Версия операционной системы</li>
@@ -284,18 +281,6 @@
     <p>A: Нажмите Run и введите "regedit", чтобы открыть редактор реестра. Найдите и откройте "HKEY_CURRENT_USER \ Software \ Psiphon3" и вы увидите переменную "UserSkipProxySettings". Установите ее значение равным  1 и Psiphon 3 не станет изменять системные настройки прокси при последующих запусках.</p>
   </div>
 
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script><script>$(function() {
-      // In case the `:target` CSS pseudo-class isn't supported, we'll also set
-      // the text direction via JavaScript. (And we'll use `:target` in case JS
-      // isn't supported.)
-  if (window.location.hash === '#rtl') {
-    $('#rtl').css({direction: 'rtl'});
-  }
-
-      // Highlight the language picker of the language we're currently on.
-      var lang_file = window.location.pathname.split('/').pop();
-      var lang_link = $('.lang_selector').find('a[href^="' + lang_file + '"]');
-      lang_link.parent().addClass('selectedlanguage');
-    });</script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script><script src="download.js"></script>
 </body>
 </html>

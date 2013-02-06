@@ -21,11 +21,11 @@ fa:
   submit_button: ارسال
   text_feedback_submit: ارسال
   text_feedback_top_para_android: |
-    اگر سوال های دیگری دارید یا اطلاعاتی در مورد سایت هایی که کار نمیکند و یا اگر این فرم براتون کار نمیکند به feedback@psiphon.ca ایمیل بزنید. لطفآ در خاطر داشته باشد که مقداری اطلاعات تشخیصی پیوست میشود ولی این اطلاعات هوویت شما را آشکار نمیکند و فقط به ما کمک میکند که سایفون را بهتر کار کند. <a href="https://s3.amazonaws.com/0ubz-2q11-gi9y/en.html#what_user_information_does_psiphon_3_collect"> اینجا کلیک کنید تا ببینید که اطلاعاتی را ما جمع میکنیم. </a>
+    اگر سوال های دیگری دارید یا اطلاعاتی در مورد سایت هایی که کار نمیکند و یا اگر این فرم براتون کار نمیکند به <a href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a> ایمیل بزنید. لطفآ در خاطر داشته باشد که مقداری اطلاعات تشخیصی پیوست میشود ولی این اطلاعات هوویت شما را آشکار نمیکند و فقط به ما کمک میکند که سایفون را بهتر کار کند. <a href="https://s3.amazonaws.com/0ubz-2q11-gi9y/en.html#what_user_information_does_psiphon_3_collect"> اینجا کلیک کنید تا ببینید که اطلاعاتی را ما جمع میکنیم. </a>
   text_feedback_top_para_windows: |
     اگر سوال های دیگری دارید یا اطلاعاتی در مورد سایت هایی که کار نمیکنند، فرم زیر را پر کنید:
   text_feedback_bottom_para_windows: |
-    اگر فرم بالا کار نمیکند و میخواهید برای ما عکس از صفحتون بفرستید به آدرس feedback@psiphon.ca ایمیل بزنید.
+    اگر فرم بالا کار نمیکند و میخواهید برای ما عکس از صفحتون بفرستید به آدرس <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a> ایمیل بزنید.
   text_feedback_email_prompt: |
     اگر میخواهید که ما به شما جواب بدیم، لطفآ ایمیل خود را اینجا وارد کنید:
   text_feedback_diagnostic_check: |

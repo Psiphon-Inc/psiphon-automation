@@ -5,9 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Psiphon 3 göçürip alyş sahypasy</title>
 <link rel="stylesheet" type="text/css" href="style.css">
-<style type="text/css">:target {
-    direction: rtl;
-  }</style>
 </head>
 <body id="rtl">
   <div class="lang_selector">
@@ -144,7 +141,7 @@
 
   <p>Hemaýatkärler bilen paýlaşylýan ähli statistikalar senä, hemaýatkäre we sebite görä-de jemlenýär.</p>
 
-  <p>When you choose to submit feedback through Psiphon you will have the option of including diagnostic data. We use this data to help us troubleshoot any problems you might be having and to help us keep Psiphon running smoothly. Sending this data is entirely optional. The information in the data varies by platform, but it may include:</p>
+  <p>When you choose to submit feedback through Psiphon you will have the option of including diagnostic data. We use this data to help us troubleshoot any problems you might be having and to help us keep Psiphon running smoothly. Sending this data is entirely optional. The data is encrypted before you send it, and can only be decrypted by us. The information in the data varies by platform, but it may include:</p>
   <p>Windows:</p>
 <ul>
 <li>Operating system version</li>
@@ -283,18 +280,6 @@
     <p>J: "Işlet"- basyň, Hasaba alyş redaktirleýjisini açmak üçin "regedit" diýip ýazyň. "HKEY_CURRENT_USER\Software\Psiphon3" tapyň we açyň, sag tarapda "UserSkipProxySettings" görersiňiz. Şu bahany 1 edip sazlaň, onsoň Psiphon 3 ulgamyň proksi sazlamalaryny awtomatiki düzmez.</p>
   </div>
 
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script><script>$(function() {
-      // In case the `:target` CSS pseudo-class isn't supported, we'll also set
-      // the text direction via JavaScript. (And we'll use `:target` in case JS
-      // isn't supported.)
-  if (window.location.hash === '#rtl') {
-    $('#rtl').css({direction: 'rtl'});
-  }
-
-      // Highlight the language picker of the language we're currently on.
-      var lang_file = window.location.pathname.split('/').pop();
-      var lang_link = $('.lang_selector').find('a[href^="' + lang_file + '"]');
-      lang_link.parent().addClass('selectedlanguage');
-    });</script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script><script src="download.js"></script>
 </body>
 </html>

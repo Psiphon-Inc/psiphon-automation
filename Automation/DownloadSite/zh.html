@@ -5,9 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Psiphon 3下载页面</title>
 <link rel="stylesheet" type="text/css" href="style.css">
-<style type="text/css">:target {
-    direction: rtl;
-  }</style>
 </head>
 <body id="rtl">
   <div class="lang_selector">
@@ -144,7 +141,7 @@
 
   <p>所有的统计共享与赞助商将会汇总由日期，赞助商，和地区。</p>
 
-  <p>当您选择提交反馈通过赛风时您将有选项的包括诊断数据。我们使用此数据来帮助我们解决您可能遇到的任何问题，并帮助我们保持赛风平稳运行。请注意发送此数据是完全可选的。数据中的信息是不同的，因为不同平台，但它可能包括：</p>
+  <p>When you choose to submit feedback through Psiphon you will have the option of including diagnostic data. We use this data to help us troubleshoot any problems you might be having and to help us keep Psiphon running smoothly. Sending this data is entirely optional. The data is encrypted before you send it, and can only be decrypted by us. The information in the data varies by platform, but it may include:</p>
   <p>视窗：</p>
 <ul>
 <li>操作系统版本</li>
@@ -283,18 +280,6 @@
     <p>A: 点击运行，输入 "regedit" 打开注册表。找到和打开 "HKEY_CURRENT_USER\Software\Psiphon3"，在右面会看到 "UserSkipProxySettings"。将其值设置为1，并Psiphon 3不会自动配置系统代理设置。</p>
   </div>
 
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script><script>$(function() {
-      // In case the `:target` CSS pseudo-class isn't supported, we'll also set
-      // the text direction via JavaScript. (And we'll use `:target` in case JS
-      // isn't supported.)
-  if (window.location.hash === '#rtl') {
-    $('#rtl').css({direction: 'rtl'});
-  }
-
-      // Highlight the language picker of the language we're currently on.
-      var lang_file = window.location.pathname.split('/').pop();
-      var lang_link = $('.lang_selector').find('a[href^="' + lang_file + '"]');
-      lang_link.parent().addClass('selectedlanguage');
-    });</script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script><script src="download.js"></script>
 </body>
 </html>
