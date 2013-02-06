@@ -24,6 +24,7 @@ Pulls and massages our translations from Transifex.
 import shutil
 import json
 from collections import Set, Sequence
+import codecs
 import requests
 
 import psi_feedback_templates
@@ -46,8 +47,9 @@ def process_android_app_strings():
              'vi': 'vi', 'zh': 'zh'}
     process_resource('android-app-strings',
                      lambda lang: '../Android/PsiphonAndroid/res/values-%s/strings.xml' % lang,
-                     False,
-                     langs)
+                     None,
+                     bom=False,
+                     langs=langs)
 
 
 def process_android_library_strings():
@@ -55,8 +57,9 @@ def process_android_library_strings():
              'vi': 'vi', 'zh': 'zh'}
     process_resource('android-library-strings',
                      lambda lang: '../Android/PsiphonAndroidLibrary/res/values-%s/strings.xml' % lang,
-                     False,
-                     langs)
+                     None,
+                     bom=False,
+                     langs=langs)
 
 
 def process_android_app_browser_strings():
@@ -64,26 +67,30 @@ def process_android_app_browser_strings():
              'vi': 'vi', 'zh': 'zh'}
     process_resource('android-app-browser-strings',
                      lambda lang: '../Android/zirco-browser/res/values-%s/strings.xml' % lang,
-                     False,
-                     langs)
+                     None,
+                     bom=False,
+                     langs=langs)
 
 
 def process_user_documentation():
     process_resource('user-documentation',
                      lambda lang: './DownloadSite/%s.html' % lang,
-                     False)
+                     html_doctype_add,
+                     bom=True)
 
 
 def process_email_template_strings():
     process_resource('email-template-strings',
                      lambda lang: './TemplateStrings/%s.yaml' % lang,
-                     True)
+                     yaml_lang_change,
+                     bom=False)
 
 
 def process_feedback_template_strings():
     process_resource('feedback-template-strings',
                      lambda lang: './FeedbackSite/Templates/%s.yaml' % lang,
-                     True)
+                     yaml_lang_change,
+                     bom=False)
 
     # Regenerate the HTML file
     psi_feedback_templates.make_feedback_html()
@@ -95,9 +102,12 @@ def process_feedback_template_strings():
                  '../Android/PsiphonAndroid/assets/feedback.html')
 
 
-def process_resource(resource, output_path_fn, is_yaml, langs=None):
+def process_resource(resource, output_path_fn, output_mutator_fn, bom, langs=None):
     '''
-    `output_path_fn` must be a callable. It will be passed the language code.
+    `output_path_fn` must be callable. It will be passed the language code and
+    must return the path+filename to write to.
+    `output_mutator_fn` must be callable. It will be passed the output and the
+    current language code. May be None.
     '''
     if not langs:
         langs = {'ar': 'ar', 'az': 'az', 'es': 'es', 'fa': 'fa', 'kk': 'kk',
@@ -115,17 +125,23 @@ def process_resource(resource, output_path_fn, is_yaml, langs=None):
             out_lang = [out_lang]
 
         for out_lang_entry in out_lang:
-            if is_yaml:
+            if output_mutator_fn:
                 # Transifex doesn't support the special character-type
                 # modifiers we need for some languages,
                 # like 'ug' -> 'ug@Latn'. So we'll need to hack in the
                 # character-type info.
-                content = yaml_lang_change(r['content'], out_lang_entry)
+                content = output_mutator_fn(r['content'], out_lang_entry)
             else:
                 content = r['content']
 
-            with open(output_path_fn(out_lang_entry), 'w') as f:
-                f.write(content.encode('utf-8'))
+            # Make line endings consistently Unix-y.
+            content = content.replace('\r\n', '\n')
+
+            output_path = output_path_fn(out_lang_entry)
+            with codecs.open(output_path, 'w', 'utf-8') as f:
+                if bom:
+                    f.write(u'\uFEFF')
+                f.write(content)
 
 
 def check_resource_list():
@@ -150,6 +166,10 @@ def yaml_lang_change(in_yaml, to_lang):
     return to_lang + in_yaml[in_yaml.find(':'):]
 
 
+def html_doctype_add(in_html, to_lang):
+    return '<!DOCTYPE html>\n' + in_html
+
+
 def is_arrayish(obj):
     string_types = (str, unicode) if str is bytes else (str, bytes)
     return isinstance(obj, (Sequence, Set)) \
@@ -162,14 +182,14 @@ def go():
     else:
         raise Exception('Known and available resources do not match')
 
+    process_user_documentation()
+    print('process_user_documentation: DONE')
+
     process_feedback_template_strings()
     print('process_feedback_template_strings: DONE')
 
     process_email_template_strings()
     print('process_email_template_strings: DONE')
-
-    process_user_documentation()
-    print('process_user_documentation: DONE')
 
     process_android_app_strings()
     print('process_android_app_strings: DONE')
