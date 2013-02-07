@@ -46,7 +46,7 @@ _db = _connection.maildecryptor
 _diagnostic_info_store = _db.diagnostic_info
 _email_diagnostic_info_store = _db.email_diagnostic_info
 _stats_store = _db.stats
-_errors_store = _db.stats
+_errors_store = _db.errors
 
 
 def insert_diagnostic_info(obj):
