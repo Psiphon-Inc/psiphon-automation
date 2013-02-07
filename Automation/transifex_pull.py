@@ -21,9 +21,9 @@
 Pulls and massages our translations from Transifex.
 '''
 
+import os
 import shutil
 import json
-from collections import Set, Sequence
 import codecs
 import requests
 
@@ -114,34 +114,35 @@ def process_resource(resource, output_path_fn, output_mutator_fn, bom, langs=Non
                  'ru': 'ru', 'th': 'th', 'tk': 'tk', 'vi': 'vi', 'zh': 'zh',
                  'ug': 'ug@Latn'}
 
-        # TODO: Mapping the same thing to different character sets makes no
-        # sense. This needs to get sorted out in the near future.
-        langs['uz'] = ('uz@Latn', 'uz@cyrillic')
+        # Transifex does not support multiple character sets for Uzbek, but
+        # Psiphon supports both uz@Latn and uz@cyrillic. So we're going to
+        # use "Uzbek" ("uz") for uz@Latn and "Klingon" ("tlh") for uz@cyrillic.
+        # We opened an issue with Transifex about this, but it hasn't been
+        # rectified yet:
+        # https://getsatisfaction.com/indifex/topics/uzbek_cyrillic_language
+        langs['uz'] = 'uz@Latn'
+        langs['tlh'] = 'uz@cyrillic'
 
     for in_lang, out_lang in langs.items():
         r = request('resource/%s/translation/%s' % (resource, in_lang))
 
-        if not is_arrayish(out_lang):
-            out_lang = [out_lang]
+        if output_mutator_fn:
+            # Transifex doesn't support the special character-type
+            # modifiers we need for some languages,
+            # like 'ug' -> 'ug@Latn'. So we'll need to hack in the
+            # character-type info.
+            content = output_mutator_fn(r['content'], out_lang)
+        else:
+            content = r['content']
 
-        for out_lang_entry in out_lang:
-            if output_mutator_fn:
-                # Transifex doesn't support the special character-type
-                # modifiers we need for some languages,
-                # like 'ug' -> 'ug@Latn'. So we'll need to hack in the
-                # character-type info.
-                content = output_mutator_fn(r['content'], out_lang_entry)
-            else:
-                content = r['content']
+        # Make line endings consistently Unix-y.
+        content = content.replace('\r\n', '\n')
 
-            # Make line endings consistently Unix-y.
-            content = content.replace('\r\n', '\n')
-
-            output_path = output_path_fn(out_lang_entry)
-            with codecs.open(output_path, 'w', 'utf-8') as f:
-                if bom:
-                    f.write(u'\uFEFF')
-                f.write(content)
+        output_path = output_path_fn(out_lang)
+        with codecs.open(output_path, 'w', 'utf-8') as f:
+            if bom:
+                f.write(u'\uFEFF')
+            f.write(content)
 
 
 def check_resource_list():
@@ -170,12 +171,6 @@ def html_doctype_add(in_html, to_lang):
     return '<!DOCTYPE html>\n' + in_html
 
 
-def is_arrayish(obj):
-    string_types = (str, unicode) if str is bytes else (str, bytes)
-    return isinstance(obj, (Sequence, Set)) \
-           and not isinstance(obj, string_types)
-
-
 def go():
     if check_resource_list():
         print('Known and available resources match')
@@ -202,6 +197,9 @@ def go():
 
 
 if __name__ == '__main__':
-    print('NOTE: must be executed from Automation directory')
+    if os.getcwd().split(os.path.sep)[-1] != 'Automation':
+        raise Exception('Must be executed from Automation directory!')
+
     go()
+
     print('FINISHED')
