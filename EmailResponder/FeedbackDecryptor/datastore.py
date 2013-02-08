@@ -36,6 +36,7 @@ There are currently three tables in our Mongo DB:
 
 import datetime
 from pymongo import MongoClient
+import numpy
 
 
 _EXPIRY_MINUTES = 360
@@ -114,6 +115,7 @@ def get_stats(since_time):
         'now_timestamp': datetime.datetime.now(),
         'new_android_records': _diagnostic_info_store.find({'Metadata.platform': 'android', 'datetime': {'$gt': since_time}}).count(),
         'new_windows_records': _diagnostic_info_store.find({'Metadata.platform': 'windows', 'datetime': {'$gt': since_time}}).count(),
+        'response_stats': _get_response_stats(since_time),
 
         # WARNING: This is potentially unbounded. But using a generator seems
         # pointless because it needs to be reified for the email anyway.
@@ -132,3 +134,88 @@ def _clean_record(rec):
     if '_id' in rec:
         del rec['_id']
     return rec
+
+
+def _get_response_stats(since_time):
+    allResponseChecks = {}
+
+    #
+    # Different platforms and versions have different structures
+    #
+
+    cur = _diagnostic_info_store.find({'Metadata.platform': 'android',
+                                       'Metadata.version': 1,
+                                       'datetime': {'$gt': since_time}})
+    for rec in cur:
+        propChannelID = rec.get('SystemInformation', {})\
+                           .get('psiphonEmbeddedValues', {})\
+                           .get('PROPAGATION_CHANNEL_ID')
+        sponsorID = rec.get('SystemInformation', {})\
+                       .get('psiphonEmbeddedValues', {})\
+                       .get('SPONSOR_ID')
+
+        if not propChannelID or not sponsorID:
+            continue
+
+        responseChecks = [r['data'] for r in rec.get('DiagnosticHistory', [])
+                          if r.get('msg') == 'ServerResponseCheck'
+                             and r.get('data').get('responded') and r.get('data').get('responseTime')]
+
+        for r in responseChecks:
+            if type(r['responded']) in (str, unicode):
+                r['responded'] = (r['responded'] == 'Yes')
+            if type(r['responseTime']) in (str, unicode):
+                r['responseTime'] = int(r['responseTime'])
+
+        if ('android', propChannelID, sponsorID) not in allResponseChecks:
+            allResponseChecks[('android', propChannelID, sponsorID)] = []
+
+        allResponseChecks[('android', propChannelID, sponsorID)].extend(responseChecks)
+
+    # The structure got more standardized around here.
+    for platform, version in (('android', 2), ('windows', 1)):
+        cur = _diagnostic_info_store.find({'Metadata.platform': platform,
+                                           'Metadata.version': version,
+                                           'datetime': {'$gt': since_time}})
+        for rec in cur:
+            propChannelID = rec.get('DiagnosticInfo', {})\
+                               .get('SystemInformation', {})\
+                               .get('PsiphonInfo', {})\
+                               .get('PROPAGATION_CHANNEL_ID')
+            sponsorID = rec.get('DiagnosticInfo', {})\
+                           .get('SystemInformation', {})\
+                               .get('PsiphonInfo', {})\
+                           .get('SPONSOR_ID')
+
+            if not propChannelID or not sponsorID:
+                continue
+
+            responseChecks = (r['data'] for r in rec.get('DiagnosticInfo', {}).get('DiagnosticHistory', [])
+                              if r.get('msg') == 'ServerResponseCheck'
+                                 and r.get('data').get('responded') and r.get('data').get('responseTime'))
+
+            if (platform, propChannelID, sponsorID) not in allResponseChecks:
+                allResponseChecks[(platform, propChannelID, sponsorID)] = []
+
+            allResponseChecks[(platform, propChannelID, sponsorID)].extend(responseChecks)
+
+    responseStats = []
+    for resultParams, results in allResponseChecks.iteritems():
+        responseTimes = [r['responseTime'] for r in results if r['responded']]
+        mean = numpy.mean(responseTimes) if len(responseTimes) else None
+        median = numpy.median(responseTimes) if len(responseTimes) else None
+        stddev = numpy.std(responseTimes) if len(responseTimes) else None
+        failrate = float(len(results) - len(responseTimes)) / len(results) if len(results) else 1.0
+
+        responseStats.append({
+                              'platform': resultParams[0],
+                              'propagation_channel_id': resultParams[1],
+                              'sponsor_id': resultParams[2],
+                              'mean': mean,
+                              'median': median,
+                              'stddev': stddev,
+                              'failrate': failrate,
+                              'count': len(results),
+                              })
+
+    return responseStats
