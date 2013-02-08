@@ -108,7 +108,6 @@ data['response_stats'] = sorted(data['response_stats'], key=itemgetter('sponsor_
 
 prev_sponsor_id = None
 prev_propagation_channel_id = None
-prev_platform = None
 
 def ff(f):
   if f is None:
@@ -128,8 +127,8 @@ def ff(f):
     % for r in data['response_stats']:
       <tr>
         <td>${r['sponsor_id'] if r['sponsor_id'] != prev_sponsor_id else ''}</td>
-        <td>${r['propagation_channel_id'] if r['propagation_channel_id'] != prev_sponsor_id else ''}</td>
-        <td>${r['platform'] if r['platform'] != prev_sponsor_id else ''}</td>
+        <td>${r['propagation_channel_id'] if r['propagation_channel_id'] != prev_propagation_channel_id else ''}</td>
+        <td>${r['platform']}</td>
 
         <td class="numcompare">${ff(r['median'])}</td>
         <td class="numcompare">${ff(r['mean'])}</td>
@@ -141,7 +140,6 @@ def ff(f):
         <%
           prev_sponsor_id = r['sponsor_id']
           prev_propagation_channel_id = r['propagation_channel_id']
-          prev_platform = r['platform']
         %>
     % endfor
   </tbody>
