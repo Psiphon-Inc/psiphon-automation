@@ -202,9 +202,9 @@ def _get_response_stats(since_time):
     responseStats = []
     for resultParams, results in allResponseChecks.iteritems():
         responseTimes = [r['responseTime'] for r in results if r['responded']]
-        mean = numpy.mean(responseTimes) if len(responseTimes) else None
-        median = numpy.median(responseTimes) if len(responseTimes) else None
-        stddev = numpy.std(responseTimes) if len(responseTimes) else None
+        mean = float(numpy.mean(responseTimes)) if len(responseTimes) else None
+        median = float(numpy.median(responseTimes)) if len(responseTimes) else None
+        stddev = float(numpy.std(responseTimes)) if len(responseTimes) else None
         failrate = float(len(results) - len(responseTimes)) / len(results) if len(results) else 1.0
 
         responseStats.append({
