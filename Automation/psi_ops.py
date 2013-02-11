@@ -1370,6 +1370,43 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         self.__client_versions[platform][-1].version if self.__client_versions[platform] else 0,
                         test) for platform in platforms]
 
+    def build_android_library(
+            self,
+            propagation_channel_name,
+            sponsor_name):
+            
+        propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
+        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        
+        campaigns = filter(lambda x: x.propagation_channel_id == propagation_channel.id, sponsor.campaigns)
+        assert campaigns
+        
+        encoded_server_list, _ = \
+                    self.__get_encoded_server_list(propagation_channel.id)
+
+        remote_server_list_signature_public_key = \
+            psi_ops_crypto_tools.get_base64_der_public_key(
+                self.__get_remote_server_list_signing_key_pair().pem_key_pair,
+                REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD)
+
+        feedback_encryption_public_key = \
+            psi_ops_crypto_tools.get_base64_der_public_key(
+                self.get_feedback_encryption_key_pair().pem_key_pair,
+                self.get_feedback_encryption_key_pair().password)
+
+        remote_server_list_url = psi_ops_s3.get_s3_bucket_remote_server_list_url(campaigns[0].s3_bucket_name)
+        info_link_url = psi_ops_s3.get_s3_bucket_home_page_url(campaigns[0].s3_bucket_name)
+
+        return psi_ops_build_android.build_library(
+                        propagation_channel.id,
+                        sponsor.id,
+                        encoded_server_list,
+                        remote_server_list_signature_public_key,
+                        feedback_encryption_public_key,
+                        remote_server_list_url,
+                        info_link_url,
+                        self.__client_versions[CLIENT_PLATFORM_ANDROID][-1].version if self.__client_versions[CLIENT_PLATFORM_ANDROID] else 0)
+
     def deploy(self):
         # Deploy as required:
         #
