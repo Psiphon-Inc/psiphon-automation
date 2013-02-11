@@ -16,8 +16,9 @@
 
 
 from base64 import b64decode
-import cStringIO
 import M2Crypto
+
+from config import config
 
 
 '''
@@ -29,13 +30,19 @@ sending.
 class DecryptorException(Exception):
     pass
 
+_private_key_pem = None
 
-def decrypt(private_key_pem, key_password, data):
+
+def decrypt(data):
     '''
     `data` is a dict containing the object given in the diagnostic feedback
     attachment. The decrypted content string is returned. A DecryptorException
     is thrown in case of error.
     '''
+
+    global _private_key_pem
+    if not _private_key_pem:
+        _private_key_pem = open(config['privateKeyPemFile'], 'r').read()
 
     ciphertext = b64decode(data['contentCiphertext'])
     iv = b64decode(data['iv'])
@@ -45,7 +52,8 @@ def decrypt(private_key_pem, key_password, data):
     # We need to explicitly call `str()` on the password, because if it has
     # been extracted from a JSON config file it will be of type `unicode`
     # which will cause a key unwrap error ("bad password read").
-    rsaPrivKey = M2Crypto.RSA.load_key_string(private_key_pem, lambda _: str(key_password))
+    rsaPrivKey = M2Crypto.RSA.load_key_string(_private_key_pem,
+                                              lambda _: str(config['privateKeyPassword']))
 
     # Unwrap the MAC key
     try:

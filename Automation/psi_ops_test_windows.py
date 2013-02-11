@@ -104,7 +104,7 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
     # in the registry setting to control which transport is used.
     if transport == 'OSSH':
         transport = 'SSH+'
-        
+
     # Split tunnelling is not implemented for VPN.
     # Also, if there is no remote check, don't use split tunnel mode because we always want
     # to test at least one proxied case.
@@ -126,11 +126,11 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
         split_tunnel_value, split_tunnel_type = _winreg.QueryValueEx(reg_key, REGISTRY_SPLIT_TUNNEL_VALUE)
         # Enable split tunnel with registry setting
         _winreg.SetValueEx(reg_key, REGISTRY_SPLIT_TUNNEL_VALUE, None, _winreg.REG_DWORD, 1 if split_tunnel_mode else 0)
-        
+
         proc = subprocess.Popen([executable_path])
-        
+
         time.sleep(15)
-    
+
         # In VPN mode, all traffic is routed through the proxy. In SSH mode, the
         # urlib2 ProxyHandler picks up the Windows Internet Settings and uses the
         # HTTP Proxy that is set by the client.
@@ -138,11 +138,11 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
 
         if has_local_check:
             # Get egress IP from web site in same GeoIP region; local split tunnel is not proxied
-    
+
             egress_ip_address = urllib2.urlopen(CHECK_IP_ADDRESS_URL_LOCAL, timeout=30).read().split('\n')[0]
 
             is_proxied = (egress_ip_address in expected_egress_ip_addresses)
-    
+
             if (transport == 'VPN' or not split_tunnel_mode) and not is_proxied:
                 raise Exception('Local case/VPN/not split tunnel: egress is %s and expected egresses are %s' % (
                                     egress_ip_address, ','.join(expected_egress_ip_addresses)))
@@ -150,18 +150,18 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
             if transport != 'VPN' and split_tunnel_mode and is_proxied:
                 raise Exception('Local case/not VPN/split tunnel: egress is %s and expected egresses are ANYTHING OTHER THAN %s' % (
                                     egress_ip_address, ','.join(expected_egress_ip_addresses)))
-    
+
         if has_remote_check:
             # Get egress IP from web site in different GeoIP region; remote split tunnel is proxied
 
             egress_ip_address = urllib2.urlopen(CHECK_IP_ADDRESS_URL_REMOTE, timeout=30).read().split('\n')[0]
-    
+
             is_proxied = (egress_ip_address in expected_egress_ip_addresses)
 
             if not is_proxied:
                 raise Exception('Remote case: egress is %s and expected egresses are %s' % (
                                     egress_ip_address, ','.join(expected_egress_ip_addresses)))
-        
+
     finally:
         if transport_type and transport_value:
             _winreg.SetValueEx(reg_key, REGISTRY_TRANSPORT_VALUE, None, transport_type, transport_value)
@@ -173,7 +173,7 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
             print e
         if proc:
             proc.wait()
-            
+
 
 def test_server(ip_address, capabilities, web_server_port, web_server_secret, encoded_server_list, version,
                 expected_egress_ip_addresses, test_propagation_channel_id = '0', test_cases = None):
@@ -214,8 +214,11 @@ def test_server(ip_address, capabilities, web_server_port, web_server_secret, en
                                     None,       # banner
                                     encoded_server_list,
                                     '',         # remote_server_list_signature_public_key
-                                    '',         # feedback_encryption_public_key
                                     ('','',''), # remote_server_list_url
+                                    '',         # feedback_encryption_public_key
+                                    '',         # feedback_upload_server
+                                    '',         # feedback_upload_path
+                                    '',         # feedback_upload_server_headers
                                     '',   # info_link_url
                                     version,
                                     True)
@@ -224,5 +227,5 @@ def test_server(ip_address, capabilities, web_server_port, web_server_secret, en
                 results[test_case] = 'PASS'
             except Exception as ex:
                 results[test_case] = 'FAIL: ' + str(ex)
-    
+
     return results
