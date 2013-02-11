@@ -1114,6 +1114,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 ossh_ports.remove(137)
                 ossh_ports.remove(138)
                 ossh_ports.remove(139)
+                ossh_ports.remove(515)
                 ossh_port = random.choice(ossh_ports)
 
             server = Server(
