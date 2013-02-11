@@ -64,8 +64,8 @@ class EmailGetter():
             # ('+OK 6 messages (21331 bytes)',
             #  ['1 8170', '2 3462', '3 2470', '4 2514', '5 1408', '6 3307'],
             #  56)
-            # The message "IDs" are really just a 1-based index, but we'll treat
-            # them as if they're special.
+            # The message "IDs" are really just 1-based indexes, but we'll
+            # treat them as if they're special.
             msg_list = [i.split()[0] for i in self._mailbox.list()[1]]
 
             # Are the any message available to process?
@@ -82,7 +82,6 @@ class EmailGetter():
                 print('emailgetter: got %d messages' % len(msg_list))
 
             try:
-                # Message use a 1-based
                 for msg_id in msg_list:
                     # popmail.retr() returns a tuple that looks like this:
                     # ('+OK message follows',
@@ -104,5 +103,4 @@ class EmailGetter():
                 # Note that this means we might miss a message -- but this is
                 # most likely when parsing a message results in an exception,
                 # and in that case we *want* to skip it.
-
                 self._disconnect()

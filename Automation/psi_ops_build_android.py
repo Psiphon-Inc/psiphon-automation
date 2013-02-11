@@ -150,8 +150,11 @@ def build_client(
         banner,
         encoded_server_list,
         remote_server_list_signature_public_key,
-        feedback_encryption_public_key,
         remote_server_list_url,
+        feedback_encryption_public_key,
+        feedback_upload_server,          # unused by Android
+        feedback_upload_path,            # unused by Android
+        feedback_upload_server_headers,  # unused by Android
         info_link_url,
         version,
         test=False):
@@ -210,7 +213,7 @@ def build_client(
     finally:
         backup.restore_all()
 
-        
+
 def build_library(
         propagation_channel_id,
         sponsor_id,
@@ -237,7 +240,7 @@ def build_library(
             info_link_url)
 
         # TODO: clean the PSIPHON_LIB_SOURCE_ROOT directory of files that are not from source control
-        
+
         # create the jar
         os.system('jar -cf %s -C %s .' % (LIB_FILENAME, PSIPHON_LIB_SOURCE_ROOT))
 
@@ -260,4 +263,3 @@ def build_library(
 
     finally:
         backup.restore_all()
-        

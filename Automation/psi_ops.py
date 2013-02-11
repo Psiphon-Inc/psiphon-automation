@@ -227,6 +227,10 @@ FeedbackEncryptionKeyPair = psi_utils.recordtype(
     'FeedbackEncryptionKeyPair',
     'pem_key_pair, password')
 
+FeedbackUploadInfo = psi_utils.recordtype(
+    'FeedbackUploadInfo',
+    'upload_server, upload_path, upload_server_headers')
+
 CLIENT_PLATFORM_WINDOWS = 'Windows'
 CLIENT_PLATFORM_ANDROID = 'Android'
 
@@ -269,8 +273,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__speed_test_urls = []
         self.__remote_server_list_signing_key_pair = None
         self.__feedback_encryption_signing_key_pair = None
+        self.__feedback_upload_info = None
 
-    class_version = '0.13'
+    class_version = '0.14'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -345,6 +350,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 for campaign in sponsor.campaigns:
                     campaign.languages = None
             self.version = '0.13'
+        if cmp(parse_version(self.version), parse_version('0.14')) < 0:
+            self.__feedback_upload_info = None
+            self.version = '0.14'
 
     def show_status(self):
         # NOTE: verbose mode prints credentials to stdout
@@ -1328,6 +1336,21 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__feedback_encryption_key_pair.pem_key_pair.encode('ascii', 'ignore')
         return self.__feedback_encryption_key_pair
 
+    def get_feedback_upload_info(self):
+        assert(self.__feedback_upload_info)
+        return self.__feedback_upload_info
+
+    def set_feedback_upload_info(self, upload_server, upload_path, upload_server_headers):
+        assert(self.is_locked)
+        if not self.__feedback_upload_info:
+            self.__feedback_upload_info = FeedbackUploadInfo(upload_server, upload_path, upload_server_headers)
+            self.__feedback_upload_info.log('FeedbackUploadInfo set for first time to: "%s", "%s", "%s"', (upload_server, upload_path, upload_server_headers))
+        else:
+            self.__feedback_upload_info.upload_server = upload_server
+            self.__feedback_upload_info.upload_path = upload_path
+            self.__feedback_upload_info.upload_server_headers = upload_server_headers
+            self.__feedback_upload_info.log('FeedbackUploadInfo modified to: "%s", "%s", "%s"', (upload_server, upload_path, upload_server_headers))
+
     def build(
             self,
             propagation_channel_name,
@@ -1354,6 +1377,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 self.get_feedback_encryption_key_pair().pem_key_pair,
                 self.get_feedback_encryption_key_pair().password)
 
+        feedback_upload_info = self.get_feedback_upload_info()
+
         builders = {
             CLIENT_PLATFORM_WINDOWS: psi_ops_build_windows.build_client,
             CLIENT_PLATFORM_ANDROID: psi_ops_build_android.build_client
@@ -1365,8 +1390,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         base64.b64decode(sponsor.banner),
                         encoded_server_list,
                         remote_server_list_signature_public_key,
-                        feedback_encryption_public_key,
                         remote_server_list_url,
+                        feedback_encryption_public_key,
+                        feedback_upload_info.upload_server,
+                        feedback_upload_info.upload_path,
+                        feedback_upload_info.upload_server_headers,
                         info_link_url,
                         self.__client_versions[platform][-1].version if self.__client_versions[platform] else 0,
                         test) for platform in platforms]
@@ -1375,13 +1403,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self,
             propagation_channel_name,
             sponsor_name):
-            
+
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         sponsor = self.__get_sponsor_by_name(sponsor_name)
-        
+
         campaigns = filter(lambda x: x.propagation_channel_id == propagation_channel.id, sponsor.campaigns)
         assert campaigns
-        
+
         encoded_server_list, _ = \
                     self.__get_encoded_server_list(propagation_channel.id)
 

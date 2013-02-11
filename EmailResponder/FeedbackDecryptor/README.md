@@ -1,4 +1,8 @@
-# Diagnostic Feedback Email Attachment Decryptor
+# Diagnostic Feedback Decryptor
+
+This is a collection of services that monitor email and a S3 bucket for 
+encrypted diagnostic feedback. They then decrypt and store that data, and then
+send an email with the data.
 
 ## Setup
 
@@ -6,14 +10,20 @@
 
 ```shell
 # Prereqs
-sudo apt-get install -y python-pip python-dev libssl-dev swig
-sudo pip install rfc6266 pynliner cssutils BeautifulSoup mako
-sudo pip install M2Crypto
+sudo apt-get install -y python-pip python-dev libssl-dev swig mongodb
+sudo pip install --upgrade rfc6266 pynliner cssutils BeautifulSoup mako pymongo boto requests numpy
+sudo pip install --upgrade M2Crypto
 ```
+
+#### pynliner issues
+
+The pynliner library has a [Unicode-related issue that affects us](https://github.com/rennat/pynliner/issues/10). 
+Until it is resolved/released, we will need to [manually patch the code](https://github.com/rmgorman/pynliner/commit/f21f7aa44d1077f781a278ccb62f792bc4bec150).
 
 #### M2Crypto issues
 
-Check that M2Crypto installed properly. Open a Python REPL, and then type `import M2Crypto`. If you receive either of these errors:
+Check that M2Crypto installed properly. Open a Python REPL, and then type 
+`import M2Crypto`. If you receive either of these errors:
 
 ```
 ImportError: No module named __m2crypto
@@ -47,16 +57,61 @@ configuration files from your secure document repository. These files are:
 Use the included script:
 
 ```shell
-/maildecryptor/maildecryptor_install.sh
+# From within the FeedbackDecryptor directory:
+./install.sh
 ```
 
 This will create the directory to run from, copy the files, and set the file
 permissions.
 
+## Create the S3 bucket
+
+Create a bucket in S3 with the following bucket policy:
+
+```json
+{
+  "Version": "2008-10-17",
+  "Statement": [
+    {
+      "Sid": "Allow public upload",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "*"
+      },
+      "Action": "s3:PutObject",
+      "Resource": "arn:aws:s3:::your_bucketname_here/*"
+    },
+    {
+      "Sid": "Require that read be granted to bucket owner",
+      "Effect": "Deny",
+      "Principal": {
+        "AWS": "*"
+      },
+      "Action": "s3:PutObject",
+      "Resource": "arn:aws:s3:::your_bucketname_here/*",
+      "Condition": {
+        "StringNotEquals": {
+          "s3:x-amz-acl": "bucket-owner-full-control"
+        }
+      }
+    }
+  ]
+}
+```
+
+## Configure
+
+`sample_conf.json` must be renamed (or copied) to `conf.json` and all values
+must be filled in.
+
 ## Running
 
-Use the Upstart utilities.
+Use the Upstart utilities. For example:
 
 ```shell
-sudo start maildecryptor
+sudo restart maildecryptor
+sudo restart s3decryptor
+sudo restart mailsender
+sudo restart statschecker
 ```
+

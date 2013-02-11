@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env python
 
 # Copyright (c) 2012, Psiphon Inc.
 # All rights reserved.
@@ -16,23 +16,32 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-MAILDECRYPTOR_USER="maildecryptor"
+import signal
+import sys
+import time
 
-if [ ! -f ./maildecryptor.conf ]; then
-  echo "This script must be run from the source directory."
-  exit 1
-fi
+import maildecryptor
+import logger
 
-echo "You must already have created the user $MAILDECRYPTOR_USER, otherwise this script will fail. See the README for details."
-echo ""
 
-sed "s|fill-in-with-path-to-source|\"`pwd`\"|" maildecryptor.conf > maildecryptor.conf.configured
+def _do_exit(signum, frame):
+    logger.log('Shutting down')
+    sys.exit(0)
 
-sudo cp maildecryptor.conf.configured /etc/init/maildecryptor.conf
 
-sudo chmod 0400 *.pem conf.json
-sudo chown $MAILDECRYPTOR_USER:$MAILDECRYPTOR_USER *.pem conf.json
+def main():
+    logger.log('Starting up')
 
-echo "Done. To start the daemon execute:"
-echo " > sudo start maildecryptor"
-echo ""
+    signal.signal(signal.SIGTERM, _do_exit)
+
+    while True:
+        try:
+            maildecryptor.go()
+        except Exception:
+            logger.exception()
+            time.sleep(60)
+            continue
+
+
+if __name__ == '__main__':
+    main()
