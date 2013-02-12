@@ -60,10 +60,13 @@ def make_feedback_html():
     }
 
     with open(feedback_template_path) as f:
-        str = (f.read()).format(**format)
+        rendered_feedback_html = (f.read()).format(**format)
 
-    with open(feedback_path, 'w') as f:
-        f.write(str)
+    # Make line endings consistently Unix-y.
+    rendered_feedback_html = rendered_feedback_html.replace('\r\n', '\n')
+
+    with open(feedback_path, 'wb') as f:
+        f.write(rendered_feedback_html)
 
 
 def get_language_from_template(language):
