@@ -242,18 +242,21 @@
     debug_class = 'debug' if entry['debug'] else ''
   %>
 
-  ## Put a separator between entries that are separated in time.
-  % if timestamp_diff_secs > 10:
-    <hr>
-  % endif
+  ## Don't display debug entries in the output
+  % if not entry['debug']:
+    ## Put a separator between entries that are separated in time.
+    % if timestamp_diff_secs > 10:
+      <hr>
+    % endif
 
-  <div class="status-entry">
-    <div class="status-first-line">
-      <span class="timestamp">${utils.timestamp_display(entry['timestamp'])} [+${timestamp_diff_str}s]</span>
+    <div class="status-entry">
+      <div class="status-first-line">
+        <span class="timestamp">${utils.timestamp_display(entry['timestamp'])} [+${timestamp_diff_str}s]</span>
 
-      <span class="status-entry-message ${debug_class}">${entry['message']}</span>
+        <span class="status-entry-message ${debug_class}">${entry['message']}</span>
+      </div>
     </div>
-  </div>
+  % endif
 </%def>
 
 <%def name="diagnostic_history_row(entry, last_timestamp)">
