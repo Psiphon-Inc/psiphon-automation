@@ -1,1 +1,13 @@
-uz@Latn: {}
+uz@Latn:
+  plaintext_email_no_attachment: |
+    O'zbekcha - {{0}}/{0}.html
+  html_email_no_attachment: |
+    <div style="direction: ltr;">
+    O'zbekcha - <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
+    </div>
+  plaintext_email_with_attachment: |
+    Psiphon 3 dan foydalanish uchun ilova qilingan faylni .exe kyengaytirishda saqlang.
+    Yoki quyidagi ulanishni bosing.
+    {{0}}/{0}.html
+  html_email_with_attachment: "<div style=\"direction: ltr;\">\nPsiphon 3 dan foydalanish uchun ilova qilingan faylni .exe formatida\
+    \ saqlang.<br>\nYoki mana bu linkni bosing.<br> \n<a href=\"{{0}}/{0}.html\">{{0}}/{0}.html</a><br>\n</div>\n<br>\n"
