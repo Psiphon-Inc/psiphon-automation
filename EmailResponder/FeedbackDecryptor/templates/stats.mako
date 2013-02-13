@@ -164,7 +164,8 @@ def ff(f):
             <table>
               <thead>
                 <tr>
-                  <th></th><th>:-)</th><th>:-|</th><th>:-(</th>
+                  ## &#8209; is the non-breaking hyphen -- we don't want our faces to get split
+                  <th></th><th>:&#8209;)</th><th>:&#8209;|</th><th>:&#8209;(</th>
                 </tr>
               </thead>
               <tbody>
