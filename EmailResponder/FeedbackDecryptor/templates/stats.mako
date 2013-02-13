@@ -36,6 +36,12 @@
     font-family: monospace;
   }
 
+  /* Some fields are easier to compare left-aligned. */
+  .numcompare-left {
+    text-align: left;
+    font-family: monospace;
+  }
+
   table {
     padding: 0;
     border-collapse: collapse;
@@ -49,6 +55,7 @@
     margin: 0;
     padding: 0;
     border: 0;
+    font-size: 0.8em;
   }
 
   table tr {
@@ -102,9 +109,9 @@
 
 <%
 # Like: ORDER BY sponsor_id, propagation_channel_id, platform
-data['response_stats'] = sorted(data['response_stats'], key=itemgetter('platform'))
-data['response_stats'] = sorted(data['response_stats'], key=itemgetter('propagation_channel_id'))
-data['response_stats'] = sorted(data['response_stats'], key=itemgetter('sponsor_id'))
+data['stats'] = sorted(data['stats'], key=itemgetter('platform'))
+data['stats'] = sorted(data['stats'], key=itemgetter('propagation_channel_id'))
+data['stats'] = sorted(data['stats'], key=itemgetter('sponsor_id'))
 
 prev_sponsor_id = None
 prev_propagation_channel_id = None
@@ -115,26 +122,57 @@ def ff(f):
   return '{:.2f}'.format(f)
 %>
 
+<%def name="output_survey_results(item)">
+  <%
+  survey = item.get('survey_results', {})
+  keys = sorted(survey.keys())
+  %>
+  % for key in keys:
+    <tr>
+      <td>${key}</td>
+      <td class="numcompare">${survey[key].get(0, 0)}</td>
+      <td class="numcompare">${survey[key].get(1, 0)}</td>
+      <td class="numcompare">${survey[key].get(2, 0)}</td>
+    </tr>
+  % endfor
+</%def>
+
+
 <table>
   <thead>
     <tr>
-      <th>Sponsor</th><th>Prop.Ch.</th><th>Platform</th>
-      <th>Median</th><th>Mean</th><th>Std.Dev.</th>
-      <th>Failrate</th><th>Count</th>
+      <th>Sponsor</th><th>Prop.Ch.</th><th>Platform</th><th>#</th>
+      <th>Med. | Mean &plusmn; &sigma; (ms)</th><th>Failrate</th>
+      <th>Survey</th>
     </tr>
   </thead>
   <tbody>
-    % for r in data['response_stats']:
+    % for r in data['stats']:
       <tr>
         <td>${r['sponsor_id'] if r['sponsor_id'] != prev_sponsor_id else ''}</td>
         <td>${r['propagation_channel_id'] if r['propagation_channel_id'] != prev_propagation_channel_id else ''}</td>
         <td>${r['platform']}</td>
-
-        <td class="numcompare">${ff(r['median'])}</td>
-        <td class="numcompare">${ff(r['mean'])}</td>
-        <td class="numcompare">${ff(r['stddev'])}</td>
+        <td class="numcompare-left">
+          ${r['record_count']} (${r['response_sample_count']})
+        </td>
+        <td class="numcompare-left">
+          ${ff(r['median'])} | ${ff(r['mean'])} &plusmn; ${ff(r['stddev'])}
+        </td>
         <td class="numcompare">${ff(r['failrate'])}</td>
-        <td class="numcompare">${r['count']}</td>
+        <td>
+          % if r.get('survey_results'):
+            <table>
+              <thead>
+                <tr>
+                  <th></th><th>:-)</th><th>:-|</th><th>:-(</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${output_survey_results(r)}
+              </tbody>
+            </table>
+          % endif
+        </td>
       </tr>
 
         <%
