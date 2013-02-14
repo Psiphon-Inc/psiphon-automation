@@ -1,6 +1,7 @@
 ﻿<!DOCTYPE html>
 <html>
   <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <title></title>
 <style type="text/css">
@@ -71,6 +72,26 @@ input[type="submit"] {{
   padding: 1em;
 }}
 
+.clickable {{
+  cursor: pointer;
+  cursor: hand;
+}}
+
+#text_feedback_form {{
+  width: 90%;
+  margin: auto;
+}}
+
+textarea {{
+  width: 100%;
+  height: 20em;
+  display: block;
+}}
+
+input[type="text"] {{
+  width: 100%;
+}}
+
 </style>
 <!--[if lt IE 9]>
 <style type="text/css">
@@ -84,8 +105,8 @@ body {{
 <!--[if IE]>
 <style type="text/css">
 html {{
-	width:720px;
-	height:900px;
+  width:720px;
+  height:900px;
   }}
 </style>
 <![endif]-->
@@ -99,165 +120,233 @@ a){{var b=F.exec(a);b&&(b[1]=(b[1]||"").toLowerCase(),b[3]=b[3]&&new RegExp("(?:
 <script>
 var langJSON = {langJSON} ;
 
-//workaround for JSON.stringify on Windows
-//https://gist.github.com/953765
-jQuery.extend({{
-        stringify: this.JSON && this.JSON.stringify ? this.JSON.stringify : function stringify(obj) {{
-                var t = typeof(obj);
-                if (t != "object" || obj === null) {{
-                        if (t == "string") 
-                                obj = '"' + obj + '"';
-                        return String(obj);
-                }}
-                else {{
-                        var n, v, json = [], arr = (obj && obj.constructor == Array);
 
-                        for (n in obj) {{
-                                v = obj[n];
-                                t = typeof(v);
-                                if (obj.hasOwnProperty(n)) {{
-                                        if (t == "string")
-                                                v = '"' + v + '"';
-                                        else if (t == "object" && v !== null)
-                                                v = jQuery.stringify(v);
-                                        json.push((arr ? "" : '"' + n + '":') + String(v));
-                                }}
-                        }}
-                        return (arr ? "[" : "{{") + String(json) + (arr ? "]" : "}}");
-                }}
-        }}
-}});
+////////////////////////////////////////////////////////////////////////////////
+// Workaround for the fact that there's no JSON support in the Windows HTML control
+// From https://github.com/douglascrockford/JSON-js (and then minified)
+if(typeof JSON!=="object"){{JSON={{}}}}(function(){{"use strict";function f(e){{return e<10?"0"+e:e}}function quote(e){{escapable.lastIndex=0;return escapable.test(e)?'"'+e.replace(escapable,function(e){{var t=meta[e];return typeof t==="string"?t:"\\u"+("0000"+e.charCodeAt(0).toString(16)).slice(-4)}})+'"':'"'+e+'"'}}function str(e,t){{var n,r,i,s,o=gap,u,a=t[e];if(a&&typeof a==="object"&&typeof a.toJSON==="function"){{a=a.toJSON(e)}}if(typeof rep==="function"){{a=rep.call(t,e,a)}}switch(typeof a){{case"string":return quote(a);case"number":return isFinite(a)?String(a):"null";case"boolean":case"null":return String(a);case"object":if(!a){{return"null"}}gap+=indent;u=[];if(Object.prototype.toString.apply(a)==="[object Array]"){{s=a.length;for(n=0;n<s;n+=1){{u[n]=str(n,a)||"null"}}i=u.length===0?"[]":gap?"[\n"+gap+u.join(",\n"+gap)+"\n"+o+"]":"["+u.join(",")+"]";gap=o;return i}}if(rep&&typeof rep==="object"){{s=rep.length;for(n=0;n<s;n+=1){{if(typeof rep[n]==="string"){{r=rep[n];i=str(r,a);if(i){{u.push(quote(r)+(gap?": ":":")+i)}}}}}}}}else{{for(r in a){{if(Object.prototype.hasOwnProperty.call(a,r)){{i=str(r,a);if(i){{u.push(quote(r)+(gap?": ":":")+i)}}}}}}}}i=u.length===0?"{{}}":gap?"{{\n"+gap+u.join(",\n"+gap)+"\n"+o+"}}":"{{"+u.join(",")+"}}";gap=o;return i}}}}if(typeof Date.prototype.toJSON!=="function"){{Date.prototype.toJSON=function(e){{return isFinite(this.valueOf())?this.getUTCFullYear()+"-"+f(this.getUTCMonth()+1)+"-"+f(this.getUTCDate())+"T"+f(this.getUTCHours())+":"+f(this.getUTCMinutes())+":"+f(this.getUTCSeconds())+"Z":null}};String.prototype.toJSON=Number.prototype.toJSON=Boolean.prototype.toJSON=function(e){{return this.valueOf()}}}}var cx=/[\u0000\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g,escapable=/[\\\"\x00-\x1f\x7f-\x9f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g,gap,indent,meta={{"\b":"\\b"," ":"\\t","\n":"\\n","\f":"\\f","\r":"\\r",'"':'\\"',"\\":"\\\\"}},rep;if(typeof JSON.stringify!=="function"){{JSON.stringify=function(e,t,n){{var r;gap="";indent="";if(typeof n==="number"){{for(r=0;r<n;r+=1){{indent+=" "}}}}else if(typeof n==="string"){{indent=n}}rep=t;if(t&&typeof t!=="function"&&(typeof t!=="object"||typeof t.length!=="number")){{throw new Error("JSON.stringify")}}return str("",{{"":e}})}}}}if(typeof JSON.parse!=="function"){{JSON.parse=function(text,reviver){{function walk(e,t){{var n,r,i=e[t];if(i&&typeof i==="object"){{for(n in i){{if(Object.prototype.hasOwnProperty.call(i,n)){{r=walk(i,n);if(r!==undefined){{i[n]=r}}else{{delete i[n]}}}}}}}}return reviver.call(e,t,i)}}var j;text=String(text);cx.lastIndex=0;if(cx.test(text)){{text=text.replace(cx,function(e){{return"\\u"+("0000"+e.charCodeAt(0).toString(16)).slice(-4)}})}}if(/^[\],:{{}}\s]*$/.test(text.replace(/\\(?:["\\\/bfnrt]|u[0-9a-fA-F]{{4}})/g,"@").replace(/"[^"\\\n\r]*"|true|false|null|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?/g,"]").replace(/(?:^|:|,)(?:\s*\[)+/g,""))){{j=eval("("+text+")");return typeof reviver==="function"?walk({{"":j}},""):j}}throw new SyntaxError("JSON.parse")}}}}}})()
+////////////////////////////////////////////////////////////////////////////////
+
 
 //extract language from hash URL
 function getLanguageNameFromURL(url)
 {{
-    lname = url.split('#')[1];
-    if(lname != undefined)
-        return lname;
-    return 'en';
+  lname = url.split('#')[1];
+  if(lname != undefined)
+      return lname;
+  return 'en';
 }}
+
+
+var PLATFORM_WINDOWS = 'windows', PLATFORM_ANDROID = 'android';
+var diagnosticInfoID = '', platform = '', currentLangName;
+
 
 //sets page content and highlights coerresponding language button
 function setLanguage(langName)
 {{
-    //get complete language code from the selector
-    //if langName is not an exact match
-    //using 'starts with' logic
-    //i.e, if langName == 'uz' it will match either
-    //uz@Latn or uz@cyrillic whichever comes first
-    matchElement = $('#language_selector option[value^="' + langName + '"]:first');
-    if(matchElement.length > 0) {{
-        langName = matchElement.val();
+  //get complete language code from the selector
+  //if langName is not an exact match
+  //using 'starts with' logic
+  //i.e, if langName == 'uz' it will match either
+  //uz@Latn or uz@cyrillic whichever comes first
+  matchElement = $('#language_selector option[value^="' + langName + '"]:first');
+  if (matchElement.length > 0) {{
+    langName = matchElement.val();
+  }}
+  else {{
+    langName = 'en';
+  }}
+
+  currentLangName = langName;
+  var currentLanguage = langJSON[langName];
+
+  if (currentLanguage === undefined) {{
+    currentLanguage = langJSON['en'];
+    langName = 'en';
+  }}
+
+  //set direction
+  if (langName == 'fa' || langName == 'ar') {{
+    direction = 'rtl';
+    float = 'left';
+    padding ='25px 52px 25px 10px';
+    bg_position_x = '100%';
+  }}
+  else {{
+    direction = 'ltr';
+    float = 'right';
+    padding ='25px 10px 25px 52px';
+    bg_position_x = '0';
+  }}
+  $('body').css('direction', direction);
+  $('#language_selector').css('float', float);
+  $('.feedback > li').css('padding', padding);
+  $('.feedback > li').css('background-position-x', bg_position_x);
+
+  $.each(currentLanguage, function(name, val){{
+    // Not all strings are for all platforms.
+    var targetPlatform = null;
+    if (name.slice(-(('_'+PLATFORM_WINDOWS).length)) === '_'+PLATFORM_WINDOWS) {{
+      targetPlatform = PLATFORM_WINDOWS;
+    }}
+    else if (name.slice(-(('_'+PLATFORM_ANDROID).length)) === '_'+PLATFORM_ANDROID) {{
+      targetPlatform = PLATFORM_ANDROID;
+    }}
+
+    if (targetPlatform) {{
+      if (targetPlatform !== platform) {{
+        // Not for this platform, so skip it.
+        return;
+      }}
+      // Strip the platform suffix.
+      name = name.slice(0, -(('_'+PLATFORM_ANDROID).length));
+    }}
+
+    if (!val) {{
+      return;
+    }}
+
+    var selector = '#' + name;
+    if (name === 'submit_button' || name === 'text_feedback_submit') {{
+      $(selector).val(val);
+    }}
+    else if (name === 'title') {{
+      document.title = val; //supported in all browsers
+    }}
+    else if (name === 'text_feedback_top_para' || name === 'text_feedback_bottom_para') {{
+      // Replace the feedback address with a platform specific value.
+      val = val.replace(
+                  /([a-z0-9]+)@([^\.]+)\.([a-z]+)/g,
+                  "$1+" + platform + "@$2.$3");
+      $(selector).html(val);
     }}
     else {{
-        langName = 'en';
+      $(selector).html(val);
     }}
+  }});
+  $('#language_selector').val(langName);
 
-    currentLanguage = langJSON[langName];
+  // NOTE: Link handlers need to be added every time the language changes
+  // because the links are inline in the translations.
 
-    if(currentLanguage === undefined){{
-        currentLanguage = langJSON['en'];
-        langName = 'en';
-    }}
+  // Freeform (text) feedback link clicked
+  $('#showTextFeedback').click(function(e) {{
+    e.preventDefault();
+    $('#questionnaireContent').hide();
+    $('#textFeedbackContent').show();
+    $('#text_feedback_textarea').focus();
+  }});
 
-    //set direction 
-    if(langName == 'fa' || langName == 'ar') {{
-        direction = 'rtl';
-        float = 'left';
-        padding ='25px 52px 25px 10px';
-        bg_position_x = '100%';
-    }}
-    else {{
-        direction = 'ltr';
-        float = 'right';
-        padding ='25px 10px 25px 52px';
-        bg_position_x = '0';
-    }}
-    $('body').css('direction', direction);
-    $('#language_selector').css('float', float);
-    $('.feedback > li').css('padding', padding);
-    $('.feedback > li').css('background-position-x', bg_position_x);
-
-    var platform = (window.dialogArguments !== undefined) ? "win" : "android";
-
-    $.each(currentLanguage, function(name, val){{
-        selector = '#' + name;
-        if(name == 'submit_button') {{
-            $(selector).val(val); 
-        }}
-        else if(name == 'title') {{
-            document.title = val; //supported in all browsers
-        }}
-        else if(name == 'top_content') {{
-           $(selector).html(val.replace(/feedback@psiphon.ca/g, "feedback+" + platform+ "@psiphon.ca"));
-        }}
-        else {{
-            $(selector).html(val); 
-        }}
-    }});
-    $('#language_selector').val(langName);
+  // Some of our links go to our download page. Switch to the correct language.
+  // No-op if it's a different kind of link.
+  $('a').click(function(e) {{
+    e.currentTarget.href = e.currentTarget.href.replace('/en.html', '/'+currentLangName+'.html');
+  }});
 }}
 
+
 $(function() {{
-        //set language from hash parameter on page load
-        setLanguage(getLanguageNameFromURL(window.location.href));
+  platform = (window.dialogArguments !== undefined) ? PLATFORM_WINDOWS : PLATFORM_ANDROID;
 
-        //set onClick listener to the feedback table cells
-        $('.feedback li').click(
-            function() {{
-                $(this).toggleClass("selected", true);
-                $(this).siblings().toggleClass("selected", false);
-        }});
+  //set language from hash parameter on page load
+  setLanguage(getLanguageNameFromURL(window.location.href));
 
-        //set onChange listener to language dropdown
-        $('#language_selector').change(
-            function() {{
-                setLanguage($(this).val());
-        }});
+  $('label, input[type="checkbox"]').addClass('clickable');
 
-        $('ul#connectivity.feedback').data('hash', '{connectivity}');
-        $('ul#speed.feedback').data('hash', '{speed}');
-        $('ul#compatibility.feedback').data('hash', '{compatibility}');
+  if (platform === PLATFORM_ANDROID) {{
+    $('.not-android').hide();
+  }}
+  else if (platform === PLATFORM_WINDOWS) {{
+    $('.not-windows').hide();
+  }}
 
-        //submit button clicked.
-        $('#submit_button').click(
-            function(e) {{
-            e.preventDefault();
-            responses = new Array();
-            //get all selected and their parents
-            selected = $('li.selected');
-            selected.each(function(){{
-                //get hash of parent ul
-                hash = $(this).parent('ul.feedback').data('hash');
+  //set onClick listener to the feedback table cells
+  $('.feedback li').click(function() {{
+    $(this).toggleClass("selected", true);
+    $(this).siblings().toggleClass("selected", false);
+  }});
 
-                if($(this).hasClass('happy')){{
-                    responses.push({{question:hash, answer: 0}});
-                }}     
-                if($(this).hasClass('ok')){{
-                    responses.push({{question:hash, answer: 1}});
-                }}     
-                if($(this).hasClass('sad')){{
-                    responses.push({{question:hash, answer: 2}});
-                }}     
-            }})
-            s = $.stringify({{"responses":responses}});
+  //set onChange listener to language dropdown
+  $('#language_selector').change(function() {{
+    setLanguage($(this).val());
+  }});
 
-            //Windows client expects result in the window.returnValue magic variable
-            //No need to actually submit data
-            if(window.dialogArguments !== undefined) {{ 
-                window.returnValue = s;
-                window.close();
-            }}
-            else {{
-                $('input[name=formdata]').val(s);
-                $('#feedback').submit();
-            }}
-        }});
+  $('ul#connectivity.feedback').data('hash', '{connectivity}');
+  $('ul#connectivity.feedback').data('title', '{connectivity_en}');
+  $('ul#speed.feedback').data('hash', '{speed}');
+  $('ul#speed.feedback').data('title', '{speed_en}');
+  $('ul#compatibility.feedback').data('hash', '{compatibility}');
+  $('ul#compatibility.feedback').data('title', '{compatibility_en}');
 
-}})
+  //submit button clicked.
+  $('#submit_button').click(function(e) {{
+    e.preventDefault();
+    responses = new Array();
+    //get all selected and their parents
+    selected = $('li.selected');
+    selected.each(function() {{
+      //get hash of parent ul
+      var hash = $(this).parent('ul.feedback').data('hash');
+      var title = $(this).parent('ul.feedback').data('title');
+      var answer = null;
+
+      if ($(this).hasClass('happy')) {{
+        answer = 0;
+      }}
+      else if ($(this).hasClass('ok')) {{
+        answer = 1;
+      }}
+      else if ($(this).hasClass('sad')) {{
+        answer = 2;
+      }}
+
+      responses.push({{title: title, question: hash, answer: answer}});
+    }});
+
+    s = JSON.stringify({{
+      'responses': responses,
+      'sendDiagnosticInfo': !!$('#questionnaire_send_diagnostic').attr('checked')
+    }});
+
+    //Windows client expects result in the window.returnValue magic variable
+    //No need to actually submit data
+    if (window.dialogArguments !== undefined) {{
+      window.returnValue = s;
+      window.close();
+    }}
+    else {{
+      $('input[name=formdata]').val(s);
+      $('#feedback').submit();
+    }}
+  }});
+
+  // Freeform (text) feedback submit
+  $('#text_feedback_submit').click(function(e) {{
+    e.preventDefault();
+    responses = new Array();
+    s = JSON.stringify({{
+      'feedback': $('#text_feedback_textarea').val(),
+      'email': $('#text_feedback_email').val(),
+      'sendDiagnosticInfo': !!$('#text_feedback_send_diagnostic').attr('checked')
+    }});
+
+    //Windows client expects result in the window.returnValue magic variable
+    //No need to actually submit data
+    if (window.dialogArguments !== undefined) {{
+      window.returnValue = s;
+      window.close();
+    }}
+    else {{
+      $('input[name=formdata]').val(s);
+      $('#feedback').submit();
+    }}
+  }});
+}});
+
 </script>
-  </head>
-  <body>
+</head>
+<body>
 
   <select id="language_selector" style="float:right;">
   <option value="en">English</option>
@@ -275,43 +364,106 @@ $(function() {{
   <option value="es">Español</option>
   <option value="vi">Tiếng Việt</option>
   </select>
-    
-    <h1 id="top_content_title"></h1>
-    <div id="top_content">
+
+  <h1 id="top_content_title"></h1>
+
+  <div id="questionnaireContent">
+    <div>
+      <p id="top_para_1"></p>
+      <p id="top_para_2"></p>
     </div>
     <br/>
 
     <form name="feedback" action="feedback" method="get" id="feedback">
-    <h2 id="connectivity_title"></h2>
+      <h2 id="connectivity_title"></h2>
 
-    <ul class="feedback" id="connectivity">
-    <li class="happy selected" id="connectivity_happy"></li>
-    <li class="ok" id="connectivity_ok"></li>
-    <li class="sad" id="connectivity_sad"></li>
-    </ul>
+      <ul class="feedback" id="connectivity">
+        <li class="happy selected" id="connectivity_happy"></li>
+        <li class="ok" id="connectivity_ok"></li>
+        <li class="sad" id="connectivity_sad"></li>
+        </ul>
 
-    <h2 id="speed_title"></h2>
+      <h2 id="speed_title"></h2>
 
-    <ul class="feedback" id="speed">
-    <li class="happy selected" id="speed_happy"></li>
-    <li class="ok" id="speed_ok"></li>
-    <li class="sad" id="speed_sad"></li>
-    </ul>
+      <ul class="feedback" id="speed">
+        <li class="happy selected" id="speed_happy"></li>
+        <li class="ok" id="speed_ok"></li>
+        <li class="sad" id="speed_sad"></li>
+      </ul>
 
-    <h2 id="compatibility_title"></h2>
+      <h2 id="compatibility_title"></h2>
 
-    <ul class="feedback" id="compatibility">
-    <li class="happy selected" id="compatibility_happy"></li>
-    <li class="ok" id="compatibility_ok"></li>
-    <li class="sad" id="compatibility_sad"></li>
-    </ul><br />
+      <ul class="feedback" id="compatibility">
+        <li class="happy selected" id="compatibility_happy"></li>
+        <li class="ok" id="compatibility_ok"></li>
+        <li class="sad" id="compatibility_sad"></li>
+      </ul><br />
 
-    <center>
-    <input type="submit" value="" id="submit_button" />
-    </center>
-    <input type="hidden" value="" id="formdata" name="formdata">
-    </form> 
+      <div class="not-android">
+        <table>
+          <tr>
+            <td>
+              <input type="checkbox" checked id="questionnaire_send_diagnostic">
+            </td>
+            <td>
+              <label for="questionnaire_send_diagnostic">
+                <span id="questionnaire_diagnostic_check"></span>
+              </label>
+            </td>
+          </tr>
+        </table>
+        <br>
+      </div>
+
+      <center>
+        <input type="submit" value="" id="submit_button" />
+      </center>
+      <input type="hidden" value="" id="formdata" name="formdata">
+    </form>
+
+  </div>
+
+  <div id="textFeedbackContent" style="display:none">
+    <p>
+      <span id="text_feedback_top_para"></span>
+    </p>
+
+    <div class="not-android">
+      <div id="text_feedback_form">
+
+        <textarea id="text_feedback_textarea"></textarea>
+        <br>
+
+        <div>
+          <div id="text_feedback_email_prompt"></div>
+          <input type="text" id="text_feedback_email">
+        </div>
+        <br>
+
+        <table>
+          <tr>
+            <td>
+              <input type="checkbox" checked id="text_feedback_send_diagnostic">
+            </td>
+            <td>
+              <label for="text_feedback_send_diagnostic">
+                <span id="text_feedback_diagnostic_check"></span>
+              </label>
+            </td>
+          </tr>
+        </table>
+        <br>
+
+        <center>
+          <input type="submit" value="" id="text_feedback_submit" />
+        </center>
+      </div>
+
+      <p>
+        <span id="text_feedback_bottom_para"></span>
+      </p>
     </div>
+  </div>
 
-  </body>
+</body>
 </html>

@@ -95,6 +95,10 @@ def write_embedded_values(propagation_channel_id,
                           embedded_server_list,
                           remote_server_list_signature_public_key,
                           remote_server_list_url,
+                          feedback_encryption_public_key,
+                          feedback_upload_server,
+                          feedback_upload_path,
+                          feedback_upload_server_headers,
                           info_link_url,
                           ignore_system_server_list=False):
     template = textwrap.dedent('''
@@ -118,8 +122,14 @@ def write_embedded_values(propagation_channel_id,
         static const char* REMOTE_SERVER_LIST_SIGNATURE_PUBLIC_KEY = "%s";
 
         static const char* REMOTE_SERVER_LIST_ADDRESS = "%s";
-        
+
         static const char* REMOTE_SERVER_LIST_REQUEST_PATH = "%s";
+
+        // These values are used when uploading diagnostic info
+        static const char* FEEDBACK_ENCRYPTION_PUBLIC_KEY = "%s";
+        static const char* FEEDBACK_DIAGNOSTIC_INFO_UPLOAD_SERVER = "%s";
+        static const char* FEEDBACK_DIAGNOSTIC_INFO_UPLOAD_PATH = "%s";
+        static const char* FEEDBACK_DIAGNOSTIC_INFO_UPLOAD_SERVER_HEADERS = "%s";
 
         // NOTE: Info link may be opened when not tunneled
         static const TCHAR* INFO_LINK_URL
@@ -134,6 +144,10 @@ def write_embedded_values(propagation_channel_id,
                                remote_server_list_signature_public_key,
                                remote_server_list_url[1],
                                remote_server_list_url[2],
+                               feedback_encryption_public_key,
+                               feedback_upload_server,
+                               feedback_upload_path,
+                               feedback_upload_server_headers,
                                info_link_url))
 
 
@@ -144,6 +158,10 @@ def build_client(
         encoded_server_list,
         remote_server_list_signature_public_key,
         remote_server_list_url,
+        feedback_encryption_public_key,
+        feedback_upload_server,
+        feedback_upload_path,
+        feedback_upload_server_headers,
         info_link_url,
         version,
         test=False):
@@ -171,6 +189,10 @@ def build_client(
             encoded_server_list,
             remote_server_list_signature_public_key,
             remote_server_list_url,
+            feedback_encryption_public_key,
+            feedback_upload_server,
+            feedback_upload_path,
+            feedback_upload_server_headers,
             info_link_url,
             ignore_system_server_list=test)
 

@@ -40,6 +40,7 @@ FEEDBACK_LANGUAGES = [
     'vi'
 ]
 
+
 def make_feedback_html():
     lang = {}
     for language in FEEDBACK_LANGUAGES:
@@ -49,20 +50,30 @@ def make_feedback_html():
     feedback_template_path = os.path.join('.', 'FeedbackSite', 'Templates', 'feedback.html.tpl')
 
     format = {
-        "langJSON":json.JSONEncoder().encode(lang), 
-        "speed":hashlib.md5(lang['en']['speed_title']).hexdigest(), 
-        "connectivity":hashlib.md5(lang['en']['connectivity_title']).hexdigest(),
-        "compatibility":hashlib.md5(lang['en']['compatibility_title']).hexdigest()
+        "langJSON": json.JSONEncoder().encode(lang),
+        "speed": hashlib.md5(lang['en']['speed_title']).hexdigest(),
+        "speed_en": lang['en']['speed_title'],
+        "connectivity": hashlib.md5(lang['en']['connectivity_title']).hexdigest(),
+        "connectivity_en": lang['en']['connectivity_title'],
+        "compatibility": hashlib.md5(lang['en']['compatibility_title']).hexdigest(),
+        "compatibility_en": lang['en']['compatibility_title']
     }
 
     with open(feedback_template_path) as f:
-        str = (f.read()).format(**format)
+        rendered_feedback_html = (f.read()).format(**format)
 
-    with open(feedback_path, 'w') as f:
-        f.write(str)
+    # Make line endings consistently Unix-y.
+    rendered_feedback_html = rendered_feedback_html.replace('\r\n', '\n')
+
+    with open(feedback_path, 'wb') as f:
+        f.write(rendered_feedback_html)
+
 
 def get_language_from_template(language):
     path = os.path.join('.', 'FeedbackSite', 'Templates', language + '.yaml')
     with open(path) as f:
         return yaml.load(f.read())[language]
 
+
+if __name__ == '__main__':
+    make_feedback_html()

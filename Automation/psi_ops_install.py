@@ -267,10 +267,11 @@ def make_xinetd_config_file_command(servers):
         ''')
 
     ssh_service_section_template = textwrap.dedent('''
-        service %s
+        service psiphon_ssh.%s
         {
-            id              = psiphon_ssh.%s
+            type            = UNLISTED
             bind            = %s
+            port            = %s
             socket_type     = stream
             protocol        = tcp
             wait            = no
@@ -282,10 +283,11 @@ def make_xinetd_config_file_command(servers):
         ''')
         
     obfuscated_ssh_service_section_template = textwrap.dedent('''
-        service %s
+        service psiphon_ssh.obfuscated.%s
         {
-            id              = psiphon_ssh.obfuscated.%s
+            type            = UNLISTED
             bind            = %s
+            port            = %s
             socket_type     = stream
             protocol        = tcp
             wait            = no
@@ -296,30 +298,14 @@ def make_xinetd_config_file_command(servers):
         }
         ''')
 
-    def service_name_for_port(port):
-        if port == '22':
-            return 'ssh'
-        elif port == '80':
-            return 'http'
-        elif port == '465':
-            return 'ssmtp'
-        elif port == '587':
-            return 'submission'
-        elif port == '993':
-            return 'imaps'
-        elif port == '995':
-            return 'pop3s'
-        else:
-            assert(False)
-        
     service_sections = []
     for server in servers:
         if server.ssh_port is not None:
             service_sections.append(ssh_service_section_template %
-                                (service_name_for_port(server.ssh_port), server.internal_ip_address, server.internal_ip_address, server.internal_ip_address))
+                                (server.internal_ip_address, server.internal_ip_address, server.ssh_port, server.internal_ip_address))
         if server.ssh_obfuscated_port is not None:
             service_sections.append(obfuscated_ssh_service_section_template %
-                                (service_name_for_port(server.ssh_obfuscated_port), server.internal_ip_address, server.internal_ip_address, server.internal_ip_address))
+                                (server.internal_ip_address, server.internal_ip_address, server.ssh_obfuscated_port, server.internal_ip_address))
             
     file_contents = defaults_section + '\n'.join(service_sections)
     return 'echo "%s" > /etc/xinetd.conf' % (file_contents,)
@@ -477,6 +463,25 @@ def install_host(host, servers, existing_server_ids):
             %(psi_config.HOST_OSSH_SRC_DIR,))
 
     #
+    # Upload and install badvpn-udpgw
+    #
+
+    ssh.exec_command('apt-get install -y cmake')
+    ssh.exec_command('rm -rf %(key)s; mkdir -p %(key)s' % {"key": psi_config.HOST_BADVPN_SRC_DIR})
+    remote_badvpn_file_path = posixpath.join(psi_config.HOST_BADVPN_SRC_DIR, 'badvpn.tar.gz')
+    ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', '3rdParty', 'badvpn.tar.gz'),
+                 remote_badvpn_file_path)
+    ssh.exec_command('cd %s; tar xfz badvpn.tar.gz; mkdir build; cd build; cmake ../badvpn -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_NOTHING_BY_DEFAULT=1 -DBUILD_UDPGW=1 > /dev/null; make > /dev/null && make install > /dev/null' 
+            %(psi_config.HOST_BADVPN_SRC_DIR,))
+
+    remote_init_file_path = posixpath.join(psi_config.HOST_INIT_DIR, 'badvpn-udpgw')
+    ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', 'udpgw-init'),
+                 remote_init_file_path)
+    ssh.exec_command('chmod +x %s' % (remote_init_file_path,))
+    ssh.exec_command('update-rc.d %s defaults' % ('badvpn-udpgw',))
+    ssh.exec_command('%s restart' % (remote_init_file_path,))
+
+    #
     # Generate and upload sshd_config files and xinetd.conf
     #
 
@@ -572,15 +577,17 @@ def install_host(host, servers, existing_server_ids):
     
 def install_firewall_rules(host, servers):
 
-    file_contents = '''
+    iptables_rules_path = '/etc/iptables.rules'
+    iptables_rules_contents = '''
 *filter
+    -A INPUT -i lo -p tcp -m tcp --dport 7300 -j ACCEPT
     -A INPUT -i lo -p tcp -m tcp --dport 6379 -j ACCEPT
     -A INPUT -i lo -p tcp -m tcp --dport 6000 -j ACCEPT''' + ''.join(
     # tunneled web requests
     ['''
     -A INPUT -i lo -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
             % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers]) + '''
-    -A INPUT -d 127.0.0.0/8 ! -i lo -j REJECT --reject-with icmp-port-unreachable
+    -A INPUT -d 127.0.0.0/8 ! -i lo -j DROP
     -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
     -A INPUT -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT''' % (host.ssh_port,) + ''.join(
     # web servers
@@ -593,11 +600,11 @@ def install_firewall_rules(host, servers):
     -A INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
             % (str(s.internal_ip_address), str(s.ssh_port)) for s in servers
                 if s.capabilities['SSH']]) + ''.join(
-    # SSH+
+    # OSSH
     ['''
     -A INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
             % (str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
-                if s.capabilities['SSH+']]) + ''.join(
+                if s.capabilities['OSSH']]) + ''.join(
     # VPN
     ['''
     -A INPUT -d {0} -p esp -j ACCEPT
@@ -607,28 +614,33 @@ def install_firewall_rules(host, servers):
     -A INPUT -d {0} -i ipsec+ -p udp -m udp --dport l2tp -j ACCEPT'''.format(
             str(s.internal_ip_address)) for s in servers
                 if s.capabilities['VPN']]) + '''
-    -A INPUT -j REJECT --reject-with icmp-port-unreachable
-    -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
-    -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
+    -A INPUT -p tcp -j REJECT --reject-with tcp-reset
+    -A INPUT -j DROP
+    -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.8.8 -p tcp --dport 53 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.8.8 -p udp --dport 53 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.4.4 -p tcp --dport 53 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.4.4 -p udp --dport 53 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 10.0.0.0/8 -j DROP
-    -A FORWARD -s 10.0.0.0/8 -j DROP''' + ''.join(
+    -A FORWARD -s 10.0.0.0/8 -j REJECT''' + ''.join(
     # tunneled web requests (always provided, regardless of capabilities)
     ['''
     -A OUTPUT -d {0} -o lo -p tcp -m tcp --dport {1} -j ACCEPT
     -A OUTPUT -s {0} -o lo -p tcp -m tcp --sport {1} -j ACCEPT'''.format(
             str(s.internal_ip_address), str(s.web_server_port)) for s in servers]) + '''
+    -A OUTPUT -o lo -p tcp -m tcp --dport 7300 -j ACCEPT
     -A OUTPUT -o lo -p tcp -m tcp --dport 6379 -m owner --uid-owner root -j ACCEPT
     -A OUTPUT -o lo -p tcp -m tcp --dport 6000 -m owner --uid-owner root -j ACCEPT
     -A OUTPUT -o lo -p tcp -m tcp --dport 6379 -m owner --uid-owner www-data -j ACCEPT
+    -A OUTPUT -o lo -p tcp -m tcp --sport 7300 -j ACCEPT
     -A OUTPUT -o lo -p tcp -m tcp --sport 6379 -j ACCEPT
     -A OUTPUT -o lo -p tcp -m tcp --sport 6000 -j ACCEPT
-    -A OUTPUT -o lo -j DROP
-    -A OUTPUT -p tcp -m multiport --dports 53,80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
-    -A OUTPUT -p udp -m multiport --dports 53,80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
+    -A OUTPUT -o lo -j REJECT
+    -A OUTPUT -p tcp -m multiport --dports 53,80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
+    -A OUTPUT -p udp -m multiport --dports 53,80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
+    -A OUTPUT -p tcp -m multiport --dports 5228,5229,5230,14259 -j ACCEPT
+    -A OUTPUT -p udp -m multiport --dports 5228,5229,5230,14259 -j ACCEPT
     -A OUTPUT -p udp -m udp --dport 123 -j ACCEPT
     -A OUTPUT -p tcp -m tcp --sport %s -j ACCEPT''' % (host.ssh_port,) + ''.join(
     # tunneled web requests on NATed servers don't go out lo
@@ -640,17 +652,17 @@ def install_firewall_rules(host, servers):
     ['''
     -A OUTPUT -s %s -p tcp -m tcp --sport %s -j ACCEPT'''
             % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers
-                if s.capabilities['handshake']]) + ''.join(
+                if s.web_server_port]) + ''.join(
     # SSH
     ['''
     -A OUTPUT -s %s -p tcp -m tcp --sport %s -j ACCEPT'''
             % (str(s.internal_ip_address), str(s.ssh_port)) for s in servers
-                if s.capabilities['SSH']]) + ''.join(
-    # SSH+
+                if s.ssh_port]) + ''.join(
+    # OSSH
     ['''
     -A OUTPUT -s %s -p tcp -m tcp --sport %s -j ACCEPT'''
             % (str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
-                if s.capabilities['SSH+']]) + ''.join(
+                if s.ssh_obfuscated_port]) + ''.join(
     # VPN
     ['''
     -A OUTPUT -s {0} -p esp -j ACCEPT
@@ -660,7 +672,7 @@ def install_firewall_rules(host, servers):
     -A OUTPUT -s {0} -o ipsec+ -p udp -m udp --dport l2tp -j ACCEPT'''.format(
             str(s.internal_ip_address)) for s in servers
                 if s.capabilities['VPN']]) + '''
-    -A OUTPUT -j DROP
+    -A OUTPUT -j REJECT
 COMMIT
 
 *nat''' + ''.join(
@@ -678,17 +690,68 @@ COMMIT
 COMMIT
 '''
 
+    # NOTE that we restart fail2ban after applying firewall rules because iptables-restore
+    # flushes iptables which will remove any chains and rules that fail2ban creates on starting up
+    if_up_script_path = '/etc/network/if-up.d/firewall'
+    if_up_script_contents = '''#!/bin/sh
+
+iptables-restore < %s
+/etc/init.d/fail2ban restart
+''' % (iptables_rules_path,)
+
+    ssh_ports = set([str(host.ssh_port)])
+    for server in servers:
+        ssh_ports.add(str(server.ssh_port)) if server.capabilities['SSH'] else None
+        ssh_ports.add(str(server.ssh_obfuscated_port)) if server.capabilities['OSSH'] else None
+    
+    fail2ban_local_path = '/etc/fail2ban/jail.local'
+    fail2ban_local_contents = textwrap.dedent('''
+        [ssh]
+        port    = {0}
+
+        [ssh-ddos]
+        port    = {0}
+        '''.format(','.join(ssh_ports)))
+        
     ssh = psi_ssh.SSH(
             host.ip_address, host.ssh_port,
             host.ssh_username, host.ssh_password,
             host.ssh_host_key)
 
-    ssh.exec_command('echo "%s" > /etc/iptables.rules' % (file_contents,))
-    ssh.exec_command('iptables-restore < /etc/iptables.rules')
-    ssh.exec_command('/etc/init.d/fail2ban restart')
+    ssh.exec_command('echo "%s" > %s' % (iptables_rules_contents, iptables_rules_path))
+    ssh.exec_command('echo "%s" > %s' % (if_up_script_contents, if_up_script_path))
+    ssh.exec_command('chmod +x %s' % (if_up_script_path,))
+    ssh.exec_command('echo "%s" > %s' % (fail2ban_local_contents, fail2ban_local_path))
+    ssh.exec_command(if_up_script_path)
     ssh.close()
     
+    install_malware_blacklist(host)
+    
+    
+def install_malware_blacklist(host):
 
+    psi_ip_blacklist = 'psi_ipblacklist.py'
+    psi_ip_blacklist_host_path = posixpath.join('/usr/local/bin', psi_ip_blacklist)
+    if_up_script_path = '/etc/network/if-up.d/set_blocklist'
+    cron_script_path = '/etc/cron.daily/set_blocklist'
+
+    ssh = psi_ssh.SSH(
+            host.ip_address, host.ssh_port,
+            host.ssh_username, host.ssh_password,
+            host.ssh_host_key)
+
+    ssh.exec_command('apt-get install -y module-assistant xtables-addons-source')
+    ssh.exec_command('module-assistant -i auto-install xtables-addons')
+    
+    ssh.put_file(os.path.join(os.path.abspath('.'), psi_ip_blacklist),
+                 psi_ip_blacklist_host_path)
+    ssh.exec_command('chmod +x %s' % (psi_ip_blacklist_host_path,))
+    ssh.exec_command('ln -s %s %s' % (psi_ip_blacklist_host_path, if_up_script_path))
+    ssh.exec_command('ln -s %s %s' % (psi_ip_blacklist_host_path, cron_script_path))
+    ssh.exec_command(psi_ip_blacklist_host_path)
+    ssh.close()
+    
+    
 def install_geoip_database(ssh):
 
     #

@@ -19,9 +19,7 @@
 
 import os
 import shutil
-import subprocess
 import textwrap
-import traceback
 import sys
 import fileinput
 import psi_utils
@@ -32,6 +30,7 @@ import psi_utils
 SOURCE_ROOT = os.path.join(os.path.abspath('..'), 'Android')
 
 PSIPHON_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'PsiphonAndroid')
+PSIPHON_LIB_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'PsiphonAndroidLibrary')
 ZIRCO_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'zirco-browser')
 
 BANNER_ROOT = os.path.join(os.path.abspath('..'), 'Data', 'Banners')
@@ -40,15 +39,19 @@ KEYSTORE_FILENAME = os.path.join(os.path.abspath('..'), 'Data', 'CodeSigning', '
 KEYSTORE_PASSWORD = 'password'
 
 BANNER_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'res', 'drawable', 'banner.bmp')
-EMBEDDED_VALUES_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'src', 'com', 'psiphon3', 'EmbeddedValues.java')
+EMBEDDED_VALUES_FILENAME = os.path.join(PSIPHON_LIB_SOURCE_ROOT, 'src', 'com', 'psiphon3', 'psiphonlibrary', 'EmbeddedValues.java')
 ANDROID_MANIFEST_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'AndroidManifest.xml')
 
 RELEASE_UNSIGNED_APK_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'bin', 'PsiphonAndroid-release-unsigned.apk')
 RELEASE_SIGNED_APK_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'bin', 'PsiphonAndroid-release-signed-unaligned.apk')
 ZIPALIGNED_APK_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'bin', 'PsiphonAndroid-release.apk')
 
+LIB_FILENAME = 'PsiphonAndroidLibrary.jar'
+
 BUILDS_ROOT = os.path.join('.', 'Builds', 'Android')
 APK_FILENAME_TEMPLATE = 'PsiphonAndroid-%s-%s.apk'
+LIBS_ROOT = os.path.join('.', 'Builds', 'AndroidLibrary')
+LIB_FILENAME_TEMPLATE = 'PsiphonAndroidLibrary-%s-%s.jar'
 
 FEEDBACK_SOURCE_ROOT = os.path.join('.', 'FeedbackSite')
 FEEDBACK_HTML_PATH = os.path.join(FEEDBACK_SOURCE_ROOT, 'feedback.html')
@@ -69,8 +72,10 @@ def build_apk():
 
     commands = [
         'android update lib-project -p "%s"' % (ZIRCO_SOURCE_ROOT,),
+        'android update lib-project -p "%s"' % (PSIPHON_LIB_SOURCE_ROOT,),
         'android update project -p "%s"' % (PSIPHON_SOURCE_ROOT,),
         'ant -q -f "%s" clean' % (os.path.join(ZIRCO_SOURCE_ROOT, 'build.xml'),),
+        'ant -q -f "%s" clean' % (os.path.join(PSIPHON_LIB_SOURCE_ROOT, 'build.xml'),),
         'ant -q -f "%s" clean' % (os.path.join(PSIPHON_SOURCE_ROOT, 'build.xml'),),
         'ant -q -f "%s" release' % (os.path.join(PSIPHON_SOURCE_ROOT, 'build.xml'),),
         'jarsigner -sigalg SHA1withRSA -digestalg SHA1 -keystore "%s" -storepass %s "%s" psiphon' % (
@@ -88,25 +93,28 @@ def write_embedded_values(propagation_channel_id,
                           client_version,
                           embedded_server_list,
                           remote_server_list_signature_public_key,
+                          feedback_encryption_public_key,
                           remote_server_list_url,
                           info_link_url,
                           ignore_system_server_list=False):
     template = textwrap.dedent('''
-        package com.psiphon3;
-        
+        package com.psiphon3.psiphonlibrary;
+
         public interface EmbeddedValues
         {
             final String PROPAGATION_CHANNEL_ID = "%s";
-            
+
             final String SPONSOR_ID = "%s";
-            
+
             final String CLIENT_VERSION = "%s";
-            
+
             final String EMBEDDED_SERVER_LIST = "%s";
-        
+
             final String REMOTE_SERVER_LIST_URL = "%s://%s/%s";
-        
+
             final String REMOTE_SERVER_LIST_SIGNATURE_PUBLIC_KEY = "%s";
+
+            final String FEEDBACK_ENCRYPTION_PUBLIC_KEY = "%s";
 
             // NOTE: Info link may be opened when not tunneled
             final String INFO_LINK_URL = "%s";
@@ -121,6 +129,7 @@ def write_embedded_values(propagation_channel_id,
                                remote_server_list_url[1],
                                remote_server_list_url[2],
                                remote_server_list_signature_public_key,
+                               feedback_encryption_public_key,
                                info_link_url))
 
 
@@ -142,6 +151,10 @@ def build_client(
         encoded_server_list,
         remote_server_list_signature_public_key,
         remote_server_list_url,
+        feedback_encryption_public_key,
+        feedback_upload_server,          # unused by Android
+        feedback_upload_path,            # unused by Android
+        feedback_upload_server_headers,  # unused by Android
         info_link_url,
         version,
         test=False):
@@ -165,13 +178,14 @@ def build_client(
             version,
             encoded_server_list,
             remote_server_list_signature_public_key,
+            feedback_encryption_public_key,
             remote_server_list_url,
             info_link_url,
             ignore_system_server_list=test)
 
         # copy feedback.html
         shutil.copy(FEEDBACK_HTML_PATH, PSIPHON_ASSETS)
-        
+
         # build
         build_apk()
 
@@ -187,6 +201,57 @@ def build_client(
                                     APK_FILENAME_TEMPLATE % (propagation_channel_id,
                                                              sponsor_id))
         shutil.copyfile(ZIPALIGNED_APK_FILENAME, build_destination_path)
+
+        print 'Build: SUCCESS'
+
+        return build_destination_path
+
+    except:
+        print 'Build: FAILURE'
+        raise
+
+    finally:
+        backup.restore_all()
+
+
+def build_library(
+        propagation_channel_id,
+        sponsor_id,
+        encoded_server_list,
+        remote_server_list_signature_public_key,
+        feedback_encryption_public_key,
+        remote_server_list_url,
+        info_link_url,
+        version):
+
+    try:
+        # Backup/restore original files minimize chance of checking values into source control
+        backup = psi_utils.TemporaryBackup([EMBEDDED_VALUES_FILENAME])
+
+        # overwrite embedded values source file
+        write_embedded_values(
+            propagation_channel_id,
+            sponsor_id,
+            version,
+            encoded_server_list,
+            remote_server_list_signature_public_key,
+            feedback_encryption_public_key,
+            remote_server_list_url,
+            info_link_url)
+
+        # TODO: clean the PSIPHON_LIB_SOURCE_ROOT directory of files that are not from source control
+
+        # create the jar
+        os.system('jar -cf %s -C %s .' % (LIB_FILENAME, PSIPHON_LIB_SOURCE_ROOT))
+
+        # rename and copy the jar file to Builds folder
+        if not os.path.exists(LIBS_ROOT):
+            os.makedirs(LIBS_ROOT)
+        build_destination_path = os.path.join(
+                                    LIBS_ROOT,
+                                    LIB_FILENAME_TEMPLATE % (propagation_channel_id,
+                                                             sponsor_id))
+        shutil.copyfile(LIB_FILENAME, build_destination_path)
 
         print 'Build: SUCCESS'
 

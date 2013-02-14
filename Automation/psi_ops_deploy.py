@@ -150,7 +150,11 @@ def deploy_implementation_to_hosts(hosts):
     
     @retry_decorator_returning_exception
     def do_deploy_implementation(host):
-        deploy_implementation(host)
+        try:
+            deploy_implementation(host)
+        except:
+            print 'Error deploying implementation to host %s' % (host.id,)
+            raise
         host.log('deploy implementation')
 
     run_in_parallel(20, do_deploy_implementation, hosts)
@@ -206,7 +210,11 @@ def deploy_data_to_hosts(host_and_data_list):
 
     @retry_decorator_returning_exception
     def do_deploy_data(host_and_data):
-        deploy_data(host_and_data['host'], host_and_data['data'])
+        try:
+            deploy_data(host_and_data['host'], host_and_data['data'])
+        except:
+            print 'Error deploying data to host %s' % (host_and_data['host'].id,)
+            raise
         host_and_data['host'].log('deploy data')
        
     run_in_parallel(20, do_deploy_data, host_and_data_list)
@@ -235,7 +243,11 @@ def deploy_build_to_hosts(hosts, build_filename):
 
     @retry_decorator_returning_exception
     def do_deploy_build(host):
-        deploy_build(host, build_filename)
+        try:
+            deploy_build(host, build_filename)
+        except:
+            print 'Error deploying build to host %s' % (host.id,)
+            raise
             
     run_in_parallel(10, do_deploy_build, hosts)
 
@@ -265,7 +277,11 @@ def deploy_routes_to_hosts(hosts):
 
     @retry_decorator_returning_exception
     def do_deploy_routes(host):
-        deploy_routes(host)
+        try:
+            deploy_routes(host)
+        except:
+            print 'Error deploying routes to host %s' % (host.id,)
+            raise
             
     run_in_parallel(10, do_deploy_routes, hosts)
 
@@ -305,6 +321,10 @@ def deploy_geoip_database_autoupdates_to_hosts(hosts):
 
     @retry_decorator_returning_exception
     def do_deploy_geoip_database_autoupdates(host):
-        deploy_geoip_database_autoupdates(host)
+        try:
+            deploy_geoip_database_autoupdates(host)
+        except:
+            print 'Error deploying geoip database autoupdates to host %s' % (host.id,)
+            raise
 
     run_in_parallel(10, do_deploy_geoip_database_autoupdates, hosts)
