@@ -47,12 +47,17 @@ def _windows_1(data):
         locale_match = [m for m in _locale_codes if m['lcid_number'] == locale_hex]
         os_info['LocaleInfo'] = locale_match[0] if locale_match else None
 
+        language_match = [m for m in _locale_codes if m['lcid_number'] == os_info['language']]
+        os_info['LanguageInfo'] = language_match[0] if language_match else None
+
+        # Multiple countries can have the same dialing code (like Canada and
+        # the US with 1), so CountryCodeInfo will be an array.
         country_match = [m for m in _country_dialing_codes if m['dialing_code'] == os_info['countryCode']]
         # Sometimes the countryCode as an additional digit. If we didn't get a
         # match, search again without the last digit.
         if not country_match:
             country_match = [m for m in _country_dialing_codes if m['dialing_code'] == os_info['countryCode'] / 10]
-        os_info['CountryCodeInfo'] = country_match[0] if country_match else None
+        os_info['CountryCodeInfo'] = country_match if country_match else None
 
 
 _transformations = {

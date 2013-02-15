@@ -227,7 +227,7 @@
   ${sys_info_row('User is', ', '.join([k for (k,v) in sys_info['UserInfo'].iteritems() if v]))}
   ${sys_info_row('AV', ', '.join([av['displayName'] for av in sys_info['SecurityInfo']['AntiVirusInfo'] if av[av['version']]['enabled']]))}
   ${sys_info_row('Uses proxy', 'yes' if [proxy for proxy in sys_info['NetworkInfo']['Original']['Proxy'] if proxy['flags'] != 'PROXY_TYPE_DIRECT'] else 'no')}
-  ${sys_info_row('~Country', sys_info['OSInfo']['CountryCodeInfo']['display'] if sys_info.get('OSInfo', {}).get('CountryCodeInfo', {}).get('display') else '')}
+  ${sys_info_row('~Country', ', '.join([c['display'] for c in sys_info['OSInfo']['CountryCodeInfo']]) if sys_info.get('OSInfo', {}).get('CountryCodeInfo') else '')}
   ${sys_info_row('~Locale', sys_info['OSInfo']['LocaleInfo']['display'] if sys_info.get('OSInfo', {}).get('LocaleInfo', {}).get('display') else '')}
 </table>
 
