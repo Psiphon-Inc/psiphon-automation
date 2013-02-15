@@ -194,7 +194,9 @@
           'language': '<a href="http://msdn.microsoft.com/en-ca/goglobal/bb964664.aspx">language</a>',
           'locale': '<a href="http://msdn.microsoft.com/en-ca/goglobal/bb964664.aspx">locale</a>',
           'codeSet': '<a href="http://msdn.microsoft.com/en-us/library/windows/desktop/dd317756%28v=vs.85%29.aspx">codeSet</a>',
-          'productState': '<a href="http://neophob.com/2010/03/wmi-query-windows-securitycenter2/">productState</a>'
+          'productState': '<a href="http://neophob.com/2010/03/wmi-query-windows-securitycenter2/">productState</a>',
+          'flags': '<a href="http://msdn.microsoft.com/en-us/library/windows/desktop/aa385145%28v=vs.85%29.aspx">flags</a>',
+          'countryCode': '<a href="http://en.wikipedia.org/wiki/List_of_country_calling_codes">countryCode</a>',
         }
   %>
   % if key in map:
@@ -225,7 +227,8 @@
   ${sys_info_row('User is', ', '.join([k for (k,v) in sys_info['UserInfo'].iteritems() if v]))}
   ${sys_info_row('AV', ', '.join([av['displayName'] for av in sys_info['SecurityInfo']['AntiVirusInfo'] if av[av['version']]['enabled']]))}
   ${sys_info_row('Uses proxy', 'yes' if [proxy for proxy in sys_info['NetworkInfo']['Original']['Proxy'] if proxy['flags'] != 'PROXY_TYPE_DIRECT'] else 'no')}
-
+  ${sys_info_row('~Country', sys_info['OSInfo']['CountryCodeInfo']['display'] if sys_info.get('OSInfo', {}).get('CountryCodeInfo', {}).get('display') else '')}
+  ${sys_info_row('~Locale', sys_info['OSInfo']['LocaleInfo']['display'] if sys_info.get('OSInfo', {}).get('LocaleInfo', {}).get('display') else '')}
 </table>
 
 <a class="smaller" href="#sys_info_${metadata['id']}">See full System Info</a>
