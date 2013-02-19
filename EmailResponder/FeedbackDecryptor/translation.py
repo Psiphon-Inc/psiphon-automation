@@ -44,8 +44,11 @@ import utils
 
 
 # See https://developers.google.com/translate/v2/using_rest
+# Experimentation suggests that the POST size can be much larger than claimed.
 _MAX_GET_REQUEST_SIZE = 2000
-_MAX_POST_REQUEST_SIZE = 5000
+_MAX_POST_REQUEST_SIZE = 15000
+
+_USE_POST_REQUEST = True
 
 _TARGET_LANGUAGE = 'en'
 
@@ -93,6 +96,13 @@ def translate(apiServers, apiKey, msg):
 
         msg_translated = _translate_request_helper(apiServers, apiKey,
                                                    from_lang, msg)
+
+        # GTranslate sometimes returns the same string as the translation
+        # even though it clearly hasn't been translated. We need to detect
+        # this and treat it as an error.
+        if msg_translated == msg:
+            return ('[TRANSLATION_FAIL]', 'Google Translate returned same string', None)
+
         return (from_lang, _languages[from_lang], msg_translated)
     except Exception as e:
         return ('[TRANSLATION_FAIL]', utils.safe_str(e), None)
@@ -135,7 +145,8 @@ def _translate_request_helper(apiServers, apiKey, from_lang, msg):
     # trigger (before hitting "userRateLimitExceed"). So maybe breaking up
     # this request is a waste of time...?
 
-    msg_size_limit = (_MAX_POST_REQUEST_SIZE - 200) / (4 * 3)
+    max_size = _MAX_POST_REQUEST_SIZE if _USE_POST_REQUEST else _MAX_GET_REQUEST_SIZE
+    msg_size_limit = (max_size - 200) / (4 * 3)
     result_accumulator = u''
     start_index = 0
     while True:
@@ -195,7 +206,10 @@ def _make_request(apiServers, apiKey, action, params=None):
 
     # This header is required to make a POST request.
     # See https://developers.google.com/translate/v2/using_rest
-    headers = {'X-HTTP-Method-Override': 'GET'}
+    if _USE_POST_REQUEST:
+        headers = {'X-HTTP-Method-Override': 'GET'}
+    else:
+        headers = None
 
     ex = None
 
@@ -206,7 +220,10 @@ def _make_request(apiServers, apiKey, action, params=None):
         url = 'https://%s/language/translate/v2%s' % (apiServer, action)
 
         try:
-            req = requests.post(url, headers=headers, data=params)
+            if _USE_POST_REQUEST:
+                req = requests.post(url, headers=headers, data=params)
+            else:
+                req = requests.get(url, headers=headers, params=params)
 
             if req.ok:
                 _lastGoodApiServer = apiServer
@@ -223,10 +240,10 @@ def _make_request(apiServers, apiKey, action, params=None):
         # being flaky.
         except (requests.ConnectionError, requests.Timeout) as ex:
             success = False
-            logger.error('translate.py: API error; failing over: %s' % utils.safe_str(ex))
+            logger.error('%s.py: API error; failing over: %s' % (__name__, utils.safe_str(ex)))
         except Exception as ex:
             # Unexpected error. Not going to fail over.
-            logger.error('translate.py: request error: %s' % utils.safe_str(ex))
+            logger.error('%s.py: request error: %s' % (__name__, utils.safe_str(ex)))
             raise
 
     if not success:
