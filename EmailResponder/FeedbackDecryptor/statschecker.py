@@ -49,11 +49,17 @@ _templates = {
 }
 
 
-def _send(template_name, data):
+def _render_email(template_name, data):
     rendered = _templates[template_name].render(data=data)
 
     # CSS in email HTML must be inline
     rendered = pynliner.fromString(rendered)
+
+    return rendered
+
+
+def _send(template_name, data):
+    rendered = _render_email(template_name, data)
 
     try:
         sender.send(config['statsEmailRecipients'],
@@ -65,7 +71,7 @@ def _send(template_name, data):
         logger.exception()
 
 
-def _send_stats_mail(last_send_time):
+def _send_stats_email(last_send_time):
     stats = datastore.get_stats(last_send_time)
     _send('stats', stats)
 
@@ -97,7 +103,7 @@ def go():
 
         # If we just passed midnight, send the stats email
         if not last_send_time or (last_send_time - midnight).total_seconds() < 0:
-            _send_stats_mail(last_send_time)
+            _send_stats_email(last_send_time)
             last_send_time = datetime.datetime.now()
             datastore.set_stats_last_send_time(last_send_time)
 

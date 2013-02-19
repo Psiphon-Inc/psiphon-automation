@@ -1122,6 +1122,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 ossh_ports.remove(137)
                 ossh_ports.remove(138)
                 ossh_ports.remove(139)
+                ossh_ports.remove(515)
                 ossh_port = random.choice(ossh_ports)
 
             server = Server(
@@ -1343,12 +1344,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(self.is_locked)
         if not self.__feedback_upload_info:
             self.__feedback_upload_info = FeedbackUploadInfo(upload_server, upload_path, upload_server_headers)
-            self.__feedback_upload_info.log('FeedbackUploadInfo set for first time to: "%s", "%s", "%s"', (upload_server, upload_path, upload_server_headers))
+            self.__feedback_upload_info.log('FeedbackUploadInfo set for first time to: "%s", "%s", "%s"' % (upload_server, upload_path, upload_server_headers))
         else:
             self.__feedback_upload_info.upload_server = upload_server
             self.__feedback_upload_info.upload_path = upload_path
             self.__feedback_upload_info.upload_server_headers = upload_server_headers
-            self.__feedback_upload_info.log('FeedbackUploadInfo modified to: "%s", "%s", "%s"', (upload_server, upload_path, upload_server_headers))
+            self.__feedback_upload_info.log('FeedbackUploadInfo modified to: "%s", "%s", "%s"' % (upload_server, upload_path, upload_server_headers))
 
     def build(
             self,

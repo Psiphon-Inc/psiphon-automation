@@ -59,6 +59,16 @@ def _bucket_iterator(bucket):
         time.sleep(_SLEEP_TIME_SECS)
 
 
+def _should_email_data(diagnostic_info):
+    '''
+    Determine if this diagnostic info should be emailed. Not all diagnostic
+    info bundles have useful information that needs to be immediately seen by
+    a human.
+    '''
+    # Only email info that has a user-entered feedback message.
+    return diagnostic_info.get('Feedback', {}).get('Message', {}).get('text')
+
+
 def go():
     s3_conn = S3Connection(config['aws_access_key_id'], config['aws_secret_access_key'])
     bucket = s3_conn.get_bucket(config['s3_bucket_name'])
@@ -90,9 +100,10 @@ def go():
             # Store the diagnostic info
             datastore.insert_diagnostic_info(diagnostic_info)
 
-            # Record in the DB that the diagnostic info should be emailed
-            datastore.insert_email_diagnostic_info(diagnostic_info['Metadata']['id'],
-                                                   None, None)
+            if _should_email_data(diagnostic_info):
+                # Record in the DB that the diagnostic info should be emailed
+                datastore.insert_email_diagnostic_info(diagnostic_info['Metadata']['id'],
+                                                       None, None)
         except decryptor.DecryptorException as e:
             logger.exception()
             logger.error(str(e))

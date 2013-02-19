@@ -115,7 +115,7 @@ def get_stats(since_time):
         'now_timestamp': datetime.datetime.now(),
         'new_android_records': _diagnostic_info_store.find({'Metadata.platform': 'android', 'datetime': {'$gt': since_time}}).count(),
         'new_windows_records': _diagnostic_info_store.find({'Metadata.platform': 'windows', 'datetime': {'$gt': since_time}}).count(),
-        'response_stats': _get_response_stats(since_time),
+        'stats': _get_stats_helper(since_time),
 
         # WARNING: This is potentially unbounded. But using a generator seems
         # pointless because it needs to be reified for the email anyway.
@@ -136,8 +136,8 @@ def _clean_record(rec):
     return rec
 
 
-def _get_response_stats(since_time):
-    allResponseChecks = {}
+def _get_stats_helper(since_time):
+    raw_stats = {}
 
     #
     # Different platforms and versions have different structures
@@ -147,30 +147,31 @@ def _get_response_stats(since_time):
                                        'Metadata.version': 1,
                                        'datetime': {'$gt': since_time}})
     for rec in cur:
-        propChannelID = rec.get('SystemInformation', {})\
-                           .get('psiphonEmbeddedValues', {})\
-                           .get('PROPAGATION_CHANNEL_ID')
-        sponsorID = rec.get('SystemInformation', {})\
-                       .get('psiphonEmbeddedValues', {})\
-                       .get('SPONSOR_ID')
+        propagation_channel_id = rec.get('SystemInformation', {})\
+                                    .get('psiphonEmbeddedValues', {})\
+                                    .get('PROPAGATION_CHANNEL_ID')
+        sponsor_id = rec.get('SystemInformation', {})\
+                        .get('psiphonEmbeddedValues', {})\
+                        .get('SPONSOR_ID')
 
-        if not propChannelID or not sponsorID:
+        if not propagation_channel_id or not sponsor_id:
             continue
 
-        responseChecks = [r['data'] for r in rec.get('DiagnosticHistory', [])
-                          if r.get('msg') == 'ServerResponseCheck'
+        response_checks = [r['data'] for r in rec.get('DiagnosticHistory', [])
+                           if r.get('msg') == 'ServerResponseCheck'
                              and r.get('data').get('responded') and r.get('data').get('responseTime')]
 
-        for r in responseChecks:
+        for r in response_checks:
             if type(r['responded']) in (str, unicode):
                 r['responded'] = (r['responded'] == 'Yes')
             if type(r['responseTime']) in (str, unicode):
                 r['responseTime'] = int(r['responseTime'])
 
-        if ('android', propChannelID, sponsorID) not in allResponseChecks:
-            allResponseChecks[('android', propChannelID, sponsorID)] = []
+        if ('android', propagation_channel_id, sponsor_id) not in raw_stats:
+            raw_stats[('android', propagation_channel_id, sponsor_id)] = {'count': 0, 'response_checks': [], 'survey_results': []}
 
-        allResponseChecks[('android', propChannelID, sponsorID)].extend(responseChecks)
+        raw_stats[('android', propagation_channel_id, sponsor_id)]['response_checks'].extend(response_checks)
+        raw_stats[('android', propagation_channel_id, sponsor_id)]['count'] += 1
 
     # The structure got more standardized around here.
     for platform, version in (('android', 2), ('windows', 1)):
@@ -178,44 +179,59 @@ def _get_response_stats(since_time):
                                            'Metadata.version': version,
                                            'datetime': {'$gt': since_time}})
         for rec in cur:
-            propChannelID = rec.get('DiagnosticInfo', {})\
-                               .get('SystemInformation', {})\
-                               .get('PsiphonInfo', {})\
-                               .get('PROPAGATION_CHANNEL_ID')
-            sponsorID = rec.get('DiagnosticInfo', {})\
-                           .get('SystemInformation', {})\
-                               .get('PsiphonInfo', {})\
-                           .get('SPONSOR_ID')
+            propagation_channel_id = rec.get('DiagnosticInfo', {})\
+                                        .get('SystemInformation', {})\
+                                        .get('PsiphonInfo', {})\
+                                        .get('PROPAGATION_CHANNEL_ID')
+            sponsor_id = rec.get('DiagnosticInfo', {})\
+                            .get('SystemInformation', {})\
+                            .get('PsiphonInfo', {})\
+                            .get('SPONSOR_ID')
 
-            if not propChannelID or not sponsorID:
+            if not propagation_channel_id or not sponsor_id:
                 continue
 
-            responseChecks = (r['data'] for r in rec.get('DiagnosticInfo', {}).get('DiagnosticHistory', [])
+            response_checks = (r['data'] for r in rec.get('DiagnosticInfo', {}).get('DiagnosticHistory', [])
                               if r.get('msg') == 'ServerResponseCheck'
                                  and r.get('data').get('responded') and r.get('data').get('responseTime'))
 
-            if (platform, propChannelID, sponsorID) not in allResponseChecks:
-                allResponseChecks[(platform, propChannelID, sponsorID)] = []
+            survey_results = rec.get('Feedback', {}).get('Survey', {}).get('results', [])
+            if type(survey_results) != list:
+                survey_results = []
 
-            allResponseChecks[(platform, propChannelID, sponsorID)].extend(responseChecks)
+            if (platform, propagation_channel_id, sponsor_id) not in raw_stats:
+                raw_stats[(platform, propagation_channel_id, sponsor_id)] = {'count': 0, 'response_checks': [], 'survey_results': []}
 
-    responseStats = []
-    for resultParams, results in allResponseChecks.iteritems():
-        responseTimes = [r['responseTime'] for r in results if r['responded']]
-        mean = float(numpy.mean(responseTimes)) if len(responseTimes) else None
-        median = float(numpy.median(responseTimes)) if len(responseTimes) else None
-        stddev = float(numpy.std(responseTimes)) if len(responseTimes) else None
-        failrate = float(len(results) - len(responseTimes)) / len(results) if len(results) else 1.0
+            raw_stats[(platform, propagation_channel_id, sponsor_id)]['response_checks'].extend(response_checks)
+            raw_stats[(platform, propagation_channel_id, sponsor_id)]['survey_results'].extend(survey_results)
+            raw_stats[(platform, propagation_channel_id, sponsor_id)]['count'] += 1
 
-        responseStats.append({
-                              'platform': resultParams[0],
-                              'propagation_channel_id': resultParams[1],
-                              'sponsor_id': resultParams[2],
-                              'mean': mean,
-                              'median': median,
-                              'stddev': stddev,
-                              'failrate': failrate,
-                              'count': len(results),
-                              })
+    def survey_reducer(accum, val):
+        accum.setdefault(val.get('title', 'INVALID'), {}).setdefault(val.get('answer', 'INVALID'), 0)
+        accum[val.get('title', 'INVALID')][val.get('answer', 'INVALID')] += 1
+        return accum
 
-    return responseStats
+    stats = []
+    for result_params, results in raw_stats.iteritems():
+        response_times = [r['responseTime'] for r in results['response_checks'] if r['responded']]
+        mean = float(numpy.mean(response_times)) if len(response_times) else None
+        median = float(numpy.median(response_times)) if len(response_times) else None
+        stddev = float(numpy.std(response_times)) if len(response_times) else None
+        failrate = float(len(results['response_checks']) - len(response_times)) / len(results['response_checks']) if len(results['response_checks']) else 1.0
+
+        survey_results = reduce(survey_reducer, results['survey_results'], {})
+
+        stats.append({
+                      'platform': result_params[0],
+                      'propagation_channel_id': result_params[1],
+                      'sponsor_id': result_params[2],
+                      'mean': mean,
+                      'median': median,
+                      'stddev': stddev,
+                      'failrate': failrate,
+                      'response_sample_count': len(results['response_checks']),
+                      'survey_results': survey_results,
+                      'record_count': results['count'],
+                      })
+
+    return stats

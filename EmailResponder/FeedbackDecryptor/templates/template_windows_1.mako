@@ -194,7 +194,9 @@
           'language': '<a href="http://msdn.microsoft.com/en-ca/goglobal/bb964664.aspx">language</a>',
           'locale': '<a href="http://msdn.microsoft.com/en-ca/goglobal/bb964664.aspx">locale</a>',
           'codeSet': '<a href="http://msdn.microsoft.com/en-us/library/windows/desktop/dd317756%28v=vs.85%29.aspx">codeSet</a>',
-          'productState': '<a href="http://neophob.com/2010/03/wmi-query-windows-securitycenter2/">productState</a>'
+          'productState': '<a href="http://neophob.com/2010/03/wmi-query-windows-securitycenter2/">productState</a>',
+          'flags': '<a href="http://msdn.microsoft.com/en-us/library/windows/desktop/aa385145%28v=vs.85%29.aspx">flags</a>',
+          'countryCode': '<a href="http://en.wikipedia.org/wiki/List_of_country_calling_codes">countryCode</a>',
         }
   %>
   % if key in map:
@@ -225,7 +227,8 @@
   ${sys_info_row('User is', ', '.join([k for (k,v) in sys_info['UserInfo'].iteritems() if v]))}
   ${sys_info_row('AV', ', '.join([av['displayName'] for av in sys_info['SecurityInfo']['AntiVirusInfo'] if av[av['version']]['enabled']]))}
   ${sys_info_row('Uses proxy', 'yes' if [proxy for proxy in sys_info['NetworkInfo']['Original']['Proxy'] if proxy['flags'] != 'PROXY_TYPE_DIRECT'] else 'no')}
-
+  ${sys_info_row('~Country', ', '.join([c['display'] for c in utils.coalesce(sys_info, ['OSInfo', 'CountryCodeInfo'], [])]))}
+  ${sys_info_row('~Locale', utils.coalesce(sys_info, ['OSInfo', 'LocaleInfo', 'display'], ''))}
 </table>
 
 <a class="smaller" href="#sys_info_${metadata['id']}">See full System Info</a>
@@ -242,18 +245,21 @@
     debug_class = 'debug' if entry['debug'] else ''
   %>
 
-  ## Put a separator between entries that are separated in time.
-  % if timestamp_diff_secs > 10:
-    <hr>
-  % endif
+  ## Don't display debug entries in the output
+  % if not entry['debug']:
+    ## Put a separator between entries that are separated in time.
+    % if timestamp_diff_secs > 10:
+      <hr>
+    % endif
 
-  <div class="status-entry">
-    <div class="status-first-line">
-      <span class="timestamp">${utils.timestamp_display(entry['timestamp'])} [+${timestamp_diff_str}s]</span>
+    <div class="status-entry">
+      <div class="status-first-line">
+        <span class="timestamp">${utils.timestamp_display(entry['timestamp'])} [+${timestamp_diff_str}s]</span>
 
-      <span class="status-entry-message ${debug_class}">${entry['message']}</span>
+        <span class="status-entry-message ${debug_class}">${entry['message']}</span>
+      </div>
     </div>
-  </div>
+  % endif
 </%def>
 
 <%def name="diagnostic_history_row(entry, last_timestamp)">
