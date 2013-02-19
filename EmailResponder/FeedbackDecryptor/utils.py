@@ -60,6 +60,50 @@ def safe_str(ex):
     return unicode(ex).encode('utf8')
 
 
+def coalesce(obj, key_path, default_value=None):
+    '''
+    Looks at the chain of dict values of `obj` indicated by `key_path`. If a
+    key doesn't exist or a value is None, then `default_value` will be
+    returned, otherwise the target value will be returned.
+    `default_value` will also be returned if one of the values along `key_path`
+    is not a dict.
+    `obj` must be a dict.
+    `key_path` must be a possible dict key (e.g., string) or an array of
+    possible dict keys.
+    `default_value` will be returned if the target value is non-existent or None.
+    '''
+
+    if type(key_path) not in (list, tuple):
+        key_path = [key_path]
+
+    target_value = obj
+    for key in key_path:
+        if type(target_value) != dict:
+            return default_value
+
+        target_value = target_value.get(key, None)
+
+        if target_value is None:
+            return default_value
+
+    return target_value
+
+
+def coalesce_test():
+    assert(coalesce(None, 'a') == None)
+    assert(coalesce({}, 'a') == None)
+    assert(coalesce({'a': 1}, 'a') == 1)
+    assert(coalesce({'a': 1}, '') == None)
+    assert(coalesce({'a': 1}, 'b', 'nope') == 'nope')
+    assert(coalesce({'a': {'aa': 11}, 'b': 2}, ['a', 'aa'], 'nope') == 11)
+    assert(coalesce({'a': {'aa': 11}, 'b': 2}, ['a', 'bb'], 'nope') == 'nope')
+    assert(coalesce({'a': {'aa': 11}, 'b': 2}, ['a', 'aa', 'aaa'], 'nope') == 'nope')
+    assert(coalesce({'a': {'aa': 11}, 'b': 2}, ('a', 'aa'), 'nope') == 11)
+    print 'coalesce test okay'
+
+coalesce.test = coalesce_test
+
+
 ###########################
 
 _psinet = None
@@ -217,3 +261,17 @@ def rename_key_in_obj_at_path(obj, obj_path, new_key):
     target[new_key] = target[obj_path[-1]]
     # Delete the old key
     del target[obj_path[-1]]
+
+
+####################
+
+
+# TODO: proper unit test framework
+def test():
+    for name_in_module in dir(sys.modules[__name__]):
+        testee = getattr(sys.modules[__name__], name_in_module)
+
+        if not hasattr(testee, 'test') or not hasattr(testee.test, '__call__'):
+            continue
+
+        testee.test()

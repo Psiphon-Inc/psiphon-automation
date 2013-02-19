@@ -24,7 +24,10 @@ import sys
 import logging
 import logging.handlers
 
-import datastore
+try:
+    import datastore
+except:
+    pass
 
 
 _DEBUG = ('DEBUG' in os.environ) and os.environ['DEBUG']
@@ -62,4 +65,5 @@ def error(s):
     show up in the daily stats email.
     '''
     log(s)
-    datastore.add_error({'module': _main, 'error': s})
+    if datastore:
+        datastore.add_error({'module': _main, 'error': s})
