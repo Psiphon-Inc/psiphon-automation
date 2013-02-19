@@ -79,7 +79,6 @@ def translate(apiServers, apiKey, msg):
         detected = _make_request(apiServers, apiKey,
                                  'detect', {'q': msg[:200]})
         from_lang = detected['data']['detections'][0][0]['language']
-        print detected
 
         # 'zh-CN' will be returned as a detected language, but it is not in the
         # _languages set. So we might need to massage the detected language.
