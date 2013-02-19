@@ -79,6 +79,7 @@ def translate(apiServers, apiKey, msg):
         detected = _make_request(apiServers, apiKey,
                                  'detect', {'q': msg[:200]})
         from_lang = detected['data']['detections'][0][0]['language']
+        print detected
 
         # 'zh-CN' will be returned as a detected language, but it is not in the
         # _languages set. So we might need to massage the detected language.
@@ -96,12 +97,6 @@ def translate(apiServers, apiKey, msg):
 
         msg_translated = _translate_request_helper(apiServers, apiKey,
                                                    from_lang, msg)
-
-        # GTranslate sometimes returns the same string as the translation
-        # even though it clearly hasn't been translated. We need to detect
-        # this and treat it as an error.
-        if msg_translated == msg:
-            return ('[TRANSLATION_FAIL]', 'Google Translate returned same string', None)
 
         return (from_lang, _languages[from_lang], msg_translated)
     except Exception as e:
@@ -179,6 +174,7 @@ def _make_request(apiServers, apiKey, action, params=None):
 
     assert(action in ('languages', 'detect', 'translate'))
 
+    original_action = action
     if action == 'translate':
         # 'translate' is the API's default action.
         action = ''
@@ -204,12 +200,14 @@ def _make_request(apiServers, apiKey, action, params=None):
         apiServers.remove(_lastGoodApiServer)
         apiServers.insert(0, _lastGoodApiServer)
 
+    # We have to set the Host header so that Google will accept requests to
+    # "server1.googleapis.com", etc.
+    headers = {'Host': 'www.googleapis.com'}
+
     # This header is required to make a POST request.
     # See https://developers.google.com/translate/v2/using_rest
     if _USE_POST_REQUEST:
-        headers = {'X-HTTP-Method-Override': 'GET'}
-    else:
-        headers = None
+        headers['X-HTTP-Method-Override'] = 'GET'
 
     ex = None
 
@@ -225,7 +223,15 @@ def _make_request(apiServers, apiKey, action, params=None):
             else:
                 req = requests.get(url, headers=headers, params=params)
 
-            if req.ok:
+            extra_fail = _extra_fail_check(original_action, params, req)
+
+            if extra_fail != False:
+                success = False
+                err = 'translate request not ok; failing over: %s; %d; %s' \
+                        % (apiServer, req.status_code, extra_fail)
+                logger.error(err)
+                ex = Exception(err)
+            elif req.ok:
                 _lastGoodApiServer = apiServer
                 break
             else:
@@ -234,7 +240,6 @@ def _make_request(apiServers, apiKey, action, params=None):
                         % (apiServer, req.status_code, req.reason, req.text)
                 logger.error(err)
                 ex = Exception(err)
-                success = False
 
         # These exceptions are the ones we've seen when the API server is
         # being flaky.
@@ -252,3 +257,20 @@ def _make_request(apiServers, apiKey, action, params=None):
         raise ex if ex else Exception('translation fail')
 
     return req.json()
+
+
+def _extra_fail_check(action, params, req):
+    '''
+    This encapsulates a cheap hack: Sometimes Google Translate fails silently
+    by returning the same string back as the translation. We need to fail over
+    when this happens.
+    Returns False if no fail, otherwise an error string.
+    '''
+
+    if req.ok and action == 'translate':
+        msg = params['q']
+        msg_translated = req.json()['data']['translations'][0]['translatedText']
+        if msg == msg_translated:
+            return 'Google Translate returned same string'
+
+    return False
