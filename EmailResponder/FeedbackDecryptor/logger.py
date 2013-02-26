@@ -24,7 +24,12 @@ import sys
 import logging
 import logging.handlers
 
-import datastore
+datastore_log = lambda _: _
+try:
+    import datastore
+    datastore_log = datastore.add_error
+except Exception as e:
+    print 'datastore import failed: %s' % str(e)
 
 
 _DEBUG = ('DEBUG' in os.environ) and os.environ['DEBUG']
@@ -62,4 +67,4 @@ def error(s):
     show up in the daily stats email.
     '''
     log(s)
-    datastore.add_error({'module': _main, 'error': s})
+    datastore_log({'module': _main, 'error': s})

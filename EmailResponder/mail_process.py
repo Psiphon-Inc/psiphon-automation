@@ -71,7 +71,7 @@ class MailResponder:
             return False
 
         return True
-    
+
     def process_email(self, email_string):
         '''
         Processes the given email and sends a response.
@@ -85,7 +85,7 @@ class MailResponder:
 
         # Look up all config entries matching the requested address.
         request_conf = [item for item in self._conf if item['email_addr'] == self.requested_addr]
-        
+
         # If we didn't find anything for that address, exit.
         if not request_conf:
             syslog.syslog(syslog.LOG_INFO, 'fail: invalid requested address: %s' % self.requested_addr)
@@ -97,6 +97,11 @@ class MailResponder:
             return False
 
         # Process each config entry found the for the requested address separately.
+        # Don't fail out early, since the other email send method has a chance
+        # to succeed even if one fails. (I.e., SMTP will succeed even if there's
+        # a SES service problem.)
+        full_success = True
+        exception_to_raise = None
         for conf in request_conf:
             attachments = None
             if conf['attachments']:
@@ -105,26 +110,27 @@ class MailResponder:
                     bucketname, bucket_filename, attachment_filename = attachment_info
                     attachments.append((get_s3_attachment(bucketname, bucket_filename),
                                         attachment_filename))
-    
-            extra_headers = { 
+
+            extra_headers = {
                              'Reply-To': self.requested_addr
                             }
-    
+
             if self._requester_msgid:
                 extra_headers['In-Reply-To'] = self._requester_msgid
                 extra_headers['References'] = self._requester_msgid
-    
+
             raw_response = sendmail.create_raw_email(self._requester_addr,
                                                      self._response_from_addr,
                                                      self._subject,
                                                      conf['body'],
                                                      attachments,
                                                      extra_headers)
-    
+
             if not raw_response:
-                return False
-    
-            if conf.has_key('send_method') and conf['send_method'].upper() == 'SES':
+                full_success = False
+                continue
+
+            if conf.get('send_method', '').upper() == 'SES':
                 # If sending via SES, we'll use its DKIM facility -- so don't do it here.
                 try:
                     if not sendmail.send_raw_email_amazonses(raw_response,
@@ -133,18 +139,23 @@ class MailResponder:
                 except BotoServerError as ex:
                     if ex.error_message == 'Address blacklisted.':
                         syslog.syslog(syslog.LOG_CRIT, 'fail: requester address blacklisted by SES')
-                        return False
                     else:
-                        raise
+                        exception_to_raise = ex
+
+                    full_success = False
+                    continue
             else:
                 raw_response = _dkim_sign_email(raw_response)
-    
-                if not sendmail.send_raw_email_smtp(raw_response,
-                                                    settings.COMPLAINTS_ADDRESS, # will be Return-Path
-                                                    self._requester_addr):
-                    return False
 
-        return True
+                if not sendmail.send_raw_email_smtp(raw_response,
+                                                    settings.COMPLAINTS_ADDRESS,  # will be Return-Path
+                                                    self._requester_addr):
+                    full_success = False
+                    continue
+
+        if exception_to_raise:
+            raise exception_to_raise
+        return full_success
 
     def _check_blacklist(self):
         '''
@@ -205,7 +216,7 @@ class MailResponder:
             else:
                 syslog.syslog(syslog.LOG_INFO, 'fail: unparsable requester address')
                 dump_to_exception_file('fail: unparsable requester address\n\n%s' % self._email_string)
-                
+
             return False
 
         self._subject = decode_header(self._email['Subject'])
@@ -240,7 +251,7 @@ class MailResponder:
 
         print 'Email sent'
         return True
-    
+
 
 def strip_email(email_address):
     '''
@@ -345,11 +356,11 @@ def forward_to_administrator(email_type, email_string):
     '''
     `email_type` should be something like "Complaint".
     '''
-    
+
     if settings.ADMIN_FORWARD_ADDRESSES:
-        raw = sendmail.create_raw_email(settings.ADMIN_FORWARD_ADDRESSES, 
-                                        settings.RESPONSE_FROM_ADDR, 
-                                        '[MailResponder] ' + email_type, 
+        raw = sendmail.create_raw_email(settings.ADMIN_FORWARD_ADDRESSES,
+                                        settings.RESPONSE_FROM_ADDR,
+                                        '[MailResponder] ' + email_type,
                                         email_string)
         if not raw:
             print 'create_raw_email failed'
@@ -358,14 +369,14 @@ def forward_to_administrator(email_type, email_string):
         raw = _dkim_sign_email(raw)
 
         # Throws exception on error
-        if not sendmail.send_raw_email_smtp(raw, 
-                                            settings.RESPONSE_FROM_ADDR, 
+        if not sendmail.send_raw_email_smtp(raw,
+                                            settings.RESPONSE_FROM_ADDR,
                                             settings.ADMIN_FORWARD_ADDRESSES):
             print 'send_raw_email_smtp failed'
             return False
 
         print 'Email sent'
-        return True        
+        return True
 
 
 
