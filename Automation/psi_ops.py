@@ -2338,7 +2338,9 @@ def unit_test():
 def create():
     # Create a new network object and persist it
     psinet = PsiphonNetwork()
+    psinet.is_locked = True
     psinet.save()
+    psinet.release()
 
 
 def interact(lock):
