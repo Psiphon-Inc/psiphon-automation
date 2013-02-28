@@ -2226,7 +2226,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 server.web_server_port,
                                 server.web_server_secret,
                                 [self.__get_encoded_server_entry(server)],
-                                self.__client_versions[CLIENT_PLATFORM_WINDOWS][-1].version,  # This uses the Windows client
+                                self.__client_versions[CLIENT_PLATFORM_WINDOWS][-1].version if self.__client_versions[CLIENT_PLATFORM_WINDOWS] else 0,  # This uses the Windows client
                                 [server.egress_ip_address],
                                 test_propagation_channel_id,
                                 test_cases)
