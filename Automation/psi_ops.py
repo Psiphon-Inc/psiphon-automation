@@ -272,7 +272,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__deploy_email_config_required = False
         self.__speed_test_urls = []
         self.__remote_server_list_signing_key_pair = None
-        self.__feedback_encryption_signing_key_pair = None
+        self.__feedback_encryption_key_pair = None
         self.__feedback_upload_info = None
 
     class_version = '0.14'
