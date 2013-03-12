@@ -2147,8 +2147,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             None,
                                             server.internal_ip_address,
                                             None,
-                                            None,
-                                            None,
+                                            server.is_embedded,
+                                            server.is_permanent,
                                             server.discovery_date_range)
                                             # Omit: propagation, web server, ssh info
 
@@ -2160,8 +2160,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             None,
                                             deleted_server.internal_ip_address,
                                             None,
-                                            None,
-                                            None,
+                                            deleted_server.is_embedded,
+                                            deleted_server.is_permanent,
                                             deleted_server.discovery_date_range)
                                             # Omit: propagation, web server, ssh info
 
