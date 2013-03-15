@@ -799,10 +799,13 @@ def install_psi_limit_load(host, servers):
 #!/bin/bash
 
 threshold=10
+threshold_swap=5
 
 free=$(free | grep "buffers/cache" | awk '{print $4/($3+$4) * 100.0}')
 loaded=$(echo "$free<$threshold" | bc)
-if [ $loaded -eq 1 ]; then
+free_swap=$(free | grep "Swap" | awk '{print $4/$2 * 100.0}')
+loaded_swap=$(echo "$free_swap<$threshold_swap" | bc)
+if [ $loaded -eq 1 -o $loaded_swap -eq 1 ]; then
     %s
 else
     %s
