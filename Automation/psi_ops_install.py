@@ -780,8 +780,16 @@ def install_psi_limit_load(host, servers):
     # OSSH
     [' INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'
             % (str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
-                if s.capabilities['OSSH']] )
+                if s.capabilities['OSSH']] +
                 
+    # VPN
+    [' INPUT -d %s -p udp --dport 500 -j ACCEPT'
+            % (str(s.internal_ip_address), ) for s in servers
+                if s.capabilities['VPN']] +
+                
+    [' INPUT -d %s -p udp --dport 4500 -j ACCEPT'
+            % (str(s.internal_ip_address), ) for s in servers
+                if s.capabilities['VPN']] )
                 
     disable_services = '\n'.join(['iptables -D' + rule for rule in rules])
     
