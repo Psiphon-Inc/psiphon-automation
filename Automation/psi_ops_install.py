@@ -397,6 +397,8 @@ def install_host(host, servers, existing_server_ids):
 
     install_firewall_rules(host, servers)
     
+    install_psi_limit_load(host, servers)
+    
     # NOTE:
     # For partially configured hosts we need to completely reconfigure
     # all files because we use a counter in the xl2tpd config files that is not
@@ -763,3 +765,60 @@ def install_geoip_database(ssh):
         if os.path.isfile(geo_ip_file):
             ssh.put_file(os.path.join(os.path.abspath('.'), geo_ip_file),
                          posixpath.join(REMOTE_GEOIP_DIRECTORY, geo_ip_file))
+
+                         
+def install_psi_limit_load(host, servers):
+
+    # NOTE: only disabling SSH/OSSH for now since disabling the web server from external access
+    #       would also prevent current VPN users from accessing the web server.
+
+    rules = (
+    # SSH
+    [' INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'
+            % (str(s.internal_ip_address), str(s.ssh_port)) for s in servers
+                if s.capabilities['SSH']] +
+    # OSSH
+    [' INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'
+            % (str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
+                if s.capabilities['OSSH']] )
+                
+                
+    disable_services = '\n'.join(['iptables -D' + rule for rule in rules])
+    
+    enable_services = '\n'.join(['iptables -I' + rule for rule in rules])
+    
+    script = '''
+#!/bin/bash
+
+threshold=10
+
+free=$(free | grep "buffers/cache" | awk '{print $4/($3+$4) * 100.0}')
+loaded=$(echo "$free<$threshold" | bc)
+if [ $loaded -eq 1 ]; then
+    %s
+else
+    %s
+    %s
+fi
+''' % (disable_services, disable_services, enable_services)
+
+    ssh = psi_ssh.SSH(
+            host.ip_address, host.ssh_port,
+            host.ssh_username, host.ssh_password,
+            host.ssh_host_key)
+
+    psi_limit_load_host_path = '/usr/local/sbin/psi_limit_load'
+
+    file = tempfile.NamedTemporaryFile(delete=False)
+    file.write(script)
+    file.close()
+    ssh.put_file(file.name, psi_limit_load_host_path)
+    os.remove(file.name)
+
+    ssh.exec_command('chmod +x %s' % (psi_limit_load_host_path,))
+    
+    cron_file = '/etc/cron.d/psi-limit-load'
+    ssh.exec_command('echo "SHELL=/bin/sh" > %s;' % (cron_file,) +
+                     'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
+                     'echo "*/5 * * * * root %s" >> %s' % (psi_limit_load_host_path, cron_file))
+            
