@@ -807,6 +807,8 @@ fi
             host.ssh_username, host.ssh_password,
             host.ssh_host_key)
 
+    ssh.exec_command('apt-get install -y bc')
+            
     psi_limit_load_host_path = '/usr/local/sbin/psi_limit_load'
 
     file = tempfile.NamedTemporaryFile(delete=False)
