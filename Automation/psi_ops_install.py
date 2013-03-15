@@ -833,5 +833,5 @@ fi
     cron_file = '/etc/cron.d/psi-limit-load'
     ssh.exec_command('echo "SHELL=/bin/sh" > %s;' % (cron_file,) +
                      'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
-                     'echo "*/5 * * * * root %s" >> %s' % (psi_limit_load_host_path, cron_file))
+                     'echo "*/2 * * * * root %s" >> %s' % (psi_limit_load_host_path, cron_file))
             
