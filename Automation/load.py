@@ -18,5 +18,5 @@ def check_load_on_hosts(psinet, hosts):
     return cur_users, loads
 
 def check_load(psinet):
-    return check_load_on_hosts(psinet, psinet.get_hosts)
+    return check_load_on_hosts(psinet, psinet.get_hosts())
     
