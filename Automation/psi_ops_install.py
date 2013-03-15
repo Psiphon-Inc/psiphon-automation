@@ -803,8 +803,12 @@ threshold_swap=5
 
 free=$(free | grep "buffers/cache" | awk '{print $4/($3+$4) * 100.0}')
 loaded=$(echo "$free<$threshold" | bc)
-free_swap=$(free | grep "Swap" | awk '{print $4/$2 * 100.0}')
-loaded_swap=$(echo "$free_swap<$threshold_swap" | bc)
+loaded_swap=0
+total_swap=$(free | grep "Swap" | awk '{print $2}')
+if [ $total_swap -ne 0 ]; then
+    free_swap=$(free | grep "Swap" | awk '{print $4/$2 * 100.0}')
+    loaded_swap=$(echo "$free_swap<$threshold_swap" | bc)
+fi
 if [ $loaded -eq 1 -o $loaded_swap -eq 1 ]; then
     %s
 else
