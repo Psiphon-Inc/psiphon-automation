@@ -769,37 +769,33 @@ def install_geoip_database(ssh):
                          
 def install_psi_limit_load(host, servers):
 
-    # NOTE: only disabling SSH/OSSH for now since disabling the web server from external access
+    # NOTE: only disabling SSH/OSSH/IKE since disabling the web server from external access
     #       would also prevent current VPN users from accessing the web server.
 
     rules = (
     # SSH
-    [' INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'
+    [' INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j REJECT --reject-with tcp-reset'
             % (str(s.internal_ip_address), str(s.ssh_port)) for s in servers
                 if s.capabilities['SSH']] +
     # OSSH
-    [' INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'
+    [' INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j REJECT --reject-with tcp-reset'
             % (str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
                 if s.capabilities['OSSH']] +
                 
     # VPN
-    [' INPUT -d %s -p udp --dport 500 -j ACCEPT'
-            % (str(s.internal_ip_address), ) for s in servers
-                if s.capabilities['VPN']] +
-                
-    [' INPUT -d %s -p udp --dport 4500 -j ACCEPT'
+    [' INPUT -d %s -p udp --dport 500 -j DROP'
             % (str(s.internal_ip_address), ) for s in servers
                 if s.capabilities['VPN']] )
                 
-    disable_services = '\n'.join(['iptables -D' + rule for rule in rules])
+    disable_services = '\n'.join(['iptables -I' + rule for rule in rules])
     
-    enable_services = '\n'.join(['iptables -I' + rule for rule in rules])
+    enable_services = '\n'.join(['iptables -D' + rule for rule in rules])
     
     script = '''
 #!/bin/bash
 
 threshold=10
-threshold_swap=5
+threshold_swap=20
 
 free=$(free | grep "buffers/cache" | awk '{print $4/($3+$4) * 100.0}')
 loaded=$(echo "$free<$threshold" | bc)
@@ -811,11 +807,11 @@ if [ $total_swap -ne 0 ]; then
 fi
 if [ $loaded -eq 1 -o $loaded_swap -eq 1 ]; then
     %s
+    %s
 else
     %s
-    %s
 fi
-''' % (disable_services, disable_services, enable_services)
+''' % (enable_services, disable_services, enable_services)
 
     ssh = psi_ssh.SSH(
             host.ip_address, host.ssh_port,
