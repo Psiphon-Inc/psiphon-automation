@@ -4,6 +4,14 @@ This is a collection of services that monitor email and a S3 bucket for
 encrypted diagnostic feedback. They then decrypt and store that data, and then
 send an email with the data.
 
+## TODO
+
+### Additional items to include in feedback
+
+#### Android
+
++ output from uname -a or something that shows information about the kernel version and build
+
 ## Setup
 
 ### System Configuration

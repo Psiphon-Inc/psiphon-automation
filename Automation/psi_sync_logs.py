@@ -75,12 +75,6 @@ def sync_log_files(host):
     if not os.path.exists(dest):
         os.makedirs(dest)
 
-    # Remove the known_hosts file entry for this host.  Since servers are destroyed
-    # and recreated often, it is possible to have an old entry in the known_hosts file
-    # that matches this host's ip address and port
-
-    os.system('ssh-keygen -R [%s]:%s' % (host.ip_address, host.ssh_port))
-
     # Get the RSA key fingerprint from the host's SSH_Host_Key
     # Based on:
     # http://stackoverflow.com/questions/6682815/deriving-an-ssh-fingerprint-from-a-public-key-in-python
@@ -131,6 +125,12 @@ if __name__ == "__main__":
                   host['stats_ssh_username'],
                   host['stats_ssh_password'])
              for host in psinet['_PsiphonNetwork__hosts'].itervalues()]
+
+    # Remove the known_hosts file entry for each host.  Since servers are destroyed
+    # and recreated often, it is possible to have an old entry in the known_hosts file
+    # that matches a current host's ip address and port
+    for host in hosts:
+        os.system('ssh-keygen -R [%s]:%s' % (host.ip_address, host.ssh_port))
 
     pool = multiprocessing.Pool(200)
     results = pool.map(sync_log_files, hosts)
