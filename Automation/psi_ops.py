@@ -101,6 +101,15 @@ try:
     import psi_routes
 except ImportError as error:
     print error
+    
+plugins = []
+try:
+    import psi_ops_plugins
+    for (path, plugin) in psi_ops_plugins.PLUGINS:
+        sys.path.insert(0, path)
+        plugins.append(__import__(plugin))
+except ImportError as error:
+    print error
 
 # NOTE: update compartmentalize() functions when adding fields
 
@@ -237,7 +246,7 @@ CLIENT_PLATFORM_ANDROID = 'Android'
 
 class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
-    def __init__(self):
+    def __init__(self, initialize_plugins=True):
         super(PsiphonNetwork, self).__init__()
         # TODO: what is this __version for?
         self.__version = '1.0'
@@ -274,6 +283,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__remote_server_list_signing_key_pair = None
         self.__feedback_encryption_key_pair = None
         self.__feedback_upload_info = None
+        if initialize_plugins:
+            self.initialize_plugins()
 
     class_version = '0.15'
 
@@ -360,6 +371,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 server.is_permanent = False
             self.version = '0.15'
 
+    def initialize_plugins(self):
+        for plugin in plugins:
+            if hasattr(plugin, 'initialize'):
+                plugin.initialize(self)
+            
     def show_status(self):
         # NOTE: verbose mode prints credentials to stdout
         print textwrap.dedent('''
@@ -1026,7 +1042,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def setup_server(self, host, servers):
         # Install Psiphon 3 and generate configuration values
         # Here, we're assuming one server/IP address per host
-        psi_ops_install.install_host(host, servers, self.get_existing_server_ids())
+        psi_ops_install.install_host(host, servers, self.get_existing_server_ids(), plugins)
         host.log('install')
 
         # Update database
@@ -1226,7 +1242,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(self.is_locked)
         host = self.__hosts[host_id]
         servers = [server for server in self.__servers.itervalues() if server.host_id == host_id]
-        psi_ops_install.install_host(host, servers, self.get_existing_server_ids())
+        psi_ops_install.install_host(host, servers, self.get_existing_server_ids(), plugins)
         psi_ops_deploy.deploy_implementation(host)
         # New data might have been generated
         # NOTE that if the client version has been incremented but a full deploy has not yet been run,
@@ -2051,7 +2067,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # - send home pages for all sponsors, but omit names, banners, campaigns
         # - send versions info for upgrades
 
-        copy = PsiphonNetwork()
+        copy = PsiphonNetwork(initialize_plugins=False)
 
         for propagation_channel in self.__propagation_channels.itervalues():
             copy.__propagation_channels[propagation_channel.id] = PropagationChannel(
@@ -2123,7 +2139,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # the information to replace server IPs with server IDs, sponsor IDs
         # with names and propagation IDs with names
 
-        copy = PsiphonNetwork()
+        copy = PsiphonNetwork(initialize_plugins=False)
 
         for host in self.__hosts.itervalues():
             copy.__hosts[host.id] = Host(
