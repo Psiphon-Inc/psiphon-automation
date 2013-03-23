@@ -181,6 +181,7 @@ class PersistentObject(object):
                 obj.version = '0.0'
             if obj.version != obj.class_version:
                 obj.upgrade()
+            obj.initialize_plugins()
         obj.is_locked = False
         return obj
 
@@ -201,3 +202,6 @@ class PersistentObject(object):
 
     def upgrade(self):
         pass 
+
+    def initialize_plugins(self):
+        pass
