@@ -812,6 +812,7 @@ if [ $loaded -eq 1 -o $loaded_swap -eq 1 ]; then
 else
     %s
 fi
+exit 0
 ''' % (enable_services, disable_services, enable_services)
 
     ssh = psi_ssh.SSH(
