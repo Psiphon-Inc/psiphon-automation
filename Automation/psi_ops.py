@@ -141,7 +141,7 @@ SponsorHomePage = psi_utils.recordtype(
 
 SponsorCampaign = psi_utils.recordtype(
     'SponsorCampaign',
-    'propagation_channel_id, propagation_mechanism_type, account, s3_bucket_name, languages')
+    'propagation_channel_id, propagation_mechanism_type, account, s3_bucket_name, languages, custom_download_site')
 
 SponsorRegex = psi_utils.recordtype(
     'SponsorRegex',
@@ -286,7 +286,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.15'
+    class_version = '0.16'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -370,6 +370,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for server in self.__deleted_servers.itervalues():
                 server.is_permanent = False
             self.version = '0.15'
+        if cmp(parse_version(self.version), parse_version('0.16')) < 0:
+            for sponsor in self.__sponsors.itervalues():
+                for campaign in sponsor.campaigns:
+                    campaign.custom_download_site = False
+            self.version = '0.16'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -709,7 +714,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                    propagation_mechanism_type,
                                    EmailPropagationAccount(email_account),
                                    None,
-                                   None)
+                                   None,
+                                   False)
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
             sponsor.log('add email campaign %s' % (email_account,))
@@ -739,7 +745,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         twitter_account_access_token_key,
                                         twitter_account_access_token_secret),
                                    None,
-                                   None)
+                                   None,
+                                   False)
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
             sponsor.log('add twitter campaign %s' % (twitter_account_name,))
@@ -758,7 +765,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                    propagation_mechanism_type,
                                    None,
                                    None,
-                                   None)
+                                   None,
+                                   False)
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
             sponsor.log('add static download campaign')
@@ -1546,7 +1554,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         self.__aws_account,
                         [(build_filename, client_build_filenames[platform])],
                         remote_server_list,
-                        campaign.s3_bucket_name)
+                        campaign.s3_bucket_name,
+                        campaign.custom_download_site)
                     campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
 
                     if campaign.propagation_mechanism_type == 'twitter':
@@ -1595,7 +1604,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for sponsor in self.__sponsors.itervalues():
             for campaign in sponsor.campaigns:
                 if campaign.s3_bucket_name:
-                    psi_ops_s3.update_s3_download(self.__aws_account, None, None, campaign.s3_bucket_name)
+                    psi_ops_s3.update_s3_download(self.__aws_account, None, None, campaign.s3_bucket_name, campaign.custom_download_site)
                     campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
 
     def update_routes(self):
