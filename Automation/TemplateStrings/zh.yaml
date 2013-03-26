@@ -7,7 +7,7 @@ zh:
     </div>
   plaintext_email_with_attachment: |+
     要使用Psiphon 3的Windows, 保存文件 {{1}} 与“.exe”扩展名。
-    要使用Psiphon 3的安卓，安装文件PsiphonAndroid.apk {{2}}。
+    要使用Psiphon 3的安卓，安装此文件 {{2}}。
     有关详细信息或者再次下载这些文件，请点击下面的链接。
     {{0}}/{0}.html
 
