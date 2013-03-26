@@ -34,7 +34,6 @@ PSIPHON_LIB_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'PsiphonAndroidLibrary')
 ZIRCO_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'zirco-browser')
 
 BANNER_ROOT = os.path.join(os.path.abspath('..'), 'Data', 'Banners')
-CLIENT_SOLUTION_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient.sln')
 KEYSTORE_FILENAME = os.path.join(os.path.abspath('..'), 'Data', 'CodeSigning', 'test.keystore')
 KEYSTORE_PASSWORD = 'password'
 
