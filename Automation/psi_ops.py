@@ -104,6 +104,7 @@ except ImportError as error:
     
 plugins = []
 try:
+    sys.path.insert(0, os.path.abspath('../../'))
     import psi_ops_plugins
     for (path, plugin) in psi_ops_plugins.PLUGINS:
         sys.path.insert(0, path)
@@ -1419,6 +1420,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             CLIENT_PLATFORM_WINDOWS: psi_ops_build_windows.build_client,
             CLIENT_PLATFORM_ANDROID: psi_ops_build_android.build_client
         }
+        
+        for plugin in plugins:
+            if hasattr(plugin, 'build_android_client'):
+                builders[CLIENT_PLATFORM_ANDROID] = plugin.build_android_client
 
         return [builders[platform](
                         propagation_channel.id,
