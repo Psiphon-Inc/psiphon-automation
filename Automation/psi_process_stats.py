@@ -671,7 +671,14 @@ def update_servers(db, psinet):
 
     for server in psinet.get_servers():
         host = psinet.get_host_for_server(server)
-        server_type = 'Discovery' if server.discovery_date_range else 'Propagation'
+        server_type = 'Propagation'
+        if server.discovery_date_range:
+            server_type = 'Discovery'
+        else:
+            if server.is_embedded:
+                server_type = 'Embedded'
+            if server.is_permanent:
+                server_type = 'Permanent'
         cursor.execute('UPDATE server SET type = %s, datacenter_name = %s WHERE id = %s',
                        [server_type, host.datacenter_name, server.id])
         cursor.execute('INSERT INTO server (id, type, datacenter_name) SELECT %s, %s, %s ' +

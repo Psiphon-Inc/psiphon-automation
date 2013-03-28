@@ -397,6 +397,8 @@ def install_host(host, servers, existing_server_ids):
 
     install_firewall_rules(host, servers)
     
+    install_psi_limit_load(host, servers)
+    
     # NOTE:
     # For partially configured hosts we need to completely reconfigure
     # all files because we use a counter in the xl2tpd config files that is not
@@ -461,6 +463,25 @@ def install_host(host, servers, existing_server_ids):
                  remote_ossh_file_path)
     ssh.exec_command('cd %s; tar xfz ossh.tar.gz; ./configure --with-pam > /dev/null; make > /dev/null && make install > /dev/null' 
             %(psi_config.HOST_OSSH_SRC_DIR,))
+
+    #
+    # Upload and install badvpn-udpgw
+    #
+
+    ssh.exec_command('apt-get install -y cmake')
+    ssh.exec_command('rm -rf %(key)s; mkdir -p %(key)s' % {"key": psi_config.HOST_BADVPN_SRC_DIR})
+    remote_badvpn_file_path = posixpath.join(psi_config.HOST_BADVPN_SRC_DIR, 'badvpn.tar.gz')
+    ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', '3rdParty', 'badvpn.tar.gz'),
+                 remote_badvpn_file_path)
+    ssh.exec_command('cd %s; tar xfz badvpn.tar.gz; mkdir build; cd build; cmake ../badvpn -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_NOTHING_BY_DEFAULT=1 -DBUILD_UDPGW=1 > /dev/null; make > /dev/null && make install > /dev/null' 
+            %(psi_config.HOST_BADVPN_SRC_DIR,))
+
+    remote_init_file_path = posixpath.join(psi_config.HOST_INIT_DIR, 'badvpn-udpgw')
+    ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', 'udpgw-init'),
+                 remote_init_file_path)
+    ssh.exec_command('chmod +x %s' % (remote_init_file_path,))
+    ssh.exec_command('update-rc.d %s defaults' % ('badvpn-udpgw',))
+    ssh.exec_command('%s restart' % (remote_init_file_path,))
 
     #
     # Generate and upload sshd_config files and xinetd.conf
@@ -561,6 +582,7 @@ def install_firewall_rules(host, servers):
     iptables_rules_path = '/etc/iptables.rules'
     iptables_rules_contents = '''
 *filter
+    -A INPUT -i lo -p tcp -m tcp --dport 7300 -j ACCEPT
     -A INPUT -i lo -p tcp -m tcp --dport 6379 -j ACCEPT
     -A INPUT -i lo -p tcp -m tcp --dport 6000 -j ACCEPT''' + ''.join(
     # tunneled web requests
@@ -609,14 +631,18 @@ def install_firewall_rules(host, servers):
     -A OUTPUT -d {0} -o lo -p tcp -m tcp --dport {1} -j ACCEPT
     -A OUTPUT -s {0} -o lo -p tcp -m tcp --sport {1} -j ACCEPT'''.format(
             str(s.internal_ip_address), str(s.web_server_port)) for s in servers]) + '''
+    -A OUTPUT -o lo -p tcp -m tcp --dport 7300 -j ACCEPT
     -A OUTPUT -o lo -p tcp -m tcp --dport 6379 -m owner --uid-owner root -j ACCEPT
     -A OUTPUT -o lo -p tcp -m tcp --dport 6000 -m owner --uid-owner root -j ACCEPT
     -A OUTPUT -o lo -p tcp -m tcp --dport 6379 -m owner --uid-owner www-data -j ACCEPT
+    -A OUTPUT -o lo -p tcp -m tcp --sport 7300 -j ACCEPT
     -A OUTPUT -o lo -p tcp -m tcp --sport 6379 -j ACCEPT
     -A OUTPUT -o lo -p tcp -m tcp --sport 6000 -j ACCEPT
     -A OUTPUT -o lo -j REJECT
     -A OUTPUT -p tcp -m multiport --dports 53,80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
     -A OUTPUT -p udp -m multiport --dports 53,80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
+    -A OUTPUT -p tcp -m multiport --dports 5228,5229,5230,14259 -j ACCEPT
+    -A OUTPUT -p udp -m multiport --dports 5228,5229,5230,14259 -j ACCEPT
     -A OUTPUT -p udp -m udp --dport 123 -j ACCEPT
     -A OUTPUT -p tcp -m tcp --sport %s -j ACCEPT''' % (host.ssh_port,) + ''.join(
     # tunneled web requests on NATed servers don't go out lo
@@ -648,6 +674,7 @@ def install_firewall_rules(host, servers):
     -A OUTPUT -s {0} -o ipsec+ -p udp -m udp --dport l2tp -j ACCEPT'''.format(
             str(s.internal_ip_address)) for s in servers
                 if s.capabilities['VPN']]) + '''
+    -A OUTPUT -s %s -p tcp -m tcp --tcp-flags ALL ACK,RST -j ACCEPT''' % (str(s.internal_ip_address), ) + '''
     -A OUTPUT -j REJECT
 COMMIT
 
@@ -739,3 +766,74 @@ def install_geoip_database(ssh):
         if os.path.isfile(geo_ip_file):
             ssh.put_file(os.path.join(os.path.abspath('.'), geo_ip_file),
                          posixpath.join(REMOTE_GEOIP_DIRECTORY, geo_ip_file))
+
+                         
+def install_psi_limit_load(host, servers):
+
+    # NOTE: only disabling SSH/OSSH/IKE since disabling the web server from external access
+    #       would also prevent current VPN users from accessing the web server.
+
+    rules = (
+    # SSH
+    [' INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j REJECT --reject-with tcp-reset'
+            % (str(s.internal_ip_address), str(s.ssh_port)) for s in servers
+                if s.capabilities['SSH']] +
+    # OSSH
+    [' INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j REJECT --reject-with tcp-reset'
+            % (str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
+                if s.capabilities['OSSH']] +
+                
+    # VPN
+    [' INPUT -d %s -p udp --dport 500 -j DROP'
+            % (str(s.internal_ip_address), ) for s in servers
+                if s.capabilities['VPN']] )
+                
+    disable_services = '\n'.join(['iptables -I' + rule for rule in rules])
+    
+    enable_services = '\n'.join(['iptables -D' + rule for rule in rules])
+    
+    script = '''
+#!/bin/bash
+
+threshold=10
+threshold_swap=20
+
+free=$(free | grep "buffers/cache" | awk '{print $4/($3+$4) * 100.0}')
+loaded=$(echo "$free<$threshold" | bc)
+loaded_swap=0
+total_swap=$(free | grep "Swap" | awk '{print $2}')
+if [ $total_swap -ne 0 ]; then
+    free_swap=$(free | grep "Swap" | awk '{print $4/$2 * 100.0}')
+    loaded_swap=$(echo "$free_swap<$threshold_swap" | bc)
+fi
+if [ $loaded -eq 1 -o $loaded_swap -eq 1 ]; then
+    %s
+    %s
+else
+    %s
+fi
+exit 0
+''' % (enable_services, disable_services, enable_services)
+
+    ssh = psi_ssh.SSH(
+            host.ip_address, host.ssh_port,
+            host.ssh_username, host.ssh_password,
+            host.ssh_host_key)
+
+    ssh.exec_command('apt-get install -y bc')
+            
+    psi_limit_load_host_path = '/usr/local/sbin/psi_limit_load'
+
+    file = tempfile.NamedTemporaryFile(delete=False)
+    file.write(script)
+    file.close()
+    ssh.put_file(file.name, psi_limit_load_host_path)
+    os.remove(file.name)
+
+    ssh.exec_command('chmod +x %s' % (psi_limit_load_host_path,))
+    
+    cron_file = '/etc/cron.d/psi-limit-load'
+    ssh.exec_command('echo "SHELL=/bin/sh" > %s;' % (cron_file,) +
+                     'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
+                     'echo "*/2 * * * * root %s" >> %s' % (psi_limit_load_host_path, cron_file))
+            

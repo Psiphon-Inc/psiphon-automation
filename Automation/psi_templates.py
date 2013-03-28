@@ -46,32 +46,41 @@ def get_language_string(language, key):
     # Other format specifiers, to be substituted later, should be escaped: {{N}}
     return str.format(language)
 
-def get_all_languages_string(key):
-    return ''.join([get_language_string(language, key) for language in LANGUAGES])
+def get_all_languages_string(key, languages):
+    if languages:
+        return ''.join([get_language_string(language, key) for language in languages if language in LANGUAGES])
+    else:
+        return ''.join([get_language_string(language, key) for language in LANGUAGES])
 
 def get_tweet_message(s3_bucket_name):
     bucket_root_url = 'https://s3.amazonaws.com/' + s3_bucket_name
     return 'Get Psiphon 3 here: %s/en.html' % (bucket_root_url,)
 
 def get_plaintext_email_content(
-        s3_bucket_name):
+        s3_bucket_name,
+        languages):
     bucket_root_url = 'https://s3.amazonaws.com/' + s3_bucket_name
     return get_all_languages_string(
-        'plaintext_email_no_attachment').format(bucket_root_url)
+        'plaintext_email_no_attachment',
+        languages).format(bucket_root_url)
 
 def get_html_email_content(
-        s3_bucket_name):
+        s3_bucket_name,
+        languages):
     bucket_root_url = 'https://s3.amazonaws.com/' + s3_bucket_name
     return get_all_languages_string(
-        'html_email_no_attachment').format(bucket_root_url)
+        'html_email_no_attachment',
+        languages).format(bucket_root_url)
 
 def get_plaintext_attachment_email_content(
         s3_bucket_name,
         windows_attachment_filename,
-        android_attachment_filename):
+        android_attachment_filename,
+        languages):
     bucket_root_url = 'https://s3.amazonaws.com/' + s3_bucket_name
     return get_all_languages_string(
-        'plaintext_email_with_attachment').format(
+        'plaintext_email_with_attachment',
+        languages).format(
             bucket_root_url,
             windows_attachment_filename,
             android_attachment_filename)
@@ -79,10 +88,12 @@ def get_plaintext_attachment_email_content(
 def get_html_attachment_email_content(
         s3_bucket_name,
         windows_attachment_filename,
-        android_attachment_filename):
+        android_attachment_filename,
+        languages):
     bucket_root_url = 'https://s3.amazonaws.com/' + s3_bucket_name
     return get_all_languages_string(
-        'html_email_with_attachment').format(
+        'html_email_with_attachment',
+        languages).format(
             bucket_root_url,
             windows_attachment_filename,
             android_attachment_filename)

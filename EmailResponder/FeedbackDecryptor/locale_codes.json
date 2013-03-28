@@ -1,0 +1,1311 @@
+[
+  {
+    "codepage": 1252,
+    "lcid_string": "af",
+    "display": "Afrikaans",
+    "lcid_number": 1078,
+    "language_code": "af"
+  },
+  {
+    "codepage": 1250,
+    "lcid_string": "sq",
+    "display": "Albanian",
+    "lcid_number": 1052,
+    "language_code": "sq"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "am",
+    "display": "Amharic",
+    "lcid_number": 1118,
+    "language_code": "am"
+  },
+  {
+    "codepage": 1256,
+    "lcid_string": "ar-dz",
+    "display": "Arabic - Algeria",
+    "lcid_number": 5121,
+    "language_code": "ar"
+  },
+  {
+    "codepage": 1256,
+    "lcid_string": "ar-bh",
+    "display": "Arabic - Bahrain",
+    "lcid_number": 15361,
+    "language_code": "ar"
+  },
+  {
+    "codepage": 1256,
+    "lcid_string": "ar-eg",
+    "display": "Arabic - Egypt",
+    "lcid_number": 3073,
+    "language_code": "ar"
+  },
+  {
+    "codepage": 1256,
+    "lcid_string": "ar-iq",
+    "display": "Arabic - Iraq",
+    "lcid_number": 2049,
+    "language_code": "ar"
+  },
+  {
+    "codepage": 1256,
+    "lcid_string": "ar-jo",
+    "display": "Arabic - Jordan",
+    "lcid_number": 11265,
+    "language_code": "ar"
+  },
+  {
+    "codepage": 1256,
+    "lcid_string": "ar-kw",
+    "display": "Arabic - Kuwait",
+    "lcid_number": 13313,
+    "language_code": "ar"
+  },
+  {
+    "codepage": 1256,
+    "lcid_string": "ar-lb",
+    "display": "Arabic - Lebanon",
+    "lcid_number": 12289,
+    "language_code": "ar"
+  },
+  {
+    "codepage": 1256,
+    "lcid_string": "ar-ly",
+    "display": "Arabic - Libya",
+    "lcid_number": 4097,
+    "language_code": "ar"
+  },
+  {
+    "codepage": 1256,
+    "lcid_string": "ar-ma",
+    "display": "Arabic - Morocco",
+    "lcid_number": 6145,
+    "language_code": "ar"
+  },
+  {
+    "codepage": 1256,
+    "lcid_string": "ar-om",
+    "display": "Arabic - Oman",
+    "lcid_number": 8193,
+    "language_code": "ar"
+  },
+  {
+    "codepage": 1256,
+    "lcid_string": "ar-qa",
+    "display": "Arabic - Qatar",
+    "lcid_number": 16385,
+    "language_code": "ar"
+  },
+  {
+    "codepage": 1256,
+    "lcid_string": "ar-sa",
+    "display": "Arabic - Saudi Arabia",
+    "lcid_number": 1025,
+    "language_code": "ar"
+  },
+  {
+    "codepage": 1256,
+    "lcid_string": "ar-sy",
+    "display": "Arabic - Syria",
+    "lcid_number": 10241,
+    "language_code": "ar"
+  },
+  {
+    "codepage": 1256,
+    "lcid_string": "ar-tn",
+    "display": "Arabic - Tunisia",
+    "lcid_number": 7169,
+    "language_code": "ar"
+  },
+  {
+    "codepage": 1256,
+    "lcid_string": "ar-ae",
+    "display": "Arabic - United Arab Emirates",
+    "lcid_number": 14337,
+    "language_code": "ar"
+  },
+  {
+    "codepage": 1256,
+    "lcid_string": "ar-ye",
+    "display": "Arabic - Yemen",
+    "lcid_number": 9217,
+    "language_code": "ar"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "hy",
+    "display": "Armenian",
+    "lcid_number": 1067,
+    "language_code": "hy"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "as",
+    "display": "Assamese",
+    "lcid_number": 1101,
+    "language_code": "as"
+  },
+  {
+    "codepage": 1251,
+    "lcid_string": "az-az",
+    "display": "Azeri - Cyrillic",
+    "lcid_number": 2092,
+    "language_code": "az"
+  },
+  {
+    "codepage": 1254,
+    "lcid_string": "az-az",
+    "display": "Azeri - Latin",
+    "lcid_number": 1068,
+    "language_code": "az"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "eu",
+    "display": "Basque",
+    "lcid_number": 1069,
+    "language_code": "eu"
+  },
+  {
+    "codepage": 1251,
+    "lcid_string": "be",
+    "display": "Belarusian",
+    "lcid_number": 1059,
+    "language_code": "be"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "bn",
+    "display": "Bengali - Bangladesh",
+    "lcid_number": 2117,
+    "language_code": "bn"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "bn",
+    "display": "Bengali - India",
+    "lcid_number": 1093,
+    "language_code": "bn"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "bs",
+    "display": "Bosnian",
+    "lcid_number": 5146,
+    "language_code": "bs"
+  },
+  {
+    "codepage": 1251,
+    "lcid_string": "bg",
+    "display": "Bulgarian",
+    "lcid_number": 1026,
+    "language_code": "bg"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "my",
+    "display": "Burmese",
+    "lcid_number": 1109,
+    "language_code": "my"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "ca",
+    "display": "Catalan",
+    "lcid_number": 1027,
+    "language_code": "ca"
+  },
+  {
+    "codepage": 936,
+    "lcid_string": "zh-cn",
+    "display": "Chinese - China",
+    "lcid_number": 2052,
+    "language_code": "zh"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "zh-hk",
+    "display": "Chinese - Hong Kong SAR",
+    "lcid_number": 3076,
+    "language_code": "zh"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "zh-mo",
+    "display": "Chinese - Macau SAR",
+    "lcid_number": 5124,
+    "language_code": "zh"
+  },
+  {
+    "codepage": 936,
+    "lcid_string": "zh-sg",
+    "display": "Chinese - Singapore",
+    "lcid_number": 4100,
+    "language_code": "zh"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "zh-tw",
+    "display": "Chinese - Taiwan",
+    "lcid_number": 1028,
+    "language_code": "zh"
+  },
+  {
+    "codepage": 1250,
+    "lcid_string": "hr",
+    "display": "Croatian",
+    "lcid_number": 1050,
+    "language_code": "hr"
+  },
+  {
+    "codepage": 1250,
+    "lcid_string": "cs",
+    "display": "Czech",
+    "lcid_number": 1029,
+    "language_code": "cs"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "da",
+    "display": "Danish",
+    "lcid_number": 1030,
+    "language_code": "da"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "dv",
+    "display": "Divehi; Dhivehi; Maldivian",
+    "lcid_number": 1125,
+    "language_code": "dv"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "nl-be",
+    "display": "Dutch - Belgium",
+    "lcid_number": 2067,
+    "language_code": "nl"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "nl-nl",
+    "display": "Dutch - Netherlands",
+    "lcid_number": 1043,
+    "language_code": "nl"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "",
+    "display": "Edo",
+    "lcid_number": 1126,
+    "language_code": ""
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "en-au",
+    "display": "English - Australia",
+    "lcid_number": 3081,
+    "language_code": "en"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "en-bz",
+    "display": "English - Belize",
+    "lcid_number": 10249,
+    "language_code": "en"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "en-ca",
+    "display": "English - Canada",
+    "lcid_number": 4105,
+    "language_code": "en"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "en-cb",
+    "display": "English - Caribbean",
+    "lcid_number": 9225,
+    "language_code": "en"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "en-gb",
+    "display": "English - Great Britain",
+    "lcid_number": 2057,
+    "language_code": "en"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "en-in",
+    "display": "English - India",
+    "lcid_number": 16393,
+    "language_code": "en"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "en-ie",
+    "display": "English - Ireland",
+    "lcid_number": 6153,
+    "language_code": "en"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "en-jm",
+    "display": "English - Jamaica",
+    "lcid_number": 8201,
+    "language_code": "en"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "en-nz",
+    "display": "English - New Zealand",
+    "lcid_number": 5129,
+    "language_code": "en"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "en-ph",
+    "display": "English - Phillippines",
+    "lcid_number": 13321,
+    "language_code": "en"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "en-za",
+    "display": "English - Southern Africa",
+    "lcid_number": 7177,
+    "language_code": "en"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "en-tt",
+    "display": "English - Trinidad",
+    "lcid_number": 11273,
+    "language_code": "en"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "en-us",
+    "display": "English - United States",
+    "lcid_number": 1033,
+    "language_code": "en"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "",
+    "display": "English - Zimbabwe",
+    "lcid_number": 12297,
+    "language_code": "en"
+  },
+  {
+    "codepage": 1257,
+    "lcid_string": "et",
+    "display": "Estonian",
+    "lcid_number": 1061,
+    "language_code": "et"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "fo",
+    "display": "Faroese",
+    "lcid_number": 1080,
+    "language_code": "fo"
+  },
+  {
+    "codepage": 1256,
+    "lcid_string": "fa",
+    "display": "Farsi - Persian",
+    "lcid_number": 1065,
+    "language_code": "fa"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "",
+    "display": "Filipino",
+    "lcid_number": 1124,
+    "language_code": ""
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "fi",
+    "display": "Finnish",
+    "lcid_number": 1035,
+    "language_code": "fi"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "fr-be",
+    "display": "French - Belgium",
+    "lcid_number": 2060,
+    "language_code": "fr"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "",
+    "display": "French - Cameroon",
+    "lcid_number": 11276,
+    "language_code": "fr"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "fr-ca",
+    "display": "French - Canada",
+    "lcid_number": 3084,
+    "language_code": "fr"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "",
+    "display": "French - Congo",
+    "lcid_number": 9228,
+    "language_code": "fr"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "",
+    "display": "French - Cote d'Ivoire",
+    "lcid_number": 12300,
+    "language_code": "fr"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "fr-fr",
+    "display": "French - France",
+    "lcid_number": 1036,
+    "language_code": "fr"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "fr-lu",
+    "display": "French - Luxembourg",
+    "lcid_number": 5132,
+    "language_code": "fr"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "",
+    "display": "French - Mali",
+    "lcid_number": 13324,
+    "language_code": "fr"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "",
+    "display": "French - Monaco",
+    "lcid_number": 6156,
+    "language_code": "fr"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "",
+    "display": "French - Morocco",
+    "lcid_number": 14348,
+    "language_code": "fr"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "",
+    "display": "French - Senegal",
+    "lcid_number": 10252,
+    "language_code": "fr"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "fr-ch",
+    "display": "French - Switzerland",
+    "lcid_number": 4108,
+    "language_code": "fr"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "",
+    "display": "French - West Indies",
+    "lcid_number": 7180,
+    "language_code": "fr"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "",
+    "display": "Frisian - Netherlands",
+    "lcid_number": 1122,
+    "language_code": ""
+  },
+  {
+    "codepage": 1251,
+    "lcid_string": "mk",
+    "display": "FYRO Macedonia",
+    "lcid_number": 1071,
+    "language_code": "mk"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "gd-ie",
+    "display": "Gaelic - Ireland",
+    "lcid_number": 2108,
+    "language_code": "gd"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "gd",
+    "display": "Gaelic - Scotland",
+    "lcid_number": 1084,
+    "language_code": "gd"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "",
+    "display": "Galician",
+    "lcid_number": 1110,
+    "language_code": "gl"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "",
+    "display": "Georgian",
+    "lcid_number": 1079,
+    "language_code": "ka"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "de-at",
+    "display": "German - Austria",
+    "lcid_number": 3079,
+    "language_code": "de"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "de-de",
+    "display": "German - Germany",
+    "lcid_number": 1031,
+    "language_code": "de"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "de-li",
+    "display": "German - Liechtenstein",
+    "lcid_number": 5127,
+    "language_code": "de"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "de-lu",
+    "display": "German - Luxembourg",
+    "lcid_number": 4103,
+    "language_code": "de"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "de-ch",
+    "display": "German - Switzerland",
+    "lcid_number": 2055,
+    "language_code": "de"
+  },
+  {
+    "codepage": 1253,
+    "lcid_string": "el",
+    "display": "Greek",
+    "lcid_number": 1032,
+    "language_code": "el"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "gn",
+    "display": "Guarani - Paraguay",
+    "lcid_number": 1140,
+    "language_code": "gn"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "gu",
+    "display": "Gujarati",
+    "lcid_number": 1095,
+    "language_code": "gu"
+  },
+  {
+    "codepage": 1255,
+    "lcid_string": "he",
+    "display": "Hebrew",
+    "lcid_number": 1037,
+    "language_code": "he"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "",
+    "display": "HID (Human Interface Device)",
+    "lcid_number": 1279,
+    "language_code": ""
+  },
+  {
+    "codepage": null,
+    "lcid_string": "hi",
+    "display": "Hindi",
+    "lcid_number": 1081,
+    "language_code": "hi"
+  },
+  {
+    "codepage": 1250,
+    "lcid_string": "hu",
+    "display": "Hungarian",
+    "lcid_number": 1038,
+    "language_code": "hu"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "is",
+    "display": "Icelandic",
+    "lcid_number": 1039,
+    "language_code": "is"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "",
+    "display": "Igbo - Nigeria",
+    "lcid_number": 1136,
+    "language_code": ""
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "id",
+    "display": "Indonesian",
+    "lcid_number": 1057,
+    "language_code": "id"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "it-it",
+    "display": "Italian - Italy",
+    "lcid_number": 1040,
+    "language_code": "it"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "it-ch",
+    "display": "Italian - Switzerland",
+    "lcid_number": 2064,
+    "language_code": "it"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "ja",
+    "display": "Japanese",
+    "lcid_number": 1041,
+    "language_code": "ja"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "kn",
+    "display": "Kannada",
+    "lcid_number": 1099,
+    "language_code": "kn"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "ks",
+    "display": "Kashmiri",
+    "lcid_number": 1120,
+    "language_code": "ks"
+  },
+  {
+    "codepage": 1251,
+    "lcid_string": "kk",
+    "display": "Kazakh",
+    "lcid_number": 1087,
+    "language_code": "kk"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "km",
+    "display": "Khmer",
+    "lcid_number": 1107,
+    "language_code": "km"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "",
+    "display": "Konkani",
+    "lcid_number": 1111,
+    "language_code": ""
+  },
+  {
+    "codepage": null,
+    "lcid_string": "ko",
+    "display": "Korean",
+    "lcid_number": 1042,
+    "language_code": "ko"
+  },
+  {
+    "codepage": 1251,
+    "lcid_string": "",
+    "display": "Kyrgyz - Cyrillic",
+    "lcid_number": 1088,
+    "language_code": ""
+  },
+  {
+    "codepage": null,
+    "lcid_string": "lo",
+    "display": "Lao",
+    "lcid_number": 1108,
+    "language_code": "lo"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "la",
+    "display": "Latin",
+    "lcid_number": 1142,
+    "language_code": "la"
+  },
+  {
+    "codepage": 1257,
+    "lcid_string": "lv",
+    "display": "Latvian",
+    "lcid_number": 1062,
+    "language_code": "lv"
+  },
+  {
+    "codepage": 1257,
+    "lcid_string": "lt",
+    "display": "Lithuanian",
+    "lcid_number": 1063,
+    "language_code": "lt"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "ms-bn",
+    "display": "Malay - Brunei",
+    "lcid_number": 2110,
+    "language_code": "ms"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "ms-my",
+    "display": "Malay - Malaysia",
+    "lcid_number": 1086,
+    "language_code": "ms"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "ml",
+    "display": "Malayalam",
+    "lcid_number": 1100,
+    "language_code": "ml"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "mt",
+    "display": "Maltese",
+    "lcid_number": 1082,
+    "language_code": "mt"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "",
+    "display": "Manipuri",
+    "lcid_number": 1112,
+    "language_code": ""
+  },
+  {
+    "codepage": null,
+    "lcid_string": "mi",
+    "display": "Maori",
+    "lcid_number": 1153,
+    "language_code": "mi"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "mr",
+    "display": "Marathi",
+    "lcid_number": 1102,
+    "language_code": "mr"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "mn",
+    "display": "Mongolian",
+    "lcid_number": 2128,
+    "language_code": "mn"
+  },
+  {
+    "codepage": 1251,
+    "lcid_string": "mn",
+    "display": "Mongolian",
+    "lcid_number": 1104,
+    "language_code": "mn"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "ne",
+    "display": "Nepali",
+    "lcid_number": 1121,
+    "language_code": "ne"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "no-no",
+    "display": "Norwegian - Bokml",
+    "lcid_number": 1044,
+    "language_code": "nb"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "no-no",
+    "display": "Norwegian - Nynorsk",
+    "lcid_number": 2068,
+    "language_code": "nn"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "or",
+    "display": "Oriya",
+    "lcid_number": 1096,
+    "language_code": "or"
+  },
+  {
+    "codepage": 1250,
+    "lcid_string": "pl",
+    "display": "Polish",
+    "lcid_number": 1045,
+    "language_code": "pl"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "pt-br",
+    "display": "Portuguese - Brazil",
+    "lcid_number": 1046,
+    "language_code": "pt"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "pt-pt",
+    "display": "Portuguese - Portugal",
+    "lcid_number": 2070,
+    "language_code": "pt"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "pa",
+    "display": "Punjabi",
+    "lcid_number": 1094,
+    "language_code": "pa"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "rm",
+    "display": "Raeto-Romance",
+    "lcid_number": 1047,
+    "language_code": "rm"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "ro-mo",
+    "display": "Romanian - Moldova",
+    "lcid_number": 2072,
+    "language_code": "ro"
+  },
+  {
+    "codepage": 1250,
+    "lcid_string": "ro",
+    "display": "Romanian - Romania",
+    "lcid_number": 1048,
+    "language_code": "ro"
+  },
+  {
+    "codepage": 1251,
+    "lcid_string": "ru",
+    "display": "Russian",
+    "lcid_number": 1049,
+    "language_code": "ru"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "ru-mo",
+    "display": "Russian - Moldova",
+    "lcid_number": 2073,
+    "language_code": "ru"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "",
+    "display": "Sami Lappish",
+    "lcid_number": 1083,
+    "language_code": ""
+  },
+  {
+    "codepage": null,
+    "lcid_string": "sa",
+    "display": "Sanskrit",
+    "lcid_number": 1103,
+    "language_code": "sa"
+  },
+  {
+    "codepage": 1251,
+    "lcid_string": "sr-sp",
+    "display": "Serbian - Cyrillic",
+    "lcid_number": 3098,
+    "language_code": "sr"
+  },
+  {
+    "codepage": 1250,
+    "lcid_string": "sr-sp",
+    "display": "Serbian - Latin",
+    "lcid_number": 2074,
+    "language_code": "sr"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "",
+    "display": "Sesotho (Sutu)",
+    "lcid_number": 1072,
+    "language_code": ""
+  },
+  {
+    "codepage": null,
+    "lcid_string": "tn",
+    "display": "Setsuana",
+    "lcid_number": 1074,
+    "language_code": "tn"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "sd",
+    "display": "Sindhi",
+    "lcid_number": 1113,
+    "language_code": "sd"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "si",
+    "display": "Sinhala; Sinhalese",
+    "lcid_number": 1115,
+    "language_code": "si"
+  },
+  {
+    "codepage": 1250,
+    "lcid_string": "sk",
+    "display": "Slovak",
+    "lcid_number": 1051,
+    "language_code": "sk"
+  },
+  {
+    "codepage": 1250,
+    "lcid_string": "sl",
+    "display": "Slovenian",
+    "lcid_number": 1060,
+    "language_code": "sl"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "so",
+    "display": "Somali",
+    "lcid_number": 1143,
+    "language_code": "so"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "sb",
+    "display": "Sorbian",
+    "lcid_number": 1070,
+    "language_code": "sb"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "es-ar",
+    "display": "Spanish - Argentina",
+    "lcid_number": 11274,
+    "language_code": "es"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "es-bo",
+    "display": "Spanish - Bolivia",
+    "lcid_number": 16394,
+    "language_code": "es"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "es-cl",
+    "display": "Spanish - Chile",
+    "lcid_number": 13322,
+    "language_code": "es"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "es-co",
+    "display": "Spanish - Colombia",
+    "lcid_number": 9226,
+    "language_code": "es"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "es-cr",
+    "display": "Spanish - Costa Rica",
+    "lcid_number": 5130,
+    "language_code": "es"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "es-do",
+    "display": "Spanish - Dominican Republic",
+    "lcid_number": 7178,
+    "language_code": "es"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "es-ec",
+    "display": "Spanish - Ecuador",
+    "lcid_number": 12298,
+    "language_code": "es"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "es-sv",
+    "display": "Spanish - El Salvador",
+    "lcid_number": 17418,
+    "language_code": "es"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "es-gt",
+    "display": "Spanish - Guatemala",
+    "lcid_number": 4106,
+    "language_code": "es"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "es-hn",
+    "display": "Spanish - Honduras",
+    "lcid_number": 18442,
+    "language_code": "es"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "es-mx",
+    "display": "Spanish - Mexico",
+    "lcid_number": 2058,
+    "language_code": "es"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "es-ni",
+    "display": "Spanish - Nicaragua",
+    "lcid_number": 19466,
+    "language_code": "es"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "es-pa",
+    "display": "Spanish - Panama",
+    "lcid_number": 6154,
+    "language_code": "es"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "es-py",
+    "display": "Spanish - Paraguay",
+    "lcid_number": 15370,
+    "language_code": "es"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "es-pe",
+    "display": "Spanish - Peru",
+    "lcid_number": 10250,
+    "language_code": "es"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "es-pr",
+    "display": "Spanish - Puerto Rico",
+    "lcid_number": 20490,
+    "language_code": "es"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "es-es",
+    "display": "Spanish - Spain (Traditional)",
+    "lcid_number": 1034,
+    "language_code": "es"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "es-uy",
+    "display": "Spanish - Uruguay",
+    "lcid_number": 14346,
+    "language_code": "es"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "es-ve",
+    "display": "Spanish - Venezuela",
+    "lcid_number": 8202,
+    "language_code": "es"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "sw",
+    "display": "Swahili",
+    "lcid_number": 1089,
+    "language_code": "sw"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "sv-fi",
+    "display": "Swedish - Finland",
+    "lcid_number": 2077,
+    "language_code": "sv"
+  },
+  {
+    "codepage": 1252,
+    "lcid_string": "sv-se",
+    "display": "Swedish - Sweden",
+    "lcid_number": 1053,
+    "language_code": "sv"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "",
+    "display": "Syriac",
+    "lcid_number": 1114,
+    "language_code": ""
+  },
+  {
+    "codepage": null,
+    "lcid_string": "tg",
+    "display": "Tajik",
+    "lcid_number": 1064,
+    "language_code": "tg"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "ta",
+    "display": "Tamil",
+    "lcid_number": 1097,
+    "language_code": "ta"
+  },
+  {
+    "codepage": 1251,
+    "lcid_string": "tt",
+    "display": "Tatar",
+    "lcid_number": 1092,
+    "language_code": "tt"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "te",
+    "display": "Telugu",
+    "lcid_number": 1098,
+    "language_code": "te"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "th",
+    "display": "Thai",
+    "lcid_number": 1054,
+    "language_code": "th"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "bo",
+    "display": "Tibetan",
+    "lcid_number": 1105,
+    "language_code": "bo"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "ts",
+    "display": "Tsonga",
+    "lcid_number": 1073,
+    "language_code": "ts"
+  },
+  {
+    "codepage": 1254,
+    "lcid_string": "tr",
+    "display": "Turkish",
+    "lcid_number": 1055,
+    "language_code": "tr"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "tk",
+    "display": "Turkmen",
+    "lcid_number": 1090,
+    "language_code": "tk"
+  },
+  {
+    "codepage": 1251,
+    "lcid_string": "uk",
+    "display": "Ukrainian",
+    "lcid_number": 1058,
+    "language_code": "uk"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "UTF-8",
+    "display": "Unicode",
+    "lcid_number": 0,
+    "language_code": ""
+  },
+  {
+    "codepage": 1256,
+    "lcid_string": "ur",
+    "display": "Urdu",
+    "lcid_number": 1056,
+    "language_code": "ur"
+  },
+  {
+    "codepage": 1251,
+    "lcid_string": "uz-uz",
+    "display": "Uzbek - Cyrillic",
+    "lcid_number": 2115,
+    "language_code": "uz"
+  },
+  {
+    "codepage": 1254,
+    "lcid_string": "uz-uz",
+    "display": "Uzbek - Latin",
+    "lcid_number": 1091,
+    "language_code": "uz"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "",
+    "display": "Venda",
+    "lcid_number": 1075,
+    "language_code": ""
+  },
+  {
+    "codepage": 1258,
+    "lcid_string": "vi",
+    "display": "Vietnamese",
+    "lcid_number": 1066,
+    "language_code": "vi"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "cy",
+    "display": "Welsh",
+    "lcid_number": 1106,
+    "language_code": "cy"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "xh",
+    "display": "Xhosa",
+    "lcid_number": 1076,
+    "language_code": "xh"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "yi",
+    "display": "Yiddish",
+    "lcid_number": 1085,
+    "language_code": "yi"
+  },
+  {
+    "codepage": null,
+    "lcid_string": "zu",
+    "display": "Zulu",
+    "lcid_number": 1077,
+    "language_code": "zu"
+  }
+]
