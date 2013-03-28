@@ -217,7 +217,7 @@ def _get_stats_helper(since_time):
         mean = float(numpy.mean(response_times)) if len(response_times) else None
         median = float(numpy.median(response_times)) if len(response_times) else None
         stddev = float(numpy.std(response_times)) if len(response_times) else None
-        quartiles = [float(q) for q in numpy.percentile(response_times, [0, 25.0, 50.0, 75.0, 100])] if len(response_times) else None
+        quartiles = [float(q) for q in numpy.percentile(response_times, [5.0, 25.0, 50.0, 75.0, 95.0])] if len(response_times) else None
         failrate = float(len(results['response_checks']) - len(response_times)) / len(results['response_checks']) if len(results['response_checks']) else 1.0
 
         survey_results = reduce(survey_reducer, results['survey_results'], {})
