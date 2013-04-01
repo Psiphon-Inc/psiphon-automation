@@ -688,8 +688,10 @@ def install_firewall_rules(host, servers):
     -A OUTPUT -s {0} -p udp --sport 4500 -j ACCEPT
     -A OUTPUT -s {0} -o ipsec+ -p udp -m udp --dport l2tp -j ACCEPT'''.format(
             str(s.internal_ip_address)) for s in servers
-                if s.capabilities['VPN']]) + '''
-    -A OUTPUT -s %s -p tcp -m tcp --tcp-flags ALL ACK,RST -j ACCEPT''' % (str(s.internal_ip_address), ) + '''
+                if s.capabilities['VPN']]) + ''.join(
+    ['''
+    -A OUTPUT -s %s -p tcp -m tcp --tcp-flags ALL ACK,RST -j ACCEPT'''
+            % (str(s.internal_ip_address), ) for s in servers]) + '''
     -A OUTPUT -j REJECT
 COMMIT
 
