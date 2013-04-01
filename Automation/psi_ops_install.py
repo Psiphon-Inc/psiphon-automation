@@ -706,6 +706,10 @@ COMMIT
     ['''
     -A OUTPUT -p tcp -m tcp -d %s --dport %s -j DNAT --to-destination %s'''
             % (str(s.ip_address), str(s.web_server_port), str(s.internal_ip_address)) for s in servers
+                if s.ip_address != s.internal_ip_address]) + ''.join(
+    ['''
+    -A OUTPUT -p tcp -m tcp -d %s --dport %s -j DNAT --to-destination %s'''
+            % (str(s.ip_address), str(psi_config.TUNNEL_CHECK_SERVICE_PORT), str(s.internal_ip_address)) for s in servers
                 if s.ip_address != s.internal_ip_address]) + '''
 COMMIT
 '''
