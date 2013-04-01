@@ -661,14 +661,14 @@ def install_firewall_rules(host, servers):
     -A OUTPUT -d %s -p tcp -m tcp --dport %s -j ACCEPT'''
             % (str(s.internal_ip_address), str(psi_config.TUNNEL_CHECK_SERVICE_PORT)) for s in servers
                 if s.ip_address != s.internal_ip_address]) + ''.join(
+    ['''
+    -A OUTPUT -s %s -p tcp -m tcp --sport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(psi_config.TUNNEL_CHECK_SERVICE_PORT)) for s in servers
+                if s.ip_address != s.internal_ip_address]) + ''.join(
     # web servers
     ['''
     -A OUTPUT -s %s -p tcp -m tcp --sport %s -j ACCEPT'''
             % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers
-                if s.web_server_port]) + ''.join(
-    ['''
-    -A OUTPUT -s %s -p tcp -m tcp --sport %s -j ACCEPT'''
-            % (str(s.internal_ip_address), str(psi_config.TUNNEL_CHECK_SERVICE_PORT)) for s in servers
                 if s.web_server_port]) + ''.join(
     # SSH
     ['''
