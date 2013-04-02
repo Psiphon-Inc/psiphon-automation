@@ -592,7 +592,10 @@ def install_firewall_rules(host, servers):
     # tunneled web requests
     ['''
     -A INPUT -i lo -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
-            % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers]) + '''
+            % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers]) + ''.join(
+    ['''
+    -A INPUT -i lo -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(psi_config.TUNNEL_CHECK_SERVICE_PORT)) for s in servers]) + '''
     -A INPUT -d 127.0.0.0/8 ! -i lo -j DROP
     -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
     -A INPUT -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT''' % (host.ssh_port,) + ''.join(
@@ -634,7 +637,11 @@ def install_firewall_rules(host, servers):
     ['''
     -A OUTPUT -d {0} -o lo -p tcp -m tcp --dport {1} -j ACCEPT
     -A OUTPUT -s {0} -o lo -p tcp -m tcp --sport {1} -j ACCEPT'''.format(
-            str(s.internal_ip_address), str(s.web_server_port)) for s in servers]) + '''
+            str(s.internal_ip_address), str(s.web_server_port)) for s in servers]) + ''.join(
+    ['''
+    -A OUTPUT -d {0} -o lo -p tcp -m tcp --dport {1} -j ACCEPT
+    -A OUTPUT -s {0} -o lo -p tcp -m tcp --sport {1} -j ACCEPT'''.format(
+            str(s.internal_ip_address), str(psi_config.TUNNEL_CHECK_SERVICE_PORT)) for s in servers]) + '''            
     -A OUTPUT -o lo -p tcp -m tcp --dport 7300 -j ACCEPT
     -A OUTPUT -o lo -p tcp -m tcp --dport 6379 -m owner --uid-owner root -j ACCEPT
     -A OUTPUT -o lo -p tcp -m tcp --dport 6000 -m owner --uid-owner root -j ACCEPT
@@ -653,6 +660,14 @@ def install_firewall_rules(host, servers):
     ['''
     -A OUTPUT -d %s -p tcp -m tcp --dport %s -j ACCEPT'''
             % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers
+                if s.ip_address != s.internal_ip_address]) + ''.join(
+    ['''
+    -A OUTPUT -d %s -p tcp -m tcp --dport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(psi_config.TUNNEL_CHECK_SERVICE_PORT)) for s in servers
+                if s.ip_address != s.internal_ip_address]) + ''.join(
+    ['''
+    -A OUTPUT -s %s -p tcp -m tcp --sport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(psi_config.TUNNEL_CHECK_SERVICE_PORT)) for s in servers
                 if s.ip_address != s.internal_ip_address]) + ''.join(
     # web servers
     ['''
@@ -677,8 +692,10 @@ def install_firewall_rules(host, servers):
     -A OUTPUT -s {0} -p udp --sport 4500 -j ACCEPT
     -A OUTPUT -s {0} -o ipsec+ -p udp -m udp --dport l2tp -j ACCEPT'''.format(
             str(s.internal_ip_address)) for s in servers
-                if s.capabilities['VPN']]) + '''
-    -A OUTPUT -s %s -p tcp -m tcp --tcp-flags ALL ACK,RST -j ACCEPT''' % (str(s.internal_ip_address), ) + '''
+                if s.capabilities['VPN']]) + ''.join(
+    ['''
+    -A OUTPUT -s %s -p tcp -m tcp --tcp-flags ALL ACK,RST -j ACCEPT'''
+            % (str(s.internal_ip_address), ) for s in servers]) + '''
     -A OUTPUT -j REJECT
 COMMIT
 
@@ -693,6 +710,10 @@ COMMIT
     ['''
     -A OUTPUT -p tcp -m tcp -d %s --dport %s -j DNAT --to-destination %s'''
             % (str(s.ip_address), str(s.web_server_port), str(s.internal_ip_address)) for s in servers
+                if s.ip_address != s.internal_ip_address]) + ''.join(
+    ['''
+    -A OUTPUT -p tcp -m tcp -d %s --dport %s -j DNAT --to-destination %s'''
+            % (str(s.ip_address), str(psi_config.TUNNEL_CHECK_SERVICE_PORT), str(s.internal_ip_address)) for s in servers
                 if s.ip_address != s.internal_ip_address]) + '''
 COMMIT
 '''

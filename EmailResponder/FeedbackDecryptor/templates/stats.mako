@@ -142,7 +142,7 @@ def ff(f):
   <thead>
     <tr>
       <th>Sponsor</th><th>Prop.Ch.</th><th>Platform</th><th>#</th>
-      <th>Med. | Mean &plusmn; &sigma; (ms)</th><th>Failrate</th>
+      <th>Response (ms)</th><th>Failrate</th>
       <th>Survey</th>
     </tr>
   </thead>
@@ -155,8 +155,10 @@ def ff(f):
         <td class="numcompare-left">
           ${r['record_count']} (${r['response_sample_count']})
         </td>
-        <td class="numcompare-left">
-          ${ff(r['median'])} | ${ff(r['mean'])} &plusmn; ${ff(r['stddev'])}
+        <td>
+          % if r['quartiles']:
+            <img src="https://chart.googleapis.com/chart?chs=75x75&amp;cht=bhs&amp;chd=t0:${ff(r['quartiles'][0])}|${ff(r['quartiles'][1])}|${ff(r['quartiles'][3])}|${ff(r['quartiles'][4])}|${ff(r['quartiles'][2])}&amp;chm=F,000000,0,1,10|H,000000,0,1,1:10|H,000000,3,1,1:10|H,000000,4,1,1:10&amp;chxt=x&amp;chxr=0,0,2000&amp;chds=0,2000" alt="Show images for box plot">
+          % endif
         </td>
         <td class="numcompare">${ff(r['failrate'])}</td>
         <td>
