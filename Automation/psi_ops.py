@@ -104,7 +104,7 @@ except ImportError as error:
     
 plugins = []
 try:
-    sys.path.insert(0, os.path.abspath('../../'))
+    sys.path.insert(0, os.path.abspath('../../Plugins'))
     import psi_ops_plugins
     for (path, plugin) in psi_ops_plugins.PLUGINS:
         sys.path.insert(0, path)
