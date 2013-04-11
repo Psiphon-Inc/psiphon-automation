@@ -81,12 +81,13 @@ def _postprocess_yaml(data):
 
     # First just collect the paths to change, so we're not modifying while
     # walking the object (which might risk the walk changing...?).
-    timestamps = [(path, val) for path, val in utils.objwalk(data) if path[-1].endswith(TIMESTAMP_SUFFIX)]
+    timestamps = [(path, val) for path, val in utils.objwalk(data)
+                  if str(path[-1]).endswith(TIMESTAMP_SUFFIX)]
 
     # Replace the timestamp strings with actual datetimes and change the key name.
     for path, val in timestamps:
         new_path = list(path[:-1])
-        new_path.append(path[-1].rstrip(TIMESTAMP_SUFFIX))
+        new_path.append(path[-1][:path[-1].rindex(TIMESTAMP_SUFFIX)])
         new_val = datetime.datetime.strptime(val, '%Y-%m-%dT%H:%M:%S.%fZ')
         utils.rename_key_in_obj_at_path(data, path, new_path[-1])
         utils.assign_value_to_obj_at_path(data, new_path, new_val)
