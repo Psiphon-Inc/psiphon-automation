@@ -16,7 +16,9 @@
 
 
 import json
+import datetime
 import translation
+import utils
 from config import config
 
 
@@ -68,6 +70,28 @@ _transformations = {
                     }
 
 
+def _postprocess_yaml(data):
+    '''
+    This function is a hack to let us use datetimes in JSON-formatted feedback
+    objects. Otherwise the datetimes will remain strings after loading the YAML.
+    Modifies the YAML object directly.
+    '''
+
+    TIMESTAMP_SUFFIX = '!!timestamp'
+
+    # First just collect the paths to change, so we're not modifying while
+    # walking the object (which might risk the walk changing...?).
+    timestamps = [(path, val) for path, val in utils.objwalk(data) if path[-1].endswith(TIMESTAMP_SUFFIX)]
+
+    # Replace the timestamp strings with actual datetimes and change the key name.
+    for path, val in timestamps:
+        new_path = list(path[:-1])
+        new_path.append(path[-1].rstrip(TIMESTAMP_SUFFIX))
+        new_val = datetime.datetime.strptime(val, '%Y-%m-%dT%H:%M:%S.%fZ')
+        utils.rename_key_in_obj_at_path(data, path, new_path[-1])
+        utils.assign_value_to_obj_at_path(data, new_path, new_val)
+
+
 def transform(data):
     '''
     Effects any necessary modifications to the data before storage. Note that
@@ -80,3 +104,5 @@ def transform(data):
                                data['Metadata']['version'])
     if transform_key in _transformations:
         _transformations[transform_key](data)
+
+    _postprocess_yaml(data)
