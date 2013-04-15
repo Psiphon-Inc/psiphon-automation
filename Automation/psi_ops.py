@@ -1153,6 +1153,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 capabilities['SSH'] = False
                 ssh_port = None
                 ossh_ports = range(1,1023)
+                ossh_ports.remove(15)
                 ossh_ports.remove(135)
                 ossh_ports.remove(136)
                 ossh_ports.remove(137)
