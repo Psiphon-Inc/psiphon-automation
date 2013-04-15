@@ -169,7 +169,7 @@ def build_client(
     try:
         # Backup/restore original files minimize chance of checking values into source control
         backup = psi_utils.TemporaryBackup(
-            [BANNER_FILENAME, EMAIL_BANNER_FILENAME, EMBEDDED_VALUES_FILENAME, FEEDBACK_HTML_PATH])
+            [BANNER_FILENAME, EMAIL_BANNER_FILENAME, FEEDBACK_HTML_PATH])
 
         # Copy custom email banner from Data to source tree
         # (there's only one custom email banner for all sponsors)

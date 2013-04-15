@@ -160,7 +160,7 @@ def build_client(
 
     try:
         # Backup/restore original files minimize chance of checking values into source control
-        backup = psi_utils.TemporaryBackup([BANNER_FILENAME, EMBEDDED_VALUES_FILENAME, ANDROID_MANIFEST_FILENAME])
+        backup = psi_utils.TemporaryBackup([BANNER_FILENAME, ANDROID_MANIFEST_FILENAME])
 
         # Copy sponsor banner image file from Data to Client source tree
         if banner:
@@ -224,9 +224,6 @@ def build_library(
         version):
 
     try:
-        # Backup/restore original files minimize chance of checking values into source control
-        backup = psi_utils.TemporaryBackup([EMBEDDED_VALUES_FILENAME])
-
         # overwrite embedded values source file
         write_embedded_values(
             propagation_channel_id,
@@ -260,5 +257,3 @@ def build_library(
         print 'Build: FAILURE'
         raise
 
-    finally:
-        backup.restore_all()
