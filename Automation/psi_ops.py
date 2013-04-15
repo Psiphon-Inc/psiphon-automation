@@ -101,6 +101,16 @@ try:
     import psi_routes
 except ImportError as error:
     print error
+    
+plugins = []
+try:
+    sys.path.insert(0, os.path.abspath('../../Plugins'))
+    import psi_ops_plugins
+    for (path, plugin) in psi_ops_plugins.PLUGINS:
+        sys.path.insert(0, path)
+        plugins.append(__import__(plugin))
+except ImportError as error:
+    print error
 
 # NOTE: update compartmentalize() functions when adding fields
 
@@ -237,7 +247,7 @@ CLIENT_PLATFORM_ANDROID = 'Android'
 
 class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
-    def __init__(self):
+    def __init__(self, initialize_plugins=True):
         super(PsiphonNetwork, self).__init__()
         # TODO: what is this __version for?
         self.__version = '1.0'
@@ -274,6 +284,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__remote_server_list_signing_key_pair = None
         self.__feedback_encryption_key_pair = None
         self.__feedback_upload_info = None
+        if initialize_plugins:
+            self.initialize_plugins()
 
     class_version = '0.16'
 
@@ -364,7 +376,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 for campaign in sponsor.campaigns:
                     campaign.custom_download_site = False
             self.version = '0.16'
-        
+
+    def initialize_plugins(self):
+        for plugin in plugins:
+            if hasattr(plugin, 'initialize'):
+                plugin.initialize(self)
+            
     def show_status(self):
         # NOTE: verbose mode prints credentials to stdout
         print textwrap.dedent('''
@@ -1034,7 +1051,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def setup_server(self, host, servers):
         # Install Psiphon 3 and generate configuration values
         # Here, we're assuming one server/IP address per host
-        psi_ops_install.install_host(host, servers, self.get_existing_server_ids())
+        psi_ops_install.install_host(host, servers, self.get_existing_server_ids(), plugins)
         host.log('install')
 
         # Update database
@@ -1053,7 +1070,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # Deploy will upload web server source database data and client builds
         # (Only deploying for the new host, not broadcasting info yet...)
-        psi_ops_deploy.deploy_implementation(host)
+        psi_ops_deploy.deploy_implementation(host, plugins)
         psi_ops_deploy.deploy_data(
                             host,
                             self.__compartmentalize_data_for_host(host.id))
@@ -1235,8 +1252,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(self.is_locked)
         host = self.__hosts[host_id]
         servers = [server for server in self.__servers.itervalues() if server.host_id == host_id]
-        psi_ops_install.install_host(host, servers, self.get_existing_server_ids())
-        psi_ops_deploy.deploy_implementation(host)
+        psi_ops_install.install_host(host, servers, self.get_existing_server_ids(), plugins)
+        psi_ops_deploy.deploy_implementation(host, plugins)
         # New data might have been generated
         # NOTE that if the client version has been incremented but a full deploy has not yet been run,
         # this following psi_ops_deploy.deploy_data call is not safe.  Data will specify a new version
@@ -1404,6 +1421,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             CLIENT_PLATFORM_WINDOWS: psi_ops_build_windows.build_client,
             CLIENT_PLATFORM_ANDROID: psi_ops_build_android.build_client
         }
+        
+        for plugin in plugins:
+            if hasattr(plugin, 'build_android_client'):
+                builders[CLIENT_PLATFORM_ANDROID] = plugin.build_android_client
 
         return [builders[platform](
                         propagation_channel.id,
@@ -1475,7 +1496,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Host implementation
 
         hosts = [self.__hosts[host_id] for host_id in self.__deploy_implementation_required_for_hosts]
-        psi_ops_deploy.deploy_implementation_to_hosts(hosts)
+        psi_ops_deploy.deploy_implementation_to_hosts(hosts, plugins)
 
         if len(self.__deploy_implementation_required_for_hosts) > 0:
             self.__deploy_implementation_required_for_hosts.clear()
@@ -1728,7 +1749,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def deploy_implementation_and_data_for_host_with_server(self, server_id):
         server = filter(lambda x: x.id == server_id, self.__servers.itervalues())[0]
         host = filter(lambda x: x.id == server.host_id, self.__hosts.itervalues())[0]
-        psi_ops_deploy.deploy_implementation(host)
+        psi_ops_deploy.deploy_implementation(host, plugins)
         psi_ops_deploy.deploy_data(host, self.__compartmentalize_data_for_host(host.id))
 
     def deploy_implementation_and_data_for_propagation_channel(self, propagation_channel_name):
@@ -2061,7 +2082,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # - send home pages for all sponsors, but omit names, banners, campaigns
         # - send versions info for upgrades
 
-        copy = PsiphonNetwork()
+        copy = PsiphonNetwork(initialize_plugins=False)
 
         for propagation_channel in self.__propagation_channels.itervalues():
             copy.__propagation_channels[propagation_channel.id] = PropagationChannel(
@@ -2133,7 +2154,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # the information to replace server IPs with server IDs, sponsor IDs
         # with names and propagation IDs with names
 
-        copy = PsiphonNetwork()
+        copy = PsiphonNetwork(initialize_plugins=False)
 
         for host in self.__hosts.itervalues():
             copy.__hosts[host.id] = Host(

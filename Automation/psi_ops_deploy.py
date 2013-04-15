@@ -79,7 +79,7 @@ def run_in_parallel(thread_pool_size, function, arguments):
             raise result
 
 
-def deploy_implementation(host):
+def deploy_implementation(host, plugins):
 
     print 'deploy implementation to host %s...' % (host.id,)
 
@@ -143,15 +143,19 @@ def deploy_implementation(host):
                  remote_rate_limit_end_file_path)
     ssh.exec_command('chmod +x %s' % (remote_rate_limit_end_file_path,))
 
+    for plugin in plugins:
+        if hasattr(plugin, 'deploy_implementation'):
+            plugin.deploy_implementation(ssh)
+            
     ssh.close()
     
 
-def deploy_implementation_to_hosts(hosts):
+def deploy_implementation_to_hosts(hosts, plugins):
     
     @retry_decorator_returning_exception
     def do_deploy_implementation(host):
         try:
-            deploy_implementation(host)
+            deploy_implementation(host, plugins)
         except:
             print 'Error deploying implementation to host %s' % (host.id,)
             raise

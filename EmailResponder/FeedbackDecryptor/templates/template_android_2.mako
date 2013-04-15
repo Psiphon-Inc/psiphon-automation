@@ -188,7 +188,7 @@
         </span>
     </div>
 
-    % if entry['throwable']:
+    % if entry.get('throwable'):
       <div class="status-latter-line">
         <pre>${yaml.dump(entry['throwable'], default_flow_style=False)}</pre>
       </div>

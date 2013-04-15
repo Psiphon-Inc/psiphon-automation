@@ -393,7 +393,7 @@ def generate_self_signed_certificate():
     return certificate.as_pem(), rsa.as_pem(cipher=None) # Use rsa for PKCS#1
 
 
-def install_host(host, servers, existing_server_ids):
+def install_host(host, servers, existing_server_ids, plugins):
 
     install_firewall_rules(host, servers)
     
@@ -544,6 +544,10 @@ def install_host(host, servers, existing_server_ids):
 
     install_geoip_database(ssh)
     
+    for plugin in plugins:
+        if hasattr(plugin, 'install_host'):
+            plugin.install_host(ssh)
+            
     ssh.close()
 
     #
