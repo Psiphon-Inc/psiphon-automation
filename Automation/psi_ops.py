@@ -132,7 +132,7 @@ SponsorHomePage = psi_utils.recordtype(
 
 SponsorCampaign = psi_utils.recordtype(
     'SponsorCampaign',
-    'propagation_channel_id, propagation_mechanism_type, account, s3_bucket_name, languages')
+    'propagation_channel_id, propagation_mechanism_type, account, s3_bucket_name, languages, custom_download_site')
 
 SponsorRegex = psi_utils.recordtype(
     'SponsorRegex',
@@ -148,7 +148,7 @@ Host = psi_utils.recordtype(
 Server = psi_utils.recordtype(
     'Server',
     'id, host_id, ip_address, egress_ip_address, internal_ip_address, ' +
-    'propagation_channel_id, is_embedded, discovery_date_range, capabilities, ' +
+    'propagation_channel_id, is_embedded, is_permanent, discovery_date_range, capabilities, ' +
     'web_server_port, web_server_secret, web_server_certificate, web_server_private_key, ' +
     'ssh_port, ssh_username, ssh_password, ssh_host_key, ssh_obfuscated_port, ssh_obfuscated_key',
     default=None)
@@ -272,10 +272,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__deploy_email_config_required = False
         self.__speed_test_urls = []
         self.__remote_server_list_signing_key_pair = None
-        self.__feedback_encryption_signing_key_pair = None
+        self.__feedback_encryption_key_pair = None
         self.__feedback_upload_info = None
 
-    class_version = '0.14'
+    class_version = '0.16'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -353,7 +353,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.14')) < 0:
             self.__feedback_upload_info = None
             self.version = '0.14'
-
+        if cmp(parse_version(self.version), parse_version('0.15')) < 0:
+            for server in self.__servers.itervalues():
+                server.is_permanent = False
+            for server in self.__deleted_servers.itervalues():
+                server.is_permanent = False
+            self.version = '0.15'
+        if cmp(parse_version(self.version), parse_version('0.16')) < 0:
+            for sponsor in self.__sponsors.itervalues():
+                for campaign in sponsor.campaigns:
+                    campaign.custom_download_site = False
+            self.version = '0.16'
+        
     def show_status(self):
         # NOTE: verbose mode prints credentials to stdout
         print textwrap.dedent('''
@@ -466,7 +477,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if now == None:
             now = datetime.datetime.now()
         p = self.get_propagation_channel_by_name(propagation_channel_name)
-        embedded_servers = [server.id for server in self.__servers.itervalues()
+        embedded_servers = [server.id + (' (permanent)' if server.is_permanent else '') for server in self.__servers.itervalues()
                             if server.propagation_channel_id == p.id and server.is_embedded]
         old_propagation_servers = [server.id for server in self.__servers.itervalues()
                                    if server.propagation_channel_id == p.id and
@@ -542,6 +553,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             IP Address:              %s
             Propagation Channel:     %s
             Is Embedded:             %s
+            Is Permanent:            %s
             Discovery Date Range:    %s
             ''') % (
                 s.id,
@@ -552,13 +564,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 s.ip_address,
                 self.__propagation_channels[s.propagation_channel_id].name if s.propagation_channel_id else 'None',
                 s.is_embedded,
+                s.is_permanent,
                 ('%s - %s' % (s.discovery_date_range[0].isoformat(),
                             s.discovery_date_range[1].isoformat())) if s.discovery_date_range else 'None')
         self.__show_logs(s)
 
     def show_host(self, host_id, show_logs=False):
         host = self.__hosts[host_id]
-        servers = [self.__servers[s].id
+        servers = [self.__servers[s].id + (' (permanent)' if self.__servers[s].is_permanent else '')
                    for s in self.__servers
                    if self.__servers[s].host_id == host_id]
 
@@ -685,7 +698,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                    propagation_mechanism_type,
                                    EmailPropagationAccount(email_account),
                                    None,
-                                   None)
+                                   None,
+                                   False)
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
             sponsor.log('add email campaign %s' % (email_account,))
@@ -715,7 +729,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         twitter_account_access_token_key,
                                         twitter_account_access_token_secret),
                                    None,
-                                   None)
+                                   None,
+                                   False)
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
             sponsor.log('add twitter campaign %s' % (twitter_account_name,))
@@ -734,7 +749,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                    propagation_mechanism_type,
                                    None,
                                    None,
-                                   None)
+                                   None,
+                                   False)
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
             sponsor.log('add static download campaign')
@@ -877,7 +893,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__hosts[host.id] = host
 
     def import_server(self, server_id, host_id, ip_address, egress_ip_address, internal_ip_address,
-                      propagation_channel_id, is_embedded, discovery_date_range, capabilities, web_server_port,
+                      propagation_channel_id, is_embedded, is_permanent, discovery_date_range, capabilities, web_server_port,
                       web_server_secret, web_server_certificate, web_server_private_key, ssh_port, ssh_username,
                       ssh_password, ssh_host_key):
         assert(self.is_locked)
@@ -889,6 +905,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     internal_ip_address,
                     propagation_channel_id,
                     is_embedded,
+                    is_permanent,
                     discovery_date_range,
                     capabilities,
                     web_server_port,
@@ -939,7 +956,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if users_on_host == 0:
                 self.remove_host(server.host_id)
                 number_removed += 1
-            elif users_on_host < 5:
+            elif users_on_host < 10:
                 self.__disable_server(server)
                 number_disabled += 1
         return number_removed, number_disabled
@@ -1059,10 +1076,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if replace_others:
             # If we are creating new propagation servers, stop embedding the old ones
             # (they are still active, but not embedded in builds or discovered)
+            # NEW: don't replace servers marked with is_permanent
             if is_embedded_server:
                 for old_server in self.__servers.itervalues():
                     if (old_server.propagation_channel_id == propagation_channel.id and
-                        old_server.is_embedded):
+                        old_server.is_embedded and
+                        not old_server.is_permanent):
                         old_server.is_embedded = False
                         old_server.log('unembedded')
             # If we are creating new discovery servers, stop discovering existing ones
@@ -1117,6 +1136,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 capabilities['SSH'] = False
                 ssh_port = None
                 ossh_ports = range(1,1023)
+                ossh_ports.remove(15)
                 ossh_ports.remove(135)
                 ossh_ports.remove(136)
                 ossh_ports.remove(137)
@@ -1133,6 +1153,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.ip_address,
                         propagation_channel.id,
                         is_embedded_server,
+                        False,
                         discovery,
                         capabilities,
                         str(random.randrange(8000, 9000)),
@@ -1518,7 +1539,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         self.__aws_account,
                         [(build_filename, client_build_filenames[platform])],
                         remote_server_list,
-                        campaign.s3_bucket_name)
+                        campaign.s3_bucket_name,
+                        campaign.custom_download_site)
                     campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
 
                     if campaign.propagation_mechanism_type == 'twitter':
@@ -1567,7 +1589,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for sponsor in self.__sponsors.itervalues():
             for campaign in sponsor.campaigns:
                 if campaign.s3_bucket_name:
-                    psi_ops_s3.update_s3_download(self.__aws_account, None, None, campaign.s3_bucket_name)
+                    psi_ops_s3.update_s3_download(self.__aws_account, None, None, campaign.s3_bucket_name, campaign.custom_download_site)
                     campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
 
     def update_routes(self):
@@ -2064,6 +2086,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 server.internal_ip_address,
                                                 server.propagation_channel_id,
                                                 server.is_embedded,
+                                                server.is_permanent,
                                                 server.discovery_date_range,
                                                 server.capabilities,
                                                 server.web_server_port,
@@ -2134,7 +2157,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             None,
                                             server.internal_ip_address,
                                             None,
-                                            None,
+                                            server.is_embedded,
+                                            server.is_permanent,
                                             server.discovery_date_range)
                                             # Omit: propagation, web server, ssh info
 
@@ -2146,7 +2170,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             None,
                                             deleted_server.internal_ip_address,
                                             None,
-                                            None,
+                                            deleted_server.is_embedded,
+                                            deleted_server.is_permanent,
                                             deleted_server.discovery_date_range)
                                             # Omit: propagation, web server, ssh info
 
@@ -2226,7 +2251,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 server.web_server_port,
                                 server.web_server_secret,
                                 [self.__get_encoded_server_entry(server)],
-                                self.__client_versions[CLIENT_PLATFORM_WINDOWS][-1].version,  # This uses the Windows client
+                                self.__client_versions[CLIENT_PLATFORM_WINDOWS][-1].version if self.__client_versions[CLIENT_PLATFORM_WINDOWS] else 0,  # This uses the Windows client
                                 [server.egress_ip_address],
                                 test_propagation_channel_id,
                                 test_cases)
@@ -2338,7 +2363,9 @@ def unit_test():
 def create():
     # Create a new network object and persist it
     psinet = PsiphonNetwork()
+    psinet.is_locked = True
     psinet.save()
+    psinet.release()
 
 
 def interact(lock):
