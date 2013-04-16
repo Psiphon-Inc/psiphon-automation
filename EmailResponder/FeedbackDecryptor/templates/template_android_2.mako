@@ -139,6 +139,7 @@
     ${sys_info_row(k, v)}
   % endfor
   ${sys_info_row('isRooted', sys_info['isRooted'])}
+  ${sys_info_row('networkTypeName', sys_info.get('networkTypeName', 'None'))}
 </table>
 
 <h3>Psiphon Info</h3>
