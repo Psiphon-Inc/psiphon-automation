@@ -38,6 +38,7 @@ import decryptor
 from emailgetter import EmailGetter
 import sender
 import datastore
+import datatransformer
 
 
 def _upgrade_old_object(yaml_docs):
@@ -145,6 +146,9 @@ def go():
                 if not utils.is_diagnostic_info_sane(diagnostic_info):
                     # Something is wrong. Skip and continue.
                     continue
+
+                # Modifies diagnostic_info
+                datatransformer.transform(diagnostic_info)
 
                 # Store the diagnostic info
                 datastore.insert_diagnostic_info(diagnostic_info)

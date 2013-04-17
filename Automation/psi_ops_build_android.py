@@ -34,7 +34,6 @@ PSIPHON_LIB_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'PsiphonAndroidLibrary')
 ZIRCO_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'zirco-browser')
 
 BANNER_ROOT = os.path.join(os.path.abspath('..'), 'Data', 'Banners')
-CLIENT_SOLUTION_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient.sln')
 KEYSTORE_FILENAME = os.path.join(os.path.abspath('..'), 'Data', 'CodeSigning', 'test.keystore')
 KEYSTORE_PASSWORD = 'password'
 
@@ -161,7 +160,7 @@ def build_client(
 
     try:
         # Backup/restore original files minimize chance of checking values into source control
-        backup = psi_utils.TemporaryBackup([BANNER_FILENAME, EMBEDDED_VALUES_FILENAME, ANDROID_MANIFEST_FILENAME])
+        backup = psi_utils.TemporaryBackup([BANNER_FILENAME, ANDROID_MANIFEST_FILENAME])
 
         # Copy sponsor banner image file from Data to Client source tree
         if banner:
@@ -225,9 +224,6 @@ def build_library(
         version):
 
     try:
-        # Backup/restore original files minimize chance of checking values into source control
-        backup = psi_utils.TemporaryBackup([EMBEDDED_VALUES_FILENAME])
-
         # overwrite embedded values source file
         write_embedded_values(
             propagation_channel_id,
@@ -261,5 +257,3 @@ def build_library(
         print 'Build: FAILURE'
         raise
 
-    finally:
-        backup.restore_all()
