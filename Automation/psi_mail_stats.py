@@ -201,7 +201,7 @@ if __name__ == "__main__":
                 region = str(row[0])
                 if not region in table_dict:
                     table_dict[region] = defaultdict(int)
-                table_dict[region][column] = "{:,}".format(row[1])
+                table_dict[region][column] = row[1]
 
         body += ''.join(['%12s' % (header,) for header in ['Region'] + columns])
         body += '\n'
@@ -211,7 +211,7 @@ if __name__ == "__main__":
             row = []
             row.append(region)
             for column in columns:
-                row.append(values[column])
+                row.append("{:,}".format(values[column]))
             body += ''.join(['%12s' % (str(item),) for item in row])
             body += '\n'
 
