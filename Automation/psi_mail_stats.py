@@ -22,6 +22,15 @@ from collections import defaultdict
 import psycopg2
 import psi_ops_stats_credentials
 
+# Using the FeedbackDecryptor's mail capabilities
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join('..', 'EmailResponder')))
+sys.path.append(os.path.abspath(os.path.join('..', 'EmailResponder', 'FeedbackDecryptor')))
+os.chdir('../EmailResponder/FeedbackDecryptor')
+import sender
+from config import config
+
 
 connections_by_region_template =  '''
 select client_region, count(*) as connections
@@ -157,6 +166,10 @@ tables = [
 
 if __name__ == "__main__":
 
+    subject = 'Psiphon 3 Stats'
+
+    body = ''
+
     db_conn = psycopg2.connect(
         'dbname=%s user=%s password=%s host=%s port=%d' % (
             psi_ops_stats_credentials.POSTGRES_DBNAME,
@@ -166,7 +179,8 @@ if __name__ == "__main__":
             psi_ops_stats_credentials.POSTGRES_PORT))
 
     for table in tables:
-        print table[0]
+        body += table[0]
+        body += '\n'
         table_dict = {}
         columns = []
         for column, queries in table[1]:
@@ -188,7 +202,8 @@ if __name__ == "__main__":
                     table_dict[region] = defaultdict(int)
                 table_dict[region][column] = row[1]
 
-        print ''.join(['%14s' % (header,) for header in ['Region'] + columns])
+        body += ''.join(['%14s' % (header,) for header in ['Region'] + columns])
+        body += '\n'
 
         # Sorted by the last column, top 10 (+1 for the total row)
         for region, values in sorted(table_dict.items(), key=lambda x: x[1][columns[-1]], reverse=True)[:11]:
@@ -196,8 +211,14 @@ if __name__ == "__main__":
             row.append(region)
             for column in columns:
                 row.append(values[column])
-            print ''.join(['%14s' % (str(item),) for item in row])
+            body += ''.join(['%14s' % (str(item),) for item in row])
+            body += '\n'
 
     db_conn.close()
 
+    sender.send(config['decryptedEmailRecipient'],
+                config['emailUsername'],
+                subject,
+                body,
+                None)
 
