@@ -168,7 +168,7 @@ if __name__ == "__main__":
 
     subject = 'Psiphon 3 Stats'
 
-    body = ''
+    body = '<pre>\n'
 
     db_conn = psycopg2.connect(
         'dbname=%s user=%s password=%s host=%s port=%d' % (
@@ -216,9 +216,11 @@ if __name__ == "__main__":
 
     db_conn.close()
 
+    body += '</pre>\n'
+
     sender.send(config['decryptedEmailRecipient'],
                 config['emailUsername'],
                 subject,
                 body,
-                None)
+                body)
 
