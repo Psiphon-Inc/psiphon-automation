@@ -94,7 +94,7 @@ tables = [
             )
         ),
         (
-            'Previous Day',
+            'PreviousDay',
             (
                 connections_by_region_template.format('60 hours', '36 hours'),
                 connections_total_template.format('60 hours', '36 hours')
@@ -120,7 +120,7 @@ tables = [
             )
         ),
         (
-            'Previous Day',
+            'PreviousDay',
             (
                 unique_users_by_region_template.format('60 hours', '36 hours'),
                 unique_users_total_template.format('60 hours', '36 hours')
@@ -146,7 +146,7 @@ tables = [
             )
         ),
         (
-            'Previous Day',
+            'PreviousDay',
             (
                 page_views_by_region_template.format('60 hours', '36 hours'),
                 page_views_total_template.format('60 hours', '36 hours')
@@ -179,6 +179,7 @@ if __name__ == "__main__":
             psi_ops_stats_credentials.POSTGRES_PORT))
 
     for table in tables:
+        body += '\n'
         body += table[0]
         body += '\n'
         table_dict = {}
@@ -200,9 +201,9 @@ if __name__ == "__main__":
                 region = str(row[0])
                 if not region in table_dict:
                     table_dict[region] = defaultdict(int)
-                table_dict[region][column] = row[1]
+                table_dict[region][column] = "{:,}".format(row[1])
 
-        body += ''.join(['%14s' % (header,) for header in ['Region'] + columns])
+        body += ''.join(['%12s' % (header,) for header in ['Region'] + columns])
         body += '\n'
 
         # Sorted by the last column, top 10 (+1 for the total row)
@@ -211,7 +212,7 @@ if __name__ == "__main__":
             row.append(region)
             for column in columns:
                 row.append(values[column])
-            body += ''.join(['%14s' % (str(item),) for item in row])
+            body += ''.join(['%12s' % (str(item),) for item in row])
             body += '\n'
 
     db_conn.close()
