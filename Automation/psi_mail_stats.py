@@ -32,135 +32,156 @@ import sender
 from config import config
 
 
-connections_by_region_template =  '''
+windows_connections_by_region_template =  '''
 select client_region, count(*) as connections
 from connected
 where timestamp between current_timestamp - interval '{0}' and current_timestamp - interval '{1}'
+and lower(client_platform) like 'windows%'
 group by client_region
 order by 2 desc
 ;'''
 
 
-connections_total_template = '''
+windows_connections_total_template = '''
 select count(*) as total_connections
 from connected
 where timestamp between current_timestamp - interval '{0}' and current_timestamp - interval '{1}'
+and lower(client_platform) like 'windows%'
 ;'''
 
 
-unique_users_by_region_template = '''
+android_connections_by_region_template =  '''
+select client_region, count(*) as connections
+from connected
+where timestamp between current_timestamp - interval '{0}' and current_timestamp - interval '{1}'
+and lower(client_platform) like 'android%'
+group by client_region
+order by 2 desc
+;'''
+
+
+android_connections_total_template = '''
+select count(*) as total_connections
+from connected
+where timestamp between current_timestamp - interval '{0}' and current_timestamp - interval '{1}'
+and lower(client_platform) like 'android%'
+;'''
+
+
+windows_unique_users_by_region_template = '''
 select client_region, count(*) as uniques
 from connected
 where timestamp between current_timestamp - interval '{0}' and current_timestamp - interval '{1}'
 and last_connected < current_timestamp - interval '{0}'
+and lower(client_platform) like 'windows%'
 group by client_region
 order by 2 desc
 ;'''
 
 
-unique_users_total_template = '''
+windows_unique_users_total_template = '''
 select count(*) as total_uniques
 from connected
 where timestamp between current_timestamp - interval '{0}' and current_timestamp - interval '{1}'
 and last_connected < current_timestamp - interval '{0}'
+and lower(client_platform) like 'windows%'
 ;'''
 
 
-page_views_by_region_template = '''
-select client_region, sum(viewcount) as page_views
-from page_views
+android_unique_users_by_region_template = '''
+select client_region, count(*) as uniques
+from connected
 where timestamp between current_timestamp - interval '{0}' and current_timestamp - interval '{1}'
+and last_connected < current_timestamp - interval '{0}'
+and lower(client_platform) like 'android%'
 group by client_region
 order by 2 desc
 ;'''
 
 
-page_views_total_template = '''
+android_unique_users_total_template = '''
+select count(*) as total_uniques
+from connected
+where timestamp between current_timestamp - interval '{0}' and current_timestamp - interval '{1}'
+and last_connected < current_timestamp - interval '{0}'
+and lower(client_platform) like 'android%'
+;'''
+
+
+windows_page_views_by_region_template = '''
+select client_region, sum(viewcount) as page_views
+from page_views
+where timestamp between current_timestamp - interval '{0}' and current_timestamp - interval '{1}'
+and lower(client_platform) like 'windows%'
+group by client_region
+order by 2 desc
+;'''
+
+
+windows_page_views_total_template = '''
 select sum(viewcount) as total_page_views
 from page_views
 where timestamp between current_timestamp - interval '{0}' and current_timestamp - interval '{1}'
+and lower(client_platform) like 'windows%'
+;'''
+
+
+android_page_views_by_region_template = '''
+select client_region, sum(viewcount) as page_views
+from page_views
+where timestamp between current_timestamp - interval '{0}' and current_timestamp - interval '{1}'
+and lower(client_platform) like 'android%'
+group by client_region
+order by 2 desc
+;'''
+
+
+android_page_views_total_template = '''
+select sum(viewcount) as total_page_views
+from page_views
+where timestamp between current_timestamp - interval '{0}' and current_timestamp - interval '{1}'
+and lower(client_platform) like 'android%'
 ;'''
 
 
 tables = [
 (
-    'Connections',
-    [
-        (
-            'Yesterday',
-            (
-                connections_by_region_template.format('36 hours', '12 hours'),
-                connections_total_template.format('36 hours', '12 hours')
-            )
-        ),
-        (
-            'PreviousDay',
-            (
-                connections_by_region_template.format('60 hours', '36 hours'),
-                connections_total_template.format('60 hours', '36 hours')
-            )
-        ),
-        (
-            'Past Week',
-            (
-                connections_by_region_template.format('180 hours', '12 hours'),
-                connections_total_template.format('180 hours', '12 hours')
-            )
-        )
-    ]
+    'Windows Connections',
+     windows_connections_by_region_template,
+     windows_connections_total_template
 ),
 (
-    'Unique Users',
-    [
-        (
-            'Yesterday',
-            (
-                unique_users_by_region_template.format('36 hours', '12 hours'),
-                unique_users_total_template.format('36 hours', '12 hours')
-            )
-        ),
-        (
-            'PreviousDay',
-            (
-                unique_users_by_region_template.format('60 hours', '36 hours'),
-                unique_users_total_template.format('60 hours', '36 hours')
-            )
-        ),
-        (
-            'Past Week',
-            (
-                unique_users_by_region_template.format('180 hours', '12 hours'),
-                unique_users_total_template.format('180 hours', '12 hours')
-            )
-        )
-    ]
+    'Android Connections',
+     android_connections_by_region_template,
+     android_connections_total_template
 ),
 (
-    'Page Views',
-    [
-        (
-            'Yesterday',
-            (
-                page_views_by_region_template.format('36 hours', '12 hours'),
-                page_views_total_template.format('36 hours', '12 hours')
-            )
-        ),
-        (
-            'PreviousDay',
-            (
-                page_views_by_region_template.format('60 hours', '36 hours'),
-                page_views_total_template.format('60 hours', '36 hours')
-            )
-        ),
-        (
-            'Past Week',
-            (
-                page_views_by_region_template.format('180 hours', '12 hours'),
-                page_views_total_template.format('180 hours', '12 hours')
-            )
-        )
-    ]
+    'Windows Unique Users',
+    windows_unique_users_by_region_template,
+    windows_unique_users_total_template
+),
+(
+    'Android Unique Users',
+    android_unique_users_by_region_template,
+    android_unique_users_total_template
+),
+(
+    'Windows Page Views',
+    windows_page_views_by_region_template,
+    windows_page_views_total_template
+),
+(
+    'Android Page Views',
+    android_page_views_by_region_template,
+    android_page_views_total_template
 )
+]
+
+
+table_columns = [
+('Yesterday', '40 hours', '16 hours'),
+('1 week ago', '208 hours', '184 hours'),
+('Past Week', '184 hours', '16 hours'),
 ]
 
 
@@ -184,16 +205,16 @@ if __name__ == "__main__":
         body += '\n'
         table_dict = {}
         columns = []
-        for column, queries in table[1]:
-            columns.append(column)
+        for column in table_columns:
+            columns.append(column[0])
             # Regions
             cursor = db_conn.cursor()
-            cursor.execute(queries[0])
+            cursor.execute(table[1].format(column[1], column[2]))
             rows = cursor.fetchall()
             cursor.close()
             # Total
             cursor = db_conn.cursor()
-            cursor.execute(queries[1])
+            cursor.execute(table[2].format(column[1], column[2]))
             total = cursor.fetchone()[0]
             rows.append(('Total', total))
             cursor.close()
@@ -201,7 +222,7 @@ if __name__ == "__main__":
                 region = str(row[0])
                 if not region in table_dict:
                     table_dict[region] = defaultdict(int)
-                table_dict[region][column] = row[1]
+                table_dict[region][column[0]] = row[1]
 
         body += ''.join(['%12s' % (header,) for header in ['Region'] + columns])
         body += '\n'
