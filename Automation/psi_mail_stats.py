@@ -27,12 +27,12 @@ from mako.lookup import TemplateLookup
 from mako import exceptions
 import pynliner
 
-# Using the FeedbackDecryptor's mail capabilities
 import os
 import sys
+
+# Using the FeedbackDecryptor's mail capabilities
 sys.path.append(os.path.abspath(os.path.join('..', 'EmailResponder')))
 sys.path.append(os.path.abspath(os.path.join('..', 'EmailResponder', 'FeedbackDecryptor')))
-os.chdir('../EmailResponder/FeedbackDecryptor')
 import sender
 from config import config
 
@@ -197,7 +197,7 @@ def render_mail(data):
     '''
 
     template_filename = 'psi_mail_stats.mako'
-    template_lookup = TemplateLookup(directories=['.'])
+    template_lookup = TemplateLookup(directories=[os.path.dirname(os.path.abspath(__file__))])
 
     # SECURITY IMPORTANT: `'h'` in the `default_filters` list causes HTML
     # escaping to be applied to all expression tags (${...}) in this
