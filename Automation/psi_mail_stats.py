@@ -22,6 +22,11 @@ from collections import defaultdict
 import psycopg2
 import psi_ops_stats_credentials
 
+from mako.template import Template
+from mako.lookup import TemplateLookup
+from mako import exceptions
+import pynliner
+
 # Using the FeedbackDecryptor's mail capabilities
 import os
 import sys
@@ -32,7 +37,7 @@ import sender
 from config import config
 
 
-windows_connections_by_region_template =  '''
+windows_connections_by_region_template = '''
 select client_region, count(*) as connections
 from connected
 where timestamp between current_timestamp - interval '{0}' and current_timestamp - interval '{1}'
@@ -50,7 +55,7 @@ and lower(client_platform) like 'windows%'
 ;'''
 
 
-android_connections_by_region_template =  '''
+android_connections_by_region_template = '''
 select client_region, count(*) as connections
 from connected
 where timestamp between current_timestamp - interval '{0}' and current_timestamp - interval '{1}'
@@ -145,51 +150,75 @@ and lower(client_platform) like 'android%'
 
 
 tables = [
-(
-    'Windows Connections',
-     windows_connections_by_region_template,
-     windows_connections_total_template
-),
-(
-    'Android Connections',
-     android_connections_by_region_template,
-     android_connections_total_template
-),
-(
-    'Windows Unique Users',
-    windows_unique_users_by_region_template,
-    windows_unique_users_total_template
-),
-(
-    'Android Unique Users',
-    android_unique_users_by_region_template,
-    android_unique_users_total_template
-),
-(
-    'Windows Page Views',
-    windows_page_views_by_region_template,
-    windows_page_views_total_template
-),
-(
-    'Android Page Views',
-    android_page_views_by_region_template,
-    android_page_views_total_template
-)
+    (
+        'Windows Connections',
+        windows_connections_by_region_template,
+        windows_connections_total_template
+    ),
+    (
+        'Android Connections',
+        android_connections_by_region_template,
+        android_connections_total_template
+    ),
+    (
+        'Windows Unique Users',
+        windows_unique_users_by_region_template,
+        windows_unique_users_total_template
+    ),
+    (
+        'Android Unique Users',
+        android_unique_users_by_region_template,
+        android_unique_users_total_template
+    ),
+    (
+        'Windows Page Views',
+        windows_page_views_by_region_template,
+        windows_page_views_total_template
+    ),
+    (
+        'Android Page Views',
+        android_page_views_by_region_template,
+        android_page_views_total_template
+    )
 ]
 
 
 table_columns = [
-('Yesterday', '40 hours', '16 hours'),
-('1 week ago', '208 hours', '184 hours'),
-('Past Week', '184 hours', '16 hours'),
+    ('Yesterday', '40 hours', '16 hours'),
+    ('1 week ago', '208 hours', '184 hours'),
+    ('Past Week', '184 hours', '16 hours'),
 ]
 
 
+def render_mail(data):
+    '''
+    Will throw exception if data does not match expected structure (that is,
+    if the template rendering fails).
+    '''
+
+    template_filename = 'psi_mail_stats.mako'
+    template_lookup = TemplateLookup(directories=['.'])
+
+    # SECURITY IMPORTANT: `'h'` in the `default_filters` list causes HTML
+    # escaping to be applied to all expression tags (${...}) in this
+    # template. Because we're output untrusted user-supplied data, this is
+    # essential.
+    template = Template(filename=template_filename,
+                        default_filters=['unicode', 'h'],
+                        lookup=template_lookup)
+
+    try:
+        rendered = template.render(data=data)
+    except:
+        raise Exception(exceptions.text_error_template().render())
+
+    # CSS in email HTML must be inline
+    rendered = pynliner.fromString(rendered)
+
+    return rendered
+
+
 if __name__ == "__main__":
-
-    subject = 'Psiphon 3 Stats'
-
-    body = '<pre>\n'
 
     db_conn = psycopg2.connect(
         'dbname=%s user=%s password=%s host=%s port=%d' % (
@@ -199,10 +228,12 @@ if __name__ == "__main__":
             psi_ops_stats_credentials.POSTGRES_HOST,
             psi_ops_stats_credentials.POSTGRES_PORT))
 
+    tables_data = {}
+
     for table in tables:
-        body += '\n'
-        body += table[0]
-        body += '\n'
+
+        tables_data[table[0]] = {}
+
         table_dict = {}
         columns = []
         for column in table_columns:
@@ -224,25 +255,17 @@ if __name__ == "__main__":
                     table_dict[region] = defaultdict(int)
                 table_dict[region][column[0]] = row[1]
 
-        body += ''.join(['%12s' % (header,) for header in ['Region'] + columns])
-        body += '\n'
+        tables_data[table[0]]['headers'] = ['Region'] + columns
 
         # Sorted by the last column, top 10 (+1 for the total row)
-        for region, values in sorted(table_dict.items(), key=lambda x: x[1][columns[-1]], reverse=True)[:11]:
-            row = []
-            row.append(region)
-            for column in columns:
-                row.append("{:,}".format(values[column]))
-            body += ''.join(['%12s' % (str(item),) for item in row])
-            body += '\n'
+        tables_data[table[0]]['data'] = sorted(table_dict.items(), key=lambda x: x[1][columns[-1]], reverse=True)[:11]
 
     db_conn.close()
 
-    body += '</pre>\n'
+    html_body = render_mail(tables_data)
 
     sender.send(config['decryptedEmailRecipient'],
                 config['emailUsername'],
-                subject,
-                body,
-                body)
-
+                'Psiphon 3 Stats',
+                repr(tables_data),
+                html_body)
