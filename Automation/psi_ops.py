@@ -946,7 +946,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server.capabilities['OSSH'] = False
         host = self.__hosts[server.host_id]
         servers = [s for s in self.__servers.itervalues() if s.host_id == server.host_id]
-        psi_ops_install.install_firewall_rules(host, servers)
+        psi_ops_install.install_firewall_rules(host, servers, plugins)
         self.save()
 
     def __count_users_on_host(self, host_id):
