@@ -1126,7 +1126,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             def provider_launch_new_server_with_retries():
                 for _ in range(3):
                     try:
-                        return provider_launch_new_server(provider_account)
+                        return provider_launch_new_server(provider_account, plugins)
                     except Exception as ex:
                         print str(ex)
                         pass
