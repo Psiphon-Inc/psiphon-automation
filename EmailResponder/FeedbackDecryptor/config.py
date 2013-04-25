@@ -14,10 +14,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import os
 import json
 
 
-_CONFIG_FILENAME = 'conf.json'
+_CONFIG_FILENAME = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    'conf.json')
 
 config = {}
 with open(_CONFIG_FILENAME, 'r') as conf_fp:
