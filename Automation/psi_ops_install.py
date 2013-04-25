@@ -483,11 +483,6 @@ def install_host(host, servers, existing_server_ids, plugins):
     ssh.exec_command('update-rc.d %s defaults' % ('badvpn-udpgw',))
     ssh.exec_command('%s restart' % (remote_init_file_path,))
     
-    cron_file = '/etc/cron.d/psi-restart-badvpn-udpgw'
-    ssh.exec_command('echo "SHELL=/bin/sh" > %s;' % (cron_file,) +
-                     'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
-                     'echo "0 * * * * root %s restart" >> %s' % (remote_init_file_path, cron_file))
-
     #
     # Generate and upload sshd_config files and xinetd.conf
     #
@@ -536,6 +531,16 @@ def install_host(host, servers, existing_server_ids, plugins):
     #
 
     ssh.exec_command('/etc/init.d/xinetd restart')
+
+    #
+    # Restart some services regularly
+    #
+
+    cron_file = '/etc/cron.d/psi-restart-services'
+    ssh.exec_command('echo "SHELL=/bin/sh" > %s;' % (cron_file,) +
+                     'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
+                     'echo "1 * * * * root %s restart" >> %s;' % ('/etc/init.d/xinetd', cron_file) +
+                     'echo "2 * * * * root %s restart" >> %s' % ('/etc/init.d/badvpn-udpgw', cron_file))
 
     #
     # Add required packages and Python modules
