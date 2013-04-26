@@ -1467,6 +1467,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         remote_server_list_url = psi_ops_s3.get_s3_bucket_remote_server_list_url(campaigns[0].s3_bucket_name)
         info_link_url = psi_ops_s3.get_s3_bucket_home_page_url(campaigns[0].s3_bucket_name)
+        for plugin in plugins:
+            if hasattr(plugin, 'info_link_url'):
+                info_link_url = plugin.info_link_url(CLIENT_PLATFORM_ANDROID)
 
         return psi_ops_build_android.build_library(
                         propagation_channel.id,
@@ -1525,6 +1528,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
                     remote_server_list_url = psi_ops_s3.get_s3_bucket_remote_server_list_url(campaign.s3_bucket_name)
                     info_link_url = psi_ops_s3.get_s3_bucket_home_page_url(campaign.s3_bucket_name)
+                    for plugin in plugins:
+                        if hasattr(plugin, 'info_link_url'):
+                            info_link_url = plugin.info_link_url(platform)
 
                     remote_server_list = \
                         psi_ops_crypto_tools.make_signed_data(
@@ -1538,6 +1544,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         CLIENT_PLATFORM_WINDOWS: psi_ops_s3.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME,
                         CLIENT_PLATFORM_ANDROID: psi_ops_s3.DOWNLOAD_SITE_ANDROID_BUILD_FILENAME
                     }
+                    for plugin in plugins:
+                        if hasattr(plugin, 'adjust_client_build_filenames'):
+                            plugin.adjust_client_build_filenames(client_build_filenames)
 
                     build_filename = self.build(
                                         propagation_channel.name,
