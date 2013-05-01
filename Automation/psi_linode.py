@@ -45,7 +45,7 @@ def create_linode(linode_api):
     datacenter = random.choice(avail_datacenters)
     datacenter_id = datacenter['DATACENTERID']
     datacenter_name = make_datacenter_name(datacenter['LOCATION'])
-    # We use PlanID = 3: linode 1024
+    # We use PlanID = 3: linode 2048
     new_node_id = linode_api.linode_create(DatacenterID=datacenter_id, PlanID=3, PaymentTerm=1)['LinodeID']
     # Status flag values: (partial list)
     # -1: Being Created
@@ -57,15 +57,19 @@ def create_linode(linode_api):
     return new_node_id, datacenter_name
 
 
-def create_linode_disks(linode_api, linode_id, bootstrap_password):
+def create_linode_disks(linode_api, linode_id, bootstrap_password, plugins):
     # DistributionID = 77: Debian 6
-    create_disk_job = linode_api.linode_disk_createfromdistribution(LinodeID=linode_id, DistributionID=77, rootPass=bootstrap_password, Label='Psiphon 3 Disk Image', Size=40704)
+    distribution_id = 77
+    for plugin in plugins:
+        if hasattr(plugin, 'linode_distribution_id'):
+            distribution_id = plugin.linode_distribution_id()
+    create_disk_job = linode_api.linode_disk_createfromdistribution(LinodeID=linode_id, DistributionID=distribution_id, rootPass=bootstrap_password, Label='Psiphon 3 Disk Image', Size=48640)
     wait_while_condition(lambda: linode_api.linode_job_list(LinodeID=linode_id, JobID=create_disk_job['JobID'])[0]['HOST_SUCCESS'] == '',
                          120,
                          'create a disk from distribution')
     assert(linode_api.linode_job_list(LinodeID=linode_id, JobID=create_disk_job['JobID'])[0]['HOST_SUCCESS'] == 1)
     
-    create_swap_job = linode_api.linode_disk_create(LinodeID=linode_id, Type='swap', Label='Psiphon 3 Swap', Size=256)
+    create_swap_job = linode_api.linode_disk_create(LinodeID=linode_id, Type='swap', Label='Psiphon 3 Swap', Size=512)
     wait_while_condition(lambda: linode_api.linode_job_list(LinodeID=linode_id, JobID=create_swap_job['JobID'])[0]['HOST_SUCCESS'] == '',
                          30,
                          'create a swap disk')
@@ -74,11 +78,16 @@ def create_linode_disks(linode_api, linode_id, bootstrap_password):
     return str(create_disk_job['DiskID']), str(create_swap_job['DiskID'])
 
     
-def create_linode_configurations(linode_api, linode_id, disk_list):
+def create_linode_configurations(linode_api, linode_id, disk_list, plugins):
     # KernelID = 110: Latest 2.6
-    bootstrap_config_id = linode_api.linode_config_create(LinodeID=linode_id, KernelID=110, Label='BootStrap', DiskList=disk_list)
+    bootstrap_kernel_id = 110
     # KernelID = 92: pv-grub-x86_32
-    psiphon3_host_config_id = linode_api.linode_config_create(LinodeID=linode_id, KernelID=92, Label='Psiphon 3 Host', DiskList=disk_list, helper_xen=0)
+    host_kernel_id = 92
+    for plugin in plugins:
+        if hasattr(plugin, 'linode_kernel_ids'):
+            bootstrap_kernel_id, host_kernel_id = plugin.linode_kernel_ids()
+    bootstrap_config_id = linode_api.linode_config_create(LinodeID=linode_id, KernelID=bootstrap_kernel_id, Label='BootStrap', DiskList=disk_list)
+    psiphon3_host_config_id = linode_api.linode_config_create(LinodeID=linode_id, KernelID=host_kernel_id, Label='Psiphon 3 Host', DiskList=disk_list, helper_xen=0)
     return bootstrap_config_id['ConfigID'], psiphon3_host_config_id['ConfigID']
     
 
@@ -138,7 +147,7 @@ def get_host_name(linode_account, ip_address):
     return ssh.exec_command('hostname').strip()
 
     
-def launch_new_server(linode_account):
+def launch_new_server(linode_account, plugins):
     linode_id = None
     linode_api = linode.api.Api(key=linode_account.api_key)
     
@@ -150,8 +159,8 @@ def launch_new_server(linode_account):
         # Create a new linode
         new_root_password = psi_utils.generate_password()
         linode_id, datacenter_name = create_linode(linode_api)
-        disk_ids = create_linode_disks(linode_api, linode_id, new_root_password)
-        bootstrap_config_id, psiphon3_host_config_id = create_linode_configurations(linode_api, linode_id, ','.join(disk_ids))
+        disk_ids = create_linode_disks(linode_api, linode_id, new_root_password, plugins)
+        bootstrap_config_id, psiphon3_host_config_id = create_linode_configurations(linode_api, linode_id, ','.join(disk_ids), plugins)
         start_linode(linode_api, linode_id, bootstrap_config_id)
         
         # Clone the base linode

@@ -107,7 +107,7 @@ def write_embedded_values(propagation_channel_id,
 
             final String CLIENT_VERSION = "%s";
 
-            final String EMBEDDED_SERVER_LIST = "%s";
+            final String EMBEDDED_SERVER_LIST[] = {"%s"};
 
             final String REMOTE_SERVER_LIST_URL = "%s://%s/%s";
 
@@ -123,7 +123,7 @@ def write_embedded_values(propagation_channel_id,
         file.write(template % (propagation_channel_id,
                                sponsor_id,
                                client_version,
-                               '\\n'.join(embedded_server_list),
+                               '","'.join(embedded_server_list),
                                remote_server_list_url[0],
                                remote_server_list_url[1],
                                remote_server_list_url[2],
