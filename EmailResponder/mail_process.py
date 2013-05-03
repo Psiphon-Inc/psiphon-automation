@@ -297,10 +297,11 @@ def get_s3_attachment(bucketname, bucket_filename):
     # Make the attachment cache dir, if it doesn't exist
     try:
         os.makedirs(settings.ATTACHMENT_CACHE_DIR)
-    except OSError as exc: # Python >2.5
+    except OSError as exc:
         if exc.errno == errno.EEXIST:
             pass
-        else: raise
+        else:
+            raise
 
     # Make the connection using the credentials in the boto config file.
     conn = S3Connection()
@@ -345,12 +346,23 @@ def _dkim_sign_email(raw_email):
                     open(settings.DKIM_PRIVATE_KEY).read())
     return sig + raw_email
 
+
 def dump_to_exception_file(string):
     if settings.EXCEPTION_DIR:
+        # Make sure the exceptions directory exists
+        try:
+            os.makedirs(settings.EXCEPTION_DIR)
+        except OSError as e:
+            if e.errno == errno.EEXIST and os.path.isdir(settings.EXCEPTION_DIR):
+                pass
+            else:
+                raise
+
         temp = tempfile.mkstemp(suffix='.txt', dir=settings.EXCEPTION_DIR)
         f = os.fdopen(temp[0], 'w')
         f.write(string)
         f.close()
+
 
 def forward_to_administrator(email_type, email_string):
     '''
