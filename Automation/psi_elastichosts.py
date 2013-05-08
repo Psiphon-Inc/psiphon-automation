@@ -61,7 +61,7 @@ class ElasticHosts(object):
         Driver = get_driver(getattr(Provider, self._account.zone))
         self._driver = Driver(self._account.uuid, self._account.api_key)
 
-    def launch_new_server(self, account):
+    def launch_new_server(self, account, plugins):
         # Note that we're using the libcloud API in a fairly bastardized way.
         # We're not using the real API at all (we've found that it doesn't work),
         # but we're using the connection object, because it makes our code a lot
