@@ -634,6 +634,8 @@ def install_firewall_rules(host, servers, plugins):
     -A INPUT -j DROP
     -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 5242,4244 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 5243,7985,9785 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.8.8 -p tcp --dport 53 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.8.8 -p udp --dport 53 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.4.4 -p tcp --dport 53 -j ACCEPT
@@ -657,6 +659,8 @@ def install_firewall_rules(host, servers, plugins):
     -A OUTPUT -p udp -m multiport --dports 53,80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
     -A OUTPUT -p tcp -m multiport --dports 5222,5223,5228,5229,5230,14259 -j ACCEPT
     -A OUTPUT -p udp -m multiport --dports 5222,5223,5228,5229,5230,14259 -j ACCEPT
+    -A OUTPUT -p tcp -m multiport --dports 5242,4244 -j ACCEPT
+    -A OUTPUT -p udp -m multiport --dports 5243,7985,9785 -j ACCEPT
     -A OUTPUT -p udp -m udp --dport 123 -j ACCEPT
     -A OUTPUT -p tcp -m tcp --sport %s -j ACCEPT''' % (host.ssh_port,) + ''.join(
     # tunneled web requests on NATed servers don't go out lo
