@@ -245,21 +245,18 @@
     debug_class = 'debug' if entry['debug'] else ''
   %>
 
-  ## Don't display debug entries in the output
-  % if not entry['debug']:
-    ## Put a separator between entries that are separated in time.
-    % if timestamp_diff_secs > 10:
-      <hr>
-    % endif
-
-    <div class="status-entry">
-      <div class="status-first-line">
-        <span class="timestamp">${utils.timestamp_display(entry['timestamp'])} [+${timestamp_diff_str}s]</span>
-
-        <span class="status-entry-message ${debug_class}">${entry['message']}</span>
-      </div>
-    </div>
+  ## Put a separator between entries that are separated in time.
+  % if timestamp_diff_secs > 10:
+    <hr>
   % endif
+
+  <div class="status-entry">
+    <div class="status-first-line">
+      <span class="timestamp">${utils.timestamp_display(entry['timestamp'])} [+${timestamp_diff_str}s]</span>
+
+      <span class="status-entry-message ${debug_class}">${entry['message']}</span>
+    </div>
+  </div>
 </%def>
 
 <%def name="diagnostic_history_row(entry, last_timestamp)">
@@ -308,12 +305,17 @@
                                      key=itemgetter('timestamp'))
 %>
 % for entry in status_diagnostic_history:
+  ## The presence of a 'debug' field indicates a status entry
   % if 'debug' in entry:
-    ${status_history_row(entry, last_timestamp)}
+    ## ...but we're not actually printing out debug entries.
+    % if not entry['debug']:
+      ${status_history_row(entry, last_timestamp)}
+      <% last_timestamp = entry['timestamp'] %>
+    % endif
   % else:
     ${diagnostic_history_row(entry, last_timestamp)}
+    <% last_timestamp = entry['timestamp'] %>
   % endif
-  <% last_timestamp = entry['timestamp'] %>
 % endfor
 
 
