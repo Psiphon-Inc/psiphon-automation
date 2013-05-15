@@ -613,13 +613,17 @@ def install_firewall_rules(host, servers, plugins):
                 if s.capabilities['handshake']]) + ''.join(
     # SSH
     ['''
-    -A INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
-            % (str(s.internal_ip_address), str(s.ssh_port)) for s in servers
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --set
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --update --seconds 10 --hitcount 10 -j DROP
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -j ACCEPT'''.format(
+            str(s.internal_ip_address), str(s.ssh_port)) for s in servers
                 if s.capabilities['SSH']]) + ''.join(
     # OSSH
     ['''
-    -A INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
-            % (str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --set
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --update --seconds 10 --hitcount 10 -j DROP
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -j ACCEPT'''.format(
+            str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
                 if s.capabilities['OSSH']]) + ''.join(
     # VPN
     ['''
