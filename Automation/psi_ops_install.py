@@ -823,7 +823,7 @@ def install_psi_limit_load(host, servers):
     script = '''
 #!/bin/bash
 
-threshold=10
+threshold=25
 threshold_swap=20
 
 free=$(free | grep "buffers/cache" | awk '{print $4/($3+$4) * 100.0}')
@@ -863,5 +863,5 @@ exit 0
     cron_file = '/etc/cron.d/psi-limit-load'
     ssh.exec_command('echo "SHELL=/bin/sh" > %s;' % (cron_file,) +
                      'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
-                     'echo "*/2 * * * * root %s" >> %s' % (psi_limit_load_host_path, cron_file))
+                     'echo "* * * * * root %s" >> %s' % (psi_limit_load_host_path, cron_file))
             
