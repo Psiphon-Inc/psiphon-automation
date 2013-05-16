@@ -241,6 +241,14 @@ FeedbackUploadInfo = psi_utils.recordtype(
     'FeedbackUploadInfo',
     'upload_server, upload_path, upload_server_headers')
 
+UpgradePackageSigningKeyPair = psi_utils.recordtype(
+    'UpgradePackageSigningKeyPair',
+    'pem_key_pair')
+
+# The UpgradePackageSigningKeyPair record is stored in the secure management
+# database, so we don't require a secret key pair wrapping password
+UPGRADE_PACKAGE_SIGNING_KEY_PAIR_PASSWORD = 'none'
+
 CLIENT_PLATFORM_WINDOWS = 'Windows'
 CLIENT_PLATFORM_ANDROID = 'Android'
 
@@ -284,10 +292,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__remote_server_list_signing_key_pair = None
         self.__feedback_encryption_key_pair = None
         self.__feedback_upload_info = None
+        self.__upgrade_package_signing_key_pair = None
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.16'
+    class_version = '0.17'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -376,6 +385,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 for campaign in sponsor.campaigns:
                     campaign.custom_download_site = False
             self.version = '0.16'
+        if cmp(parse_version(self.version), parse_version('0.17')) < 0:
+            self.__upgrade_package_signing_key_pair = None
+            self.version = '0.17'
+
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1388,6 +1401,20 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__feedback_upload_info.upload_path = upload_path
             self.__feedback_upload_info.upload_server_headers = upload_server_headers
             self.__feedback_upload_info.log('FeedbackUploadInfo modified to: "%s", "%s", "%s"' % (upload_server, upload_path, upload_server_headers))
+
+    def __get_upgrade_package_signing_key_pair(self):
+        if not self.__upgrade_package_signing_key_pair:
+            assert(self.is_locked)
+            self.__upgrade_package_signing_key_pair = \
+                UpgradePackageSigningKeyPair(
+                    psi_ops_crypto_tools.generate_key_pair(
+                        UPGRADE_PACKAGE_SIGNING_KEY_PAIR_PASSWORD))
+
+        # This may be serialized/deserialized into a unicode string, but M2Crypto won't accept that.
+        # The key pair should only contain ascii anyways, so encoding to ascii should be safe.
+        self.__upgrade_package_signing_key_pair.pem_key_pair = \
+            self.__upgrade_package_signing_key_pair.pem_key_pair.encode('ascii', 'ignore')
+        return self.__upgrade_package_signing_key_pair
 
     def build(
             self,
