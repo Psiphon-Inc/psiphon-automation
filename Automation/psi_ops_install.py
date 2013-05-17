@@ -613,13 +613,17 @@ def install_firewall_rules(host, servers, plugins):
                 if s.capabilities['handshake']]) + ''.join(
     # SSH
     ['''
-    -A INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
-            % (str(s.internal_ip_address), str(s.ssh_port)) for s in servers
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --set
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --update --seconds 10 --hitcount 10 -j DROP
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -j ACCEPT'''.format(
+            str(s.internal_ip_address), str(s.ssh_port)) for s in servers
                 if s.capabilities['SSH']]) + ''.join(
     # OSSH
     ['''
-    -A INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
-            % (str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --set
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --update --seconds 10 --hitcount 10 -j DROP
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -j ACCEPT'''.format(
+            str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
                 if s.capabilities['OSSH']]) + ''.join(
     # VPN
     ['''
@@ -634,6 +638,8 @@ def install_firewall_rules(host, servers, plugins):
     -A INPUT -j DROP
     -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 5242,4244 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 5243,7985,9785 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.8.8 -p tcp --dport 53 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.8.8 -p udp --dport 53 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.4.4 -p tcp --dport 53 -j ACCEPT
@@ -657,6 +663,8 @@ def install_firewall_rules(host, servers, plugins):
     -A OUTPUT -p udp -m multiport --dports 53,80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
     -A OUTPUT -p tcp -m multiport --dports 5222,5223,5228,5229,5230,14259 -j ACCEPT
     -A OUTPUT -p udp -m multiport --dports 5222,5223,5228,5229,5230,14259 -j ACCEPT
+    -A OUTPUT -p tcp -m multiport --dports 5242,4244 -j ACCEPT
+    -A OUTPUT -p udp -m multiport --dports 5243,7985,9785 -j ACCEPT
     -A OUTPUT -p udp -m udp --dport 123 -j ACCEPT
     -A OUTPUT -p tcp -m tcp --sport %s -j ACCEPT''' % (host.ssh_port,) + ''.join(
     # tunneled web requests on NATed servers don't go out lo
@@ -815,7 +823,7 @@ def install_psi_limit_load(host, servers):
     script = '''
 #!/bin/bash
 
-threshold=10
+threshold=25
 threshold_swap=20
 
 free=$(free | grep "buffers/cache" | awk '{print $4/($3+$4) * 100.0}')
@@ -855,5 +863,5 @@ exit 0
     cron_file = '/etc/cron.d/psi-limit-load'
     ssh.exec_command('echo "SHELL=/bin/sh" > %s;' % (cron_file,) +
                      'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
-                     'echo "*/2 * * * * root %s" >> %s' % (psi_limit_load_host_path, cron_file))
+                     'echo "* * * * * root %s" >> %s' % (psi_limit_load_host_path, cron_file))
             
