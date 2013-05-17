@@ -1520,14 +1520,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         info_link_url,
                         self.__client_versions[CLIENT_PLATFORM_ANDROID][-1].version if self.__client_versions[CLIENT_PLATFORM_ANDROID] else 0)
 
-    def __make_upgrade_package_from_build(build_filename):
+    def __make_upgrade_package_from_build(self, build_filename):
         with open(build_filename, 'rb') as f:
             data = f.read()
         authenticated_data_package  = \
             psi_ops_crypto_tools.make_signed_data(
                 self.__get_upgrade_package_signing_key_pair().pem_key_pair,
                 UPGRADE_PACKAGE_SIGNING_KEY_PAIR_PASSWORD,
-                data)
+                binascii.hexlify(data))
         upgrade_package = zlib.compress(authenticated_data_package)
         upgrade_filename = build_filename + psi_ops_s3.DOWNLOAD_SITE_UPGRADE_SUFFIX
         with open(upgrade_filename, 'wb') as f:
