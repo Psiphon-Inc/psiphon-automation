@@ -1449,7 +1449,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         upgrade_signature_public_key = \
             psi_ops_crypto_tools.get_base64_der_public_key(
                 self.__get_upgrade_package_signing_key_pair().pem_key_pair,
-                UPGRADE_PACKAGE_KEY_PAIR_PASSWORD)
+                UPGRADE_PACKAGE_SIGNING_KEY_PAIR_PASSWORD)
 
         builders = {
             CLIENT_PLATFORM_WINDOWS: psi_ops_build_windows.build_client,
