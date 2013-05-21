@@ -30,7 +30,7 @@ import tempfile
 import random
 import optparse
 import operator
-import zlib
+import gzip
 from pkg_resources import parse_version
 
 import psi_utils
@@ -1528,10 +1528,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 self.__get_upgrade_package_signing_key_pair().pem_key_pair,
                 UPGRADE_PACKAGE_SIGNING_KEY_PAIR_PASSWORD,
                 binascii.hexlify(data))
-        upgrade_package = zlib.compress(authenticated_data_package)
         upgrade_filename = build_filename + psi_ops_s3.DOWNLOAD_SITE_UPGRADE_SUFFIX
-        with open(upgrade_filename, 'wb') as f:
-            f.write(upgrade_package)
+        with gzip.open(upgrade_filename, 'wb') as f:
+            f.write(authenticated_data_package)
         return upgrade_filename
 
     def deploy(self):
