@@ -1529,8 +1529,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 UPGRADE_PACKAGE_SIGNING_KEY_PAIR_PASSWORD,
                 binascii.hexlify(data))
         upgrade_filename = build_filename + psi_ops_s3.DOWNLOAD_SITE_UPGRADE_SUFFIX
-        with gzip.open(upgrade_filename, 'wb') as f:
+        f = gzip.open(upgrade_filename, 'wb')
+        try:
             f.write(authenticated_data_package)
+        finally:
+            f.close()
         return upgrade_filename
 
     def deploy(self):
