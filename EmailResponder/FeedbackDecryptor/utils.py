@@ -147,13 +147,17 @@ def convert_psinet_values(config, obj):
         if type(val) == str:
             # Find any/all IP addresses in the value and replace them.
             split = re.split(ipv4_regex, val)
+
             # With re.split, the odd items are the matches.
+            val_modified = False
             for i in range(1, len(split)-1, 2):
-                split[i] = _get_server_id_from_ip(_psinet, split[i])
+                # Leave localhost IP intact
+                if split[i] != '127.0.0.1':
+                    split[i] = _get_server_id_from_ip(_psinet, split[i])
+                    val_modified = True
 
-            clean_val = ''.join(split)
-
-            if val != clean_val:
+            if val_modified:
+                clean_val = ''.join(split)
                 assign_value_to_obj_at_path(obj, path, clean_val)
 
         if path[-1] == 'PROPAGATION_CHANNEL_ID':
