@@ -1527,7 +1527,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             psi_ops_crypto_tools.make_signed_data(
                 self.__get_upgrade_package_signing_key_pair().pem_key_pair,
                 UPGRADE_PACKAGE_SIGNING_KEY_PAIR_PASSWORD,
-                binascii.hexlify(data))
+                base64.b64encode(data))
         upgrade_filename = build_filename + psi_ops_s3.DOWNLOAD_SITE_UPGRADE_SUFFIX
         f = gzip.open(upgrade_filename, 'wb')
         try:
