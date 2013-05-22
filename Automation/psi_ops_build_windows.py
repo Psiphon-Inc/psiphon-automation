@@ -135,9 +135,9 @@ def write_embedded_values(propagation_channel_id,
         static const TCHAR* INFO_LINK_URL
             = _T("%s");
 
-        static const char* UPDATE_SIGNATURE_PUBLIC_KEY = "%s";
-        static const char* UPDATE_ADDRESS = "%s";
-        static const char* UPDATE_REQUEST_PATH = "%s";
+        static const char* UPGRADE_SIGNATURE_PUBLIC_KEY = "%s";
+        static const char* UPGRADE_ADDRESS = "%s";
+        static const char* UPGRADE_REQUEST_PATH = "%s";
         ''')
     with open(EMBEDDED_VALUES_FILENAME, 'w') as file:
         file.write(template % (propagation_channel_id,
