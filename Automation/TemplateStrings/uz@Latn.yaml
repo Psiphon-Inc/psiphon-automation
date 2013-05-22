@@ -6,8 +6,10 @@ uz@Latn:
     O'zbekcha - <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
     </div>
   plaintext_email_with_attachment: |
-    Psiphon 3 dan foydalanish uchun ilova qilingan faylni .exe kyengaytirishda saqlang.
-    Yoki quyidagi ulanishni bosing.
+    Psiphon 3 dan foydalanish uchun ilova qilingan faylni avval saqlang.
+    Keyin saqlangan fayl nomini ohiriga nuqta exe (.EXE) deb yozob o'zgartiring.
+    Yoki mana bu linkni bosib Psiphon 3 ni o'rnating.
     {{0}}/{0}.html
-  html_email_with_attachment: "<div style=\"direction: ltr;\">\nPsiphon 3 dan foydalanish uchun ilova qilingan faylni .exe formatida\
-    \ saqlang.<br>\nYoki mana bu linkni bosing.<br> \n<a href=\"{{0}}/{0}.html\">{{0}}/{0}.html</a><br>\n</div>\n<br>\n"
+  html_email_with_attachment: "<div style=\"direction: ltr;\">\nPsiphon 3 dan foydalanish uchun ilova qilingan faylni\
+    \ avval saqlang.<br>\nKeyin saqlangan fayl nomini ohiriga nuqta exe (.EXE) deb yozob o'zgartiring.<br>\nYoki mana\
+    \ bu linkni bosib Psiphon 3 ni o'rnating.<br> \n<a href=\"{{0}}/{0}.html\">{{0}}/{0}.html</a><br>\n</div>\n<br>\n"
