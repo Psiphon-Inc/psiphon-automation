@@ -144,7 +144,7 @@ def convert_psinet_values(config, obj):
 
     for path, val in objwalk(obj):
 
-        if type(val) == str:
+        if isinstance(val, string_types):
             # Find any/all IP addresses in the value and replace them.
             split = re.split(ipv4_regex, val)
 
