@@ -95,6 +95,8 @@ def write_embedded_values(propagation_channel_id,
                           feedback_encryption_public_key,
                           remote_server_list_url,
                           info_link_url,
+                          upgrade_signature_public_key,
+                          upgrade_url,
                           ignore_system_server_list=False):
     template = textwrap.dedent('''
         package com.psiphon3.psiphonlibrary;
@@ -110,13 +112,15 @@ def write_embedded_values(propagation_channel_id,
             final String EMBEDDED_SERVER_LIST[] = {"%s"};
 
             final String REMOTE_SERVER_LIST_URL = "%s://%s/%s";
-
             final String REMOTE_SERVER_LIST_SIGNATURE_PUBLIC_KEY = "%s";
 
             final String FEEDBACK_ENCRYPTION_PUBLIC_KEY = "%s";
 
             // NOTE: Info link may be opened when not tunneled
             final String INFO_LINK_URL = "%s";
+
+            final String UPGRADE_URL = "%s://%s/%s";
+            final String UPGRADE_SIGNATURE_PUBLIC_KEY = "%s";
         }
         ''')
     with open(EMBEDDED_VALUES_FILENAME, 'w') as file:
@@ -129,7 +133,11 @@ def write_embedded_values(propagation_channel_id,
                                remote_server_list_url[2],
                                remote_server_list_signature_public_key,
                                feedback_encryption_public_key,
-                               info_link_url))
+                               info_link_url,
+                               upgrade_url[0],
+                               upgrade_url[1],
+                               upgrade_url[2],
+                               upgrade_signature_public_key))
 
 
 def write_android_manifest_version(client_version):
@@ -155,6 +163,8 @@ def build_client(
         feedback_upload_path,            # unused by Android
         feedback_upload_server_headers,  # unused by Android
         info_link_url,
+        upgrade_signature_public_key,
+        upgrade_url,
         version,
         test=False):
 
@@ -180,6 +190,8 @@ def build_client(
             feedback_encryption_public_key,
             remote_server_list_url,
             info_link_url,
+            upgrade_signature_public_key,
+            upgrade_url,
             ignore_system_server_list=test)
 
         # copy feedback.html

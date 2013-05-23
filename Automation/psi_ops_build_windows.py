@@ -100,6 +100,8 @@ def write_embedded_values(propagation_channel_id,
                           feedback_upload_path,
                           feedback_upload_server_headers,
                           info_link_url,
+                          upgrade_signature_public_key,
+                          upgrade_url,
                           ignore_system_server_list=False):
     template = textwrap.dedent('''
         #pragma once
@@ -120,9 +122,7 @@ def write_embedded_values(propagation_channel_id,
         static const int IGNORE_SYSTEM_SERVER_LIST = %d;
 
         static const char* REMOTE_SERVER_LIST_SIGNATURE_PUBLIC_KEY = "%s";
-
         static const char* REMOTE_SERVER_LIST_ADDRESS = "%s";
-
         static const char* REMOTE_SERVER_LIST_REQUEST_PATH = "%s";
 
         // These values are used when uploading diagnostic info
@@ -134,6 +134,10 @@ def write_embedded_values(propagation_channel_id,
         // NOTE: Info link may be opened when not tunneled
         static const TCHAR* INFO_LINK_URL
             = _T("%s");
+
+        static const char* UPGRADE_SIGNATURE_PUBLIC_KEY = "%s";
+        static const char* UPGRADE_ADDRESS = "%s";
+        static const char* UPGRADE_REQUEST_PATH = "%s";
         ''')
     with open(EMBEDDED_VALUES_FILENAME, 'w') as file:
         file.write(template % (propagation_channel_id,
@@ -148,7 +152,10 @@ def write_embedded_values(propagation_channel_id,
                                feedback_upload_server,
                                feedback_upload_path,
                                feedback_upload_server_headers,
-                               info_link_url))
+                               info_link_url,
+                               upgrade_signature_public_key,
+                               upgrade_url[1],
+                               upgrade_url[2]))
 
 
 def build_client(
@@ -163,6 +170,8 @@ def build_client(
         feedback_upload_path,
         feedback_upload_server_headers,
         info_link_url,
+        upgrade_signature_public_key,
+        upgrade_url,
         version,
         test=False):
 
@@ -194,6 +203,8 @@ def build_client(
             feedback_upload_path,
             feedback_upload_server_headers,
             info_link_url,
+            upgrade_signature_public_key,
+            upgrade_url,
             ignore_system_server_list=test)
 
         # copy feedback.html
