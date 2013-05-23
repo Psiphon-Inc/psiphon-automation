@@ -1628,7 +1628,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     # to a server from one propagation channel using a build from a different one.
                     # UPDATE: Now clients get update packages out-of-band (S3). This server-hosted
                     # upgrade capability may be resurrected in the future if necessary.
-                    #psi_ops_deploy.deploy_build_to_hosts(self.__hosts.itervalues(), build_filename)
+                    # TEMP: Need to deploy builds to hosts one last time for this upgrade
+                    psi_ops_deploy.deploy_build_to_hosts(self.__hosts.itervalues(), build_filename)
 
                     # Publish to propagation mechanisms
 
