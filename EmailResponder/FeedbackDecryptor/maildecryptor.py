@@ -200,23 +200,21 @@ def go():
                 logger.exception()
                 logger.error(str(e))
 
-        if email_processed_successfully:
-            break
+        if not email_processed_successfully:
+            #
+            # The email might refer (by ID) to a diagnostic info package elsewhere
+            #
 
-        #
-        # The email might refer (by ID) to a diagnostic info package elsewhere
-        #
+            diagnostic_info_id = _get_id_from_email_address(msg['to'])
+            if diagnostic_info_id:
+                # Store the association between this email and the forthcoming
+                # diagnostic info.
+                datastore.insert_email_diagnostic_info(diagnostic_info_id,
+                                                       msg['msgobj']['Message-ID'],
+                                                       msg['subject'])
 
-        diagnostic_info_id = _get_id_from_email_address(msg['to'])
-        if diagnostic_info_id:
-            # Store the association between this email and the forthcoming
-            # diagnostic info.
-            datastore.insert_email_diagnostic_info(diagnostic_info_id,
-                                                   msg['msgobj']['Message-ID'],
-                                                   msg['subject'])
-
-            # We'll set this for completeness...
-            email_processed_successfully = True
+                # We'll set this for completeness...
+                email_processed_successfully = True
 
         # At this point either we've extracted useful info from the email or
         # there's nothing to extract.
