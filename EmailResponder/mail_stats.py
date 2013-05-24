@@ -245,7 +245,9 @@ if __name__ == '__main__':
     if not raw_email:
         exit(1)
 
-    if not sendmail.send_raw_email_amazonses(raw_email, settings.STATS_SENDER_ADDRESS):
+    if not sendmail.send_raw_email_smtp(raw_email,
+                                        settings.STATS_SENDER_ADDRESS,
+                                        settings.STATS_RECIPIENT_ADDRESS):
         exit(1)
 
     exit(0)
