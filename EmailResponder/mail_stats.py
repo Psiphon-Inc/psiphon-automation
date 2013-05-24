@@ -29,6 +29,7 @@ import os
 import subprocess
 import shlex
 import textwrap
+import datetime
 from boto.ses.connection import SESConnection
 
 import settings
@@ -204,7 +205,9 @@ def process_log_file(logfile):
     text += '\n\nunmatched lines\n---------------------------\n'
     text += '\n'.join(unmatched_lines)
 
-    text += '\n\nStart: %s\n  End: %s\n\n' % (start_timestamp, end_timestamp)
+    text += '\n\nStart: %s\n' % start_timestamp
+    text += '  End: %s\n' % end_timestamp
+    text += ' Sent: %s+00:00\n' % datetime.datetime.utcnow().isoformat()
 
     return text
 
