@@ -176,7 +176,7 @@ def convert_psinet_values(config, obj):
 
             if len(split) > 1:
                 # With re.split, the odd items are the matches. Keep the even items.
-                clean_val = '[SERVER ENTRY REDACTED]'.join(split[0:][::2])
+                clean_val = '[SERVER ENTRY REDACTED]'.join(split[::2])
                 assign_value_to_obj_at_path(obj, path, clean_val)
 
         if path[-1] == 'PROPAGATION_CHANNEL_ID':
