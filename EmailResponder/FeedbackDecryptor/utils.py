@@ -124,6 +124,10 @@ def _get_server_id_from_ip(psinet, ip):
 # Very rudimentary, but sufficient
 ipv4_regex = re.compile(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})')
 
+# The min length of 26 is arbitrary, but must be longer than any other hex
+# values that we want to leave intact (like the ID values).
+server_entry_regex = re.compile(r'([0-9A-Fa-f]{26,})')
+
 
 _psinet = None
 def convert_psinet_values(config, obj):
@@ -145,7 +149,11 @@ def convert_psinet_values(config, obj):
     for path, val in objwalk(obj):
 
         if isinstance(val, string_types):
-            # Find any/all IP addresses in the value and replace them.
+
+            #
+            # Find IP addresses in the value and replace them.
+            #
+
             split = re.split(ipv4_regex, val)
 
             # With re.split, the odd items are the matches.
@@ -158,6 +166,17 @@ def convert_psinet_values(config, obj):
 
             if val_modified:
                 clean_val = ''.join(split)
+                assign_value_to_obj_at_path(obj, path, clean_val)
+
+            #
+            # Find server entries and remove them
+            #
+
+            split = re.split(server_entry_regex, val)
+
+            if len(split) > 1:
+                # With re.split, the odd items are the matches. Keep the even items.
+                clean_val = '[SERVER ENTRY REDACTED]'.join(split[0:][::2])
                 assign_value_to_obj_at_path(obj, path, clean_val)
 
         if path[-1] == 'PROPAGATION_CHANNEL_ID':
