@@ -171,13 +171,22 @@ def go():
                 # Modifies diagnostic_info
                 datatransformer.transform(diagnostic_info)
 
+                # Add the user's email information to diagnostic_info.
+                # This will allow us to later auto-respond, or act as a
+                # remailer between the user and the Psiphon support team.
+                email_info = dict(address=msg['msgobj']['Return-Path'],
+                                  message_id=msg['msgobj']['Message-ID'],
+                                  subject=msg['msgobj']['Subject'])
+                if email_info['address'] and len(email_info['address']) > 3:
+                    datastore['EmailInfo'] = email_info
+
                 # Store the diagnostic info
                 datastore.insert_diagnostic_info(diagnostic_info)
 
                 # Store the association between the diagnostic info and the email
                 datastore.insert_email_diagnostic_info(diagnostic_info['Metadata']['id'],
                                                        msg['msgobj']['Message-ID'],
-                                                       msg['subject'])
+                                                       msg['msgobj']['Subject'])
                 email_processed_successfully = True
                 break
 
@@ -187,7 +196,7 @@ def go():
                 try:
                     sender.send(config['decryptedEmailRecipient'],
                                 config['emailUsername'],
-                                u'Re: %s' % (msg['subject'] or ''),
+                                u'Re: %s' % (msg['msgobj']['Subject'] or ''),
                                 'Decrypt failed: %s' % e,
                                 msg['msgobj']['Message-ID'])
                 except smtplib.SMTPException as e:
@@ -211,7 +220,7 @@ def go():
                 # diagnostic info.
                 datastore.insert_email_diagnostic_info(diagnostic_info_id,
                                                        msg['msgobj']['Message-ID'],
-                                                       msg['subject'])
+                                                       msg['msgobj']['Subject'])
 
                 # We'll set this for completeness...
                 email_processed_successfully = True
