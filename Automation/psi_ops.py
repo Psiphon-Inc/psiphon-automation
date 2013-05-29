@@ -1062,6 +1062,27 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return [server.id for server in self.__servers.itervalues()] + \
                [deleted_server.id for deleted_server in self.__deleted_servers.itervalues()]
 
+    def add_server_to_host(self, host, new_servers):
+        
+        existing_servers = [server for server in self.get_servers() if server.host_id == host.id]
+        servers_on_host = existing_servers + new_servers
+        
+        psi_ops_install.install_host(host, servers_on_host, self.get_existing_server_ids(), plugins)
+        host.log('install with new servers')
+        
+        assert(host.id in self.__hosts)
+        
+        for server in new_servers:
+            assert(server.id not in self.__servers)
+            self.__servers[server.id] = server
+            
+        psi_ops_deploy.deploy_data(
+                            host,
+                            self.__compartmentalize_data_for_host(host.id))
+
+        for server in servers_on_host:
+            self.test_server(server.id, ['handshake'])
+            
     def setup_server(self, host, servers):
         # Install Psiphon 3 and generate configuration values
         # Here, we're assuming one server/IP address per host
