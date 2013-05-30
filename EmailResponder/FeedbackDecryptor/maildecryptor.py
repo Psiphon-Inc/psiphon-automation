@@ -132,7 +132,7 @@ def _get_id_from_email_address(email_address):
     return m.groupdict()['id']
 
 
-def get_email_info(msg):
+def _get_email_info(msg):
     subject_translation = translation.translate(config['googleApiServers'],
                                                 config['googleApiKey'],
                                                 msg['msgobj']['Subject'])
@@ -200,11 +200,7 @@ def go():
                 # Add the user's email information to diagnostic_info.
                 # This will allow us to later auto-respond, or act as a
                 # remailer between the user and the Psiphon support team.
-                email_info = dict(address=msg['msgobj']['Return-Path'],
-                                  message_id=msg['msgobj']['Message-ID'],
-                                  subject=msg['msgobj']['Subject'])
-                if email_info['address'] and len(email_info['address']) > 3:
-                    datastore['EmailInfo'] = email_info
+                diagnostic_info['EmailInfo'] = _get_email_info(msg)
 
                 # Store the diagnostic info
                 datastore.insert_diagnostic_info(diagnostic_info)
