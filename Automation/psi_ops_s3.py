@@ -36,6 +36,8 @@ EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME = 'psiphon3.ex_'
 DOWNLOAD_SITE_ANDROID_BUILD_FILENAME = 'PsiphonAndroid.apk'
 EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME = 'PsiphonAndroid.apk'
 
+DOWNLOAD_SITE_UPGRADE_SUFFIX = '.upgrade'
+
 DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME = 'server_list'
 
 DOWNLOAD_SITE_QR_CODE_FILENAME = 'qr.png'
@@ -45,11 +47,11 @@ DOWNLOAD_SITE_CONTENT_ROOT = os.path.join('.', 'DownloadSite')
 #==============================================================================
 
 
-def get_s3_bucket_remote_server_list_url(bucket_id):
+def get_s3_bucket_resource_url(bucket_id, resource_name):
     # Assumes USEast
     return ('https', 's3.amazonaws.com', "%s/%s" % (
                 bucket_id,
-                DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME))
+                resource_name))
 
 
 def get_s3_bucket_home_page_url(bucket_id):
