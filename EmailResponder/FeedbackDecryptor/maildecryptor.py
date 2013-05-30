@@ -171,15 +171,6 @@ def go():
                 # Modifies diagnostic_info
                 datatransformer.transform(diagnostic_info)
 
-                # Add the user's email information to diagnostic_info.
-                # This will allow us to later auto-respond, or act as a
-                # remailer between the user and the Psiphon support team.
-                email_info = dict(address=msg['msgobj']['Return-Path'],
-                                  message_id=msg['msgobj']['Message-ID'],
-                                  subject=msg['msgobj']['Subject'])
-                if email_info['address'] and len(email_info['address']) > 3:
-                    datastore['EmailInfo'] = email_info
-
                 # Store the diagnostic info
                 datastore.insert_diagnostic_info(diagnostic_info)
 
