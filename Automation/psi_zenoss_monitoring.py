@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2012, Psiphon Inc.
+# Copyright (c) 2013, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -30,14 +30,17 @@ import urllib2
 import zenoss_credentials
 
 PSI_OPS_DB_FILENAME = os.path.join(os.path.abspath('.'), 'psi_ops_stats.dat')
-ZENOSS_INSTANCE = 'http://' + zenoss_credentials.ZENOSS_HOST + ':' + zenoss_credentials.ZENOSS_HTTP_PORT 
+ZENOSS_INSTANCE = 'http://' + zenoss_credentials.ZENOSS_HOST + ':' + 
+                  zenoss_credentials.ZENOSS_HTTP_PORT 
 ZENOSS_USERNAME = zenoss_credentials.ZENOSS_USER
 ZENOSS_PASSWORD = zenoss_credentials.ZENOSS_PASSWORD
 ZENOSS_COLLECTOR = 'localhost'
 
+PROVIDERS = zenoss.credentials.PROVIDERS
+
 DEVICE_ORGANIZER = '/zport/dmd/Devices'
 LOCATION_ORGANIZER = '/zport/dmd/Locations'
-PSIPHON_ORGANIZER = '/Psiphon Hosts'
+PSIPHON_ORGANIZER = zenoss.credentials.ORGANIZER
 
 ROUTERS = { 'MessagingRouter': 'messaging',
             'EventsRouter': 'evconsole',
@@ -52,13 +55,6 @@ ROUTERS = { 'MessagingRouter': 'messaging',
             'ZenPackRouter': 'zenpack',
             'JobsRouter': 'jobs' }
 
-PROVIDERS = { 'linode':        'Linode',
-              'elastichosts':  'ElasticHosts',
-              'ec2':    'Amazon EC2',
-              'astute':        'Astute',
-              'netelligent':   'Netelligent',
-              'gigatux':       'Gigatux',
-              'fasthosts':     'Fasthosts' }
 
 GEOIP_DAT_PATH = "/usr/share/GeoIP/GeoIPCity.dat"
 
