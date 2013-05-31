@@ -30,17 +30,16 @@ import urllib2
 import zenoss_credentials
 
 PSI_OPS_DB_FILENAME = os.path.join(os.path.abspath('.'), 'psi_ops_stats.dat')
-ZENOSS_INSTANCE = 'http://' + zenoss_credentials.ZENOSS_HOST + ':' + 
-                  zenoss_credentials.ZENOSS_HTTP_PORT 
+ZENOSS_INSTANCE = 'http://' + zenoss_credentials.ZENOSS_HOST + ':' + zenoss_credentials.ZENOSS_HTTP_PORT 
 ZENOSS_USERNAME = zenoss_credentials.ZENOSS_USER
 ZENOSS_PASSWORD = zenoss_credentials.ZENOSS_PASSWORD
 ZENOSS_COLLECTOR = 'localhost'
 
-PROVIDERS = zenoss.credentials.PROVIDERS
+PROVIDERS = zenoss_credentials.PROVIDERS
 
 DEVICE_ORGANIZER = '/zport/dmd/Devices'
 LOCATION_ORGANIZER = '/zport/dmd/Locations'
-PSIPHON_ORGANIZER = zenoss.credentials.ORGANIZER
+PSIPHON_ORGANIZER = zenoss_credentials.ORGANIZER
 
 ROUTERS = { 'MessagingRouter': 'messaging',
             'EventsRouter': 'evconsole',
