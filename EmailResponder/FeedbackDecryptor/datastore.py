@@ -47,7 +47,17 @@ _db = _connection.maildecryptor
 _diagnostic_info_store = _db.diagnostic_info
 _email_diagnostic_info_store = _db.email_diagnostic_info
 _stats_store = _db.stats
+_autoresponder_store = _db.autoresponder
 _errors_store = _db.errors
+
+
+#
+# Create any necessary indexes
+#
+
+# This index is used for iterating through the diagnostic_info store, and
+# for stats queries.
+_diagnostic_info_store.ensure_index('datetime')
 
 
 def insert_diagnostic_info(obj):
@@ -58,12 +68,11 @@ def insert_diagnostic_info(obj):
 def insert_email_diagnostic_info(diagnostic_info_id,
                                  email_id,
                                  email_subject):
-    obj = {
-           'diagnostic_info_id': diagnostic_info_id,
+    obj = {'diagnostic_info_id': diagnostic_info_id,
            'email_id': email_id,
            'email_subject': email_subject,
            'datetime': datetime.datetime.now()
-          }
+           }
     return _email_diagnostic_info_store.insert(obj)
 
 
@@ -82,6 +91,49 @@ def remove_email_diagnostic_info(email_diagnostic_info):
 def expire_old_email_diagnostic_info_records():
     expiry_datetime = datetime.datetime.now() - datetime.timedelta(minutes=_EXPIRY_MINUTES)
     return _email_diagnostic_info_store.remove({'datetime': {'$lt': expiry_datetime}})
+
+
+#
+# Functions related to the autoresponder
+#
+
+def get_autoresponder_diagnostic_info_iterator():
+    # We'll use a custom iterator around the DB iterator, so we can store
+    # the position for each iteration
+    class IteratorWrapper(object):
+        def __init__(self):
+            state_rec = _autoresponder_store.find_one()
+
+            # This will only be true on the very first run
+            if not state_rec or not state_rec.get('last_diagnostic_info_datetime'):
+                # Use "now" as the starting point if we don't have a saved position.
+                # TODO: Do we want to process some old records?
+                _autoresponder_store.update({},
+                                            {'$set': {'last_diagnostic_info_datetime': datetime.datetime.now()}},
+                                            upsert=True)
+                state_rec = _autoresponder_store.find_one()
+
+            self.cursor = _diagnostic_info_store.find({'datetime': {'$gt': state_rec['last_diagnostic_info_datetime']}})
+            self.cursor.sort('datetime')
+
+        def __iter__(self):
+            return self
+
+        def next(self):
+            # This will raise StopIteration if there are no more records
+            next_rec = self.cursor.next()
+
+            # Update the last known timestamp, so that we can re-start from this
+            # position if execution is interrupted.
+            # Note that if multiple records have identical timestamps, then we
+            # will end up skipping some of them. Unfortunate but acceptable.
+            _autoresponder_store.update({},
+                                        {'$set': {'last_diagnostic_info_datetime': next_rec['datetime']}},
+                                        upsert=True)
+
+            return next_rec
+
+    return IteratorWrapper()
 
 
 #
