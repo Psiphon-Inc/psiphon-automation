@@ -19,7 +19,7 @@ send an email with the data.
 ```shell
 # Prereqs
 sudo apt-get install -y python-pip python-dev libssl-dev swig mongodb
-sudo pip install --upgrade rfc6266 pynliner cssutils BeautifulSoup mako pymongo boto requests numpy
+sudo pip install --upgrade rfc6266 pynliner cssutils BeautifulSoup mako pymongo boto requests numpy html2text
 sudo pip install --upgrade M2Crypto
 ```
 

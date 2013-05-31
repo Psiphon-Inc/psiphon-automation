@@ -30,7 +30,8 @@ def send(recipients, from_address,
     `recipients` may be an array of address or a single address string.
     '''
 
-    reply_to_header = {'In-Reply-To': replyid} if replyid else None
+    reply_to_header = {'In-Reply-To': replyid,
+                       'References': replyid} if replyid else None
 
     body = []
     if body_text:
@@ -43,6 +44,44 @@ def send(recipients, from_address,
                                           subject,
                                           body,
                                           None,
+                                          reply_to_header)
+
+    smtp_server = smtplib.SMTP_SSL(config['smtpServer'], config['smtpPort'])
+    smtp_server.login(config['emailUsername'], config['emailPassword'])
+
+    sendmail.send_raw_email_smtp(raw_email,
+                                 from_address,
+                                 recipients,
+                                 smtp_server)
+
+
+def send_response(recipients, from_address,
+                  subject, body_text, body_html,
+                  replyid, attachments):
+    '''
+    Send email back to the user that sent feedback.
+    On error, throws either `smtplib.SMTPException` or a `boto.exception.BotoServerError`.
+    `recipients` may be an array of address or a single address string.
+    `replyid` may be None. `attachments` may be None.
+    '''
+
+    TODO: WRITE THIS FUNCTION
+    TODO: Figure out how we're sending email
+
+    reply_to_header = {'In-Reply-To': replyid,
+                       'References': replyid} if replyid else None
+
+    body = []
+    if body_text:
+        body.append(('plain', body_text))
+    if body_html:
+        body.append(('html', body_html))
+
+    raw_email = sendmail.create_raw_email(recipients,
+                                          from_address,
+                                          subject,
+                                          body,
+                                          attachments,
                                           reply_to_header)
 
     smtp_server = smtplib.SMTP_SSL(config['smtpServer'], config['smtpPort'])
