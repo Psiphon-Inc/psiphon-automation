@@ -102,6 +102,9 @@ class ZenossAPI():
         
         # Submit the request and convert the returned JSON to objects
         return json.loads(self.urlOpener.open(req, reqData).read())
+
+    def get_device_events(self, data):
+        return self._router_request('EventsRouter', 'query', [data])
     
     def add_device(self, data):
         return self._router_request('DeviceRouter', 'addDevice', [data])
@@ -124,14 +127,17 @@ class ZenossAPI():
     def move_device(self, data):
         return self._router_request('DeviceRouter', 'moveDevices', [data])
     
-    def get_job_status(self, data):
-        return self._router_request('JobsRouter', 'userjobs', [data])
-
     def get_locations(self, data):
         return self._router_request('DeviceRouter', 'getTree', [data])
 
     def get_info(self, data):
         return self._router_request('DeviceRouter', 'getInfo', [data])
+    
+    def remodel_device(self, data):
+        return self._router_request('DeviceRouter', 'remodel', [data])
+
+    def get_job_status(self, data):
+        return self._router_request('JobsRouter', 'userjobs', [data])
 
 ################################################################################
 def get_psiphon_host_list(zenapi):
@@ -174,7 +180,7 @@ def remove_hosts(zenoss_hosts, zenapi):
                     'uid': zhost['uid'] }
             zhost['info'] = zenapi.get_info(data)
             if zhost['info']['result']['success'] == False:
-		print 'getInfo for device %s -> %s failed' % (zhost['name'], zhost['ipAddress'])
+		        print 'getInfo for device %s -> %s failed' % (zhost['name'], zhost['ipAddress'])
             else:
                 # check how long they've been decommissioned for
                 last_changed = time.strptime(zhost['info']['result']['data']['lastChanged'],
@@ -194,8 +200,20 @@ def remove_hosts(zenoss_hosts, zenapi):
                 'deletePerf': True,
                }
         zenapi.remove_device(data)
-                
-        
+
+def model_hosts(zenoss_hosts, zenapi):
+    for zhost in zenoss_hosts:
+        if zhost['productionState'] == 1000: #check if in production
+            data = {'keys': ['lastChanged', 'lastCollected'], 'uid': zhost['uid']}
+            resp = zenapi.get_info(data)
+            if resp['result']['success'] == False:
+                print 'getinfo for device %s (%s) has failed' % (zhost['name'], zhost['ipAddress'])
+            else:
+                #submit the host for modeling
+                if resp['result']['data']['lastCollected'] == 'Not Modeled':
+                    data = {'deviceUid': zhost['uid']}
+                    print 'Modeling Device: %s' % (zhost['name'])
+                    zenapi.remodel_device(data)
 
 def organize_hosts(hosts, zenoss_hosts, zenapi):
     device_path = DEVICE_ORGANIZER + PSIPHON_ORGANIZER
@@ -221,6 +239,8 @@ def organize_hosts_by_country(hosts, zenoss_hosts, zenapi):
                     'asynchronous': 'false'}
             zenapi.move_device(data)
 
+# Set device specific configuration options here
+# including user credentials and how to monitor.
 def set_psiphon_hosts_model_config(hosts, zenoss_hosts, zenapi):
     device_path = DEVICE_ORGANIZER + PSIPHON_ORGANIZER
     for zhost in zenoss_hosts:
@@ -356,10 +376,10 @@ if __name__ == "__main__":
         # get the known Psiphon hosts in Zenoss
         print "Getting current Location Mappings"
         mapped_locations = get_location_list(zenapi)
-	print "Getting Zenoss host list"
+        print "Getting Zenoss host list"
         zenoss_hosts = get_psiphon_host_list(zenapi)
         # dirty fix to replace the ip address:
-	print "Replacing IP addresses"
+        print "Replacing IP addresses"
         zenoss_hosts = replace_ip_address(zenoss_hosts)
 #	print "Geo-coding Zenos hosts"
 #        zenoss_hosts = geocode_hosts(zenoss_hosts)
@@ -373,6 +393,8 @@ if __name__ == "__main__":
         decommission_hosts(hosts, zenoss_hosts, zenapi)
         print 'Removing decommissioned hosts older than 90 days' 
         remove_hosts(zenoss_hosts, zenapi)
+        print 'Model hosts'
+        model_hosts(zenoss_hosts, zenapi)
     except Exception, e:
         print "Failed: ", e
     
