@@ -48,6 +48,7 @@ _diagnostic_info_store = _db.diagnostic_info
 _email_diagnostic_info_store = _db.email_diagnostic_info
 _stats_store = _db.stats
 _autoresponder_store = _db.autoresponder
+_response_blacklist_store = _db.response_blacklist
 _errors_store = _db.errors
 
 
@@ -59,6 +60,14 @@ _errors_store = _db.errors
 # for stats queries.
 _diagnostic_info_store.ensure_index('datetime')
 
+# We use a TTL index on the response_blacklist collection, to expire records.
+_BLACKLIST_LIFETIME_SECS = 60*60*24  # one day
+_response_blacklist_store.ensure_index('datetime', expireAfterSeconds=_BLACKLIST_LIFETIME_SECS)
+
+
+#
+# Functions to manipulate diagnostic info
+#
 
 def insert_diagnostic_info(obj):
     obj['datetime'] = datetime.datetime.now()
@@ -134,6 +143,18 @@ def get_autoresponder_diagnostic_info_iterator():
             return next_rec
 
     return IteratorWrapper()
+
+
+#
+# Functions related to the blacklist
+#
+
+def check_and_add_blacklist:
+    ***
+    # TODO: Figure out if it's possible to do this with a single command using
+    # find There's probably a way of doing this with findAndModify():
+    # http://docs.mongodb.org/manual/reference/method/db.collection.findAndModify/#db.collection.findAndModify
+
 
 
 #

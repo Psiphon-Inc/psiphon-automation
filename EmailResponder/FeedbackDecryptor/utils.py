@@ -235,7 +235,12 @@ def _check_exemplar(check, exemplar):
         return True
 
     elif isinstance(exemplar, types.FunctionType):
-        return exemplar(check)
+        try:
+            return exemplar(check)
+        except:
+            # Log the value that failed, and raise, but still raise it
+            logger.error('Exemplar check failed for: %s' % str(check))
+            raise
 
     elif exemplar is None:
         return True

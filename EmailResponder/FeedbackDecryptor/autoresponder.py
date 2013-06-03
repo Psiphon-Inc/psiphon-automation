@@ -64,6 +64,55 @@ def _get_email_reply_info(diagnostic_info):
     return reply_info
 
 
+def _check_and_add_blacklist(address):
+    '''
+    Returns True if the address is blacklisted, otherwise inserts it in the DB
+    and returns False.
+    '''
+    ***
+
+
+_cached_subjects = None
+
+
+def _get_response_content(response_id, diagnostic_info):
+    '''
+    Returns a dict that looks like this:
+    {
+        subject: <subject text>,
+        body_text: <body text>,
+        body_html: <rich html body>
+    }
+    '''
+
+    # On the first call, read in the subjects for each language and cache them
+    if not _cached_subjects:
+        global _cached_subjects
+        _cached_subjects = {}
+        for fname in [fname for fname in os.listdir('responses') if fname.startswith('default_response_subject.')]:
+            lang_id = fname[len('default_response_subject.'):]
+            with open(fname) as f:
+                _cached_subjects[lang_id] = f.read()
+
+    lang_id = ***figure out language from diagnostic_info
+
+    # Get the subject, default to English
+    if lang_id in _cached_subjects:
+        subject = _cached_subjects[lang_id]
+    else:
+        subject = _cached_subjects['en']
+
+
+    TRY AND CATCH THE FILE, FAIL TO ENGLISH
+    FILE DOES NOT HAVE LANG ID IN NAME
+
+    # Read the html body template
+    with open('%s.%s' % (response_id, lang_id)) as f:
+        body_html = f.read()
+
+
+
+
 def go():
     # Note that `_diagnostic_record_iter` throttles itself if/when there are
     # no records to process.
@@ -78,18 +127,17 @@ def go():
             # If we don't have any reply info, we can't reply
             continue
 
+        # Check if the address is blacklisted
+        if _check_and_add_blacklist(reply_info['address']):
+            continue
+
         # Some day we'll do fancy analysis.
-        #response_id = _analyze_diagnostic_info(diagnostic_info)
+        #responses = _analyze_diagnostic_info(diagnostic_info)
         responses = [{'id': 'download_new_version_links',
                       'attachments': False,
-                      # TODO: Figure this out -- needs bucket and language
-                      #       (probably need real function -- not lambda -- maybe
-                      #       curry with diagnostic_info?)
-                      'formatter': lambda content: content
                       },
                      {'id': 'download_new_version_attachments',
                       'attachments': False,
-                      'formatter': lambda content: content
                       }
                      ]
 
@@ -101,6 +149,8 @@ def go():
         #       Should we use ordinary Python string formatting, or Mako? (Probably ordinary.)
 
         for response in responses:
+            with open('./responses/')
+
             with open('./responses/%s.html' % response['id']) as content_file:
                 response_content_html = content_file.read()
 
@@ -122,6 +172,13 @@ def go():
                 attachments = [(fp_windows, 'psiphon3.ex_'),
                                (fp_android, 'PsiphonAndroid.apk')]
 
-
+            try:
+            sender.send_response(
+                    reply_info['address'],
+                    ***from_address,
+                    ***subject,
+                    response_content_text, response_content_html,
+                    reply_info['message_id'],
+                    attachments)
 
             send response to user email
