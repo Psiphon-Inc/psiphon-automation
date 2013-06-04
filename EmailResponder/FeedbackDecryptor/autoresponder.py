@@ -21,6 +21,7 @@ import html2text
 
 import logger
 import datastore
+import utils
 
 # Make EmailResponder modules available
 sys.path.append('..')
@@ -76,6 +77,39 @@ def _check_and_add_blacklist(address):
     ***
 
 
+def _get_lang_id_from_diagnostic_info(diagnostic_info):
+    '''
+    Derive the lanague from `diagnostic_info` and return its ID/code.
+    Returns `None` if the language can't be determined.
+    '''
+
+    lang_id = None
+
+    # There can be different -- and better or worse -- ways of determining the
+    # user's language depending on platform, the type of feedback, and so on.
+
+    # Windows, with feedback message
+    lang_id = lang_id or utils.coalesce(diagnostic_info,
+                                        ['Feedback', 'Message', 'text_lang_code'],
+                                        required_types=utils.string_types)
+
+    # All Windows feedback
+    lang_id = lang_id or utils.coalesce(diagnostic_info,
+                                        ['DiagnosticInfo', 'SystemInformation', 'OSInfo', 'LanguageInfo', 'language_code'],
+                                        required_types=utils.string_types)
+    # All Windows feedback
+    lang_id = lang_id or utils.coalesce(diagnostic_info,
+                                        ['DiagnosticInfo', 'SystemInformation', 'OSInfo', 'LocaleInfo', 'language_code'],
+                                        required_types=utils.string_types)
+
+    # Android, from email
+    lang_id = lang_id or utils.coalesce(diagnostic_info,
+                                        ['EmailInfo', 'body', 'text_lang_code'],
+                                        required_types=utils.string_types)
+
+    return lang_id
+
+
 _cached_subjects = None
 
 
@@ -88,6 +122,8 @@ def _get_response_content(response_id, diagnostic_info):
             body_html: <rich html body>,
             attachments: <attachments list, may be None>
         }
+
+    Returns None if no response content can be derived.
     '''
 
     # On the first call, read in the subjects for each language and cache them
@@ -98,6 +134,17 @@ def _get_response_content(response_id, diagnostic_info):
             lang_id = fname[len('default_response_subject.'):]
             with open(fname) as f:
                 _cached_subjects[lang_id] = f.read()
+
+    sponsor_name = utils.coalesce(diagnostic_info,
+                                  ['DiagnosticInfo', 'SystemInformation', 'PsiphonInfo', 'SPONSOR_ID'],
+                                  required_types=utils.string_types)
+
+    prop_channel_name = utils.coalesce(diagnostic_info,
+                                       ['DiagnosticInfo', 'SystemInformation', 'PsiphonInfo', 'PROPAGATION_CHANNEL_ID'],
+                                       required_types=utils.string_types)
+
+    if not sponsor_name or not prop_channel_name:
+        return None
 
     lang_id = ***figure out language from diagnostic_info
 
@@ -112,7 +159,7 @@ def _get_response_content(response_id, diagnostic_info):
         body_html = f.read()
 
     # Gather the info we'll need for formatting the email
-    bucketname = ***get from psi_ops
+    bucketname, email_address = get_bucket_name_and_email_address(sponsor_name, prop_channel_name)
     download_bucket_url = ***get from psi_ops
 
     # Format the body. This depends on which response we're returning.
@@ -167,8 +214,7 @@ def go():
         # TODO: Allow for multiple responses, and specify SES or SMTP, so we can do get@-style.
 
         for response in responses:
-            subject, body_text, body_html = _get_response_content(response_id,
-                                                                  diagnostic_info)
+            response_content = _get_response_content(response_id, diagnostic_info)
 
             attachments = None
             if response['attachments']:

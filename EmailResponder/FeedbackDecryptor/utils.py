@@ -21,6 +21,7 @@ import re
 import urllib
 
 import logger
+import psi_ops_helpers
 
 
 ###########################
@@ -60,7 +61,7 @@ def safe_str(ex):
     return unicode(ex).encode('utf8')
 
 
-def coalesce(obj, key_path, default_value=None):
+def coalesce(obj, key_path, default_value=None, required_types=None):
     '''
     Looks at the chain of dict values of `obj` indicated by `key_path`. If a
     key doesn't exist or a value is None, then `default_value` will be
@@ -71,10 +72,15 @@ def coalesce(obj, key_path, default_value=None):
     `key_path` must be a possible dict key (e.g., string) or an array of
     possible dict keys.
     `default_value` will be returned if the target value is non-existent or None.
+    `required_types` is an optional tuple of types. If the target value does
+    not match any of these types, Noen will be returned.
     '''
 
     if type(key_path) not in (list, tuple):
         key_path = [key_path]
+
+    if required_types and type(required_types) == type:
+        required_types = (required_types,)
 
     target_value = obj
     for key in key_path:
@@ -85,6 +91,9 @@ def coalesce(obj, key_path, default_value=None):
 
         if target_value is None:
             return default_value
+
+    if required_types and type(target_value) not in required_types:
+        return default_value
 
     return target_value
 
@@ -106,21 +115,6 @@ coalesce.test = coalesce_test
 
 ###########################
 
-def _get_server_id_from_ip(psinet, ip):
-    server_id = None
-    server = psinet.get_server_by_ip_address(ip)
-    if server:
-        server_id = '[%s]' % server.id
-    else:
-        server = psinet.get_deleted_server_by_ip_address(ip)
-        if server:
-            server_id = '[%s][DELETED]' % server.id
-
-    # If the psinet DB is stale, we might not find the IP address, but
-    # we still want to redact it.
-    return server_id if server_id else '[UNKNOWN]'
-
-
 # Very rudimentary, but sufficient
 ipv4_regex = re.compile(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})')
 
@@ -129,19 +123,11 @@ ipv4_regex = re.compile(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})')
 server_entry_regex = re.compile(r'([0-9A-Fa-f]{26,})')
 
 
-_psinet = None
 def convert_psinet_values(config, obj):
     '''
     Converts sensitive or non-human-readable values in the YAML to IDs and
     names. Modifies the YAML directly.
     '''
-
-    global _psinet
-    if not _psinet:
-        # Load the psinet DB
-        sys.path.append(config['psiOpsPath'])
-        import psi_ops
-        _psinet = psi_ops.PsiphonNetwork.load_from_file(config['psinetFilePath'])
 
     if isinstance(obj, string_types):
         return
@@ -161,7 +147,7 @@ def convert_psinet_values(config, obj):
             for i in range(1, len(split)-1, 2):
                 # Leave localhost IP intact
                 if split[i] != '127.0.0.1':
-                    split[i] = _get_server_id_from_ip(_psinet, split[i])
+                    split[i] = psi_ops_helpers.get_server_display_id_from_ip(split[i])
                     val_modified = True
 
             if val_modified:
@@ -180,17 +166,17 @@ def convert_psinet_values(config, obj):
                 assign_value_to_obj_at_path(obj, path, clean_val)
 
         if path[-1] == 'PROPAGATION_CHANNEL_ID':
-            propagation_channel = _psinet.get_propagation_channel_by_id(val)
-            if propagation_channel:
+            prop_channel_name = psi_ops_helpers.get_propagation_channel_name_by_id(val)
+            if prop_channel_name:
                 assign_value_to_obj_at_path(obj,
                                             path,
-                                            propagation_channel.name)
+                                            prop_channel_name)
         elif path[-1] == 'SPONSOR_ID':
-            sponsor = _psinet.get_sponsor_by_id(val)
-            if sponsor:
+            sponsor_name = psi_ops_helpers.get_sponsor_name_by_id(val)
+            if sponsor_name:
                 assign_value_to_obj_at_path(obj,
                                             path,
-                                            sponsor.name)
+                                            sponsor_name)
 
 
 def is_diagnostic_info_sane(obj):
