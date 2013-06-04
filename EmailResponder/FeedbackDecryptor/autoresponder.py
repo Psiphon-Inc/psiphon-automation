@@ -107,6 +107,11 @@ def _get_lang_id_from_diagnostic_info(diagnostic_info):
                                         ['EmailInfo', 'body', 'text_lang_code'],
                                         required_types=utils.string_types)
 
+    # Android, from system language
+    lang_id = lang_id or utils.coalesce(diagnostic_info,
+                                        ['DiagnosticInfo', 'SystemInformation', 'language'],
+                                        required_types=utils.string_types)
+
     return lang_id
 
 
@@ -146,7 +151,9 @@ def _get_response_content(response_id, diagnostic_info):
     if not sponsor_name or not prop_channel_name:
         return None
 
-    lang_id = ***figure out language from diagnostic_info
+    lang_id = _get_lang_id_from_diagnostic_info(diagnostic_info)
+
+    ***leave None if None, or set to 'en'?
 
     # Get the subject, default to English
     if lang_id in _cached_subjects:
@@ -164,7 +171,7 @@ def _get_response_content(response_id, diagnostic_info):
 
     # Format the body. This depends on which response we're returning.
     if response_id == 'download_new_version_links':
-        body_html.format(download_bucket_url, lang_id)
+        ***body_html.format(download_bucket_url, lang_id)
 
     # Get the attachments. This depends on which response we're returning.
     attachments = None
