@@ -17,9 +17,11 @@
 import sys
 import smtplib
 
+from config import config
+
+# Make EmailResponder modules available
 sys.path.append('..')
 import sendmail
-from config import config
 
 
 def send(recipients, from_address,

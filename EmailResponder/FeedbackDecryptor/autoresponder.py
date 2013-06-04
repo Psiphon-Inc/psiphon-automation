@@ -22,6 +22,10 @@ import html2text
 import logger
 import datastore
 
+# Make EmailResponder modules available
+sys.path.append('..')
+import s3_helpers
+
 
 _SLEEP_TIME_SECS = 60
 
@@ -77,12 +81,13 @@ _cached_subjects = None
 
 def _get_response_content(response_id, diagnostic_info):
     '''
-    Returns a dict that looks like this:
-    {
-        subject: <subject text>,
-        body_text: <body text>,
-        body_html: <rich html body>
-    }
+    Returns a dict of the form:
+        {
+            subject: <subject text>,
+            body_text: <body text>,
+            body_html: <rich html body>,
+            attachments: <attachments list, may be None>
+        }
     '''
 
     # On the first call, read in the subjects for each language and cache them
@@ -102,15 +107,33 @@ def _get_response_content(response_id, diagnostic_info):
     else:
         subject = _cached_subjects['en']
 
-
-    TRY AND CATCH THE FILE, FAIL TO ENGLISH
-    FILE DOES NOT HAVE LANG ID IN NAME
-
     # Read the html body template
-    with open('%s.%s' % (response_id, lang_id)) as f:
+    with open('%s.html' % (response_id,)) as f:
         body_html = f.read()
 
+    # Gather the info we'll need for formatting the email
+    bucketname = ***get from psi_ops
+    download_bucket_url = ***get from psi_ops
 
+    # Format the body. This depends on which response we're returning.
+    if response_id == 'download_new_version_links':
+        body_html.format(download_bucket_url, lang_id)
+
+    # Get the attachments. This depends on which response we're returning.
+    attachments = None
+    if response_id == 'download_new_version_links':
+        # TODO: Don't hardcode filename?
+        fp_windows = s3_utils.get_s3_attachment('attachments', bucketname, 'psiphon3.exe')
+        fp_android = s3_utils.get_s3_attachment('attachments', bucketname, 'PsiphonAndroid.apk')
+        attachments = [(fp_windows, 'psiphon3.ex_'),
+                       (fp_android, 'PsiphonAndroid.apk')]
+
+    return {
+        'subject': subject,
+        'body_text': html2text.html2text(body_html),
+        'body_html': body_html,
+        'attachments': attachments
+    }
 
 
 def go():
@@ -141,28 +164,11 @@ def go():
                       }
                      ]
 
-        # TODO: Get the reponse content.
-        # TODO: Figure out translation stuff.
-        # TODO: Support attachments. This includes using the PropChannel+Sponsor to figure out which build to send.
         # TODO: Allow for multiple responses, and specify SES or SMTP, so we can do get@-style.
-        # TODO: Some reponse content will have format specifiers to fill in.
-        #       Should we use ordinary Python string formatting, or Mako? (Probably ordinary.)
 
         for response in responses:
-            with open('./responses/')
-
-            with open('./responses/%s.html' % response['id']) as content_file:
-                response_content_html = content_file.read()
-
-            try:
-                response_content_html = response['formatter'](response_content_html)
-            except:
-                # Probably indicates translation problem. Don't send the response.
-                logger.exception()
-                logger.error('Response content format failure: %s' % str(e))
-
-            # Create the plaintext form of the email
-            response_content_text = html2text.html2text(response_content_html)
+            subject, body_text, body_html = _get_response_content(response_id,
+                                                                  diagnostic_info)
 
             attachments = None
             if response['attachments']:
@@ -171,6 +177,8 @@ def go():
                 fp_android = open(Psiphon android)
                 attachments = [(fp_windows, 'psiphon3.ex_'),
                                (fp_android, 'PsiphonAndroid.apk')]
+
+            *************
 
             try:
             sender.send_response(
