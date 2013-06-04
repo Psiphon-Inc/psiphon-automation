@@ -106,6 +106,29 @@ coalesce.test = coalesce_test
 
 ###########################
 
+def _get_server_id_from_ip(psinet, ip):
+    server_id = None
+    server = psinet.get_server_by_ip_address(ip)
+    if server:
+        server_id = '[%s]' % server.id
+    else:
+        server = psinet.get_deleted_server_by_ip_address(ip)
+        if server:
+            server_id = '[%s][DELETED]' % server.id
+
+    # If the psinet DB is stale, we might not find the IP address, but
+    # we still want to redact it.
+    return server_id if server_id else '[UNKNOWN]'
+
+
+# Very rudimentary, but sufficient
+ipv4_regex = re.compile(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})')
+
+# The min length of 26 is arbitrary, but must be longer than any other hex
+# values that we want to leave intact (like the ID values).
+server_entry_regex = re.compile(r'([0-9A-Fa-f]{26,})')
+
+
 _psinet = None
 def convert_psinet_values(config, obj):
     '''
@@ -124,22 +147,39 @@ def convert_psinet_values(config, obj):
         return
 
     for path, val in objwalk(obj):
-        if path[-1] == 'ipAddress':
-            server_id = None
-            server = _psinet.get_server_by_ip_address(val)
-            if server:
-                server_id = server.id
-            else:
-                server = _psinet.get_deleted_server_by_ip_address(val)
-                if server:
-                    server_id = server.id + ' [DELETED]'
 
-            # If the psinet DB is stale, we might not find the IP address, but
-            # we still want to redact it.
-            assign_value_to_obj_at_path(obj,
-                                        path,
-                                        server_id if server_id else '[UNKNOWN]')
-        elif path[-1] == 'PROPAGATION_CHANNEL_ID':
+        if isinstance(val, string_types):
+
+            #
+            # Find IP addresses in the value and replace them.
+            #
+
+            split = re.split(ipv4_regex, val)
+
+            # With re.split, the odd items are the matches.
+            val_modified = False
+            for i in range(1, len(split)-1, 2):
+                # Leave localhost IP intact
+                if split[i] != '127.0.0.1':
+                    split[i] = _get_server_id_from_ip(_psinet, split[i])
+                    val_modified = True
+
+            if val_modified:
+                clean_val = ''.join(split)
+                assign_value_to_obj_at_path(obj, path, clean_val)
+
+            #
+            # Find server entries and remove them
+            #
+
+            split = re.split(server_entry_regex, val)
+
+            if len(split) > 1:
+                # With re.split, the odd items are the matches. Keep the even items.
+                clean_val = '[SERVER ENTRY REDACTED]'.join(split[::2])
+                assign_value_to_obj_at_path(obj, path, clean_val)
+
+        if path[-1] == 'PROPAGATION_CHANNEL_ID':
             propagation_channel = _psinet.get_propagation_channel_by_id(val)
             if propagation_channel:
                 assign_value_to_obj_at_path(obj,

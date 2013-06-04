@@ -93,11 +93,32 @@ def _upgrade_old_object(yaml_docs):
 def _load_yaml(yaml_string):
     # TODO: Rip the backwards-compatibility out of this at some later date.
 
-    yaml_docs = []
-    for yaml_doc in yaml.safe_load_all(yaml_string):
-        yaml_docs.append(yaml_doc)
+    # JSON is supposed to be a subset of YAML: en.wikipedia.org/wiki/YAML#JSON
+    # So we switched the client-side encoding of the diagnostic data from YAML
+    # to JSON (and got huge performance improvements), and we were still able
+    # to decode it the same way. But... it turns out that, at least in Python's
+    # YAML implementation, there is some JSON that's not valid YAML. I.e.:
+    # >>> x = json.loads('{"key": "hi\\/there"}')
+    # ... print x
+    # {u'key': u'hi/there'}
+    # >>> x = yaml.load('{"key": "hi\\/there"}')
+    # ... print x
+    # <big stack trace>
+    # found unknown escape character '/'
+    # in "<string>", line 1, column 13:
+    # {"key": "hi\/there"}
+    #
+    # So we're going to try loading `yaml_string` as JSON first, and then fall
+    # back to YAML if that fails.
 
-    obj = _upgrade_old_object(yaml_docs)
+    try:
+        obj = json.loads(yaml_string)
+    except:
+        yaml_docs = []
+        for yaml_doc in yaml.safe_load_all(yaml_string):
+            yaml_docs.append(yaml_doc)
+
+        obj = _upgrade_old_object(yaml_docs)
 
     return obj
 
@@ -156,7 +177,7 @@ def go():
                 # Store the association between the diagnostic info and the email
                 datastore.insert_email_diagnostic_info(diagnostic_info['Metadata']['id'],
                                                        msg['msgobj']['Message-ID'],
-                                                       msg['subject'])
+                                                       msg['msgobj']['Subject'])
                 email_processed_successfully = True
                 break
 
@@ -166,7 +187,7 @@ def go():
                 try:
                     sender.send(config['decryptedEmailRecipient'],
                                 config['emailUsername'],
-                                u'Re: %s' % (msg['subject'] or ''),
+                                u'Re: %s' % (msg['msgobj']['Subject'] or ''),
                                 'Decrypt failed: %s' % e,
                                 msg['msgobj']['Message-ID'])
                 except smtplib.SMTPException as e:
@@ -179,23 +200,21 @@ def go():
                 logger.exception()
                 logger.error(str(e))
 
-        if email_processed_successfully:
-            break
+        if not email_processed_successfully:
+            #
+            # The email might refer (by ID) to a diagnostic info package elsewhere
+            #
 
-        #
-        # The email might refer (by ID) to a diagnostic info package elsewhere
-        #
+            diagnostic_info_id = _get_id_from_email_address(msg['to'])
+            if diagnostic_info_id:
+                # Store the association between this email and the forthcoming
+                # diagnostic info.
+                datastore.insert_email_diagnostic_info(diagnostic_info_id,
+                                                       msg['msgobj']['Message-ID'],
+                                                       msg['msgobj']['Subject'])
 
-        diagnostic_info_id = _get_id_from_email_address(msg['to'])
-        if diagnostic_info_id:
-            # Store the association between this email and the forthcoming
-            # diagnostic info.
-            datastore.insert_email_diagnostic_info(diagnostic_info_id,
-                                                   msg['msgobj']['Message-ID'],
-                                                   msg['subject'])
-
-            # We'll set this for completeness...
-            email_processed_successfully = True
+                # We'll set this for completeness...
+                email_processed_successfully = True
 
         # At this point either we've extracted useful info from the email or
         # there's nothing to extract.

@@ -30,6 +30,7 @@ import tempfile
 import random
 import optparse
 import operator
+import gzip
 from pkg_resources import parse_version
 
 import psi_utils
@@ -241,6 +242,14 @@ FeedbackUploadInfo = psi_utils.recordtype(
     'FeedbackUploadInfo',
     'upload_server, upload_path, upload_server_headers')
 
+UpgradePackageSigningKeyPair = psi_utils.recordtype(
+    'UpgradePackageSigningKeyPair',
+    'pem_key_pair')
+
+# The UpgradePackageSigningKeyPair record is stored in the secure management
+# database, so we don't require a secret key pair wrapping password
+UPGRADE_PACKAGE_SIGNING_KEY_PAIR_PASSWORD = 'none'
+
 CLIENT_PLATFORM_WINDOWS = 'Windows'
 CLIENT_PLATFORM_ANDROID = 'Android'
 
@@ -284,10 +293,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__remote_server_list_signing_key_pair = None
         self.__feedback_encryption_key_pair = None
         self.__feedback_upload_info = None
+        self.__upgrade_package_signing_key_pair = None
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.16'
+    class_version = '0.17'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -376,6 +386,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 for campaign in sponsor.campaigns:
                     campaign.custom_download_site = False
             self.version = '0.16'
+        if cmp(parse_version(self.version), parse_version('0.17')) < 0:
+            self.__upgrade_package_signing_key_pair = None
+            self.version = '0.17'
+
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -946,7 +960,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server.capabilities['OSSH'] = False
         host = self.__hosts[server.host_id]
         servers = [s for s in self.__servers.itervalues() if s.host_id == server.host_id]
-        psi_ops_install.install_firewall_rules(host, servers)
+        psi_ops_install.install_firewall_rules(host, servers, plugins)
         self.save()
 
     def __count_users_on_host(self, host_id):
@@ -973,7 +987,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if users_on_host == 0:
                 self.remove_host(server.host_id)
                 number_removed += 1
-            elif users_on_host < 10:
+            elif users_on_host < 5:
                 self.__disable_server(server)
                 number_disabled += 1
         return number_removed, number_disabled
@@ -1048,6 +1062,27 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return [server.id for server in self.__servers.itervalues()] + \
                [deleted_server.id for deleted_server in self.__deleted_servers.itervalues()]
 
+    def add_server_to_host(self, host, new_servers):
+        
+        existing_servers = [server for server in self.get_servers() if server.host_id == host.id]
+        servers_on_host = existing_servers + new_servers
+        
+        psi_ops_install.install_host(host, servers_on_host, self.get_existing_server_ids(), plugins)
+        host.log('install with new servers')
+        
+        assert(host.id in self.__hosts)
+        
+        for server in new_servers:
+            assert(server.id not in self.__servers)
+            self.__servers[server.id] = server
+            
+        psi_ops_deploy.deploy_data(
+                            host,
+                            self.__compartmentalize_data_for_host(host.id))
+
+        for server in servers_on_host:
+            self.test_server(server.id, ['handshake'])
+            
     def setup_server(self, host, servers):
         # Install Psiphon 3 and generate configuration values
         # Here, we're assuming one server/IP address per host
@@ -1126,7 +1161,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             def provider_launch_new_server_with_retries():
                 for _ in range(3):
                     try:
-                        return provider_launch_new_server(provider_account)
+                        return provider_launch_new_server(provider_account, plugins)
                     except Exception as ex:
                         print str(ex)
                         pass
@@ -1389,12 +1424,27 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__feedback_upload_info.upload_server_headers = upload_server_headers
             self.__feedback_upload_info.log('FeedbackUploadInfo modified to: "%s", "%s", "%s"' % (upload_server, upload_path, upload_server_headers))
 
+    def __get_upgrade_package_signing_key_pair(self):
+        if not self.__upgrade_package_signing_key_pair:
+            assert(self.is_locked)
+            self.__upgrade_package_signing_key_pair = \
+                UpgradePackageSigningKeyPair(
+                    psi_ops_crypto_tools.generate_key_pair(
+                        UPGRADE_PACKAGE_SIGNING_KEY_PAIR_PASSWORD))
+
+        # This may be serialized/deserialized into a unicode string, but M2Crypto won't accept that.
+        # The key pair should only contain ascii anyways, so encoding to ascii should be safe.
+        self.__upgrade_package_signing_key_pair.pem_key_pair = \
+            self.__upgrade_package_signing_key_pair.pem_key_pair.encode('ascii', 'ignore')
+        return self.__upgrade_package_signing_key_pair
+
     def build(
             self,
             propagation_channel_name,
             sponsor_name,
             remote_server_list_url,
             info_link_url,
+            upgrade_url,
             platforms=None,
             test=False):
         if not platforms:
@@ -1417,6 +1467,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         feedback_upload_info = self.get_feedback_upload_info()
 
+        upgrade_signature_public_key = \
+            psi_ops_crypto_tools.get_base64_der_public_key(
+                self.__get_upgrade_package_signing_key_pair().pem_key_pair,
+                UPGRADE_PACKAGE_SIGNING_KEY_PAIR_PASSWORD)
+
         builders = {
             CLIENT_PLATFORM_WINDOWS: psi_ops_build_windows.build_client,
             CLIENT_PLATFORM_ANDROID: psi_ops_build_android.build_client
@@ -1438,6 +1493,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         feedback_upload_info.upload_path,
                         feedback_upload_info.upload_server_headers,
                         info_link_url,
+                        upgrade_signature_public_key,
+                        upgrade_url,
                         self.__client_versions[platform][-1].version if self.__client_versions[platform] else 0,
                         test) for platform in platforms]
 
@@ -1465,8 +1522,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 self.get_feedback_encryption_key_pair().pem_key_pair,
                 self.get_feedback_encryption_key_pair().password)
 
-        remote_server_list_url = psi_ops_s3.get_s3_bucket_remote_server_list_url(campaigns[0].s3_bucket_name)
+        remote_server_list_url = psi_ops_s3.get_s3_bucket_resource_url(
+                                    campaign.s3_bucket_name,
+                                    psi_ops_s3.DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME)
+
         info_link_url = psi_ops_s3.get_s3_bucket_home_page_url(campaigns[0].s3_bucket_name)
+        for plugin in plugins:
+            if hasattr(plugin, 'info_link_url'):
+                info_link_url = plugin.info_link_url(CLIENT_PLATFORM_ANDROID)
 
         return psi_ops_build_android.build_library(
                         propagation_channel.id,
@@ -1477,6 +1540,22 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         remote_server_list_url,
                         info_link_url,
                         self.__client_versions[CLIENT_PLATFORM_ANDROID][-1].version if self.__client_versions[CLIENT_PLATFORM_ANDROID] else 0)
+
+    def __make_upgrade_package_from_build(self, build_filename):
+        with open(build_filename, 'rb') as f:
+            data = f.read()
+        authenticated_data_package  = \
+            psi_ops_crypto_tools.make_signed_data(
+                self.__get_upgrade_package_signing_key_pair().pem_key_pair,
+                UPGRADE_PACKAGE_SIGNING_KEY_PAIR_PASSWORD,
+                base64.b64encode(data))
+        upgrade_filename = build_filename + psi_ops_s3.DOWNLOAD_SITE_UPGRADE_SUFFIX
+        f = gzip.open(upgrade_filename, 'wb')
+        try:
+            f.write(authenticated_data_package)
+        finally:
+            f.close()
+        return upgrade_filename
 
     def deploy(self):
         # Deploy as required:
@@ -1523,8 +1602,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     # have its URL before the build is uploaded to S3. The remote server list
                     # is placed in the S3 bucket.
 
-                    remote_server_list_url = psi_ops_s3.get_s3_bucket_remote_server_list_url(campaign.s3_bucket_name)
+                    remote_server_list_url = psi_ops_s3.get_s3_bucket_resource_url(
+                                                campaign.s3_bucket_name,
+                                                psi_ops_s3.DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME)
+
                     info_link_url = psi_ops_s3.get_s3_bucket_home_page_url(campaign.s3_bucket_name)
+                    for plugin in plugins:
+                        if hasattr(plugin, 'info_link_url'):
+                            info_link_url = plugin.info_link_url(platform)
 
                     remote_server_list = \
                         psi_ops_crypto_tools.make_signed_data(
@@ -1538,13 +1623,23 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         CLIENT_PLATFORM_WINDOWS: psi_ops_s3.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME,
                         CLIENT_PLATFORM_ANDROID: psi_ops_s3.DOWNLOAD_SITE_ANDROID_BUILD_FILENAME
                     }
+                    for plugin in plugins:
+                        if hasattr(plugin, 'adjust_client_build_filenames'):
+                            plugin.adjust_client_build_filenames(client_build_filenames)
+
+                    s3_upgrade_resource_name = client_build_filenames[platform] + psi_ops_s3.DOWNLOAD_SITE_UPGRADE_SUFFIX
+
+                    upgrade_url = psi_ops_s3.get_s3_bucket_resource_url(campaign.s3_bucket_name, s3_upgrade_resource_name)
 
                     build_filename = self.build(
                                         propagation_channel.name,
                                         sponsor.name,
                                         remote_server_list_url,
                                         info_link_url,
+                                        upgrade_url,
                                         [platform])[0]
+
+                    upgrade_filename = self.__make_upgrade_package_from_build(build_filename)
 
                     # Upload client builds
                     # We only upload the builds for Propagation Channel IDs that need to be known for the host.
@@ -1552,13 +1647,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     # However, we do not want to prevent an upgrade in the case where a user has
                     # downloaded from multiple propagation channels, and might therefore be connecting
                     # to a server from one propagation channel using a build from a different one.
-                    psi_ops_deploy.deploy_build_to_hosts(self.__hosts.itervalues(), build_filename)
+                    # UPDATE: Now clients get update packages out-of-band (S3). This server-hosted
+                    # upgrade capability may be resurrected in the future if necessary.
+                    #psi_ops_deploy.deploy_build_to_hosts(self.__hosts.itervalues(), build_filename)
 
                     # Publish to propagation mechanisms
 
                     psi_ops_s3.update_s3_download(
                         self.__aws_account,
-                        [(build_filename, client_build_filenames[platform])],
+                        [(build_filename, client_build_filenames[platform]),
+                         (upgrade_filename, s3_upgrade_resource_name)],
                         remote_server_list,
                         campaign.s3_bucket_name,
                         campaign.custom_download_site)
