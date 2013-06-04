@@ -644,8 +644,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return ''.join([chars[ord(os.urandom(1)) % len(chars)] for i in range(count)])
 
     def get_propagation_channel_by_name(self, name):
-        return filter(lambda x: x.name == name,
-                      self.__propagation_channels.itervalues())[0]
+        matches = filter(lambda x: x.name == name,
+                         self.__propagation_channels.itervalues())
+        return matches[0] if matches else None
 
     def get_propagation_channel_by_id(self, id):
         return self.__propagation_channels[id] if id in self.__propagation_channels else None
