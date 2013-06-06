@@ -19,10 +19,12 @@ import time
 import re
 import html2text
 
+from config import config
 import logger
 import datastore
 import utils
 import psi_ops_helpers
+import sender
 
 # Make EmailResponder modules available
 sys.path.append('..')
@@ -220,28 +222,25 @@ def go():
 
         # Some day we'll do fancy analysis.
         #responses = _analyze_diagnostic_info(diagnostic_info)
-        responses = [{'id': 'download_new_version_links',
-                      'attachments': False,
-                      },
+        responses = ['download_new_version_links',
                      # Disabling attachment responses for now. Not sure if
-                     # it's a good idea. Note it needs to be tested.
-                     #{'id': 'download_new_version_attachments',
-                     # 'attachments': False,
-                     # }
+                     # it's a good idea. Note that it needs to be tested.
+                     # 'download_new_version_attachments',
                      ]
 
-        # TODO: Use SMTP rather than SES if we have attachments SES or SMTP (get@ style).
-
-        for response in responses:
+        for response_id in responses:
             response_content = _get_response_content(response_id, diagnostic_info)
 
-            try:
-            sender.send_response(
-                    reply_info['address'],
-                    ***from_address,
-                    ***subject,
-                    response_content_text, response_content_html,
-                    reply_info['message_id'],
-                    attachments)
+            # The original diagnostic info may have originated from an email,
+            # in which case we have a subject to reply to. Or it may have have
+            # originated from an uploaded data package, in which case we need
+            # set our own subject.
+            subject = (u'Re: %s' % reply_info['subject']) if reply_info['subject'] else response_content['subject']
 
-            send response to user email
+            sender.send_response(reply_info['address'],
+                                 config['reponseEmailAddress'],
+                                 subject,
+                                 response_content['body_text'],
+                                 response_content['body_html'],
+                                 reply_info['message_id'],
+                                 response_content['attachments'])

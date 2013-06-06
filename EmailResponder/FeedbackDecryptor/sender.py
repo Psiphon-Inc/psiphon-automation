@@ -57,21 +57,25 @@ def send(recipients, from_address,
                                  smtp_server)
 
 
-def send_response(recipients, from_address,
+def send_response(recipient, from_address,
                   subject, body_text, body_html,
                   replyid, attachments):
     '''
     Send email back to the user that sent feedback.
-    On error, throws either `smtplib.SMTPException` or a `boto.exception.BotoServerError`.
-    `recipients` may be an array of address or a single address string.
+    On error, silently fails.
     `replyid` may be None. `attachments` may be None.
     '''
 
-    TODO: WRITE THIS FUNCTION
-    TODO: Figure out how we're sending email
+    # TODO: Use SMTP rather than SES if we have attachments SES or SMTP (get@ style).
+    # DISABLING ATTACHMENTS
+    if attachments:
+        return
 
-    reply_to_header = {'In-Reply-To': replyid,
-                       'References': replyid} if replyid else None
+    extra_headers = {'Reply-To': from_address}
+
+    if replyid:
+        extra_headers['In-Reply-To'] = replyid
+        extra_headers['References'] = replyid
 
     body = []
     if body_text:
@@ -79,17 +83,17 @@ def send_response(recipients, from_address,
     if body_html:
         body.append(('html', body_html))
 
-    raw_email = sendmail.create_raw_email(recipients,
+    raw_email = sendmail.create_raw_email(recipient,
                                           from_address,
                                           subject,
                                           body,
                                           attachments,
-                                          reply_to_header)
+                                          extra_headers)
 
-    smtp_server = smtplib.SMTP_SSL(config['smtpServer'], config['smtpPort'])
-    smtp_server.login(config['emailUsername'], config['emailPassword'])
+    if not raw_email:
+        return
 
-    sendmail.send_raw_email_smtp(raw_email,
-                                 from_address,
-                                 recipients,
-                                 smtp_server)
+    try:
+        sendmail.send_raw_email_amazonses(raw_email, from_address)
+    except:
+        pass
