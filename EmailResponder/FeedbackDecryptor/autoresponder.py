@@ -18,6 +18,8 @@
 import time
 import re
 import html2text
+import sys
+import os
 
 from config import config
 import logger
@@ -77,7 +79,7 @@ def _check_and_add_blacklist(address):
     Returns True if the address is blacklisted, otherwise inserts it in the DB
     and returns False.
     '''
-    ***
+    pass#***
 
 
 def _get_lang_id_from_diagnostic_info(diagnostic_info):
@@ -135,8 +137,8 @@ def _get_response_content(response_id, diagnostic_info):
     '''
 
     # On the first call, read in the subjects for each language and cache them
+    global _cached_subjects
     if not _cached_subjects:
-        global _cached_subjects
         _cached_subjects = {}
         for fname in [fname for fname in os.listdir('responses') if fname.startswith('default_response_subject.')]:
             lang_id = fname[len('default_response_subject.'):]

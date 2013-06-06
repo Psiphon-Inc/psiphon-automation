@@ -149,12 +149,11 @@ def get_autoresponder_diagnostic_info_iterator():
 # Functions related to the blacklist
 #
 
-def check_and_add_blacklist:
-    ***
+def check_and_add_blacklist():
     # TODO: Figure out if it's possible to do this with a single command using
     # find There's probably a way of doing this with findAndModify():
     # http://docs.mongodb.org/manual/reference/method/db.collection.findAndModify/#db.collection.findAndModify
-
+    pass#***
 
 
 #
