@@ -22,7 +22,16 @@ from config import config
 # Make the Automation (psi_ops) modules available
 sys.path.append(config['psiOpsPath'])
 import psi_ops
-import psi_ops_s3
+
+# We are effectively exporting these
+from transifex_pull import DOWNLOAD_SITE_LANGS
+from psi_ops_s3 import \
+    get_s3_bucket_resource_url,\
+    get_s3_bucket_home_page_url,\
+    DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME,\
+    EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME,\
+    DOWNLOAD_SITE_ANDROID_BUILD_FILENAME,\
+    EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME
 
 
 # Load the psinet DB

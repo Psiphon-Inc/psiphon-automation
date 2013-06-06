@@ -22,6 +22,7 @@ import html2text
 import logger
 import datastore
 import utils
+import psi_ops_helpers
 
 # Make EmailResponder modules available
 sys.path.append('..')
@@ -152,11 +153,10 @@ def _get_response_content(response_id, diagnostic_info):
         return None
 
     lang_id = _get_lang_id_from_diagnostic_info(diagnostic_info)
-
-    ***leave None if None, or set to 'en'?
+    # lang_id may be None, if the language could not be determined
 
     # Get the subject, default to English
-    if lang_id in _cached_subjects:
+    if lang_id and lang_id in _cached_subjects:
         subject = _cached_subjects[lang_id]
     else:
         subject = _cached_subjects['en']
@@ -166,21 +166,31 @@ def _get_response_content(response_id, diagnostic_info):
         body_html = f.read()
 
     # Gather the info we'll need for formatting the email
-    bucketname, email_address = get_bucket_name_and_email_address(sponsor_name, prop_channel_name)
-    download_bucket_url = ***get from psi_ops
+    bucketname, email_address = psi_ops_helpers.get_bucket_name_and_email_address(sponsor_name, prop_channel_name)
 
-    # Format the body. This depends on which response we're returning.
-    if response_id == 'download_new_version_links':
-        ***body_html.format(download_bucket_url, lang_id)
+    # The user might be using a language for which there isn't a download page.
+    # Fall back to English if that's the case.
+    download_bucket_url = psi_ops_helpers.get_s3_bucket_home_page_url(
+        bucketname,
+        lang_id if lang_id in psi_ops_helpers.DOWNLOAD_SITE_LANGS else 'en')
 
-    # Get the attachments. This depends on which response we're returning.
+    # Format the body and get attachments.
+    # This depends on which response we're returning.
     attachments = None
     if response_id == 'download_new_version_links':
-        # TODO: Don't hardcode filename?
-        fp_windows = s3_utils.get_s3_attachment('attachments', bucketname, 'psiphon3.exe')
-        fp_android = s3_utils.get_s3_attachment('attachments', bucketname, 'PsiphonAndroid.apk')
-        attachments = [(fp_windows, 'psiphon3.ex_'),
-                       (fp_android, 'PsiphonAndroid.apk')]
+        body_html.format(email_address, download_bucket_url)
+    elif response_id == 'download_new_version_attachments':
+        body_html.format(email_address)
+        fp_windows = s3_helpers.get_s3_attachment('attachments',
+                                                  bucketname,
+                                                  psi_ops_helpers.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME)
+        fp_android = s3_helpers.get_s3_attachment('attachments',
+                                                  bucketname,
+                                                  psi_ops_helpers.DOWNLOAD_SITE_ANDROID_BUILD_FILENAME)
+        attachments = [(fp_windows, psi_ops_helpers.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME),
+                       (fp_android, psi_ops_helpers.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME)]
+    else:
+        pass
 
     return {
         'subject': subject,
@@ -213,25 +223,17 @@ def go():
         responses = [{'id': 'download_new_version_links',
                       'attachments': False,
                       },
-                     {'id': 'download_new_version_attachments',
-                      'attachments': False,
-                      }
+                     # Disabling attachment responses for now. Not sure if
+                     # it's a good idea. Note it needs to be tested.
+                     #{'id': 'download_new_version_attachments',
+                     # 'attachments': False,
+                     # }
                      ]
 
-        # TODO: Allow for multiple responses, and specify SES or SMTP, so we can do get@-style.
+        # TODO: Use SMTP rather than SES if we have attachments SES or SMTP (get@ style).
 
         for response in responses:
             response_content = _get_response_content(response_id, diagnostic_info)
-
-            attachments = None
-            if response['attachments']:
-                get the attachments from S3 and cache them -- like get@
-                fp_windows = open(Psiphon windows)
-                fp_android = open(Psiphon android)
-                attachments = [(fp_windows, 'psiphon3.ex_'),
-                               (fp_android, 'PsiphonAndroid.apk')]
-
-            *************
 
             try:
             sender.send_response(

@@ -30,9 +30,18 @@ import requests
 import psi_feedback_templates
 
 
-# Must be of the form:
-# {"username": ..., "password": ...}
-config = json.loads(open('./transifex_conf.json').read())
+DEFAULT_LANGS = {'ar': 'ar', 'az': 'az', 'es': 'es', 'fa': 'fa', 'kk': 'kk',
+                 'ru': 'ru', 'th': 'th', 'tk': 'tk', 'vi': 'vi', 'zh': 'zh',
+                 'ug': 'ug@Latn'}
+# Transifex does not support multiple character sets for Uzbek, but
+# Psiphon supports both uz@Latn and uz@cyrillic. So we're going to
+# use "Uzbek" ("uz") for uz@Latn and "Klingon" ("tlh") for uz@cyrillic.
+# We opened an issue with Transifex about this, but it hasn't been
+# rectified yet:
+# https://getsatisfaction.com/indifex/topics/uzbek_cyrillic_language
+DEFAULT_LANGS['uz'] = 'uz@Latn'
+DEFAULT_LANGS['tlh'] = 'uz@cyrillic'
+
 
 # There should be no more or fewer Transifex resources than this. Otherwise
 # one or the other needs to be updated.
@@ -77,6 +86,8 @@ def process_user_documentation():
                      lambda lang: './DownloadSite/%s.html' % lang,
                      html_doctype_add,
                      bom=True)
+# This is needed externally:
+DOWNLOAD_SITE_LANGS = DEFAULT_LANGS.values()
 
 
 def process_email_template_strings():
@@ -110,18 +121,7 @@ def process_resource(resource, output_path_fn, output_mutator_fn, bom, langs=Non
     current language code. May be None.
     '''
     if not langs:
-        langs = {'ar': 'ar', 'az': 'az', 'es': 'es', 'fa': 'fa', 'kk': 'kk',
-                 'ru': 'ru', 'th': 'th', 'tk': 'tk', 'vi': 'vi', 'zh': 'zh',
-                 'ug': 'ug@Latn'}
-
-        # Transifex does not support multiple character sets for Uzbek, but
-        # Psiphon supports both uz@Latn and uz@cyrillic. So we're going to
-        # use "Uzbek" ("uz") for uz@Latn and "Klingon" ("tlh") for uz@cyrillic.
-        # We opened an issue with Transifex about this, but it hasn't been
-        # rectified yet:
-        # https://getsatisfaction.com/indifex/topics/uzbek_cyrillic_language
-        langs['uz'] = 'uz@Latn'
-        langs['tlh'] = 'uz@cyrillic'
+        langs = DEFAULT_LANGS
 
     for in_lang, out_lang in langs.items():
         r = request('resource/%s/translation/%s' % (resource, in_lang))
@@ -153,10 +153,21 @@ def check_resource_list():
     return available_resources == known_resources
 
 
+# Initialized on first use.
+_config = None
+
+
 def request(command, params=None):
+    if not _config:
+        global _config
+        # Must be of the form:
+        # {"username": ..., "password": ...}
+        with open('./transifex_conf.json') as config_fp:
+            _config = json.load(config_fp)
+
     url = 'https://www.transifex.com/api/2/project/Psiphon3/' + command + '/'
     r = requests.get(url, params=params,
-                     auth=(config['username'], config['password']))
+                     auth=(_config['username'], _config['password']))
     if r.status_code != 200:
         raise Exception('Request failed with code %d: %s' %
                             (r.status_code, url))
