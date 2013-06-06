@@ -29,6 +29,7 @@ import os
 import subprocess
 import shlex
 import textwrap
+import datetime
 from boto.ses.connection import SESConnection
 
 import settings
@@ -112,24 +113,27 @@ def process_log_file(logfile):
 
     logtypes = {
                 'success': {
-                            'regex': re.compile('mail_process.py: success: (.*):'),
+                            'regex': re.compile('^([^ ]+) .* mail_process.py: success: (.*):'),
                             'results': {}
                             },
                 'fail': {
-                            'regex': re.compile('mail_process.py: fail: (.*)'),
+                            'regex': re.compile('^([^ ]+) .* mail_process.py: fail: (.*)'),
                             'results': {}
                             },
                 'exception': {
-                              'regex': re.compile('mail_process.py: exception: (.*)'),
+                              'regex': re.compile('^([^ ]+) .* mail_process.py: exception: (.*)'),
                               'results': {}
                               },
                 'error': {
-                          'regex': re.compile('mail_process.py: error: (.*)'),
+                          'regex': re.compile('^([^ ]+) .* mail_process.py: error: (.*)'),
                           'results': {}
                           },
                 }
 
     unmatched_lines = []
+
+    start_timestamp = None
+    end_timestamp = None
 
     while True:
         line = logfile.readline()
@@ -143,8 +147,15 @@ def process_log_file(logfile):
             if not res:
                 continue
 
-            val = res.groups()[0]
-            logtype['results'][val] = logtype['results'][val]+1 if logtype['results'].has_key(val) else 1
+            timestamp = res.groups()[0]
+            val = res.groups()[1]
+            logtype['results'][val] = logtype['results'].get(val, 0) + 1
+
+            # Record the timestamp of the first and last logs.
+            # Assume we're processing logs in increasing chronological order.
+            if not start_timestamp:
+                start_timestamp = timestamp
+            end_timestamp = timestamp
 
             match = True
             break
@@ -193,6 +204,10 @@ def process_log_file(logfile):
 
     text += '\n\nunmatched lines\n---------------------------\n'
     text += '\n'.join(unmatched_lines)
+
+    text += '\n\nStart: %s\n' % start_timestamp
+    text += '  End: %s\n' % end_timestamp
+    text += ' Sent: %s+00:00\n' % datetime.datetime.utcnow().isoformat()
 
     return text
 

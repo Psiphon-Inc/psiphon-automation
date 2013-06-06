@@ -177,7 +177,7 @@ def go():
                 # Store the association between the diagnostic info and the email
                 datastore.insert_email_diagnostic_info(diagnostic_info['Metadata']['id'],
                                                        msg['msgobj']['Message-ID'],
-                                                       msg['subject'])
+                                                       msg['msgobj']['Subject'])
                 email_processed_successfully = True
                 break
 
@@ -187,7 +187,7 @@ def go():
                 try:
                     sender.send(config['decryptedEmailRecipient'],
                                 config['emailUsername'],
-                                u'Re: %s' % (msg['subject'] or ''),
+                                u'Re: %s' % (msg['msgobj']['Subject'] or ''),
                                 'Decrypt failed: %s' % e,
                                 msg['msgobj']['Message-ID'])
                 except smtplib.SMTPException as e:
@@ -211,7 +211,7 @@ def go():
                 # diagnostic info.
                 datastore.insert_email_diagnostic_info(diagnostic_info_id,
                                                        msg['msgobj']['Message-ID'],
-                                                       msg['subject'])
+                                                       msg['msgobj']['Subject'])
 
                 # We'll set this for completeness...
                 email_processed_successfully = True
