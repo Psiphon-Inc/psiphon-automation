@@ -246,6 +246,8 @@ def go():
                      # 'download_new_version_attachments',
                      ]
 
+        logger.log('Sending feedback response')
+
         for response_id in responses:
             response_content = _get_response_content(response_id, diagnostic_info)
 
