@@ -74,14 +74,14 @@ def get_bucket_name_and_email_address(sponsor_name, prop_channel_name):
     Retuns a tuple of the form `(bucket_name, email_address)` that corresponds
     to the given Sponsor and Propagation Channel. `email_address` will be `None`
     if the Sponsor does not have an email campaign.
-    `None` will be returned if no match at all is found.
+    `(None, None)` will be returned if no match at all is found.
     '''
 
     sponsor = _psinet.get_sponsor_by_name(sponsor_name)
     prop_channel = _psinet.get_propagation_channel_by_name(prop_channel_name)
 
     if not sponsor or not prop_channel:
-        return None
+        return (None, None)
 
     prop_channel = _psinet.get_propagation_channel_by_name(prop_channel_name)
 
@@ -108,6 +108,6 @@ def get_bucket_name_and_email_address(sponsor_name, prop_channel_name):
         email_address = None
 
     if not bucket_name:
-        return None
+        return (None, None)
 
     return (bucket_name, email_address)

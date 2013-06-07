@@ -40,5 +40,10 @@
   "statsWarningThresholdPerMinute": 1.0,
 
   // Email address that auto-responses should be sent from.
-  "reponseEmailAddress": "noreply@example.com"
+  "reponseEmailAddress": "noreply@example.com",
+
+  // The Sponsor and Propagation Channel that should be used for auto-responses
+  // if no user-specific value can be determined.
+  "defaultSponsorName": "Psiphon",
+  "defaultPropagationChannelName": "Email"
 }
