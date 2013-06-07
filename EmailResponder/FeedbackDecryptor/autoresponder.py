@@ -16,10 +16,10 @@
 
 
 import time
-import re
 import html2text
 import sys
 import os
+import re
 
 from config import config
 import logger
@@ -27,6 +27,7 @@ import datastore
 import utils
 import psi_ops_helpers
 import sender
+import email_validator
 
 # Make EmailResponder modules available
 sys.path.append('..')
@@ -44,11 +45,6 @@ def _diagnostic_record_iter():
         time.sleep(_SLEEP_TIME_SECS)
 
 
-# Validing email addresses by regex is a bad idea, but we can do something
-# rudimentary.
-_email_address_regex = re.compile(r'[^@]+@[^@]+\.[^@]+')
-
-
 def _get_email_reply_info(diagnostic_info):
     '''
     Returns None if no reply info found, otherwise:
@@ -58,6 +54,7 @@ def _get_email_reply_info(diagnostic_info):
             subject: original email subject
         }
     Any field may be None.
+    Note that this function also validates the email address.
     '''
 
     reply_info = None
@@ -71,15 +68,34 @@ def _get_email_reply_info(diagnostic_info):
                           message_id=None,
                           subject=None)
 
+    if not reply_info or not reply_info['address']:
+        return None
+
+    validator = email_validator.EmailValidator(fix=True, lookup_dns='mx')
+    try:
+        fixed_address = validator.validate_or_raise(reply_info['address'])
+        reply_info['address'] = fixed_address
+    except:
+        return None
+
     return reply_info
 
 
-def _check_and_add_blacklist(address):
+_email_address_normalize_regex = re.compile(r'[^a-zA-Z0-9]')
+
+
+def _check_and_add_address_blacklist(address):
     '''
     Returns True if the address is blacklisted, otherwise inserts it in the DB
     and returns False.
     '''
-    pass#***
+
+    # We need to normalize, otherwise we could get fooled by the fact that
+    # "example@gmail.com" is the same as "ex.ample+plus@gmail.com".
+    # We're going to be fairly draconian and normalize down to just alpha-numerics.
+    normalized_address = _email_address_normalize_regex.sub('', address)
+
+    return datastore.check_and_add_response_address_blacklist(normalized_address)
 
 
 def _get_lang_id_from_diagnostic_info(diagnostic_info):
@@ -219,7 +235,7 @@ def go():
             continue
 
         # Check if the address is blacklisted
-        if _check_and_add_blacklist(reply_info['address']):
+        if _check_and_add_address_blacklist(reply_info['address']):
             continue
 
         # Some day we'll do fancy analysis.

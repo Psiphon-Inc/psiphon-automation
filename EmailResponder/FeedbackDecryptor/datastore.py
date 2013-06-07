@@ -37,12 +37,13 @@ There are currently three tables in our Mongo DB:
 import datetime
 from pymongo import MongoClient
 import numpy
+import pytz
 
 
 _EXPIRY_MINUTES = 360
 
 
-_connection = MongoClient()
+_connection = MongoClient(tz_aware=True)
 _db = _connection.maildecryptor
 _diagnostic_info_store = _db.diagnostic_info
 _email_diagnostic_info_store = _db.email_diagnostic_info
@@ -146,14 +147,21 @@ def get_autoresponder_diagnostic_info_iterator():
 
 
 #
-# Functions related to the blacklist
+# Functions related to the email address blacklist
 #
 
-def check_and_add_blacklist():
-    # TODO: Figure out if it's possible to do this with a single command using
-    # find There's probably a way of doing this with findAndModify():
-    # http://docs.mongodb.org/manual/reference/method/db.collection.findAndModify/#db.collection.findAndModify
-    pass#***
+def check_and_add_response_address_blacklist(address):
+    '''
+    Returns True if the address is blacklisted, otherwise inserts it in the DB
+    and returns False.
+    '''
+    now = datetime.datetime.now(pytz.timezone('UTC'))
+    # Check and insert with a single command
+    match = _response_blacklist_store.find_and_modify(query={'address': address},
+                                                      update={'$setOnInsert': {'datetime': now}},
+                                                      upsert=True)
+
+    return bool(match)
 
 
 #
