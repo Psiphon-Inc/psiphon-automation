@@ -122,13 +122,13 @@ def _get_lang_id_from_diagnostic_info(diagnostic_info):
 
     # All Windows feedback
     lang_id = lang_id or utils.coalesce(diagnostic_info,
-                                        ['DiagnosticInfo', 'SystemInformation', 'OSInfo', 'LanguageInfo', 'language_code'],
-                                        required_types=utils.string_types)
-    # All Windows feedback
-    lang_id = lang_id or utils.coalesce(diagnostic_info,
                                         ['DiagnosticInfo', 'SystemInformation', 'OSInfo', 'LocaleInfo', 'language_code'],
                                         required_types=utils.string_types)
 
+    # All Windows feedback
+    lang_id = lang_id or utils.coalesce(diagnostic_info,
+                                        ['DiagnosticInfo', 'SystemInformation', 'OSInfo', 'LanguageInfo', 'language_code'],
+                                        required_types=utils.string_types)
     # Android, from email
     lang_id = lang_id or utils.coalesce(diagnostic_info,
                                         ['EmailInfo', 'body', 'text_lang_code'],
@@ -196,7 +196,7 @@ def _get_response_content(response_id, diagnostic_info):
     bucketname, email_address = psi_ops_helpers.get_bucket_name_and_email_address(sponsor_name, prop_channel_name)
 
     # Use default values if we couldn't get good user-specific values
-    if not bucketname or email_address:
+    if not bucketname or not email_address:
         default_bucketname, default_email_address = \
             psi_ops_helpers.get_bucket_name_and_email_address(config['defaultSponsorName'],
                                                               config['defaultPropagationChannelName'])
@@ -280,10 +280,14 @@ def go():
             # set our own subject.
             subject = (u'Re: %s' % reply_info['subject']) if reply_info['subject'] else response_content['subject']
 
-            sender.send_response(reply_info['address'],
-                                 config['reponseEmailAddress'],
-                                 subject,
-                                 response_content['body_text'],
-                                 response_content['body_html'],
-                                 reply_info['message_id'],
-                                 response_content['attachments'], '\n', '\n', '\n', '\n')
+            try:
+                sender.send_response(reply_info['address'],
+                                     config['reponseEmailAddress'],
+                                     subject,
+                                     response_content['body_text'],
+                                     response_content['body_html'],
+                                     reply_info['message_id'],
+                                     response_content['attachments'])
+            except Exception as e:
+                logger.exception()
+                logger.error(str(e))

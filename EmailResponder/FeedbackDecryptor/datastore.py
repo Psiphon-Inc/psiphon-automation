@@ -14,7 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# TODO: Create indexes
 
 '''
 There are currently three tables in our Mongo DB:
@@ -116,10 +115,9 @@ def get_autoresponder_diagnostic_info_iterator():
 
             # This will only be true on the very first run
             if not state_rec or not state_rec.get('last_diagnostic_info_datetime'):
-                # Use "now" as the starting point if we don't have a saved position.
-                # TODO: Do we want to process some old records?
+                # Use a recent time as the starting point if we don't have a saved position.
                 _autoresponder_store.update({},
-                                            {'$set': {'last_diagnostic_info_datetime': datetime.datetime.now()}},
+                                            {'$set': {'last_diagnostic_info_datetime': datetime.datetime.now() - datetime.timedelta(40)}},
                                             upsert=True)
                 state_rec = _autoresponder_store.find_one()
 

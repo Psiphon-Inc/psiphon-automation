@@ -45,5 +45,5 @@
   // The Sponsor and Propagation Channel that should be used for auto-responses
   // if no user-specific value can be determined.
   "defaultSponsorName": "Psiphon",
-  "defaultPropagationChannelName": "Email"
+  "defaultPropagationChannelName": "Psiphon - email autoresponder"
 }

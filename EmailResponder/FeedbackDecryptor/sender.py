@@ -62,7 +62,7 @@ def send_response(recipient, from_address,
                   replyid, attachments):
     '''
     Send email back to the user that sent feedback.
-    On error, silently fails.
+    On error, raises exception.
     `replyid` may be None. `attachments` may be None.
     '''
 
@@ -96,4 +96,4 @@ def send_response(recipient, from_address,
     try:
         sendmail.send_raw_email_amazonses(raw_email, from_address)
     except:
-        pass
+        raise
