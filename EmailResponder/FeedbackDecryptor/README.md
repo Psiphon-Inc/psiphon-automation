@@ -16,10 +16,23 @@ send an email with the data.
 
 ### System Configuration
 
+#### Mongodb
+
+From the instructions [here](http://docs.mongodb.org/manual/tutorial/install-mongodb-on-ubuntu/):
+
+```
+apt-key adv --keyserver keyserver.ubuntu.com --recv 7F0CEB10
+echo 'deb http://downloads-distro.mongodb.org/repo/ubuntu-upstart dist 10gen' | sudo tee /etc/apt/sources.list.d/10gen.list
+sudo apt-get update
+sudo apt-get install mongodb-10gen
+```
+
+#### Everything else
+
 ```shell
 # Prereqs
-sudo apt-get install -y python-pip python-dev libssl-dev swig mongodb
-sudo pip install --upgrade rfc6266 pynliner cssutils BeautifulSoup mako pymongo boto requests numpy
+sudo apt-get install -y python-pip python-dev libssl-dev swig
+sudo pip install --upgrade rfc6266 pynliner cssutils BeautifulSoup mako pymongo boto requests numpy html2text pytz
 sudo pip install --upgrade M2Crypto
 ```
 
