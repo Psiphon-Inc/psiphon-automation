@@ -174,7 +174,6 @@ def decommission_hosts(hosts, zenoss_hosts, zenapi):
             data = { 'uid': zhost['uid'],
                      'productionState' : -1 }
             zenapi.set_device_info(data)
-            # TODO: remove old events from decommissioned hosts
             # get event count
             zhost['eventCount'] = get_host_event_count(zhost, zenapi)
             if zhost['eventCount'] > 0:
