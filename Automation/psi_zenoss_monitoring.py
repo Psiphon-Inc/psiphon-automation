@@ -381,12 +381,12 @@ if __name__ == "__main__":
         # dirty fix to replace the ip address:
         print "Replacing IP addresses"
         zenoss_hosts = replace_ip_address(zenoss_hosts)
-#	print "Geo-coding Zenos hosts"
-#        zenoss_hosts = geocode_hosts(zenoss_hosts)
+        print "Geo-coding Zenos hosts"
+        zenoss_hosts = geocode_hosts(zenoss_hosts)
         print 'Organizing Hosts'
-#        update_locations(zenoss_hosts, zenapi, mapped_locations)
+        update_locations(zenoss_hosts, zenapi, mapped_locations)
         organize_hosts(hosts, zenoss_hosts, zenapi)
-        #organize_hosts_by_country(hosts, zenoss_hosts, zenapi)
+        organize_hosts_by_country(hosts, zenoss_hosts, zenapi)
         print 'Setting Hosts Modeler config'
         set_psiphon_hosts_model_config(hosts, zenoss_hosts, zenapi)
         print 'Checking decommissioned Hosts'
