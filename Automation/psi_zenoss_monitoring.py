@@ -411,7 +411,7 @@ if __name__ == "__main__":
         # dirty fix to replace the ip address:
         print "Replacing IP addresses"
         zenoss_hosts = replace_ip_address(zenoss_hosts)
-        print "Geo-coding Zenos hosts"
+        print "Geocoding Zenoss hosts"
         zenoss_hosts = geocode_hosts(zenoss_hosts)
         print 'Organizing Hosts'
         update_locations(zenoss_hosts, zenapi, mapped_locations)
