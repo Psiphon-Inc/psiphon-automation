@@ -18,8 +18,11 @@
 import time
 import html2text
 import sys
-import os
 import re
+import json
+from mako.template import Template
+from mako.lookup import TemplateLookup
+import pynliner
 
 from config import config
 import logger
@@ -142,7 +145,26 @@ def _get_lang_id_from_diagnostic_info(diagnostic_info):
     return lang_id
 
 
-_cached_subjects = None
+_template = None
+
+
+def _render_email(data):
+    global _template
+    if not _template:
+        _template = Template(filename='templates/feedback_response.mako',
+                             default_filters=['unicode', 'h'],
+                             lookup=TemplateLookup(directories=['.']))
+
+    rendered = _template.render(data=data)
+
+    # CSS in email HTML must be inline
+    rendered = pynliner.fromString(rendered)
+
+    return rendered
+
+
+_subjects = None
+_bodies = None
 
 
 def _get_response_content(response_id, diagnostic_info):
@@ -158,14 +180,16 @@ def _get_response_content(response_id, diagnostic_info):
     Returns None if no response content can be derived.
     '''
 
-    # On the first call, read in the subjects for each language and cache them
-    global _cached_subjects
-    if not _cached_subjects:
-        _cached_subjects = {}
-        for fname in [fname for fname in os.listdir('responses') if fname.startswith('default_response_subject.')]:
-            lang_id = fname[len('default_response_subject.'):]
-            with open('responses/'+fname) as f:
-                _cached_subjects[lang_id] = f.read()
+    # On the first call, read in the subjects and bodies
+    global _subjects
+    if not _subjects:
+        with open('responses/subjects.json') as subjects_file:
+            _subjects = json.load(subjects_file)
+
+    global _bodies
+    if not _bodies:
+        with open('responses/bodies.json') as bodies_file:
+            _bodies = json.load(bodies_file)
 
     sponsor_name = utils.coalesce(diagnostic_info,
                                   ['DiagnosticInfo', 'SystemInformation', 'PsiphonInfo', 'SPONSOR_ID'],
@@ -182,15 +206,13 @@ def _get_response_content(response_id, diagnostic_info):
     lang_id = _get_lang_id_from_diagnostic_info(diagnostic_info)
     # lang_id may be None, if the language could not be determined
 
-    # Get the subject, default to English
-    if lang_id and lang_id in _cached_subjects:
-        subject = _cached_subjects[lang_id]
+    # Get the subject, default to English.
+    if lang_id and lang_id in _subjects:
+        subject = _subjects[lang_id]['default_response_subject']
     else:
-        subject = _cached_subjects['en']
+        subject = _subjects['en']['default_response_subject']
 
-    # Read the html body template
-    with open('responses/%s.html' % (response_id,)) as f:
-        body_html = f.read()
+    assert(response_id in _bodies['en'])
 
     # Gather the info we'll need for formatting the email
     bucketname, email_address = psi_ops_helpers.get_bucket_name_and_email_address(sponsor_name, prop_channel_name)
@@ -214,13 +236,23 @@ def _get_response_content(response_id, diagnostic_info):
         bucketname,
         lang_id if lang_id in psi_ops_helpers.DOWNLOAD_SITE_LANGS else 'en')
 
-    # Format the body and get attachments.
+    # Render the email body from the Mako template
+    body_html = _render_email({
+        'lang_id': lang_id,
+        'response_id': response_id,
+        'responses': _bodies,
+        'format_dict': {
+            '0': email_address,
+            '1': download_bucket_url,
+        }
+    })
+
+    # Get attachments.
     # This depends on which response we're returning.
     attachments = None
     if response_id == 'download_new_version_links':
-        body_html = body_html.format(email_address, download_bucket_url)
+        pass
     elif response_id == 'download_new_version_attachments':
-        body_html = body_html.format(email_address)
         fp_windows = s3_helpers.get_s3_attachment('attachments',
                                                   bucketname,
                                                   psi_ops_helpers.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME)

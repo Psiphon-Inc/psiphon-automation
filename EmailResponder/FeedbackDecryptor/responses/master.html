@@ -32,6 +32,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 <!--
   Responses must be in separate divs, with the class "response-body" and an ID
   attribute matching their expected identifiers.
+  Note that we don't use human-readable names for format specifiers to help
+  prevent translators from getting confused and modifying them.
 -->
 
 <div class="response-body" id="download_new_version_links">
@@ -39,7 +41,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     Thank you for sending us your feedback.
   </p>
   <p>
-    If you are having problems connecting to Psiphon 3, you can try to <a href="{1}">download a new version of Psiphon</a>. You can also get a new version at any time by sending an email to: <a href="mailto:{0}">{0}</a>
+    If you are having problems connecting to Psiphon 3, you can try to <a href="%(1)s">download a new version of Psiphon</a>. You can also get a new version at any time by sending an email to: <a href="mailto:%(0)s">%(0)s</a>
   </p>
   <p>
     We receive many messages every day and might not be able to respond to every message individually.  We do our best to identify problems with our system based on feedback messages and to address them in a timely fashion.
@@ -51,7 +53,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     Thank you for sending us your feedback.
   </p>
   <p>
-    A new version of Psiphon is attached. You can get a new version at any time by sending an email to: <a href="mailto:{0}">{0}</a>
+    A new version of Psiphon is attached. You can get a new version at any time by sending an email to: <a href="mailto:%(0)s">%(0)s</a>
   </p>
   <p>
     We receive many messages every day and might not be able to respond to every message individually.  We do our best to identify problems with our system based on feedback messages and to address them in a timely fashion.

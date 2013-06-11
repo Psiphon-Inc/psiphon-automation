@@ -26,6 +26,7 @@ import shutil
 import json
 import codecs
 import requests
+from BeautifulSoup import BeautifulSoup
 
 import psi_feedback_templates
 
@@ -48,7 +49,8 @@ DEFAULT_LANGS['tlh'] = 'uz@cyrillic'
 known_resources = \
     ['android-app-strings', 'android-app-browser-strings',
      'user-documentation', 'email-template-strings',
-     'feedback-template-strings', 'android-library-strings']
+     'feedback-template-strings', 'android-library-strings',
+     'feedback-auto-responses']
 
 
 def process_android_app_strings():
@@ -113,6 +115,44 @@ def process_feedback_template_strings():
                  '../Android/PsiphonAndroid/assets/feedback.html')
 
 
+def process_feedback_auto_responses():
+    # See ../EmailResponder/FeedbackDecryptor/responses/master.html for info
+    # about how this file works.
+    res = gather_resource('feedback-auto-responses')
+
+    if 'en' not in res:
+        with open('../EmailResponder/FeedbackDecryptor/responses/master.html') as master:
+            res['en'] = master.read()
+
+    subjects = {}
+    bodies = {}
+
+    for lang, value in res.iteritems():
+        subjects[lang] = {}
+        bodies[lang] = {}
+
+        soup = BeautifulSoup(value)
+
+        # For some reason Transifex wraps everything in a <div>, so we need to
+        # drill into the elements to get our stuff. (But not for 'en'.)
+        if len(soup.contents) == 1:
+            soup = soup.contents[0]
+
+        for subject in soup.findAll('div', attrs={'class': 'response-subject'}):
+            subject_id = dict(subject.attrs)['id']
+            subjects[lang][subject_id] = subject.text
+
+        for body in soup.findAll('div', attrs={'class': 'response-body'}):
+            body_id = dict(body.attrs)['id']
+            bodies[lang][body_id] = str(body)
+
+    with open('../EmailResponder/FeedbackDecryptor/responses/subjects.json', 'w') as subjects_file:
+        json.dump(subjects, subjects_file, indent=2)
+
+    with open('../EmailResponder/FeedbackDecryptor/responses/bodies.json', 'w') as bodies_file:
+        json.dump(bodies, bodies_file, indent=2)
+
+
 def process_resource(resource, output_path_fn, output_mutator_fn, bom, langs=None):
     '''
     `output_path_fn` must be callable. It will be passed the language code and
@@ -145,6 +185,21 @@ def process_resource(resource, output_path_fn, output_mutator_fn, bom, langs=Non
             f.write(content)
 
 
+def gather_resource(resource, langs=None):
+    '''
+    Collect all translations for the given resource and return them.
+    '''
+    if not langs:
+        langs = DEFAULT_LANGS
+
+    result = {}
+    for in_lang, out_lang in langs.items():
+        r = request('resource/%s/translation/%s' % (resource, in_lang))
+        result[out_lang] = r['content'].replace('\r\n', '\n')
+
+    return result
+
+
 def check_resource_list():
     r = request('resources')
     available_resources = [res['slug'] for res in r]
@@ -158,8 +213,8 @@ _config = None
 
 
 def request(command, params=None):
+    global _config
     if not _config:
-        global _config
         # Must be of the form:
         # {"username": ..., "password": ...}
         with open('./transifex_conf.json') as config_fp:
