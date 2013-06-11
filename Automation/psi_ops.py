@@ -2312,7 +2312,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         sponsor.name,
                                         '',
                                         {},
-                                        [],
+                                        sponsor.campaigns,
                                         [],
                                         [])  # Omit banner, home pages, campaigns, regexes
 
