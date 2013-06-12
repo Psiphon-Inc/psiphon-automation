@@ -39,6 +39,7 @@ from emailgetter import EmailGetter
 import sender
 import datastore
 import datatransformer
+import translation
 
 
 def _upgrade_old_object(yaml_docs):
@@ -131,6 +132,31 @@ def _get_id_from_email_address(email_address):
     return m.groupdict()['id']
 
 
+def _get_email_info(msg):
+    subject_translation = translation.translate(config['googleApiServers'],
+                                                config['googleApiKey'],
+                                                msg['msgobj']['Subject'])
+    subject = dict(text=msg['msgobj']['Subject'],
+                   text_lang_code=subject_translation[0],
+                   text_lang_name=subject_translation[1],
+                   text_translated=subject_translation[2])
+
+    body_translation = translation.translate(config['googleApiServers'],
+                                             config['googleApiKey'],
+                                             msg['body'])
+    body = dict(text=msg['body'],
+                text_lang_code=body_translation[0],
+                text_lang_name=body_translation[1],
+                text_translated=body_translation[2])
+
+    email_info = dict(address=msg['msgobj']['Return-Path'],
+                      message_id=msg['msgobj']['Message-ID'],
+                      subject=subject,
+                      body=body)
+
+    return email_info
+
+
 def go():
     emailgetter = EmailGetter(config['popServer'],
                               config['popPort'],
@@ -170,6 +196,11 @@ def go():
 
                 # Modifies diagnostic_info
                 datatransformer.transform(diagnostic_info)
+
+                # Add the user's email information to diagnostic_info.
+                # This will allow us to later auto-respond, or act as a
+                # remailer between the user and the Psiphon support team.
+                diagnostic_info['EmailInfo'] = _get_email_info(msg)
 
                 # Store the diagnostic info
                 datastore.insert_diagnostic_info(diagnostic_info)

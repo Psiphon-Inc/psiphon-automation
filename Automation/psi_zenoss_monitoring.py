@@ -105,6 +105,12 @@ class ZenossAPI():
 
     def get_device_events(self, data):
         return self._router_request('EventsRouter', 'query', [data])
+
+    def acknowledge_device_events(self, data):
+        return self._router_request('EventsRouter', 'acknowledge', [data])
+    
+    def close_device_events(self, data):
+        return self._router_request('EventsRouter', 'close', [data])
     
     def add_device(self, data):
         return self._router_request('DeviceRouter', 'addDevice', [data])
@@ -168,6 +174,29 @@ def decommission_hosts(hosts, zenoss_hosts, zenapi):
             data = { 'uid': zhost['uid'],
                      'productionState' : -1 }
             zenapi.set_device_info(data)
+            # get event count
+            zhost['eventCount'] = get_host_event_count(zhost, zenapi)
+            if zhost['eventCount'] > 0:
+                print 'Acknowledging events'
+                data = {'uid': zhost['uid']}
+                zhost['ackResult'] = zenapi.acknowledge_device_events(data)
+                if check_result(zhost['ackResult']):
+                    # move on to closing events
+                    zhost['closeResult'] = zenapi.close_device_events(data)
+                    if check_result(zhost['closeResult']):
+                        print 'Closed events for device %s (%s)' % (zhost['name'], zhost['ipAddress'])
+            
+
+def get_host_event_count(zhost, zenapi):
+    #set data
+    data = {'uid': zhost['uid'], 'keys': []}
+    zhost['result'] = zenapi.get_device_events(data)
+    if check_result(zhost['result']):
+        return zhost['result']['result']['totalCount']
+    else: return 0
+
+def check_result(res):
+    return res['result']['success']
 
 def remove_hosts(zenoss_hosts, zenapi):
     # check if a host is decommissioned and has been so for longer than 4 months
@@ -201,6 +230,7 @@ def remove_hosts(zenoss_hosts, zenapi):
                }
         zenapi.remove_device(data)
 
+# force the hosts to be Modelled
 def model_hosts(zenoss_hosts, zenapi):
     for zhost in zenoss_hosts:
         if zhost['productionState'] == 1000: #check if in production
@@ -381,12 +411,12 @@ if __name__ == "__main__":
         # dirty fix to replace the ip address:
         print "Replacing IP addresses"
         zenoss_hosts = replace_ip_address(zenoss_hosts)
-#	print "Geo-coding Zenos hosts"
-#        zenoss_hosts = geocode_hosts(zenoss_hosts)
+        print "Geocoding Zenoss hosts"
+        zenoss_hosts = geocode_hosts(zenoss_hosts)
         print 'Organizing Hosts'
-#        update_locations(zenoss_hosts, zenapi, mapped_locations)
+        update_locations(zenoss_hosts, zenapi, mapped_locations)
         organize_hosts(hosts, zenoss_hosts, zenapi)
-        #organize_hosts_by_country(hosts, zenoss_hosts, zenapi)
+        organize_hosts_by_country(hosts, zenoss_hosts, zenapi)
         print 'Setting Hosts Modeler config'
         set_psiphon_hosts_model_config(hosts, zenoss_hosts, zenapi)
         print 'Checking decommissioned Hosts'

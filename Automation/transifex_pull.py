@@ -26,20 +26,31 @@ import shutil
 import json
 import codecs
 import requests
+from BeautifulSoup import BeautifulSoup
 
 import psi_feedback_templates
 
 
-# Must be of the form:
-# {"username": ..., "password": ...}
-config = json.loads(open('./transifex_conf.json').read())
+DEFAULT_LANGS = {'ar': 'ar', 'az': 'az', 'es': 'es', 'fa': 'fa', 'kk': 'kk',
+                 'ru': 'ru', 'th': 'th', 'tk': 'tk', 'vi': 'vi', 'zh': 'zh',
+                 'ug': 'ug@Latn'}
+# Transifex does not support multiple character sets for Uzbek, but
+# Psiphon supports both uz@Latn and uz@cyrillic. So we're going to
+# use "Uzbek" ("uz") for uz@Latn and "Klingon" ("tlh") for uz@cyrillic.
+# We opened an issue with Transifex about this, but it hasn't been
+# rectified yet:
+# https://getsatisfaction.com/indifex/topics/uzbek_cyrillic_language
+DEFAULT_LANGS['uz'] = 'uz@Latn'
+DEFAULT_LANGS['tlh'] = 'uz@cyrillic'
+
 
 # There should be no more or fewer Transifex resources than this. Otherwise
 # one or the other needs to be updated.
 known_resources = \
     ['android-app-strings', 'android-app-browser-strings',
      'user-documentation', 'email-template-strings',
-     'feedback-template-strings', 'android-library-strings']
+     'feedback-template-strings', 'android-library-strings',
+     'feedback-auto-responses']
 
 
 def process_android_app_strings():
@@ -77,6 +88,8 @@ def process_user_documentation():
                      lambda lang: './DownloadSite/%s.html' % lang,
                      html_doctype_add,
                      bom=True)
+# This is needed externally:
+DOWNLOAD_SITE_LANGS = DEFAULT_LANGS.values()
 
 
 def process_email_template_strings():
@@ -102,6 +115,51 @@ def process_feedback_template_strings():
                  '../Android/PsiphonAndroid/assets/feedback.html')
 
 
+def process_feedback_auto_responses():
+    # TODO: Rather than skipping whole translations if they aren't translated,
+    # or, conversely, including untranslated response bodies because another
+    # response body is translated, we should operate on a per-response basis.
+    # One way to compare the bare translation text against the bare English
+    # text to see if it's different. To do this, we'll need to strip out
+    # comments. See: http://stackoverflow.com/a/3507360/729729
+
+    # See ../EmailResponder/FeedbackDecryptor/responses/master.html for info
+    # about how this file works.
+    res = gather_resource('feedback-auto-responses', skip_untranslated=True)
+
+    if 'en' not in res:
+        with open('../EmailResponder/FeedbackDecryptor/responses/master.html') as master:
+            res['en'] = master.read()
+
+    subjects = {}
+    bodies = {}
+
+    for lang, value in res.iteritems():
+        subjects[lang] = {}
+        bodies[lang] = {}
+
+        soup = BeautifulSoup(value)
+
+        # For some reason Transifex wraps everything in a <div>, so we need to
+        # drill into the elements to get our stuff. (But not for 'en'.)
+        if len(soup.contents) == 1:
+            soup = soup.contents[0]
+
+        for subject in soup.findAll('div', attrs={'class': 'response-subject'}):
+            subject_id = dict(subject.attrs)['id']
+            subjects[lang][subject_id] = subject.text
+
+        for body in soup.findAll('div', attrs={'class': 'response-body'}):
+            body_id = dict(body.attrs)['id']
+            bodies[lang][body_id] = str(body)
+
+    with open('../EmailResponder/FeedbackDecryptor/responses/subjects.json', 'w') as subjects_file:
+        json.dump(subjects, subjects_file, indent=2)
+
+    with open('../EmailResponder/FeedbackDecryptor/responses/bodies.json', 'w') as bodies_file:
+        json.dump(bodies, bodies_file, indent=2)
+
+
 def process_resource(resource, output_path_fn, output_mutator_fn, bom, langs=None):
     '''
     `output_path_fn` must be callable. It will be passed the language code and
@@ -110,18 +168,7 @@ def process_resource(resource, output_path_fn, output_mutator_fn, bom, langs=Non
     current language code. May be None.
     '''
     if not langs:
-        langs = {'ar': 'ar', 'az': 'az', 'es': 'es', 'fa': 'fa', 'kk': 'kk',
-                 'ru': 'ru', 'th': 'th', 'tk': 'tk', 'vi': 'vi', 'zh': 'zh',
-                 'ug': 'ug@Latn'}
-
-        # Transifex does not support multiple character sets for Uzbek, but
-        # Psiphon supports both uz@Latn and uz@cyrillic. So we're going to
-        # use "Uzbek" ("uz") for uz@Latn and "Klingon" ("tlh") for uz@cyrillic.
-        # We opened an issue with Transifex about this, but it hasn't been
-        # rectified yet:
-        # https://getsatisfaction.com/indifex/topics/uzbek_cyrillic_language
-        langs['uz'] = 'uz@Latn'
-        langs['tlh'] = 'uz@cyrillic'
+        langs = DEFAULT_LANGS
 
     for in_lang, out_lang in langs.items():
         r = request('resource/%s/translation/%s' % (resource, in_lang))
@@ -145,6 +192,26 @@ def process_resource(resource, output_path_fn, output_mutator_fn, bom, langs=Non
             f.write(content)
 
 
+def gather_resource(resource, langs=None, skip_untranslated=False):
+    '''
+    Collect all translations for the given resource and return them.
+    '''
+    if not langs:
+        langs = DEFAULT_LANGS
+
+    result = {}
+    for in_lang, out_lang in langs.items():
+        if skip_untranslated:
+            stats = request('resource/%s/stats/%s' % (resource, in_lang))
+            if stats['completed'] == '0%':
+                continue
+
+        r = request('resource/%s/translation/%s' % (resource, in_lang))
+        result[out_lang] = r['content'].replace('\r\n', '\n')
+
+    return result
+
+
 def check_resource_list():
     r = request('resources')
     available_resources = [res['slug'] for res in r]
@@ -153,10 +220,21 @@ def check_resource_list():
     return available_resources == known_resources
 
 
+# Initialized on first use.
+_config = None
+
+
 def request(command, params=None):
+    global _config
+    if not _config:
+        # Must be of the form:
+        # {"username": ..., "password": ...}
+        with open('./transifex_conf.json') as config_fp:
+            _config = json.load(config_fp)
+
     url = 'https://www.transifex.com/api/2/project/Psiphon3/' + command + '/'
     r = requests.get(url, params=params,
-                     auth=(config['username'], config['password']))
+                     auth=(_config['username'], _config['password']))
     if r.status_code != 200:
         raise Exception('Request failed with code %d: %s' %
                             (r.status_code, url))

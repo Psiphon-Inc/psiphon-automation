@@ -102,7 +102,7 @@ try:
     import psi_routes
 except ImportError as error:
     print error
-    
+
 plugins = []
 try:
     sys.path.insert(0, os.path.abspath('../../Plugins'))
@@ -395,7 +395,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for plugin in plugins:
             if hasattr(plugin, 'initialize'):
                 plugin.initialize(self)
-            
+
     def show_status(self):
         # NOTE: verbose mode prints credentials to stdout
         print textwrap.dedent('''
@@ -458,7 +458,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.show_sponsor(s.name)
 
     def show_sponsor(self, sponsor_name):
-        s = self.__get_sponsor_by_name(sponsor_name)
+        s = self.get_sponsor_by_name(sponsor_name)
         print textwrap.dedent('''
             ID:                      %(id)s
             Name:                    %(name)s
@@ -644,8 +644,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return ''.join([chars[ord(os.urandom(1)) % len(chars)] for i in range(count)])
 
     def get_propagation_channel_by_name(self, name):
-        return filter(lambda x: x.name == name,
-                      self.__propagation_channels.itervalues())[0]
+        matches = filter(lambda x: x.name == name,
+                         self.__propagation_channels.itervalues())
+        return matches[0] if matches else None
 
     def get_propagation_channel_by_id(self, id):
         return self.__propagation_channels[id] if id in self.__propagation_channels else None
@@ -687,9 +688,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         propagation_channel.max_propagation_server_age_in_days = age
         propagation_channel.log('Max propagation server age set to %d days' % (age,))
 
-    def __get_sponsor_by_name(self, name):
-        return filter(lambda x: x.name == name,
-                      self.__sponsors.itervalues())[0]
+    def get_sponsor_by_name(self, name):
+        matches = filter(lambda x: x.name == name,
+                         self.__sponsors.itervalues())
+        return matches[0] if matches else None
 
     def get_sponsor_by_id(self, id):
         return self.__sponsors[id] if id in self.__sponsors else None
@@ -709,7 +711,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(self.is_locked)
         with open(banner_filename, 'rb') as file:
             banner = base64.b64encode(file.read())
-        sponsor = self.__get_sponsor_by_name(name)
+        sponsor = self.get_sponsor_by_name(name)
         sponsor.banner = banner
         sponsor.log('set banner')
         for campaign in sponsor.campaigns:
@@ -720,7 +722,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def add_sponsor_email_campaign(self, sponsor_name, propagation_channel_name, email_account):
         assert(self.is_locked)
-        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         propagation_mechanism_type = 'email-autoresponder'
         assert(propagation_mechanism_type in propagation_channel.propagation_mechanism_types)
@@ -747,7 +749,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                      twitter_account_access_token_key,
                                      twitter_account_access_token_secret):
         assert(self.is_locked)
-        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         propagation_mechanism_type = 'twitter'
         assert(propagation_mechanism_type in propagation_channel.propagation_mechanism_types)
@@ -772,7 +774,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def add_sponsor_static_download_campaign(self, sponsor_name, propagation_channel_name):
         assert(self.is_locked)
-        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         propagation_mechanism_type = 'static-download'
         assert(propagation_mechanism_type in propagation_channel.propagation_mechanism_types)
@@ -792,7 +794,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def set_sponsor_campaign_s3_bucket_name(self, sponsor_name, propagation_channel_name, account, s3_bucket_name):
         assert(self.is_locked)
-        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         for campaign in sponsor.campaigns:
             if (campaign.propagation_channel_id == propagation_channel.id and
@@ -806,7 +808,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def set_sponsor_home_page(self, sponsor_name, region, url):
         assert(self.is_locked)
-        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
         home_page = SponsorHomePage(region, url)
         if region not in sponsor.home_pages:
             sponsor.home_pages[region] = []
@@ -818,7 +820,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def remove_sponsor_home_page(self, sponsor_name, region, url):
         assert(self.is_locked)
-        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
         home_page = SponsorHomePage(region, url)
         if (region in sponsor.home_pages
             and home_page in sponsor.home_pages[region]):
@@ -829,7 +831,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def set_sponsor_page_view_regex(self, sponsor_name, regex, replace):
         assert(self.is_locked)
-        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
         if not [rx for rx in sponsor.page_view_regexes if rx.regex == regex]:
             sponsor.page_view_regexes.append(SponsorRegex(regex, replace))
             sponsor.log('set page view regex %s; replace %s' % (regex, replace))
@@ -842,7 +844,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         it has to be passed in when removing.
         '''
         assert(self.is_locked)
-        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
         match = [sponsor.page_view_regexes.pop(idx)
                  for (idx, rx)
                  in enumerate(sponsor.page_view_regexes)
@@ -855,7 +857,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def set_sponsor_https_request_regex(self, sponsor_name, regex, replace):
         assert(self.is_locked)
-        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
         if not [rx for rx in sponsor.https_request_regexes if rx.regex == regex]:
             sponsor.https_request_regexes.append(SponsorRegex(regex, replace))
             sponsor.log('set https request regex %s; replace %s' % (regex, replace))
@@ -868,7 +870,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         it has to be passed in when removing.
         '''
         assert(self.is_locked)
-        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
         match = [sponsor.https_request_regexes.pop(idx)
                  for (idx, rx)
                  in enumerate(sponsor.https_request_regexes)
@@ -882,7 +884,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def set_sponsor_name(self, sponsor_name, new_sponsor_name):
         assert(self.is_locked)
         assert(not filter(lambda x: x.name == new_sponsor_name, self.__sponsors.itervalues()))
-        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
         sponsor.name = (new_sponsor_name)
         self.__deploy_stats_config_required = True
         sponsor.log('set sponsor name from \'%s\' to \'%s\'' % (sponsor_name, new_sponsor_name))
@@ -1063,26 +1065,26 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                [deleted_server.id for deleted_server in self.__deleted_servers.itervalues()]
 
     def add_server_to_host(self, host, new_servers):
-        
+
         existing_servers = [server for server in self.get_servers() if server.host_id == host.id]
         servers_on_host = existing_servers + new_servers
-        
+
         psi_ops_install.install_host(host, servers_on_host, self.get_existing_server_ids(), plugins)
         host.log('install with new servers')
-        
+
         assert(host.id in self.__hosts)
-        
+
         for server in new_servers:
             assert(server.id not in self.__servers)
             self.__servers[server.id] = server
-            
+
         psi_ops_deploy.deploy_data(
                             host,
                             self.__compartmentalize_data_for_host(host.id))
 
         for server in servers_on_host:
             self.test_server(server.id, ['handshake'])
-            
+
     def setup_server(self, host, servers):
         # Install Psiphon 3 and generate configuration values
         # Here, we're assuming one server/IP address per host
@@ -1451,7 +1453,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             platforms = [CLIENT_PLATFORM_WINDOWS, CLIENT_PLATFORM_ANDROID]
 
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
-        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
         encoded_server_list, expected_egress_ip_addresses = \
                     self.__get_encoded_server_list(propagation_channel.id)
 
@@ -1476,7 +1478,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             CLIENT_PLATFORM_WINDOWS: psi_ops_build_windows.build_client,
             CLIENT_PLATFORM_ANDROID: psi_ops_build_android.build_client
         }
-        
+
         for plugin in plugins:
             if hasattr(plugin, 'build_android_client'):
                 builders[CLIENT_PLATFORM_ANDROID] = plugin.build_android_client
@@ -1504,7 +1506,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             sponsor_name):
 
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
-        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
 
         campaigns = filter(lambda x: x.propagation_channel_id == propagation_channel.id, sponsor.campaigns)
         assert campaigns
@@ -2310,7 +2312,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         sponsor.name,
                                         '',
                                         {},
-                                        [],
+                                        sponsor.campaigns,
                                         [],
                                         [])  # Omit banner, home pages, campaigns, regexes
 
@@ -2434,7 +2436,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__test_servers(servers, test_cases)
 
     def test_sponsor(self, sponsor_name, test_cases=None):
-        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
         propagation_channel_ids = set()
         for campaign in sponsor.campaigns:
             propagation_channel_ids.add(campaign.propagation_channel_id)

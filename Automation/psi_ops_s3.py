@@ -54,12 +54,12 @@ def get_s3_bucket_resource_url(bucket_id, resource_name):
                 resource_name))
 
 
-def get_s3_bucket_home_page_url(bucket_id):
+def get_s3_bucket_home_page_url(bucket_id, lang_id='en'):
     # TODO: add a campaign language and direct to that page; or have the client
     # supply its system language and direct to that page.
 
     # Assumes USEast
-    return "https://s3.amazonaws.com/%s/en.html" % (bucket_id,)
+    return "https://s3.amazonaws.com/%s/%s.html" % (bucket_id, lang_id)
 
 
 def create_s3_bucket(aws_account):
@@ -72,7 +72,7 @@ def create_s3_bucket(aws_account):
 
     # Seed with /dev/urandom (http://docs.python.org/library/random.html#random.seed)
     random.seed()
-    
+
     # TODO: select location at random
     location = random.choice([
                     boto.s3.connection.Location.APNortheast,
@@ -84,7 +84,7 @@ def create_s3_bucket(aws_account):
     location = boto.s3.connection.Location.DEFAULT
 
     print 'selected location: %s' % (location,)
-                    
+
     # Generate random bucket ID
     # Note: S3 bucket names can't contain uppercase letters or most symbols
     # Format: XXXX-XXXX-XXXX. Each segment has about 20 bits of entropy
@@ -93,40 +93,40 @@ def create_s3_bucket(aws_account):
         [''.join([random.choice(string.lowercase + string.digits)
                  for j in range(4)])
          for i in range(3)])
-    
+
     # Create new bucket
     # TODO: retry on boto.exception.S3CreateError: S3Error[409]: Conflict
     bucket = s3.create_bucket(bucket_id, location=location)
-    
+
     print 'new download URL: https://s3.amazonaws.com/%s/en.html' % (bucket_id)
 
     return bucket_id
 
 
 def update_s3_download(aws_account, builds, remote_server_list, bucket_id, custom_download_site):
-    
+
     # Connect to AWS
 
     s3 = boto.s3.connection.S3Connection(
                 aws_account.access_id,
                 aws_account.secret_key)
-                
+
     bucket = s3.get_bucket(bucket_id)
-    
+
     set_s3_bucket_contents(bucket, bucket_id, builds, remote_server_list, custom_download_site)
 
     print 'updated download URL: https://s3.amazonaws.com/%s/en.html' % (bucket_id)
-    
-    
+
+
 def set_s3_bucket_contents(bucket, bucket_id, builds, remote_server_list, custom_download_site):
 
     try:
         def progress(complete, total):
             sys.stdout.write('.')
             sys.stdout.flush()
-        
+
         if builds:
-            for (source_filename, target_filename) in builds:        
+            for (source_filename, target_filename) in builds:
                 key = bucket.new_key(target_filename)
                 key.set_contents_from_filename(source_filename, cb=progress)
                 key.close()
@@ -138,7 +138,7 @@ def set_s3_bucket_contents(bucket, bucket_id, builds, remote_server_list, custom
 
         if not custom_download_site:
             # QR code image points to Android APK
-            
+
             qr_code_url = 'https://s3.amazonaws.com/%s/%s' % (
                                 bucket_id, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME)
 
@@ -167,7 +167,7 @@ def set_s3_bucket_contents(bucket, bucket_id, builds, remote_server_list, custom
         raise
 
     print ' done'
-    
+
     # Make the whole bucket public now that it's uploaded
     bucket.disable_logging()
     bucket.make_public(recursive=True)
