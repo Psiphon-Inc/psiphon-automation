@@ -46,13 +46,14 @@ responses = collections.OrderedDict()
 
 # Firstly, the target language
 if data['lang_id'] in data['responses']:
-  responses[data['lang_id']] = 1
+  responses[data['lang_id']] = data['responses'][data['lang_id']]
 
 # Secondarily, the priority languages
-responses.update(collections.OrderedDict([('en', 1), ('fa', 1), ('ar', 1), ('zh', 1)]))
+for priority_lang in ('en', 'fa', 'ar', 'zh'):
+  if priority_lang in data['responses']:
+    responses[priority_lang] = data['responses'][priority_lang]
 
 # Tertiarily, the rest of the languages
-# Note that this also replaces the `1` values above with actual data from data['responses']
 responses.update(data['responses'])
 
 response_id = data['response_id']
