@@ -32,7 +32,7 @@ sudo apt-get install mongodb-10gen
 ```shell
 # Prereqs
 sudo apt-get install -y python-pip python-dev libssl-dev swig
-sudo pip install --upgrade rfc6266 pynliner cssutils BeautifulSoup mako pymongo boto requests numpy html2text pytz
+sudo pip install --upgrade rfc6266 pynliner cssutils BeautifulSoup mako pymongo boto requests numpy html2text pytz pydns
 sudo pip install --upgrade M2Crypto
 ```
 
