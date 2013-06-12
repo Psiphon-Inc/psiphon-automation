@@ -77,8 +77,11 @@ def _get_email_reply_info(diagnostic_info):
                           message_id=None,
                           subject=None)
 
-    if not reply_info or not reply_info['address']:
+    if not reply_info or not reply_info['address'] or not reply_info['address'].strip('<>'):
         return None
+
+    # Sometimes the recorded address looks like "<example@example.com>"
+    reply_info['address'] = reply_info['address'].strip('<>')
 
     validator = email_validator.EmailValidator(fix=True, lookup_dns='mx')
     try:
