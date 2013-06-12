@@ -42,7 +42,7 @@ import pytz
 _EXPIRY_MINUTES = 360
 
 
-_connection = MongoClient(tz_aware=True)
+_connection = MongoClient()
 _db = _connection.maildecryptor
 _diagnostic_info_store = _db.diagnostic_info
 _email_diagnostic_info_store = _db.email_diagnostic_info
