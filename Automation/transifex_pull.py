@@ -116,9 +116,16 @@ def process_feedback_template_strings():
 
 
 def process_feedback_auto_responses():
+    # TODO: Rather than skipping whole translations if they aren't translated,
+    # or, conversely, including untranslated response bodies because another
+    # response body is translated, we should operate on a per-response basis.
+    # One way to compare the bare translation text against the bare English
+    # text to see if it's different. To do this, we'll need to strip out
+    # comments. See: http://stackoverflow.com/a/3507360/729729
+
     # See ../EmailResponder/FeedbackDecryptor/responses/master.html for info
     # about how this file works.
-    res = gather_resource('feedback-auto-responses')
+    res = gather_resource('feedback-auto-responses', skip_untranslated=True)
 
     if 'en' not in res:
         with open('../EmailResponder/FeedbackDecryptor/responses/master.html') as master:
@@ -185,7 +192,7 @@ def process_resource(resource, output_path_fn, output_mutator_fn, bom, langs=Non
             f.write(content)
 
 
-def gather_resource(resource, langs=None):
+def gather_resource(resource, langs=None, skip_untranslated=False):
     '''
     Collect all translations for the given resource and return them.
     '''
@@ -194,6 +201,11 @@ def gather_resource(resource, langs=None):
 
     result = {}
     for in_lang, out_lang in langs.items():
+        if skip_untranslated:
+            stats = request('resource/%s/stats/%s' % (resource, in_lang))
+            if stats['completed'] == '0%':
+                continue
+
         r = request('resource/%s/translation/%s' % (resource, in_lang))
         result[out_lang] = r['content'].replace('\r\n', '\n')
 
