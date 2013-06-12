@@ -34,14 +34,20 @@ from psi_ops_s3 import \
     EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME
 
 
-# Load the psinet DB
-_psinet = psi_ops.PsiphonNetwork.load_from_file(config['psinetFilePath'])
+
+_psinet = None
+def _ensure_psinet_loaded():
+    # Load the psinet DB
+    global _psinet
+    if not _psinet:
+        _psinet = psi_ops.PsiphonNetwork.load_from_file(config['psinetFilePath'])
 
 
 def get_propagation_channel_name_by_id(prop_channel_id):
     '''
     Gets the Propagation Channel name from its ID. Returns None if not found.
     '''
+    _ensure_psinet_loaded()
     propagation_channel = _psinet.get_propagation_channel_by_id(prop_channel_id)
     return propagation_channel.name if propagation_channel else None
 
@@ -50,11 +56,13 @@ def get_sponsor_name_by_id(sponsor_id):
     '''
     Gets the Sponsor name from its ID. Returns None if not found.
     '''
+    _ensure_psinet_loaded()
     sponsor = _psinet.get_sponsor_by_id(sponsor_id)
     return sponsor.name if sponsor else None
 
 
 def get_server_display_id_from_ip(ip):
+    _ensure_psinet_loaded()
     server_id = None
     server = _psinet.get_server_by_ip_address(ip)
     if server:
@@ -76,6 +84,7 @@ def get_bucket_name_and_email_address(sponsor_name, prop_channel_name):
     if the Sponsor does not have an email campaign.
     `(None, None)` will be returned if no match at all is found.
     '''
+    _ensure_psinet_loaded()
 
     sponsor = _psinet.get_sponsor_by_name(sponsor_name)
     prop_channel = _psinet.get_propagation_channel_by_name(prop_channel_name)
