@@ -125,7 +125,7 @@ def _get_lang_id_from_diagnostic_info(diagnostic_info):
     lang_id = lang_id or utils.coalesce(diagnostic_info,
                                         ['Feedback', 'Message', 'text_lang_code'],
                                         required_types=utils.string_types)
-    if lang_id and lang_id.find('INDETERMINATE'):
+    if lang_id and lang_id.find('INDETERMINATE') >= 0:
         lang_id = None
 
     # All Windows feedback
@@ -141,7 +141,7 @@ def _get_lang_id_from_diagnostic_info(diagnostic_info):
     lang_id = lang_id or utils.coalesce(diagnostic_info,
                                         ['EmailInfo', 'body', 'text_lang_code'],
                                         required_types=utils.string_types)
-    if lang_id and lang_id.find('INDETERMINATE'):
+    if lang_id and lang_id.find('INDETERMINATE') >= 0:
         lang_id = None
 
     # Android, from system language
