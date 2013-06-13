@@ -140,8 +140,8 @@ _email_stripper_regex = re.compile(r'(.*<)?([^<>]+)(>)?')
 def _get_email_info(msg):
     subject_translation = translation.translate(config['googleApiServers'],
                                                 config['googleApiKey'],
-                                                msg['msgobj']['Subject'])
-    subject = dict(text=msg['msgobj']['Subject'],
+                                                msg['subject'])
+    subject = dict(text=msg['subject'],
                    text_lang_code=subject_translation[0],
                    text_lang_name=subject_translation[1],
                    text_translated=subject_translation[2])
@@ -152,7 +152,8 @@ def _get_email_info(msg):
     body = dict(text=msg['body'],
                 text_lang_code=body_translation[0],
                 text_lang_name=body_translation[1],
-                text_translated=body_translation[2])
+                text_translated=body_translation[2],
+                html=msg['html'])
 
     match = _email_stripper_regex.match(msg['msgobj']['Return-Path'])
     if not match:
@@ -219,7 +220,7 @@ def go():
                 # Store the association between the diagnostic info and the email
                 datastore.insert_email_diagnostic_info(diagnostic_info['Metadata']['id'],
                                                        msg['msgobj']['Message-ID'],
-                                                       msg['msgobj']['Subject'])
+                                                       msg['subject'])
                 email_processed_successfully = True
                 break
 
@@ -229,7 +230,7 @@ def go():
                 try:
                     sender.send(config['decryptedEmailRecipient'],
                                 config['emailUsername'],
-                                u'Re: %s' % (msg['msgobj']['Subject'] or ''),
+                                u'Re: %s' % (msg['subject'] or ''),
                                 'Decrypt failed: %s' % e,
                                 msg['msgobj']['Message-ID'])
                 except smtplib.SMTPException as e:
@@ -253,7 +254,7 @@ def go():
                 # diagnostic info.
                 datastore.insert_email_diagnostic_info(diagnostic_info_id,
                                                        msg['msgobj']['Message-ID'],
-                                                       msg['msgobj']['Subject'])
+                                                       msg['subject'])
 
                 # We'll set this for completeness...
                 email_processed_successfully = True
