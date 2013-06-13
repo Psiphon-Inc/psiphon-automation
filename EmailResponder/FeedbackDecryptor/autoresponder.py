@@ -313,7 +313,10 @@ def go():
             # in which case we have a subject to reply to. Or it may have have
             # originated from an uploaded data package, in which case we need
             # set our own subject.
-            subject = (u'Re: %s' % reply_info['subject']) if reply_info['subject'] else response_content['subject']
+            if reply_info.get('subject', {}).get('text'):
+                subject = u'Re: %s' % reply_info['subject']['text']
+            else:
+                subject = response_content['subject']
 
             try:
                 sender.send_response(reply_info['address'],
