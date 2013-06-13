@@ -132,8 +132,8 @@ def _get_id_from_email_address(email_address):
     return m.groupdict()['id']
 
 
-# Email addresses in the Return-Path usually look like "<example@example.com>",
-# but we don't want the angle brackets.
+# Email addresses in the headers usually look like "<example@example.com>" or
+# "Name <example@example.com>" but we don't want the angle brackets and name.
 _email_stripper_regex = re.compile(r'(.*<)?([^<>]+)(>)?')
 
 
@@ -155,11 +155,14 @@ def _get_email_info(msg):
                 text_translated=body_translation[2],
                 html=msg['html'])
 
-    match = _email_stripper_regex.match(msg['msgobj']['Return-Path'])
-    if not match:
-        logger.error('when stripping email address failed to match: %s' % str(msg['msgobj']['Return-Path']))
-        return None
-    stripped_address = match.group(1)
+    raw_address = msg['msgobj'].get('Return-Path') or msg['from']
+    stripped_address = None
+    if raw_address:
+        match = _email_stripper_regex.match(raw_address)
+        if not match:
+            logger.error('when stripping email address failed to match: %s' % str(raw_address))
+            return None
+        stripped_address = match.group(1)
 
     email_info = dict(address=stripped_address,
                       message_id=msg['msgobj']['Message-ID'],
