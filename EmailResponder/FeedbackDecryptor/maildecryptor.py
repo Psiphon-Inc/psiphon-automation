@@ -162,7 +162,7 @@ def _get_email_info(msg):
         if not match:
             logger.error('when stripping email address failed to match: %s' % str(raw_address))
             return None
-        stripped_address = match.group(1)
+        stripped_address = match.group(2)
 
     email_info = dict(address=stripped_address,
                       message_id=msg['msgobj']['Message-ID'],
