@@ -44,6 +44,9 @@ DEFAULT_LANGS['uz'] = 'uz@Latn'
 DEFAULT_LANGS['tlh'] = 'uz@cyrillic'
 
 
+RTL_LANGS = ('ar', 'fa', 'he')
+
+
 # There should be no more or fewer Transifex resources than this. Otherwise
 # one or the other needs to be updated.
 known_resources = \
@@ -119,9 +122,9 @@ def process_feedback_auto_responses():
     # TODO: Rather than skipping whole translations if they aren't translated,
     # or, conversely, including untranslated response bodies because another
     # response body is translated, we should operate on a per-response basis.
-    # One way to compare the bare translation text against the bare English
+    # One way is to compare the bare translation text against the bare English
     # text to see if it's different. To do this, we'll need to strip out
-    # comments. See: http://stackoverflow.com/a/3507360/729729
+    # HTML comments. See: http://stackoverflow.com/a/3507360/729729
 
     # See ../EmailResponder/FeedbackDecryptor/responses/master.html for info
     # about how this file works.
@@ -150,6 +153,10 @@ def process_feedback_auto_responses():
             subjects[lang][subject_id] = subject.text
 
         for body in soup.findAll('div', attrs={'class': 'response-body'}):
+            if lang in RTL_LANGS:
+                # Include both methods of specifying direction.
+                body.attrs.extend([('style', 'direction: rtl;'), ('dir', 'rtl')])
+
             body_id = dict(body.attrs)['id']
             bodies[lang][body_id] = str(body)
 

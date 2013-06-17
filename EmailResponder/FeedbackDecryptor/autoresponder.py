@@ -77,8 +77,11 @@ def _get_email_reply_info(diagnostic_info):
                           message_id=None,
                           subject=None)
 
-    if not reply_info or not reply_info['address']:
+    if not reply_info or not reply_info['address'] or not reply_info['address'].strip('<>'):
         return None
+
+    # Sometimes the recorded address looks like "<example@example.com>"
+    reply_info['address'] = reply_info['address'].strip('<>')
 
     validator = email_validator.EmailValidator(fix=True, lookup_dns='mx')
     try:
@@ -90,6 +93,7 @@ def _get_email_reply_info(diagnostic_info):
     return reply_info
 
 
+_gmail_plus_finder_regex = re.compile(r'\+[^@]*@')
 _email_address_normalize_regex = re.compile(r'[^a-zA-Z0-9]')
 
 
@@ -102,7 +106,12 @@ def _check_and_add_address_blacklist(address):
     # We need to normalize, otherwise we could get fooled by the fact that
     # "example@gmail.com" is the same as "ex.ample+plus@gmail.com".
     # We're going to be fairly draconian and normalize down to just alpha-numerics.
-    normalized_address = _email_address_normalize_regex.sub('', address)
+
+    # Get rid of the "plus" part.
+    normalized_address = '@'.join(_gmail_plus_finder_regex.split(address))
+
+    # Get rid of non-alphanumerics
+    normalized_address = _email_address_normalize_regex.sub('', normalized_address)
 
     return datastore.check_and_add_response_address_blacklist(normalized_address)
 
@@ -122,6 +131,8 @@ def _get_lang_id_from_diagnostic_info(diagnostic_info):
     lang_id = lang_id or utils.coalesce(diagnostic_info,
                                         ['Feedback', 'Message', 'text_lang_code'],
                                         required_types=utils.string_types)
+    if lang_id and lang_id.find('INDETERMINATE') >= 0:
+        lang_id = None
 
     # All Windows feedback
     lang_id = lang_id or utils.coalesce(diagnostic_info,
@@ -136,6 +147,8 @@ def _get_lang_id_from_diagnostic_info(diagnostic_info):
     lang_id = lang_id or utils.coalesce(diagnostic_info,
                                         ['EmailInfo', 'body', 'text_lang_code'],
                                         required_types=utils.string_types)
+    if lang_id and lang_id.find('INDETERMINATE') >= 0:
+        lang_id = None
 
     # Android, from system language
     lang_id = lang_id or utils.coalesce(diagnostic_info,
@@ -310,7 +323,10 @@ def go():
             # in which case we have a subject to reply to. Or it may have have
             # originated from an uploaded data package, in which case we need
             # set our own subject.
-            subject = (u'Re: %s' % reply_info['subject']) if reply_info['subject'] else response_content['subject']
+            if type(reply_info.get('subject')) is dict and reply_info['subject'].get('text'):
+                subject = u'Re: %s' % reply_info['subject']['text']
+            else:
+                subject = response_content['subject']
 
             try:
                 sender.send_response(reply_info['address'],
