@@ -1,4 +1,6 @@
-# Copyright (c) 2012, Psiphon Inc.
+#!/usr/bin/env python
+
+# Copyright (c) 2013, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -14,14 +16,32 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import os
-import json
+import signal
+import sys
+import time
+
+import logger
+import autoresponder
 
 
-_CONFIG_FILENAME = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    'conf.json')
+def _do_exit(signum, frame):
+    logger.log('Shutting down')
+    sys.exit(0)
 
-config = {}
-with open(_CONFIG_FILENAME, 'r') as conf_fp:
-    config = json.load(conf_fp)
+
+def main():
+    logger.log('Starting up')
+
+    signal.signal(signal.SIGTERM, _do_exit)
+
+    while True:
+        try:
+            autoresponder.go()
+        except Exception:
+            logger.exception()
+            time.sleep(60)
+            continue
+
+
+if __name__ == '__main__':
+    main()

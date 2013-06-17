@@ -169,7 +169,7 @@ Restart ssh:
 
 Create /etc/iptables.rules:
 
-  *filter
+*filter
   -A INPUT -i lo -j ACCEPT
   -A INPUT -d 127.0.0.0/8 ! -i lo -j REJECT --reject-with icmp-port-unreachable
   -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
@@ -212,12 +212,12 @@ Create /etc/iptables.rules:
   -A OUTPUT -p udp --sport 4500 -j ACCEPT
   -A OUTPUT -o ipsec+ -p udp -m udp --dport l2tp -j ACCEPT
   -A OUTPUT -j DROP
-  COMMIT
+COMMIT
 
-  *nat
+*nat
   -A PREROUTING -i eth+ -p tcp --dport 443 -j DNAT --to-destination :8080
   -A POSTROUTING -s 10.0.0.0/8 -o eth+ -j MASQUERADE
-  COMMIT
+COMMIT
 
 Create /etc/network/if-up.d/firewall (chmod +x):
 
@@ -418,6 +418,7 @@ Edit programs/_startklips/_startklips.in:
 
 make programs install
 make KERNELSRC=/lib/modules/`uname -r`/build module minstall
+
   Edit /etc/init.d/ipsec: set Default-Start: 2 3 4 5
 update-rc.d ipsec defaults
 reboot
@@ -430,8 +431,8 @@ cd /root
 
 wget http://geolite.maxmind.com/download/geoip/api/c/GeoIP.tar.gz
 tar xvf GeoIP.tar.gz
-cd GeoIP
-[apt-get install zlib1g-dev]
+cd GeoIP-1.4.8
+# [apt-get install zlib1g-dev]
 ./configure
 make
 make check
@@ -443,8 +444,8 @@ cd ..
 wget http://geolite.maxmind.com/download/geoip/api/python/GeoIP-Python-1.2.7.tar.gz
 tar xvf GeoIP-Python-1.2.7.tar.gz
 cd GeoIP-Python-1.2.7
-[apt-get install gcc]
-[apt-get install python-dev]
+# [apt-get install gcc]
+# [apt-get install python-dev]
 python setup.py build
 python setup.py install
 

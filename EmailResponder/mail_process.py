@@ -1,4 +1,4 @@
-# Copyright (c) 2012, Psiphon Inc.
+# Copyright (c) 2013, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -17,7 +17,6 @@
 
 import sys
 import os
-import errno
 import syslog
 import email
 import json
@@ -25,15 +24,14 @@ import re
 import traceback
 import time
 import tempfile
-import hashlib
 import dkim
-from boto.s3.connection import S3Connection
+import errno
 from boto.exception import BotoServerError
 
 import settings
 import sendmail
 import blacklist
-
+import s3_helpers
 
 
 class MailResponder:
@@ -61,9 +59,9 @@ class MailResponder:
 
             # Do some validation
             for item in self._conf:
-                if not item.has_key('email_addr') \
-                        or not item.has_key('body') \
-                        or not item.has_key('attachments'):
+                if 'email_addr' not in item \
+                        or 'body' not in item \
+                        or 'attachments' not in item:
                     raise Exception('invalid config item: %s' % repr(item))
 
         except Exception as ex:
@@ -71,7 +69,7 @@ class MailResponder:
             return False
 
         return True
-    
+
     def process_email(self, email_string):
         '''
         Processes the given email and sends a response.
@@ -85,7 +83,7 @@ class MailResponder:
 
         # Look up all config entries matching the requested address.
         request_conf = [item for item in self._conf if item['email_addr'] == self.requested_addr]
-        
+
         # If we didn't find anything for that address, exit.
         if not request_conf:
             syslog.syslog(syslog.LOG_INFO, 'fail: invalid requested address: %s' % self.requested_addr)
@@ -97,34 +95,40 @@ class MailResponder:
             return False
 
         # Process each config entry found the for the requested address separately.
+        # Don't fail out early, since the other email send method has a chance
+        # to succeed even if one fails. (I.e., SMTP will succeed even if there's
+        # a SES service problem.)
+        full_success = True
+        exception_to_raise = None
         for conf in request_conf:
             attachments = None
             if conf['attachments']:
                 attachments = []
                 for attachment_info in conf['attachments']:
                     bucketname, bucket_filename, attachment_filename = attachment_info
-                    attachments.append((get_s3_attachment(bucketname, bucket_filename),
+                    attachments.append((s3_helpers.get_s3_attachment(settings.ATTACHMENT_CACHE_DIR,
+                                                                     bucketname,
+                                                                     bucket_filename),
                                         attachment_filename))
-    
-            extra_headers = { 
-                             'Reply-To': self.requested_addr
-                            }
-    
+
+            extra_headers = {'Reply-To': self.requested_addr}
+
             if self._requester_msgid:
                 extra_headers['In-Reply-To'] = self._requester_msgid
                 extra_headers['References'] = self._requester_msgid
-    
+
             raw_response = sendmail.create_raw_email(self._requester_addr,
                                                      self._response_from_addr,
                                                      self._subject,
                                                      conf['body'],
                                                      attachments,
                                                      extra_headers)
-    
+
             if not raw_response:
-                return False
-    
-            if conf.has_key('send_method') and conf['send_method'].upper() == 'SES':
+                full_success = False
+                continue
+
+            if conf.get('send_method', '').upper() == 'SES':
                 # If sending via SES, we'll use its DKIM facility -- so don't do it here.
                 try:
                     if not sendmail.send_raw_email_amazonses(raw_response,
@@ -133,18 +137,23 @@ class MailResponder:
                 except BotoServerError as ex:
                     if ex.error_message == 'Address blacklisted.':
                         syslog.syslog(syslog.LOG_CRIT, 'fail: requester address blacklisted by SES')
-                        return False
                     else:
-                        raise
+                        exception_to_raise = ex
+
+                    full_success = False
+                    continue
             else:
                 raw_response = _dkim_sign_email(raw_response)
-    
-                if not sendmail.send_raw_email_smtp(raw_response,
-                                                    settings.COMPLAINTS_ADDRESS, # will be Return-Path
-                                                    self._requester_addr):
-                    return False
 
-        return True
+                if not sendmail.send_raw_email_smtp(raw_response,
+                                                    settings.COMPLAINTS_ADDRESS,  # will be Return-Path
+                                                    self._requester_addr):
+                    full_success = False
+                    continue
+
+        if exception_to_raise:
+            raise exception_to_raise
+        return full_success
 
     def _check_blacklist(self):
         '''
@@ -205,17 +214,19 @@ class MailResponder:
             else:
                 syslog.syslog(syslog.LOG_INFO, 'fail: unparsable requester address')
                 dump_to_exception_file('fail: unparsable requester address\n\n%s' % self._email_string)
-                
+
             return False
 
         self._subject = decode_header(self._email['Subject'])
-        if not self._subject: self._subject = ''
+        if not self._subject:
+            self._subject = ''
 
         # Add 'Re:' to the subject
         self._subject = u'Re: %s' % self._subject
 
         self._requester_msgid = decode_header(self._email['Message-ID'])
-        if not self._requester_msgid: self._requester_msgid = None
+        if not self._requester_msgid:
+            self._requester_msgid = None
 
         return True
 
@@ -240,7 +251,7 @@ class MailResponder:
 
         print 'Email sent'
         return True
-    
+
 
 def strip_email(email_address):
     '''
@@ -264,64 +275,17 @@ def decode_header(header_val):
     Returns None if decoding fails. Otherwise returns the decoded value.
     '''
     try:
-        if not header_val: return None
+        if not header_val:
+            return None
 
         hdr = email.header.decode_header(header_val)
-        if not hdr: return None
+        if not hdr:
+            return None
 
-        return ' '.join([text.decode(encoding) if encoding else text for text,encoding in hdr])
+        return ' '.join([text.decode(encoding) if encoding else text
+                         for text, encoding in hdr])
     except:
         return None
-
-
-def get_s3_attachment(bucketname, bucket_filename):
-    '''
-    Returns a file-type object for the Psiphon 3 executable in the requested
-    bucket with the given filename.
-    This function checks if the file has already been downloaded. If it has,
-    it checks that the checksum still matches the file in S3. If the file doesn't
-    exist, or if it the checksum doesn't match, the
-    '''
-
-    # Make the attachment cache dir, if it doesn't exist
-    try:
-        os.makedirs(settings.ATTACHMENT_CACHE_DIR)
-    except OSError as exc: # Python >2.5
-        if exc.errno == errno.EEXIST:
-            pass
-        else: raise
-
-    # Make the connection using the credentials in the boto config file.
-    conn = S3Connection()
-
-    bucket = conn.get_bucket(bucketname)
-    key = bucket.get_key(bucket_filename)
-    etag = key.etag.strip('"').lower()
-
-    # We store the cached file with the bucket name as the filename
-    cache_path = os.path.join(settings.ATTACHMENT_CACHE_DIR, bucketname+bucket_filename)
-
-    # Check if the file exists. If so, check if it's stale.
-    if os.path.isfile(cache_path):
-        cache_file = open(cache_path, 'r')
-        cache_hex = hashlib.md5(cache_file.read()).hexdigest().lower()
-
-        # Do the hashes match?
-        if etag == cache_hex:
-            cache_file.seek(0)
-            return cache_file
-
-        cache_file.close()
-
-    # The cached file either doesn't exist or is stale.
-    cache_file = open(cache_path, 'w')
-    key.get_file(cache_file)
-
-    # Close the file and re-open for read-only
-    cache_file.close()
-    cache_file = open(cache_path, 'r')
-
-    return cache_file
 
 
 def _dkim_sign_email(raw_email):
@@ -334,22 +298,33 @@ def _dkim_sign_email(raw_email):
                     open(settings.DKIM_PRIVATE_KEY).read())
     return sig + raw_email
 
+
 def dump_to_exception_file(string):
     if settings.EXCEPTION_DIR:
+        # Make sure the exceptions directory exists
+        try:
+            os.makedirs(settings.EXCEPTION_DIR)
+        except OSError as e:
+            if e.errno == errno.EEXIST and os.path.isdir(settings.EXCEPTION_DIR):
+                pass
+            else:
+                raise
+
         temp = tempfile.mkstemp(suffix='.txt', dir=settings.EXCEPTION_DIR)
         f = os.fdopen(temp[0], 'w')
         f.write(string)
         f.close()
 
+
 def forward_to_administrator(email_type, email_string):
     '''
     `email_type` should be something like "Complaint".
     '''
-    
+
     if settings.ADMIN_FORWARD_ADDRESSES:
-        raw = sendmail.create_raw_email(settings.ADMIN_FORWARD_ADDRESSES, 
-                                        settings.RESPONSE_FROM_ADDR, 
-                                        '[MailResponder] ' + email_type, 
+        raw = sendmail.create_raw_email(settings.ADMIN_FORWARD_ADDRESSES,
+                                        settings.RESPONSE_FROM_ADDR,
+                                        '[MailResponder] ' + email_type,
                                         email_string)
         if not raw:
             print 'create_raw_email failed'
@@ -358,15 +333,14 @@ def forward_to_administrator(email_type, email_string):
         raw = _dkim_sign_email(raw)
 
         # Throws exception on error
-        if not sendmail.send_raw_email_smtp(raw, 
-                                            settings.RESPONSE_FROM_ADDR, 
+        if not sendmail.send_raw_email_smtp(raw,
+                                            settings.RESPONSE_FROM_ADDR,
                                             settings.ADMIN_FORWARD_ADDRESSES):
             print 'send_raw_email_smtp failed'
             return False
 
         print 'Email sent'
-        return True        
-
+        return True
 
 
 def process_input(email_string):

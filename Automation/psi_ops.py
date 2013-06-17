@@ -30,6 +30,7 @@ import tempfile
 import random
 import optparse
 import operator
+import gzip
 from pkg_resources import parse_version
 
 import psi_utils
@@ -102,6 +103,16 @@ try:
 except ImportError as error:
     print error
 
+plugins = []
+try:
+    sys.path.insert(0, os.path.abspath('../../Plugins'))
+    import psi_ops_plugins
+    for (path, plugin) in psi_ops_plugins.PLUGINS:
+        sys.path.insert(0, path)
+        plugins.append(__import__(plugin))
+except ImportError as error:
+    print error
+
 # NOTE: update compartmentalize() functions when adding fields
 
 PropagationChannel = psi_utils.recordtype(
@@ -132,7 +143,7 @@ SponsorHomePage = psi_utils.recordtype(
 
 SponsorCampaign = psi_utils.recordtype(
     'SponsorCampaign',
-    'propagation_channel_id, propagation_mechanism_type, account, s3_bucket_name, languages')
+    'propagation_channel_id, propagation_mechanism_type, account, s3_bucket_name, languages, custom_download_site')
 
 SponsorRegex = psi_utils.recordtype(
     'SponsorRegex',
@@ -148,7 +159,7 @@ Host = psi_utils.recordtype(
 Server = psi_utils.recordtype(
     'Server',
     'id, host_id, ip_address, egress_ip_address, internal_ip_address, ' +
-    'propagation_channel_id, is_embedded, discovery_date_range, capabilities, ' +
+    'propagation_channel_id, is_embedded, is_permanent, discovery_date_range, capabilities, ' +
     'web_server_port, web_server_secret, web_server_certificate, web_server_private_key, ' +
     'ssh_port, ssh_username, ssh_password, ssh_host_key, ssh_obfuscated_port, ssh_obfuscated_key',
     default=None)
@@ -231,13 +242,21 @@ FeedbackUploadInfo = psi_utils.recordtype(
     'FeedbackUploadInfo',
     'upload_server, upload_path, upload_server_headers')
 
+UpgradePackageSigningKeyPair = psi_utils.recordtype(
+    'UpgradePackageSigningKeyPair',
+    'pem_key_pair')
+
+# The UpgradePackageSigningKeyPair record is stored in the secure management
+# database, so we don't require a secret key pair wrapping password
+UPGRADE_PACKAGE_SIGNING_KEY_PAIR_PASSWORD = 'none'
+
 CLIENT_PLATFORM_WINDOWS = 'Windows'
 CLIENT_PLATFORM_ANDROID = 'Android'
 
 
 class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
-    def __init__(self):
+    def __init__(self, initialize_plugins=True):
         super(PsiphonNetwork, self).__init__()
         # TODO: what is this __version for?
         self.__version = '1.0'
@@ -272,10 +291,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__deploy_email_config_required = False
         self.__speed_test_urls = []
         self.__remote_server_list_signing_key_pair = None
-        self.__feedback_encryption_signing_key_pair = None
+        self.__feedback_encryption_key_pair = None
         self.__feedback_upload_info = None
+        self.__upgrade_package_signing_key_pair = None
+        if initialize_plugins:
+            self.initialize_plugins()
 
-    class_version = '0.14'
+    class_version = '0.17'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -353,6 +375,26 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.14')) < 0:
             self.__feedback_upload_info = None
             self.version = '0.14'
+        if cmp(parse_version(self.version), parse_version('0.15')) < 0:
+            for server in self.__servers.itervalues():
+                server.is_permanent = False
+            for server in self.__deleted_servers.itervalues():
+                server.is_permanent = False
+            self.version = '0.15'
+        if cmp(parse_version(self.version), parse_version('0.16')) < 0:
+            for sponsor in self.__sponsors.itervalues():
+                for campaign in sponsor.campaigns:
+                    campaign.custom_download_site = False
+            self.version = '0.16'
+        if cmp(parse_version(self.version), parse_version('0.17')) < 0:
+            self.__upgrade_package_signing_key_pair = None
+            self.version = '0.17'
+
+
+    def initialize_plugins(self):
+        for plugin in plugins:
+            if hasattr(plugin, 'initialize'):
+                plugin.initialize(self)
 
     def show_status(self):
         # NOTE: verbose mode prints credentials to stdout
@@ -416,7 +458,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.show_sponsor(s.name)
 
     def show_sponsor(self, sponsor_name):
-        s = self.__get_sponsor_by_name(sponsor_name)
+        s = self.get_sponsor_by_name(sponsor_name)
         print textwrap.dedent('''
             ID:                      %(id)s
             Name:                    %(name)s
@@ -466,7 +508,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if now == None:
             now = datetime.datetime.now()
         p = self.get_propagation_channel_by_name(propagation_channel_name)
-        embedded_servers = [server.id for server in self.__servers.itervalues()
+        embedded_servers = [server.id + (' (permanent)' if server.is_permanent else '') for server in self.__servers.itervalues()
                             if server.propagation_channel_id == p.id and server.is_embedded]
         old_propagation_servers = [server.id for server in self.__servers.itervalues()
                                    if server.propagation_channel_id == p.id and
@@ -542,6 +584,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             IP Address:              %s
             Propagation Channel:     %s
             Is Embedded:             %s
+            Is Permanent:            %s
             Discovery Date Range:    %s
             ''') % (
                 s.id,
@@ -552,13 +595,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 s.ip_address,
                 self.__propagation_channels[s.propagation_channel_id].name if s.propagation_channel_id else 'None',
                 s.is_embedded,
+                s.is_permanent,
                 ('%s - %s' % (s.discovery_date_range[0].isoformat(),
                             s.discovery_date_range[1].isoformat())) if s.discovery_date_range else 'None')
         self.__show_logs(s)
 
     def show_host(self, host_id, show_logs=False):
         host = self.__hosts[host_id]
-        servers = [self.__servers[s].id
+        servers = [self.__servers[s].id + (' (permanent)' if self.__servers[s].is_permanent else '')
                    for s in self.__servers
                    if self.__servers[s].host_id == host_id]
 
@@ -600,8 +644,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return ''.join([chars[ord(os.urandom(1)) % len(chars)] for i in range(count)])
 
     def get_propagation_channel_by_name(self, name):
-        return filter(lambda x: x.name == name,
-                      self.__propagation_channels.itervalues())[0]
+        matches = filter(lambda x: x.name == name,
+                         self.__propagation_channels.itervalues())
+        return matches[0] if matches else None
 
     def get_propagation_channel_by_id(self, id):
         return self.__propagation_channels[id] if id in self.__propagation_channels else None
@@ -643,9 +688,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         propagation_channel.max_propagation_server_age_in_days = age
         propagation_channel.log('Max propagation server age set to %d days' % (age,))
 
-    def __get_sponsor_by_name(self, name):
-        return filter(lambda x: x.name == name,
-                      self.__sponsors.itervalues())[0]
+    def get_sponsor_by_name(self, name):
+        matches = filter(lambda x: x.name == name,
+                         self.__sponsors.itervalues())
+        return matches[0] if matches else None
 
     def get_sponsor_by_id(self, id):
         return self.__sponsors[id] if id in self.__sponsors else None
@@ -665,7 +711,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(self.is_locked)
         with open(banner_filename, 'rb') as file:
             banner = base64.b64encode(file.read())
-        sponsor = self.__get_sponsor_by_name(name)
+        sponsor = self.get_sponsor_by_name(name)
         sponsor.banner = banner
         sponsor.log('set banner')
         for campaign in sponsor.campaigns:
@@ -676,7 +722,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def add_sponsor_email_campaign(self, sponsor_name, propagation_channel_name, email_account):
         assert(self.is_locked)
-        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         propagation_mechanism_type = 'email-autoresponder'
         assert(propagation_mechanism_type in propagation_channel.propagation_mechanism_types)
@@ -685,7 +731,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                    propagation_mechanism_type,
                                    EmailPropagationAccount(email_account),
                                    None,
-                                   None)
+                                   None,
+                                   False)
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
             sponsor.log('add email campaign %s' % (email_account,))
@@ -702,7 +749,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                      twitter_account_access_token_key,
                                      twitter_account_access_token_secret):
         assert(self.is_locked)
-        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         propagation_mechanism_type = 'twitter'
         assert(propagation_mechanism_type in propagation_channel.propagation_mechanism_types)
@@ -715,7 +762,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         twitter_account_access_token_key,
                                         twitter_account_access_token_secret),
                                    None,
-                                   None)
+                                   None,
+                                   False)
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
             sponsor.log('add twitter campaign %s' % (twitter_account_name,))
@@ -726,7 +774,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def add_sponsor_static_download_campaign(self, sponsor_name, propagation_channel_name):
         assert(self.is_locked)
-        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         propagation_mechanism_type = 'static-download'
         assert(propagation_mechanism_type in propagation_channel.propagation_mechanism_types)
@@ -734,7 +782,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                    propagation_mechanism_type,
                                    None,
                                    None,
-                                   None)
+                                   None,
+                                   False)
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
             sponsor.log('add static download campaign')
@@ -745,7 +794,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def set_sponsor_campaign_s3_bucket_name(self, sponsor_name, propagation_channel_name, account, s3_bucket_name):
         assert(self.is_locked)
-        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         for campaign in sponsor.campaigns:
             if (campaign.propagation_channel_id == propagation_channel.id and
@@ -759,7 +808,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def set_sponsor_home_page(self, sponsor_name, region, url):
         assert(self.is_locked)
-        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
         home_page = SponsorHomePage(region, url)
         if region not in sponsor.home_pages:
             sponsor.home_pages[region] = []
@@ -771,7 +820,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def remove_sponsor_home_page(self, sponsor_name, region, url):
         assert(self.is_locked)
-        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
         home_page = SponsorHomePage(region, url)
         if (region in sponsor.home_pages
             and home_page in sponsor.home_pages[region]):
@@ -782,7 +831,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def set_sponsor_page_view_regex(self, sponsor_name, regex, replace):
         assert(self.is_locked)
-        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
         if not [rx for rx in sponsor.page_view_regexes if rx.regex == regex]:
             sponsor.page_view_regexes.append(SponsorRegex(regex, replace))
             sponsor.log('set page view regex %s; replace %s' % (regex, replace))
@@ -795,7 +844,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         it has to be passed in when removing.
         '''
         assert(self.is_locked)
-        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
         match = [sponsor.page_view_regexes.pop(idx)
                  for (idx, rx)
                  in enumerate(sponsor.page_view_regexes)
@@ -808,7 +857,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def set_sponsor_https_request_regex(self, sponsor_name, regex, replace):
         assert(self.is_locked)
-        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
         if not [rx for rx in sponsor.https_request_regexes if rx.regex == regex]:
             sponsor.https_request_regexes.append(SponsorRegex(regex, replace))
             sponsor.log('set https request regex %s; replace %s' % (regex, replace))
@@ -821,7 +870,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         it has to be passed in when removing.
         '''
         assert(self.is_locked)
-        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
         match = [sponsor.https_request_regexes.pop(idx)
                  for (idx, rx)
                  in enumerate(sponsor.https_request_regexes)
@@ -835,7 +884,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def set_sponsor_name(self, sponsor_name, new_sponsor_name):
         assert(self.is_locked)
         assert(not filter(lambda x: x.name == new_sponsor_name, self.__sponsors.itervalues()))
-        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
         sponsor.name = (new_sponsor_name)
         self.__deploy_stats_config_required = True
         sponsor.log('set sponsor name from \'%s\' to \'%s\'' % (sponsor_name, new_sponsor_name))
@@ -877,7 +926,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__hosts[host.id] = host
 
     def import_server(self, server_id, host_id, ip_address, egress_ip_address, internal_ip_address,
-                      propagation_channel_id, is_embedded, discovery_date_range, capabilities, web_server_port,
+                      propagation_channel_id, is_embedded, is_permanent, discovery_date_range, capabilities, web_server_port,
                       web_server_secret, web_server_certificate, web_server_private_key, ssh_port, ssh_username,
                       ssh_password, ssh_host_key):
         assert(self.is_locked)
@@ -889,6 +938,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     internal_ip_address,
                     propagation_channel_id,
                     is_embedded,
+                    is_permanent,
                     discovery_date_range,
                     capabilities,
                     web_server_port,
@@ -912,7 +962,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server.capabilities['OSSH'] = False
         host = self.__hosts[server.host_id]
         servers = [s for s in self.__servers.itervalues() if s.host_id == server.host_id]
-        psi_ops_install.install_firewall_rules(host, servers)
+        psi_ops_install.install_firewall_rules(host, servers, plugins)
         self.save()
 
     def __count_users_on_host(self, host_id):
@@ -1014,10 +1064,31 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return [server.id for server in self.__servers.itervalues()] + \
                [deleted_server.id for deleted_server in self.__deleted_servers.itervalues()]
 
+    def add_server_to_host(self, host, new_servers):
+
+        existing_servers = [server for server in self.get_servers() if server.host_id == host.id]
+        servers_on_host = existing_servers + new_servers
+
+        psi_ops_install.install_host(host, servers_on_host, self.get_existing_server_ids(), plugins)
+        host.log('install with new servers')
+
+        assert(host.id in self.__hosts)
+
+        for server in new_servers:
+            assert(server.id not in self.__servers)
+            self.__servers[server.id] = server
+
+        psi_ops_deploy.deploy_data(
+                            host,
+                            self.__compartmentalize_data_for_host(host.id))
+
+        for server in servers_on_host:
+            self.test_server(server.id, ['handshake'])
+
     def setup_server(self, host, servers):
         # Install Psiphon 3 and generate configuration values
         # Here, we're assuming one server/IP address per host
-        psi_ops_install.install_host(host, servers, self.get_existing_server_ids())
+        psi_ops_install.install_host(host, servers, self.get_existing_server_ids(), plugins)
         host.log('install')
 
         # Update database
@@ -1036,7 +1107,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # Deploy will upload web server source database data and client builds
         # (Only deploying for the new host, not broadcasting info yet...)
-        psi_ops_deploy.deploy_implementation(host)
+        psi_ops_deploy.deploy_implementation(host, plugins)
         psi_ops_deploy.deploy_data(
                             host,
                             self.__compartmentalize_data_for_host(host.id))
@@ -1059,10 +1130,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if replace_others:
             # If we are creating new propagation servers, stop embedding the old ones
             # (they are still active, but not embedded in builds or discovered)
+            # NEW: don't replace servers marked with is_permanent
             if is_embedded_server:
                 for old_server in self.__servers.itervalues():
                     if (old_server.propagation_channel_id == propagation_channel.id and
-                        old_server.is_embedded):
+                        old_server.is_embedded and
+                        not old_server.is_permanent):
                         old_server.is_embedded = False
                         old_server.log('unembedded')
             # If we are creating new discovery servers, stop discovering existing ones
@@ -1090,7 +1163,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             def provider_launch_new_server_with_retries():
                 for _ in range(3):
                     try:
-                        return provider_launch_new_server(provider_account)
+                        return provider_launch_new_server(provider_account, plugins)
                     except Exception as ex:
                         print str(ex)
                         pass
@@ -1117,6 +1190,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 capabilities['SSH'] = False
                 ssh_port = None
                 ossh_ports = range(1,1023)
+                ossh_ports.remove(15)
                 ossh_ports.remove(135)
                 ossh_ports.remove(136)
                 ossh_ports.remove(137)
@@ -1133,6 +1207,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.ip_address,
                         propagation_channel.id,
                         is_embedded_server,
+                        False,
                         discovery,
                         capabilities,
                         str(random.randrange(8000, 9000)),
@@ -1214,8 +1289,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(self.is_locked)
         host = self.__hosts[host_id]
         servers = [server for server in self.__servers.itervalues() if server.host_id == host_id]
-        psi_ops_install.install_host(host, servers, self.get_existing_server_ids())
-        psi_ops_deploy.deploy_implementation(host)
+        psi_ops_install.install_host(host, servers, self.get_existing_server_ids(), plugins)
+        psi_ops_deploy.deploy_implementation(host, plugins)
         # New data might have been generated
         # NOTE that if the client version has been incremented but a full deploy has not yet been run,
         # this following psi_ops_deploy.deploy_data call is not safe.  Data will specify a new version
@@ -1351,19 +1426,34 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__feedback_upload_info.upload_server_headers = upload_server_headers
             self.__feedback_upload_info.log('FeedbackUploadInfo modified to: "%s", "%s", "%s"' % (upload_server, upload_path, upload_server_headers))
 
+    def __get_upgrade_package_signing_key_pair(self):
+        if not self.__upgrade_package_signing_key_pair:
+            assert(self.is_locked)
+            self.__upgrade_package_signing_key_pair = \
+                UpgradePackageSigningKeyPair(
+                    psi_ops_crypto_tools.generate_key_pair(
+                        UPGRADE_PACKAGE_SIGNING_KEY_PAIR_PASSWORD))
+
+        # This may be serialized/deserialized into a unicode string, but M2Crypto won't accept that.
+        # The key pair should only contain ascii anyways, so encoding to ascii should be safe.
+        self.__upgrade_package_signing_key_pair.pem_key_pair = \
+            self.__upgrade_package_signing_key_pair.pem_key_pair.encode('ascii', 'ignore')
+        return self.__upgrade_package_signing_key_pair
+
     def build(
             self,
             propagation_channel_name,
             sponsor_name,
             remote_server_list_url,
             info_link_url,
+            upgrade_url,
             platforms=None,
             test=False):
         if not platforms:
             platforms = [CLIENT_PLATFORM_WINDOWS, CLIENT_PLATFORM_ANDROID]
 
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
-        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
         encoded_server_list, expected_egress_ip_addresses = \
                     self.__get_encoded_server_list(propagation_channel.id)
 
@@ -1379,10 +1469,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         feedback_upload_info = self.get_feedback_upload_info()
 
+        upgrade_signature_public_key = \
+            psi_ops_crypto_tools.get_base64_der_public_key(
+                self.__get_upgrade_package_signing_key_pair().pem_key_pair,
+                UPGRADE_PACKAGE_SIGNING_KEY_PAIR_PASSWORD)
+
         builders = {
             CLIENT_PLATFORM_WINDOWS: psi_ops_build_windows.build_client,
             CLIENT_PLATFORM_ANDROID: psi_ops_build_android.build_client
         }
+
+        for plugin in plugins:
+            if hasattr(plugin, 'build_android_client'):
+                builders[CLIENT_PLATFORM_ANDROID] = plugin.build_android_client
 
         return [builders[platform](
                         propagation_channel.id,
@@ -1396,6 +1495,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         feedback_upload_info.upload_path,
                         feedback_upload_info.upload_server_headers,
                         info_link_url,
+                        upgrade_signature_public_key,
+                        upgrade_url,
                         self.__client_versions[platform][-1].version if self.__client_versions[platform] else 0,
                         test) for platform in platforms]
 
@@ -1405,7 +1506,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             sponsor_name):
 
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
-        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
 
         campaigns = filter(lambda x: x.propagation_channel_id == propagation_channel.id, sponsor.campaigns)
         assert campaigns
@@ -1423,8 +1524,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 self.get_feedback_encryption_key_pair().pem_key_pair,
                 self.get_feedback_encryption_key_pair().password)
 
-        remote_server_list_url = psi_ops_s3.get_s3_bucket_remote_server_list_url(campaigns[0].s3_bucket_name)
+        remote_server_list_url = psi_ops_s3.get_s3_bucket_resource_url(
+                                    campaign.s3_bucket_name,
+                                    psi_ops_s3.DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME)
+
         info_link_url = psi_ops_s3.get_s3_bucket_home_page_url(campaigns[0].s3_bucket_name)
+        for plugin in plugins:
+            if hasattr(plugin, 'info_link_url'):
+                info_link_url = plugin.info_link_url(CLIENT_PLATFORM_ANDROID)
 
         return psi_ops_build_android.build_library(
                         propagation_channel.id,
@@ -1435,6 +1542,22 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         remote_server_list_url,
                         info_link_url,
                         self.__client_versions[CLIENT_PLATFORM_ANDROID][-1].version if self.__client_versions[CLIENT_PLATFORM_ANDROID] else 0)
+
+    def __make_upgrade_package_from_build(self, build_filename):
+        with open(build_filename, 'rb') as f:
+            data = f.read()
+        authenticated_data_package  = \
+            psi_ops_crypto_tools.make_signed_data(
+                self.__get_upgrade_package_signing_key_pair().pem_key_pair,
+                UPGRADE_PACKAGE_SIGNING_KEY_PAIR_PASSWORD,
+                base64.b64encode(data))
+        upgrade_filename = build_filename + psi_ops_s3.DOWNLOAD_SITE_UPGRADE_SUFFIX
+        f = gzip.open(upgrade_filename, 'wb')
+        try:
+            f.write(authenticated_data_package)
+        finally:
+            f.close()
+        return upgrade_filename
 
     def deploy(self):
         # Deploy as required:
@@ -1454,7 +1577,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Host implementation
 
         hosts = [self.__hosts[host_id] for host_id in self.__deploy_implementation_required_for_hosts]
-        psi_ops_deploy.deploy_implementation_to_hosts(hosts)
+        psi_ops_deploy.deploy_implementation_to_hosts(hosts, plugins)
 
         if len(self.__deploy_implementation_required_for_hosts) > 0:
             self.__deploy_implementation_required_for_hosts.clear()
@@ -1481,8 +1604,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     # have its URL before the build is uploaded to S3. The remote server list
                     # is placed in the S3 bucket.
 
-                    remote_server_list_url = psi_ops_s3.get_s3_bucket_remote_server_list_url(campaign.s3_bucket_name)
+                    remote_server_list_url = psi_ops_s3.get_s3_bucket_resource_url(
+                                                campaign.s3_bucket_name,
+                                                psi_ops_s3.DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME)
+
                     info_link_url = psi_ops_s3.get_s3_bucket_home_page_url(campaign.s3_bucket_name)
+                    for plugin in plugins:
+                        if hasattr(plugin, 'info_link_url'):
+                            info_link_url = plugin.info_link_url(platform)
 
                     remote_server_list = \
                         psi_ops_crypto_tools.make_signed_data(
@@ -1496,13 +1625,23 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         CLIENT_PLATFORM_WINDOWS: psi_ops_s3.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME,
                         CLIENT_PLATFORM_ANDROID: psi_ops_s3.DOWNLOAD_SITE_ANDROID_BUILD_FILENAME
                     }
+                    for plugin in plugins:
+                        if hasattr(plugin, 'adjust_client_build_filenames'):
+                            plugin.adjust_client_build_filenames(client_build_filenames)
+
+                    s3_upgrade_resource_name = client_build_filenames[platform] + psi_ops_s3.DOWNLOAD_SITE_UPGRADE_SUFFIX
+
+                    upgrade_url = psi_ops_s3.get_s3_bucket_resource_url(campaign.s3_bucket_name, s3_upgrade_resource_name)
 
                     build_filename = self.build(
                                         propagation_channel.name,
                                         sponsor.name,
                                         remote_server_list_url,
                                         info_link_url,
+                                        upgrade_url,
                                         [platform])[0]
+
+                    upgrade_filename = self.__make_upgrade_package_from_build(build_filename)
 
                     # Upload client builds
                     # We only upload the builds for Propagation Channel IDs that need to be known for the host.
@@ -1510,15 +1649,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     # However, we do not want to prevent an upgrade in the case where a user has
                     # downloaded from multiple propagation channels, and might therefore be connecting
                     # to a server from one propagation channel using a build from a different one.
-                    psi_ops_deploy.deploy_build_to_hosts(self.__hosts.itervalues(), build_filename)
+                    # UPDATE: Now clients get update packages out-of-band (S3). This server-hosted
+                    # upgrade capability may be resurrected in the future if necessary.
+                    #psi_ops_deploy.deploy_build_to_hosts(self.__hosts.itervalues(), build_filename)
 
                     # Publish to propagation mechanisms
 
                     psi_ops_s3.update_s3_download(
                         self.__aws_account,
-                        [(build_filename, client_build_filenames[platform])],
+                        [(build_filename, client_build_filenames[platform]),
+                         (upgrade_filename, s3_upgrade_resource_name)],
                         remote_server_list,
-                        campaign.s3_bucket_name)
+                        campaign.s3_bucket_name,
+                        campaign.custom_download_site)
                     campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
 
                     if campaign.propagation_mechanism_type == 'twitter':
@@ -1567,7 +1710,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for sponsor in self.__sponsors.itervalues():
             for campaign in sponsor.campaigns:
                 if campaign.s3_bucket_name:
-                    psi_ops_s3.update_s3_download(self.__aws_account, None, None, campaign.s3_bucket_name)
+                    psi_ops_s3.update_s3_download(self.__aws_account, None, None, campaign.s3_bucket_name, campaign.custom_download_site)
                     campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
 
     def update_routes(self):
@@ -1706,7 +1849,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def deploy_implementation_and_data_for_host_with_server(self, server_id):
         server = filter(lambda x: x.id == server_id, self.__servers.itervalues())[0]
         host = filter(lambda x: x.id == server.host_id, self.__hosts.itervalues())[0]
-        psi_ops_deploy.deploy_implementation(host)
+        psi_ops_deploy.deploy_implementation(host, plugins)
         psi_ops_deploy.deploy_data(host, self.__compartmentalize_data_for_host(host.id))
 
     def deploy_implementation_and_data_for_propagation_channel(self, propagation_channel_name):
@@ -2039,7 +2182,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # - send home pages for all sponsors, but omit names, banners, campaigns
         # - send versions info for upgrades
 
-        copy = PsiphonNetwork()
+        copy = PsiphonNetwork(initialize_plugins=False)
 
         for propagation_channel in self.__propagation_channels.itervalues():
             copy.__propagation_channels[propagation_channel.id] = PropagationChannel(
@@ -2064,6 +2207,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 server.internal_ip_address,
                                                 server.propagation_channel_id,
                                                 server.is_embedded,
+                                                server.is_permanent,
                                                 server.discovery_date_range,
                                                 server.capabilities,
                                                 server.web_server_port,
@@ -2110,7 +2254,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # the information to replace server IPs with server IDs, sponsor IDs
         # with names and propagation IDs with names
 
-        copy = PsiphonNetwork()
+        copy = PsiphonNetwork(initialize_plugins=False)
 
         for host in self.__hosts.itervalues():
             copy.__hosts[host.id] = Host(
@@ -2134,7 +2278,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             None,
                                             server.internal_ip_address,
                                             None,
-                                            None,
+                                            server.is_embedded,
+                                            server.is_permanent,
                                             server.discovery_date_range)
                                             # Omit: propagation, web server, ssh info
 
@@ -2146,7 +2291,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             None,
                                             deleted_server.internal_ip_address,
                                             None,
-                                            None,
+                                            deleted_server.is_embedded,
+                                            deleted_server.is_permanent,
                                             deleted_server.discovery_date_range)
                                             # Omit: propagation, web server, ssh info
 
@@ -2166,7 +2312,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         sponsor.name,
                                         '',
                                         {},
-                                        [],
+                                        sponsor.campaigns,
                                         [],
                                         [])  # Omit banner, home pages, campaigns, regexes
 
@@ -2226,7 +2372,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 server.web_server_port,
                                 server.web_server_secret,
                                 [self.__get_encoded_server_entry(server)],
-                                self.__client_versions[CLIENT_PLATFORM_WINDOWS][-1].version,  # This uses the Windows client
+                                self.__client_versions[CLIENT_PLATFORM_WINDOWS][-1].version if self.__client_versions[CLIENT_PLATFORM_WINDOWS] else 0,  # This uses the Windows client
                                 [server.egress_ip_address],
                                 test_propagation_channel_id,
                                 test_cases)
@@ -2290,7 +2436,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__test_servers(servers, test_cases)
 
     def test_sponsor(self, sponsor_name, test_cases=None):
-        sponsor = self.__get_sponsor_by_name(sponsor_name)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
         propagation_channel_ids = set()
         for campaign in sponsor.campaigns:
             propagation_channel_ids.add(campaign.propagation_channel_id)
@@ -2338,7 +2484,9 @@ def unit_test():
 def create():
     # Create a new network object and persist it
     psinet = PsiphonNetwork()
+    psinet.is_locked = True
     psinet.save()
+    psinet.release()
 
 
 def interact(lock):
