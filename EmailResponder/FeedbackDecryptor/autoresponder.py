@@ -93,6 +93,7 @@ def _get_email_reply_info(diagnostic_info):
     return reply_info
 
 
+_gmail_plus_finder_regex = re.compile(r'\+[^@]*@')
 _email_address_normalize_regex = re.compile(r'[^a-zA-Z0-9]')
 
 
@@ -105,7 +106,12 @@ def _check_and_add_address_blacklist(address):
     # We need to normalize, otherwise we could get fooled by the fact that
     # "example@gmail.com" is the same as "ex.ample+plus@gmail.com".
     # We're going to be fairly draconian and normalize down to just alpha-numerics.
-    normalized_address = _email_address_normalize_regex.sub('', address)
+
+    # Get rid of the "plus" part.
+    normalized_address = '@'.join(_gmail_plus_finder_regex.split(address))
+
+    # Get rid of non-alphanumerics
+    normalized_address = _email_address_normalize_regex.sub('', normalized_address)
 
     return datastore.check_and_add_response_address_blacklist(normalized_address)
 
