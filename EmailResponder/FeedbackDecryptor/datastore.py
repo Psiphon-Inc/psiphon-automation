@@ -58,11 +58,17 @@ _errors_store = _db.errors
 
 # This index is used for iterating through the diagnostic_info store, and
 # for stats queries.
-_diagnostic_info_store.ensure_index('datetime')
+# It's also a TTL index, and purges old records.
+_DIAGNOSTIC_DATA_LIFETIME_SECS = 60*60*24*7*26  # half a year
+_diagnostic_info_store.ensure_index('datetime', expireAfterSeconds=_DIAGNOSTIC_DATA_LIFETIME_SECS)
 
 # We use a TTL index on the response_blacklist collection, to expire records.
 _BLACKLIST_LIFETIME_SECS = 60*60*24  # one day
 _response_blacklist_store.ensure_index('datetime', expireAfterSeconds=_BLACKLIST_LIFETIME_SECS)
+
+# Add a TTL index to the errors store.
+_ERRORS_LIFETIME_SECS = 60*60*24*7*26  # half a year
+_errors_store.ensure_index('datetime', expireAfterSeconds=_ERRORS_LIFETIME_SECS)
 
 
 #
