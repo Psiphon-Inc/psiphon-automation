@@ -30,11 +30,13 @@ sed "s|fill-in-with-path-to-source|\"`pwd`\"|" maildecryptor.conf > maildecrypto
 sed "s|fill-in-with-path-to-source|\"`pwd`\"|" s3decryptor.conf > s3decryptor.conf.configured
 sed "s|fill-in-with-path-to-source|\"`pwd`\"|" mailsender.conf > mailsender.conf.configured
 sed "s|fill-in-with-path-to-source|\"`pwd`\"|" statschecker.conf > statschecker.conf.configured
+sed "s|fill-in-with-path-to-source|\"`pwd`\"|" autoresponder.conf > autoresponder.conf.configured
 
 sudo cp maildecryptor.conf.configured /etc/init/maildecryptor.conf
 sudo cp s3decryptor.conf.configured /etc/init/s3decryptor.conf
 sudo cp mailsender.conf.configured /etc/init/mailsender.conf
 sudo cp statschecker.conf.configured /etc/init/statschecker.conf
+sudo cp autoresponder.conf.configured /etc/init/autoresponder.conf
 
 sudo chmod 0400 *.pem conf.json
 sudo chown $MAILDECRYPTOR_USER:$MAILDECRYPTOR_USER *.pem conf.json
@@ -43,6 +45,7 @@ sudo stop maildecryptor
 sudo stop s3decryptor
 sudo stop mailsender
 sudo stop statschecker
+sudo stop autoresponder
 
 echo "Done."
 echo ""
@@ -51,4 +54,5 @@ echo " > sudo start maildecryptor"
 echo " > sudo start s3decryptor"
 echo " > sudo start mailsender"
 echo " > sudo start statschecker"
+echo " > sudo start autoresponder"
 echo ""

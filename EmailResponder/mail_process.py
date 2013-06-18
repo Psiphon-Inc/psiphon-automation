@@ -1,4 +1,4 @@
-# Copyright (c) 2012, Psiphon Inc.
+# Copyright (c) 2013, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -17,7 +17,6 @@
 
 import sys
 import os
-import errno
 import syslog
 import email
 import json
@@ -25,15 +24,14 @@ import re
 import traceback
 import time
 import tempfile
-import hashlib
 import dkim
-from boto.s3.connection import S3Connection
+import errno
 from boto.exception import BotoServerError
 
 import settings
 import sendmail
 import blacklist
-
+import s3_helpers
 
 
 class MailResponder:
@@ -61,9 +59,9 @@ class MailResponder:
 
             # Do some validation
             for item in self._conf:
-                if not item.has_key('email_addr') \
-                        or not item.has_key('body') \
-                        or not item.has_key('attachments'):
+                if 'email_addr' not in item \
+                        or 'body' not in item \
+                        or 'attachments' not in item:
                     raise Exception('invalid config item: %s' % repr(item))
 
         except Exception as ex:
@@ -108,12 +106,12 @@ class MailResponder:
                 attachments = []
                 for attachment_info in conf['attachments']:
                     bucketname, bucket_filename, attachment_filename = attachment_info
-                    attachments.append((get_s3_attachment(bucketname, bucket_filename),
+                    attachments.append((s3_helpers.get_s3_attachment(settings.ATTACHMENT_CACHE_DIR,
+                                                                     bucketname,
+                                                                     bucket_filename),
                                         attachment_filename))
 
-            extra_headers = {
-                             'Reply-To': self.requested_addr
-                            }
+            extra_headers = {'Reply-To': self.requested_addr}
 
             if self._requester_msgid:
                 extra_headers['In-Reply-To'] = self._requester_msgid
@@ -220,13 +218,15 @@ class MailResponder:
             return False
 
         self._subject = decode_header(self._email['Subject'])
-        if not self._subject: self._subject = ''
+        if not self._subject:
+            self._subject = ''
 
         # Add 'Re:' to the subject
         self._subject = u'Re: %s' % self._subject
 
         self._requester_msgid = decode_header(self._email['Message-ID'])
-        if not self._requester_msgid: self._requester_msgid = None
+        if not self._requester_msgid:
+            self._requester_msgid = None
 
         return True
 
@@ -275,65 +275,17 @@ def decode_header(header_val):
     Returns None if decoding fails. Otherwise returns the decoded value.
     '''
     try:
-        if not header_val: return None
+        if not header_val:
+            return None
 
         hdr = email.header.decode_header(header_val)
-        if not hdr: return None
+        if not hdr:
+            return None
 
-        return ' '.join([text.decode(encoding) if encoding else text for text,encoding in hdr])
+        return ' '.join([text.decode(encoding) if encoding else text
+                         for text, encoding in hdr])
     except:
         return None
-
-
-def get_s3_attachment(bucketname, bucket_filename):
-    '''
-    Returns a file-type object for the Psiphon 3 executable in the requested
-    bucket with the given filename.
-    This function checks if the file has already been downloaded. If it has,
-    it checks that the checksum still matches the file in S3. If the file doesn't
-    exist, or if it the checksum doesn't match, the
-    '''
-
-    # Make the attachment cache dir, if it doesn't exist
-    try:
-        os.makedirs(settings.ATTACHMENT_CACHE_DIR)
-    except OSError as exc:
-        if exc.errno == errno.EEXIST:
-            pass
-        else:
-            raise
-
-    # Make the connection using the credentials in the boto config file.
-    conn = S3Connection()
-
-    bucket = conn.get_bucket(bucketname)
-    key = bucket.get_key(bucket_filename)
-    etag = key.etag.strip('"').lower()
-
-    # We store the cached file with the bucket name as the filename
-    cache_path = os.path.join(settings.ATTACHMENT_CACHE_DIR, bucketname+bucket_filename)
-
-    # Check if the file exists. If so, check if it's stale.
-    if os.path.isfile(cache_path):
-        cache_file = open(cache_path, 'r')
-        cache_hex = hashlib.md5(cache_file.read()).hexdigest().lower()
-
-        # Do the hashes match?
-        if etag == cache_hex:
-            cache_file.seek(0)
-            return cache_file
-
-        cache_file.close()
-
-    # The cached file either doesn't exist or is stale.
-    cache_file = open(cache_path, 'w')
-    key.get_file(cache_file)
-
-    # Close the file and re-open for read-only
-    cache_file.close()
-    cache_file = open(cache_path, 'r')
-
-    return cache_file
 
 
 def _dkim_sign_email(raw_email):
@@ -389,7 +341,6 @@ def forward_to_administrator(email_type, email_string):
 
         print 'Email sent'
         return True
-
 
 
 def process_input(email_string):

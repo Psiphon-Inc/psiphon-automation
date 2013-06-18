@@ -33,7 +33,7 @@ def parse_attachment(message_part, attachments=None):
                 else:
                     file_data = message_part.get_payload(decode=True)
                     if not file_data:
-                        payload = message_part.get_payload()
+                        payload = message_part.get_payload(decode=True)
                         if isinstance(payload, list):
                             for msgobj in payload:
                                 _parse2(msgobj, attachments)
@@ -97,7 +97,7 @@ def _parse2(msgobj, attachments=None):
         elif part.get_content_type() == "text/plain":
             if body is None:
                 body = ""
-            payload = part.get_payload()
+            payload = part.get_payload(decode=True)
             encoding = part.get_content_charset()
             if encoding:
                 encoding = encoding.replace("windows-874", "cp874")
@@ -106,7 +106,7 @@ def _parse2(msgobj, attachments=None):
         elif part.get_content_type() == "text/html":
             if html is None:
                 html = ""
-            payload = part.get_payload()
+            payload = part.get_payload(decode=True)
             encoding = part.get_content_charset()
             if encoding:
                 encoding = encoding.replace("windows-874", "cp874")

@@ -192,7 +192,13 @@ def launch_new_server(linode_account, plugins):
 
 def remove_server(linode_account, linode_id):
     linode_api = linode.api.Api(key=linode_account.api_key)
-    linode_api.linode_delete(LinodeID=linode_id, skipChecks=True)
+    try:
+        linode_api.linode_delete(LinodeID=linode_id, skipChecks=True)
+    except linode.api.ApiError as e:
+        # ApiError: [{u'ERRORCODE': 5, u'ERRORMESSAGE': u'Object not found'}]
+        # means this server has already been removed
+        if e.value[0]['ERRORCODE'] != 5:
+            raise e
 
 
 def make_datacenter_name(location):
