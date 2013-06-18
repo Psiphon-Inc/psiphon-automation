@@ -8,15 +8,20 @@ en:
         for you so we can make the system better!
 
     top_para_2: |
+        Many problems can be fixed by downloading the latest version. You can
+        <a class="newVersionURL" href="#">download the latest version by clicking here</a>,
+        or you can send an email to <span id="newVersionEmail"></span>.
+        You can also find solutions to many common problems in our
+        <a class="faqURL" href="#">Frequently Asked Questions</a>.
+
+    top_para_3: |
         If you have any other feedback, bug reports, etc., that you'd like to
         give us, <a id="showTextFeedback" href="#">just click here</a>.
 
     questionnaire_diagnostic_check: |
         Upload diagnostic data. Please note that this diagnostic data does not
         identify you, and it will help us to keep Psiphon running smoothly.
-        <a href="https://s3.amazonaws.com/0ubz-2q11-gi9y/en.html#what_user_information_does_psiphon_3_collect">
-        Click here to see what data we collect.
-        </a>
+        <a class="dataCollectionInfoURL" href="#">Click here to see what data we collect.</a>
 
     connectivity_title:  Connectivity
 
@@ -56,9 +61,7 @@ en:
         Please note that some diagnostic data will be attached to the email.
         This diagnostic data does not identify you, and it will help us to keep
         Psiphon running smoothly.
-        <a href="https://s3.amazonaws.com/0ubz-2q11-gi9y/en.html#what_user_information_does_psiphon_3_collect">
-        Click here to see what data we collect.
-        </a>
+        <a class="dataCollectionInfoURL" href="#">Click here to see what data we collect.</a>
 
     text_feedback_top_para_windows: |
         If you have any specific comments, further information about web sites that do not work, or if the questionnaire is not working for you, please fill in the form below.
@@ -72,6 +75,4 @@ en:
     text_feedback_diagnostic_check: |
         Upload diagnostic data. Please note that this diagnostic data does not
         identify you, and it will help us to keep Psiphon running smoothly.
-        <a href="https://s3.amazonaws.com/0ubz-2q11-gi9y/en.html#what_user_information_does_psiphon_3_collect">
-        Click here to see what data we collect.
-        </a>
+        <a class="dataCollectionInfoURL" href="#">Click here to see what data we collect.</a>

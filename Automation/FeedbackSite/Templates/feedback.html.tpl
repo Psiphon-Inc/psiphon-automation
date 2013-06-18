@@ -143,7 +143,7 @@ var diagnosticInfoID = '', platform = '', currentLangName;
 
 
 //sets page content and highlights coerresponding language button
-function setLanguage(langName)
+function setLanguage(langName, args)
 {{
   //get complete language code from the selector
   //if langName is not an exact match
@@ -238,10 +238,58 @@ function setLanguage(langName)
     $('#text_feedback_textarea').focus();
   }});
 
+  //
+  // Some pages and paras need data filled in from the dialog arguments.
+  // If the required information isn't available, hide the block to which the
+  // data belongs.
+  //
+
+  if (args && args['newVersionURL']) {{
+    $('a.newVersionURL').prop('href', args['newVersionURL']);
+  }}
+  else {{
+    $('a.newVersionURL').parent().hide();
+  }}
+
+  if (args && args['newVersionEmail']) {{
+    $('#newVersionEmail').html('<a href="mailto:' + args['newVersionEmail'] + '">' + args['newVersionEmail'] + '</a>');
+  }}
+  else {{
+    $('#newVersionEmail').parent().hide();
+  }}
+
+  if (args && args['faqURL']) {{
+    $('a.faqURL').prop('href', args['faqURL']);
+  }}
+  else {{
+    $('a.faqURL').parent().hide();
+  }}
+
+  if (args && args['dataCollectionInfoURL']) {{
+    $('a.dataCollectionInfoURL').prop('href', args['dataCollectionInfoURL']);
+  }}
+  else {{
+    $('a.dataCollectionInfoURL').parent().hide();
+  }}
+
   // Some of our links go to our download page. Switch to the correct language.
   // No-op if it's a different kind of link.
   $('a').click(function(e) {{
-    e.currentTarget.href = e.currentTarget.href.replace('/en.html', '/'+currentLangName+'.html');
+    var RTL_LANGS = ['ar', 'fa', 'he'];
+
+    var url = e.currentTarget.href;
+    url = url.replace(/\/([^\/\.]+)\.html/, '/'+currentLangName+'.html');
+
+    // If this is a mailto link, we should bail.
+    if (url === e.currentTarget.href) {{
+      return;
+    }}
+
+    if ($.inArray(currentLangName, RTL_LANGS) >= 0 && url.indexOf('#') < 0) {{
+      url += "#rtl";
+    }}
+
+    e.currentTarget.href = url;
   }});
 }}
 
@@ -249,8 +297,13 @@ function setLanguage(langName)
 $(function() {{
   platform = (window.dialogArguments !== undefined) ? PLATFORM_WINDOWS : PLATFORM_ANDROID;
 
+  var args = null;
+  if (window.dialogArguments) {{
+    args = JSON.parse(window.dialogArguments);
+  }}
+
   //set language from hash parameter on page load
-  setLanguage(getLanguageNameFromURL(window.location.href));
+  setLanguage(getLanguageNameFromURL(window.location.href), args);
 
   $('label, input[type="checkbox"]').addClass('clickable');
 
@@ -269,7 +322,7 @@ $(function() {{
 
   //set onChange listener to language dropdown
   $('#language_selector').change(function() {{
-    setLanguage($(this).val());
+    setLanguage($(this).val(), args);
   }});
 
   $('ul#connectivity.feedback').data('hash', '{connectivity}');
@@ -371,6 +424,7 @@ $(function() {{
     <div>
       <p id="top_para_1"></p>
       <p id="top_para_2"></p>
+      <p id="top_para_3"></p>
     </div>
     <br/>
 
