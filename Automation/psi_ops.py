@@ -1447,6 +1447,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             remote_server_list_url,
             info_link_url,
             upgrade_url,
+            get_new_version_url,
+            get_new_version_email,
             platforms=None,
             test=False):
         if not platforms:
@@ -1632,6 +1634,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     s3_upgrade_resource_name = client_build_filenames[platform] + psi_ops_s3.DOWNLOAD_SITE_UPGRADE_SUFFIX
 
                     upgrade_url = psi_ops_s3.get_s3_bucket_resource_url(campaign.s3_bucket_name, s3_upgrade_resource_name)
+                    get_new_version_url = psi_ops_s3.get_s3_bucket_home_page_url(campaign.s3_bucket_name)
+
+                    # TODO: Don't hardcode this value
+                    get_new_version_email = 'get@psiphon3.com'
+                    if type(campaign.account) == EmailPropagationAccount:
+                        get_new_version_email = campaign.account.email_address
 
                     build_filename = self.build(
                                         propagation_channel.name,
@@ -1639,6 +1647,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         remote_server_list_url,
                                         info_link_url,
                                         upgrade_url,
+                                        get_new_version_url,
+                                        get_new_version_email,
                                         [platform])[0]
 
                     upgrade_filename = self.__make_upgrade_package_from_build(build_filename)

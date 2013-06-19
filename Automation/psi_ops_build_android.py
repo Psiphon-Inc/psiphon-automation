@@ -97,6 +97,8 @@ def write_embedded_values(propagation_channel_id,
                           info_link_url,
                           upgrade_signature_public_key,
                           upgrade_url,
+                          get_new_version_url,
+                          get_new_version_email,
                           ignore_system_server_list=False):
     template = textwrap.dedent('''
         package com.psiphon3.psiphonlibrary;
@@ -165,6 +167,8 @@ def build_client(
         info_link_url,
         upgrade_signature_public_key,
         upgrade_url,
+        get_new_version_url,
+        get_new_version_email,
         version,
         test=False):
 
@@ -192,6 +196,8 @@ def build_client(
             info_link_url,
             upgrade_signature_public_key,
             upgrade_url,
+            get_new_version_url,
+            get_new_version_email,
             ignore_system_server_list=test)
 
         # copy feedback.html

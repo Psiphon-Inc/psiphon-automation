@@ -102,6 +102,8 @@ def write_embedded_values(propagation_channel_id,
                           info_link_url,
                           upgrade_signature_public_key,
                           upgrade_url,
+                          get_new_version_url,
+                          get_new_version_email,
                           ignore_system_server_list=False):
     template = textwrap.dedent('''
         #pragma once
@@ -138,6 +140,11 @@ def write_embedded_values(propagation_channel_id,
         static const char* UPGRADE_SIGNATURE_PUBLIC_KEY = "%s";
         static const char* UPGRADE_ADDRESS = "%s";
         static const char* UPGRADE_REQUEST_PATH = "%s";
+
+        static const char* GET_NEW_VERSION_URL = "%s";
+        static const char* GET_NEW_VERSION_EMAIL = "%s";
+        static const char* FAQ_URL = "%s#other_frequently_asked_questions";
+        static const char* DATA_COLLECTION_INFO_URL = "%s#what_user_information_does_psiphon_3_collect";
         ''')
     with open(EMBEDDED_VALUES_FILENAME, 'w') as file:
         file.write(template % (propagation_channel_id,
@@ -155,7 +162,11 @@ def write_embedded_values(propagation_channel_id,
                                info_link_url,
                                upgrade_signature_public_key,
                                upgrade_url[1],
-                               upgrade_url[2]))
+                               upgrade_url[2],
+                               get_new_version_url,
+                               get_new_version_email,
+                               get_new_version_url,
+                               get_new_version_url))
 
 
 def build_client(
@@ -172,6 +183,8 @@ def build_client(
         info_link_url,
         upgrade_signature_public_key,
         upgrade_url,
+        get_new_version_url,
+        get_new_version_email,
         version,
         test=False):
 
@@ -205,6 +218,8 @@ def build_client(
             info_link_url,
             upgrade_signature_public_key,
             upgrade_url,
+            get_new_version_url,
+            get_new_version_email,
             ignore_system_server_list=test)
 
         # copy feedback.html
