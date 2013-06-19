@@ -123,6 +123,11 @@ def write_embedded_values(propagation_channel_id,
 
             final String UPGRADE_URL = "%s://%s/%s";
             final String UPGRADE_SIGNATURE_PUBLIC_KEY = "%s";
+
+            final String GET_NEW_VERSION_URL = "%s";
+            final String GET_NEW_VERSION_EMAIL = "%s";
+            final String FAQ_URL = "%s#other_frequently_asked_questions";
+            final String DATA_COLLECTION_INFO_URL = "%s#what_user_information_does_psiphon_3_collect";
         }
         ''')
     with open(EMBEDDED_VALUES_FILENAME, 'w') as file:
@@ -139,7 +144,11 @@ def write_embedded_values(propagation_channel_id,
                                upgrade_url[0],
                                upgrade_url[1],
                                upgrade_url[2],
-                               upgrade_signature_public_key))
+                               upgrade_signature_public_key,
+                               get_new_version_url,
+                               get_new_version_email,
+                               get_new_version_url,
+                               get_new_version_url))
 
 
 def write_android_manifest_version(client_version):
