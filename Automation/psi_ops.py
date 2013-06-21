@@ -294,7 +294,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__feedback_encryption_key_pair = None
         self.__feedback_upload_info = None
         self.__upgrade_package_signing_key_pair = None
-        self.__default_email_autoresponder_account = None  # EmailPropagationAccount
+        self.__default_email_autoresponder_account = None
         if initialize_plugins:
             self.initialize_plugins()
 
