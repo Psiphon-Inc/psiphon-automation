@@ -17,9 +17,11 @@
 import sys
 import smtplib
 
+from config import config
+
+# Make EmailResponder modules available
 sys.path.append('..')
 import sendmail
-from config import config
 
 
 def send(recipients, from_address,
@@ -30,7 +32,8 @@ def send(recipients, from_address,
     `recipients` may be an array of address or a single address string.
     '''
 
-    reply_to_header = {'In-Reply-To': replyid} if replyid else None
+    reply_to_header = {'In-Reply-To': replyid,
+                       'References': replyid} if replyid else None
 
     body = []
     if body_text:
@@ -52,3 +55,45 @@ def send(recipients, from_address,
                                  from_address,
                                  recipients,
                                  smtp_server)
+
+
+def send_response(recipient, from_address,
+                  subject, body_text, body_html,
+                  replyid, attachments):
+    '''
+    Send email back to the user that sent feedback.
+    On error, raises exception.
+    `replyid` may be None. `attachments` may be None.
+    '''
+
+    # TODO: Use SMTP rather than SES if we have attachments SES or SMTP (get@ style).
+    # DISABLING ATTACHMENTS
+    if attachments:
+        return
+
+    extra_headers = {'Reply-To': from_address}
+
+    if replyid:
+        extra_headers['In-Reply-To'] = replyid
+        extra_headers['References'] = replyid
+
+    body = []
+    if body_text:
+        body.append(('plain', body_text))
+    if body_html:
+        body.append(('html', body_html))
+
+    raw_email = sendmail.create_raw_email(recipient,
+                                          from_address,
+                                          subject,
+                                          body,
+                                          attachments,
+                                          extra_headers)
+
+    if not raw_email:
+        return
+
+    try:
+        sendmail.send_raw_email_amazonses(raw_email, from_address)
+    except:
+        raise

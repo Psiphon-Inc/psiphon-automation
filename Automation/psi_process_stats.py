@@ -634,7 +634,7 @@ def reconstruct_sessions(db):
 
     session_cursor.execute('COMMIT')
 
-    print 'elapsed time: %fs' % (time.time()-start_time,)
+    print 'Reconstruct sessions elapsed time: %fs' % (time.time()-start_time,)
 
 
 def update_propagation_channels(db, propagation_channels):
@@ -725,4 +725,4 @@ if __name__ == "__main__":
     finally:
         db_conn.close()
 
-    print 'elapsed time: %fs' % (time.time()-start_time,)
+    print 'Total stats processing elapsed time: %fs' % (time.time()-start_time,)

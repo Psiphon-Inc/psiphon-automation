@@ -14,7 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# TODO: Create indexes
 
 '''
 There are currently three tables in our Mongo DB:
@@ -37,6 +36,7 @@ There are currently three tables in our Mongo DB:
 import datetime
 from pymongo import MongoClient
 import numpy
+import pytz
 
 
 _EXPIRY_MINUTES = 360
@@ -47,8 +47,33 @@ _db = _connection.maildecryptor
 _diagnostic_info_store = _db.diagnostic_info
 _email_diagnostic_info_store = _db.email_diagnostic_info
 _stats_store = _db.stats
+_autoresponder_store = _db.autoresponder
+_response_blacklist_store = _db.response_blacklist
 _errors_store = _db.errors
 
+
+#
+# Create any necessary indexes
+#
+
+# This index is used for iterating through the diagnostic_info store, and
+# for stats queries.
+# It's also a TTL index, and purges old records.
+_DIAGNOSTIC_DATA_LIFETIME_SECS = 60*60*24*7*26  # half a year
+_diagnostic_info_store.ensure_index('datetime', expireAfterSeconds=_DIAGNOSTIC_DATA_LIFETIME_SECS)
+
+# We use a TTL index on the response_blacklist collection, to expire records.
+_BLACKLIST_LIFETIME_SECS = 60*60*24  # one day
+_response_blacklist_store.ensure_index('datetime', expireAfterSeconds=_BLACKLIST_LIFETIME_SECS)
+
+# Add a TTL index to the errors store.
+_ERRORS_LIFETIME_SECS = 60*60*24*7*26  # half a year
+_errors_store.ensure_index('datetime', expireAfterSeconds=_ERRORS_LIFETIME_SECS)
+
+
+#
+# Functions to manipulate diagnostic info
+#
 
 def insert_diagnostic_info(obj):
     obj['datetime'] = datetime.datetime.now()
@@ -58,12 +83,11 @@ def insert_diagnostic_info(obj):
 def insert_email_diagnostic_info(diagnostic_info_id,
                                  email_id,
                                  email_subject):
-    obj = {
-           'diagnostic_info_id': diagnostic_info_id,
+    obj = {'diagnostic_info_id': diagnostic_info_id,
            'email_id': email_id,
            'email_subject': email_subject,
            'datetime': datetime.datetime.now()
-          }
+           }
     return _email_diagnostic_info_store.insert(obj)
 
 
@@ -82,6 +106,66 @@ def remove_email_diagnostic_info(email_diagnostic_info):
 def expire_old_email_diagnostic_info_records():
     expiry_datetime = datetime.datetime.now() - datetime.timedelta(minutes=_EXPIRY_MINUTES)
     return _email_diagnostic_info_store.remove({'datetime': {'$lt': expiry_datetime}})
+
+
+#
+# Functions related to the autoresponder
+#
+
+def get_autoresponder_diagnostic_info_iterator():
+    # We'll use a custom iterator around the DB iterator, so we can store
+    # the position for each iteration
+    class IteratorWrapper(object):
+        def __init__(self):
+            state_rec = _autoresponder_store.find_one()
+
+            # This will only be true on the very first run
+            if not state_rec or not state_rec.get('last_diagnostic_info_datetime'):
+                # Use a recent time as the starting point if we don't have a saved position.
+                _autoresponder_store.update({},
+                                            {'$set': {'last_diagnostic_info_datetime': datetime.datetime.now() - datetime.timedelta(40)}},
+                                            upsert=True)
+                state_rec = _autoresponder_store.find_one()
+
+            self.cursor = _diagnostic_info_store.find({'datetime': {'$gt': state_rec['last_diagnostic_info_datetime']}})
+            self.cursor.sort('datetime')
+
+        def __iter__(self):
+            return self
+
+        def next(self):
+            # This will raise StopIteration if there are no more records
+            next_rec = self.cursor.next()
+
+            # Update the last known timestamp, so that we can re-start from this
+            # position if execution is interrupted.
+            # Note that if multiple records have identical timestamps, then we
+            # will end up skipping some of them. Unfortunate but acceptable.
+            _autoresponder_store.update({},
+                                        {'$set': {'last_diagnostic_info_datetime': next_rec['datetime']}},
+                                        upsert=True)
+
+            return next_rec
+
+    return IteratorWrapper()
+
+
+#
+# Functions related to the email address blacklist
+#
+
+def check_and_add_response_address_blacklist(address):
+    '''
+    Returns True if the address is blacklisted, otherwise inserts it in the DB
+    and returns False.
+    '''
+    now = datetime.datetime.now(pytz.timezone('UTC'))
+    # Check and insert with a single command
+    match = _response_blacklist_store.find_and_modify(query={'address': address},
+                                                      update={'$setOnInsert': {'datetime': now}},
+                                                      upsert=True)
+
+    return bool(match)
 
 
 #

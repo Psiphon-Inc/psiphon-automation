@@ -39,6 +39,7 @@ from emailgetter import EmailGetter
 import sender
 import datastore
 import datatransformer
+import translation
 
 
 def _upgrade_old_object(yaml_docs):
@@ -131,6 +132,46 @@ def _get_id_from_email_address(email_address):
     return m.groupdict()['id']
 
 
+# Email addresses in the headers usually look like "<example@example.com>" or
+# "Name <example@example.com>" but we don't want the angle brackets and name.
+_email_stripper_regex = re.compile(r'(.*<)?([^<>]+)(>)?')
+
+
+def _get_email_info(msg):
+    subject_translation = translation.translate(config['googleApiServers'],
+                                                config['googleApiKey'],
+                                                msg['subject'])
+    subject = dict(text=msg['subject'],
+                   text_lang_code=subject_translation[0],
+                   text_lang_name=subject_translation[1],
+                   text_translated=subject_translation[2])
+
+    body_translation = translation.translate(config['googleApiServers'],
+                                             config['googleApiKey'],
+                                             msg['body'])
+    body = dict(text=msg['body'],
+                text_lang_code=body_translation[0],
+                text_lang_name=body_translation[1],
+                text_translated=body_translation[2],
+                html=msg['html'])
+
+    raw_address = msg['msgobj'].get('Return-Path') or msg['from']
+    stripped_address = None
+    if raw_address:
+        match = _email_stripper_regex.match(raw_address)
+        if not match:
+            logger.error('when stripping email address failed to match: %s' % str(raw_address))
+            return None
+        stripped_address = match.group(2)
+
+    email_info = dict(address=stripped_address,
+                      message_id=msg['msgobj']['Message-ID'],
+                      subject=subject,
+                      body=body)
+
+    return email_info
+
+
 def go():
     emailgetter = EmailGetter(config['popServer'],
                               config['popPort'],
@@ -171,13 +212,18 @@ def go():
                 # Modifies diagnostic_info
                 datatransformer.transform(diagnostic_info)
 
+                # Add the user's email information to diagnostic_info.
+                # This will allow us to later auto-respond, or act as a
+                # remailer between the user and the Psiphon support team.
+                diagnostic_info['EmailInfo'] = _get_email_info(msg)
+
                 # Store the diagnostic info
                 datastore.insert_diagnostic_info(diagnostic_info)
 
                 # Store the association between the diagnostic info and the email
                 datastore.insert_email_diagnostic_info(diagnostic_info['Metadata']['id'],
                                                        msg['msgobj']['Message-ID'],
-                                                       msg['msgobj']['Subject'])
+                                                       msg['subject'])
                 email_processed_successfully = True
                 break
 
@@ -187,7 +233,7 @@ def go():
                 try:
                     sender.send(config['decryptedEmailRecipient'],
                                 config['emailUsername'],
-                                u'Re: %s' % (msg['msgobj']['Subject'] or ''),
+                                u'Re: %s' % (msg['subject'] or ''),
                                 'Decrypt failed: %s' % e,
                                 msg['msgobj']['Message-ID'])
                 except smtplib.SMTPException as e:
@@ -211,7 +257,7 @@ def go():
                 # diagnostic info.
                 datastore.insert_email_diagnostic_info(diagnostic_info_id,
                                                        msg['msgobj']['Message-ID'],
-                                                       msg['msgobj']['Subject'])
+                                                       msg['subject'])
 
                 # We'll set this for completeness...
                 email_processed_successfully = True
