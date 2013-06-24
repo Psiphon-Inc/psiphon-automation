@@ -18,6 +18,7 @@
 #
 
 import os
+import sys
 import time
 import re
 import multiprocessing
@@ -135,7 +136,10 @@ if __name__ == "__main__":
     pool = multiprocessing.Pool(200)
     results = pool.map(sync_log_files, hosts)
 
-    print 'elapsed time: %fs' % (time.time()-start_time,)
+    sys.stdout.flush()
+
+    print 'Sync log files elapsed time: %fs' % (time.time()-start_time,)
 
     # TODO: check for failure
     print ['%fs' % (x,) for x in results]
+
