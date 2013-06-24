@@ -222,6 +222,8 @@ def test_server(ip_address, capabilities, web_server_port, web_server_secret, en
                                     '',         # info_link_url
                                     '',         # upgrade_signature_public_key
                                     ('','',''), # upgrade_url
+                                    '',         # get_new_version_url
+                                    '',         # get_new_version_email
                                     version,
                                     True)
             try:
