@@ -3,11 +3,6 @@ zh:
   top_content_title: 给我们您反馈
   top_para_1: |
     请填写下面的表格，让我们知道如何赛风3是为你工作，这样我们就可以使系统更好地！
-  top_para_2: |
-    如果您有任何反馈，臭虫报告等，该你想给我们，
-    <a id="showTextFeedback" href="#">请点击这里</a>.
-  questionnaire_diagnostic_check: "上载诊断数据。请注意，此诊断数据不识别您的身份，并它会帮助我们保持赛风平稳运行。\n<a href=\"https://s3.amazonaws.com/0ubz-2q11-gi9y/en.html#what_user_information_does_psiphon_3_collect\"\
-    > \n点击这里查看我们收集什么样的数据。\n</a>\n"
   connectivity_title: 连接性
   connectivity_happy: Psiphon始终连接并保持连接。
   connectivity_ok: Psiphon经常连接，但是有时断开并重新连接。
@@ -22,16 +17,9 @@ zh:
   compatibility_sad: 我的网站加载好，但我不能使用某些重要功能。
   submit_button: 提交
   text_feedback_submit: 提交
-  text_feedback_top_para_android: "如果您有任何具体意见，进一步信息不工作的网站，或者如果不是为你工作的调查问卷，请发送电子邮件至 \n<a href=\"mailto:feedback@psiphon.ca\">feedback@psiphon.ca</a>.\n请注意，一些诊断数据将被附加到电子邮件中。诊断数据不识别您的身份，并它将有助于我们保持赛风平稳运行。\n\
-    <a href=\"https://s3.amazonaws.com/0ubz-2q11-gi9y/en.html#what_user_information_does_psiphon_3_collect\">\n点击这里查看我们收集什么样的数据。\n</a>\n"
   text_feedback_top_para_windows: |
     如果您有任何具体意见，进一步信息不工作的网站，或者如果不是为你工作的调查问卷，请填写下面的表格。
   text_feedback_bottom_para_windows: |
     如果上面的表格不是工作，或者你想发送截图，请给我们发电子邮件至 <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>
   text_feedback_email_prompt: |
     如果您想我们给你回复，请输入您的电子邮件地址：
-  text_feedback_diagnostic_check: |
-    上载诊断数据。请注意，此诊断数据不识别您的身份，并它会帮助我们保持赛风平稳运行。
-    <a href="https://s3.amazonaws.com/0ubz-2q11-gi9y/en.html#what_user_information_does_psiphon_3_collect">
-    点击这里查看我们收集什么样的数据。
-    </a>
