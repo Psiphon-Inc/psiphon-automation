@@ -294,10 +294,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__feedback_encryption_key_pair = None
         self.__feedback_upload_info = None
         self.__upgrade_package_signing_key_pair = None
+        self.__default_email_autoresponder_account = None
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.17'
+    class_version = '0.18'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -389,7 +390,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.17')) < 0:
             self.__upgrade_package_signing_key_pair = None
             self.version = '0.17'
-
+        if cmp(parse_version(self.version), parse_version('0.18')) < 0:
+            self.__default_email_autoresponder_account = None
+            self.version = '0.18'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -740,6 +743,27 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 self.__deploy_builds_required_for_campaigns[platform].add(
                         (campaign.propagation_channel_id, sponsor.id))
             campaign.log('marked for build and publish (new campaign)')
+
+    def set_default_email_autoresponder_account(self, email_account):
+        assert(self.is_locked)
+
+        # TODO: Make sure the sponsor campaign that provides this address isn't
+        # deleted. Right now we don't have a "delete sponsor campaign" function.
+
+        # Make sure the email address exists in a campaign.
+        exists = False
+        for sponsor in self.__sponsors:
+            for campaign in sponsor.campaigns:
+                if type(campaign.account) == EmailPropagationAccount \
+                        and campaign.account.email_address == email_account:
+                    exists = True
+                    break
+
+            if exists:
+                break
+        assert(exists)
+
+        self.__default_email_autoresponder_account = EmailPropagationAccount(email_account)
 
     def add_sponsor_twitter_campaign(self, sponsor_name,
                                      propagation_channel_name,
@@ -1447,6 +1471,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             remote_server_list_url,
             info_link_url,
             upgrade_url,
+            get_new_version_url,
+            get_new_version_email,
             platforms=None,
             test=False):
         if not platforms:
@@ -1497,6 +1523,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         info_link_url,
                         upgrade_signature_public_key,
                         upgrade_url,
+                        get_new_version_url,
+                        get_new_version_email,
                         self.__client_versions[platform][-1].version if self.__client_versions[platform] else 0,
                         test) for platform in platforms]
 
@@ -1632,6 +1660,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     s3_upgrade_resource_name = client_build_filenames[platform] + psi_ops_s3.DOWNLOAD_SITE_UPGRADE_SUFFIX
 
                     upgrade_url = psi_ops_s3.get_s3_bucket_resource_url(campaign.s3_bucket_name, s3_upgrade_resource_name)
+                    get_new_version_url = psi_ops_s3.get_s3_bucket_home_page_url(campaign.s3_bucket_name)
+
+                    assert(self.__default_email_autoresponder_account)
+                    get_new_version_email = self.__default_email_autoresponder_account.email_address
+                    if type(campaign.account) == EmailPropagationAccount:
+                        get_new_version_email = campaign.account.email_address
 
                     build_filename = self.build(
                                         propagation_channel.name,
@@ -1639,6 +1673,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         remote_server_list_url,
                                         info_link_url,
                                         upgrade_url,
+                                        get_new_version_url,
+                                        get_new_version_email,
                                         [platform])[0]
 
                     upgrade_filename = self.__make_upgrade_package_from_build(build_filename)
