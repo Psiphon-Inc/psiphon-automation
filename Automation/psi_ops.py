@@ -752,7 +752,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # Make sure the email address exists in a campaign.
         exists = False
-        for sponsor in self.__sponsors:
+        for sponsor in self.__sponsors.itervalues():
             for campaign in sponsor.campaigns:
                 if type(campaign.account) == EmailPropagationAccount \
                         and campaign.account.email_address == email_account:
