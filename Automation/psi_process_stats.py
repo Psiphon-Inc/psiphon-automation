@@ -27,6 +27,7 @@ import collections
 import time
 import traceback
 import psycopg2
+import sys
 
 import psi_ssh
 import psi_ops
@@ -607,6 +608,7 @@ def process_stats(host, servers, db_cur, psinet, error_file=None):
             finally:
                 file.close()
         print '%d new lines processed' % (lines_processed)
+        sys.stdout.flush()
 
     if next_last_timestamp:
         if not last_timestamp:
@@ -628,6 +630,7 @@ def reconstruct_sessions(db):
     session_cursor = db.cursor()    
     
     print 'Reconstructing sessions...'
+    sys.stdout.flush()
     start_time = time.time()
 
     session_cursor.execute('SELECT doSessionReconstruction()')
