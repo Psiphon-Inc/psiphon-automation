@@ -752,7 +752,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # Make sure the email address exists in a campaign.
         exists = False
-        for sponsor in self.__sponsors:
+        for sponsor in self.__sponsors.itervalues():
             for campaign in sponsor.campaigns:
                 if type(campaign.account) == EmailPropagationAccount \
                         and campaign.account.email_address == email_account:
@@ -1203,7 +1203,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             discovery = self.__copy_date_range(discovery_date_range) if discovery_date_range else None
 
             ssh_port = '22'
-            ossh_port = random.choice(['465', '587', '993', '995'])
+            ossh_port = random.choice(['280', '591', '901'])
             capabilities = ServerCapabilities()
             if server_capabilities:
                 capabilities = copy_server_capabilities(server_capabilities)
@@ -1221,6 +1221,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 ossh_ports.remove(138)
                 ossh_ports.remove(139)
                 ossh_ports.remove(515)
+                ossh_ports.remove(593)
                 ossh_port = random.choice(ossh_ports)
 
             server = Server(
