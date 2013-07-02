@@ -104,6 +104,7 @@ def sync_log_files(host):
     except pexpect.ExceptionPexpect as e:
         print 'failed host %s: %s' % (host.id, str(e))
 
+    sys.stdout.flush()
     return time.time()-start_time
 
 
@@ -135,8 +136,6 @@ if __name__ == "__main__":
 
     pool = multiprocessing.Pool(200)
     results = pool.map(sync_log_files, hosts)
-
-    sys.stdout.flush()
 
     print 'Sync log files elapsed time: %fs' % (time.time()-start_time,)
 
