@@ -24,10 +24,6 @@ import shlex
 import tempfile
 import jsonpickle
 
-try:
-    import portalocker
-except ImportError as error:
-    pass
 
 #==============================================================================
 
@@ -178,30 +174,34 @@ class PersistentObject(object):
         os.remove(file.name)
 
     @staticmethod
-    def load_from_file(filename, lock_file=False):
+    def load_from_file(filename):
         with open(filename) as file:
-            if lock_file:
-                portalocker.lock(file, portalocker.LOCK_SH)
             obj = jsonpickle.decode(file.read())
             if not hasattr(obj, 'version'):
                 obj.version = '0.0'
             if obj.version != obj.class_version:
                 obj.upgrade()
+            obj.initialize_plugins()
+        obj.is_locked = False
         return obj
 
     @staticmethod
-    def load():
+    def load(lock=True):
         if not os.path.isfile('psi_data_config.py'):
             return PersistentObject.load_from_file(PSI_OPS_DB_FILENAME)
         obj = None
         file = tempfile.NamedTemporaryFile(delete=False)
         file.close()
-        lock_document()
+        if lock:
+            lock_document()
         export_document(file.name)
         obj = PersistentObject.load_from_file(file.name)
         os.remove(file.name)
-        obj.is_locked = True
+        obj.is_locked = lock
         return obj
 
     def upgrade(self):
         pass 
+
+    def initialize_plugins(self):
+        pass

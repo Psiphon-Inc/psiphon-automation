@@ -1,0 +1,19 @@
+ru:
+  plaintext_email_no_attachment: |
+    Русский - {{0}}/{0}.html
+  html_email_no_attachment: |
+    <div style="direction: ltr;">
+    Русский - <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
+    </div>
+  plaintext_email_with_attachment: |+
+    Psiphon 3 для Windows - сохраните прикрепленный файл {{1}} с расширением ".exe".
+    Для получения дополнительной информации или скачивания файлов, кликните на ссылку:
+    {{0}}/{0}.html
+
+  html_email_with_attachment: |
+    <div style="direction: ltr;">
+    Psiphon 3 для Windows - сохраните прикрепленный файл {{1}} с расширением ".exe".<br>
+    Для получения дополнительной информации или скачивания файлов, кликните на ссылку:<br>
+    <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
+    </div>
+    <br>

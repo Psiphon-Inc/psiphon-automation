@@ -23,6 +23,7 @@ from textwrap import dedent
 from keyword import iskeyword
 import random
 import string
+import tempfile
 
 
 # Adapted from:
@@ -211,3 +212,27 @@ def generate_password():
     random source.
     '''
     return ''.join([_sysrand.choice(string.letters + string.digits) for i in range(_PASSWORD_LENGTH)])
+
+
+class TemporaryBackup:
+    
+    def __init__(self, files=None):
+        self.files = {}
+        if files:
+            for file in files:
+                self.backup(file)
+
+    def backup(self, filename):
+        temporary_file = tempfile.NamedTemporaryFile()
+        with open(filename, 'rb') as file:
+            temporary_file.write(file.read())
+            temporary_file.flush()
+        self.files[filename] = temporary_file
+
+    def restore_all(self):
+        for filename, temporary_file in self.files.iteritems():
+            with open(filename, 'wb') as file:
+                temporary_file.seek(0)
+                file.write(temporary_file.read())
+                temporary_file.close()
+        self.files.clear()

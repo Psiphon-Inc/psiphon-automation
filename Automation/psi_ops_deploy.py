@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2011, Psiphon Inc.
+# Copyright (c) 2012, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -22,8 +22,12 @@ import tempfile
 import os
 import posixpath
 import sys
+import textwrap
 import psi_ssh
 import psi_routes
+import psi_ops_install
+from multiprocessing.pool import ThreadPool
+from functools import wraps
 
 sys.path.insert(0, os.path.abspath(os.path.join('..', 'Server')))
 import psi_config
@@ -34,14 +38,48 @@ import psi_config
 BUILDS_ROOT = os.path.join('.', 'Builds')
 
 SOURCE_FILES = [
-    ('Automation', ['psi_ops.py', 'psi_ops_cms.py', 'psi_utils.py']),
-    ('Server', ['psi_config.py', 'psi_psk.py', 'psi_web.py'])
+    ('Automation',
+     ['psi_ops.py',
+      'psi_ops_discovery.py',
+      'psi_ops_cms.py',
+      'psi_utils.py'
+     ]),
+
+    ('Server',
+     ['psi_config.py',
+      'psi_psk.py',
+      'psi_web.py',
+      'psi_auth.py',
+      'psi_geoip.py',
+      'pam.py',
+      'psi-check-services'])
 ]
 
 #==============================================================================
 
 
-def deploy_implementation(host):
+def retry_decorator_returning_exception(function):
+    @wraps(function)
+    def wrapper(*args, **kwds):
+        for i in range(5):
+            try:
+                function(*args, **kwds)
+                return None
+            except Exception as e:
+                print str(e)
+        return e
+    return wrapper
+    
+
+def run_in_parallel(thread_pool_size, function, arguments):
+    pool = ThreadPool(thread_pool_size)
+    results = pool.map(function, arguments)
+    for result in results:
+        if result:
+            raise result
+
+
+def deploy_implementation(host, plugins):
 
     print 'deploy implementation to host %s...' % (host.id,)
 
@@ -62,6 +100,12 @@ def deploy_implementation(host):
     ssh.exec_command('chmod +x %s' % (
             posixpath.join(psi_config.HOST_SOURCE_ROOT, 'Server', 'psi_web.py'),))
 
+    ssh.exec_command('chmod +x %s' % (
+            posixpath.join(psi_config.HOST_SOURCE_ROOT, 'Server', 'psi_auth.py'),))
+
+    ssh.exec_command('chmod +x %s' % (
+            posixpath.join(psi_config.HOST_SOURCE_ROOT, 'Server', 'psi-check-services'),))
+
     remote_ip_down_file_path = posixpath.join(psi_config.HOST_IP_DOWN_DIR, 'psi-ip-down')
     ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', 'psi-ip-down'),
                  remote_ip_down_file_path)
@@ -73,20 +117,21 @@ def deploy_implementation(host):
     ssh.exec_command('chmod +x %s' % (remote_init_file_path,))
     ssh.exec_command('update-rc.d %s defaults' % ('psiphonv',))
 
+    # Patch PAM config to use psi_auth.py
+    ssh.exec_command('grep psi_auth.py /etc/pam.d/sshd || sed -i \'s/@include common-auth/auth       sufficient   pam_exec.so expose_authtok seteuid quiet \\/opt\\/PsiphonV\\/Server\\/psi_auth.py\\n@include common-auth/\' /etc/pam.d/sshd')
+
     # Restart server after source code updated
 
     ssh.exec_command('%s restart' % (remote_init_file_path,))
 
-    # Copy DNS capture init script and restart it
+    # Install the cron job that calls psi-check-services
 
-    remote_init_file_path = posixpath.join(psi_config.HOST_INIT_DIR, 'psi-dns-capture')
-    ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', 'psi-dns-capture'),
-                 remote_init_file_path)
-    ssh.exec_command('chmod +x %s' % (remote_init_file_path,))
-    ssh.exec_command('update-rc.d %s defaults' % ('psi-dns-capture',))
-
-    ssh.exec_command('%s restart' % (remote_init_file_path,))
-
+    cron_file = '/etc/cron.d/psi-check-services'
+    ssh.exec_command('echo "SHELL=/bin/sh" > %s;' % (cron_file,) +
+                     'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
+                     'echo "*/5 * * * * root %s" >> %s' % (
+            posixpath.join(psi_config.HOST_SOURCE_ROOT, 'Server', 'psi-check-services'), cron_file))
+    
     # Copy the rate-limiting scripts
 
     remote_rate_limit_start_file_path = posixpath.join(psi_config.HOST_IP_UP_DIR, 'rate-limit')
@@ -98,8 +143,26 @@ def deploy_implementation(host):
                  remote_rate_limit_end_file_path)
     ssh.exec_command('chmod +x %s' % (remote_rate_limit_end_file_path,))
 
+    for plugin in plugins:
+        if hasattr(plugin, 'deploy_implementation'):
+            plugin.deploy_implementation(ssh)
+            
     ssh.close()
     
+
+def deploy_implementation_to_hosts(hosts, plugins):
+    
+    @retry_decorator_returning_exception
+    def do_deploy_implementation(host):
+        try:
+            deploy_implementation(host, plugins)
+        except:
+            print 'Error deploying implementation to host %s' % (host.id,)
+            raise
+        host.log('deploy implementation')
+
+    run_in_parallel(20, do_deploy_implementation, hosts)
+
 
 def deploy_data(host, host_data):
 
@@ -111,9 +174,10 @@ def deploy_data(host, host_data):
                     host.ssh_host_key)
 
     # Stop server, if running, before replacing data file (command may fail)
-
+    # Disable restarting the server through psi-check-services first
+    
+    ssh.exec_command('touch %s' % (psi_config.HOST_SERVER_STOPPED_LOCK_FILE,))
     remote_init_file_path = posixpath.join(psi_config.HOST_INIT_DIR, 'psiphonv')
-
     ssh.exec_command('%s stop' % (remote_init_file_path,))
 
     # Copy data file
@@ -137,10 +201,29 @@ def deploy_data(host, host_data):
     # Restart server after data file updated
 
     ssh.exec_command('%s restart' % (remote_init_file_path,))
+    
+    # Allow psi-check-services to restart the server now that data has been successfully copied
+    # and the server is running again
+    
+    ssh.exec_command('rm %s' % (psi_config.HOST_SERVER_STOPPED_LOCK_FILE,))
 
     ssh.close()
     
 
+def deploy_data_to_hosts(host_and_data_list):
+
+    @retry_decorator_returning_exception
+    def do_deploy_data(host_and_data):
+        try:
+            deploy_data(host_and_data['host'], host_and_data['data'])
+        except:
+            print 'Error deploying data to host %s' % (host_and_data['host'].id,)
+            raise
+        host_and_data['host'].log('deploy data')
+       
+    run_in_parallel(20, do_deploy_data, host_and_data_list)
+
+            
 def deploy_build(host, build_filename):
 
     print 'deploy %s build to host %s...' % (build_filename, host.id,)
@@ -160,6 +243,19 @@ def deploy_build(host, build_filename):
     ssh.close()
     
 
+def deploy_build_to_hosts(hosts, build_filename):
+
+    @retry_decorator_returning_exception
+    def do_deploy_build(host):
+        try:
+            deploy_build(host, build_filename)
+        except:
+            print 'Error deploying build to host %s' % (host.id,)
+            raise
+            
+    run_in_parallel(10, do_deploy_build, hosts)
+
+
 def deploy_routes(host):
 
     print 'deploy routes to host %s...' % (host.id,)
@@ -168,17 +264,71 @@ def deploy_routes(host):
                     host.ip_address, host.ssh_port,
                     host.ssh_username, host.ssh_password,
                     host.ssh_host_key)
-
     ssh.exec_command('mkdir -p %s' % (psi_config.ROUTES_PATH,))
 
     target_filename = posixpath.join(
                             psi_config.ROUTES_PATH,
                             os.path.split(psi_routes.GEO_ROUTES_ARCHIVE_PATH)[1])
 
-    ssh.put_file(
-        psi_routes.GEO_ROUTES_ARCHIVE_PATH,
-        target_filename)
-
-    ssh.exec_command('tar xfz %s' % (target_filename,))
-
+    ssh.put_file(psi_routes.GEO_ROUTES_ARCHIVE_PATH, target_filename)
+    ssh.exec_command('tar xz -C %s -f %s' % (psi_config.ROUTES_PATH, target_filename))
     ssh.close()
+
+    host.log('deploy routes')
+
+
+def deploy_routes_to_hosts(hosts):
+
+    @retry_decorator_returning_exception
+    def do_deploy_routes(host):
+        try:
+            deploy_routes(host)
+        except:
+            print 'Error deploying routes to host %s' % (host.id,)
+            raise
+            
+    run_in_parallel(10, do_deploy_routes, hosts)
+
+
+def deploy_geoip_database_autoupdates(host):
+
+    geo_ip_config_file = 'GeoIP.conf'
+    if os.path.isfile(geo_ip_config_file):
+
+        print 'deploy geoip database autoupdates to host %s...' % (host.id)
+
+        ssh = psi_ssh.SSH(
+                host.ip_address, host.ssh_port,
+                host.ssh_username, host.ssh_password,
+                host.ssh_host_key)
+
+        ssh.put_file(os.path.join(os.path.abspath('.'), geo_ip_config_file),
+                     posixpath.join('/usr/local/etc/', geo_ip_config_file))
+
+        # Set up weekly updates
+        cron_filename = '/etc/cron.weekly/update-geoip-db'
+        cron_file_contents = '''#!/bin/sh
+            
+/usr/local/bin/geoipupdate
+%s restart''' % (posixpath.join(psi_config.HOST_INIT_DIR, 'psiphonv'),)
+        ssh.exec_command('echo "%s" > %s' % (cron_file_contents, cron_filename))
+        ssh.exec_command('chmod +x %s' % (cron_filename,))
+
+        # Run the first update
+        ssh.exec_command(cron_filename)
+        ssh.close()
+
+        host.log('deploy geoip autoupdates')
+
+
+def deploy_geoip_database_autoupdates_to_hosts(hosts):
+
+    @retry_decorator_returning_exception
+    def do_deploy_geoip_database_autoupdates(host):
+        try:
+            deploy_geoip_database_autoupdates(host)
+        except:
+            print 'Error deploying geoip database autoupdates to host %s' % (host.id,)
+            raise
+
+    run_in_parallel(10, do_deploy_geoip_database_autoupdates, hosts)

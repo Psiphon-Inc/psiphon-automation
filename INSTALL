@@ -59,7 +59,7 @@ Dependencies
 
 - Install additional modules:
 
-  easy_install xlrd xlwt xlutils paramiko pyOpenSSL pywin32 jsonpickle
+  easy_install paramiko pyOpenSSL pywin32 jsonpickle PyYAML qrcode PIL
 
 [NOTE: you may require Visual C++ 2008, NOT 2010, to build Python modules
  (http://mail.python.org/pipermail/python-list/2010-April/1242706.html).
@@ -169,9 +169,9 @@ Restart ssh:
 
 Create /etc/iptables.rules:
 
-  *filter
+*filter
   -A INPUT -i lo -j ACCEPT
-  -A INPUT -d 127.0.0.0/8 -i ! lo -j REJECT --reject-with icmp-port-unreachable
+  -A INPUT -d 127.0.0.0/8 ! -i lo -j REJECT --reject-with icmp-port-unreachable
   -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
   -A INPUT -p tcp -m state --state NEW -m tcp --dport 22 -j ACCEPT
   -A INPUT -p tcp -m state --state NEW -m tcp --dport 80 -j ACCEPT
@@ -212,12 +212,12 @@ Create /etc/iptables.rules:
   -A OUTPUT -p udp --sport 4500 -j ACCEPT
   -A OUTPUT -o ipsec+ -p udp -m udp --dport l2tp -j ACCEPT
   -A OUTPUT -j DROP
-  COMMIT
+COMMIT
 
-  *nat
+*nat
   -A PREROUTING -i eth+ -p tcp --dport 443 -j DNAT --to-destination :8080
   -A POSTROUTING -s 10.0.0.0/8 -o eth+ -j MASQUERADE
-  COMMIT
+COMMIT
 
 Create /etc/network/if-up.d/firewall (chmod +x):
 
@@ -235,13 +235,13 @@ Enable the firewall and IP forwarding:
   /etc/init.d/procps start
 
 
-2. Install xinetd, tcpdump, wondershaper, fail2ban, ntp
+2. Install xinetd, wondershaper, fail2ban, ntp
 -------------------------------------------------------
 
 apt-get update
 apt-get upgrade
 apt-get dist-upgrade
-apt-get install -y xinetd tcpdump wondershaper fail2ban ntp
+apt-get install -y xinetd wondershaper fail2ban ntp
 
 As management SSH access is open to any source IP address, we recommend
 installing fail2ban to defend against brute-force SSH login attempts.
@@ -418,6 +418,7 @@ Edit programs/_startklips/_startklips.in:
 
 make programs install
 make KERNELSRC=/lib/modules/`uname -r`/build module minstall
+
   Edit /etc/init.d/ipsec: set Default-Start: 2 3 4 5
 update-rc.d ipsec defaults
 reboot
@@ -430,8 +431,8 @@ cd /root
 
 wget http://geolite.maxmind.com/download/geoip/api/c/GeoIP.tar.gz
 tar xvf GeoIP.tar.gz
-cd GeoIP
-[apt-get install zlib1g-dev]
+cd GeoIP-1.4.8
+# [apt-get install zlib1g-dev]
 ./configure
 make
 make check
@@ -443,8 +444,8 @@ cd ..
 wget http://geolite.maxmind.com/download/geoip/api/python/GeoIP-Python-1.2.7.tar.gz
 tar xvf GeoIP-Python-1.2.7.tar.gz
 cd GeoIP-Python-1.2.7
-[apt-get install gcc]
-[apt-get install python-dev]
+# [apt-get install gcc]
+# [apt-get install python-dev]
 python setup.py build
 python setup.py install
 
@@ -486,36 +487,11 @@ Add to the weekly rotation (lower) section of /etc/logrotate.d/rsyslog:
 
   /var/log/psiphonv.log
 
-(3) Set up fprobe-ulog
-
-apt-get install -y fprobe-ulog nfdump
-
-Edit /etc/default/fprobe-ulog:
-
-  INTERFACE="eth:100"
-  FLOW_COLLECTOR="localhost:9995"
-  OTHER_ARGS="-B4096 -r2 -q10000 -t10000:10000000"
-
-Edit /etc/default/nfdump:
-
-  DAEMON_ARGS="-D -b 127.0.0.1 -l $DATA_BASE_DIR -S 1 -P $PIDFILE"
-  nfcapd_start=yes
-
-Add the following line to the filter section in /etc/iptables.rules:
-
-  -A FORWARD -s 10.0.0.0/8 -j ULOG --ulog-qthreshold 50 --ulog-cprange 48
-
-Restart the firewall and fprobe-ulog services:
-
-  /etc/network/if-up.d/firewall
-  invoke-rc.d fprobe-ulog restart
-  invoke-rc.d nfdump restart
-
-(4) Make sure that rsync is installed
+(3) Make sure that rsync is installed
 
   apt-get install rsync
 
-(5) (Optional) Create a user capable of collecting logs
+(4) (Optional) Create a user capable of collecting logs
 
   useradd -g adm -d /var/log <unique user name>
 

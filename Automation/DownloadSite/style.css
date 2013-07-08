@@ -1,0 +1,74 @@
+﻿body {
+  color: #000000;
+  font-size: 11pt;
+  font-family: Arial,Helvetica,sans-serif;
+  margin: auto;
+}
+
+@media (max-width: 779px) {
+  body {
+    padding: 5px;
+  }
+}
+
+@media (min-width: 780px) {
+  body {
+    padding: 40px;
+    max-width: 700px;
+  }
+}
+
+img.center {
+  display: block;
+  margin: 30px auto;
+  max-width: 100%;
+  border: none;
+}
+
+pre {
+  word-wrap: break-word;
+}
+
+pre.center {
+  text-align: center;
+}
+
+.faq-q {
+  font-weight: bold;
+}
+
+.faq-a {
+  /* Put a some space after an answer */
+ margin-bottom: 30px;
+}
+
+.lang_selector {
+  overflow: auto;
+  width: 100%;
+}
+
+.lang_selector > span {
+  float: left;
+  margin: 3px;
+  padding: 5px;
+  background-color:#EEEEEE;
+}
+
+.lang_selector > .selectedlanguage {
+  background-color: #BBBBBB;
+}
+
+.lang_selector a {
+  text-decoration: none;
+  color: #000000;
+}
+
+/*
+`:target` is a pseudo-selector that matches the page element with the ID
+that's the same as the current URL hash. So if the URL ends with "#rtl", then
+`:target` will match `<body id="rtl">`, and `body` will have the following
+style(s).
+*/
+:target {
+  direction: rtl;
+}

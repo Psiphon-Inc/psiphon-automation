@@ -33,6 +33,7 @@ if __name__ == '__main__':
     # Create a stub email to send to the email processor
     em = email.message.Message()
     em['To'] = args.responder_addr
+    em['X-Original-To'] = args.responder_addr
     em['Return-Path'] = args.recip_addr
     em['Subject'] = args.subject.strip('Re:').strip('re:').strip()
     

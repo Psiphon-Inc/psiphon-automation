@@ -1,0 +1,7 @@
+tk: {title: Psiphon 3 seslenme, top_content_title: Seslenme beriň, connectivity_title: Birikme ýagdaýy, connectivity_happy: Psiphon yzygiderli birigýär
+    we birikdirilen bolup durýar., connectivity_ok: 'Psiphon köplenç birigýär, emma kämahal birikme kesilip, täzeden birigýär.', connectivity_sad: Psiphon
+    köplenç birigip bilmeýär ýa-da birikme yzygiderli kesilýär., speed_title: Tizlik, speed_happy: 'Psiphon arkaly webe göz aýlap we wideolara tomaşa
+    edip bilýärin, ol beýleki dolanyşyk gurallary ýaly çalt ýa-da olardan has çalt.', speed_ok: 'Psiphon arkaly webe göz aýlap bilýärin, ýöne ol haýal.',
+  speed_sad: 'Psiphon arkaly webe göz aýlamak gaty haýal, men ony ulanmaga dowam etjek däl.', compatibility_title: Utgaşyk, compatibility_happy: Psiphon
+    arkaly girenimde web saýtlarym adatdakysy ýaly işleýär., compatibility_ok: Psiphon arkaly girenimde web saýtlarym ýeterlik derejede işleýär., compatibility_sad: 'Web
+    saýtlarym ýüklenýär, ýöne belli möhüm funksiýalary ulanyp bilemok.', submit_button: Tabşyr}

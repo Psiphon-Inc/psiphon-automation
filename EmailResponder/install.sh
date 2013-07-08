@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2011, Psiphon Inc.
+# Copyright (c) 2012, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -20,34 +20,30 @@ NORMAL_USER=ubuntu
 MAIL_USER=mail_responder
 MAIL_HOME=/home/mail_responder
 
-EXPECTED_NUM_ARGS=1
-
-if [ $# -ne $EXPECTED_NUM_ARGS ]; then
-    echo "Usage: `basename $0` stats_mail_addr"
+grep '!!!' settings.py > /dev/null
+if [ "$?" -ne "1" ]; then
+    echo "You must edit settings.py before attempting to install"
     exit 1
 fi
-
-STATS_MAIL_ADDR=$1
-
 
 # Put the source files where they need to be. 
 echo "Copying source files..."
 
 # Copy the simple files
-sudo cp mail_process.py sendmail.py blacklist.py mail_stats.py mail_direct.py postfix_queue_check.pl $MAIL_HOME
+sudo cp settings.py mail_process.py sendmail.py blacklist.py mail_stats.py \
+        mail_direct.py postfix_queue_check.pl log_processor.py $MAIL_HOME
 
 # forward needs to be copied to .forward
 sudo cp forward $MAIL_HOME/.forward
-
-# settings.py needs to have a line replaced with the real stats address
-sed "s/RECIPIENT_ADDRESS = 'mail@example.com'/RECIPIENT_ADDRESS = '$STATS_MAIL_ADDR'/g" settings.py > settings.tmp 
-sudo mv settings.tmp $MAIL_HOME/settings.py
 
 # Fix ownership of the files
 sudo chown mail_responder:mail_responder $MAIL_HOME/* $MAIL_HOME/.forward
 
 # Make the files readable by anyone (e.g., other users will use them for cron jobs)
 sudo chmod a+r  $MAIL_HOME/* $MAIL_HOME/.forward
+
+# Make log_processor.py executable by anyone (e.g., by rsyslog)
+sudo chmod a+x  $MAIL_HOME/log_processor.py
 
 # Nuke the compiled Python files, just in case.
 sudo rm $MAIL_HOME/*.pyc
@@ -72,3 +68,5 @@ if [ "$?" -ne "0" ]; then
 fi
 
 echo "Done"
+
+

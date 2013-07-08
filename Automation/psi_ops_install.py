@@ -23,18 +23,28 @@ import sys
 import textwrap
 import tempfile
 import binascii
-from OpenSSL import crypto
 import psi_ssh
+import posixpath
+import time
+import M2Crypto
+
+sys.path.insert(0, os.path.abspath(os.path.join('..', 'Server')))
+import psi_config
 
 
 #==== Configuration ============================================================
 
 WEB_SERVER_SECRET_BYTE_LENGTH = 32
 SERVER_ID_WORD_LENGTH = 3
-SSL_CERTIFICATE_KEY_TYPE = crypto.TYPE_RSA
-SSL_CERTIFICATE_KEY_SIZE = 2048
+
+SSL_CERTIFICATE_RSA_EXPONENT = 3
+SSL_CERTIFICATE_RSA_KEY_LENGTH_BITS = 2048
 SSL_CERTIFICATE_DIGEST_TYPE = 'sha1'
-SSL_CERTIFICATE_VALIDITY = (60*60*24*365*10) # 10 years
+SSL_CERTIFICATE_VALIDITY_SECONDS = (60*60*24*365*10) # 10 years
+
+SSH_RANDOM_USERNAME_SUFFIX_BYTE_LENGTH = 8
+SSH_PASSWORD_BYTE_LENGTH = 32
+SSH_OBFUSCATED_KEY_BYTE_LENGTH = 32
 
 
 #==== Helpers ==================================================================
@@ -180,6 +190,7 @@ config setup
     oe=off
     # Which IPsec stack to use. auto will try netkey, then klips then mast
     protostack=klips
+    plutostderrlog=/dev/null
 '''
 
     return file_contents
@@ -216,6 +227,7 @@ def make_sshd_config_file_command(ip_address, ssh_user):
     file_contents = textwrap.dedent('''
         AllowUsers %s
         HostKey /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s
+        LoginGraceTime 20
         PrintLastLog no
         PrintMotd no
         UseDNS no
@@ -231,6 +243,7 @@ def make_obfuscated_sshd_config_file_command(ip_address, ssh_user, ssh_obfuscate
     file_contents = textwrap.dedent('''
         AllowUsers %s
         HostKey /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s
+        LoginGraceTime 20
         PrintLastLog no
         PrintMotd no
         UseDNS no
@@ -254,10 +267,11 @@ def make_xinetd_config_file_command(servers):
         ''')
 
     ssh_service_section_template = textwrap.dedent('''
-        service %s
+        service psiphon_ssh.%s
         {
-            id              = psiphon_ssh.%s
+            type            = UNLISTED
             bind            = %s
+            port            = %s
             socket_type     = stream
             protocol        = tcp
             wait            = no
@@ -269,10 +283,11 @@ def make_xinetd_config_file_command(servers):
         ''')
         
     obfuscated_ssh_service_section_template = textwrap.dedent('''
-        service %s
+        service psiphon_ssh.obfuscated.%s
         {
-            id              = psiphon_ssh.obfuscated.%s
+            type            = UNLISTED
             bind            = %s
+            port            = %s
             socket_type     = stream
             protocol        = tcp
             wait            = no
@@ -283,30 +298,14 @@ def make_xinetd_config_file_command(servers):
         }
         ''')
 
-    def service_name_for_port(port):
-        if port == '22':
-            return 'ssh'
-        elif port == '80':
-            return 'http'
-        elif port == '465':
-            return 'ssmtp'
-        elif port == '587':
-            return 'submission'
-        elif port == '993':
-            return 'imaps'
-        elif port == '995':
-            return 'pop3s'
-        else:
-            assert(False)
-        
     service_sections = []
     for server in servers:
         if server.ssh_port is not None:
             service_sections.append(ssh_service_section_template %
-                                (service_name_for_port(server.ssh_port), server.ip_address, server.ip_address, server.ip_address))
+                                (server.internal_ip_address, server.internal_ip_address, server.ssh_port, server.internal_ip_address))
         if server.ssh_obfuscated_port is not None:
             service_sections.append(obfuscated_ssh_service_section_template %
-                                (service_name_for_port(server.ssh_obfuscated_port), server.ip_address, server.ip_address, server.ip_address))
+                                (server.internal_ip_address, server.internal_ip_address, server.ssh_obfuscated_port, server.internal_ip_address))
             
     file_contents = defaults_section + '\n'.join(service_sections)
     return 'echo "%s" > /etc/xinetd.conf' % (file_contents,)
@@ -351,9 +350,20 @@ morer              applory            pyte               mareshat
 
 
 def generate_self_signed_certificate():
-    key_pair = crypto.PKey()
-    key_pair.generate_key(SSL_CERTIFICATE_KEY_TYPE, SSL_CERTIFICATE_KEY_SIZE)
-    request = crypto.X509Req()
+    
+    # Based on http://svn.osafoundation.org/m2crypto/trunk/tests/test_x509.py
+    
+    private_key = M2Crypto.EVP.PKey()
+    request = M2Crypto.X509.Request()
+    rsa = M2Crypto.RSA.gen_key(
+        SSL_CERTIFICATE_RSA_KEY_LENGTH_BITS, SSL_CERTIFICATE_RSA_EXPONENT, lambda _: None)
+    private_key.assign_rsa(rsa)
+    request.set_pubkey(private_key)
+    request.sign(private_key, SSL_CERTIFICATE_DIGEST_TYPE)
+    assert request.verify(private_key)
+    public_key = request.get_pubkey()
+    assert request.verify(public_key)
+
     #
     # TODO: generate a random, yet plausible DN
     #
@@ -361,23 +371,34 @@ def generate_self_signed_certificate():
     # for (key, value) in subject_pairs.items():
     #    setattr(subject, key, value)
     #
-    request.set_pubkey(key_pair)
-    request.sign(key_pair, SSL_CERTIFICATE_DIGEST_TYPE)
-    certificate = crypto.X509()
-    certificate.set_version(2)
+    certificate = M2Crypto.X509.X509()
+
     certificate.set_serial_number(0)
-    certificate.gmtime_adj_notBefore(0)
-    certificate.gmtime_adj_notAfter(SSL_CERTIFICATE_VALIDITY)
-    certificate.set_issuer(request.get_subject())
-    certificate.set_subject(request.get_subject())
-    certificate.set_pubkey(request.get_pubkey())
-    certificate.sign(key_pair, SSL_CERTIFICATE_DIGEST_TYPE)
-    return (crypto.dump_privatekey(crypto.FILETYPE_PEM, key_pair),
-            crypto.dump_certificate(crypto.FILETYPE_PEM, certificate))
+    certificate.set_version(2)
+
+    now = long(time.time())
+    notBefore = M2Crypto.ASN1.ASN1_UTCTIME()
+    notBefore.set_time(now)
+    notAfter = M2Crypto.ASN1.ASN1_UTCTIME()
+    notAfter.set_time(now + SSL_CERTIFICATE_VALIDITY_SECONDS)
+    certificate.set_not_before(notBefore)
+    certificate.set_not_after(notAfter)
+
+    certificate.set_pubkey(public_key)
+    certificate.sign(private_key, SSL_CERTIFICATE_DIGEST_TYPE)
+    assert certificate.verify()
+    assert certificate.verify(private_key)
+    assert certificate.verify(public_key)
+    
+    return certificate.as_pem(), rsa.as_pem(cipher=None) # Use rsa for PKCS#1
 
 
-def install_host(host, servers, existing_server_ids):
+def install_host(host, servers, existing_server_ids, plugins):
 
+    install_firewall_rules(host, servers, plugins)
+    
+    install_psi_limit_load(host, servers)
+    
     # NOTE:
     # For partially configured hosts we need to completely reconfigure
     # all files because we use a counter in the xl2tpd config files that is not
@@ -400,7 +421,7 @@ def install_host(host, servers, existing_server_ids):
 
     for index, server in enumerate(servers):
         ssh.exec_command(
-            make_ipsec_config_file_connection_command(index, server.ip_address))
+            make_ipsec_config_file_connection_command(index, server.internal_ip_address))
 
     ssh.exec_command(make_ipsec_secrets_file_command())
 
@@ -413,7 +434,7 @@ def install_host(host, servers, existing_server_ids):
 
     for index, server in enumerate(servers):
         ssh.exec_command(
-            make_xl2tpd_config_file_command(index, server.ip_address))
+            make_xl2tpd_config_file_command(index, server.internal_ip_address))
 
     ssh.exec_command(make_xl2tpd_options_file_command())
 
@@ -433,6 +454,36 @@ def install_host(host, servers, existing_server_ids):
     ssh.exec_command('/etc/init.d/xl2tpd restart')
 
     #
+    # Upload and install patched Open SSH 
+    #
+
+    ssh.exec_command('rm -rf %(key)s; mkdir -p %(key)s' % {"key": psi_config.HOST_OSSH_SRC_DIR})
+    remote_ossh_file_path = posixpath.join(psi_config.HOST_OSSH_SRC_DIR, 'ossh.tar.gz')
+    ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', '3rdParty', 'ossh.tar.gz'),
+                 remote_ossh_file_path)
+    ssh.exec_command('cd %s; tar xfz ossh.tar.gz; ./configure --with-pam > /dev/null; make > /dev/null && make install > /dev/null' 
+            %(psi_config.HOST_OSSH_SRC_DIR,))
+
+    #
+    # Upload and install badvpn-udpgw
+    #
+
+    ssh.exec_command('apt-get install -y cmake')
+    ssh.exec_command('rm -rf %(key)s; mkdir -p %(key)s' % {"key": psi_config.HOST_BADVPN_SRC_DIR})
+    remote_badvpn_file_path = posixpath.join(psi_config.HOST_BADVPN_SRC_DIR, 'badvpn.tar.gz')
+    ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', '3rdParty', 'badvpn.tar.gz'),
+                 remote_badvpn_file_path)
+    ssh.exec_command('cd %s; tar xfz badvpn.tar.gz; mkdir build; cd build; cmake ../badvpn -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_NOTHING_BY_DEFAULT=1 -DBUILD_UDPGW=1 > /dev/null; make > /dev/null && make install > /dev/null' 
+            %(psi_config.HOST_BADVPN_SRC_DIR,))
+
+    remote_init_file_path = posixpath.join(psi_config.HOST_INIT_DIR, 'badvpn-udpgw')
+    ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', 'udpgw-init'),
+                 remote_init_file_path)
+    ssh.exec_command('chmod +x %s' % (remote_init_file_path,))
+    ssh.exec_command('update-rc.d %s defaults' % ('badvpn-udpgw',))
+    ssh.exec_command('%s restart' % (remote_init_file_path,))
+    
+    #
     # Generate and upload sshd_config files and xinetd.conf
     #
 
@@ -443,14 +494,15 @@ def install_host(host, servers, existing_server_ids):
         # They will be updated in the database below.
         if (server.ssh_username is None
             or server.ssh_password is None):
-            server.ssh_username = 'psiphon_ssh_%s' % (binascii.hexlify(os.urandom(8)),)
-            server.ssh_password = binascii.hexlify(os.urandom(32))
+            server.ssh_username = 'psiphon_ssh_%s' % (
+                binascii.hexlify(os.urandom(SSH_RANDOM_USERNAME_SUFFIX_BYTE_LENGTH)),)
+            server.ssh_password = binascii.hexlify(os.urandom(SSH_PASSWORD_BYTE_LENGTH))
         if server.ssh_host_key is None:
-            ssh.exec_command('rm /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (server.ip_address,))
-            ssh.exec_command('ssh-keygen -t rsa -N \"\" -f /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (server.ip_address,))
+            ssh.exec_command('rm /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (server.internal_ip_address,))
+            ssh.exec_command('ssh-keygen -t rsa -N \"\" -f /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (server.internal_ip_address,))
             try:
                 # TODO: use temp dir?
-                ssh.get_file('/etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s.pub' % (server.ip_address,), 'ssh_host_key')
+                ssh.get_file('/etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s.pub' % (server.internal_ip_address,), 'ssh_host_key')
                 with open('ssh_host_key') as file:
                     key = file.read()
             finally:
@@ -463,11 +515,11 @@ def install_host(host, servers, existing_server_ids):
         #      the user already exists
         ssh.exec_command('useradd -d /dev/null -s /bin/false %s && echo \"%s:%s\"|chpasswd' % (
                             server.ssh_username, server.ssh_username, server.ssh_password))
-        ssh.exec_command(make_sshd_config_file_command(server.ip_address, server.ssh_username))
+        ssh.exec_command(make_sshd_config_file_command(server.internal_ip_address, server.ssh_username))
         if server.ssh_obfuscated_port is not None:
             if server.ssh_obfuscated_key is None:
-                server.ssh_obfuscated_key = binascii.hexlify(os.urandom(32))
-            ssh.exec_command(make_obfuscated_sshd_config_file_command(server.ip_address, server.ssh_username,
+                server.ssh_obfuscated_key = binascii.hexlify(os.urandom(SSH_OBFUSCATED_KEY_BYTE_LENGTH))
+            ssh.exec_command(make_obfuscated_sshd_config_file_command(server.internal_ip_address, server.ssh_username,
                                                     server.ssh_obfuscated_port, server.ssh_obfuscated_key))
         # NOTE we do not write the ssh host key back to the server because it is generated
         #      on the server in the first place.
@@ -480,6 +532,32 @@ def install_host(host, servers, existing_server_ids):
 
     ssh.exec_command('/etc/init.d/xinetd restart')
 
+    #
+    # Restart some services regularly
+    #
+
+    cron_file = '/etc/cron.d/psi-restart-services'
+    ssh.exec_command('echo "SHELL=/bin/sh" > %s;' % (cron_file,) +
+                     'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
+                     'echo "1 * * * * root %s restart" >> %s;' % ('/etc/init.d/xinetd', cron_file) +
+                     'echo "2 * * * * root %s restart" >> %s' % ('/etc/init.d/badvpn-udpgw', cron_file))
+
+    #
+    # Add required packages and Python modules
+    #
+    
+    ssh.exec_command('easy_install pyOpenSSL')
+    ssh.exec_command('easy_install hiredis')
+    ssh.exec_command('easy_install redis')
+    ssh.exec_command('easy_install iso8601')
+    ssh.exec_command('apt-get install redis-server')
+
+    install_geoip_database(ssh)
+    
+    for plugin in plugins:
+        if hasattr(plugin, 'install_host'):
+            plugin.install_host(ssh)
+            
     ssh.close()
 
     #
@@ -504,7 +582,7 @@ def install_host(host, servers, existing_server_ids):
 
         if (server.web_server_certificate is None
             or server.web_server_private_key is None):
-            key_pem, cert_pem = generate_self_signed_certificate()
+            cert_pem, key_pem = generate_self_signed_certificate()
             server.web_server_private_key = ''.join(key_pem.split('\n')[1:-2])
             server.web_server_certificate = ''.join(cert_pem.split('\n')[1:-2])
 
@@ -513,13 +591,277 @@ def install_host(host, servers, existing_server_ids):
     # NOTE: call psi_ops_deploy.deploy_host() to complete the install process
 
     
-def install_firewall_rules(host):
+def install_firewall_rules(host, servers, plugins):
+
+    iptables_rules_path = '/etc/iptables.rules'
+    iptables_rules_contents = '''
+*filter
+    -A INPUT -i lo -p tcp -m tcp --dport 7300 -j ACCEPT
+    -A INPUT -i lo -p tcp -m tcp --dport 6379 -j ACCEPT
+    -A INPUT -i lo -p tcp -m tcp --dport 6000 -j ACCEPT''' + ''.join(
+    # tunneled web requests
+    ['''
+    -A INPUT -i lo -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers]) + '''
+    -A INPUT -d 127.0.0.0/8 ! -i lo -j DROP
+    -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+    -A INPUT -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT''' % (host.ssh_port,) + ''.join(
+    # web servers
+    ['''
+    -A INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers
+                if s.capabilities['handshake']]) + ''.join(
+    # SSH
+    ['''
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --set
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --update --seconds 10 --hitcount 10 -j DROP
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -j ACCEPT'''.format(
+            str(s.internal_ip_address), str(s.ssh_port)) for s in servers
+                if s.capabilities['SSH']]) + ''.join(
+    # OSSH
+    ['''
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --set
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --update --seconds 10 --hitcount 10 -j DROP
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -j ACCEPT'''.format(
+            str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
+                if s.capabilities['OSSH']]) + ''.join(
+    # VPN
+    ['''
+    -A INPUT -d {0} -p esp -j ACCEPT
+    -A INPUT -d {0} -p ah -j ACCEPT
+    -A INPUT -d {0} -p udp --dport 500 -j ACCEPT
+    -A INPUT -d {0} -p udp --dport 4500 -j ACCEPT
+    -A INPUT -d {0} -i ipsec+ -p udp -m udp --dport l2tp -j ACCEPT'''.format(
+            str(s.internal_ip_address)) for s in servers
+                if s.capabilities['VPN']]) + '''
+    -A INPUT -p tcp -j REJECT --reject-with tcp-reset
+    -A INPUT -j DROP
+    -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 5242,4244 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 5243,7985,9785 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 8.8.8.8 -p tcp --dport 53 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 8.8.8.8 -p udp --dport 53 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 8.8.4.4 -p tcp --dport 53 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 8.8.4.4 -p udp --dport 53 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 10.0.0.0/8 -j DROP
+    -A FORWARD -s 10.0.0.0/8 -j REJECT''' + ''.join(
+    # tunneled web requests (always provided, regardless of capabilities)
+    ['''
+    -A OUTPUT -d {0} -o lo -p tcp -m tcp --dport {1} -j ACCEPT
+    -A OUTPUT -s {0} -o lo -p tcp -m tcp --sport {1} -j ACCEPT'''.format(
+            str(s.internal_ip_address), str(s.web_server_port)) for s in servers]) + '''
+    -A OUTPUT -o lo -p tcp -m tcp --dport 7300 -j ACCEPT
+    -A OUTPUT -o lo -p tcp -m tcp --dport 6379 -m owner --uid-owner root -j ACCEPT
+    -A OUTPUT -o lo -p tcp -m tcp --dport 6000 -m owner --uid-owner root -j ACCEPT
+    -A OUTPUT -o lo -p tcp -m tcp --dport 6379 -m owner --uid-owner www-data -j ACCEPT
+    -A OUTPUT -o lo -p tcp -m tcp --sport 7300 -j ACCEPT
+    -A OUTPUT -o lo -p tcp -m tcp --sport 6379 -j ACCEPT
+    -A OUTPUT -o lo -p tcp -m tcp --sport 6000 -j ACCEPT
+    -A OUTPUT -o lo -j REJECT
+    -A OUTPUT -p tcp -m multiport --dports 53,80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
+    -A OUTPUT -p udp -m multiport --dports 53,80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
+    -A OUTPUT -p tcp -m multiport --dports 5222,5223,5228,5229,5230,14259 -j ACCEPT
+    -A OUTPUT -p udp -m multiport --dports 5222,5223,5228,5229,5230,14259 -j ACCEPT
+    -A OUTPUT -p tcp -m multiport --dports 5242,4244 -j ACCEPT
+    -A OUTPUT -p udp -m multiport --dports 5243,7985,9785 -j ACCEPT
+    -A OUTPUT -p udp -m udp --dport 123 -j ACCEPT
+    -A OUTPUT -p tcp -m tcp --sport %s -j ACCEPT''' % (host.ssh_port,) + ''.join(
+    # tunneled web requests on NATed servers don't go out lo
+    ['''
+    -A OUTPUT -d %s -p tcp -m tcp --dport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers
+                if s.ip_address != s.internal_ip_address]) + ''.join(
+    # web servers
+    ['''
+    -A OUTPUT -s %s -p tcp -m tcp --sport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers
+                if s.web_server_port]) + ''.join(
+    # SSH
+    ['''
+    -A OUTPUT -s %s -p tcp -m tcp --sport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.ssh_port)) for s in servers
+                if s.ssh_port]) + ''.join(
+    # OSSH
+    ['''
+    -A OUTPUT -s %s -p tcp -m tcp --sport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
+                if s.ssh_obfuscated_port]) + ''.join(
+    # VPN
+    ['''
+    -A OUTPUT -s {0} -p esp -j ACCEPT
+    -A OUTPUT -s {0} -p ah -j ACCEPT
+    -A OUTPUT -s {0} -p udp --sport 500 -j ACCEPT
+    -A OUTPUT -s {0} -p udp --sport 4500 -j ACCEPT
+    -A OUTPUT -s {0} -o ipsec+ -p udp -m udp --dport l2tp -j ACCEPT'''.format(
+            str(s.internal_ip_address)) for s in servers
+                if s.capabilities['VPN']]) + ''.join(
+    ['''
+    -A OUTPUT -s %s -p tcp -m tcp --tcp-flags ALL ACK,RST -j ACCEPT'''
+            % (str(s.internal_ip_address), ) for s in servers]) + '''
+    -A OUTPUT -j REJECT
+COMMIT
+
+*nat''' + ''.join(
+    # Port forward from 443 to web servers
+    ['''
+    -A PREROUTING -i eth+ -p tcp -d %s --dport 443 -j DNAT --to-destination :%s'''
+            % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers
+                if s.capabilities['handshake']]) + '''
+    -A POSTROUTING -s 10.0.0.0/8 -o eth+ -j MASQUERADE''' + ''.join(
+    # tunneled web requests on NATed servers need to be redirected to the servers' internal ip addresses
+    ['''
+    -A OUTPUT -p tcp -m tcp -d %s --dport %s -j DNAT --to-destination %s'''
+            % (str(s.ip_address), str(s.web_server_port), str(s.internal_ip_address)) for s in servers
+                if s.ip_address != s.internal_ip_address]) + '''
+COMMIT
+'''
+
+    for plugin in plugins:
+        if hasattr(plugin, 'iptables_rules_contents'):
+            iptables_rules_contents = plugin.iptables_rules_contents(host, servers)
+
+    # NOTE that we restart fail2ban after applying firewall rules because iptables-restore
+    # flushes iptables which will remove any chains and rules that fail2ban creates on starting up
+    if_up_script_path = '/etc/network/if-up.d/firewall'
+    if_up_script_contents = '''#!/bin/sh
+
+iptables-restore < %s
+/etc/init.d/fail2ban restart
+''' % (iptables_rules_path,)
+
+    ssh_ports = set([str(host.ssh_port)])
+    for server in servers:
+        ssh_ports.add(str(server.ssh_port)) if server.capabilities['SSH'] else None
+        ssh_ports.add(str(server.ssh_obfuscated_port)) if server.capabilities['OSSH'] else None
+    
+    fail2ban_local_path = '/etc/fail2ban/jail.local'
+    fail2ban_local_contents = textwrap.dedent('''
+        [ssh]
+        port    = {0}
+
+        [ssh-ddos]
+        port    = {0}
+        '''.format(','.join(ssh_ports)))
+        
+    ssh = psi_ssh.SSH(
+            host.ip_address, host.ssh_port,
+            host.ssh_username, host.ssh_password,
+            host.ssh_host_key)
+
+    ssh.exec_command('echo "%s" > %s' % (iptables_rules_contents, iptables_rules_path))
+    ssh.exec_command('echo "%s" > %s' % (if_up_script_contents, if_up_script_path))
+    ssh.exec_command('chmod +x %s' % (if_up_script_path,))
+    ssh.exec_command('echo "%s" > %s' % (fail2ban_local_contents, fail2ban_local_path))
+    ssh.exec_command(if_up_script_path)
+    ssh.close()
+    
+    install_malware_blacklist(host)
+    
+    
+def install_malware_blacklist(host):
+
+    psi_ip_blacklist = 'psi_ipblacklist.py'
+    psi_ip_blacklist_host_path = posixpath.join('/usr/local/bin', psi_ip_blacklist)
+    if_up_script_path = '/etc/network/if-up.d/set_blocklist'
+    cron_script_path = '/etc/cron.daily/set_blocklist'
 
     ssh = psi_ssh.SSH(
             host.ip_address, host.ssh_port,
             host.ssh_username, host.ssh_password,
             host.ssh_host_key)
 
-    ssh.put_file('iptables.rules', '/etc/iptables.rules')
-    ssh.exec_command('iptables-restore < /etc/iptables.rules')
-    ssh.exec_command('/etc/init.d/fail2ban restart')
+    ssh.exec_command('apt-get install -y module-assistant xtables-addons-source')
+    ssh.exec_command('module-assistant -i auto-install xtables-addons')
+    
+    ssh.put_file(os.path.join(os.path.abspath('.'), psi_ip_blacklist),
+                 psi_ip_blacklist_host_path)
+    ssh.exec_command('chmod +x %s' % (psi_ip_blacklist_host_path,))
+    ssh.exec_command('ln -s %s %s' % (psi_ip_blacklist_host_path, if_up_script_path))
+    ssh.exec_command('ln -s %s %s' % (psi_ip_blacklist_host_path, cron_script_path))
+    ssh.exec_command(psi_ip_blacklist_host_path)
+    ssh.close()
+    
+    
+def install_geoip_database(ssh):
+
+    #
+    # Upload the local GeoIP databases (if they exist)
+    #
+
+    REMOTE_GEOIP_DIRECTORY = '/usr/local/share/GeoIP/'
+    for geo_ip_file in ['GeoIPCity.dat', 'GeoIPISP.dat']:
+        if os.path.isfile(geo_ip_file):
+            ssh.put_file(os.path.join(os.path.abspath('.'), geo_ip_file),
+                         posixpath.join(REMOTE_GEOIP_DIRECTORY, geo_ip_file))
+
+                         
+def install_psi_limit_load(host, servers):
+
+    # NOTE: only disabling SSH/OSSH/IKE since disabling the web server from external access
+    #       would also prevent current VPN users from accessing the web server.
+
+    rules = (
+    # SSH
+    [' INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j REJECT --reject-with tcp-reset'
+            % (str(s.internal_ip_address), str(s.ssh_port)) for s in servers
+                if s.capabilities['SSH']] +
+    # OSSH
+    [' INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j REJECT --reject-with tcp-reset'
+            % (str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
+                if s.capabilities['OSSH']] +
+                
+    # VPN
+    [' INPUT -d %s -p udp --dport 500 -j DROP'
+            % (str(s.internal_ip_address), ) for s in servers
+                if s.capabilities['VPN']] )
+                
+    disable_services = '\n'.join(['iptables -I' + rule for rule in rules])
+    
+    enable_services = '\n'.join(['iptables -D' + rule for rule in rules])
+    
+    script = '''
+#!/bin/bash
+
+threshold=25
+threshold_swap=20
+
+free=$(free | grep "buffers/cache" | awk '{print $4/($3+$4) * 100.0}')
+loaded=$(echo "$free<$threshold" | bc)
+loaded_swap=0
+total_swap=$(free | grep "Swap" | awk '{print $2}')
+if [ $total_swap -ne 0 ]; then
+    free_swap=$(free | grep "Swap" | awk '{print $4/$2 * 100.0}')
+    loaded_swap=$(echo "$free_swap<$threshold_swap" | bc)
+fi
+if [ $loaded -eq 1 -o $loaded_swap -eq 1 ]; then
+    %s
+    %s
+else
+    %s
+fi
+exit 0
+''' % (enable_services, disable_services, enable_services)
+
+    ssh = psi_ssh.SSH(
+            host.ip_address, host.ssh_port,
+            host.ssh_username, host.ssh_password,
+            host.ssh_host_key)
+
+    ssh.exec_command('apt-get install -y bc')
+            
+    psi_limit_load_host_path = '/usr/local/sbin/psi_limit_load'
+
+    file = tempfile.NamedTemporaryFile(delete=False)
+    file.write(script)
+    file.close()
+    ssh.put_file(file.name, psi_limit_load_host_path)
+    os.remove(file.name)
+
+    ssh.exec_command('chmod +x %s' % (psi_limit_load_host_path,))
+    
+    cron_file = '/etc/cron.d/psi-limit-load'
+    ssh.exec_command('echo "SHELL=/bin/sh" > %s;' % (cron_file,) +
+                     'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
+                     'echo "* * * * * root %s" >> %s' % (psi_limit_load_host_path, cron_file))
+            

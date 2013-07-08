@@ -1,0 +1,21 @@
+fa:
+  plaintext_email_no_attachment: |
+    فارسی - {{0}}/{0}.html
+  html_email_no_attachment: |
+    <div style="direction: rtl;">
+    فارسی - <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
+    </div>
+  plaintext_email_with_attachment: |+
+    برای استفاده از سایفون ۳، فایل پیوست شده را {{1}} با پسوند زیر ذخیره کنید:
+    .exe
+    برای اطلاعات بیشتر یا دانلود دوباره فایل ها، لطفآ روی لینک زیرکلیک کنید.
+    {{0}}/{0}.html
+
+  html_email_with_attachment: |
+    <div style="direction: rtl;">
+    برای استفاده از سایفون ۳، فایل پیوست شده را {{1}} با پسوند زیر ذخیره کنید:<br>
+    .exe<br>
+    برای اطلاعات بیشتر یا دانلود دوباره فایل ها، لطفآ روی لینک زیرکلیک کنید.<br>
+    <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
+    </div>
+    <br>

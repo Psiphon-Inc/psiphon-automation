@@ -25,7 +25,9 @@ import csv
 import datetime
 import collections
 import time
+import traceback
 import psycopg2
+import sys
 
 import psi_ssh
 import psi_ops
@@ -35,6 +37,8 @@ import psi_ops_stats_credentials
 HOST_LOG_FILENAME_PATTERN = 'psiphonv.log*'
 LOCAL_LOG_ROOT = os.path.join(os.path.abspath('.'), 'logs')
 PSI_OPS_DB_FILENAME = os.path.join(os.path.abspath('.'), 'psi_ops_stats.dat')
+
+TESTING_PROPAGATION_CHANNEL_NAME = 'Testing'
 
 
 # Stats database schema consists of one table per event type. The tables
@@ -70,42 +74,322 @@ LOG_LINE_PATTERN = '([\dT\.:\+-]+) ([\w-]+) psiphonv: (\w+) (.+)'
 LOG_ENTRY_COMMON_FIELDS = ('timestamp', 'host_id')
 
 LOG_EVENT_TYPE_SCHEMA = {
-    'started' :         ('server_id',),
-    'handshake' :       ('server_id',
-                         'client_region',
-                         'propagation_channel_id',
-                         'sponsor_id',
-                         'client_version'),
-    'discovery' :       ('server_id',
-                         'client_region',
-                         'propagation_channel_id',
-                         'sponsor_id',
-                         'client_version',
-                         'discovery_server_id',
-                         'client_unknown'),
-    'connected' :       ('server_id',
-                         'client_region',
-                         'propagation_channel_id',
-                         'sponsor_id',
-                         'client_version',
-                         'relay_protocol',
-                         'session_id'),
-    'failed' :          ('server_id',
-                         'client_region',
-                         'propagation_channel_id',
-                         'sponsor_id',
-                         'client_version',
-                         'relay_protocol',
-                         'error_code'),
-    'download' :        ('server_id',
-                         'client_region',
-                         'propagation_channel_id',
-                         'sponsor_id',
-                         'client_version'),
-    'disconnected' :    ('relay_protocol',
-                         'session_id'),
-    'status' :          ('relay_protocol',
-                         'session_id')}
+    'started' :             ('server_id',),
+    'handshake.7' :         ('server_id',
+                             'client_region',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol'),
+    'handshake.9' :         ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol'),
+    'handshake' :           ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'tunnel_whole_device'),
+    'discovery.9' :         ('server_id',
+                             'client_region',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'discovery_server_id',
+                             'client_unknown'),
+    'discovery.11' :        ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'discovery_server_id',
+                             'client_unknown'),
+    'discovery' :           ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'tunnel_whole_device',
+                             'discovery_server_id',
+                             'client_unknown'),
+    'connected.8' :         ('server_id',
+                             'client_region',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'session_id'),
+    'connected.11' :        ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'session_id',
+                             'last_connected'),
+    'connected' :           ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'tunnel_whole_device',
+                             'session_id',
+                             'last_connected'),
+    'failed.8' :            ('server_id',
+                             'client_region',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'error_code'),
+    'failed.10' :           ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'error_code'),
+    'failed' :              ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'tunnel_whole_device',
+                             'error_code'),
+    'download.6' :          ('server_id',
+                             'client_region',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform'),
+    'download.8' :          ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform'),
+    'download' :            ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'tunnel_whole_device'),
+    'disconnected' :        ('relay_protocol',
+                             'session_id'),
+    'status' :              ('relay_protocol',
+                             'session_id'),
+    'bytes_transferred.8' : ('server_id',
+                             'client_region',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'bytes'),
+    'bytes_transferred.12' :('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'session_id',
+                             'connected',
+                             'bytes'),
+    'bytes_transferred' :   ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'tunnel_whole_device',
+                             'session_id',
+                             'connected',
+                             'bytes'),
+    'page_views.9' :        ('server_id',
+                             'client_region',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'pagename',
+                             'viewcount'),
+    'page_views.13' :       ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'session_id',
+                             'connected',
+                             'pagename',
+                             'viewcount'),
+    'page_views' :          ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'tunnel_whole_device',
+                             'session_id',
+                             'connected',
+                             'pagename',
+                             'viewcount'),
+    'https_requests.9' :    ('server_id',
+                             'client_region',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'domain',
+                             'count'),
+    'https_requests.13' :   ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'session_id',
+                             'connected',
+                             'domain',
+                             'count'),
+    'https_requests' :      ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'tunnel_whole_device',
+                             'session_id',
+                             'connected',
+                             'domain',
+                             'count'),
+    'speed.11' :            ('server_id',
+                             'client_region',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'operation',
+                             'info',
+                             'milliseconds',
+                             'size'),
+    'speed.13' :            ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'operation',
+                             'info',
+                             'milliseconds',
+                             'size'),
+    'speed' :               ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'tunnel_whole_device',
+                             'operation',
+                             'info',
+                             'milliseconds',
+                             'size'),
+    'feedback.12' :         ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'session_id',
+                             'question',
+                             'answer'),
+    'feedback' :            ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'tunnel_whole_device',
+                             'session_id',
+                             'question',
+                             'answer'),
+    }
 
 
 def iso8601_to_utc(timestamp):
@@ -125,13 +409,13 @@ def iso8601_to_utc(timestamp):
     return (localized_datetime - timezone_delta).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
 
 
-def process_stats(host, servers, db_cur, error_file=None):
+def process_stats(host, servers, db_cur, psinet, error_file=None):
 
     print 'process stats from host %s...' % (host.id,)
 
     server_ip_address_to_id = {}
     for server in servers:
-        server_ip_address_to_id[server.ip_address] = server.id
+        server_ip_address_to_id[server.internal_ip_address] = server.id
 
     line_re = re.compile(LOG_LINE_PATTERN)
 
@@ -163,13 +447,36 @@ def process_stats(host, servers, db_cur, error_file=None):
         event_columns[event_type] = LOG_ENTRY_COMMON_FIELDS + event_fields
         assert(event_fields[0] == 'server_id' or 'server_id' not in event_fields)
         assert(len(LOG_ENTRY_COMMON_FIELDS) == 2)
+        table_name = event_type
+        if event_type.find('.') != -1:
+            table_name = event_type.split('.')[0]
         command = 'insert into %s (%s) select %s where not exists (select 1 from %s where %s)' % (
-                        event_type,
+                        table_name,
                         ', '.join(event_columns[event_type]),
                         ', '.join(['%s']*len(event_columns[event_type])),
-                        event_type,
+                        table_name,
                         ' and '.join(['%s = %%s' % x for x in event_columns[event_type]]))
         event_sql[event_type] = command
+
+        # Add special case statement to use when last_connected is NULL
+        if 'last_connected' in event_columns[event_type]:
+            command = 'insert into %s (%s) select %s where not exists (select 1 from %s where %s)' % (
+                            table_name,
+                            ', '.join(event_columns[event_type]),
+                            ', '.join(['%s']*len(event_columns[event_type])),
+                            table_name,
+                            ' and '.join([('%s is %%s' % x) if x == 'last_connected' else ('%s = %%s' % x)
+                                        for x in event_columns[event_type]]))
+            event_sql[event_type + '.last_connected_NULL'] = command
+
+    # Don't record entries for testing or deployment-validation logs.
+    # Manual and automated testing are typically done with a propagation channel
+    # name of 'Testing' (which we're going to look up in psinet to get the ID). 
+    # All logs that use this propagation channel will be discarded to prevent 
+    # stats confusion.
+    excluded_propagation_channel_ids = []
+    if TESTING_PROPAGATION_CHANNEL_NAME:
+        excluded_propagation_channel_ids += [psinet.get_propagation_channel_by_name(TESTING_PROPAGATION_CHANNEL_NAME).id]
 
     for filename in os.listdir(directory):
         if re.match(HOST_LOG_FILENAME_PATTERN, filename):
@@ -213,9 +520,20 @@ def process_stats(host, servers, db_cur, error_file=None):
 
                     host_id = match.group(2)
                     event_type = match.group(3)
-                    event_values = match.group(4).split()
+                    event_values = [event_value.decode('utf-8', 'replace') for event_value in match.group(4).split()]
                     event_fields = LOG_EVENT_TYPE_SCHEMA[event_type]
+
                     if len(event_values) != len(event_fields):
+                        # Backwards compatibility case
+                        event_type = '%s.%d' % (event_type, len(event_values))
+                        if event_type not in LOG_EVENT_TYPE_SCHEMA:
+                            err = 'invalid log line fields %s' % (line,)
+                            if error_file:
+                                error_file.write(err + '\n')
+                            continue
+                        event_fields = LOG_EVENT_TYPE_SCHEMA[event_type]
+
+                    if len(event_values) != len(event_fields):                       
                         err = 'invalid log line fields %s' % (line,)
                         if error_file:
                             error_file.write(err + '\n')
@@ -226,11 +544,57 @@ def process_stats(host, servers, db_cur, error_file=None):
                     field_values = [timestamp, host_id] + event_values
                     assert(len(field_names) == len(field_values))
 
+                    # Check for invalid bytes value for bytes_transferred
+
+                    if event_type == 'bytes_transferred.8':
+                        assert(field_names[9] == 'bytes')
+                        # Client version 24 had a bug which resulted in
+                        # corrupt byte transferred values, so discard them
+                        assert(field_names[6] == 'client_version')
+                        if int(field_values[6]) == 24:
+                            continue
+
+                    invalid_byte_field = False
+                    for index, field_name in enumerate(field_names):
+                        if field_name == 'bytes':
+                            # This is an integer field
+                            if not (0 <= int(field_values[index]) < 2147483647):
+                                err = 'invalid byte fields %s' % (line,)
+                                print err
+                                if error_file:
+                                    error_file.write(err + '\n')
+                                invalid_byte_field = True
+                                break
+                    if invalid_byte_field:
+                        continue
+
+                    # Don't record entries for testing or deployment-validation logs
+                    try:
+                        if field_values[field_names.index('propagation_channel_id')] in excluded_propagation_channel_ids:
+                            continue
+                    except:
+                        # propagation_channel_id is not present
+                        pass
+
                     # Replace server IP addresses with server IDs in
                     # stats to keep IP addresses confidental in reporting.
 
-                    if field_names[2] == 'server_id':
-                        field_values[2] = server_ip_address_to_id.get(field_values[2], 'Unknown')
+                    for index, field_name in enumerate(field_names):
+                        if field_name == 'server_id' or field_name == 'discovery_server_id':
+                            field_values[index] = server_ip_address_to_id.get(field_values[index], 'Unknown')
+
+                    # Fixup for last_connected: this field (in the log) contains either a timestamp,
+                    # 'None' (meaning a first time connection), or 'Unknown' (meaning an old client that
+                    # doesn't send this info connected)
+                    if event_type.find('connected') == 0:
+                        for index, field_name in enumerate(field_names):
+                            if field_name == 'last_connected':
+                                if field_values[index] == 'Unknown':
+                                    # Use alternate SQL that works with NULL values
+                                    event_type += '.last_connected_NULL'
+                                    field_values[index] = None
+                                elif field_values[index] == 'None':
+                                    field_values[index] = '1900-01-01T00:00:00Z'
 
                     # SQL injection note: the table name isn't parameterized
                     # and comes from log file data, but it's implicitly
@@ -244,6 +608,7 @@ def process_stats(host, servers, db_cur, error_file=None):
             finally:
                 file.close()
         print '%d new lines processed' % (lines_processed)
+        sys.stdout.flush()
 
     if next_last_timestamp:
         if not last_timestamp:
@@ -259,83 +624,79 @@ def process_stats(host, servers, db_cur, error_file=None):
 def reconstruct_sessions(db):
     # Populate the session table. For each connection, create a session. Some
     # connections will have no end time, depending on when the logs are pulled.
-    # Find the end time by selecting the 'disconnected' event with the same
-    # host_id and session_id soonest after the connected timestamp.
+    # Find the end time by selecting the 'disconnected' or 'status' event with
+    # the same host_id and session_id soonest after the connected timestamp.
 
     session_cursor = db.cursor()    
     
-    # There may be existing sessions that started before start_date that don't have an end
-    # time.  We first iterate through each of those and try to find a new 'disconnected'
-    # event for each, updating each when we find an end time.
-    
-    print 'Reconstructing previously incomplete sessions...'
+    print 'Reconstructing sessions...'
+    sys.stdout.flush()
     start_time = time.time()
 
-    # Note: I tried adding an index on session((session_end_timestamp IS NULL)),
-    # and the query planner showed that it was being used instead of a Seq Scan,
-    # but it didn't speed up the operation at all.
-    session_cursor.execute(textwrap.dedent('''
-        UPDATE session
-        SET session_end_timestamp =
-            (SELECT disconnected.timestamp FROM disconnected
-             WHERE disconnected.timestamp > session.session_start_timestamp
-                 AND disconnected.host_id = session.host_id
-                 AND disconnected.relay_protocol = session.relay_protocol
-                 AND disconnected.session_id = session.session_id
-             ORDER BY disconnected.timestamp ASC LIMIT 1)
-        WHERE session_end_timestamp IS NULL
-        AND (session.relay_protocol = 'VPN' OR
-             EXISTS (SELECT 1 FROM disconnected WHERE disconnected.session_id = session.session_id))
-        '''))
+    session_cursor.execute('SELECT doSessionReconstruction()')
 
     session_cursor.execute('COMMIT')
 
-    print 'elapsed time: %fs' % (time.time()-start_time,)
+    print 'Reconstruct sessions elapsed time: %fs' % (time.time()-start_time,)
 
-    # Reconstruct and insert all sessions.
-    # We do this in a single SQL statement, which we have found to perform much
-    # better than looping through results.
 
-    print "Reconstructing new sessions..."
-    start_time = time.time()
-    
-    session_cursor.execute(textwrap.dedent('''
-        INSERT INTO session (host_id, server_id, client_region, propagation_channel_id,
-                             sponsor_id, client_version, relay_protocol, session_id,
-                             session_start_timestamp, session_end_timestamp, connected_id)
-            SELECT connected.host_id, connected.server_id, connected.client_region,
-                connected.propagation_channel_id, connected.sponsor_id, connected.client_version,
-                connected.relay_protocol, connected.session_id, connected.timestamp,
-                disconnected.timestamp, connected.id
-            FROM
-                connected
-            LEFT OUTER JOIN
-                disconnected
-            ON
-                -- Get the disconnect time that matches the connection
-                disconnected.timestamp =
-                    (SELECT d.timestamp FROM disconnected AS d
-                     WHERE d.timestamp > connected.timestamp
-                        AND d.host_id = connected.host_id
-                        AND d.relay_protocol = connected.relay_protocol
-                        AND d.session_id = connected.session_id
-                     ORDER BY d.timestamp ASC LIMIT 1)
-                AND connected.host_id = disconnected.host_id
-                AND connected.relay_protocol = disconnected.relay_protocol
-                AND connected.session_id = disconnected.session_id
-            WHERE NOT EXISTS (SELECT 1 FROM session WHERE connected_id = connected.id)
-        '''))
+def update_propagation_channels(db, propagation_channels):
 
-    session_cursor.execute('COMMIT')
+    cursor = db.cursor()
 
-    print 'elapsed time: %fs' % (time.time()-start_time,)
+    for channel in propagation_channels:
+        cursor.execute('UPDATE propagation_channel SET name = %s WHERE id = %s',
+                       [channel.name, channel.id])
+        cursor.execute('INSERT INTO propagation_channel (id, name) SELECT %s, %s ' +
+                       'WHERE NOT EXISTS (SELECT 1 FROM propagation_channel WHERE id = %s AND name = %s)',
+                       [channel.id, channel.name, channel.id, channel.name])
+
+    cursor.execute('COMMIT')
+
+
+def update_sponsors(db, sponsors):
+
+    cursor = db.cursor()
+
+    for sponsor in sponsors:
+        cursor.execute('UPDATE sponsor SET name = %s WHERE id = %s',
+                       [sponsor.name, sponsor.id])
+        cursor.execute('INSERT INTO sponsor (id, name) SELECT %s, %s ' +
+                       'WHERE NOT EXISTS (SELECT 1 FROM sponsor WHERE id = %s AND name = %s)',
+                       [sponsor.id, sponsor.name, sponsor.id, sponsor.name])
+
+    cursor.execute('COMMIT')
+
+
+def update_servers(db, psinet):
+
+    cursor = db.cursor()
+
+    for server in psinet.get_servers():
+        host = psinet.get_host_for_server(server)
+        server_type = 'Propagation'
+        if server.discovery_date_range:
+            server_type = 'Discovery'
+        else:
+            if server.is_embedded:
+                server_type = 'Embedded'
+            if server.is_permanent:
+                server_type = 'Permanent'
+        cursor.execute('UPDATE server SET type = %s, datacenter_name = %s WHERE id = %s',
+                       [server_type, host.datacenter_name, server.id])
+        cursor.execute('INSERT INTO server (id, type, datacenter_name) SELECT %s, %s, %s ' +
+                       'WHERE NOT EXISTS (SELECT 1 FROM server WHERE id = %s AND type = %s AND datacenter_name = %s)',
+                       [server.id, server_type, host.datacenter_name,
+                        server.id, server_type, host.datacenter_name])
+
+    cursor.execute('COMMIT')
 
 
 if __name__ == "__main__":
 
     start_time = time.time()
 
-    psinet = psi_ops.PsiphonNetwork.load_from_file(PSI_OPS_DB_FILENAME, lock_file=True)
+    psinet = psi_ops.PsiphonNetwork.load_from_file(PSI_OPS_DB_FILENAME)
 
     db_conn = psycopg2.connect(
         'dbname=%s user=%s password=%s port=%d' % (
@@ -346,16 +707,25 @@ if __name__ == "__main__":
 
     hosts = psinet.get_hosts()
     servers = psinet.get_servers()
+    propagation_channels = psinet.get_propagation_channels()
+    sponsors = psinet.get_sponsors()
 
     try:
+        update_propagation_channels(db_conn, propagation_channels)
+        update_sponsors(db_conn, sponsors)
+        update_servers(db_conn, psinet)
+
         for host in hosts:
             db_cur = db_conn.cursor()
-            process_stats(host, servers, db_cur)
+            process_stats(host, servers, db_cur, psinet)
             db_cur.close()
             db_conn.commit()
         reconstruct_sessions(db_conn)
         db_conn.commit()
+    except Exception as e:
+        for line in traceback.format_exc().split('\n'):
+            print line
     finally:
         db_conn.close()
 
-    print 'elapsed time: %fs' % (time.time()-start_time,)
+    print 'Total stats processing elapsed time: %fs' % (time.time()-start_time,)

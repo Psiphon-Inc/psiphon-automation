@@ -24,82 +24,226 @@ in a day. This is both to hinder/prevent abuse of the system.
 
 import argparse
 import hashlib
-import MySQLdb as mdb
 import settings
+from sqlalchemy import create_engine
+from sqlalchemy import Column, String, Integer
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
 
+
+_Base = declarative_base()
+
+
+class _BlacklistAdhoc(_Base):
+    __tablename__ = 'blacklist_adhoc'
+    emailhash = Column(String(40), primary_key=True, nullable=False)
+    count = Column(Integer, default=0, nullable=False)
+
+
+class _BlacklistDomain(_Base):
+    __tablename__ = 'blacklist_domain'
+    domainhash = Column(String(40), primary_key=True, nullable=False)
+
+
+class _BlacklistEmail(_Base):
+    __tablename__ = 'blacklist_email'
+    emailhash = Column(String(40), primary_key=True, nullable=False)
+
+
+class _WhitelistDomain(_Base):
+    __tablename__ = 'whitelist_domain'
+    domainhash = Column(String(40), primary_key=True, nullable=False)
+
+
+class _WhitelistEmail(_Base):
+    __tablename__ = 'whitelist_email'
+    emailhash = Column(String(40), primary_key=True, nullable=False)
+
+
+_dbengine = create_engine('mysql://%s:%s@localhost/%s' % (settings.DB_USERNAME, settings.DB_PASSWORD, settings.DB_DBNAME))
+_Base.metadata.create_all(_dbengine)
+_Session = sessionmaker(bind=_dbengine)
 
 
 class Blacklist(object):
     def __init__(self):
-        self._conn = mdb.connect(user=settings.DB_ROOT_USERNAME, passwd=settings.DB_ROOT_PASSWORD)
-        self._setup()
-                
-        self._conn = mdb.connect(user=settings.DB_DBNAME, passwd=settings.DB_PASSWORD, db=settings.DB_DBNAME)
-    
-    def _setup(self):
-        cur = self._conn.cursor()
-        
-        # Note that the DB name doesn't seem to be parameterizable.
-        
-        # We're going to pre-check for the DB and the table even though we're 
-        # using "IF NOT EXISTS", because otherwise it prints error text (which
-        # causes a problem when it's a cron job).
-        cur.execute('SHOW DATABASES')
-        if not cur.rowcount or (settings.DB_DBNAME,) not in cur.fetchall():
-            cur.execute('CREATE DATABASE IF NOT EXISTS '+settings.DB_DBNAME)
+        pass
 
-        # The GRANT command implictly creates the user if it doesn't exist.
-        cur.execute("GRANT ALL PRIVILEGES ON "+settings.DB_DBNAME+".* TO %s@'%%' IDENTIFIED BY %s WITH GRANT OPTION;", (settings.DB_USERNAME, settings.DB_PASSWORD,))
-        
-        cur.execute('USE '+settings.DB_DBNAME)
-        
-        cur.execute('SHOW TABLES IN '+settings.DB_DBNAME)
-        if not cur.rowcount or ('blacklist',) not in cur.fetchall():
-            cur.execute('CREATE TABLE IF NOT EXISTS blacklist ( emailhash CHAR(40) PRIMARY KEY, count TINYINT NOT NULL DEFAULT 0 );')
-        
-    def clear(self):
+    def clear_adhoc(self):
         '''
-        Deletes *all* entries from the blacklist table. Should be run exactly 
+        Deletes *all* entries from the blacklist table. Should be run exactly
         once a day (or whatever the blacklist window is).
         '''
-        cur = self._conn.cursor()
-        cur.execute('DELETE FROM blacklist')
-        
+        # Drop the table.
+        _BlacklistAdhoc.__table__.drop(bind=_dbengine)
+
+        # Re-create the table so that any immediately following calls won't fail.
+        _BlacklistAdhoc.__table__.create(bind=_dbengine)
+
     def _hash_addr(self, email_addr):
         return hashlib.sha1(email_addr.lower()).hexdigest()
-        
+
     def check_and_add(self, email_addr):
         '''
         Check if the given email address has exceeded the number of requests that
-        it's allowed to make. Returns True if email_addr is allowed to get a 
+        it's allowed to make. Returns True if email_addr is allowed to get a
         reply, False otherwise.
         '''
-        
-        cur = self._conn.cursor()
-        
-        email_hash = self._hash_addr(email_addr)
-        count = 0
-        cur.execute('SELECT count FROM blacklist WHERE emailhash = %s', (email_hash,))
-        if cur.rowcount > 0:
-            count = cur.fetchall()[0][0]
-            
-        if count < settings.BLACKLIST_DAILY_LIMIT:
-            cur.execute('INSERT INTO blacklist (emailhash, count) VALUES (%s, 1) ON DUPLICATE KEY UPDATE count = count+1', (email_hash,))
-            return True
-        
-        return False
 
-        
+        domain = email_addr[email_addr.rindex('@') + 1:]
+        if not domain:
+            return False
+
+        # Is this address whitelisted via settings?
+        if domain in settings.BLACKLIST_EXEMPTION_DOMAINS:
+            return True
+
+        # Is this domain blacklisted via settings?
+        if domain in settings.BLACKLISTED_DOMAINS:
+            return False
+
+        emailhash = self._hash_addr(email_addr)
+
+        dbsession = _Session()
+
+        # Is this address whitelisted via DB info?
+        if self.is_email_whitelisted(email_addr, dbsession) or \
+           self.is_domain_whitelisted(domain, dbsession):
+            return True
+
+        # Is the user or his domain total blacklisted?
+        if self.is_email_blacklisted(email_addr, dbsession) or \
+           self.is_domain_blacklisted(domain, dbsession):
+            return False
+
+        match = dbsession.query(_BlacklistAdhoc).filter_by(emailhash=emailhash).first()
+
+        if not match:
+            newrecord = _BlacklistAdhoc(emailhash=emailhash, count=1)
+            dbsession.add(newrecord)
+        else:
+            if match.count < settings.BLACKLIST_DAILY_LIMIT:
+                match.count += 1
+            else:
+                # Request count limit exceeded
+                return False
+
+        # We added/incremented the request count for this user, but they haven't
+        # exceeded the limit.
+        dbsession.commit()
+        return True
+
+    def add_to_blacklist(self, email_or_domain):
+        '''
+        Add a new email address or domain to the perma-blacklist.
+        '''
+
+        dbsession = _Session()
+
+        hashvalue = self._hash_addr(email_or_domain)
+
+        if '@' in email_or_domain:
+            if self.is_email_blacklisted(email_or_domain, dbsession):
+                print 'Email already blacklisted'
+                return
+            newrecord = _BlacklistEmail(emailhash=hashvalue)
+            dbsession.add(newrecord)
+        else:
+            if self.is_domain_blacklisted(email_or_domain, dbsession):
+                print 'Domain already blacklisted'
+                return
+            newrecord = _BlacklistDomain(domainhash=hashvalue)
+            dbsession.add(newrecord)
+
+        dbsession.commit()
+
+    def is_domain_blacklisted(self, domain, dbsession=None):
+        if not dbsession:
+            dbsession = _Session()
+
+        hashvalue = self._hash_addr(domain)
+        match = dbsession.query(_BlacklistDomain).filter_by(domainhash=hashvalue).first()
+
+        return match is not None
+
+    def is_email_blacklisted(self, email_addr, dbsession=None):
+        '''
+        Check if the email address has been perma-blacklisted (doesn't check if
+        it's in the "adhoc" blacklist).
+        '''
+
+        if not dbsession:
+            dbsession = _Session()
+
+        hashvalue = self._hash_addr(email_addr)
+        match = dbsession.query(_BlacklistEmail).filter_by(emailhash=hashvalue).first()
+
+        return match is not None
+
+    def add_to_whitelist(self, email_or_domain):
+        '''
+        Add a new email address or domain to the perma-whitelist.
+        '''
+
+        dbsession = _Session()
+
+        hashvalue = self._hash_addr(email_or_domain)
+
+        if '@' in email_or_domain:
+            if self.is_email_whitelisted(email_or_domain, dbsession):
+                print 'Email already whitelisted'
+                return
+            newrecord = _WhitelistEmail(emailhash=hashvalue)
+            dbsession.add(newrecord)
+        else:
+            if self.is_domain_whitelisted(email_or_domain, dbsession):
+                print 'Domain already whitelisted'
+                return
+            newrecord = _WhitelistDomain(domainhash=hashvalue)
+            dbsession.add(newrecord)
+
+        dbsession.commit()
+
+    def is_domain_whitelisted(self, domain, dbsession=None):
+        if not dbsession:
+            dbsession = _Session()
+
+        hashvalue = self._hash_addr(domain)
+        match = dbsession.query(_WhitelistDomain).filter_by(domainhash=hashvalue).first()
+
+        return match is not None
+
+    def is_email_whitelisted(self, email_addr, dbsession=None):
+        '''
+        Check if the email address has been perma-whitelisted (doesn't check if
+        it's in the "adhoc" whitelist).
+        '''
+
+        if not dbsession:
+            dbsession = _Session()
+
+        hashvalue = self._hash_addr(email_addr)
+        match = dbsession.query(_WhitelistEmail).filter_by(emailhash=hashvalue).first()
+
+        return match is not None
+
+
 if __name__ == '__main__':
-    
+
     parser = argparse.ArgumentParser(description='Interact with the blacklist table')
-    parser.add_argument('--clear', action='store_true', help='clear all blacklist entries') 
+    parser.add_argument('--clear-adhoc', action='store_true', help='clear all blacklist entries')
+    parser.add_argument('--add-blacklist', action='store', help='add email or domain to blacklist')
+    parser.add_argument('--add-whitelist', action='store', help='add email or domain to whitelist')
     args = parser.parse_args()
-    
-    if args.clear:
+
+    if args.clear_adhoc:
         blacklist = Blacklist()
-        blacklist.clear()
+        blacklist.clear_adhoc()
+    elif args.add_blacklist:
+        blacklist = Blacklist()
+        blacklist.add_to_blacklist(args.add_blacklist)
+    elif args.add_whitelist:
+        blacklist = Blacklist()
+        blacklist.add_to_whitelist(args.add_whitelist)
     else:
         parser.error('no valid arg')
-        
-        
