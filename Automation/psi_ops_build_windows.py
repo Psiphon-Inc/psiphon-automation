@@ -100,6 +100,10 @@ def write_embedded_values(propagation_channel_id,
                           feedback_upload_path,
                           feedback_upload_server_headers,
                           info_link_url,
+                          upgrade_signature_public_key,
+                          upgrade_url,
+                          get_new_version_url,
+                          get_new_version_email,
                           ignore_system_server_list=False):
     template = textwrap.dedent('''
         #pragma once
@@ -120,9 +124,7 @@ def write_embedded_values(propagation_channel_id,
         static const int IGNORE_SYSTEM_SERVER_LIST = %d;
 
         static const char* REMOTE_SERVER_LIST_SIGNATURE_PUBLIC_KEY = "%s";
-
         static const char* REMOTE_SERVER_LIST_ADDRESS = "%s";
-
         static const char* REMOTE_SERVER_LIST_REQUEST_PATH = "%s";
 
         // These values are used when uploading diagnostic info
@@ -134,6 +136,15 @@ def write_embedded_values(propagation_channel_id,
         // NOTE: Info link may be opened when not tunneled
         static const TCHAR* INFO_LINK_URL
             = _T("%s");
+
+        static const char* UPGRADE_SIGNATURE_PUBLIC_KEY = "%s";
+        static const char* UPGRADE_ADDRESS = "%s";
+        static const char* UPGRADE_REQUEST_PATH = "%s";
+
+        static const char* GET_NEW_VERSION_URL = "%s";
+        static const char* GET_NEW_VERSION_EMAIL = "%s";
+        static const char* FAQ_URL = "%s#other_frequently_asked_questions";
+        static const char* DATA_COLLECTION_INFO_URL = "%s#what_user_information_does_psiphon_3_collect";
         ''')
     with open(EMBEDDED_VALUES_FILENAME, 'w') as file:
         file.write(template % (propagation_channel_id,
@@ -148,7 +159,14 @@ def write_embedded_values(propagation_channel_id,
                                feedback_upload_server,
                                feedback_upload_path,
                                feedback_upload_server_headers,
-                               info_link_url))
+                               info_link_url,
+                               upgrade_signature_public_key,
+                               upgrade_url[1],
+                               upgrade_url[2],
+                               get_new_version_url,
+                               get_new_version_email,
+                               get_new_version_url,
+                               get_new_version_url))
 
 
 def build_client(
@@ -163,13 +181,17 @@ def build_client(
         feedback_upload_path,
         feedback_upload_server_headers,
         info_link_url,
+        upgrade_signature_public_key,
+        upgrade_url,
+        get_new_version_url,
+        get_new_version_email,
         version,
         test=False):
 
     try:
         # Backup/restore original files minimize chance of checking values into source control
         backup = psi_utils.TemporaryBackup(
-            [BANNER_FILENAME, EMAIL_BANNER_FILENAME, EMBEDDED_VALUES_FILENAME, FEEDBACK_HTML_PATH])
+            [BANNER_FILENAME, EMAIL_BANNER_FILENAME, FEEDBACK_HTML_PATH])
 
         # Copy custom email banner from Data to source tree
         # (there's only one custom email banner for all sponsors)
@@ -194,6 +216,10 @@ def build_client(
             feedback_upload_path,
             feedback_upload_server_headers,
             info_link_url,
+            upgrade_signature_public_key,
+            upgrade_url,
+            get_new_version_url,
+            get_new_version_email,
             ignore_system_server_list=test)
 
         # copy feedback.html

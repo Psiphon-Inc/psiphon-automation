@@ -90,7 +90,8 @@ class SSH(object):
     def exec_command(self, command_line):
         (_, output, _) = self.ssh.exec_command(command_line)
         out = output.read()
-        print 'SSH %s: %s %s' % (self.ip_address, command_line[0:20]+'...', out)
+        out = out.decode('utf-8')
+        print 'SSH %s: %s %s' % (self.ip_address, command_line[0:20]+'...', out[:100])
         return out
 
     def list_dir(self, remote_path):

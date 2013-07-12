@@ -38,6 +38,8 @@ import decryptor
 from emailgetter import EmailGetter
 import sender
 import datastore
+import datatransformer
+import translation
 
 
 def _upgrade_old_object(yaml_docs):
@@ -92,11 +94,32 @@ def _upgrade_old_object(yaml_docs):
 def _load_yaml(yaml_string):
     # TODO: Rip the backwards-compatibility out of this at some later date.
 
-    yaml_docs = []
-    for yaml_doc in yaml.safe_load_all(yaml_string):
-        yaml_docs.append(yaml_doc)
+    # JSON is supposed to be a subset of YAML: en.wikipedia.org/wiki/YAML#JSON
+    # So we switched the client-side encoding of the diagnostic data from YAML
+    # to JSON (and got huge performance improvements), and we were still able
+    # to decode it the same way. But... it turns out that, at least in Python's
+    # YAML implementation, there is some JSON that's not valid YAML. I.e.:
+    # >>> x = json.loads('{"key": "hi\\/there"}')
+    # ... print x
+    # {u'key': u'hi/there'}
+    # >>> x = yaml.load('{"key": "hi\\/there"}')
+    # ... print x
+    # <big stack trace>
+    # found unknown escape character '/'
+    # in "<string>", line 1, column 13:
+    # {"key": "hi\/there"}
+    #
+    # So we're going to try loading `yaml_string` as JSON first, and then fall
+    # back to YAML if that fails.
 
-    obj = _upgrade_old_object(yaml_docs)
+    try:
+        obj = json.loads(yaml_string)
+    except:
+        yaml_docs = []
+        for yaml_doc in yaml.safe_load_all(yaml_string):
+            yaml_docs.append(yaml_doc)
+
+        obj = _upgrade_old_object(yaml_docs)
 
     return obj
 
@@ -107,6 +130,46 @@ def _get_id_from_email_address(email_address):
     if not m:
         return None
     return m.groupdict()['id']
+
+
+# Email addresses in the headers usually look like "<example@example.com>" or
+# "Name <example@example.com>" but we don't want the angle brackets and name.
+_email_stripper_regex = re.compile(r'(.*<)?([^<>]+)(>)?')
+
+
+def _get_email_info(msg):
+    subject_translation = translation.translate(config['googleApiServers'],
+                                                config['googleApiKey'],
+                                                msg['subject'])
+    subject = dict(text=msg['subject'],
+                   text_lang_code=subject_translation[0],
+                   text_lang_name=subject_translation[1],
+                   text_translated=subject_translation[2])
+
+    body_translation = translation.translate(config['googleApiServers'],
+                                             config['googleApiKey'],
+                                             msg['body'])
+    body = dict(text=msg['body'],
+                text_lang_code=body_translation[0],
+                text_lang_name=body_translation[1],
+                text_translated=body_translation[2],
+                html=msg['html'])
+
+    raw_address = msg['msgobj'].get('Return-Path') or msg['from']
+    stripped_address = None
+    if raw_address:
+        match = _email_stripper_regex.match(raw_address)
+        if not match:
+            logger.error('when stripping email address failed to match: %s' % str(raw_address))
+            return None
+        stripped_address = match.group(2)
+
+    email_info = dict(address=stripped_address,
+                      message_id=msg['msgobj']['Message-ID'],
+                      subject=subject,
+                      body=body)
+
+    return email_info
 
 
 def go():
@@ -146,6 +209,14 @@ def go():
                     # Something is wrong. Skip and continue.
                     continue
 
+                # Modifies diagnostic_info
+                datatransformer.transform(diagnostic_info)
+
+                # Add the user's email information to diagnostic_info.
+                # This will allow us to later auto-respond, or act as a
+                # remailer between the user and the Psiphon support team.
+                diagnostic_info['EmailInfo'] = _get_email_info(msg)
+
                 # Store the diagnostic info
                 datastore.insert_diagnostic_info(diagnostic_info)
 
@@ -175,23 +246,21 @@ def go():
                 logger.exception()
                 logger.error(str(e))
 
-        if email_processed_successfully:
-            break
+        if not email_processed_successfully:
+            #
+            # The email might refer (by ID) to a diagnostic info package elsewhere
+            #
 
-        #
-        # The email might refer (by ID) to a diagnostic info package elsewhere
-        #
+            diagnostic_info_id = _get_id_from_email_address(msg['to'])
+            if diagnostic_info_id:
+                # Store the association between this email and the forthcoming
+                # diagnostic info.
+                datastore.insert_email_diagnostic_info(diagnostic_info_id,
+                                                       msg['msgobj']['Message-ID'],
+                                                       msg['subject'])
 
-        diagnostic_info_id = _get_id_from_email_address(msg['to'])
-        if diagnostic_info_id:
-            # Store the association between this email and the forthcoming
-            # diagnostic info.
-            datastore.insert_email_diagnostic_info(diagnostic_info_id,
-                                                   msg['msgobj']['Message-ID'],
-                                                   msg['subject'])
-
-            # We'll set this for completeness...
-            email_processed_successfully = True
+                # We'll set this for completeness...
+                email_processed_successfully = True
 
         # At this point either we've extracted useful info from the email or
         # there's nothing to extract.
