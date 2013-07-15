@@ -515,7 +515,7 @@ def process_stats(host, servers, db_cur, psinet, error_file=None):
 
                     if last_timestamp and timestamp < last_timestamp:
                         # Assumes processing the lines in reverse chronological order
-                        continue
+                        break
                     if not next_last_timestamp or timestamp > next_last_timestamp:
                         next_last_timestamp = timestamp
 
@@ -746,7 +746,10 @@ if __name__ == "__main__":
 
         pool = multiprocessing.pool.ThreadPool(4)
         results = pool.map(process_stats_on_host, [(host, servers, psinet) for host in hosts])
-        print ['%s: %fs' % (host_id, host_time) for (host_id, host_time) in results]
+
+        # print results as a dict (sorted for visual inspection)
+        print '{' + ','.join(['"%s": %f' % (host_id, host_time) for (host_id, host_time)
+                in sorted(results, key=lambda item: item[1], reverse=True)]) + '}'
 
         reconstruct_sessions(db_conn)
         db_conn.commit()
