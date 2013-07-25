@@ -1303,7 +1303,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def remove_host(self, host_id):
         assert(self.is_locked)
         host = self.__hosts[host_id]
-        self.__hosts_to_remove_from_providers.add(host)
+        host_copy = Host(
+                        host.id,
+                        host.provider,
+                        host.provider_id,
+                        host.ip_address,
+                        host.ssh_port,
+                        host.ssh_username,
+                        host.ssh_password,
+                        host.ssh_host_key,
+                        host.stats_ssh_username,
+                        host.stats_ssh_password,
+                        host.datacenter_name)
+        self.__hosts_to_remove_from_providers.add(host_copy)
 
         # Mark host and its servers as deleted in the database. We keep the
         # records around for historical info and to ensure we never recycle
