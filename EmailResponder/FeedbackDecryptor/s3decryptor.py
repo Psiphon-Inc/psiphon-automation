@@ -36,7 +36,7 @@ import datatransformer
 
 _SLEEP_TIME_SECS = 60
 _BUCKET_ITEM_MIN_SIZE = 100
-_BUCKET_ITEM_MAX_SIZE = (500 * 1024)  # 500 KB
+_BUCKET_ITEM_MAX_SIZE = (2000 * 1024)  # 2 MB
 
 
 def _is_bucket_item_sane(key):
