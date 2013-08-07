@@ -271,6 +271,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__deleted_hosts = []
         self.__servers = {}
         self.__deleted_servers = {}
+        self.__hosts_to_remove_from_providers = set()
         self.__client_versions = {
             CLIENT_PLATFORM_WINDOWS: [],
             CLIENT_PLATFORM_ANDROID: []
@@ -298,7 +299,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.18'
+    class_version = '0.19'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -393,7 +394,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.18')) < 0:
             self.__default_email_autoresponder_account = None
             self.version = '0.18'
-
+        if cmp(parse_version(self.version), parse_version('0.19')) < 0:
+            self.__hosts_to_remove_from_providers = set()
+            self.version = '0.19'
+            
     def initialize_plugins(self):
         for plugin in plugins:
             if hasattr(plugin, 'initialize'):
@@ -1013,7 +1017,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if users_on_host == 0:
                 self.remove_host(server.host_id)
                 number_removed += 1
-            elif users_on_host < 5:
+            elif users_on_host < 15:
                 self.__disable_server(server)
                 number_disabled += 1
         return number_removed, number_disabled
@@ -1274,19 +1278,46 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # the stats and email server
         self.deploy()
 
+    def remove_hosts_from_providers(self):
+        assert(self.is_locked)
+        
+        need_to_save = False
+        for host in self.__hosts_to_remove_from_providers.copy():
+            # Only hosts that can be removed via an API are removed here.
+            # Others must be manually removed.
+            provider_remove_host = None
+            if host.provider == 'linode':
+                provider_remove_host = psi_linode.remove_server
+                provider_account = self.__linode_account
+            if provider_remove_host:
+                # Remove the actual host through the provider's API
+                provider_remove_host(provider_account, host.provider_id)
+                self.__hosts_to_remove_from_providers.remove(host)
+                need_to_save = True
+                # It is safe to call provider_remove_host() for a host that has
+                # already been removed, so there is no need to save() yet.
+                
+        if need_to_save:
+            self.save()
+    
     def remove_host(self, host_id):
         assert(self.is_locked)
         host = self.__hosts[host_id]
-        if host.provider == 'linode':
-            provider_remove_host = psi_linode.remove_server
-            provider_account = self.__linode_account
-        else:
-            raise ValueError('can\'t remove host from provider %s' % host.provider)
+        host_copy = Host(
+                        host.id,
+                        host.provider,
+                        host.provider_id,
+                        host.ip_address,
+                        host.ssh_port,
+                        host.ssh_username,
+                        host.ssh_password,
+                        host.ssh_host_key,
+                        host.stats_ssh_username,
+                        host.stats_ssh_password,
+                        host.datacenter_name)
+        self.__hosts_to_remove_from_providers.add(host_copy)
 
-        # Remove the actual host through the provider's API
-        provider_remove_host(provider_account, host.provider_id)
-
-        # Mark host and its servers as delete in the database. We keep the
+        # Mark host and its servers as deleted in the database. We keep the
         # records around for historical info and to ensure we never recycle
         # server IDs
         server_ids_on_host = []
@@ -1596,6 +1627,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # - Publish, tweet
         # - Data to all hosts
         # - Email and stats server config
+        # - Remove hosts from providers that are marked for removal
         #
         # NOTE: Order is important. Hosts get new implementation before
         # new data, in case schema has changed; deploy builds before
@@ -1741,6 +1773,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.push_email_config()
             self.__deploy_email_config_required = False
             self.save()
+            
+        # Remove hosts from providers that are marked for removal
+        
+        self.remove_hosts_from_providers()
 
     def update_static_site_content(self):
         assert(self.is_locked)
