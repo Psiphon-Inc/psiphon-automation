@@ -40,6 +40,8 @@ EMBEDDED_VALUES_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', 'embeddedvalue
 EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, 'Release', 'psiphon.exe')
 BUILDS_ROOT = os.path.join('.', 'Builds', 'Windows')
 BUILD_FILENAME_TEMPLATE = 'psiphon-%s-%s.exe'
+POLIPO_EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', '3rdParty', 'polipo.exe')
+PLONK_EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', '3rdParty', 'plonk.exe')
 
 FEEDBACK_SOURCE_ROOT = os.path.join('.', 'FeedbackSite')
 FEEDBACK_HTML_SOURCE_PATH = os.path.join(FEEDBACK_SOURCE_ROOT, 'feedback.html')
@@ -72,11 +74,15 @@ def build_client_executable():
     if not os.path.isfile(signtool_filename):
         signtool_filename = SIGN_TOOL_FILENAME_ALT
     commands = [
-        'msbuild "%s" /v:quiet /t:Rebuild /p:Configuration=Release\n' % (CLIENT_SOLUTION_FILENAME,),
+        '"%s" sign /t http://timestamp.digicert.com /f "%s" "%s"\n' % (
+          signtool_filename, CODE_SIGNING_PFX_FILENAME, POLIPO_EXECUTABLE_FILENAME),
+        '"%s" sign /t http://timestamp.digicert.com /f "%s" "%s"\n' % (
+          signtool_filename, CODE_SIGNING_PFX_FILENAME, PLONK_EXECUTABLE_FILENAME),
+        'msbuild "%s" /v:quiet /t:Rebuild /p:Configuration=Release\n' % (
+          CLIENT_SOLUTION_FILENAME,),
         '"%s" -qq "%s"\n' % (UPX_FILENAME, EXECUTABLE_FILENAME),
-        '"%s" sign /t http://timestamp.digicert.com /f "%s" "%s"\n' % (signtool_filename,
-                                             CODE_SIGNING_PFX_FILENAME,
-                                             EXECUTABLE_FILENAME)]
+        '"%s" sign /t http://timestamp.digicert.com /f "%s" "%s"\n' % (
+          signtool_filename, CODE_SIGNING_PFX_FILENAME, EXECUTABLE_FILENAME)]
     command_filename = 'build.cmd'
     for command in commands:
         with open(command_filename, 'w') as file:
@@ -191,7 +197,11 @@ def build_client(
     try:
         # Backup/restore original files minimize chance of checking values into source control
         backup = psi_utils.TemporaryBackup(
-            [BANNER_FILENAME, EMAIL_BANNER_FILENAME, FEEDBACK_HTML_PATH])
+            [BANNER_FILENAME,
+             EMAIL_BANNER_FILENAME,
+             FEEDBACK_HTML_PATH,
+             POLIPO_EXECUTABLE_FILENAME,
+             PLONK_EXECUTABLE_FILENAME])
 
         # Copy custom email banner from Data to source tree
         # (there's only one custom email banner for all sponsors)
