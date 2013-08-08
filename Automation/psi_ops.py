@@ -153,7 +153,7 @@ Host = psi_utils.recordtype(
     'Host',
     'id, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key, ' +
     'stats_ssh_username, stats_ssh_password, ' +
-    'datacenter_name',
+    'datacenter_name, region',
     default=None)
 
 Server = psi_utils.recordtype(
@@ -299,7 +299,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.19'
+    class_version = '0.20'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -397,6 +397,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.19')) < 0:
             self.__hosts_to_remove_from_providers = set()
             self.version = '0.19'
+        if cmp(parse_version(self.version), parse_version('0.20')) < 0:
+            for host in self.__hosts.itervalues():
+                host.region = ''
+            self.version = '0.20'
             
     def initialize_plugins(self):
         for plugin in plugins:
@@ -589,6 +593,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             Server:                  %s
             Host:                    %s %s %s/%s
             IP Address:              %s
+            Region:                  %s
             Propagation Channel:     %s
             Is Embedded:             %s
             Is Permanent:            %s
@@ -597,6 +602,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 s.id,
                 s.host_id,
                 self.__hosts[s.host_id].ip_address,
+                self.__hosts[s.host_id].region,
                 self.__hosts[s.host_id].ssh_username,
                 self.__hosts[s.host_id].ssh_password,
                 s.ip_address,
@@ -617,6 +623,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             Host ID:                 %(id)s
             Provider:                %(provider)s (%(provider_id)s)
             Datacenter:              %(datacenter_name)s
+            Region:                  %(region)s
             IP Address:              %(ip_address)s
             SSH:                     %(ssh_port)s %(ssh_username)s / %(ssh_password)s
             Stats User:              %(stats_ssh_username)s / %(stats_ssh_password)s
@@ -626,6 +633,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     'provider': host.provider,
                     'provider_id': host.provider_id,
                     'datacenter_name': host.datacenter_name,
+                    'region': host.region,
                     'ip_address': host.ip_address,
                     'ssh_port': host.ssh_port,
                     'ssh_username': host.ssh_username,
@@ -1314,7 +1322,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.ssh_host_key,
                         host.stats_ssh_username,
                         host.stats_ssh_password,
-                        host.datacenter_name)
+                        host.datacenter_name,
+                        host.region)
         self.__hosts_to_remove_from_providers.add(host_copy)
 
         # Mark host and its servers as deleted in the database. We keep the
@@ -2068,6 +2077,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         extended_config['capabilities'] = [capability for capability, enabled in server.capabilities.iteritems() if enabled] if server.capabilities else []
 
+        host = self.__hosts[server.host_id]
+        extended_config['region'] = host.region
+
         return binascii.hexlify('%s %s %s %s %s' % (
                                     server.ip_address,
                                     server.web_server_port,
@@ -2341,7 +2353,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.ssh_host_key,
                                             host.stats_ssh_username,
                                             host.stats_ssh_password,
-                                            host.datacenter_name)
+                                            host.datacenter_name,
+                                            host.region)
 
         for server in self.__servers.itervalues():
             copy.__servers[server.id] = Server(
