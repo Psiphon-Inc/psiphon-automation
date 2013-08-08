@@ -487,9 +487,9 @@ def process_stats(host, servers, db_cur, psinet, error_file=None):
                 file = gzip.open(path)
             else:
                 file = open(path)
+            print 'processing %s...' % (filename,)
+            lines_processed = 0
             try:
-                print 'processing %s...' % (filename,)
-                lines_processed = 0
                 lines = file.read().split('\n')
                 for line in reversed(lines):
                     match = line_re.match(line)
@@ -608,8 +608,9 @@ def process_stats(host, servers, db_cur, psinet, error_file=None):
 
             finally:
                 file.close()
-        print '%d new lines processed' % (lines_processed)
-        sys.stdout.flush()
+
+            print '%d new lines processed' % (lines_processed)
+            sys.stdout.flush()
 
     if next_last_timestamp:
         if not last_timestamp:
