@@ -602,10 +602,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 s.id,
                 s.host_id,
                 self.__hosts[s.host_id].ip_address,
-                self.__hosts[s.host_id].region,
                 self.__hosts[s.host_id].ssh_username,
                 self.__hosts[s.host_id].ssh_password,
                 s.ip_address,
+                self.__hosts[s.host_id].region,
                 self.__propagation_channels[s.propagation_channel_id].name if s.propagation_channel_id else 'None',
                 s.is_embedded,
                 s.is_permanent,
@@ -623,8 +623,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             Host ID:                 %(id)s
             Provider:                %(provider)s (%(provider_id)s)
             Datacenter:              %(datacenter_name)s
-            Region:                  %(region)s
             IP Address:              %(ip_address)s
+            Region:                  %(region)s
             SSH:                     %(ssh_port)s %(ssh_username)s / %(ssh_password)s
             Stats User:              %(stats_ssh_username)s / %(stats_ssh_password)s
             Servers:                 %(servers)s
@@ -633,8 +633,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     'provider': host.provider,
                     'provider_id': host.provider_id,
                     'datacenter_name': host.datacenter_name,
-                    'region': host.region,
                     'ip_address': host.ip_address,
+                    'region': host.region,
                     'ssh_port': host.ssh_port,
                     'ssh_username': host.ssh_username,
                     'ssh_password': host.ssh_password,
