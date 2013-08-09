@@ -400,6 +400,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.20')) < 0:
             for host in self.__hosts.itervalues():
                 host.region = ''
+            for host in self.__deleted_hosts:
+                host.region = ''
             self.version = '0.20'
             
     def initialize_plugins(self):
@@ -2260,6 +2262,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def __compartmentalize_data_for_host(self, host_id, discovery_date=datetime.datetime.now()):
         # Create a compartmentalized database with only the information needed by a particular host
         # - all propagation channels because any client may connect to servers on this host
+        # - host data
+        #   only region info is required for discovery
         # - servers data
         #   omit discovery servers not on this host whose discovery time period has elapsed
         #   also, omit propagation servers not on this host
@@ -2278,7 +2282,22 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                                     '',  # Omit new server counts
                                                                     '',  # Omit server ages
                                                                     '')  # Omit server ages
-
+                                                                    
+        for host in self.__hosts.itervalues():
+            copy.__hosts[host.id] = Host(
+                                        host.id,
+                                        '',  # Omit: provider isn't needed
+                                        '',  # Omit: provider_id isn't needed
+                                        '',  # Omit: ip_address isn't needed
+                                        '',  # Omit: ssh_port isn't needed
+                                        '',  # Omit: root ssh_username isn't needed
+                                        '',  # Omit: root ssh_password isn't needed
+                                        '',  # Omit: ssh_host_key isn't needed
+                                        '',  # Omit: stats_ssh_username isn't needed
+                                        '',  # Omit: stats_ssh_password isn't needed
+                                        '',  # Omit: datacenter_name isn't needed
+                                        host.region)
+                                            
         for server in self.__servers.itervalues():
             if ((server.discovery_date_range and server.host_id != host_id and server.discovery_date_range[1] <= discovery_date) or
                 (not server.discovery_date_range and server.host_id != host_id)):
