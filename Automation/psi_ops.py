@@ -2305,7 +2305,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             copy.__servers[server.id] = Server(
                                                 server.id,
-                                                '',  # Omit host_id
+                                                server.host_id,
                                                 server.ip_address,
                                                 server.egress_ip_address,
                                                 server.internal_ip_address,
