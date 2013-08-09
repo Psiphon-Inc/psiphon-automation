@@ -38,7 +38,23 @@ def wait_while_condition(condition, max_wait_seconds, description):
             raise Exception('Took more than %d seconds to %s' % (max_wait_seconds, description))
         time.sleep(wait_seconds)
         total_wait_seconds = total_wait_seconds + wait_seconds
-        
+
+
+def get_region(datacenter_id):
+    # from linode_api.avail_datacenters():
+    # [{u'DATACENTERID': 2, u'LOCATION': u'Dallas, TX, USA'},
+    # {u'DATACENTERID': 3, u'LOCATION': u'Fremont, CA, USA'},
+    # {u'DATACENTERID': 4, u'LOCATION': u'Atlanta, GA, USA'},
+    #  {u'DATACENTERID': 6, u'LOCATION': u'Newark, NJ, USA'},
+    #  {u'DATACENTERID': 7, u'LOCATION': u'London, England, UK'},
+    #  {u'DATACENTERID': 8, u'LOCATION': u'Tokyo, JP'}]
+    if datacenter_id in [2, 3, 4, 6]:
+        return 'US'
+    if datacenter_id in [7]:
+        return 'GB'
+    if datacenter_id in [8]:
+        return 'JP'
+    return ''
 
 def create_linode(linode_api):
     avail_datacenters = linode_api.avail_datacenters()
@@ -54,7 +70,7 @@ def create_linode(linode_api):
                          60,
                          'create a linode')
     assert(linode_api.linode_list(LinodeID=new_node_id)[0]['STATUS'] == 0)
-    return new_node_id, datacenter_name
+    return new_node_id, datacenter_name, get_region(datacenter_id)
 
 
 def create_linode_disks(linode_api, linode_id, bootstrap_password, plugins):
@@ -158,7 +174,7 @@ def launch_new_server(linode_account, plugins):
     try:
         # Create a new linode
         new_root_password = psi_utils.generate_password()
-        linode_id, datacenter_name = create_linode(linode_api)
+        linode_id, datacenter_name, region = create_linode(linode_api)
         disk_ids = create_linode_disks(linode_api, linode_id, new_root_password, plugins)
         bootstrap_config_id, psiphon3_host_config_id = create_linode_configurations(linode_api, linode_id, ','.join(disk_ids), plugins)
         start_linode(linode_api, linode_id, bootstrap_config_id)
@@ -187,7 +203,7 @@ def launch_new_server(linode_account, plugins):
             linode_account.base_ssh_port, 'root', new_root_password,
             ' '.join(new_host_public_key.split(' ')[:2]),
             linode_account.base_stats_username, new_stats_password,
-            datacenter_name)
+            datacenter_name, region)
 
 
 def remove_server(linode_account, linode_id):
