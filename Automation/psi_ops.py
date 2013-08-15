@@ -461,6 +461,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 'Yes' if self.__deploy_stats_config_required else 'No',
                 'Yes' if self.__deploy_email_config_required else 'No')
 
+    def show_client_versions(self):
+        for platform in self.__client_versions.iterkeys():
+            print platform
+            for client_version in self.__client_versions[platform]:
+                print client_version.logs[0][0], client_version.version, client_version.description
+
     def __show_logs(self, obj):
         for timestamp, message in obj.get_logs():
             print '%s: %s' % (timestamp.isoformat(), message)
