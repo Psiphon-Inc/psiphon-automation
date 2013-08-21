@@ -54,8 +54,14 @@ ROUTERS = { 'MessagingRouter': 'messaging',
             'ZenPackRouter': 'zenpack',
             'JobsRouter': 'jobs' }
 
-
-GEOIP_DAT_PATH = "/usr/share/GeoIP/GeoIPCity.dat"
+GEOIP_DAT_PATH = "/usr/local/share/GeoIP/"
+if os.path.isdir(GEOIP_DAT_PATH):
+    GEOIP_DAT_PATH += "GeoIPCity.dat"
+elif os.path.isdir("/usr/local/GeoIP/"):
+    GEOIP_DAT_PATH = "/usr/local/GeoIP/" + "GeoIPCity.dat"
+else:
+    print "Could not find valid GeoIPCity dat file"
+    sys.exit()
 
 class ZenossAPI():
     def __init__(self, debug=False):
@@ -355,8 +361,12 @@ def get_location_list(zenapi):
 def geocode_hosts(zenoss_hosts):
     gi = GeoIP.open(GEOIP_DAT_PATH, GeoIP.GEOIP_STANDARD)
     #lookup server location
-    for idx, zhost in enumerate(zenoss_hosts):
-        zenoss_hosts[idx] = dict(zhost.items() + gi.record_by_addr(zhost['ipAddress']).items())
+    try:
+        for idx, zhost in enumerate(zenoss_hosts):
+            zenoss_hosts[idx] = dict(zhost.items() + gi.record_by_addr(zhost['ipAddress']).items())
+    except Exception, e:
+        print e
+
     return zenoss_hosts
 
 def update_locations(zenoss_hosts, zenapi, mapped_locations):
