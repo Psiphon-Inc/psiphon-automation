@@ -21,7 +21,7 @@ import sys
 import time
 
 import logger
-import tableauexporter
+import sqlexporter
 
 
 def _do_exit(signum, frame):
@@ -36,7 +36,7 @@ def main():
 
     while True:
         try:
-            tableauexporter.go()
+            sqlexporter.go()
         except Exception:
             logger.exception()
             time.sleep(60)
