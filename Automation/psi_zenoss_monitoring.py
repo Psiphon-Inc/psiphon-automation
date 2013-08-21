@@ -356,7 +356,11 @@ def get_location_list(zenapi):
     data = LOCATION_ORGANIZER
     response = zenapi.get_locations(data)
     locations = response['result'][0]['children']
-    return locations
+    l = []
+    for location in locations:
+        if location['uid'] is not None:
+            l.append(location['text']['text'])
+    return l
 
 def geocode_hosts(zenoss_hosts):
     gi = GeoIP.open(GEOIP_DAT_PATH, GeoIP.GEOIP_STANDARD)
@@ -373,6 +377,7 @@ def update_locations(zenoss_hosts, zenapi, mapped_locations):
     location_path = LOCATION_ORGANIZER
     for zhost in zenoss_hosts:
         if zhost['country_name'] not in mapped_locations:
+            print "processing location: %s" % (zhost['country_name'])
             data = dict(id=zhost['country_name'],
                         description=zhost['country_code'],
                         type='organizer',
