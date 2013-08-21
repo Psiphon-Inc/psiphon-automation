@@ -48,8 +48,8 @@ CREATE TABLE IF NOT EXISTS windows_system (
     user_group_power BOOLEAN,
     user_group_guest BOOLEAN,
     user_group_admin BOOLEAN,
-    psiphon_info_propagationChannel VARCHAR(255),
-    psiphon_info_sponsorId VARCHAR(255),
+    psiphon_info_propagationChannelID VARCHAR(255),
+    psiphon_info_sponsorID VARCHAR(255),
     psiphon_info_clientVersion VARCHAR(255),
     psiphon_info_transport VARCHAR(255),
     psiphon_info_splitTunnel BOOLEAN
@@ -73,14 +73,14 @@ CREATE TABLE IF NOT EXISTS windows_status_history (
     diagnostic_data_id INTEGER NOT NULL REFERENCES diagnostic_data(id),
     sec_type SET('firewall', 'antivirus', 'antispyware'),
     debug BOOLEAN,
-    datetime DATETIME,
+    timestamp DATETIME,
     message VARCHAR(255)
     );
 
-CREATE TABLE IF NOT EXISTS windows_diagnostic_history (
+CREATE TABLE IF NOT EXISTS windows_server_response_check (
     id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     diagnostic_data_id INTEGER NOT NULL REFERENCES diagnostic_data(id),
-    datetime DATETIME,
+    timestamp DATETIME,
     server_id VARCHAR(255),
     server_responded BOOLEAN,
     server_responseTime INT
@@ -91,24 +91,25 @@ CREATE TABLE IF NOT EXISTS user_feedback (
     diagnostic_data_id INTEGER NOT NULL REFERENCES diagnostic_data(id),
     connectivity INT,
     speed INT,
-    compatibility INT,
-    server VARCHAR(255)
+    compatibility INT
     );
 
 CREATE TABLE IF NOT EXISTS android_system (
     id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     diagnostic_data_id INTEGER NOT NULL REFERENCES diagnostic_data(id),
     isRooted BOOLEAN,
-    sys_build_ver_sdk INT,
+    language CHAR(2),
+    networkTypeName VARCHAR(255),
     sys_build_tags VARCHAR(255),
     sys_build_brand VARCHAR(255),
-    sys_build_ver_release VARCHAR(255),
-    sys_build_ver_codename VARCHAR(255),
-    sys_build_ver_cpu_abi VARCHAR(255),
-    sys_build_ver_model VARCHAR(255),
-    sys_build_ver_manuf VARCHAR(255),
-    psiphon_info_sponsorId VARCHAR(255),
-    psiphon_info_propagationChannel VARCHAR(255),
+    sys_build_version_release VARCHAR(255),
+    sys_build_version_codename VARCHAR(255),
+    sys_build_version_sdk INT,
+    sys_build_cpu_abi VARCHAR(255),
+    sys_build_model VARCHAR(255),
+    sys_build_manufacturer VARCHAR(255),
+    psiphon_info_sponsorID VARCHAR(255),
+    psiphon_info_propagationChannelID VARCHAR(255),
     psiphon_info_clientVersion VARCHAR(255)
     );
 

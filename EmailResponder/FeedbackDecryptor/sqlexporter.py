@@ -24,7 +24,7 @@ from sqlalchemy.orm import sessionmaker
 
 import logger
 import datastore
-import utils
+from utils import coalesce
 
 
 # TODO: Set to False
@@ -58,12 +58,12 @@ class DiagnosticData(Base):
     def create(cls, diagnostic_info):
         obj = cls()
 
-        obj_id = utils.coalesce(diagnostic_info, '_id')
+        obj_id = coalesce(diagnostic_info, '_id')
         obj.obj_id = str(obj_id) if obj_id else None
 
-        obj.datetime = utils.coalesce(diagnostic_info, 'datetime')
-        obj.platform = utils.coalesce(diagnostic_info, ('Metadata', 'platform'))
-        obj.version = utils.coalesce(diagnostic_info, ('Metadata', 'version'))
+        obj.datetime = coalesce(diagnostic_info, 'datetime')
+        obj.platform = coalesce(diagnostic_info, ('Metadata', 'platform'))
+        obj.version = coalesce(diagnostic_info, ('Metadata', 'version'))
 
         return obj
 
@@ -71,76 +71,76 @@ class DiagnosticData(Base):
 @register_table_class
 class WindowsSystem(Base):
     __tablename__ = 'windows_system'
-    __table_args__ = {'autoload':True}
+    __table_args__ = {'autoload': True}
 
     @classmethod
     def create(cls, diagnostic_info):
-        if utils.coalesce(diagnostic_info, ('Metadata', 'platform')) != 'windows':
+        if coalesce(diagnostic_info, ('Metadata', 'platform')) != 'windows':
             return None
 
         obj = cls()
 
-        base = utils.coalesce(diagnostic_info, ('DiagnosticInfo', 'SystemInformation', 'OSInfo'))
-        obj.os_name = utils.coalesce(base, 'name')
-        obj.os_version = utils.coalesce(base, 'version')
-        obj.os_architecture = utils.coalesce(base, 'architecture')
-        obj.os_servicePackMajor = utils.coalesce(base, 'servicePackMajor')
-        obj.os_servicePackMinor = utils.coalesce(base, 'servicePackMinor')
-        obj.os_freePhysicalMemoryKB = utils.coalesce(base, 'freePhysicalMemoryKB')
-        obj.os_freeVirtualMemoryKB = utils.coalesce(base, 'freeVirtualMemoryKB')
-        obj.os_language_lcid = utils.coalesce(base, ('LanguageInfo', 'lcid_string'))
-        obj.os_locale_lcid = utils.coalesce(base, ('LocaleInfo', 'lcid_string'))
+        base = coalesce(diagnostic_info, ('DiagnosticInfo', 'SystemInformation', 'OSInfo'))
+        obj.os_name = coalesce(base, 'name')
+        obj.os_version = coalesce(base, 'version')
+        obj.os_architecture = coalesce(base, 'architecture')
+        obj.os_servicePackMajor = coalesce(base, 'servicePackMajor')
+        obj.os_servicePackMinor = coalesce(base, 'servicePackMinor')
+        obj.os_freePhysicalMemoryKB = coalesce(base, 'freePhysicalMemoryKB')
+        obj.os_freeVirtualMemoryKB = coalesce(base, 'freeVirtualMemoryKB')
+        obj.os_language_lcid = coalesce(base, ('LanguageInfo', 'lcid_string'))
+        obj.os_locale_lcid = coalesce(base, ('LocaleInfo', 'lcid_string'))
 
         # This is an array of country info, and we'll use the last one.
         # (For the hacky reason that in the ['CA', 'PR', 'US'] case we want 'US'.)
-        country_code_info = utils.coalesce(base, 'CountryCodeInfo', [None])
-        obj.os_country_code = utils.coalesce(country_code_info[-1], 'country_code')
+        country_code_info = coalesce(base, 'CountryCodeInfo', [None])
+        obj.os_country_code = coalesce(country_code_info[-1], 'country_code')
 
-        base = utils.coalesce(diagnostic_info, ('DiagnosticInfo', 'SystemInformation', 'NetworkInfo', 'Current', 'Internet'))
-        obj.net_current_internet_connected = utils.coalesce(base, 'internetConnected')
-        obj.net_current_internet_conn_modem = utils.coalesce(base, 'internetConnectionModem')
-        obj.net_current_internet_conn_configured = utils.coalesce(base, 'internetConnectionConfigured')
-        obj.net_current_internet_conn_lan = utils.coalesce(base, 'internetConnectionLAN')
-        obj.net_current_internet_conn_proxy = utils.coalesce(base, 'internetConnectionProxy')
-        obj.net_current_internet_conn_offline = utils.coalesce(base, 'internetConnectionOffline')
-        obj.net_current_internet_ras_installed = utils.coalesce(base, 'internetRASInstalled')
+        base = coalesce(diagnostic_info, ('DiagnosticInfo', 'SystemInformation', 'NetworkInfo', 'Current', 'Internet'))
+        obj.net_current_internet_connected = coalesce(base, 'internetConnected')
+        obj.net_current_internet_conn_modem = coalesce(base, 'internetConnectionModem')
+        obj.net_current_internet_conn_configured = coalesce(base, 'internetConnectionConfigured')
+        obj.net_current_internet_conn_lan = coalesce(base, 'internetConnectionLAN')
+        obj.net_current_internet_conn_proxy = coalesce(base, 'internetConnectionProxy')
+        obj.net_current_internet_conn_offline = coalesce(base, 'internetConnectionOffline')
+        obj.net_current_internet_ras_installed = coalesce(base, 'internetRASInstalled')
 
-        base = utils.coalesce(diagnostic_info, ('DiagnosticInfo', 'SystemInformation', 'NetworkInfo', 'Original', 'Internet'))
-        obj.net_original_internet_connected = utils.coalesce(base, 'internetConnected')
-        obj.net_original_internet_conn_modem = utils.coalesce(base, 'internetConnectionModem')
-        obj.net_original_internet_conn_configured = utils.coalesce(base, 'internetConnectionConfigured')
-        obj.net_original_internet_conn_lan = utils.coalesce(base, 'internetConnectionLAN')
-        obj.net_original_internet_conn_proxy = utils.coalesce(base, 'internetConnectionProxy')
-        obj.net_original_internet_conn_offline = utils.coalesce(base, 'internetConnectionOffline')
-        obj.net_original_internet_ras_installed = utils.coalesce(base, 'internetRASInstalled')
+        base = coalesce(diagnostic_info, ('DiagnosticInfo', 'SystemInformation', 'NetworkInfo', 'Original', 'Internet'))
+        obj.net_original_internet_connected = coalesce(base, 'internetConnected')
+        obj.net_original_internet_conn_modem = coalesce(base, 'internetConnectionModem')
+        obj.net_original_internet_conn_configured = coalesce(base, 'internetConnectionConfigured')
+        obj.net_original_internet_conn_lan = coalesce(base, 'internetConnectionLAN')
+        obj.net_original_internet_conn_proxy = coalesce(base, 'internetConnectionProxy')
+        obj.net_original_internet_conn_offline = coalesce(base, 'internetConnectionOffline')
+        obj.net_original_internet_ras_installed = coalesce(base, 'internetRASInstalled')
 
-        base = utils.coalesce(diagnostic_info, ('DiagnosticInfo', 'SystemInformation', 'NetworkInfo', 'Original', 'Proxy'))
+        base = coalesce(diagnostic_info, ('DiagnosticInfo', 'SystemInformation', 'NetworkInfo', 'Original', 'Proxy'))
         # There's an array of proxy info, typically one per network connection.
         # We don't need to export all of them, so we'll take the one that doesn't
         # have a named network connection.
-        proxy = filter(lambda p: not utils.coalesce(p, 'connectionName'), base)
+        proxy = filter(lambda p: not coalesce(p, 'connectionName'), base)
         proxy = proxy[0] if proxy else (base[0] if base else None)
-        obj.net_original_proxy_flags = utils.coalesce(proxy, 'flags')
-        obj.net_original_proxy_address = utils.coalesce(proxy, 'proxy')
-        obj.net_original_proxy_bypass = utils.coalesce(proxy, 'bypass')
-        obj.net_original_proxy_connectionName = utils.coalesce(proxy, 'connectionName')
+        obj.net_original_proxy_flags = coalesce(proxy, 'flags')
+        obj.net_original_proxy_address = coalesce(proxy, 'proxy')
+        obj.net_original_proxy_bypass = coalesce(proxy, 'bypass')
+        obj.net_original_proxy_connectionName = coalesce(proxy, 'connectionName')
 
-        base = utils.coalesce(diagnostic_info, ('DiagnosticInfo', 'SystemInformation', 'Misc'))
-        obj.misc_slowMachine = utils.coalesce(base, 'slowMachine')
-        obj.misc_mideastEnabled = utils.coalesce(base, 'mideastEnabled')
+        base = coalesce(diagnostic_info, ('DiagnosticInfo', 'SystemInformation', 'Misc'))
+        obj.misc_slowMachine = coalesce(base, 'slowMachine')
+        obj.misc_mideastEnabled = coalesce(base, 'mideastEnabled')
 
-        base = utils.coalesce(diagnostic_info, ('DiagnosticInfo', 'SystemInformation', 'UserInfo'))
-        obj.user_group_users = utils.coalesce(base, 'inUsersGroup')
-        obj.user_group_power = utils.coalesce(base, 'inPowerUsersGroup')
-        obj.user_group_guest = utils.coalesce(base, 'inGuestsGroup')
-        obj.user_group_admin = utils.coalesce(base, 'inAdminsGroup')
+        base = coalesce(diagnostic_info, ('DiagnosticInfo', 'SystemInformation', 'UserInfo'))
+        obj.user_group_users = coalesce(base, 'inUsersGroup')
+        obj.user_group_power = coalesce(base, 'inPowerUsersGroup')
+        obj.user_group_guest = coalesce(base, 'inGuestsGroup')
+        obj.user_group_admin = coalesce(base, 'inAdminsGroup')
 
-        base = utils.coalesce(diagnostic_info, ('DiagnosticInfo', 'SystemInformation', 'PsiphonInfo'))
-        obj.psiphon_info_propagationChannel = utils.coalesce(base, 'PROPAGATION_CHANNEL_ID')
-        obj.psiphon_info_sponsorId = utils.coalesce(base, 'SPONSOR_ID')
-        obj.psiphon_info_clientVersion = utils.coalesce(base, 'CLIENT_VERSION')
-        obj.psiphon_info_transport = utils.coalesce(base, 'selectedTransport')
-        obj.psiphon_info_splitTunnel = utils.coalesce(base, 'splitTunnel')
+        base = coalesce(diagnostic_info, ('DiagnosticInfo', 'SystemInformation', 'PsiphonInfo'))
+        obj.psiphon_info_propagationChannelID = coalesce(base, 'PROPAGATION_CHANNEL_ID')
+        obj.psiphon_info_sponsorID = coalesce(base, 'SPONSOR_ID')
+        obj.psiphon_info_clientVersion = coalesce(base, 'CLIENT_VERSION')
+        obj.psiphon_info_transport = coalesce(base, 'selectedTransport')
+        obj.psiphon_info_splitTunnel = coalesce(base, 'splitTunnel')
 
         return obj
 
@@ -152,52 +152,134 @@ class WindowsSecInfo(Base):
 
     @classmethod
     def create(cls, diagnostic_info):
-        if utils.coalesce(diagnostic_info, ('Metadata', 'platform')) != 'windows':
+        if coalesce(diagnostic_info, ('Metadata', 'platform')) != 'windows':
             return None
 
         objs = []
         for sec_name, sec_type in (('AntiSpywareInfo', 'antispyware'), ('AntiVirusInfo', 'antivirus'), ('FirewallInfo', 'firewall')):
-            for item in utils.coalesce(diagnostic_info, ('DiagnosticInfo', 'SystemInformation', 'SecurityInfo', sec_name)):
+            for item in coalesce(diagnostic_info, ('DiagnosticInfo', 'SystemInformation', 'SecurityInfo', sec_name)):
                 obj = cls()
                 obj.sec_type = sec_type
 
-                data_version = utils.coalesce(item, 'version')
+                data_version = coalesce(item, 'version')
 
-                [setattr(obj, key, val) for key, val in utils.coalesce(item, data_version, {}).iteritems()]
+                [setattr(obj, key, val) for key, val in coalesce(item, data_version, {}).iteritems()]
 
                 objs.append(obj)
 
         return objs
 
 
+@register_table_class
 class WindowsStatusHistory(Base):
     __tablename__ = 'windows_status_history'
-    __table_args__ = {'autoload':True}
+    __table_args__ = {'autoload': True}
+
+    @classmethod
+    def create(cls, diagnostic_info):
+        if coalesce(diagnostic_info, ('Metadata', 'platform')) != 'windows':
+            return None
+
+        objs = []
+        for entry in coalesce(diagnostic_info, ('DiagnosticInfo', 'StatusHistory')):
+            obj = cls()
+            [setattr(obj, key, val) for key, val in coalesce(entry, data_version, {}).iteritems()]
+            objs.append(objs)
+
+        return objs
 
 
-class WindowsDiagnosticHistory(Base):
-    __tablename__ = 'windows_diagnostic_history'
-    __table_args__ = {'autoload':True}
+@register_table_class
+class WindowsServerResponseCheck(Base):
+    __tablename__ = 'windows_server_response_check'
+    __table_args__ = {'autoload': True}
+
+    @classmethod
+    def create(cls, diagnostic_info):
+        if coalesce(diagnostic_info, ('Metadata', 'platform')) != 'windows':
+            return None
+
+        objs = []
+        for entry in coalesce(diagnostic_info, ('DiagnosticInfo', 'DiagnosticHistory')):
+            # DiagnosticHistory is a pretty free form set of data. The only type
+            # of data that goes into it that we care about here are the ServerResponseChecks.
+            if coalesce(entry, 'msg') != 'ServerResponseCheck':
+                continue
+
+            obj = cls()
+            obj.timestamp = coalesce(entry, 'timestamp')
+            obj.server_id = coalesce(entry, ('data', 'ipAddress'))
+            obj.server_responded = coalesce(entry, ('data', 'responded'))
+            obj.server_responseTime = coalesce(entry, ('data', 'responseTime'))
+            objs.append(objs)
+
+        return objs
 
 
+@register_table_class
 class UserFeedback(Base):
     __tablename__ = 'user_feedback'
-    __table_args__ = {'autoload':True}
+    __table_args__ = {'autoload': True}
+
+    @classmethod
+    def create(cls, diagnostic_info):
+        # Android feedback gets submitted to the individual servers
+        if coalesce(diagnostic_info, ('Metadata', 'platform')) != 'windows':
+            return None
+
+        results = coalesce(diagnostic_info, ('Feedback', 'Survey', 'results'))
+
+        connectivity = filter(lambda r: coalesce(r, 'title') == 'Connectivity', results)
+        speed = filter(lambda r: coalesce(r, 'title') == 'Speed', results)
+        compatibility = filter(lambda r: coalesce(r, 'title') == 'Compatibility', results)
+
+        obj = cls()
+        obj.connectivity = connectivity[0] if connectivity else None
+        obj.speed = speed[0] if speed else None
+        obj.compatibility = compatibility[0] if compatibility else None
+
+        return obj
 
 
+@register_table_class
 class AndroidSystem(Base):
     __tablename__ = 'android_system'
-    __table_args__ = {'autoload':True}
+    __table_args__ = {'autoload': True}
+
+    @classmethod
+    def create(cls, diagnostic_info):
+        if coalesce(diagnostic_info, ('Metadata', 'platform')) != 'android':
+            return None
+
+        obj = cls()
+
+        base = coalesce(diagnostic_info, ('DiagnosticInfo', 'SystemInformation'))
+        obj.isRooted = coalesce(base, 'isRooted')
+        obj.language = coalesce(base, 'language')
+        obj.networkTypeName = coalesce(base, 'networkTypeName')
+        obj.sys_build_tags = coalesce(base, ('Build', 'TAGS'))
+        obj.sys_build_brand = coalesce(base, ('Build', 'BRAND'))
+        obj.sys_build_version_release = coalesce(base, ('Build', 'VERSION__RELEASE'))
+        obj.sys_build_version_codename = coalesce(base, ('Build', 'VERSION__CODENAME'))
+        obj.sys_build_version_sdk = coalesce(base, ('Build', 'VERSION__SDK_INT'))
+        obj.sys_build_cpu_abi = coalesce(base, ('Build', 'CPU_ABI'))
+        obj.sys_build_model = coalesce(base, ('Build', 'MODEL'))
+        obj.sys_build_manufacturer = coalesce(base, ('Build', 'MANUFACTURER'))
+        obj.psiphon_info_sponsorID = coalesce(base, ('PsiphonInfo', 'SPONSOR_ID'))
+        obj.psiphon_info_propagationChannelID = coalesce(base, ('PsiphonInfo', 'PROPAGATION_CHANNEL_ID'))
+        obj.psiphon_info_clientVersion = coalesce(base, ('PsiphonInfo', 'CLIENT_VERSION'))
+
+        return obj
 
 
 class AndroidStatusHistory(Base):
     __tablename__ = 'android_status_history'
-    __table_args__ = {'autoload':True}
+    __table_args__ = {'autoload': True}
 
 
 class AndroidServerResponse(Base):
     __tablename__ = 'android_server_response'
-    __table_args__ = {'autoload':True}
+    __table_args__ = {'autoload': True}
 
 
 _SLEEP_TIME_SECS = 60
