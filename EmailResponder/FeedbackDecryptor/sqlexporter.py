@@ -17,6 +17,7 @@
 
 import time
 import datetime
+import inspect
 
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
@@ -42,14 +43,14 @@ Base = declarative_base(engine)
 
 
 _table_class_registry = []
-def register_table_class(cls):
+def _table_class(cls):
     _table_class_registry.append(cls)
     return cls
 
 
 # We specifically *don't* do this, since this is a special meta table and
 # we don't want to register it.
-#@register_table_class
+#@_table_class
 class DiagnosticData(Base):
     __tablename__ = 'diagnostic_data'
     __table_args__ = {'autoload': True}
@@ -68,7 +69,7 @@ class DiagnosticData(Base):
         return obj
 
 
-@register_table_class
+@_table_class
 class WindowsSystem(Base):
     __tablename__ = 'windows_system'
     __table_args__ = {'autoload': True}
@@ -145,7 +146,7 @@ class WindowsSystem(Base):
         return obj
 
 
-@register_table_class
+@_table_class
 class WindowsSecInfo(Base):
     __tablename__ = 'windows_sec_info'
     __table_args__ = {'autoload': True}
@@ -157,7 +158,7 @@ class WindowsSecInfo(Base):
 
         objs = []
         for sec_name, sec_type in (('AntiSpywareInfo', 'antispyware'), ('AntiVirusInfo', 'antivirus'), ('FirewallInfo', 'firewall')):
-            for item in coalesce(diagnostic_info, ('DiagnosticInfo', 'SystemInformation', 'SecurityInfo', sec_name)):
+            for item in coalesce(diagnostic_info, ('DiagnosticInfo', 'SystemInformation', 'SecurityInfo', sec_name), []):
                 obj = cls()
                 obj.sec_type = sec_type
 
@@ -170,26 +171,7 @@ class WindowsSecInfo(Base):
         return objs
 
 
-@register_table_class
-class WindowsStatusHistory(Base):
-    __tablename__ = 'windows_status_history'
-    __table_args__ = {'autoload': True}
-
-    @classmethod
-    def create(cls, diagnostic_info):
-        if coalesce(diagnostic_info, ('Metadata', 'platform')) != 'windows':
-            return None
-
-        objs = []
-        for entry in coalesce(diagnostic_info, ('DiagnosticInfo', 'StatusHistory')):
-            obj = cls()
-            [setattr(obj, key, val) for key, val in coalesce(entry, data_version, {}).iteritems()]
-            objs.append(objs)
-
-        return objs
-
-
-@register_table_class
+@_table_class
 class WindowsServerResponseCheck(Base):
     __tablename__ = 'windows_server_response_check'
     __table_args__ = {'autoload': True}
@@ -200,7 +182,7 @@ class WindowsServerResponseCheck(Base):
             return None
 
         objs = []
-        for entry in coalesce(diagnostic_info, ('DiagnosticInfo', 'DiagnosticHistory')):
+        for entry in coalesce(diagnostic_info, ('DiagnosticInfo', 'DiagnosticHistory'), []):
             # DiagnosticHistory is a pretty free form set of data. The only type
             # of data that goes into it that we care about here are the ServerResponseChecks.
             if coalesce(entry, 'msg') != 'ServerResponseCheck':
@@ -211,12 +193,12 @@ class WindowsServerResponseCheck(Base):
             obj.server_id = coalesce(entry, ('data', 'ipAddress'))
             obj.server_responded = coalesce(entry, ('data', 'responded'))
             obj.server_responseTime = coalesce(entry, ('data', 'responseTime'))
-            objs.append(objs)
+            objs.append(obj)
 
         return objs
 
 
-@register_table_class
+@_table_class
 class UserFeedback(Base):
     __tablename__ = 'user_feedback'
     __table_args__ = {'autoload': True}
@@ -227,21 +209,21 @@ class UserFeedback(Base):
         if coalesce(diagnostic_info, ('Metadata', 'platform')) != 'windows':
             return None
 
-        results = coalesce(diagnostic_info, ('Feedback', 'Survey', 'results'))
+        results = coalesce(diagnostic_info, ('Feedback', 'Survey', 'results')) or []
 
         connectivity = filter(lambda r: coalesce(r, 'title') == 'Connectivity', results)
         speed = filter(lambda r: coalesce(r, 'title') == 'Speed', results)
         compatibility = filter(lambda r: coalesce(r, 'title') == 'Compatibility', results)
 
         obj = cls()
-        obj.connectivity = connectivity[0] if connectivity else None
-        obj.speed = speed[0] if speed else None
-        obj.compatibility = compatibility[0] if compatibility else None
+        obj.connectivity = coalesce(connectivity[0], 'answer') if connectivity else None
+        obj.speed = coalesce(speed[0], 'answer') if speed else None
+        obj.compatibility = coalesce(compatibility[0], 'answer') if compatibility else None
 
         return obj
 
 
-@register_table_class
+@_table_class
 class AndroidSystem(Base):
     __tablename__ = 'android_system'
     __table_args__ = {'autoload': True}
@@ -272,14 +254,31 @@ class AndroidSystem(Base):
         return obj
 
 
-class AndroidStatusHistory(Base):
-    __tablename__ = 'android_status_history'
-    __table_args__ = {'autoload': True}
-
-
+@_table_class
 class AndroidServerResponse(Base):
     __tablename__ = 'android_server_response'
     __table_args__ = {'autoload': True}
+
+    @classmethod
+    def create(cls, diagnostic_info):
+        if coalesce(diagnostic_info, ('Metadata', 'platform')) != 'android':
+            return None
+
+        objs = []
+        for entry in coalesce(diagnostic_info, ('DiagnosticInfo', 'DiagnosticHistory'), []):
+            # DiagnosticHistory is a pretty free form set of data. The only type
+            # of data that goes into it that we care about here are the ServerResponseChecks.
+            if coalesce(entry, 'msg') != 'ServerResponseCheck':
+                continue
+
+            obj = cls()
+            obj.timestamp = coalesce(entry, 'timestamp')
+            obj.server_id = coalesce(entry, ('data', 'ipAddress'))
+            obj.server_responded = coalesce(entry, ('data', 'responded'))
+            obj.server_responseTime = coalesce(entry, ('data', 'responseTime'))
+            objs.append(obj)
+
+        return objs
 
 
 _SLEEP_TIME_SECS = 60
@@ -313,6 +312,17 @@ def _get_last_timestamp():
     return most_recent
 
 
+def _sanitize_session(session):
+    '''
+    Modifies the `session` object directly.
+    '''
+    for obj in session:
+        for attrname, _ in inspect.getmembers(obj.__class__, inspect.isdatadescriptor):
+            attrval = getattr(obj, attrname)
+            if isinstance(attrval, (str, unicode)):
+                setattr(obj, attrname, attrval.encode('utf-8'))
+
+
 def _process_diagnostic_info(diagnostic_info):
     session = _new_session()
 
@@ -339,6 +349,7 @@ def _process_diagnostic_info(diagnostic_info):
         session.rollback()
         raise
 
+    _sanitize_session(session)
     session.commit()
 
 

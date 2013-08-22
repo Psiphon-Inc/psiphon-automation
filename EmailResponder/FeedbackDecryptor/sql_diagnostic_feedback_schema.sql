@@ -14,9 +14,9 @@ CREATE TABLE IF NOT EXISTS diagnostic_data (
 CREATE TABLE IF NOT EXISTS windows_system (
     id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     diagnostic_data_id INTEGER NOT NULL REFERENCES diagnostic_data(id),
-    os_name VARCHAR(255),
-    os_version VARCHAR(255),
-    os_architecture VARCHAR(255),
+    os_name VARCHAR(255) CHARACTER SET utf8,
+    os_version VARCHAR(255) CHARACTER SET utf8,
+    os_architecture VARCHAR(255) CHARACTER SET utf8,
     os_servicePackMajor INT,
     os_servicePackMinor INT,
     os_freePhysicalMemoryKB LONG,
@@ -39,8 +39,8 @@ CREATE TABLE IF NOT EXISTS windows_system (
     net_original_internet_conn_offline BOOLEAN,
     net_original_internet_ras_installed BOOLEAN,
     net_original_proxy_flags VARCHAR(255),
-    net_original_proxy_address VARCHAR(255),
-    net_original_proxy_bypass VARCHAR(255),
+    net_original_proxy_address VARCHAR(255) CHARACTER SET utf8,
+    net_original_proxy_bypass VARCHAR(255) CHARACTER SET utf8,
     net_original_proxy_connectionName VARCHAR(255),
     misc_slowMachine BOOLEAN,
     misc_mideastEnabled BOOLEAN,
@@ -66,15 +66,6 @@ CREATE TABLE IF NOT EXISTS windows_sec_info (
     productState LONG,
     securityProvider VARCHAR(255),
     displayName VARCHAR(255)
-    );
-
-CREATE TABLE IF NOT EXISTS windows_status_history (
-    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    diagnostic_data_id INTEGER NOT NULL REFERENCES diagnostic_data(id),
-    sec_type SET('firewall', 'antivirus', 'antispyware'),
-    debug BOOLEAN,
-    timestamp DATETIME,
-    message VARCHAR(255)
     );
 
 CREATE TABLE IF NOT EXISTS windows_server_response_check (
@@ -113,21 +104,11 @@ CREATE TABLE IF NOT EXISTS android_system (
     psiphon_info_clientVersion VARCHAR(255)
     );
 
-CREATE TABLE IF NOT EXISTS android_status_history (
-    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    diagnostic_data_id INTEGER NOT NULL REFERENCES diagnostic_data(id),
-    datetime datetime,
-    priority INT,
-    msg VARCHAR(255),
-    throwable text
-    );
-
 CREATE TABLE IF NOT EXISTS android_server_response (
     id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     diagnostic_data_id INTEGER NOT NULL REFERENCES diagnostic_data(id),
-    datetime datetime,
+    timestamp datetime,
     server_id VARCHAR(255),
     responded BOOLEAN,
     responseTime INT
     );
-
