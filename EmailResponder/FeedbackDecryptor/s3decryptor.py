@@ -118,7 +118,10 @@ def go():
                 logger.exception()
                 logger.error(str(e))
 
-        except (ValueError, TypeError) as e:
+        # yaml.constructor.ConstructorError was being thown when a YAML value
+        # consisted of just string "=". Probably due to this PyYAML bug:
+        # http://pyyaml.org/ticket/140
+        except (ValueError, TypeError, yaml.constructor.ConstructorError) as e:
             # Try the next attachment/message
             logger.exception()
             logger.error(str(e))
