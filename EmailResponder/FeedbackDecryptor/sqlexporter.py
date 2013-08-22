@@ -115,7 +115,7 @@ class WindowsSystem(Base):
         obj.net_original_internet_conn_offline = coalesce(base, 'internetConnectionOffline')
         obj.net_original_internet_ras_installed = coalesce(base, 'internetRASInstalled')
 
-        base = coalesce(diagnostic_info, ('DiagnosticInfo', 'SystemInformation', 'NetworkInfo', 'Original', 'Proxy'))
+        base = coalesce(diagnostic_info, ('DiagnosticInfo', 'SystemInformation', 'NetworkInfo', 'Original', 'Proxy')) or []
         # There's an array of proxy info, typically one per network connection.
         # We don't need to export all of them, so we'll take the one that doesn't
         # have a named network connection.
@@ -167,33 +167,6 @@ class WindowsSecInfo(Base):
                 [setattr(obj, key, val) for key, val in coalesce(item, data_version, {}).iteritems()]
 
                 objs.append(obj)
-
-        return objs
-
-
-@_table_class
-class WindowsServerResponseCheck(Base):
-    __tablename__ = 'windows_server_response_check'
-    __table_args__ = {'autoload': True}
-
-    @classmethod
-    def create(cls, diagnostic_info):
-        if coalesce(diagnostic_info, ('Metadata', 'platform')) != 'windows':
-            return None
-
-        objs = []
-        for entry in coalesce(diagnostic_info, ('DiagnosticInfo', 'DiagnosticHistory'), []):
-            # DiagnosticHistory is a pretty free form set of data. The only type
-            # of data that goes into it that we care about here are the ServerResponseChecks.
-            if coalesce(entry, 'msg') != 'ServerResponseCheck':
-                continue
-
-            obj = cls()
-            obj.timestamp = coalesce(entry, 'timestamp')
-            obj.server_id = coalesce(entry, ('data', 'ipAddress'))
-            obj.server_responded = coalesce(entry, ('data', 'responded'))
-            obj.server_responseTime = coalesce(entry, ('data', 'responseTime'))
-            objs.append(obj)
 
         return objs
 
@@ -255,27 +228,53 @@ class AndroidSystem(Base):
 
 
 @_table_class
-class AndroidServerResponse(Base):
-    __tablename__ = 'android_server_response'
+class ServerResponseCheck(Base):
+    __tablename__ = 'server_response_check'
     __table_args__ = {'autoload': True}
 
     @classmethod
     def create(cls, diagnostic_info):
-        if coalesce(diagnostic_info, ('Metadata', 'platform')) != 'android':
-            return None
+        # This is for both platforms
 
         objs = []
         for entry in coalesce(diagnostic_info, ('DiagnosticInfo', 'DiagnosticHistory'), []):
             # DiagnosticHistory is a pretty free form set of data. The only type
-            # of data that goes into it that we care about here are the ServerResponseChecks.
+            # of data that goes into it that we care about here are the
+            # ServerResponseCheck entries.
             if coalesce(entry, 'msg') != 'ServerResponseCheck':
                 continue
 
             obj = cls()
             obj.timestamp = coalesce(entry, 'timestamp')
             obj.server_id = coalesce(entry, ('data', 'ipAddress'))
-            obj.server_responded = coalesce(entry, ('data', 'responded'))
-            obj.server_responseTime = coalesce(entry, ('data', 'responseTime'))
+            obj.responded = coalesce(entry, ('data', 'responded'))
+            obj.responseTime = coalesce(entry, ('data', 'responseTime'))
+            obj.regionCode = coalesce(entry, ('data', 'regionCode'))
+            objs.append(obj)
+
+        return objs
+
+
+@_table_class
+class SelectedRegion(Base):
+    __tablename__ = 'selected_region'
+    __table_args__ = {'autoload': True}
+
+    @classmethod
+    def create(cls, diagnostic_info):
+        # This is for both platforms
+
+        objs = []
+        for entry in coalesce(diagnostic_info, ('DiagnosticInfo', 'DiagnosticHistory'), []):
+            # DiagnosticHistory is a pretty free form set of data. The only type
+            # of data that goes into it that we care about here are the
+            # SelectedRegion entries.
+            if coalesce(entry, 'msg') != 'SelectedRegion':
+                continue
+
+            obj = cls()
+            obj.timestamp = coalesce(entry, 'timestamp')
+            obj.regionCode = coalesce(entry, ('data', 'regionCode'))
             objs.append(obj)
 
         return objs
@@ -318,6 +317,8 @@ def _sanitize_session(session):
     '''
     for obj in session:
         for attrname, _ in inspect.getmembers(obj.__class__, inspect.isdatadescriptor):
+            if attrname.startswith('__'):
+                continue
             attrval = getattr(obj, attrname)
             if isinstance(attrval, (str, unicode)):
                 setattr(obj, attrname, attrval.encode('utf-8'))
@@ -357,5 +358,11 @@ def go():
     # Note that `_diagnostic_record_iter` throttles itself if/when there are
     # no records to process.
     for diagnostic_info in _diagnostic_record_iter():
-        _process_diagnostic_info(diagnostic_info)
+        try:
+            _process_diagnostic_info(diagnostic_info)
+        except Exception as e:
+            if _DEBUG:
+                raise
 
+            logger.exception()
+            logger.error(str(e))
