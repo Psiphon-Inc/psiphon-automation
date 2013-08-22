@@ -300,6 +300,13 @@ def _new_session():
 
 
 def _get_last_timestamp():
+    '''
+    Note that MySQL discards milliseconds ("fractional seconds": http://dev.mysql.com/doc/refman/5.0/en/datetime.html).
+    This means that the "last timestamp" will actually be a smaller value than
+    the timestamp of the last-inserted record. We will cope with this by
+    catching exceptions and continuing on.
+    '''
+
     session = _new_session()
     most_recent = session.query(DiagnosticData).order_by(DiagnosticData.datetime.desc()).first()
 
