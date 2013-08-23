@@ -31,6 +31,7 @@ import random
 import optparse
 import operator
 import gzip
+import copy
 from pkg_resources import parse_version
 
 import psi_utils
@@ -1346,7 +1347,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__deleted_servers[server_id] = self.__servers.pop(server_id)
         # We don't assign host IDs and can't guarentee uniqueness, so not
         # archiving deleted host keyed by ID.
-        self.__deleted_hosts.append(self.__hosts.pop(host.id))
+        deleted_host = self.__hosts.pop(host.id)
+        # Don't archive "deploy" logs.  They are noisy, and may contribute to
+        # a MemoryError we have observed when serializing the PsiphonNetwork object
+        for log in copy.copy(deleted_host.logs):
+            if 'deploy' in log[1]:
+                deleted_host.logs.remove(log)
+        self.__deleted_hosts.append(deleted_host)
 
         # Clear flags that include this host id.  Update stats config.
         if host.id in self.__deploy_implementation_required_for_hosts:
