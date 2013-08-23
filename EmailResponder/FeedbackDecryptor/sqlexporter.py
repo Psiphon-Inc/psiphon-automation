@@ -26,10 +26,11 @@ from sqlalchemy.orm import sessionmaker
 import logger
 import datastore
 from utils import coalesce
+from config import config
 
 
 # TODO: Set to False
-_DEBUG = True
+_DEBUG = False
 
 
 # We are using the "declarative" "autoload" mode of SQLAlchemy. You can find a
@@ -38,7 +39,7 @@ _DEBUG = True
 # `CREATE TABLE` info here.
 
 
-engine = create_engine('mysql://root@localhost/diagnostic_feedback?unix_socket=/data/mariadb-data/mariadb.sock', echo=_DEBUG)
+engine = create_engine(config['sqlExporterDBConnectionString'], echo=_DEBUG)
 Base = declarative_base(engine)
 
 
