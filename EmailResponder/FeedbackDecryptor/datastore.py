@@ -59,8 +59,8 @@ _errors_store = _db.errors
 # This index is used for iterating through the diagnostic_info store, and
 # for stats queries.
 # It's also a TTL index, and purges old records.
-_DIAGNOSTIC_DATA_LIFETIME_SECS = 60*60*24*7*26  # half a year
-_diagnostic_info_store.ensure_index('datetime', expireAfterSeconds=_DIAGNOSTIC_DATA_LIFETIME_SECS)
+DIAGNOSTIC_DATA_LIFETIME_SECS = 60*60*24*7*26  # half a year
+_diagnostic_info_store.ensure_index('datetime', expireAfterSeconds=DIAGNOSTIC_DATA_LIFETIME_SECS)
 
 # We use a TTL index on the response_blacklist collection, to expire records.
 _BLACKLIST_LIFETIME_SECS = 60*60*24  # one day
@@ -321,3 +321,13 @@ def _get_stats_helper(since_time):
                       })
 
     return stats
+
+
+#
+# Functions related to the sqlexporter
+#
+
+def get_sqlexporter_diagnostic_info_iterator(start_datetime):
+    cursor = _diagnostic_info_store.find({'datetime': {'$gt': start_datetime}})
+    cursor.sort('datetime')
+    return cursor
