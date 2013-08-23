@@ -289,6 +289,9 @@ def _diagnostic_record_iter():
         for rec in datastore.get_sqlexporter_diagnostic_info_iterator(last_timestamp):
             yield rec
 
+        # Take this opportunity to trim the DB
+        _truncate_db()
+
         time.sleep(_SLEEP_TIME_SECS)
 
 
@@ -297,6 +300,27 @@ def _new_session():
     Session = sessionmaker(bind=engine)
     session = Session()
     return session
+
+
+def _truncate_db():
+    session = None
+
+    cutoff = datetime.datetime.now() - datetime.timedelta(seconds=datastore.DIAGNOSTIC_DATA_LIFETIME_SECS)
+
+    try:
+        session = _new_session()
+
+        # This delete will cascade.
+        session.query(DiagnosticData).filter(DiagnosticData.datetime < cutoff).delete()
+
+        session.commit()
+    except:
+        if session:
+            session.rollback()
+        raise
+    finally:
+        if session:
+            session.close()
 
 
 def _get_last_timestamp():
@@ -309,6 +333,7 @@ def _get_last_timestamp():
 
     session = _new_session()
     most_recent = session.query(DiagnosticData).order_by(DiagnosticData.datetime.desc()).first()
+    session.close()
 
     if most_recent is None:
         most_recent = datetime.datetime(1970, 1, 1)
@@ -332,15 +357,17 @@ def _sanitize_session(session):
 
 
 def _process_diagnostic_info(diagnostic_info):
-    session = _new_session()
-
-    diagnostic_data = DiagnosticData.create(diagnostic_info)
-    session.add(diagnostic_data)
-
-    # Get the ID for the new DiagnosticData object, so we can FK it.
-    session.flush()
+    session = None
 
     try:
+        session = _new_session()
+
+        diagnostic_data = DiagnosticData.create(diagnostic_info)
+        session.add(diagnostic_data)
+
+        # Get the ID for the new DiagnosticData object, so we can FK it.
+        session.flush()
+
         for table_class in _table_class_registry:
             objs = table_class.create(diagnostic_info)
 
@@ -353,12 +380,16 @@ def _process_diagnostic_info(diagnostic_info):
             for obj in objs:
                 setattr(obj, 'diagnostic_data_id', diagnostic_data.id)
                 session.add(obj)
-    except Exception:
-        session.rollback()
-        raise
 
-    _sanitize_session(session)
-    session.commit()
+        _sanitize_session(session)
+        session.commit()
+    except:
+        if session:
+            session.rollback()
+        raise
+    finally:
+        if session:
+            session.close()
 
 
 def go():
