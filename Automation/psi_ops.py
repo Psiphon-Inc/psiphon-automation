@@ -31,6 +31,7 @@ import random
 import optparse
 import operator
 import gzip
+import copy
 from pkg_resources import parse_version
 
 import psi_utils
