@@ -22,6 +22,7 @@ import inspect
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+import sqlalchemy
 
 import logger
 import datastore
@@ -325,13 +326,6 @@ def _truncate_db():
 
 
 def _get_last_timestamp():
-    '''
-    Note that MySQL discards milliseconds ("fractional seconds": http://dev.mysql.com/doc/refman/5.0/en/datetime.html).
-    This means that the "last timestamp" will actually be a smaller value than
-    the timestamp of the last-inserted record. We will cope with this by
-    catching exceptions and continuing on.
-    '''
-
     session = _new_session()
     most_recent = session.query(DiagnosticData).order_by(DiagnosticData.datetime.desc()).first()
     session.close()
@@ -384,6 +378,19 @@ def _process_diagnostic_info(diagnostic_info):
 
         _sanitize_session(session)
         session.commit()
+    except sqlalchemy.exc.IntegrityError as e:
+        if session:
+            session.rollback()
+
+        # Note that MySQL discards milliseconds ("fractional seconds": http://dev.mysql.com/doc/refman/5.0/en/datetime.html).
+        # This means that the "last timestamp" will actually be a smaller value
+        # than the timestamp of the last-inserted record. This means that there
+        # will always(?) be an attempt to re-insert the last-inserted record,
+        # which will result in an exception. We need to ignore it and carry on.
+        expected = e.orig.args[1].startswith('Duplicate entry') and e.orig.args[1].endswith("for key 'obj_id'")
+
+        if not expected:
+          raise
     except:
         if session:
             session.rollback()
