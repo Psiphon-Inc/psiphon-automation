@@ -61,7 +61,11 @@ class DiagnosticData(Base):
         obj = cls()
 
         obj_id = coalesce(diagnostic_info, '_id')
-        obj.obj_id = str(obj_id) if obj_id else None
+        if not obj_id:
+            # This shouldn't happen, since this field is added by MongoDB
+            raise ValueError('diagnostic_info missing _id')
+
+        obj.obj_id = str(obj_id)
 
         obj.datetime = coalesce(diagnostic_info, 'datetime')
         obj.platform = coalesce(diagnostic_info, ('Metadata', 'platform'))
