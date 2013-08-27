@@ -163,6 +163,7 @@ class WindowsSecInfo(Base):
             for item in coalesce(diagnostic_info, ('DiagnosticInfo', 'SystemInformation', 'SecurityInfo', sec_name), []):
                 obj = cls()
                 obj.sec_type = sec_type
+                obj.displayName = coalesce(item, 'displayName')
 
                 data_version = coalesce(item, 'version')
 
