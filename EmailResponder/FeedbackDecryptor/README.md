@@ -136,3 +136,13 @@ sudo restart mailsender
 sudo restart statschecker
 ```
 
+## Diagnostic Data SQL DB
+
+### Recreating the database
+
+```
+$ sudo stop sqlexporter
+$ echo "DROP DATABASE diagnostic_feedback;" | mysql -u root --socket=/data/mariadb-data/mariadb.sock
+$ mysql -u root --socket=/data/mariadb-data/mariadb.sock < sql_diagnostic_feedback_schema.sql
+$ sudo start sqlexporter
+```

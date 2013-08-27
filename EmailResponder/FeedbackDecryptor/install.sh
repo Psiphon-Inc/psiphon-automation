@@ -26,6 +26,9 @@ fi
 echo "You must already have created the user $MAILDECRYPTOR_USER, otherwise this script will fail. See the README for details."
 echo ""
 
+# Create the diagnostic data SQL DB.
+mysql -u root --socket=/data/mariadb-data/mariadb.sock < sql_diagnostic_feedback_schema.sql
+
 sed "s|fill-in-with-path-to-source|\"`pwd`\"|" maildecryptor.conf > maildecryptor.conf.configured
 sed "s|fill-in-with-path-to-source|\"`pwd`\"|" s3decryptor.conf > s3decryptor.conf.configured
 sed "s|fill-in-with-path-to-source|\"`pwd`\"|" mailsender.conf > mailsender.conf.configured
