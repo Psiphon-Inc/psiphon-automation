@@ -196,7 +196,12 @@ def is_diagnostic_info_sane(obj):
                              'platform': lambda val: val in ['android', 'windows'],
                              'version': lambda val: val in range(1, 3),
                              'id': lambda val: re.match(r'^[a-fA-F0-9]{16}', val) is not None
-                             }
+                             },
+
+                # These two fields are special in MongoDB and should not be
+                # present in the diagnostic data package.
+                '-_id': None,
+                '-datetime': None,
                 }
 
     if not _check_exemplar(obj, exemplar):
@@ -206,17 +211,41 @@ def is_diagnostic_info_sane(obj):
     return True
 
 
+def is_diagnostic_info_sane_test():
+    assert(not is_diagnostic_info_sane({}))
+    assert(is_diagnostic_info_sane({'Metadata': {'platform': 'windows', 'version': 1, 'id': 'AAAAAAAAAAAAAAAA'}}))
+    assert(is_diagnostic_info_sane({'extra': 1, 'Metadata': {'extra': 1, 'platform': 'windows', 'version': 1, 'id': 'AAAAAAAAAAAAAAAA'}}))
+    assert(not is_diagnostic_info_sane({'_id': 1, 'Metadata': {'extra': 1, 'platform': 'windows', 'version': 1, 'id': 'AAAAAAAAAAAAAAAA'}}))
+    assert(not is_diagnostic_info_sane({'datetime': 1, 'Metadata': {'extra': 1, 'platform': 'windows', 'version': 1, 'id': 'AAAAAAAAAAAAAAAA'}}))
+    assert(not is_diagnostic_info_sane({'_id': 1, 'datetime': 1, 'Metadata': {'extra': 1, 'platform': 'windows', 'version': 1, 'id': 'AAAAAAAAAAAAAAAA'}}))
+    assert(not is_diagnostic_info_sane({'Metadata': {'platform': 'badplatform', 'version': 1, 'id': 'AAAAAAAAAAAAAAAA'}}))
+    assert(is_diagnostic_info_sane({'Metadata': {'_id': 1, 'platform': 'windows', 'version': 1, 'id': 'AAAAAAAAAAAAAAAA'}}))
+    print 'is_diagnostic_info_sane test okay'
+
+is_diagnostic_info_sane.test = is_diagnostic_info_sane_test
+
+
 def _check_exemplar(check, exemplar):
+    '''
+    If an `exemplar` dict key starts with '-', then it must *not* be present
+    in `check`.
+    '''
+
     if isinstance(exemplar, types.DictType):
         if not isinstance(check, types.DictType):
             return False
 
         for k in exemplar.iterkeys():
-            if not k in check:
-                return False
+            if k.startswith('-'):
+                # Special negation key
+                if k[1:] in check:
+                    return False
+            else:
+                if k not in check:
+                    return False
 
-            if not _check_exemplar(check[k], exemplar[k]):
-                return False
+                if not _check_exemplar(check[k], exemplar[k]):
+                    return False
 
         return True
 
@@ -299,6 +328,8 @@ def rename_key_in_obj_at_path(obj, obj_path, new_key):
 
 # TODO: proper unit test framework
 def test():
+    logger.disable()
+
     for name_in_module in dir(sys.modules[__name__]):
         testee = getattr(sys.modules[__name__], name_in_module)
 
