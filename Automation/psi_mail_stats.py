@@ -264,7 +264,7 @@ if __name__ == "__main__":
 
     html_body = render_mail(tables_data)
 
-    sender.send(config['decryptedEmailRecipient'],
+    sender.send(config['statsEmailRecipients'],
                 config['emailUsername'],
                 'Psiphon 3 Stats',
                 repr(tables_data),

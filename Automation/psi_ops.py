@@ -31,6 +31,7 @@ import random
 import optparse
 import operator
 import gzip
+import copy
 from pkg_resources import parse_version
 
 import psi_utils
@@ -460,6 +461,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 len(self.__deploy_builds_required_for_campaigns[CLIENT_PLATFORM_ANDROID]),
                 'Yes' if self.__deploy_stats_config_required else 'No',
                 'Yes' if self.__deploy_email_config_required else 'No')
+
+    def show_client_versions(self):
+        for platform in self.__client_versions.iterkeys():
+            print platform
+            for client_version in self.__client_versions[platform]:
+                print client_version.logs[0][0], client_version.version, client_version.description
 
     def __show_logs(self, obj):
         for timestamp, message in obj.get_logs():
@@ -1340,7 +1347,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__deleted_servers[server_id] = self.__servers.pop(server_id)
         # We don't assign host IDs and can't guarentee uniqueness, so not
         # archiving deleted host keyed by ID.
-        self.__deleted_hosts.append(self.__hosts.pop(host.id))
+        deleted_host = self.__hosts.pop(host.id)
+        # Don't archive "deploy" logs.  They are noisy, and may contribute to
+        # a MemoryError we have observed when serializing the PsiphonNetwork object
+        for log in copy.copy(deleted_host.logs):
+            if 'deploy' in log[1]:
+                deleted_host.logs.remove(log)
+        self.__deleted_hosts.append(deleted_host)
 
         # Clear flags that include this host id.  Update stats config.
         if host.id in self.__deploy_implementation_required_for_hosts:

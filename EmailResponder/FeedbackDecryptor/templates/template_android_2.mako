@@ -227,7 +227,10 @@
           ping_str = 'none'
         elif ping_value > 2000:
           ping_class = 'warn'
+
+        ping_regionCode = utils.coalesce(entry, ('data', 'regionCode'), '')
       %>
+      <span>${ping_regionCode}</span>
       <span class="intcompare ${ping_class}">${ping_str}</span>
       <span>${entry['data']['ipAddress']}</span>
     % else:

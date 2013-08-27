@@ -45,5 +45,7 @@
   // The Sponsor and Propagation Channel that should be used for auto-responses
   // if no user-specific value can be determined.
   "defaultSponsorName": "Psiphon",
-  "defaultPropagationChannelName": "Psiphon - email autoresponder"
+  "defaultPropagationChannelName": "Psiphon - email autoresponder",
+
+  "sqlExporterDBConnectionString": "mysql://root@localhost/diagnostic_feedback?unix_socket=/data/mariadb-data/mariadb.sock"
 }
