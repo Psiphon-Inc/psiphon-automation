@@ -27,6 +27,8 @@ import collections
 import time
 import traceback
 import psycopg2
+import sys
+import multiprocessing
 
 import psi_ssh
 import psi_ops
@@ -485,9 +487,9 @@ def process_stats(host, servers, db_cur, psinet, error_file=None):
                 file = gzip.open(path)
             else:
                 file = open(path)
+            print 'processing %s...' % (filename,)
+            lines_processed = 0
             try:
-                print 'processing %s...' % (filename,)
-                lines_processed = 0
                 lines = file.read().split('\n')
                 for line in reversed(lines):
                     match = line_re.match(line)
@@ -513,7 +515,7 @@ def process_stats(host, servers, db_cur, psinet, error_file=None):
 
                     if last_timestamp and timestamp < last_timestamp:
                         # Assumes processing the lines in reverse chronological order
-                        continue
+                        break
                     if not next_last_timestamp or timestamp > next_last_timestamp:
                         next_last_timestamp = timestamp
 
@@ -606,7 +608,9 @@ def process_stats(host, servers, db_cur, psinet, error_file=None):
 
             finally:
                 file.close()
-        print '%d new lines processed' % (lines_processed)
+
+            print '%d new lines processed' % (lines_processed)
+            sys.stdout.flush()
 
     if next_last_timestamp:
         if not last_timestamp:
@@ -628,13 +632,14 @@ def reconstruct_sessions(db):
     session_cursor = db.cursor()    
     
     print 'Reconstructing sessions...'
+    sys.stdout.flush()
     start_time = time.time()
 
     session_cursor.execute('SELECT doSessionReconstruction()')
 
     session_cursor.execute('COMMIT')
 
-    print 'elapsed time: %fs' % (time.time()-start_time,)
+    print 'Reconstruct sessions elapsed time: %fs' % (time.time()-start_time,)
 
 
 def update_propagation_channels(db, propagation_channels):
@@ -689,6 +694,34 @@ def update_servers(db, psinet):
     cursor.execute('COMMIT')
 
 
+def process_stats_on_host(args):
+
+    start_time = time.time()
+
+    host = args[0]
+    servers = args[1]
+    psinet = args[2]                                                                                 
+                                                                                                     
+    db_conn = psycopg2.connect(                                                                      
+        'dbname=%s user=%s password=%s port=%d' % (                                                  
+            psi_ops_stats_credentials.POSTGRES_DBNAME,                                               
+            psi_ops_stats_credentials.POSTGRES_USER,                                                 
+            psi_ops_stats_credentials.POSTGRES_PASSWORD,                                             
+            psi_ops_stats_credentials.POSTGRES_PORT))                                                
+    try:                                                                                             
+        db_cur = db_conn.cursor()                                                                    
+        process_stats(host, servers, db_cur, psinet)                                                 
+        db_cur.close()                                                                               
+        db_conn.commit()                                                                             
+    except Exception as e:                                                                           
+        for line in traceback.format_exc().split('\n'):                                              
+            print line                                                                               
+    finally:                                                                                         
+        db_conn.close()                                                                              
+
+    return (host.id, time.time()-start_time)
+
+
 if __name__ == "__main__":
 
     start_time = time.time()
@@ -712,11 +745,13 @@ if __name__ == "__main__":
         update_sponsors(db_conn, sponsors)
         update_servers(db_conn, psinet)
 
-        for host in hosts:
-            db_cur = db_conn.cursor()
-            process_stats(host, servers, db_cur, psinet)
-            db_cur.close()
-            db_conn.commit()
+        pool = multiprocessing.pool.ThreadPool(4)
+        results = pool.map(process_stats_on_host, [(host, servers, psinet) for host in hosts])
+
+        # print results as a dict (sorted for visual inspection)
+        print '{' + ','.join(['"%s": %f' % (host_id, host_time) for (host_id, host_time)
+                in sorted(results, key=lambda item: item[1], reverse=True)]) + '}'
+
         reconstruct_sessions(db_conn)
         db_conn.commit()
     except Exception as e:
@@ -725,4 +760,4 @@ if __name__ == "__main__":
     finally:
         db_conn.close()
 
-    print 'elapsed time: %fs' % (time.time()-start_time,)
+    print 'Total stats processing elapsed time: %fs' % (time.time()-start_time,)

@@ -31,6 +31,7 @@ import random
 import optparse
 import operator
 import gzip
+import copy
 from pkg_resources import parse_version
 
 import psi_utils
@@ -153,7 +154,7 @@ Host = psi_utils.recordtype(
     'Host',
     'id, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key, ' +
     'stats_ssh_username, stats_ssh_password, ' +
-    'datacenter_name',
+    'datacenter_name, region',
     default=None)
 
 Server = psi_utils.recordtype(
@@ -271,6 +272,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__deleted_hosts = []
         self.__servers = {}
         self.__deleted_servers = {}
+        self.__hosts_to_remove_from_providers = set()
         self.__client_versions = {
             CLIENT_PLATFORM_WINDOWS: [],
             CLIENT_PLATFORM_ANDROID: []
@@ -298,7 +300,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.18'
+    class_version = '0.20'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -393,7 +395,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.18')) < 0:
             self.__default_email_autoresponder_account = None
             self.version = '0.18'
-
+        if cmp(parse_version(self.version), parse_version('0.19')) < 0:
+            self.__hosts_to_remove_from_providers = set()
+            self.version = '0.19'
+        if cmp(parse_version(self.version), parse_version('0.20')) < 0:
+            for host in self.__hosts.itervalues():
+                host.region = ''
+            for host in self.__deleted_hosts:
+                host.region = ''
+            self.version = '0.20'
+            
     def initialize_plugins(self):
         for plugin in plugins:
             if hasattr(plugin, 'initialize'):
@@ -450,6 +461,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 len(self.__deploy_builds_required_for_campaigns[CLIENT_PLATFORM_ANDROID]),
                 'Yes' if self.__deploy_stats_config_required else 'No',
                 'Yes' if self.__deploy_email_config_required else 'No')
+
+    def show_client_versions(self):
+        for platform in self.__client_versions.iterkeys():
+            print platform
+            for client_version in self.__client_versions[platform]:
+                print client_version.logs[0][0], client_version.version, client_version.description
 
     def __show_logs(self, obj):
         for timestamp, message in obj.get_logs():
@@ -585,6 +602,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             Server:                  %s
             Host:                    %s %s %s/%s
             IP Address:              %s
+            Region:                  %s
             Propagation Channel:     %s
             Is Embedded:             %s
             Is Permanent:            %s
@@ -596,6 +614,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 self.__hosts[s.host_id].ssh_username,
                 self.__hosts[s.host_id].ssh_password,
                 s.ip_address,
+                self.__hosts[s.host_id].region,
                 self.__propagation_channels[s.propagation_channel_id].name if s.propagation_channel_id else 'None',
                 s.is_embedded,
                 s.is_permanent,
@@ -614,6 +633,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             Provider:                %(provider)s (%(provider_id)s)
             Datacenter:              %(datacenter_name)s
             IP Address:              %(ip_address)s
+            Region:                  %(region)s
             SSH:                     %(ssh_port)s %(ssh_username)s / %(ssh_password)s
             Stats User:              %(stats_ssh_username)s / %(stats_ssh_password)s
             Servers:                 %(servers)s
@@ -623,6 +643,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     'provider_id': host.provider_id,
                     'datacenter_name': host.datacenter_name,
                     'ip_address': host.ip_address,
+                    'region': host.region,
                     'ssh_port': host.ssh_port,
                     'ssh_username': host.ssh_username,
                     'ssh_password': host.ssh_password,
@@ -752,7 +773,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # Make sure the email address exists in a campaign.
         exists = False
-        for sponsor in self.__sponsors:
+        for sponsor in self.__sponsors.itervalues():
             for campaign in sponsor.campaigns:
                 if type(campaign.account) == EmailPropagationAccount \
                         and campaign.account.email_address == email_account:
@@ -1013,7 +1034,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if users_on_host == 0:
                 self.remove_host(server.host_id)
                 number_removed += 1
-            elif users_on_host < 5:
+            elif users_on_host < 15:
                 self.__disable_server(server)
                 number_disabled += 1
         return number_removed, number_disabled
@@ -1203,7 +1224,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             discovery = self.__copy_date_range(discovery_date_range) if discovery_date_range else None
 
             ssh_port = '22'
-            ossh_port = random.choice(['465', '587', '993', '995'])
+            ossh_port = random.choice(['280', '591', '901'])
             capabilities = ServerCapabilities()
             if server_capabilities:
                 capabilities = copy_server_capabilities(server_capabilities)
@@ -1221,6 +1242,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 ossh_ports.remove(138)
                 ossh_ports.remove(139)
                 ossh_ports.remove(515)
+                ossh_ports.remove(593)
                 ossh_port = random.choice(ossh_ports)
 
             server = Server(
@@ -1273,19 +1295,47 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # the stats and email server
         self.deploy()
 
+    def remove_hosts_from_providers(self):
+        assert(self.is_locked)
+        
+        need_to_save = False
+        for host in self.__hosts_to_remove_from_providers.copy():
+            # Only hosts that can be removed via an API are removed here.
+            # Others must be manually removed.
+            provider_remove_host = None
+            if host.provider == 'linode':
+                provider_remove_host = psi_linode.remove_server
+                provider_account = self.__linode_account
+            if provider_remove_host:
+                # Remove the actual host through the provider's API
+                provider_remove_host(provider_account, host.provider_id)
+                self.__hosts_to_remove_from_providers.remove(host)
+                need_to_save = True
+                # It is safe to call provider_remove_host() for a host that has
+                # already been removed, so there is no need to save() yet.
+                
+        if need_to_save:
+            self.save()
+    
     def remove_host(self, host_id):
         assert(self.is_locked)
         host = self.__hosts[host_id]
-        if host.provider == 'linode':
-            provider_remove_host = psi_linode.remove_server
-            provider_account = self.__linode_account
-        else:
-            raise ValueError('can\'t remove host from provider %s' % host.provider)
+        host_copy = Host(
+                        host.id,
+                        host.provider,
+                        host.provider_id,
+                        host.ip_address,
+                        host.ssh_port,
+                        host.ssh_username,
+                        host.ssh_password,
+                        host.ssh_host_key,
+                        host.stats_ssh_username,
+                        host.stats_ssh_password,
+                        host.datacenter_name,
+                        host.region)
+        self.__hosts_to_remove_from_providers.add(host_copy)
 
-        # Remove the actual host through the provider's API
-        provider_remove_host(provider_account, host.provider_id)
-
-        # Mark host and its servers as delete in the database. We keep the
+        # Mark host and its servers as deleted in the database. We keep the
         # records around for historical info and to ensure we never recycle
         # server IDs
         server_ids_on_host = []
@@ -1297,7 +1347,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__deleted_servers[server_id] = self.__servers.pop(server_id)
         # We don't assign host IDs and can't guarentee uniqueness, so not
         # archiving deleted host keyed by ID.
-        self.__deleted_hosts.append(self.__hosts.pop(host.id))
+        deleted_host = self.__hosts.pop(host.id)
+        # Don't archive "deploy" logs.  They are noisy, and may contribute to
+        # a MemoryError we have observed when serializing the PsiphonNetwork object
+        for log in copy.copy(deleted_host.logs):
+            if 'deploy' in log[1]:
+                deleted_host.logs.remove(log)
+        self.__deleted_hosts.append(deleted_host)
 
         # Clear flags that include this host id.  Update stats config.
         if host.id in self.__deploy_implementation_required_for_hosts:
@@ -1523,6 +1579,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         info_link_url,
                         upgrade_signature_public_key,
                         upgrade_url,
+                        get_new_version_url,
+                        get_new_version_email,
                         self.__client_versions[platform][-1].version if self.__client_versions[platform] else 0,
                         test) for platform in platforms]
 
@@ -1593,6 +1651,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # - Publish, tweet
         # - Data to all hosts
         # - Email and stats server config
+        # - Remove hosts from providers that are marked for removal
         #
         # NOTE: Order is important. Hosts get new implementation before
         # new data, in case schema has changed; deploy builds before
@@ -1738,6 +1797,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.push_email_config()
             self.__deploy_email_config_required = False
             self.save()
+            
+        # Remove hosts from providers that are marked for removal
+        
+        self.remove_hosts_from_providers()
 
     def update_static_site_content(self):
         assert(self.is_locked)
@@ -2029,6 +2092,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         extended_config['capabilities'] = [capability for capability, enabled in server.capabilities.iteritems() if enabled] if server.capabilities else []
 
+        host = self.__hosts[server.host_id]
+        extended_config['region'] = host.region
+
         return binascii.hexlify('%s %s %s %s %s' % (
                                     server.ip_address,
                                     server.web_server_port,
@@ -2209,6 +2275,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def __compartmentalize_data_for_host(self, host_id, discovery_date=datetime.datetime.now()):
         # Create a compartmentalized database with only the information needed by a particular host
         # - all propagation channels because any client may connect to servers on this host
+        # - host data
+        #   only region info is required for discovery
         # - servers data
         #   omit discovery servers not on this host whose discovery time period has elapsed
         #   also, omit propagation servers not on this host
@@ -2227,7 +2295,22 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                                     '',  # Omit new server counts
                                                                     '',  # Omit server ages
                                                                     '')  # Omit server ages
-
+                                                                    
+        for host in self.__hosts.itervalues():
+            copy.__hosts[host.id] = Host(
+                                        host.id,
+                                        '',  # Omit: provider isn't needed
+                                        '',  # Omit: provider_id isn't needed
+                                        '',  # Omit: ip_address isn't needed
+                                        '',  # Omit: ssh_port isn't needed
+                                        '',  # Omit: root ssh_username isn't needed
+                                        '',  # Omit: root ssh_password isn't needed
+                                        '',  # Omit: ssh_host_key isn't needed
+                                        '',  # Omit: stats_ssh_username isn't needed
+                                        '',  # Omit: stats_ssh_password isn't needed
+                                        '',  # Omit: datacenter_name isn't needed
+                                        host.region)
+                                            
         for server in self.__servers.itervalues():
             if ((server.discovery_date_range and server.host_id != host_id and server.discovery_date_range[1] <= discovery_date) or
                 (not server.discovery_date_range and server.host_id != host_id)):
@@ -2235,7 +2318,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             copy.__servers[server.id] = Server(
                                                 server.id,
-                                                '',  # Omit host_id
+                                                server.host_id,
                                                 server.ip_address,
                                                 server.egress_ip_address,
                                                 server.internal_ip_address,
@@ -2302,7 +2385,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.ssh_host_key,
                                             host.stats_ssh_username,
                                             host.stats_ssh_password,
-                                            host.datacenter_name)
+                                            host.datacenter_name,
+                                            host.region)
 
         for server in self.__servers.itervalues():
             copy.__servers[server.id] = Server(
