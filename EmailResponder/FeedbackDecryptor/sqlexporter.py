@@ -121,7 +121,7 @@ class WindowsSystem(Base):
         obj.net_original_internet_conn_offline = coalesce(base, 'internetConnectionOffline')
         obj.net_original_internet_ras_installed = coalesce(base, 'internetRASInstalled')
 
-        base = coalesce(diagnostic_info, ('DiagnosticInfo', 'SystemInformation', 'NetworkInfo', 'Original', 'Proxy')) or []
+        base = coalesce(diagnostic_info, ('DiagnosticInfo', 'SystemInformation', 'NetworkInfo', 'Original', 'Proxy'), [])
         # There's an array of proxy info, typically one per network connection.
         # We don't need to export all of them, so we'll take the one that doesn't
         # have a named network connection.
@@ -189,7 +189,10 @@ class UserFeedback(Base):
         if coalesce(diagnostic_info, ('Metadata', 'platform')) != 'windows':
             return None
 
-        results = coalesce(diagnostic_info, ('Feedback', 'Survey', 'results')) or []
+        results = coalesce(diagnostic_info, ('Feedback', 'Survey', 'results'))
+
+        if not results:
+            return None
 
         connectivity = filter(lambda r: coalesce(r, 'title') == 'Connectivity', results)
         speed = filter(lambda r: coalesce(r, 'title') == 'Speed', results)
