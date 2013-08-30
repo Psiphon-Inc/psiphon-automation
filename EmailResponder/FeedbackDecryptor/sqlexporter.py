@@ -200,6 +200,16 @@ class UserFeedback(Base):
         obj.speed = coalesce(speed[0], 'answer') if speed else None
         obj.compatibility = coalesce(compatibility[0], 'answer') if compatibility else None
 
+        # If the user was never able to connect to a server, then this feedback
+        # can't be considered to be for a particular server. But if the user
+        # has been (or is) connected to a server, we'll use the one they last
+        # connected to.
+        diagnostic_history = coalesce(diagnostic_info, ('DiagnosticInfo', 'DiagnosticHistory'), [])
+        connected_msg = 'ConnectedServer' if coalesce(diagnostic_info, ('Metadata', 'platform')) != 'windows' else 'ConnectingServer'
+        connected_entries = [entry for entry in diagnostic_history if coalesce(entry, 'msg') == connected_msg]
+        if connected_entries:
+            obj.server_id = coalesce(connected_entries[-1], ('data', 'ipAddress'))
+
         return obj
 
 

@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS user_feedback (
     connectivity INT,
     speed INT,
     compatibility INT,
+    server_id VARCHAR(255) CHARACTER SET utf8,
     FOREIGN KEY (diagnostic_data_id) REFERENCES diagnostic_data(id) ON DELETE CASCADE ON UPDATE CASCADE
     );
 
