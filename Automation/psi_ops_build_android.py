@@ -102,6 +102,7 @@ def write_embedded_values(propagation_channel_id,
                           upgrade_url,
                           get_new_version_url,
                           get_new_version_email,
+                          propagator_managed_upgrades,
                           ignore_system_server_list=False):
     utils.set_embedded_values(client_version,
                               '","'.join(embedded_server_list),
@@ -115,7 +116,7 @@ def write_embedded_values(propagation_channel_id,
                               get_new_version_email,
                               get_new_version_url + '#other_frequently_asked_questions',
                               get_new_version_url + '#what_user_information_does_psiphon_3_collect',
-                              False,
+                              propagator_managed_upgrades,
                               propagation_channel_id,
                               sponsor_id,
                               remote_server_list_url[0] + '://' + remote_server_list_url[1] + '/' + remote_server_list_url[2],
@@ -157,6 +158,7 @@ def build_client(
         get_new_version_url,
         get_new_version_email,
         version,
+        propagator_managed_upgrades,
         test=False):
 
     try:
@@ -185,6 +187,7 @@ def build_client(
             upgrade_url,
             get_new_version_url,
             get_new_version_email,
+            propagator_managed_upgrades,
             ignore_system_server_list=test)
 
         # copy feedback.html
