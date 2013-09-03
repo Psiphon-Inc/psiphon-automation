@@ -19,10 +19,13 @@
 
 import os
 import shutil
+import shlex
 import textwrap
 import sys
 import fileinput
 import psi_utils
+import utils
+from cogapp import Cog
 
 
 #==== Build File Locations  ===================================================
@@ -100,55 +103,30 @@ def write_embedded_values(propagation_channel_id,
                           get_new_version_url,
                           get_new_version_email,
                           ignore_system_server_list=False):
-    template = textwrap.dedent('''
-        package com.psiphon3.psiphonlibrary;
+    utils.set_embedded_values(client_version,
+                              '","'.join(embedded_server_list),
+                              feedback_encryption_public_key,
+                              info_link_url,
+                              '',
+                              '',
+                              upgrade_url[0] + '://' + upgrade_url[1] + '/' + upgrade_url[2],
+                              upgrade_signature_public_key,
+                              get_new_version_url,
+                              get_new_version_email,
+                              get_new_version_url + '#other_frequently_asked_questions',
+                              get_new_version_url + '#what_user_information_does_psiphon_3_collect',
+                              False,
+                              propagation_channel_id,
+                              sponsor_id,
+                              remote_server_list_url[0] + '://' + remote_server_list_url[1] + '/' + remote_server_list_url[2],
+                              remote_server_list_signature_public_key)
+                              
+    cog_args = shlex.split('cog -U -I "%s" -o "%s" -D buildname="" "%s"' % (os.getcwd(), EMBEDDED_VALUES_FILENAME, EMBEDDED_VALUES_FILENAME + '.stub'))
+    ret_error = Cog().main(cog_args)
 
-        public interface EmbeddedValues
-        {
-            final String PROPAGATION_CHANNEL_ID = "%s";
-
-            final String SPONSOR_ID = "%s";
-
-            final String CLIENT_VERSION = "%s";
-
-            final String EMBEDDED_SERVER_LIST[] = {"%s"};
-
-            final String REMOTE_SERVER_LIST_URL = "%s://%s/%s";
-            final String REMOTE_SERVER_LIST_SIGNATURE_PUBLIC_KEY = "%s";
-
-            final String FEEDBACK_ENCRYPTION_PUBLIC_KEY = "%s";
-
-            // NOTE: Info link may be opened when not tunneled
-            final String INFO_LINK_URL = "%s";
-
-            final String UPGRADE_URL = "%s://%s/%s";
-            final String UPGRADE_SIGNATURE_PUBLIC_KEY = "%s";
-
-            final String GET_NEW_VERSION_URL = "%s";
-            final String GET_NEW_VERSION_EMAIL = "%s";
-            final String FAQ_URL = "%s#other_frequently_asked_questions";
-            final String DATA_COLLECTION_INFO_URL = "%s#what_user_information_does_psiphon_3_collect";
-        }
-        ''')
-    with open(EMBEDDED_VALUES_FILENAME, 'w') as file:
-        file.write(template % (propagation_channel_id,
-                               sponsor_id,
-                               client_version,
-                               '","'.join(embedded_server_list),
-                               remote_server_list_url[0],
-                               remote_server_list_url[1],
-                               remote_server_list_url[2],
-                               remote_server_list_signature_public_key,
-                               feedback_encryption_public_key,
-                               info_link_url,
-                               upgrade_url[0],
-                               upgrade_url[1],
-                               upgrade_url[2],
-                               upgrade_signature_public_key,
-                               get_new_version_url,
-                               get_new_version_email,
-                               get_new_version_url,
-                               get_new_version_url))
+    if ret_error != 0:
+        print 'Cog failed with error: %d' % ret_error
+        raise
 
 
 def write_android_manifest_version(client_version):
