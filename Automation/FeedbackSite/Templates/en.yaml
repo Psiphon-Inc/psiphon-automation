@@ -11,10 +11,12 @@ en:
         Many problems can be fixed by downloading the latest version. You can
         <a class="newVersionURL" href="#">download the latest version by clicking here</a>,
         or you can send an email to <span id="newVersionEmail"></span>.
+
+    top_para_3: |
         You can also find solutions to many common problems in our
         <a class="faqURL" href="#">Frequently Asked Questions</a>.
 
-    top_para_3: |
+    top_para_4: |
         If you have any other feedback, bug reports, etc., that you'd like to
         give us, <a id="showTextFeedback" href="#">just click here</a>.
 

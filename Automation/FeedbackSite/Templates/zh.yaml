@@ -4,12 +4,10 @@ zh:
   top_para_1: |
     请填写下面的表格，让我们知道如何赛风3是为你工作，这样我们就可以使系统更好地！
   top_para_2: |
-    可以修复很多问题如果下载最新版本的。您可以
-    <a class="newVersionURL" href="#">下载最新版本通过单击这里</a>，
-    或者您可以发送电子邮件至 <span id="newVersionEmail"></span>。
-    您还可以找到许多共同问题的解决在我们的
-    <a class="faqURL" href="#">常见问题解答</a>。
+    可以修复很多问题如果下载最新版本的。您可以 <a class="newVersionURL" href="#">下载最新版本通过单击这里</a>，或者您可以发送电子邮件至 <span id="newVersionEmail"></span>。
   top_para_3: |
+    您还可以找到许多共同问题的解决在我们的 <a class="faqURL" href="#">常见问题解答</a>。
+  top_para_4: |
     如果您有任何其他反馈、bug报告等，你想给我们，<a id="showTextFeedback" href="#">请点击这里
     </a>。
   questionnaire_diagnostic_check: |

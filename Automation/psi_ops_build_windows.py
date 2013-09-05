@@ -192,6 +192,7 @@ def build_client(
         get_new_version_url,
         get_new_version_email,
         version,
+        propagator_managed_upgrades,
         test=False):
 
     try:
