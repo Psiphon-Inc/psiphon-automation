@@ -118,7 +118,7 @@ except ImportError as error:
 
 PropagationChannel = psi_utils.recordtype(
     'PropagationChannel',
-    'id, name, propagation_mechanism_types, ' +
+    'id, name, propagation_mechanism_types, propagator_managed_upgrades, ' +
     'new_discovery_servers_count, new_propagation_servers_count, ' +
     'max_discovery_server_age_in_days, max_propagation_server_age_in_days')
 
@@ -300,7 +300,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.20'
+    class_version = '0.21'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -404,6 +404,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for host in self.__deleted_hosts:
                 host.region = ''
             self.version = '0.20'
+        if cmp(parse_version(self.version), parse_version('0.21')) < 0:
+            for propagation_channel in self.__propagation_channels.itervalues():
+                propagation_channel.propagator_managed_upgrades = False
+            self.version = '0.21'
             
     def initialize_plugins(self):
         for plugin in plugins:
@@ -559,6 +563,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             ID:                                %s
             Name:                              %s
             Propagation Mechanisms:            %s
+            Propagator Managed Upgrades        %s
             New Propagation Servers:           %s
             Max Propagation Server Age (days): %s
             New Discovery Servers:             %s
@@ -567,6 +572,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 p.id,
                 p.name,
                 '\n                                   '.join(p.propagation_mechanism_types),
+                p.propagator_managed_upgrades,
                 str(p.new_propagation_servers_count),
                 str(p.max_propagation_server_age_in_days),
                 str(p.new_discovery_servers_count),
@@ -675,15 +681,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def get_propagation_channel_by_id(self, id):
         return self.__propagation_channels[id] if id in self.__propagation_channels else None
 
-    def add_propagation_channel(self, name, propagation_mechanism_types):
+    def add_propagation_channel(self, name, propagation_mechanism_types, propagator_managed_upgrades=False):
         assert(self.is_locked)
-        self.import_propagation_channel(self.__generate_id(), name, propagation_mechanism_types)
+        self.import_propagation_channel(self.__generate_id(), name, propagation_mechanism_types, propagator_managed_upgrades)
 
-    def import_propagation_channel(self, id, name, propagation_mechanism_types):
+    def import_propagation_channel(self, id, name, propagation_mechanism_types, propagator_managed_upgrades):
         assert(self.is_locked)
         for type in propagation_mechanism_types:
             assert(type in self.__propagation_mechanisms)
-        propagation_channel = PropagationChannel(id, name, propagation_mechanism_types, 0, 0, 0, 0)
+        propagation_channel = PropagationChannel(id, name, propagation_mechanism_types, propagator_managed_upgrades, 0, 0, 0, 0)
         assert(id not in self.__propagation_channels)
         assert(not filter(lambda x: x.name == name, self.__propagation_channels.itervalues()))
         self.__propagation_channels[id] = propagation_channel
@@ -1582,6 +1588,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         get_new_version_url,
                         get_new_version_email,
                         self.__client_versions[platform][-1].version if self.__client_versions[platform] else 0,
+                        propagation_channel.propagator_managed_upgrades,
                         test) for platform in platforms]
 
     def build_android_library(
@@ -2291,6 +2298,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                                     propagation_channel.id,
                                                                     '',  # Omit name
                                                                     '',  # Omit mechanism type
+                                                                    '',  # Omit propagator_managed_upgrades
                                                                     '',  # Omit new server counts
                                                                     '',  # Omit new server counts
                                                                     '',  # Omit server ages
@@ -2419,6 +2427,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         propagation_channel.id,
                                         propagation_channel.name,
                                         [],  # Omit mechanism info
+                                        '',  # Omit propagator_managed_upgrades
                                         '',  # Omit new server counts
                                         '',  # Omit new server counts
                                         '',  # Omit server ages
