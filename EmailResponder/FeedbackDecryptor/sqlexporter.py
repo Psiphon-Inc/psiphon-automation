@@ -244,6 +244,14 @@ class AndroidSystem(Base):
         obj.psiphon_info_propagationChannelID = coalesce(base, ('PsiphonInfo', 'PROPAGATION_CHANNEL_ID'))
         obj.psiphon_info_clientVersion = coalesce(base, ('PsiphonInfo', 'CLIENT_VERSION'))
 
+        BROWSER_ONLY_STATUS_ID = 'psiphon_running_browser_only'
+        CONNECTION_STATUS_IDS = (BROWSER_ONLY_STATUS_ID, 'psiphon_running_whole_device')
+        connection_log_ids = [coalesce(s, 'id') for s in coalesce(diagnostic_info, 'StatusHistory', [], (list, tuple))
+                           if coalesce(s, 'id') in CONNECTION_STATUS_IDS]
+        if connection_log_ids:
+            # The last connection log is the one we'll use as representative
+            obj.browserOnly = connection_log_ids[-1] == BROWSER_ONLY_STATUS_ID
+
         return obj
 
 
