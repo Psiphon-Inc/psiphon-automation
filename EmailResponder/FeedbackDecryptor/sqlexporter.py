@@ -246,8 +246,11 @@ class AndroidSystem(Base):
 
         BROWSER_ONLY_STATUS_ID = 'psiphon_running_browser_only'
         CONNECTION_STATUS_IDS = (BROWSER_ONLY_STATUS_ID, 'psiphon_running_whole_device')
-        connection_log_ids = [coalesce(s, 'id') for s in coalesce(diagnostic_info, 'StatusHistory', [], (list, tuple))
-                           if coalesce(s, 'id') in CONNECTION_STATUS_IDS]
+        connection_log_ids = [coalesce(s, 'id') for s in coalesce(diagnostic_info,
+                                                                  ('DiagnosticInfo', 'StatusHistory'),
+                                                                  default_value=[],
+                                                                  required_types=(list, tuple))
+                              if coalesce(s, 'id') in CONNECTION_STATUS_IDS]
         if connection_log_ids:
             # The last connection log is the one we'll use as representative
             obj.browserOnly = connection_log_ids[-1] == BROWSER_ONLY_STATUS_ID
