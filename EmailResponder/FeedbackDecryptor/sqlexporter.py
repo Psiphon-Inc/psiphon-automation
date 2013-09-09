@@ -382,8 +382,8 @@ def _sanitize_session(session):
 
 def _process_diagnostic_info(diagnostic_info):
     # We are not supporting old Android diagnostic data packages
-    if coalesce(diagnostic_data, ('Metadata', 'platform')) == 'android' \
-       and coalesce(diagnostic_data, ('Metadata', 'version'), 0, int) < 2:
+    if coalesce(diagnostic_info, ('Metadata', 'platform')) == 'android' \
+       and coalesce(diagnostic_info, ('Metadata', 'version'), 0, int) < 2:
         return
 
     session = None
