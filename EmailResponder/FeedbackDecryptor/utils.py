@@ -200,7 +200,7 @@ def is_diagnostic_info_sane(obj):
     exemplar = {
                 'Metadata': {
                              'platform': lambda val: val in ['android', 'windows'],
-                             'version': lambda val: val in range(1, 3),
+                             'version': lambda val: val in range(1, 4),
                              'id': lambda val: re.match(r'^[a-fA-F0-9]{16}', val) is not None
                              },
 
