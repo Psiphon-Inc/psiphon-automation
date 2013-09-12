@@ -73,7 +73,7 @@ def coalesce(obj, key_path, default_value=None, required_types=None):
     possible dict keys.
     `default_value` will be returned if the target value is non-existent or None.
     `required_types` is an optional tuple of types. If the target value does
-    not match any of these types, Noen will be returned.
+    not match any of these types, `None` will be returned.
     '''
 
     if type(key_path) not in (list, tuple):
@@ -108,6 +108,12 @@ def coalesce_test():
     assert(coalesce({'a': {'aa': 11}, 'b': 2}, ['a', 'bb'], 'nope') == 'nope')
     assert(coalesce({'a': {'aa': 11}, 'b': 2}, ['a', 'aa', 'aaa'], 'nope') == 'nope')
     assert(coalesce({'a': {'aa': 11}, 'b': 2}, ('a', 'aa'), 'nope') == 11)
+
+    # Test required_types
+    assert(coalesce({'a': 1}, 'a', default_value='nope', required_types=int) == 1)
+    assert(coalesce({'a': 1}, 'a', default_value='nope', required_types=(int, str)) == 1)
+    assert(coalesce({'a': 1}, 'a', default_value='nope', required_types=(str,)) == 'nope')
+
     print 'coalesce test okay'
 
 coalesce.test = coalesce_test
@@ -194,7 +200,7 @@ def is_diagnostic_info_sane(obj):
     exemplar = {
                 'Metadata': {
                              'platform': lambda val: val in ['android', 'windows'],
-                             'version': lambda val: val in range(1, 3),
+                             'version': lambda val: val in range(1, 4),
                              'id': lambda val: re.match(r'^[a-fA-F0-9]{16}', val) is not None
                              },
 
