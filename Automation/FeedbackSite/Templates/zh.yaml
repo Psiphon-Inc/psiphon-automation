@@ -1,8 +1,8 @@
 zh:
-  title: Psiphon 3反馈
+  title: Psiphon 反馈
   top_content_title: 给我们您反馈
   top_para_1: |
-    请填写下面的表格，让我们知道如何赛风3是为你工作，这样我们就可以使系统更好地！
+    请填写下面的表格，让我们知道如何赛风是为你工作，这样我们就可以使系统更好地！
   top_para_2: |
     可以修复很多问题如果下载最新版本的。您可以 <a class="newVersionURL" href="#">下载最新版本通过单击这里</a>，或者您可以发送电子邮件至 <span id="newVersionEmail"></span>。
   top_para_3: |
