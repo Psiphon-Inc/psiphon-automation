@@ -285,6 +285,26 @@ def _get_response_content(response_id, diagnostic_info):
     }
 
 
+def _analyze_diagnostic_info(diagnostic_info):
+    '''
+    Determines what response should be sent based on `diagnostic_info` content.
+    Returns a list of response IDs.
+    Returns None if no response should be sent.
+    '''
+
+    # We don't send a response to Google Play Store clients
+    if utils.coalesce(diagnostic_info,
+                      ['DiagnosticInfo', 'SystemInformation', 'isPlayStoreBuild']):
+        return None
+
+    responses = ['download_new_version_links',
+                 # Disabling attachment responses for now. Not sure if
+                 # it's a good idea. Note that it needs to be tested.
+                 # 'download_new_version_attachments',
+                 ]
+    return responses
+
+
 def go():
     # Note that `_diagnostic_record_iter` throttles itself if/when there are
     # no records to process.
@@ -303,13 +323,10 @@ def go():
         if _check_and_add_address_blacklist(reply_info['address']):
             continue
 
-        # Some day we'll do fancy analysis.
-        #responses = _analyze_diagnostic_info(diagnostic_info)
-        responses = ['download_new_version_links',
-                     # Disabling attachment responses for now. Not sure if
-                     # it's a good idea. Note that it needs to be tested.
-                     # 'download_new_version_attachments',
-                     ]
+        responses = _analyze_diagnostic_info(diagnostic_info)
+
+        if not responses:
+            continue
 
         logger.log('Sending feedback response')
 
