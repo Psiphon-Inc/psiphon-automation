@@ -101,7 +101,7 @@ def get_email_diagnostic_info_iterator():
 
 
 def find_diagnostic_info(diagnostic_info_record_id):
-    return _diagnostic_info_store.find_one({'diagnostic_info_record_id': diagnostic_info_record_id})
+    return _diagnostic_info_store.find_one({'_id': diagnostic_info_record_id})
 
 
 def remove_email_diagnostic_info(email_diagnostic_info):

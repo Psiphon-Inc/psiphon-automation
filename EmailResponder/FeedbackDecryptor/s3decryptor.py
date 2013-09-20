@@ -104,6 +104,8 @@ def go():
                 # Record in the DB that the diagnostic info should be emailed
                 datastore.insert_email_diagnostic_info(record_id, None, None)
 
+            logger.log('decrypted diagnostic data')
+
         except decryptor.DecryptorException as e:
             logger.exception()
             logger.error(str(e))
