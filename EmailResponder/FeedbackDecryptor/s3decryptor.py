@@ -98,12 +98,12 @@ def go():
             datatransformer.transform(diagnostic_info)
 
             # Store the diagnostic info
-            datastore.insert_diagnostic_info(diagnostic_info)
+            record_id = datastore.insert_diagnostic_info(diagnostic_info)
 
             if _should_email_data(diagnostic_info):
                 # Record in the DB that the diagnostic info should be emailed
-                datastore.insert_email_diagnostic_info(diagnostic_info['Metadata']['id'],
-                                                       None, None)
+                datastore.insert_email_diagnostic_info(record_id, None, None)
+
         except decryptor.DecryptorException as e:
             logger.exception()
             logger.error(str(e))
