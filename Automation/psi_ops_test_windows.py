@@ -225,6 +225,7 @@ def test_server(ip_address, capabilities, web_server_port, web_server_secret, en
                                     '',         # get_new_version_url
                                     '',         # get_new_version_email
                                     version,
+                                    False,
                                     True)
             try:
                 __test_server(executable_path, test_case, expected_egress_ip_addresses)

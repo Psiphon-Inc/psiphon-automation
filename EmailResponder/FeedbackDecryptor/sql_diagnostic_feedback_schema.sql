@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS android_system (
     id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     diagnostic_data_id INTEGER NOT NULL,
     isRooted BOOLEAN,
+    browserOnly BOOLEAN,
     language CHAR(2),
     networkTypeName VARCHAR(255) CHARACTER SET utf8,
     sys_build_tags VARCHAR(255) CHARACTER SET utf8,
