@@ -42,8 +42,6 @@ def _email_diagnostic_info_records_iterator():
         for rec in datastore.get_email_diagnostic_info_iterator():
             yield rec
 
-        datastore.expire_old_email_diagnostic_info_records()
-
         time.sleep(_SLEEP_TIME_SECS)
 
 
@@ -65,7 +63,7 @@ def go():
     # there are no records immediately available.
     for email_diagnostic_info in _email_diagnostic_info_records_iterator():
         # Check if there is (yet) a corresponding diagnostic info record
-        diagnostic_info = datastore.find_diagnostic_info(email_diagnostic_info['diagnostic_info_id'])
+        diagnostic_info = datastore.find_diagnostic_info(email_diagnostic_info['diagnostic_info_record_id'])
         if not diagnostic_info:
             continue
 
@@ -101,6 +99,7 @@ def go():
                         diagnostic_info_text,
                         diagnostic_info_html,
                         email_diagnostic_info.get('email_id'))  # may be None
+            logger.log('decrypted formatted email sent')
         except smtplib.SMTPException as e:
             logger.exception()
             logger.error(str(e))

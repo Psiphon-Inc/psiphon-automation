@@ -15,13 +15,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 '''
-Periodically checks feedback email. There are three types of email:
+Periodically checks feedback email. There are two types of email:
   1. Not related to diagnostic info at all. Disregard.
   2. Has diagnostic attachment. Decrypt attachment and store in the
      diagnostic-info-DB. Store email message ID and diagnostic info ID (and
      subject) in email-ID-DB.
-  3. Has diagnostic info ID, but no attachment. Store email message ID and
-     diagnostic info ID (and subject) in email-ID-DB.
 '''
 
 import json
@@ -124,14 +122,6 @@ def _load_yaml(yaml_string):
     return obj
 
 
-def _get_id_from_email_address(email_address):
-    r = r'\b(?P<addr>[a-z]+)\+(?P<platform>[a-z]+)\+(?P<id>[a-fA-F0-9]+)@'
-    m = re.match(r, email_address)
-    if not m:
-        return None
-    return m.groupdict()['id']
-
-
 # Email addresses in the headers usually look like "<example@example.com>" or
 # "Name <example@example.com>" but we don't want the angle brackets and name.
 _email_stripper_regex = re.compile(r'(.*<)?([^<>]+)(>)?')
@@ -184,8 +174,6 @@ def go():
     for msg in emailgetter.get():
         logger.debug_log('maildecryptor: msg has %d attachments' % len(msg['attachments']))
 
-        email_processed_successfully = False
-
         #
         # First try to process attachments.
         #
@@ -218,13 +206,14 @@ def go():
                 diagnostic_info['EmailInfo'] = _get_email_info(msg)
 
                 # Store the diagnostic info
-                datastore.insert_diagnostic_info(diagnostic_info)
+                record_id = datastore.insert_diagnostic_info(diagnostic_info)
 
                 # Store the association between the diagnostic info and the email
-                datastore.insert_email_diagnostic_info(diagnostic_info['Metadata']['id'],
+                datastore.insert_email_diagnostic_info(record_id,
                                                        msg['msgobj']['Message-ID'],
                                                        msg['subject'])
-                email_processed_successfully = True
+
+                logger.log('email attachment decrypted')
                 break
 
             except decryptor.DecryptorException as e:
@@ -245,22 +234,3 @@ def go():
                 # Try the next attachment/message
                 logger.exception()
                 logger.error(str(e))
-
-        if not email_processed_successfully:
-            #
-            # The email might refer (by ID) to a diagnostic info package elsewhere
-            #
-
-            diagnostic_info_id = _get_id_from_email_address(msg['to'])
-            if diagnostic_info_id:
-                # Store the association between this email and the forthcoming
-                # diagnostic info.
-                datastore.insert_email_diagnostic_info(diagnostic_info_id,
-                                                       msg['msgobj']['Message-ID'],
-                                                       msg['subject'])
-
-                # We'll set this for completeness...
-                email_processed_successfully = True
-
-        # At this point either we've extracted useful info from the email or
-        # there's nothing to extract.
