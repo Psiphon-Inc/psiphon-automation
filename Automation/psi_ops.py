@@ -37,6 +37,8 @@ from pkg_resources import parse_version
 import psi_utils
 import psi_ops_cms
 import psi_ops_discovery
+import website_generator
+
 
 # Modules available only on the automation server
 
@@ -113,6 +115,10 @@ try:
         plugins.append(__import__(plugin))
 except ImportError as error:
     print error
+
+
+WEBSITE_GENERATION_DIR = './website-out'
+
 
 # NOTE: update compartmentalize() functions when adding fields
 
@@ -408,7 +414,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for propagation_channel in self.__propagation_channels.itervalues():
                 propagation_channel.propagator_managed_upgrades = False
             self.version = '0.21'
-            
+
     def initialize_plugins(self):
         for plugin in plugins:
             if hasattr(plugin, 'initialize'):
@@ -1303,7 +1309,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def remove_hosts_from_providers(self):
         assert(self.is_locked)
-        
+
         need_to_save = False
         for host in self.__hosts_to_remove_from_providers.copy():
             # Only hosts that can be removed via an API are removed here.
@@ -1319,10 +1325,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 need_to_save = True
                 # It is safe to call provider_remove_host() for a host that has
                 # already been removed, so there is no need to save() yet.
-                
+
         if need_to_save:
             self.save()
-    
+
     def remove_host(self, host_id):
         assert(self.is_locked)
         host = self.__hosts[host_id]
@@ -1675,6 +1681,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__deploy_implementation_required_for_hosts.clear()
             self.save()
 
+        # Generate the static website from source
+        website_generator.generate(WEBSITE_GENERATION_DIR)
+
         # Build
 
         for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
@@ -1761,7 +1770,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                          (upgrade_filename, s3_upgrade_resource_name)],
                         remote_server_list,
                         campaign.s3_bucket_name,
-                        campaign.custom_download_site)
+                        campaign.custom_download_site,
+                        WEBSITE_GENERATION_DIR)
                     campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
 
                     if campaign.propagation_mechanism_type == 'twitter':
@@ -1804,17 +1814,25 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.push_email_config()
             self.__deploy_email_config_required = False
             self.save()
-            
+
         # Remove hosts from providers that are marked for removal
-        
+
         self.remove_hosts_from_providers()
 
     def update_static_site_content(self):
         assert(self.is_locked)
+
+        # Generate the static website from source
+        website_generator.generate(WEBSITE_GENERATION_DIR)
+
         for sponsor in self.__sponsors.itervalues():
             for campaign in sponsor.campaigns:
                 if campaign.s3_bucket_name:
-                    psi_ops_s3.update_s3_download(self.__aws_account, None, None, campaign.s3_bucket_name, campaign.custom_download_site)
+                    psi_ops_s3.update_s3_download(self.__aws_account,
+                                                  None, None,
+                                                  campaign.s3_bucket_name,
+                                                  campaign.custom_download_site,
+                                                  WEBSITE_GENERATION_DIR)
                     campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
 
     def update_routes(self):
@@ -2303,7 +2321,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                                     '',  # Omit new server counts
                                                                     '',  # Omit server ages
                                                                     '')  # Omit server ages
-                                                                    
+
         for host in self.__hosts.itervalues():
             copy.__hosts[host.id] = Host(
                                         host.id,
@@ -2318,7 +2336,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         '',  # Omit: stats_ssh_password isn't needed
                                         '',  # Omit: datacenter_name isn't needed
                                         host.region)
-                                            
+
         for server in self.__servers.itervalues():
             if ((server.discovery_date_range and server.host_id != host_id and server.discovery_date_range[1] <= discovery_date) or
                 (not server.discovery_date_range and server.host_id != host_id)):

@@ -26,6 +26,8 @@ import boto.s3.connection
 import boto.s3.key
 import qrcode
 import cStringIO
+import hashlib
+import mimetypes
 
 
 #==== Config  =================================================================
@@ -40,9 +42,9 @@ DOWNLOAD_SITE_UPGRADE_SUFFIX = '.upgrade'
 
 DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME = 'server_list'
 
-DOWNLOAD_SITE_QR_CODE_FILENAME = 'qr.png'
+DOWNLOAD_SITE_QR_CODE_FILENAME = 'images/android/android-download-qr.png'
 
-DOWNLOAD_SITE_CONTENT_ROOT = os.path.join('.', 'DownloadSite')
+_IGNORE_FILENAMES = ('Thumbs.db',)
 
 #==============================================================================
 
@@ -98,12 +100,13 @@ def create_s3_bucket(aws_account):
     # TODO: retry on boto.exception.S3CreateError: S3Error[409]: Conflict
     bucket = s3.create_bucket(bucket_id, location=location)
 
-    print 'new download URL: https://s3.amazonaws.com/%s/en.html' % (bucket_id)
+    print 'new bucket: https://s3.amazonaws.com/%s/' % (bucket_id)
 
     return bucket_id
 
 
-def update_s3_download(aws_account, builds, remote_server_list, bucket_id, custom_download_site):
+def update_s3_download(aws_account, builds, remote_server_list, bucket_id,
+                       custom_download_site, website_dir):
 
     # Connect to AWS
 
@@ -113,12 +116,14 @@ def update_s3_download(aws_account, builds, remote_server_list, bucket_id, custo
 
     bucket = s3.get_bucket(bucket_id)
 
-    set_s3_bucket_contents(bucket, bucket_id, builds, remote_server_list, custom_download_site)
+    set_s3_bucket_contents(bucket, builds, remote_server_list,
+                           custom_download_site, website_dir)
 
-    print 'updated download URL: https://s3.amazonaws.com/%s/en.html' % (bucket_id)
+    print 'updated bucket: https://s3.amazonaws.com/%s/' % (bucket_id)
 
 
-def set_s3_bucket_contents(bucket, bucket_id, builds, remote_server_list, custom_download_site):
+def set_s3_bucket_contents(bucket, builds, remote_server_list,
+                           custom_download_site, website_dir):
 
     try:
         def progress(complete, total):
@@ -127,38 +132,34 @@ def set_s3_bucket_contents(bucket, bucket_id, builds, remote_server_list, custom
 
         if builds:
             for (source_filename, target_filename) in builds:
-                key = bucket.new_key(target_filename)
-                key.set_contents_from_filename(source_filename, cb=progress)
-                key.close()
+                put_file_to_key(bucket, target_filename, source_filename, progress)
 
         if remote_server_list:
-            key = bucket.new_key(DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME)
-            key.set_contents_from_string(remote_server_list, cb=progress)
-            key.close()
+            put_string_to_key(bucket,
+                              DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME,
+                              remote_server_list,
+                              progress)
 
         if not custom_download_site:
-            # QR code image points to Android APK
+            for root, dirs, files in os.walk(website_dir):
+                for name in files:
+                    if name in _IGNORE_FILENAMES:
+                        continue
+                    file_path = os.path.abspath(os.path.join(root, name))
+                    key_name = os.path.relpath(os.path.join(root, name), website_dir).replace('\\', '/')
+                    put_file_to_key(bucket, key_name, file_path, progress)
+
+            # We wrote a QR code image in the above upload, but it doesn't
+            # point to the Android APK in this bucket. So generate a new one
+            # and overwrite.
 
             qr_code_url = 'https://s3.amazonaws.com/%s/%s' % (
-                                bucket_id, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME)
-
-            key = bucket.new_key(DOWNLOAD_SITE_QR_CODE_FILENAME)
-            key.set_contents_from_string(make_qr_code(qr_code_url), cb=progress)
-            key.close()
-
-            # Update the HTML after the builds, to ensure items it references exist
-
-            # Upload the download site static content. This include the download page in
-            # each available language and the associated images.
-            # The download URLs will be the main page referenced by language, for example:
-            # https://s3.amazonaws.com/[bucket_id]/en.html
-            for name in os.listdir(DOWNLOAD_SITE_CONTENT_ROOT):
-                path = os.path.join(DOWNLOAD_SITE_CONTENT_ROOT, name)
-                if (os.path.isfile(path) and
-                    os.path.split(path)[1] != DOWNLOAD_SITE_QR_CODE_FILENAME):
-                    key = bucket.new_key(name)
-                    key.set_contents_from_filename(path, cb=progress)
-                    key.close()
+                                bucket.name, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME)
+            qr_data = make_qr_code(qr_code_url)
+            put_string_to_key(bucket,
+                              DOWNLOAD_SITE_QR_CODE_FILENAME,
+                              qr_data,
+                              progress)
 
     except:
         # TODO: delete all keys
@@ -168,9 +169,39 @@ def set_s3_bucket_contents(bucket, bucket_id, builds, remote_server_list, custom
 
     print ' done'
 
-    # Make the whole bucket public now that it's uploaded
     bucket.disable_logging()
-    bucket.make_public(recursive=True)
+
+
+def put_string_to_key(bucket, key_name, content, callback=None):
+    key = bucket.get_key(key_name)
+    if key:
+        etag = key.etag.strip('"').lower()
+        local_etag = hashlib.md5(content).hexdigest().lower()
+
+        if etag == local_etag:
+            # key contents haven't changed
+            return
+
+    key = bucket.new_key(key_name)
+    mimetype = mimetypes.guess_type(key_name)[0]
+    if mimetype:
+        key.set_metadata('Content-Type', mimetype)
+    key.set_contents_from_string(content, policy='public-read', cb=callback)
+    key.close()
+
+
+def put_file_to_key(bucket, key_name, content_file, callback=None):
+    """
+    `content_file` can be a filename or a file object.
+    """
+    key = bucket.new_key(key_name)
+    if isinstance(content_file, str):
+        with open(content_file, 'rb') as f:
+          content = f.read()
+    else:
+        content = content_file.read()
+
+    put_string_to_key(bucket, key_name, content, callback)
 
 
 def make_qr_code(url):
