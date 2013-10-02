@@ -73,7 +73,7 @@ def coalesce(obj, key_path, default_value=None, required_types=None):
     possible dict keys.
     `default_value` will be returned if the target value is non-existent or None.
     `required_types` is an optional tuple of types. If the target value does
-    not match any of these types, Noen will be returned.
+    not match any of these types, `None` will be returned.
     '''
 
     if type(key_path) not in (list, tuple):
@@ -108,6 +108,12 @@ def coalesce_test():
     assert(coalesce({'a': {'aa': 11}, 'b': 2}, ['a', 'bb'], 'nope') == 'nope')
     assert(coalesce({'a': {'aa': 11}, 'b': 2}, ['a', 'aa', 'aaa'], 'nope') == 'nope')
     assert(coalesce({'a': {'aa': 11}, 'b': 2}, ('a', 'aa'), 'nope') == 11)
+
+    # Test required_types
+    assert(coalesce({'a': 1}, 'a', default_value='nope', required_types=int) == 1)
+    assert(coalesce({'a': 1}, 'a', default_value='nope', required_types=(int, str)) == 1)
+    assert(coalesce({'a': 1}, 'a', default_value='nope', required_types=(str,)) == 'nope')
+
     print 'coalesce test okay'
 
 coalesce.test = coalesce_test
@@ -194,9 +200,14 @@ def is_diagnostic_info_sane(obj):
     exemplar = {
                 'Metadata': {
                              'platform': lambda val: val in ['android', 'windows'],
-                             'version': lambda val: val in range(1, 3),
+                             'version': lambda val: val in range(1, 4),
                              'id': lambda val: re.match(r'^[a-fA-F0-9]{16}', val) is not None
-                             }
+                             },
+
+                # These two fields are special in MongoDB and should not be
+                # present in the diagnostic data package.
+                '-_id': None,
+                '-datetime': None,
                 }
 
     if not _check_exemplar(obj, exemplar):
@@ -206,17 +217,41 @@ def is_diagnostic_info_sane(obj):
     return True
 
 
+def is_diagnostic_info_sane_test():
+    assert(not is_diagnostic_info_sane({}))
+    assert(is_diagnostic_info_sane({'Metadata': {'platform': 'windows', 'version': 1, 'id': 'AAAAAAAAAAAAAAAA'}}))
+    assert(is_diagnostic_info_sane({'extra': 1, 'Metadata': {'extra': 1, 'platform': 'windows', 'version': 1, 'id': 'AAAAAAAAAAAAAAAA'}}))
+    assert(not is_diagnostic_info_sane({'_id': 1, 'Metadata': {'extra': 1, 'platform': 'windows', 'version': 1, 'id': 'AAAAAAAAAAAAAAAA'}}))
+    assert(not is_diagnostic_info_sane({'datetime': 1, 'Metadata': {'extra': 1, 'platform': 'windows', 'version': 1, 'id': 'AAAAAAAAAAAAAAAA'}}))
+    assert(not is_diagnostic_info_sane({'_id': 1, 'datetime': 1, 'Metadata': {'extra': 1, 'platform': 'windows', 'version': 1, 'id': 'AAAAAAAAAAAAAAAA'}}))
+    assert(not is_diagnostic_info_sane({'Metadata': {'platform': 'badplatform', 'version': 1, 'id': 'AAAAAAAAAAAAAAAA'}}))
+    assert(is_diagnostic_info_sane({'Metadata': {'_id': 1, 'platform': 'windows', 'version': 1, 'id': 'AAAAAAAAAAAAAAAA'}}))
+    print 'is_diagnostic_info_sane test okay'
+
+is_diagnostic_info_sane.test = is_diagnostic_info_sane_test
+
+
 def _check_exemplar(check, exemplar):
+    '''
+    If an `exemplar` dict key starts with '-', then it must *not* be present
+    in `check`.
+    '''
+
     if isinstance(exemplar, types.DictType):
         if not isinstance(check, types.DictType):
             return False
 
         for k in exemplar.iterkeys():
-            if not k in check:
-                return False
+            if k.startswith('-'):
+                # Special negation key
+                if k[1:] in check:
+                    return False
+            else:
+                if k not in check:
+                    return False
 
-            if not _check_exemplar(check[k], exemplar[k]):
-                return False
+                if not _check_exemplar(check[k], exemplar[k]):
+                    return False
 
         return True
 
@@ -299,6 +334,8 @@ def rename_key_in_obj_at_path(obj, obj_path, new_key):
 
 # TODO: proper unit test framework
 def test():
+    logger.disable()
+
     for name_in_module in dir(sys.modules[__name__]):
         testee = getattr(sys.modules[__name__], name_in_module)
 

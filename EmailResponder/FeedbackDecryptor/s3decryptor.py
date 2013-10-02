@@ -36,7 +36,7 @@ import datatransformer
 
 _SLEEP_TIME_SECS = 60
 _BUCKET_ITEM_MIN_SIZE = 100
-_BUCKET_ITEM_MAX_SIZE = (500 * 1024)  # 500 KB
+_BUCKET_ITEM_MAX_SIZE = (2000 * 1024)  # 2 MB
 
 
 def _is_bucket_item_sane(key):
@@ -98,12 +98,14 @@ def go():
             datatransformer.transform(diagnostic_info)
 
             # Store the diagnostic info
-            datastore.insert_diagnostic_info(diagnostic_info)
+            record_id = datastore.insert_diagnostic_info(diagnostic_info)
 
             if _should_email_data(diagnostic_info):
                 # Record in the DB that the diagnostic info should be emailed
-                datastore.insert_email_diagnostic_info(diagnostic_info['Metadata']['id'],
-                                                       None, None)
+                datastore.insert_email_diagnostic_info(record_id, None, None)
+
+            logger.log('decrypted diagnostic data')
+
         except decryptor.DecryptorException as e:
             logger.exception()
             logger.error(str(e))
@@ -118,7 +120,10 @@ def go():
                 logger.exception()
                 logger.error(str(e))
 
-        except (ValueError, TypeError) as e:
+        # yaml.constructor.ConstructorError was being thown when a YAML value
+        # consisted of just string "=". Probably due to this PyYAML bug:
+        # http://pyyaml.org/ticket/140
+        except (ValueError, TypeError, yaml.constructor.ConstructorError) as e:
             # Try the next attachment/message
             logger.exception()
             logger.error(str(e))

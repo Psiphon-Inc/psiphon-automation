@@ -32,7 +32,7 @@ sudo apt-get install mongodb-10gen
 ```shell
 # Prereqs
 sudo apt-get install -y python-pip python-dev libssl-dev swig
-sudo pip install --upgrade rfc6266 pynliner cssutils BeautifulSoup mako pymongo boto requests numpy html2text pytz pydns
+sudo pip install --upgrade rfc6266 pynliner cssutils BeautifulSoup mako pymongo boto requests numpy html2text pytz pydns sqlalchemy
 sudo pip install --upgrade M2Crypto
 ```
 
@@ -136,3 +136,13 @@ sudo restart mailsender
 sudo restart statschecker
 ```
 
+## Diagnostic Data SQL DB
+
+### Recreating the database
+
+```
+$ sudo stop sqlexporter
+$ echo "DROP DATABASE diagnostic_feedback;" | mysql -u root --socket=/data/mariadb-data/mariadb.sock
+$ mysql -u root --socket=/data/mariadb-data/mariadb.sock < sql_diagnostic_feedback_schema.sql
+$ sudo start sqlexporter
+```

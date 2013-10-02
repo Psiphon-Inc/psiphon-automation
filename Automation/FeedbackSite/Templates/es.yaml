@@ -1,4 +1,4 @@
-es: {title: Comentarios a Psiphon 3, top_content_title: Denos sus comentarios, connectivity_title: Conectividad, connectivity_happy: Psiphon
+es: {title: Comentarios a Psiphon, top_content_title: Denos sus comentarios, connectivity_title: Conectividad, connectivity_happy: Psiphon
     se conecta consistentemente y se mantiene conectado., connectivity_ok: 'Psiphon se conecta con frecuencia, pero en ocasiones
     se desconecta y se vuelve a conectar.', connectivity_sad: Psiphon falla frecuentemente para conectarse o se desconecta constantemente.,
   speed_title: Velocidad, speed_happy: Puedo navegar la red por medio de Psiphon y ver video; es tan o más rápido que otras herramientas

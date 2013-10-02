@@ -54,8 +54,14 @@ ROUTERS = { 'MessagingRouter': 'messaging',
             'ZenPackRouter': 'zenpack',
             'JobsRouter': 'jobs' }
 
-
-GEOIP_DAT_PATH = "/usr/share/GeoIP/GeoIPCity.dat"
+GEOIP_DAT_PATH = "/usr/local/share/GeoIP/"
+if os.path.isdir(GEOIP_DAT_PATH):
+    GEOIP_DAT_PATH += "GeoIPCity.dat"
+elif os.path.isdir("/usr/local/GeoIP/"):
+    GEOIP_DAT_PATH = "/usr/local/GeoIP/" + "GeoIPCity.dat"
+else:
+    print "Could not find valid GeoIPCity dat file"
+    sys.exit()
 
 class ZenossAPI():
     def __init__(self, debug=False):
@@ -170,22 +176,24 @@ def decommission_hosts(hosts, zenoss_hosts, zenapi):
     for zhost in zenoss_hosts:
         found_host = next((host for host in hosts if host.id == zhost['name']), None)
         if not found_host:
-            print '%s -> decommissioning ip %s' % (zhost['name'], zhost['ipAddress'])
-            data = { 'uid': zhost['uid'],
-                     'productionState' : -1 }
-            zenapi.set_device_info(data)
-            # get event count
-            zhost['eventCount'] = get_host_event_count(zhost, zenapi)
-            if zhost['eventCount'] > 0:
-                print 'Acknowledging events'
-                data = {'uid': zhost['uid']}
-                zhost['ackResult'] = zenapi.acknowledge_device_events(data)
-                if check_result(zhost['ackResult']):
-                    # move on to closing events
-                    zhost['closeResult'] = zenapi.close_device_events(data)
-                    if check_result(zhost['closeResult']):
-                        print 'Closed events for device %s (%s)' % (zhost['name'], zhost['ipAddress'])
-            
+            host_details = zenapi.get_info({'keys': ['productionState'], 'uid': zhost['uid']})
+            if host_details['result']['data']['productionState'] != -1:
+                print '%s -> decommissioning ip %s' % (zhost['name'], zhost['ipAddress'])
+                data = { 'uid': zhost['uid'],
+                         'productionState' : -1 }
+                zenapi.set_device_info(data)
+                # get event count
+                zhost['eventCount'] = get_host_event_count(zhost, zenapi)
+                if zhost['eventCount'] > 0:
+                    print 'Acknowledging events'
+                    data = {'uid': zhost['uid']}
+                    zhost['ackResult'] = zenapi.acknowledge_device_events(data)
+                    if check_result(zhost['ackResult']):
+                        # move on to closing events
+                        zhost['closeResult'] = zenapi.close_device_events(data)
+                        if check_result(zhost['closeResult']):
+                            print 'Closed events for device %s (%s)' % (zhost['name'], zhost['ipAddress'])
+
 
 def get_host_event_count(zhost, zenapi):
     #set data
@@ -250,24 +258,29 @@ def organize_hosts(hosts, zenoss_hosts, zenapi):
     for zhost in zenoss_hosts:
         found_host = next((host for host in hosts if host.id == zhost['name']), None)
         if found_host:
-            print '%s -> moved to %s' % (zhost['name'], zhost['uid'])
-            data = {'uids': zhost['uid'],
-                    'ranges': [],
-                    'target': device_path + '/' + PROVIDERS[found_host.provider],
-                    'asynchronous': 'false'}
-            zenapi.move_device(data)
+            target_path = device_path + '/' + PROVIDERS[found_host.provider]
+            if target_path not in zhost['uid']:
+                print '%s -> moved to %s' % (zhost['name'], zhost['uid'])
+                data = {'uids': zhost['uid'],
+                        'ranges': [],
+                        'target': target_path,
+                        'asynchronous': 'false'}
+                zenapi.move_device(data)
 
 def organize_hosts_by_country(hosts, zenoss_hosts, zenapi):
     device_path = LOCATION_ORGANIZER
     for zhost in zenoss_hosts:
         found_host = next((host for host in hosts if host.id == zhost['name']), None)
         if found_host:
-            print '%s -> moved to %s' % (zhost['name'], zhost['uid'])
-            data = {'uids': [zhost['uid']],
-                    'ranges': [],
-                    'target': device_path + '/' + zhost['country_name'],
-                    'asynchronous': 'false'}
-            zenapi.move_device(data)
+            host_details = zenapi.get_info({'keys': ['location'], 'uid': zhost['uid']})
+            target_path = device_path + '/' + zhost['country_name']
+            if host_details['result']['data']['location'] is None:
+                print '%s -> moved to %s' % (zhost['name'], zhost['country_name'])
+                data = {'uids': [zhost['uid']],
+                        'ranges': [],
+                        'target': device_path + '/' + zhost['country_name'],
+                        'asynchronous': 'false'}
+                zenapi.move_device(data)
 
 # Set device specific configuration options here
 # including user credentials and how to monitor.
@@ -329,6 +342,19 @@ def set_psiphon_modeling_config(host, zenapi):
     print '%s -> setting snmp ignore' % host.id
     zenapi.set_device_property(data)    
 
+def add_new_hosts(hosts, zenoss_hosts, zenapi):
+    for host in hosts:
+        new_host = [host for zhost in zenoss_hosts if zhost['name'] == host.id]
+        if len(new_host) >= 1:
+            new_host = new_host[0]
+            device_path = PSIPHON_ORGANIZER + '/' + PROVIDERS[new_host.provider]
+            data = dict(deviceName=new_host.ip_address,
+                        deviceClass=device_path,
+                        collector=ZENOSS_COLLECTOR,
+                        model='false',
+                        title=new_host.id,)
+            zenapi.add_device(data)
+
 def start_monitoring(hosts, zenapi):    
     for host in hosts:
         device_path = PSIPHON_ORGANIZER + '/' + PROVIDERS[host.provider]
@@ -350,19 +376,28 @@ def get_location_list(zenapi):
     data = LOCATION_ORGANIZER
     response = zenapi.get_locations(data)
     locations = response['result'][0]['children']
-    return locations
+    l = []
+    for location in locations:
+        if location['uid'] is not None:
+            l.append(location['text']['text'])
+    return l
 
 def geocode_hosts(zenoss_hosts):
     gi = GeoIP.open(GEOIP_DAT_PATH, GeoIP.GEOIP_STANDARD)
     #lookup server location
-    for idx, zhost in enumerate(zenoss_hosts):
-        zenoss_hosts[idx] = dict(zhost.items() + gi.record_by_addr(zhost['ipAddress']).items())
+    try:
+        for idx, zhost in enumerate(zenoss_hosts):
+            zenoss_hosts[idx] = dict(zhost.items() + gi.record_by_addr(zhost['ipAddress']).items())
+    except Exception, e:
+        print e
+
     return zenoss_hosts
 
 def update_locations(zenoss_hosts, zenapi, mapped_locations):
     location_path = LOCATION_ORGANIZER
     for zhost in zenoss_hosts:
         if zhost['country_name'] not in mapped_locations:
+            print "processing location: %s" % (zhost['country_name'])
             data = dict(id=zhost['country_name'],
                         description=zhost['country_code'],
                         type='organizer',
@@ -373,6 +408,7 @@ def update_locations(zenoss_hosts, zenapi, mapped_locations):
 
 ####################################################
 if __name__ == "__main__":
+    print "Starting Zenoss Monitoring at: %s" % (datetime.datetime.now())
     start_time = time.time()
     # Open the db and load psiphon hosts as 'hosts'
     with open(PSI_OPS_DB_FILENAME) as file:
@@ -396,7 +432,9 @@ if __name__ == "__main__":
         zenapi = ZenossAPI()
         #jobs_left = check_running_jobs(zenapi)
         print "Adding hosts to be monitored"
-        start_monitoring(hosts, zenapi)
+        zenoss_hosts = get_psiphon_host_list(zenapi)
+        add_new_hosts(hosts, zenoss_hosts, zenapi)
+        #start_monitoring(hosts, zenapi)
         jobs_left = check_running_jobs(zenapi)
         while jobs_left > 0:
             jobs_left = check_running_jobs(zenapi)

@@ -113,6 +113,7 @@
           'VERSION__RELEASE': 'OS Version',
           'VERSION__SDK_INT': 'SDK Version',
           'isRooted': 'Rooted',
+          'isPlayStoreBuild': 'Play Store Build',
           'networkTypeName': 'Network Type',
           'CLIENT_VERSION': 'Client Version',
           'PROPAGATION_CHANNEL_ID': 'Prop. Channel',
@@ -139,6 +140,7 @@
     ${sys_info_row(k, v)}
   % endfor
   ${sys_info_row('isRooted', sys_info['isRooted'])}
+  ${sys_info_row('isPlayStoreBuild', sys_info['isPlayStoreBuild'])}
   ${sys_info_row('networkTypeName', sys_info.get('networkTypeName', 'None'))}
 </table>
 

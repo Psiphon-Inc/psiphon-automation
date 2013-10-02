@@ -68,3 +68,15 @@ def error(s):
     '''
     log(s)
     datastore_log({'module': _main, 'error': s})
+
+
+def disable():
+    '''
+    Stops logging. To be used during testing.
+    '''
+    class Noop(object):
+        def __getattr__(self, name):
+            return lambda _ : None
+
+    global _my_logger
+    _my_logger = Noop()

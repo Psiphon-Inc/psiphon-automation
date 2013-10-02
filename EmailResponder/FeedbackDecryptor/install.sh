@@ -26,17 +26,22 @@ fi
 echo "You must already have created the user $MAILDECRYPTOR_USER, otherwise this script will fail. See the README for details."
 echo ""
 
+# Create the diagnostic data SQL DB.
+mysql -u root --socket=/data/mariadb-data/mariadb.sock < sql_diagnostic_feedback_schema.sql
+
 sed "s|fill-in-with-path-to-source|\"`pwd`\"|" maildecryptor.conf > maildecryptor.conf.configured
 sed "s|fill-in-with-path-to-source|\"`pwd`\"|" s3decryptor.conf > s3decryptor.conf.configured
 sed "s|fill-in-with-path-to-source|\"`pwd`\"|" mailsender.conf > mailsender.conf.configured
 sed "s|fill-in-with-path-to-source|\"`pwd`\"|" statschecker.conf > statschecker.conf.configured
 sed "s|fill-in-with-path-to-source|\"`pwd`\"|" autoresponder.conf > autoresponder.conf.configured
+sed "s|fill-in-with-path-to-source|\"`pwd`\"|" sqlexporter.conf > sqlexporter.conf.configured
 
 sudo cp maildecryptor.conf.configured /etc/init/maildecryptor.conf
 sudo cp s3decryptor.conf.configured /etc/init/s3decryptor.conf
 sudo cp mailsender.conf.configured /etc/init/mailsender.conf
 sudo cp statschecker.conf.configured /etc/init/statschecker.conf
 sudo cp autoresponder.conf.configured /etc/init/autoresponder.conf
+sudo cp sqlexporter.conf.configured /etc/init/sqlexporter.conf
 
 sudo chmod 0400 *.pem conf.json
 sudo chown $MAILDECRYPTOR_USER:$MAILDECRYPTOR_USER *.pem conf.json
@@ -46,6 +51,7 @@ sudo stop s3decryptor
 sudo stop mailsender
 sudo stop statschecker
 sudo stop autoresponder
+sudo stop sqlexporter
 
 echo "Done."
 echo ""
@@ -55,4 +61,5 @@ echo " > sudo start s3decryptor"
 echo " > sudo start mailsender"
 echo " > sudo start statschecker"
 echo " > sudo start autoresponder"
+echo " > sudo start sqlexporter"
 echo ""

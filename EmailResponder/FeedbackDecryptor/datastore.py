@@ -39,9 +39,6 @@ import numpy
 import pytz
 
 
-_EXPIRY_MINUTES = 360
-
-
 _connection = MongoClient()
 _db = _connection.maildecryptor
 _diagnostic_info_store = _db.diagnostic_info
@@ -59,8 +56,8 @@ _errors_store = _db.errors
 # This index is used for iterating through the diagnostic_info store, and
 # for stats queries.
 # It's also a TTL index, and purges old records.
-_DIAGNOSTIC_DATA_LIFETIME_SECS = 60*60*24*7*26  # half a year
-_diagnostic_info_store.ensure_index('datetime', expireAfterSeconds=_DIAGNOSTIC_DATA_LIFETIME_SECS)
+DIAGNOSTIC_DATA_LIFETIME_SECS = 60*60*24*7*26  # half a year
+_diagnostic_info_store.ensure_index('datetime', expireAfterSeconds=DIAGNOSTIC_DATA_LIFETIME_SECS)
 
 # We use a TTL index on the response_blacklist collection, to expire records.
 _BLACKLIST_LIFETIME_SECS = 60*60*24  # one day
@@ -69,6 +66,14 @@ _response_blacklist_store.ensure_index('datetime', expireAfterSeconds=_BLACKLIST
 # Add a TTL index to the errors store.
 _ERRORS_LIFETIME_SECS = 60*60*24*7*26  # half a year
 _errors_store.ensure_index('datetime', expireAfterSeconds=_ERRORS_LIFETIME_SECS)
+
+# Add a TTL index to the errors store.
+_EMAIL_DIAGNOSTIC_INFO_LIFETIME_SECS = 60*60  # one hour
+_email_diagnostic_info_store.ensure_index('datetime', expireAfterSeconds=_EMAIL_DIAGNOSTIC_INFO_LIFETIME_SECS)
+
+# More loookup indexes
+_diagnostic_info_store.ensure_index('Metadata.platform')
+_diagnostic_info_store.ensure_index('Metadata.version')
 
 
 #
@@ -80,10 +85,10 @@ def insert_diagnostic_info(obj):
     return _diagnostic_info_store.insert(obj)
 
 
-def insert_email_diagnostic_info(diagnostic_info_id,
+def insert_email_diagnostic_info(diagnostic_info_record_id,
                                  email_id,
                                  email_subject):
-    obj = {'diagnostic_info_id': diagnostic_info_id,
+    obj = {'diagnostic_info_record_id': diagnostic_info_record_id,
            'email_id': email_id,
            'email_subject': email_subject,
            'datetime': datetime.datetime.now()
@@ -95,17 +100,12 @@ def get_email_diagnostic_info_iterator():
     return _email_diagnostic_info_store.find()
 
 
-def find_diagnostic_info(diagnostic_info_id):
-    return _diagnostic_info_store.find_one({'Metadata.id': diagnostic_info_id})
+def find_diagnostic_info(diagnostic_info_record_id):
+    return _diagnostic_info_store.find_one({'_id': diagnostic_info_record_id})
 
 
 def remove_email_diagnostic_info(email_diagnostic_info):
     return _email_diagnostic_info_store.remove({'_id': email_diagnostic_info['_id']})
-
-
-def expire_old_email_diagnostic_info_records():
-    expiry_datetime = datetime.datetime.now() - datetime.timedelta(minutes=_EXPIRY_MINUTES)
-    return _email_diagnostic_info_store.remove({'datetime': {'$lt': expiry_datetime}})
 
 
 #
@@ -197,8 +197,8 @@ def get_stats(since_time):
     return {
         'since_timestamp': since_time,
         'now_timestamp': datetime.datetime.now(),
-        'new_android_records': _diagnostic_info_store.find({'Metadata.platform': 'android', 'datetime': {'$gt': since_time}}).count(),
-        'new_windows_records': _diagnostic_info_store.find({'Metadata.platform': 'windows', 'datetime': {'$gt': since_time}}).count(),
+        'new_android_records': _diagnostic_info_store.find({'datetime': {'$gt': since_time}, 'Metadata.platform': 'android'}).count(),
+        'new_windows_records': _diagnostic_info_store.find({'datetime': {'$gt': since_time}, 'Metadata.platform': 'windows'}).count(),
         'stats': _get_stats_helper(since_time),
 
         # WARNING: This is potentially unbounded. But using a generator seems
@@ -227,9 +227,9 @@ def _get_stats_helper(since_time):
     # Different platforms and versions have different structures
     #
 
-    cur = _diagnostic_info_store.find({'Metadata.platform': 'android',
-                                       'Metadata.version': 1,
-                                       'datetime': {'$gt': since_time}})
+    cur = _diagnostic_info_store.find({'datetime': {'$gt': since_time},
+                                       'Metadata.platform': 'android',
+                                       'Metadata.version': 1})
     for rec in cur:
         propagation_channel_id = rec.get('SystemInformation', {})\
                                     .get('psiphonEmbeddedValues', {})\
@@ -259,9 +259,9 @@ def _get_stats_helper(since_time):
 
     # The structure got more standardized around here.
     for platform, version in (('android', 2), ('windows', 1)):
-        cur = _diagnostic_info_store.find({'Metadata.platform': platform,
-                                           'Metadata.version': version,
-                                           'datetime': {'$gt': since_time}})
+        cur = _diagnostic_info_store.find({'datetime': {'$gt': since_time},
+                                           'Metadata.platform': platform,
+                                           'Metadata.version': version})
         for rec in cur:
             propagation_channel_id = rec.get('DiagnosticInfo', {})\
                                         .get('SystemInformation', {})\
@@ -321,3 +321,13 @@ def _get_stats_helper(since_time):
                       })
 
     return stats
+
+
+#
+# Functions related to the sqlexporter
+#
+
+def get_sqlexporter_diagnostic_info_iterator(start_datetime):
+    cursor = _diagnostic_info_store.find({'datetime': {'$gt': start_datetime}})
+    cursor.sort('datetime')
+    return cursor
