@@ -28,6 +28,8 @@ import qrcode
 import cStringIO
 import hashlib
 import mimetypes
+import base64
+import json
 
 
 #==== Config  =================================================================
@@ -42,7 +44,10 @@ DOWNLOAD_SITE_UPGRADE_SUFFIX = '.upgrade'
 
 DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME = 'server_list'
 
-DOWNLOAD_SITE_QR_CODE_FILENAME = 'images/android/android-download-qr.png'
+DOWNLOAD_SITE_QR_CODE_KEY_NAME = 'images/android/android-download-qr.png'
+
+DOWNLOAD_SITE_SPONSOR_BANNER_KEY_NAME = 'images/sponsor-banner.png'
+DOWNLOAD_SITE_SPONSOR_BANNER_LINK_KEY_NAME = 'images/sponsor-banner-link.json'
 
 _IGNORE_FILENAMES = ('Thumbs.db',)
 
@@ -106,7 +111,8 @@ def create_s3_bucket(aws_account):
 
 
 def update_s3_download(aws_account, builds, remote_server_list, bucket_id,
-                       custom_download_site, website_dir):
+                       custom_download_site, website_dir,
+                       website_banner_base64, website_banner_link):
 
     # Connect to AWS
 
@@ -117,13 +123,15 @@ def update_s3_download(aws_account, builds, remote_server_list, bucket_id,
     bucket = s3.get_bucket(bucket_id)
 
     set_s3_bucket_contents(bucket, builds, remote_server_list,
-                           custom_download_site, website_dir)
+                           custom_download_site, website_dir,
+                           website_banner_base64, website_banner_link)
 
     print 'updated bucket: https://s3.amazonaws.com/%s/' % (bucket_id)
 
 
 def set_s3_bucket_contents(bucket, builds, remote_server_list,
-                           custom_download_site, website_dir):
+                           custom_download_site, website_dir,
+                           website_banner_base64, website_banner_link):
 
     try:
         def progress(complete, total):
@@ -149,6 +157,28 @@ def set_s3_bucket_contents(bucket, builds, remote_server_list,
                     key_name = os.path.relpath(os.path.join(root, name), website_dir).replace('\\', '/')
                     put_file_to_key(bucket, key_name, file_path, progress)
 
+            # Sponsors have optional custom banner images
+            if website_banner_base64:
+                put_string_to_key(bucket,
+                                  DOWNLOAD_SITE_SPONSOR_BANNER_KEY_NAME,
+                                  base64.b64decode(website_banner_base64),
+                                  progress)
+            else:
+                # We need to make sure there's no old sponsor banner in the bucket.
+                # Fails silently if there's no such key.
+                bucket.delete_key(DOWNLOAD_SITE_SPONSOR_BANNER_KEY_NAME)
+
+            # Sponsor banner can optionally link to somewhere.
+            if website_banner_link:
+                put_string_to_key(bucket,
+                                  DOWNLOAD_SITE_SPONSOR_BANNER_LINK_KEY_NAME,
+                                  json.dumps(website_banner_link),
+                                  progress)
+            else:
+                # We need to make sure there's no old sponsor banner link in the bucket.
+                # Fails silently if there's no such key.
+                bucket.delete_key(DOWNLOAD_SITE_SPONSOR_BANNER_LINK_KEY_NAME)
+
             # We wrote a QR code image in the above upload, but it doesn't
             # point to the Android APK in this bucket. So generate a new one
             # and overwrite.
@@ -157,7 +187,7 @@ def set_s3_bucket_contents(bucket, builds, remote_server_list,
                                 bucket.name, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME)
             qr_data = make_qr_code(qr_code_url)
             put_string_to_key(bucket,
-                              DOWNLOAD_SITE_QR_CODE_FILENAME,
+                              DOWNLOAD_SITE_QR_CODE_KEY_NAME,
                               qr_data,
                               progress)
 
