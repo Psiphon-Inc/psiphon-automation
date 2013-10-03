@@ -22,6 +22,7 @@ Pulls and massages our translations from Transifex.
 '''
 
 import os
+import errno
 import shutil
 import json
 import codecs
@@ -53,7 +54,7 @@ known_resources = \
     ['android-app-strings', 'android-app-browser-strings',
      'user-documentation', 'email-template-strings',
      'feedback-template-strings', 'android-library-strings',
-     'feedback-auto-responses']
+     'feedback-auto-responses', 'website-strings']
 
 
 def process_android_app_strings():
@@ -167,6 +168,13 @@ def process_feedback_auto_responses():
         json.dump(bodies, bodies_file, indent=2)
 
 
+def process_website_strings():
+    process_resource('website-strings',
+                     lambda lang: '../Website/_locales/%s/messages.json' % lang,
+                     None,
+                     bom=False)
+
+
 def process_resource(resource, output_path_fn, output_mutator_fn, bom, langs=None):
     '''
     `output_path_fn` must be callable. It will be passed the language code and
@@ -193,6 +201,16 @@ def process_resource(resource, output_path_fn, output_mutator_fn, bom, langs=Non
         content = content.replace('\r\n', '\n')
 
         output_path = output_path_fn(out_lang)
+
+        # Path sure the output directory exists.
+        try:
+            os.makedirs(os.path.dirname(output_path))
+        except OSError as ex:
+            if ex.errno == errno.EEXIST and os.path.isdir(os.path.dirname(output_path)):
+                pass
+            else:
+                raise
+
         with codecs.open(output_path, 'w', 'utf-8') as f:
             if bom:
                 f.write(u'\uFEFF')
