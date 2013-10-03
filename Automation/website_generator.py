@@ -24,6 +24,8 @@ import errno
 
 WEBSITE_DIR = '../Website'
 
+DOCPAD_ENV = 'production,static'
+
 
 def generate(dest_dir):
     '''
@@ -44,10 +46,15 @@ def generate(dest_dir):
     os.chdir(WEBSITE_DIR)
 
     try:
-        subprocess.check_call('docpad upgrade', shell=True)
-        subprocess.check_call('docpad update', shell=True)
-        subprocess.check_call('docpad clean --out %s' % dest_dir, shell=True)
-        subprocess.check_call('docpad generate --env production,static --out %s' % dest_dir,
-                              shell=True)
+        # using check_output to suppress output
+
+        subprocess.check_output('docpad upgrade --env %s' % (DOCPAD_ENV,),
+                                shell=True, stderr=subprocess.STDOUT)
+        subprocess.check_output('docpad update --env %s' % (DOCPAD_ENV,),
+                                shell=True, stderr=subprocess.STDOUT)
+        subprocess.check_output('docpad clean --env %s --out %s' % (DOCPAD_ENV, dest_dir),
+                                shell=True, stderr=subprocess.STDOUT)
+        subprocess.check_output('docpad generate --env %s --out %s' % (DOCPAD_ENV, dest_dir),
+                                shell=True, stderr=subprocess.STDOUT)
     finally:
         os.chdir(prev_dir)

@@ -306,6 +306,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__feedback_upload_info = None
         self.__upgrade_package_signing_key_pair = None
         self.__default_email_autoresponder_account = None
+        self.__deploy_website_required_for_sponsors = set()
         if initialize_plugins:
             self.initialize_plugins()
 
@@ -418,6 +419,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 propagation_channel.propagator_managed_upgrades = False
             self.version = '0.21'
         if cmp(parse_version(self.version), parse_version('0.22')) < 0:
+            self.__deploy_website_required_for_sponsors = set()
             for sponsor in self.__sponsors.itervalues():
                 sponsor.website_banner = None
                 sponsor.website_banner_link = None
@@ -452,6 +454,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     Android Campaign Builds %d
                                     Stats Server Config     %s
                                     Email Server Config     %s
+                                    Websites                %d
             ''') % (
                 len(self.__sponsors),
                 len(self.__propagation_channels),
@@ -478,7 +481,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 len(self.__deploy_builds_required_for_campaigns[CLIENT_PLATFORM_WINDOWS]),
                 len(self.__deploy_builds_required_for_campaigns[CLIENT_PLATFORM_ANDROID]),
                 'Yes' if self.__deploy_stats_config_required else 'No',
-                'Yes' if self.__deploy_email_config_required else 'No')
+                'Yes' if self.__deploy_email_config_required else 'No',
+                len(self.__deploy_website_required_for_sponsors),
+                )
 
     def show_client_versions(self):
         for platform in self.__client_versions.iterkeys():
@@ -771,12 +776,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         sponsor = self.get_sponsor_by_name(name)
         sponsor.website_banner = website_banner
         sponsor.website_banner_link = website_banner_link
-        sponsor.log('set website_banner')
-        for campaign in sponsor.campaigns:
-            for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
-                self.__deploy_builds_required_for_campaigns[platform].add(
-                    (campaign.propagation_channel_id, sponsor.id))
-            campaign.log('marked for build and publish (new website_banner)')
+        self.__deploy_website_required_for_sponsors.add(sponsor.id)
+        sponsor.log('set website_banner, marked for publish')
+
+    def flag_website_updated(self):
+        assert(self.is_locked)
+        for sponsor in self.__sponsors:
+            self.__deploy_website_required_for_sponsors.add(sponsor.id)
+            sponsor.log('website updated, marked for publish')
+
 
     def add_sponsor_email_campaign(self, sponsor_name, propagation_channel_name, email_account):
         assert(self.is_locked)
@@ -1703,8 +1711,33 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__deploy_implementation_required_for_hosts.clear()
             self.save()
 
-        # Generate the static website from source
-        website_generator.generate(WEBSITE_GENERATION_DIR)
+        #
+        # Website
+        #
+        if len(self.__deploy_website_required_for_sponsors) > 0:
+            # Generate the static website from source
+            website_generator.generate(WEBSITE_GENERATION_DIR)
+
+            # Iterate through a copy so that we can remove as we go
+            for sponsor_id in self.__deploy_website_required_for_sponsors.copy():
+                sponsor = self.__sponsors[sponsor_id]
+                for campaign in sponsor.campaigns:
+                    if not campaign.s3_bucket_name:
+                        campaign.s3_bucket_name = psi_ops_s3.create_s3_bucket(self.__aws_account)
+                        campaign.log('created s3 bucket %s' % (campaign.s3_bucket_name,))
+                        self.save()  # don't leak buckets
+
+                    psi_ops_s3.update_website(
+                        self.__aws_account,
+                        campaign.s3_bucket_name,
+                        campaign.custom_download_site,
+                        WEBSITE_GENERATION_DIR,
+                        sponsor.website_banner,
+                        sponsor.website_banner_link)
+                    campaign.log('updated website in S3 bucket %s' % (campaign.s3_bucket_name,))
+
+                self.__deploy_website_required_for_sponsors.remove(sponsor_id)
+                self.save()
 
         # Build
 
@@ -1791,11 +1824,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         [(build_filename, client_build_filenames[platform]),
                          (upgrade_filename, s3_upgrade_resource_name)],
                         remote_server_list,
-                        campaign.s3_bucket_name,
-                        campaign.custom_download_site,
-                        WEBSITE_GENERATION_DIR,
-                        sponsor.website_banner,
-                        sponsor.website_banner_link)
+                        campaign.s3_bucket_name)
                     campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
 
                     if campaign.propagation_mechanism_type == 'twitter':

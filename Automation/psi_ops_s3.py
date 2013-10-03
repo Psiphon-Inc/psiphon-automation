@@ -54,6 +54,11 @@ _IGNORE_FILENAMES = ('Thumbs.db',)
 #==============================================================================
 
 
+def _progress(complete, total):
+    sys.stdout.write('.')
+    sys.stdout.flush()
+
+
 def get_s3_bucket_resource_url(bucket_id, resource_name):
     # Assumes USEast
     return ('https', 's3.amazonaws.com', "%s/%s" % (
@@ -110,10 +115,7 @@ def create_s3_bucket(aws_account):
     return bucket_id
 
 
-def update_s3_download(aws_account, builds, remote_server_list, bucket_id,
-                       custom_download_site, website_dir,
-                       website_banner_base64, website_banner_link):
-
+def update_s3_download(aws_account, builds, remote_server_list, bucket_id):
     # Connect to AWS
 
     s3 = boto.s3.connection.S3Connection(
@@ -129,67 +131,17 @@ def update_s3_download(aws_account, builds, remote_server_list, bucket_id,
     print 'updated bucket: https://s3.amazonaws.com/%s/' % (bucket_id)
 
 
-def set_s3_bucket_contents(bucket, builds, remote_server_list,
-                           custom_download_site, website_dir,
-                           website_banner_base64, website_banner_link):
-
+def set_s3_bucket_contents(bucket, builds, remote_server_list):
     try:
-        def progress(complete, total):
-            sys.stdout.write('.')
-            sys.stdout.flush()
-
         if builds:
             for (source_filename, target_filename) in builds:
-                put_file_to_key(bucket, target_filename, source_filename, progress)
+                put_file_to_key(bucket, target_filename, source_filename, _progress)
 
         if remote_server_list:
             put_string_to_key(bucket,
                               DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME,
                               remote_server_list,
-                              progress)
-
-        if not custom_download_site:
-            for root, dirs, files in os.walk(website_dir):
-                for name in files:
-                    if name in _IGNORE_FILENAMES:
-                        continue
-                    file_path = os.path.abspath(os.path.join(root, name))
-                    key_name = os.path.relpath(os.path.join(root, name), website_dir).replace('\\', '/')
-                    put_file_to_key(bucket, key_name, file_path, progress)
-
-            # Sponsors have optional custom banner images
-            if website_banner_base64:
-                put_string_to_key(bucket,
-                                  DOWNLOAD_SITE_SPONSOR_BANNER_KEY_NAME,
-                                  base64.b64decode(website_banner_base64),
-                                  progress)
-            else:
-                # We need to make sure there's no old sponsor banner in the bucket.
-                # Fails silently if there's no such key.
-                bucket.delete_key(DOWNLOAD_SITE_SPONSOR_BANNER_KEY_NAME)
-
-            # Sponsor banner can optionally link to somewhere.
-            if website_banner_link:
-                put_string_to_key(bucket,
-                                  DOWNLOAD_SITE_SPONSOR_BANNER_LINK_KEY_NAME,
-                                  json.dumps(website_banner_link),
-                                  progress)
-            else:
-                # We need to make sure there's no old sponsor banner link in the bucket.
-                # Fails silently if there's no such key.
-                bucket.delete_key(DOWNLOAD_SITE_SPONSOR_BANNER_LINK_KEY_NAME)
-
-            # We wrote a QR code image in the above upload, but it doesn't
-            # point to the Android APK in this bucket. So generate a new one
-            # and overwrite.
-
-            qr_code_url = 'https://s3.amazonaws.com/%s/%s' % (
-                                bucket.name, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME)
-            qr_data = make_qr_code(qr_code_url)
-            put_string_to_key(bucket,
-                              DOWNLOAD_SITE_QR_CODE_KEY_NAME,
-                              qr_data,
-                              progress)
+                              _progress)
 
     except:
         # TODO: delete all keys
@@ -198,6 +150,72 @@ def set_s3_bucket_contents(bucket, builds, remote_server_list,
         raise
 
     print ' done'
+
+    bucket.disable_logging()
+
+
+def update_website(aws_account, bucket_id, custom_site, website_dir,
+                   website_banner_base64, website_banner_link):
+    if custom_site:
+        print('not updating website due to custom site in bucket: https://s3.amazonaws.com/%s/' % (bucket_id))
+        return
+
+    s3 = boto.s3.connection.S3Connection(
+                aws_account.access_id,
+                aws_account.secret_key)
+
+    bucket = s3.get_bucket(bucket_id)
+
+    try:
+        for root, dirs, files in os.walk(website_dir):
+            for name in files:
+                if name in _IGNORE_FILENAMES:
+                    continue
+                file_path = os.path.abspath(os.path.join(root, name))
+                key_name = os.path.relpath(os.path.join(root, name), website_dir).replace('\\', '/')
+                put_file_to_key(bucket, key_name, file_path, _progress)
+
+        # Sponsors have optional custom banner images
+        if website_banner_base64:
+            put_string_to_key(bucket,
+                              DOWNLOAD_SITE_SPONSOR_BANNER_KEY_NAME,
+                              base64.b64decode(website_banner_base64),
+                              _progress)
+        else:
+            # We need to make sure there's no old sponsor banner in the bucket.
+            # Fails silently if there's no such key.
+            bucket.delete_key(DOWNLOAD_SITE_SPONSOR_BANNER_KEY_NAME)
+
+        # Sponsor banner can optionally link to somewhere.
+        if website_banner_link:
+            put_string_to_key(bucket,
+                              DOWNLOAD_SITE_SPONSOR_BANNER_LINK_KEY_NAME,
+                              json.dumps(website_banner_link),
+                              _progress)
+        else:
+            # We need to make sure there's no old sponsor banner link in the bucket.
+            # Fails silently if there's no such key.
+            bucket.delete_key(DOWNLOAD_SITE_SPONSOR_BANNER_LINK_KEY_NAME)
+
+        # We wrote a QR code image in the above upload, but it doesn't
+        # point to the Android APK in this bucket. So generate a new one
+        # and overwrite.
+
+        qr_code_url = 'https://s3.amazonaws.com/%s/%s' % (
+                            bucket.name, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME)
+        qr_data = make_qr_code(qr_code_url)
+        put_string_to_key(bucket,
+                          DOWNLOAD_SITE_QR_CODE_KEY_NAME,
+                          qr_data,
+                          _progress)
+
+    except:
+        # TODO: delete all keys
+        #print 'upload failed, deleting bucket'
+        #bucket.delete()
+        raise
+
+    print('updated website in bucket: https://s3.amazonaws.com/%s/' % (bucket_id))
 
     bucket.disable_logging()
 
