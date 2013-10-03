@@ -18,6 +18,7 @@
 
 import collections
 from collections import defaultdict
+from collections import OrderedDict
 import psycopg2
 import psi_ops_stats_credentials
 from mako.template import Template
@@ -119,11 +120,11 @@ if __name__ == "__main__":
         tables[title]['headers'] = [key, 'Connections']
         tables[title]['data'] = sorted(connections.items(), key=lambda x: x[1], reverse=True)
 
-    tables_data = {}
-    add_table(tables_data, 'Connections to Hosts', 'Host', host_connections)
+    tables_data = OrderedDict()
+    add_table(tables_data, 'Connections to Regions', 'Region', region_connections)
     add_table(tables_data, 'Connections to Providers', 'Provider', provider_connections)
     add_table(tables_data, 'Connections to Datacenters', 'Datacenter', datacenter_connections)
-    add_table(tables_data, 'Connections to Regions', 'Region', region_connections)
+    add_table(tables_data, 'Connections to Hosts', 'Host', host_connections)
 
     db_conn.close()
 
