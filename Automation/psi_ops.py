@@ -1711,34 +1711,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__deploy_implementation_required_for_hosts.clear()
             self.save()
 
-        #
-        # Website
-        #
-        if len(self.__deploy_website_required_for_sponsors) > 0:
-            # Generate the static website from source
-            website_generator.generate(WEBSITE_GENERATION_DIR)
-
-            # Iterate through a copy so that we can remove as we go
-            for sponsor_id in self.__deploy_website_required_for_sponsors.copy():
-                sponsor = self.__sponsors[sponsor_id]
-                for campaign in sponsor.campaigns:
-                    if not campaign.s3_bucket_name:
-                        campaign.s3_bucket_name = psi_ops_s3.create_s3_bucket(self.__aws_account)
-                        campaign.log('created s3 bucket %s' % (campaign.s3_bucket_name,))
-                        self.save()  # don't leak buckets
-
-                    psi_ops_s3.update_website(
-                        self.__aws_account,
-                        campaign.s3_bucket_name,
-                        campaign.custom_download_site,
-                        WEBSITE_GENERATION_DIR,
-                        sponsor.website_banner,
-                        sponsor.website_banner_link)
-                    campaign.log('updated website in S3 bucket %s' % (campaign.s3_bucket_name,))
-
-                self.__deploy_website_required_for_sponsors.remove(sponsor_id)
-                self.save()
-
         # Build
 
         for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
@@ -1871,6 +1843,34 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Remove hosts from providers that are marked for removal
 
         self.remove_hosts_from_providers()
+        
+        #
+        # Website
+        #
+        if len(self.__deploy_website_required_for_sponsors) > 0:
+            # Generate the static website from source
+            website_generator.generate(WEBSITE_GENERATION_DIR)
+
+            # Iterate through a copy so that we can remove as we go
+            for sponsor_id in self.__deploy_website_required_for_sponsors.copy():
+                sponsor = self.__sponsors[sponsor_id]
+                for campaign in sponsor.campaigns:
+                    if not campaign.s3_bucket_name:
+                        campaign.s3_bucket_name = psi_ops_s3.create_s3_bucket(self.__aws_account)
+                        campaign.log('created s3 bucket %s' % (campaign.s3_bucket_name,))
+                        self.save()  # don't leak buckets
+
+                    psi_ops_s3.update_website(
+                        self.__aws_account,
+                        campaign.s3_bucket_name,
+                        campaign.custom_download_site,
+                        WEBSITE_GENERATION_DIR,
+                        sponsor.website_banner,
+                        sponsor.website_banner_link)
+                    campaign.log('updated website in S3 bucket %s' % (campaign.s3_bucket_name,))
+
+                self.__deploy_website_required_for_sponsors.remove(sponsor_id)
+                self.save()
 
     def update_static_site_content(self):
         assert(self.is_locked)
