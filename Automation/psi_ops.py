@@ -893,6 +893,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             (campaign.propagation_channel_id, sponsor.id))
                     campaign.log('marked for build and publish (modified campaign)')
 
+    def set_sponsor_campaign_custom_download_site(self, sponsor_name, propagation_channel_name, is_custom):
+        sponsor = self.get_sponsor_by_name(sponsor_name)
+        propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
+        for campaign in sponsor.campaigns:
+            if (campaign.propagation_channel_id == propagation_channel.id and
+                campaign.account[0] == account):
+                campaign.custom_download_site = is_custom
+                campaign.log('set campaign custom_download_site to %s' % is_custom)
+                if not is_custom:
+                    self.__deploy_website_required_for_sponsors.add(sponsor.id)
+                    campaign.log('marked sponsor website as needing new deploy')
+
     def set_sponsor_home_page(self, sponsor_name, region, url):
         assert(self.is_locked)
         sponsor = self.get_sponsor_by_name(sponsor_name)
