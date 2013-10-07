@@ -605,7 +605,7 @@ def process_stats(host, servers, db_cur, psinet, error_file=None):
 
                     try:
                         db_cur.execute(command, field_values + field_values)
-                    except DataError as data_error:
+                    except psycopg2.DataError as data_error:
                         print host.id + ': ' + filename + ': ' + str(data_error)
 
                     lines_processed += 1
