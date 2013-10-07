@@ -519,7 +519,7 @@ def process_stats(host, servers, db_cur, psinet, error_file=None):
                     if not next_last_timestamp or timestamp > next_last_timestamp:
                         next_last_timestamp = timestamp
 
-                    host_id = match.group(2)
+                    host_id = host.id
                     event_type = match.group(3)
                     event_values = [event_value.decode('utf-8', 'replace') for event_value in match.group(4).split()]
                     event_fields = LOG_EVENT_TYPE_SCHEMA[event_type]
@@ -603,7 +603,11 @@ def process_stats(host, servers, db_cur, psinet, error_file=None):
 
                     command = event_sql[event_type]
 
-                    db_cur.execute(command, field_values + field_values)
+                    try:
+                        db_cur.execute(command, field_values + field_values)
+                    except DataError as data_error:
+                        print host.id + ': ' + filename + ': ' + str(data_error)
+
                     lines_processed += 1
 
             finally:
