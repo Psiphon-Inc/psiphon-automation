@@ -118,8 +118,8 @@
       % for row_index, row in enumerate(tableinfo['data']):
         <tr class="row-${'odd' if row_index%2 else 'even'}">
           <%
-            # A row is of the form: ('Key', 46400L)
-            row_head, row_val = row
+            # A row is of the form: ('Key', defaultdict(int, {'Past Week': 46400L, 'Yesterday': 0L, '1 week ago': 6406L}))
+            row_head, row_vals = row
           %>
 
 
@@ -132,13 +132,13 @@
               change = ''
               # Note that this loop starts at tableinfo['headers'][1], so col_index == 0 is tableinfo['headers'][1]
               if col_index == 0:
-                target_value = row_val #[tableinfo['headers'][1]]
-                #compartor = row_vals[tableinfo['headers'][2]]
+                target_value = row_vals[tableinfo['headers'][1]]
+                compartor = row_vals[tableinfo['headers'][2]]
                 #change = 'better' if target_value > compartor else 'worse'
                 change = 'better' if target_value > 0 else 'worse'
             %>
             <td class="numcompare ${change}">
-              ${'{:,}'.format(row_val or 0)}
+              ${'{:,}'.format(row_vals[col_name] or 0)}
             </td>
           % endfor
         </tr>

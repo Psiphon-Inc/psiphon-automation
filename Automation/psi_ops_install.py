@@ -823,7 +823,7 @@ def install_psi_limit_load(host, servers):
     script = '''
 #!/bin/bash
 
-threshold=25
+threshold=20
 threshold_swap=20
 
 free=$(free | grep "buffers/cache" | awk '{print $4/($3+$4) * 100.0}')
