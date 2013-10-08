@@ -41,17 +41,20 @@ from config import config
 PSI_OPS_DB_FILENAME = os.path.join(os.path.abspath('.'), 'psi_ops_stats.dat')
 
 
-def connections_on_host_in_interval(db_conn, host_id, interval):
+def connections_on_hosts_in_interval(db_conn, interval):
     query = '''
-        select count(*) from connected
+        select host_id, count(host_id) from connected
         where timestamp between current_timestamp - interval '{0}' and current_timestamp - interval '{1}'
-        and host_id = '{2}';
+        group by host_id;
         '''
     cursor = db_conn.cursor()
-    cursor.execute(query.format(interval[0], interval[1], host_id))
-    total = cursor.fetchone()[0]
+    cursor.execute(query.format(interval[0], interval[1]))
+    rows = cursor.fetchall()
+    connections = {}
+    for row in rows:
+        connections[row[0]] = row[1]
     cursor.close()
-    return total
+    return connections
 
 
 def render_mail(data):
@@ -117,8 +120,7 @@ if __name__ == "__main__":
             psi_ops_stats_credentials.POSTGRES_HOST,
             psi_ops_stats_credentials.POSTGRES_PORT))
 
-    def get_connections(host, column_spec):
-        connections = connections_on_host_in_interval(db_conn, host.id, (column_spec[1], column_spec[2]))
+    def set_connections(host, connections, column_name):
         if not host.id in host_connections:
             host_connections[host.id] = defaultdict(int)
         if not host.provider in provider_connections:
@@ -127,14 +129,18 @@ if __name__ == "__main__":
             datacenter_connections[host.datacenter] = defaultdict(int)
         if not host.region in region_connections:
             region_connections[host.region] = defaultdict(int)
-        host_connections[host.id][column_spec[0]] = connections
-        provider_connections[host.provider][column_spec[0]] += connections
-        datacenter_connections[host.datacenter][column_spec[0]] += connections
-        region_connections[host.region][column_spec[0]] += connections
+        host_connections[host.id][column_name] = connections
+        provider_connections[host.provider][column_name] += connections
+        datacenter_connections[host.datacenter][column_name] += connections
+        region_connections[host.region][column_name] += connections
 
-    for host in hosts:
-        for spec in column_specs:
-            get_connections(host, spec)
+    for spec in column_specs:
+        connections_for_spec = connections_on_hosts_in_interval(db_conn, (spec[1], spec[2]))
+        for host in hosts:
+            c = 0
+            if host.id in connections_for_spec:
+                c = connections_for_spec[host.id]
+            set_connections(host, c, spec[0])
 
     def add_table(tables, title, key, connections):
         tables[title] = {}
