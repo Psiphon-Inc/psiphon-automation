@@ -100,7 +100,7 @@ LOG_FILENAME = '/var/log/mail_responder.log'
 #
 DKIM_DOMAIN = STATS_SENDER_ADDRESS_BARE[STATS_SENDER_ADDRESS_BARE.index('@') + 1:]
 DKIM_SELECTOR = 'key1'
-DKIM_PRIVATE_KEY = os.path.join(CONFIG_DIR, 'dkim.key')
+DKIM_PRIVATE_KEY = './dkim.key'
 
 
 #
