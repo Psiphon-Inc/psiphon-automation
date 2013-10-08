@@ -43,7 +43,7 @@ class MailResponder:
     def __init__(self):
         self.requested_addr = None
 
-    def read_conf(self, conf_filepath):
+    def read_conf(self):
         '''
         Reads in the given configuration file.
         Return True if successful, False otherwise.
@@ -52,10 +52,10 @@ class MailResponder:
         self._response_from_addr = settings.RESPONSE_FROM_ADDR
 
         try:
-            conffile = open(conf_filepath, 'r')
-
-            # Note that json.load reads in unicode strings
-            self._conf = json.load(conffile)
+            # Note that json.load reads in unicode strings.
+            # TODO: Determine if this is significantly slow; if it is, cache S3 conf.
+            self._conf = json.loads(s3_helpers.get_s3_string(settings.CONFIG_S3_BUCKET,
+                                                             settings.CONFIG_S3_KEY))
 
             # Do some validation
             for item in self._conf:
@@ -65,7 +65,7 @@ class MailResponder:
                     raise Exception('invalid config item: %s' % repr(item))
 
         except Exception as ex:
-            syslog.syslog(syslog.LOG_CRIT, 'error: config file read failed: %s; file: %s' % (ex, conf_filepath))
+            syslog.syslog(syslog.LOG_CRIT, 'error: config file read failed: %s; file: %s:%s' % (ex, settings.CONFIG_S3_BUCKET, settings.CONFIG_S3_KEY))
             return False
 
         return True
@@ -351,7 +351,7 @@ def process_input(email_string):
 
     responder = MailResponder()
 
-    if not responder.read_conf(settings.CONFIG_FILEPATH):
+    if not responder.read_conf():
         return False
 
     if not responder.process_email(email_string):
