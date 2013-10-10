@@ -29,6 +29,7 @@ import traceback
 import psycopg2
 import sys
 import multiprocessing
+import argparse
 
 import psi_ssh
 import psi_ops
@@ -410,7 +411,7 @@ def iso8601_to_utc(timestamp):
     return (localized_datetime - timezone_delta).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
 
 
-def process_stats(host, servers, db_cur, psinet, error_file=None):
+def process_stats(host, servers, db_cur, psinet, minimal, error_file=None):
 
     print 'process stats from host %s...' % (host.id,)
 
@@ -521,6 +522,11 @@ def process_stats(host, servers, db_cur, psinet, error_file=None):
 
                     host_id = host.id
                     event_type = match.group(3)
+
+                    if minimal:
+                        if event_type not in ['connected']:
+                            continue
+
                     event_values = [event_value.decode('utf-8', 'replace') for event_value in match.group(4).split()]
                     event_fields = LOG_EVENT_TYPE_SCHEMA[event_type]
 
@@ -705,6 +711,7 @@ def process_stats_on_host(args):
     host = args[0]
     servers = args[1]
     psinet = args[2]                                                                                 
+    minimal = args[3]
                                                                                                      
     db_conn = psycopg2.connect(                                                                      
         'dbname=%s user=%s password=%s port=%d' % (                                                  
@@ -714,7 +721,7 @@ def process_stats_on_host(args):
             psi_ops_stats_credentials.POSTGRES_PORT))                                                
     try:                                                                                             
         db_cur = db_conn.cursor()                                                                    
-        process_stats(host, servers, db_cur, psinet)                                                 
+        process_stats(host, servers, db_cur, psinet, minimal)                                                 
         db_cur.close()                                                                               
         db_conn.commit()                                                                             
     except Exception as e:                                                                           
@@ -727,6 +734,11 @@ def process_stats_on_host(args):
 
 
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-m', '--minimal', dest='minimal', action='store_true',                                         
+                        help='minimal processing')
+    args = parser.parse_args()
 
     start_time = time.time()
 
@@ -750,13 +762,15 @@ if __name__ == "__main__":
         update_servers(db_conn, psinet)
 
         pool = multiprocessing.pool.ThreadPool(4)
-        results = pool.map(process_stats_on_host, [(host, servers, psinet) for host in hosts])
+        results = pool.map(process_stats_on_host, [(host, servers, psinet, args.minimal) for host in hosts])
 
         # print results as a dict (sorted for visual inspection)
         print '{' + ','.join(['"%s": %f' % (host_id, host_time) for (host_id, host_time)
                 in sorted(results, key=lambda item: item[1], reverse=True)]) + '}'
 
-        reconstruct_sessions(db_conn)
+        if not args.minimal:
+            reconstruct_sessions(db_conn)
+
         db_conn.commit()
     except Exception as e:
         for line in traceback.format_exc().split('\n'):
