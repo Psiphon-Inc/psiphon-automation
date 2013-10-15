@@ -109,7 +109,7 @@ Postfix
         local_recipient_maps =
         luser_relay = mail_responder+$local@localhost
    * Reduce the maximum message size. Something like:
-        message_size_limit = 2048000
+        message_size_limit = 8192000
    * See the bottom of this README for a sample main.cf file.
 
 (Note: If too much error email is being sent to the postmaster, we can also
