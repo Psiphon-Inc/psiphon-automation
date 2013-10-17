@@ -135,7 +135,7 @@ def set_s3_bucket_contents(bucket, builds, remote_server_list):
     try:
         if builds:
             for (source_filename, target_filename) in builds:
-                put_file_to_key(bucket, target_filename, source_filename, _progress)
+                put_file_to_key(bucket, target_filename, str(source_filename), _progress)
 
         if remote_server_list:
             put_string_to_key(bucket,
