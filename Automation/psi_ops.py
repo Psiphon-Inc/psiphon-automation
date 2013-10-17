@@ -781,7 +781,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def flag_website_updated(self):
         assert(self.is_locked)
-        for sponsor in self.__sponsors:
+        for sponsor in self.__sponsors.itervalues():
             self.__deploy_website_required_for_sponsors.add(sponsor.id)
             sponsor.log('website updated, marked for publish')
 
