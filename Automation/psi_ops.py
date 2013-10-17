@@ -37,10 +37,14 @@ from pkg_resources import parse_version
 import psi_utils
 import psi_ops_cms
 import psi_ops_discovery
-import website_generator
 
 
 # Modules available only on the automation server
+
+try:
+    import website_generator
+except ImportError as error:
+    print error
 
 try:
     import psi_ops_crypto_tools
