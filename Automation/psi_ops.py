@@ -37,6 +37,8 @@ from pkg_resources import parse_version
 import psi_utils
 import psi_ops_cms
 import psi_ops_discovery
+import website_generator
+
 
 # Modules available only on the automation server
 
@@ -114,6 +116,10 @@ try:
 except ImportError as error:
     print error
 
+
+WEBSITE_GENERATION_DIR = './website-out'
+
+
 # NOTE: update compartmentalize() functions when adding fields
 
 PropagationChannel = psi_utils.recordtype(
@@ -134,9 +140,12 @@ EmailPropagationAccount = psi_utils.recordtype(
     'EmailPropagationAccount',
     'email_address')
 
+# website_banner and website_banner_link are separately optional (although it
+# makes no sense to have the latter without the former).
 Sponsor = psi_utils.recordtype(
     'Sponsor',
-    'id, name, banner, home_pages, campaigns, page_view_regexes, https_request_regexes')
+    'id, name, banner, website_banner, website_banner_link, home_pages, ' +
+    'campaigns, page_view_regexes, https_request_regexes')
 
 SponsorHomePage = psi_utils.recordtype(
     'SponsorHomePage',
@@ -297,10 +306,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__feedback_upload_info = None
         self.__upgrade_package_signing_key_pair = None
         self.__default_email_autoresponder_account = None
+        self.__deploy_website_required_for_sponsors = set()
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.21'
+    class_version = '0.22'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -408,7 +418,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for propagation_channel in self.__propagation_channels.itervalues():
                 propagation_channel.propagator_managed_upgrades = False
             self.version = '0.21'
-            
+        if cmp(parse_version(self.version), parse_version('0.22')) < 0:
+            self.__deploy_website_required_for_sponsors = set()
+            for sponsor in self.__sponsors.itervalues():
+                sponsor.website_banner = None
+                sponsor.website_banner_link = None
+            self.version = '0.22'
+
     def initialize_plugins(self):
         for plugin in plugins:
             if hasattr(plugin, 'initialize'):
@@ -438,6 +454,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     Android Campaign Builds %d
                                     Stats Server Config     %s
                                     Email Server Config     %s
+                                    Websites                %d
             ''') % (
                 len(self.__sponsors),
                 len(self.__propagation_channels),
@@ -464,7 +481,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 len(self.__deploy_builds_required_for_campaigns[CLIENT_PLATFORM_WINDOWS]),
                 len(self.__deploy_builds_required_for_campaigns[CLIENT_PLATFORM_ANDROID]),
                 'Yes' if self.__deploy_stats_config_required else 'No',
-                'Yes' if self.__deploy_email_config_required else 'No')
+                'Yes' if self.__deploy_email_config_required else 'No',
+                len(self.__deploy_website_required_for_sponsors),
+                )
 
     def show_client_versions(self):
         for platform in self.__client_versions.iterkeys():
@@ -750,6 +769,23 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     (campaign.propagation_channel_id, sponsor.id))
             campaign.log('marked for build and publish (new banner)')
 
+    def set_sponsor_website_banner(self, name, website_banner_filename, website_banner_link):
+        assert(self.is_locked)
+        with open(website_banner_filename, 'rb') as file:
+            website_banner = base64.b64encode(file.read())
+        sponsor = self.get_sponsor_by_name(name)
+        sponsor.website_banner = website_banner
+        sponsor.website_banner_link = website_banner_link
+        self.__deploy_website_required_for_sponsors.add(sponsor.id)
+        sponsor.log('set website_banner, marked for publish')
+
+    def flag_website_updated(self):
+        assert(self.is_locked)
+        for sponsor in self.__sponsors:
+            self.__deploy_website_required_for_sponsors.add(sponsor.id)
+            sponsor.log('website updated, marked for publish')
+
+
     def add_sponsor_email_campaign(self, sponsor_name, propagation_channel_name, email_account):
         assert(self.is_locked)
         sponsor = self.get_sponsor_by_name(sponsor_name)
@@ -856,6 +892,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         self.__deploy_builds_required_for_campaigns[platform].add(
                             (campaign.propagation_channel_id, sponsor.id))
                     campaign.log('marked for build and publish (modified campaign)')
+
+    def set_sponsor_campaign_custom_download_site(self, sponsor_name, propagation_channel_name, is_custom):
+        sponsor = self.get_sponsor_by_name(sponsor_name)
+        propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
+        for campaign in sponsor.campaigns:
+            if (campaign.propagation_channel_id == propagation_channel.id and
+                campaign.account[0] == account):
+                campaign.custom_download_site = is_custom
+                campaign.log('set campaign custom_download_site to %s' % is_custom)
+                if not is_custom:
+                    self.__deploy_website_required_for_sponsors.add(sponsor.id)
+                    campaign.log('marked sponsor website as needing new deploy')
 
     def set_sponsor_home_page(self, sponsor_name, region, url):
         assert(self.is_locked)
@@ -1303,7 +1351,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def remove_hosts_from_providers(self):
         assert(self.is_locked)
-        
+
         need_to_save = False
         for host in self.__hosts_to_remove_from_providers.copy():
             # Only hosts that can be removed via an API are removed here.
@@ -1319,10 +1367,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 need_to_save = True
                 # It is safe to call provider_remove_host() for a host that has
                 # already been removed, so there is no need to save() yet.
-                
+
         if need_to_save:
             self.save()
-    
+
     def remove_host(self, host_id):
         assert(self.is_locked)
         host = self.__hosts[host_id]
@@ -1760,8 +1808,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         [(build_filename, client_build_filenames[platform]),
                          (upgrade_filename, s3_upgrade_resource_name)],
                         remote_server_list,
-                        campaign.s3_bucket_name,
-                        campaign.custom_download_site)
+                        campaign.s3_bucket_name)
                     campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
 
                     if campaign.propagation_mechanism_type == 'twitter':
@@ -1804,18 +1851,47 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.push_email_config()
             self.__deploy_email_config_required = False
             self.save()
-            
-        # Remove hosts from providers that are marked for removal
-        
-        self.remove_hosts_from_providers()
 
-    def update_static_site_content(self):
+        # Remove hosts from providers that are marked for removal
+
+        self.remove_hosts_from_providers()
+        
+        #
+        # Website
+        #
+        if len(self.__deploy_website_required_for_sponsors) > 0:
+            # Generate the static website from source
+            website_generator.generate(WEBSITE_GENERATION_DIR)
+
+            # Iterate through a copy so that we can remove as we go
+            for sponsor_id in self.__deploy_website_required_for_sponsors.copy():
+                sponsor = self.__sponsors[sponsor_id]
+                for campaign in sponsor.campaigns:
+                    if not campaign.s3_bucket_name:
+                        campaign.s3_bucket_name = psi_ops_s3.create_s3_bucket(self.__aws_account)
+                        campaign.log('created s3 bucket %s' % (campaign.s3_bucket_name,))
+                        self.save()  # don't leak buckets
+
+                    self.update_static_site_content(sponsor, campaign)
+
+                self.__deploy_website_required_for_sponsors.remove(sponsor_id)
+                self.save()
+
+    def update_static_site_content(self, sponsor, campaign, do_generate=False):
         assert(self.is_locked)
-        for sponsor in self.__sponsors.itervalues():
-            for campaign in sponsor.campaigns:
-                if campaign.s3_bucket_name:
-                    psi_ops_s3.update_s3_download(self.__aws_account, None, None, campaign.s3_bucket_name, campaign.custom_download_site)
-                    campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
+
+        if do_generate:
+            # Generate the static website from source
+            website_generator.generate(WEBSITE_GENERATION_DIR)
+
+        psi_ops_s3.update_website(
+                        self.__aws_account,
+                        campaign.s3_bucket_name,
+                        campaign.custom_download_site,
+                        WEBSITE_GENERATION_DIR,
+                        sponsor.website_banner,
+                        sponsor.website_banner_link)
+        campaign.log('updated website in S3 bucket %s' % (campaign.s3_bucket_name,))
 
     def update_routes(self):
         assert(self.is_locked)  # (host.log is called by deploy)
@@ -2303,7 +2379,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                                     '',  # Omit new server counts
                                                                     '',  # Omit server ages
                                                                     '')  # Omit server ages
-                                                                    
+
         for host in self.__hosts.itervalues():
             copy.__hosts[host.id] = Host(
                                         host.id,
@@ -2318,7 +2394,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         '',  # Omit: stats_ssh_password isn't needed
                                         '',  # Omit: datacenter_name isn't needed
                                         host.region)
-                                            
+
         for server in self.__servers.itervalues():
             if ((server.discovery_date_range and server.host_id != host_id and server.discovery_date_range[1] <= discovery_date) or
                 (not server.discovery_date_range and server.host_id != host_id)):
@@ -2351,6 +2427,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 sponsor.id,
                                 '',  # Omit name
                                 '',  # Omit banner
+                                None,  # Omit website_banner
+                                None,  # Omit website_banner_link
                                 {},
                                 [],  # Omit campaigns
                                 sponsor.page_view_regexes,
@@ -2437,11 +2515,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             copy.__sponsors[sponsor.id] = Sponsor(
                                         sponsor.id,
                                         sponsor.name,
-                                        '',
-                                        {},
+                                        '',     # omit banner
+                                        None,   # omit website_banner
+                                        None,   # omit website_banner_link
+                                        {},     # omit home_pages
                                         sponsor.campaigns,
-                                        [],
-                                        [])  # Omit banner, home pages, campaigns, regexes
+                                        [],     # omit page_view_regexes
+                                        [])     # omit https_request_regexes
 
         return jsonpickle.encode(copy)
 
