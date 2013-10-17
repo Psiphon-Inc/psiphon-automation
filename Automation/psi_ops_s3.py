@@ -126,9 +126,7 @@ def update_s3_download(aws_account, builds, remote_server_list, bucket_id):
 
     bucket = s3.get_bucket(bucket_id)
 
-    set_s3_bucket_contents(bucket, builds, remote_server_list,
-                           custom_download_site, website_dir,
-                           website_banner_base64, website_banner_link)
+    set_s3_bucket_contents(bucket, builds, remote_server_list)
 
     print 'updated bucket: https://s3.amazonaws.com/%s/' % (bucket_id)
 
