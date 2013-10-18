@@ -40,8 +40,8 @@ class CronCreator(object):
 
     @staticmethod
     def _make_daily(cron):
-        cron.minute().on(0)
-        cron.hour().on(0)
+        cron.minute.on(0)
+        cron.hour.on(0)
 
     def _blacklist_jobs(self):
         command = '/usr/bin/python %s' % os.path.join(self.dir, 'blacklist.py --clear-adhoc')
