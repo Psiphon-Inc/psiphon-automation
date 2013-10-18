@@ -201,9 +201,9 @@ def get_stats(since_time):
         'new_windows_records': _diagnostic_info_store.find({'datetime': {'$gt': since_time}, 'Metadata.platform': 'windows'}).count(),
         'stats': _get_stats_helper(since_time),
 
-        # WARNING: This is potentially unbounded. But using a generator seems
-        # pointless because it needs to be reified for the email anyway.
-        'new_errors': [_clean_record(e) for e in _errors_store.find({'datetime': {'$gt': since_time}})],
+        # This is unbounded, so we're going to return a generator.
+        # Of course, consumers of this will also need to keep this in mind...
+        'new_errors': (_clean_record(e) for e in _errors_store.find({'datetime': {'$gt': since_time}})),
     }
 
 
