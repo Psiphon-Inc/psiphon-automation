@@ -194,6 +194,8 @@ def get_stats(since_time):
         # Pick a sufficiently old date
         since_time = datetime.datetime(2000, 1, 1)
 
+    ERROR_LIMIT = 500
+
     return {
         'since_timestamp': since_time,
         'now_timestamp': datetime.datetime.now(),
@@ -201,9 +203,8 @@ def get_stats(since_time):
         'new_windows_records': _diagnostic_info_store.find({'datetime': {'$gt': since_time}, 'Metadata.platform': 'windows'}).count(),
         'stats': _get_stats_helper(since_time),
 
-        # This is unbounded, so we're going to return a generator.
-        # Of course, consumers of this will also need to keep this in mind...
-        'new_errors': (_clean_record(e) for e in _errors_store.find({'datetime': {'$gt': since_time}})),
+        # The number of errors is unbounded, so we're going to limit the count.
+        'new_errors': [_clean_record(e) for e in _errors_store.find({'datetime': {'$gt': since_time}}).limit(ERROR_LIMIT)],
     }
 
 
