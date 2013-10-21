@@ -8,8 +8,10 @@
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful, # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the # GNU General Public License for more details.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
@@ -39,17 +41,20 @@ from config import config
 PSI_OPS_DB_FILENAME = os.path.join(os.path.abspath('.'), 'psi_ops_stats.dat')
 
 
-def connections_on_host_in_interval(db_conn, host_id, interval):
+def connections_on_hosts_in_interval(db_conn, interval):
     query = '''
-        select count(*) from connected
+        select host_id, count(host_id) from connected
         where timestamp between current_timestamp - interval '{0}' and current_timestamp - interval '{1}'
-        and host_id = '{2}';
+        group by host_id;
         '''
     cursor = db_conn.cursor()
-    cursor.execute(query.format(interval[0], interval[1], host_id))
-    total = cursor.fetchone()[0]
+    cursor.execute(query.format(interval[0], interval[1]))
+    rows = cursor.fetchall()
+    connections = {}
+    for row in rows:
+        connections[row[0]] = row[1]
     cursor.close()
-    return total
+    return connections
 
 
 def render_mail(data):
@@ -80,6 +85,13 @@ def render_mail(data):
     return rendered
 
 
+column_specs = [
+    ('Yesterday', '40 hours', '16 hours'),
+    ('1 week ago', '208 hours', '184 hours'),
+    ('Past Week', '184 hours', '16 hours'),
+]
+
+
 if __name__ == "__main__":
 
     with open(PSI_OPS_DB_FILENAME) as file:
@@ -95,10 +107,10 @@ if __name__ == "__main__":
                   host['region'])
              for host in psinet['_PsiphonNetwork__hosts'].itervalues()]
 
-    host_connections = defaultdict(int)
-    provider_connections = defaultdict(int)
-    datacenter_connections = defaultdict(int)
-    region_connections = defaultdict(int)
+    host_connections = {}
+    provider_connections = {}
+    datacenter_connections = {}
+    region_connections = {}
 
     db_conn = psycopg2.connect(
         'dbname=%s user=%s password=%s host=%s port=%d' % (
@@ -108,17 +120,32 @@ if __name__ == "__main__":
             psi_ops_stats_credentials.POSTGRES_HOST,
             psi_ops_stats_credentials.POSTGRES_PORT))
 
-    for host in hosts:
-        connections = connections_on_host_in_interval(db_conn, host.id, ('40 hours', '16 hours'))
-        host_connections[host.id] = connections
-        provider_connections[host.provider] += connections
-        datacenter_connections[host.datacenter] += connections
-        region_connections[host.region] += connections
+    def set_connections(host, connections, column_name):
+        if not host.id in host_connections:
+            host_connections[host.id] = defaultdict(int)
+        if not host.provider in provider_connections:
+            provider_connections[host.provider] = defaultdict(int)
+        if not host.datacenter in datacenter_connections:
+            datacenter_connections[host.datacenter] = defaultdict(int)
+        if not host.region in region_connections:
+            region_connections[host.region] = defaultdict(int)
+        host_connections[host.id][column_name] = connections
+        provider_connections[host.provider][column_name] += connections
+        datacenter_connections[host.datacenter][column_name] += connections
+        region_connections[host.region][column_name] += connections
+
+    for spec in column_specs:
+        connections_for_spec = connections_on_hosts_in_interval(db_conn, (spec[1], spec[2]))
+        for host in hosts:
+            c = 0
+            if host.id in connections_for_spec:
+                c = connections_for_spec[host.id]
+            set_connections(host, c, spec[0])
 
     def add_table(tables, title, key, connections):
         tables[title] = {}
-        tables[title]['headers'] = [key, 'Connections']
-        tables[title]['data'] = sorted(connections.items(), key=lambda x: x[1], reverse=True)
+        tables[title]['headers'] = [key] + [spec[0] for spec in column_specs]
+        tables[title]['data'] = sorted(connections.items(), key=lambda x: x[1][column_specs[0][0]], reverse=True)
 
     tables_data = OrderedDict()
     add_table(tables_data, 'Connections to Regions', 'Region', region_connections)
