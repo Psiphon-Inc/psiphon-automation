@@ -226,9 +226,11 @@ Stats
 
 * Stats will be derived from the contents of `/var/log/mail_responder.log`
 
-* mail_stats.py can be executed by a cron job (installed by `install.sh`) to email
-  basic statisitics to a desired email address. The sender and recipient addresses
-  can be found (and modified) in `settings.py`.
+* `mail_stats.py` can be executed periodically to email basic statisitics to a 
+  desired email address. The sender and recipient addresses can be found (and 
+  modified) in `settings.py`.
+  * `mail_stats.py` is run from `psiphon-log-rotate.conf`. This makes sense
+    because it uses `syslog.1`, which is created after a log rotation.
 
 * The emailing is done with the same code that the responder itself uses.
 
@@ -263,7 +265,7 @@ http://www.dnswatch.info/dkim/create-dns-record
 
 A couple of python packages are required:
 
-> sudo pip install dnspython pydkim
+> sudo pip install --upgrade dnspython pydkim
 
 See the DKIM section of settings.py for more values that must be set/changed.
 
