@@ -52,9 +52,9 @@ def generate(dest_dir):
                                 shell=True, stderr=subprocess.STDOUT)
         subprocess.check_output('docpad update --env %s' % (DOCPAD_ENV,),
                                 shell=True, stderr=subprocess.STDOUT)
-        subprocess.check_output('docpad clean --env %s --out %s' % (DOCPAD_ENV, dest_dir),
+        subprocess.check_output('docpad clean --env %s --out "%s"' % (DOCPAD_ENV, dest_dir),
                                 shell=True, stderr=subprocess.STDOUT)
-        subprocess.check_output('docpad generate --env %s --out %s' % (DOCPAD_ENV, dest_dir),
+        subprocess.check_output('docpad generate --env %s --out "%s"' % (DOCPAD_ENV, dest_dir),
                                 shell=True, stderr=subprocess.STDOUT)
     finally:
         os.chdir(prev_dir)

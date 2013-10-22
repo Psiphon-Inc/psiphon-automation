@@ -110,6 +110,8 @@ def create_s3_bucket(aws_account):
     # TODO: retry on boto.exception.S3CreateError: S3Error[409]: Conflict
     bucket = s3.create_bucket(bucket_id, location=location)
 
+    bucket.configure_website(suffix='index.html')
+
     print 'new bucket: https://s3.amazonaws.com/%s/' % (bucket_id)
 
     return bucket_id
@@ -124,9 +126,7 @@ def update_s3_download(aws_account, builds, remote_server_list, bucket_id):
 
     bucket = s3.get_bucket(bucket_id)
 
-    set_s3_bucket_contents(bucket, builds, remote_server_list,
-                           custom_download_site, website_dir,
-                           website_banner_base64, website_banner_link)
+    set_s3_bucket_contents(bucket, builds, remote_server_list)
 
     print 'updated bucket: https://s3.amazonaws.com/%s/' % (bucket_id)
 
@@ -135,7 +135,7 @@ def set_s3_bucket_contents(bucket, builds, remote_server_list):
     try:
         if builds:
             for (source_filename, target_filename) in builds:
-                put_file_to_key(bucket, target_filename, source_filename, _progress)
+                put_file_to_key(bucket, target_filename, str(source_filename), _progress)
 
         if remote_server_list:
             put_string_to_key(bucket,
@@ -152,6 +152,7 @@ def set_s3_bucket_contents(bucket, builds, remote_server_list):
     print ' done'
 
     bucket.disable_logging()
+    _fix_bucket_acl(bucket)
 
 
 def update_website(aws_account, bucket_id, custom_site, website_dir,
@@ -217,7 +218,9 @@ def update_website(aws_account, bucket_id, custom_site, website_dir,
 
     print('updated website in bucket: https://s3.amazonaws.com/%s/' % (bucket_id))
 
+    bucket.configure_website(suffix='index.html')
     bucket.disable_logging()
+    _fix_bucket_acl(bucket)
 
 
 def put_string_to_key(bucket, key_name, content, callback=None):
@@ -260,3 +263,18 @@ def make_qr_code(url):
     stream = cStringIO.StringIO()
     image.save(stream, 'PNG')
     return stream.getvalue()
+
+
+def _fix_bucket_acl(bucket):
+    '''
+    Some old buckets have the "everyone can list" permission set. We want to
+    remove this.
+    '''
+
+    policy = bucket.get_acl()
+    new_grants = [grant for grant in policy.acl.grants
+                  if grant.uri != 'http://acs.amazonaws.com/groups/global/AllUsers']
+    if new_grants != policy.acl.grants:
+        print 'changed'
+        policy.acl.grants = new_grants
+        bucket.set_acl(policy)

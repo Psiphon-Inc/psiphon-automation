@@ -37,10 +37,14 @@ from pkg_resources import parse_version
 import psi_utils
 import psi_ops_cms
 import psi_ops_discovery
-import website_generator
 
 
 # Modules available only on the automation server
+
+try:
+    import website_generator
+except ImportError as error:
+    print error
 
 try:
     import psi_ops_crypto_tools
@@ -781,7 +785,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def flag_website_updated(self):
         assert(self.is_locked)
-        for sponsor in self.__sponsors:
+        for sponsor in self.__sponsors.itervalues():
             self.__deploy_website_required_for_sponsors.add(sponsor.id)
             sponsor.log('website updated, marked for publish')
 
@@ -885,7 +889,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         for campaign in sponsor.campaigns:
             if (campaign.propagation_channel_id == propagation_channel.id and
-                campaign.account[0] == account):
+                ((campaign.account == None and account == None) or campaign.account[0] == account)):
                     campaign.s3_bucket_name = s3_bucket_name
                     campaign.log('set campaign s3 bucket name to %s' % (s3_bucket_name,))
                     for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
@@ -893,12 +897,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             (campaign.propagation_channel_id, sponsor.id))
                     campaign.log('marked for build and publish (modified campaign)')
 
-    def set_sponsor_campaign_custom_download_site(self, sponsor_name, propagation_channel_name, is_custom):
+    def set_sponsor_campaign_custom_download_site(self, sponsor_name, propagation_channel_name, account, is_custom):
         sponsor = self.get_sponsor_by_name(sponsor_name)
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         for campaign in sponsor.campaigns:
             if (campaign.propagation_channel_id == propagation_channel.id and
-                campaign.account[0] == account):
+                ((campaign.account == None and account == None) or campaign.account[0] == account)):
                 campaign.custom_download_site = is_custom
                 campaign.log('set campaign custom_download_site to %s' % is_custom)
                 if not is_custom:
@@ -1872,35 +1876,26 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         campaign.log('created s3 bucket %s' % (campaign.s3_bucket_name,))
                         self.save()  # don't leak buckets
 
-                    psi_ops_s3.update_website(
+                    self.update_static_site_content(sponsor, campaign)
+
+                self.__deploy_website_required_for_sponsors.remove(sponsor_id)
+                self.save()
+
+    def update_static_site_content(self, sponsor, campaign, do_generate=False):
+        assert(self.is_locked)
+
+        if do_generate:
+            # Generate the static website from source
+            website_generator.generate(WEBSITE_GENERATION_DIR)
+
+        psi_ops_s3.update_website(
                         self.__aws_account,
                         campaign.s3_bucket_name,
                         campaign.custom_download_site,
                         WEBSITE_GENERATION_DIR,
                         sponsor.website_banner,
                         sponsor.website_banner_link)
-                    campaign.log('updated website in S3 bucket %s' % (campaign.s3_bucket_name,))
-
-                self.__deploy_website_required_for_sponsors.remove(sponsor_id)
-                self.save()
-
-    def update_static_site_content(self):
-        assert(self.is_locked)
-
-        # Generate the static website from source
-        website_generator.generate(WEBSITE_GENERATION_DIR)
-
-        for sponsor in self.__sponsors.itervalues():
-            for campaign in sponsor.campaigns:
-                if campaign.s3_bucket_name:
-                    psi_ops_s3.update_s3_download(self.__aws_account,
-                                                  None, None,
-                                                  campaign.s3_bucket_name,
-                                                  campaign.custom_download_site,
-                                                  WEBSITE_GENERATION_DIR,
-                                                  sponsor.website_banner,
-                                                  sponsor.website_banner_link)
-                    campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
+        campaign.log('updated website in S3 bucket %s' % (campaign.s3_bucket_name,))
 
     def update_routes(self):
         assert(self.is_locked)  # (host.log is called by deploy)

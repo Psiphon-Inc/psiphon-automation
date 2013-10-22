@@ -298,6 +298,9 @@ def go():
     process_android_app_browser_strings()
     print('process_android_app_browser_strings: DONE')
 
+    process_website_strings()
+    print('process_website_strings: DONE')
+
 
 if __name__ == '__main__':
     if os.getcwd().split(os.path.sep)[-1] != 'Automation':
