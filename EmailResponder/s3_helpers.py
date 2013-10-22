@@ -82,6 +82,6 @@ def get_s3_cached_file(cache_dir, bucketname, bucket_filename):
 
 def get_s3_string(bucketname, bucket_filename):
     conn = S3Connection()
-    bucket = conn.get_bucket(bucketname)
+    bucket = conn.get_bucket(bucketname, validate=False)
     key = bucket.get_key(bucket_filename)
     return key.get_contents_as_string()
