@@ -170,8 +170,7 @@ file for instructions.
 
 The script requires the crontab python package:
 > sudo apt-get install python-pip
-> sudo pip install python-dateutil
-> sudo pip install python-crontab
+> sudo pip install --upgrade python-dateutil python-crontab
 
 To run the install script:
 > sh install.sh
