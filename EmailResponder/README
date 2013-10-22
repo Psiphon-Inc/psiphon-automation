@@ -274,12 +274,11 @@ See the DKIM section of settings.py for more values that must be set/changed.
 Email Responder Configuration
 --------------------------------------------------------------------------------
 
-* The /mail_responder_config/conf.json file contains the addresses that the
-  responder will respond to, and the message bodies that will sent back to
-  those addresses.
+* The configuration file contains the addresses that the responder will respond 
+  to, and the message bodies that will sent back to those addresses.
 
-* /mail_responder_config/conf.json must be writable by the normal (ubuntu) user
-  and readable by mail_responder.
+* The configuration file is stored in a S3 bucket so that all instances of the
+  mail responder can access it. This bucket and key are specific in `settings.py`.
 
 * The file is in JSON format, with these fields:
 [
