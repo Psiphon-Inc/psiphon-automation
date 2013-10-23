@@ -5,7 +5,8 @@
 
 ### OS
 
-1. Used Ubuntu 11.10 Server 64-bit. AMI IDs can be found via here: https://help.ubuntu.com/community/EC2StartersGuide
+1. Used Ubuntu 11.10 Server 64-bit. AMI IDs can be found via here: <https://help.ubuntu.com/community/EC2StartersGuide>
+
    * Security Group must allow port 25 (SMTP) through (and SSH, so configuration
    is possible.)
    * Assign a static IP ("Elastic IP") to the instance. (Note that this will
