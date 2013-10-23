@@ -13,6 +13,7 @@
      change the public DNS name you SSH into.)
 
 2. OS updates
+
   ```
   sudo apt-get update
   sudo apt-get upgrade
@@ -20,16 +21,23 @@
   ```
 
 3. Create a limited-privilege user that will do most of the mail processing.
-   Ref: http://www.cyberciti.biz/tips/howto-linux-shell-restricting-access.html
-   Add `/usr/sbin/nologin` to `/etc/shells`.
-     `sudo useradd -s /usr/sbin/nologin mail_responder`
+
+   Ref: <http://www.cyberciti.biz/tips/howto-linux-shell-restricting-access.html>
+
+   Add `/usr/sbin/nologin` to `/etc/shells`:
+   ```
+   sudo useradd -s /usr/sbin/nologin mail_responder
+   ```
+
    * Also create a home directory for the user:
-      ```
-      sudo mkdir /home/mail_responder
-      sudo chown mail_responder:mail_responder /home/mail_responder
-      ```
+
+     ```
+     sudo mkdir /home/mail_responder
+     sudo chown mail_responder:mail_responder /home/mail_responder
+     ```
 
 4. Create a stub user that will be used for forwarding `support@` emails.
+
    ```
    sudo useradd -s /usr/sbin/nologin forwarder
    sudo mkdir /home/forwarder
@@ -39,6 +47,7 @@
 
 5. Install NTP, otherwise it's possible for the clock to drift and SES requests
    to be rejected. (This has happened.)
+
    ```
    sudo apt-get install ntp
    ```
@@ -46,23 +55,30 @@
 
 ### SSH, fail2ban
 
+NOTE: This hasn't been updated since the change to "elastic" mail responders.
+
 For extra security, we'll have SSH listen on a non-standard port and use
 fail2ban to prevent brute-force login attempts on SSH. Alternatively/additionally,
 EC2 security groups or OS firewall policies can restrict the incoming IPs
 allowed to access the SSH port.
 
 1. Change SSH port number.
-    `sudo nano /etc/ssh/sshd_config`
-    Change 'Port' value to something random.
-    Make sure EC2 security group allows this port through for TCP.
+
+   ```
+   sudo nano /etc/ssh/sshd_config
+   ```
+
+   Change 'Port' value to something random. Make sure EC2 security group allows
+   this port through for TCP.
 
 2. Install fail2ban.
+
    ```
    sudo apt-get install fail2ban
    ```
 
-3. Configure fail2ban to use non-standard SSH port.
-    Create or edit /etc/fail2ban/jail.local:
+3. Configure fail2ban to use non-standard SSH port. Create or edit `/etc/fail2ban/jail.local`:
+
    ```
    [ssh]
    port = ssh,<port#>
@@ -70,15 +86,18 @@ allowed to access the SSH port.
    port = ssh,<port#>
    ```
 
-4. Edit /etc/fail2ban/filter.d/sshd.conf, and add the following line to the
+4. Edit `/etc/fail2ban/filter.d/sshd.conf`, and add the following line to the
    failregex list:
+
    ```
    ^%(__prefix_line)spam_unix\(sshd:auth\): authentication failure; logname=\S* uid=\S* euid=\S* tty=\S* ruser=\S* rhost=<HOST>(?:\s+user=.*)?\s*$
    ```
+
    (We found with the Psiphon 3 servers that fail2ban wasn't detecting all the
    relevant auth.log entries without adding this regex.)
 
 5. Restart ssh and fail2ban:
+
    ```
    sudo service ssh restart
    sudo service fail2ban restart
@@ -88,24 +107,32 @@ allowed to access the SSH port.
 ### Postfix
 
 
-1. Install postfix
+1. Install postfix:
+
    ```
    sudo apt-get install postfix
    ```
+
    During installation:
+
    * Choose the "Internet Site option".
+
    * Set the system mail name to the public DNS name of the instance. When
      we're ready to go live, this will change to the real domain name.
+
      * UPDATE: Don't change to the real domain name. Leave it as the instance
        public DNS name.
 
 2. Change aliases.
+
    * Edit `/etc/aliases` so that it looks like this:
+
       ```
       postmaster: ubuntu
       root: ubuntu
       support: forwarder@localhost
       ```
+
    * Reload aliases map: `sudo newaliases`
 
 3. DEFUNCT, because there's too much noise: Add `.forward` file for "normal"
@@ -113,28 +140,42 @@ allowed to access the SSH port.
    should go to.
 
 4. Edit `/etc/postfix/main.cf`
+
    * Change `myhostname` to be the public DNS name of the instance, or the domain
      name that's pointing to the instance.
+
    * Change `mydestination` to be:
-      ```
+
+     ```
      mydestination = $myhostname localhost.$mydomain localhost $extradomains
-      ```
+     ```
+
    * `extradomains` is a custom variable that will hold all of the domains that
      our server accepts mail for (and responds to). So, you will have:
-      ```
+
+     ```
      extradomains = example1.com example2.com
-      ```
+     ```
+
      Note that the variable can be missing or empty and that's okay.
+
    * Change `smtpd_use_tls` to `no`
+
    * Add these two lines to the end. They cause all email that doesn't
      correspond to a real address to be forwarded to the `mail_responder` account
      (which will then do the response processing).
-      ```
+
+     ```
      local_recipient_maps =
      luser_relay = mail_responder+$local@localhost
-      ```
+     ```
+
    * Reduce the maximum message size. Something like:
-        `message_size_limit = 8192000`
+
+     ```
+     message_size_limit = 8192000
+     ```
+
    * See the bottom of this README for a sample `main.cf` file.
 
 (Note: If too much error email is being sent to the postmaster, we can also
@@ -145,9 +186,16 @@ add this line:
 5. By default, if an uncaught error occurs (which shouldn't occur, but...),
    postfix responds to the user with a bounce email that gives a lot of internal
    details about the error. This is undesirable, so we'll disable this in postfix.
-    `sudo nano /etc/postfix/master.cf`
+
+   ```
+   sudo nano /etc/postfix/master.cf
+   ```
+
    Comment out the bounce line, so it looks like this:
-    `#bounce    unix  -       -       -       -       0       bounce`
+
+   ```
+   #bounce    unix  -       -       -       -       0       bounce
+   ```
 
 6. Check the contents of `/etc/mailname`. It should be the FQDN of the current
    instance's public name. If you're using an EC2 Static IP (which you surely
@@ -156,6 +204,7 @@ add this line:
    public name). Make sure this is updated to the correct value.
 
 7. Reload postfix conf and restart:
+
    ```
    sudo postfix reload
    sudo /etc/init.d/postfix restart
@@ -165,29 +214,38 @@ add this line:
 ### Logwatch and Postfix-Logwatch
 
 1. Install `logwatch` and `build-essential`
+
    ```
    sudo apt-get install logwatch build-essential
    ```
 
 2. Install `postfix-logwatch`.
-    - Download current version from: http://logreporters.sourceforge.net/
-    - Extract the archive, enter the new directory, and execute:
-        `sudo make install-logwatch`
+
+   - Download current version from: http://logreporters.sourceforge.net/
+
+   - Extract the archive, enter the new directory, and execute:
+     
+     ```
+     sudo make install-logwatch
+     ```
 
 
 ### Source files and cron jobs
 
 Install mercurial:
+
 ```
 sudo apt-get install mercurial
 ```
 
 In the `ubuntu` user home directory, get the Psiphon source:
+
 ```
 hg clone https://bitbucket.org/psiphon/psiphon-circumvention-system
 ```
 
 Go into the email responder source directory:
+
 ```
 cd psiphon-circumvention-system/EmailResponder
 ```
@@ -195,20 +253,25 @@ cd psiphon-circumvention-system/EmailResponder
 The `install.sh` script does the following:
 
    - copy files from the source directory to the `mail_responder` home directory
+
    - modify those files, if necessary
+
    - set the proper ownership on those files
+
    - create the cron jobs needed for the running of the system
 
 The `settings.py` file must first be edited. See the comment at the top of that
 file for instructions.
 
 The script requires the `crontab` python package:
+
 ```
 sudo apt-get install python-pip
 sudo pip install --upgrade python-dateutil python-crontab
 ```
 
 To run the install script:
+
 ```
 sh install.sh
 ```
@@ -217,31 +280,50 @@ sh install.sh
 ### Logging
 
 * The install script copies the file `20-psiphon-logging.conf` to `/etc/rsyslog.d/`.
+
   * This copies the mail responder logs to a dedicated log file that will be
     processed to get statisitics about use.
+
   * It also sends postfix logs to the Psiphon log processor.
 
 * Enable RFC 3339 compatible high resolution timestamp logging format (required
   for stats processing).
+
   In `/etc/rsyslog.conf`, ensure this line is commented out:
-   `#$ActionFileDefaultTemplate RSYSLOG_TraditionalFileFormat`
+
+  ```
+  #$ActionFileDefaultTemplate RSYSLOG_TraditionalFileFormat
+  ```
 
 * Turn off "repeated message reduction" (the syslog feature that results in
   "last message repeated X times" instead of repeated logs). For our stats, we
   need a line per event, not a compressed view.
+
   In `/etc/rsyslog.conf`, change this:
-    `$RepeatedMsgReduction on`
+
+  ```
+  $RepeatedMsgReduction on
+  ```
+
   to this:
-    `$RepeatedMsgReduction off`
+
+  ```
+  $RepeatedMsgReduction off
+  ```
+
   (TODO: Can this be turned off for only `mail_responder.log`?)
 
 * Restart the logging service:
-   `sudo service rsyslog restart`
+
+  ```
+  sudo service rsyslog restart
+  ```
 
 
 ### Amazon AWS services
 
 1. Install boto
+   
    ```
    sudo pip install boto
    ```
@@ -249,15 +331,17 @@ sh install.sh
 2. It's best if the AWS user being used is created through the AWS IAM interface
    and has only the necessary privileges.
 
-3. Put AWS credentials into boto config file. Info here:
-    http://code.google.com/p/boto/wiki/BotoConfig
+3. Put AWS credentials into boto config file. Info here: <http://code.google.com/p/boto/wiki/BotoConfig>
+
    We've found that using `~/.boto` doesn't work, so create `/etc/boto.cfg` and put
    these lines into it:
+
    ```
    [Credentials]
    aws_access_key_id = <your access key>
    aws_secret_access_key = <your secret key>
    ```
+
    Ensure that the file is readable by the `mail_responder` user.
 
 
@@ -268,6 +352,7 @@ sh install.sh
 * `mail_stats.py` can be executed periodically to email basic statisitics to a 
   desired email address. The sender and recipient addresses can be found (and 
   modified) in `settings.py`.
+
   * `mail_stats.py` is run from `psiphon-log-rotate.conf`. This makes sense
     because it uses `syslog.1`, which is created after a log rotation.
 
@@ -281,11 +366,13 @@ after which they are "blacklisted". The blacklist is cleared once a day
 (configurable).
 
 The blacklist code requires the following package be installed:
+
 ```
 sudo apt-get install mysql-server python-mysqldb python-sqlalchemy
 ```
 
 Create the DB and user. TODO: Move this into `install.sh`.
+
 ```
 mysql -uroot
 CREATE USER '<username in settings.py>'@'localhost' IDENTIFIED BY '<password in settings.py>';
@@ -302,9 +389,10 @@ For information about DKIM (DomainKeys Identified Mail) see dkim.org, RFC-4871,
 and do some googling.
 
 A handy DKIM DNS record generator can be found here:
-http://www.dnswatch.info/dkim/create-dns-record
+<http://www.dnswatch.info/dkim/create-dns-record>
 
 A couple of python packages are required:
+
 ```
 sudo pip install --upgrade dnspython pydkim
 ```
@@ -315,7 +403,8 @@ See the DKIM section of `settings.py` for more values that must be set/changed.
 ## Email Responder Configuration
 
 The configuration file contains the addresses that the responder will respond 
-to, and the message bodies that will sent back to those addresses. The configuration file is stored in a S3 bucket so that all instances of the
+to, and the message bodies that will sent back to those addresses. The 
+configuration file is stored in a S3 bucket so that all instances of the
 mail responder can access it. This bucket and key are specific in `settings.py`.
 
 The file is in JSON format, with these fields:
@@ -389,16 +478,22 @@ Things to notice about the format:
     as spam), and the second email will have attachments. NOTE: The order of
     entries is important -- responses will be sent in the order of the entries
     (so put the non-attachment entry before the attachment entry).
+
 * The email address must be lower-case.
+
 * The email body can be a just a string, which will be interpreted as 'plain'
-    mimetype, or an array of one or more tuples which are ["mimetype", "body"].
+    mimetype, or an array of one or more tuples which are `["mimetype", "body"]`.
     Mimetypes can be 'plain' or 'html' (so there's really no reason to specify
     more than two).
+
 * There can be multiple domains served by the same responder server, so the
     whole email address is important.
+
 * The attachment can be null.
-* The attachment file will have to exist at: {bucketname}/{bucketfilename}
-* The "attachmentfilename" value is the name of the attachment that's
+
+* The attachment file will have to exist at: `{bucketname}/{bucketfilename}`
+
+* The `attachmentfilename` value is the name of the attachment that's
     displayed in the email. It must be a filetype that won't be rejected by most
     mail clients (so, for example, not .exe). When using a fake file extension,
     we don't want to use an extension that typically has a file association
@@ -413,7 +508,7 @@ NOTE: The *last* mimetype will be the one that's preferred by mail clients,
 
 * In order for our responses to not be flagged as spam, these guidelines should
   be followed:
-    http://docs.amazonwebservices.com/ses/latest/DeveloperGuide/index.html?SPFSenderIDDKIM.html
+  <http://docs.amazonwebservices.com/ses/latest/DeveloperGuide/index.html?SPFSenderIDDKIM.html>
 
 * Be sure to peruse the `settings.py` file.
 
