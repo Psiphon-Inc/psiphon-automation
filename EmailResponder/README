@@ -35,6 +35,10 @@ OS
     > sudo chown forwarder:forwarder /home/forwarder
     > sudo -uforwarder sh -c 'echo "oursupportaddress@example.com" > /home/forwarder/.forward'
 
+5. Install NTP, otherwise it's possible for the clock to drift and SES requests
+   to be rejected. (This has happened.)
+    > sudo apt-get install ntp
+
 
 SSH, fail2ban
 ----------------------------------------

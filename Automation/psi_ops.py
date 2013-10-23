@@ -225,10 +225,9 @@ ElasticHostsAccount.zone_values = ('ELASTICHOSTS_US1',  # sat-p
                                    'ELASTICHOSTS_UK1',  # lon-p
                                    'ELASTICHOSTS_UK2')  # lon-b
 
-EmailServerAccount = psi_utils.recordtype(
-    'EmailServerAccount',
-    'ip_address, ssh_port, ssh_username, ssh_pkey, ssh_host_key, ' +
-    'config_file_path',
+EmailConfigLocation = psi_utils.recordtype(
+    'EmailConfigLocation',
+    'bucket, key',
     default=None)
 
 StatsServerAccount = psi_utils.recordtype(
@@ -290,7 +289,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             CLIENT_PLATFORM_WINDOWS: [],
             CLIENT_PLATFORM_ANDROID: []
         }
-        self.__email_server_account = EmailServerAccount()
+        self.__email_config_location = EmailConfigLocation()
         self.__stats_server_account = StatsServerAccount()
         self.__aws_account = AwsAccount()
         self.__provider_ranks = []
@@ -314,7 +313,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.22'
+    class_version = '0.23'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -428,6 +427,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 sponsor.website_banner = None
                 sponsor.website_banner_link = None
             self.version = '0.22'
+        if cmp(parse_version(self.version), parse_version('0.23')) < 0:
+            self.__email_config_location = EmailConfigLocation()
+            self.version = '0.23'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -440,7 +442,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             Sponsors:               %d
             Channels:               %d
             Twitter Campaigns:      %d
-            Email Campaigns:        %d
+            Email Config Location:  %d
             Total Campaigns:        %d
             Hosts:                  %d
             Servers:                %d
@@ -470,7 +472,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                      for sponsor in self.__sponsors.itervalues()]),
                 len(self.__hosts),
                 len(self.__servers),
-                self.__email_server_account.ip_address if self.__email_server_account else 'None',
+                '%s:%s' % (self.__email_config_location.bucket, self.__email_config_location.key),
                 self.__stats_server_account.ip_address if self.__stats_server_account else 'None',
                 self.__client_versions[CLIENT_PLATFORM_WINDOWS][-1].version if self.__client_versions[CLIENT_PLATFORM_WINDOWS] else 'None',
                 self.__client_versions[CLIENT_PLATFORM_WINDOWS][-1].description if self.__client_versions[CLIENT_PLATFORM_WINDOWS] else '',
@@ -1859,7 +1861,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Remove hosts from providers that are marked for removal
 
         self.remove_hosts_from_providers()
-        
+
         #
         # Website
         #
@@ -1980,26 +1982,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
                     campaign.log('configuring email')
 
-        temp_file = tempfile.NamedTemporaryFile(delete=False)
-        try:
-            temp_file.write(json.dumps(emails, indent=2))
-            temp_file.close()
-            ssh = psi_ssh.SSH(
-                    self.__email_server_account.ip_address,
-                    self.__email_server_account.ssh_port,
-                    self.__email_server_account.ssh_username,
-                    None,
-                    self.__email_server_account.ssh_host_key,
-                    ssh_pkey=self.__email_server_account.ssh_pkey)
-            ssh.put_file(
-                    temp_file.name,
-                    self.__email_server_account.config_file_path)
-            self.__email_server_account.log('pushed')
-        finally:
-            try:
-                os.remove(temp_file.name)
-            except:
-                pass
+        psi_ops_s3.put_string_to_key(EMAIL_RESPONDER_CONFIG_BUCKET_NAME,
+                                     EMAIL_RESPONDER_CONFIG_BUCKET_KEY,
+                                     json.dumps(emails, indent=2),
+                                     False)  # not public
 
     def add_server_version(self):
         assert(self.is_locked)
@@ -2124,14 +2110,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             stats_username=acct.stats_username if stats_username is None else stats_username,
             rank=acct.rank if rank is None else rank)
 
-    def set_email_server_account(self, ip_address, ssh_port,
-                                 ssh_username, ssh_pkey, ssh_host_key,
-                                 config_file_path):
+    def set_email_config_location(self, bucket, key):
         assert(self.is_locked)
         psi_utils.update_recordtype(
-            self.__email_server_account,
-            ip_address=ip_address, ssh_port=ssh_port, ssh_username=ssh_username,
-            ssh_pkey=ssh_pkey, ssh_host_key=ssh_host_key, config_file_path=config_file_path)
+            self.__email_config_location,
+            bucket=bucket, key=key)
 
     def set_stats_server_account(self, ip_address, ssh_port,
                                  ssh_username, ssh_password, ssh_host_key):
