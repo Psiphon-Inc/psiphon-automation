@@ -66,12 +66,27 @@ def get_s3_bucket_resource_url(bucket_id, resource_name):
                 resource_name))
 
 
-def get_s3_bucket_home_page_url(bucket_id, lang_id='en'):
+def get_s3_bucket_home_page_url(bucket_id):
     # TODO: add a campaign language and direct to that page; or have the client
     # supply its system language and direct to that page.
 
     # Assumes USEast
-    return "https://s3.amazonaws.com/%s/%s.html" % (bucket_id, lang_id)
+    return "https://s3.amazonaws.com/%s/index.html" % (bucket_id)
+
+
+def get_s3_bucket_download_page_url(bucket_id, lang='en'):
+    # Assumes USEast
+    return "https://s3.amazonaws.com/%s/%s/download.html" % (bucket_id, lang)
+
+
+def get_s3_bucket_faq_url(bucket_id, lang='en'):
+    # Assumes USEast
+    return "https://s3.amazonaws.com/%s/%s/faq.html" % (bucket_id, lang)
+
+
+def get_s3_bucket_privacy_policy_url(bucket_id, lang='en'):
+    # Assumes USEast
+    return "https://s3.amazonaws.com/%s/%s/faq.html#information-collected" % (bucket_id, lang)
 
 
 def create_s3_bucket(aws_account):

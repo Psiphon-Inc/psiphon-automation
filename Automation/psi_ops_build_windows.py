@@ -110,6 +110,8 @@ def write_embedded_values(propagation_channel_id,
                           upgrade_url,
                           get_new_version_url,
                           get_new_version_email,
+                          faq_url,
+                          privacy_policy_url,
                           ignore_system_server_list=False):
     template = textwrap.dedent('''
         #pragma once
@@ -149,8 +151,8 @@ def write_embedded_values(propagation_channel_id,
 
         static const char* GET_NEW_VERSION_URL = "%s";
         static const char* GET_NEW_VERSION_EMAIL = "%s";
-        static const char* FAQ_URL = "%s#other_frequently_asked_questions";
-        static const char* DATA_COLLECTION_INFO_URL = "%s#what_user_information_does_psiphon_3_collect";
+        static const char* FAQ_URL = "%s";
+        static const char* DATA_COLLECTION_INFO_URL = "%s";
         ''')
     with open(EMBEDDED_VALUES_FILENAME, 'w') as file:
         file.write(template % (propagation_channel_id,
@@ -171,8 +173,8 @@ def write_embedded_values(propagation_channel_id,
                                upgrade_url[2],
                                get_new_version_url,
                                get_new_version_email,
-                               get_new_version_url,
-                               get_new_version_url))
+                               faq_url,
+                               privacy_policy_url))
 
 
 def build_client(
@@ -191,6 +193,8 @@ def build_client(
         upgrade_url,
         get_new_version_url,
         get_new_version_email,
+        faq_url,
+        privacy_policy_url,
         version,
         propagator_managed_upgrades,
         test=False):
@@ -231,6 +235,8 @@ def build_client(
             upgrade_url,
             get_new_version_url,
             get_new_version_email,
+            faq_url,
+            privacy_policy_url,
             ignore_system_server_list=test)
 
         # copy feedback.html
