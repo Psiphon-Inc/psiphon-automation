@@ -47,14 +47,6 @@ order by 2 desc
 ;'''
 
 
-windows_connections_total_template = '''
-select count(*) as total_connections
-from connected
-where timestamp between current_timestamp - interval '{0}' and current_timestamp - interval '{1}'
-and lower(client_platform) like 'windows%'
-;'''
-
-
 android_connections_by_region_template = '''
 select client_region, count(*) as connections
 from connected
@@ -62,14 +54,6 @@ where timestamp between current_timestamp - interval '{0}' and current_timestamp
 and lower(client_platform) like 'android%'
 group by client_region
 order by 2 desc
-;'''
-
-
-android_connections_total_template = '''
-select count(*) as total_connections
-from connected
-where timestamp between current_timestamp - interval '{0}' and current_timestamp - interval '{1}'
-and lower(client_platform) like 'android%'
 ;'''
 
 
@@ -84,15 +68,6 @@ order by 2 desc
 ;'''
 
 
-windows_unique_users_total_template = '''
-select count(*) as total_uniques
-from connected
-where timestamp between current_timestamp - interval '{0}' and current_timestamp - interval '{1}'
-and last_connected < current_timestamp - interval '{0}'
-and lower(client_platform) like 'windows%'
-;'''
-
-
 android_unique_users_by_region_template = '''
 select client_region, count(*) as uniques
 from connected
@@ -101,15 +76,6 @@ and last_connected < current_timestamp - interval '{0}'
 and lower(client_platform) like 'android%'
 group by client_region
 order by 2 desc
-;'''
-
-
-android_unique_users_total_template = '''
-select count(*) as total_uniques
-from connected
-where timestamp between current_timestamp - interval '{0}' and current_timestamp - interval '{1}'
-and last_connected < current_timestamp - interval '{0}'
-and lower(client_platform) like 'android%'
 ;'''
 
 
@@ -123,14 +89,6 @@ order by 2 desc
 ;'''
 
 
-windows_page_views_total_template = '''
-select sum(viewcount) as total_page_views
-from page_views
-where timestamp between current_timestamp - interval '{0}' and current_timestamp - interval '{1}'
-and lower(client_platform) like 'windows%'
-;'''
-
-
 android_page_views_by_region_template = '''
 select client_region, sum(viewcount) as page_views
 from page_views
@@ -141,44 +99,30 @@ order by 2 desc
 ;'''
 
 
-android_page_views_total_template = '''
-select sum(viewcount) as total_page_views
-from page_views
-where timestamp between current_timestamp - interval '{0}' and current_timestamp - interval '{1}'
-and lower(client_platform) like 'android%'
-;'''
-
-
 tables = [
     (
         'Windows Connections',
         windows_connections_by_region_template,
-        windows_connections_total_template
     ),
     (
         'Android Connections',
         android_connections_by_region_template,
-        android_connections_total_template
     ),
     (
         'Windows Unique Users',
         windows_unique_users_by_region_template,
-        windows_unique_users_total_template
     ),
     (
         'Android Unique Users',
         android_unique_users_by_region_template,
-        android_unique_users_total_template
     ),
     (
         'Windows Page Views',
         windows_page_views_by_region_template,
-        windows_page_views_total_template
     ),
     (
         'Android Page Views',
         android_page_views_by_region_template,
-        android_page_views_total_template
     )
 ]
 
@@ -244,11 +188,10 @@ if __name__ == "__main__":
             rows = cursor.fetchall()
             cursor.close()
             # Total
-            cursor = db_conn.cursor()
-            cursor.execute(table[2].format(column[1], column[2]))
-            total = cursor.fetchone()[0]
+            total = 0
+            for row in rows:
+                total += row[1]
             rows.append(('Total', total))
-            cursor.close()
             for row in rows:
                 region = str(row[0])
                 if not region in table_dict:

@@ -188,16 +188,23 @@ def ff(f):
 
 <h2>New Errors</h2>
 
-<% no_errors = True %>
+<% error_count = 0 %>
 % for err in data['new_errors']:
-  <% no_errors = False %>
   <p>
     <div class="timestamp">${err['datetime']}</div>
     <div>${repr(err['error'])}</div>
   </p>
+
+  <% error_count += 1 %>
+  ## The number of errors is unbounded, so we need to limit the count that we
+  ## output here.
+  % if error_count > 100:
+    <div><strong>ERROR LIST TRUNCATED</strong></div>
+    <% break %>
+  % endif
 % endfor
 
-% if no_errors:
+% if error_count > 0:
   <p>None</p>
 % endif
 
