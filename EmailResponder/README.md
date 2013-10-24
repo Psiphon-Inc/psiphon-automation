@@ -617,7 +617,12 @@ from boto.ec2.cloudwatch import MetricAlarm
 
 access_id, secret_key = <high-enough privilege user creds>
 
-region = 'us-east-1a'
+# It's possible to have the auto-scaling group go across availability zones
+# but we probably don't need that, and it will be easier to keep track of if we
+# keep all the instances in one zone.
+availability_zone = 'us-east-1a'
+region = 'us-east-1'
+
 launch_config_name = <something meaningful>
 image_id = <AMI ID>
 key_name = <key pair name>
@@ -626,28 +631,34 @@ autoscaling_group_name = <something meaningful>
 load_balancer_name = <name for LB created in web interface>
 vpc_zone_identifier = <subnet ID>
 
-min_size = 2  # ?
-max_size = 4  # ?
+instance_type = 'm1.medium'
+min_size = 1  # ?
+max_size = 5  # ?
+
+alert_action = <alert action ARN>
+
 
 conn = AutoScaleConnection(access_id, secret_key)
 
 conn.get_all_groups()  # empty list if there aren't any
 
 # Create the Launch Configuration
-lc = LaunchConfiguration(name=launch_config_name, 
+lc = LaunchConfiguration(name=launch_config_name,
                          image_id=image_id,
+                         instance_type=instance_type,
                          key_name=key_name,
-                         security_groups=[security_group])
+                         security_groups=[security_group],
+                         instance_monitoring=True)
 conn.create_launch_configuration(lc)
 
 # After creating an object, we fetch it back so that we have the defaults filled in.
 lc = conn.get_all_launch_configurations(names=[lc.name])[0]
 
 # Create the Autoscaling Group
-ag = AutoScalingGroup(group_name=autoscaling_group_name, 
+ag = AutoScalingGroup(group_name=autoscaling_group_name,
                       load_balancers=[load_balancer_name],
-                      availability_zones=[region],
-                      launch_config=lc, 
+                      availability_zones=[availability_zone],
+                      launch_config=lc,
                       min_size=min_size, max_size=max_size,
                       vpc_zone_identifier=vpc_zone_identifier,
                       termination_policies=['NewestInstance'],
@@ -672,20 +683,25 @@ conn.create_scaling_policy(scale_down_policy)
 scale_down_policy = conn.get_all_policies(
             as_group=ag.name, policy_names=[scale_down_policy.name])[0]
 
-cloudwatch_region = 'us-east-1' if region == 'us-east-1a' else region
 cloudwatch = boto.ec2.cloudwatch.connect_to_region(
-            cloudwatch_region, 
-            aws_access_key_id=adam['access_id'], 
-            aws_secret_access_key=adam['secret_key'])
+            region,
+            aws_access_key_id=access_id,
+            aws_secret_access_key=secret_key)
 
+# This causes values to be viewed in aggregate across the ASG.
 alarm_dimensions = { "AutoScalingGroupName": ag.name }
+
+# CPU
+
+scale_up_actions = [scale_up_policy.policy_arn, alert_action]
+scale_down_actions = [scale_down_policy.policy_arn, alert_action]
 
 scale_up_alarm = MetricAlarm(
             name='scale_up_on_cpu', namespace='AWS/EC2',
             metric='CPUUtilization', statistic='Average',
             comparison='>', threshold='70',
             period='60', evaluation_periods=2,
-            alarm_actions=[scale_up_policy.policy_arn],
+            alarm_actions=scale_up_actions,
             dimensions=alarm_dimensions)
 cloudwatch.create_alarm(scale_up_alarm)
 
@@ -694,7 +710,47 @@ scale_down_alarm = MetricAlarm(
             metric='CPUUtilization', statistic='Average',
             comparison='<', threshold='40',
             period='60', evaluation_periods=2,
-            alarm_actions=[scale_down_policy.policy_arn],
+            alarm_actions=scale_down_actions,
+            dimensions=alarm_dimensions)
+cloudwatch.create_alarm(scale_down_alarm)
+
+# Disk usage
+
+scale_up_alarm = MetricAlarm(
+            name='scale_up_on_diskspace', namespace='System/Linux',
+            metric='DiskSpaceUtilization', statistic='Average',
+            comparison='>', threshold='80',
+            period='60', evaluation_periods=2,
+            alarm_actions=scale_up_actions,
+            dimensions=alarm_dimensions)
+cloudwatch.create_alarm(scale_up_alarm)
+
+scale_down_alarm = MetricAlarm(
+            name='scale_down_on_diskspace', namespace='System/Linux',
+            metric='DiskSpaceUtilization', statistic='Average',
+            comparison='<', threshold='50',
+            period='60', evaluation_periods=2,
+            alarm_actions=scale_down_actions,
+            dimensions=alarm_dimensions)
+cloudwatch.create_alarm(scale_down_alarm)
+
+# CPU usage
+
+scale_up_alarm = MetricAlarm(
+            name='scale_up_on_cpu', namespace='System/Linux',
+            metric='MemoryUtilization', statistic='Average',
+            comparison='>', threshold='80',
+            period='60', evaluation_periods=2,
+            alarm_actions=scale_up_actions,
+            dimensions=alarm_dimensions)
+cloudwatch.create_alarm(scale_up_alarm)
+
+scale_down_alarm = MetricAlarm(
+            name='scale_down_on_cpu', namespace='System/Linux',
+            metric='MemoryUtilization', statistic='Average',
+            comparison='<', threshold='50',
+            period='60', evaluation_periods=2,
+            alarm_actions=scale_down_actions,
             dimensions=alarm_dimensions)
 cloudwatch.create_alarm(scale_down_alarm)
 ```
