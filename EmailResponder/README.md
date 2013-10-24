@@ -6,11 +6,10 @@
 ### OS
 
 1. Used Ubuntu 11.10 Server 64-bit. AMI IDs can be found via here: <https://help.ubuntu.com/community/EC2StartersGuide>
-
-   * Security Group must allow port 25 (SMTP) through (and SSH, so configuration
-   is possible.)
-   * Assign a static IP ("Elastic IP") to the instance. (Note that this will
-     change the public DNS name you SSH into.)
+  * Security Group must allow port 25 (SMTP) through (and SSH, so configuration
+    is possible.)
+  * Assign a static IP ("Elastic IP") to the instance. (Note that this will
+    change the public DNS name you SSH into.)
 
 2. OS updates
 
@@ -25,16 +24,17 @@
    Ref: <http://www.cyberciti.biz/tips/howto-linux-shell-restricting-access.html>
 
    Add `/usr/sbin/nologin` to `/etc/shells`:
+
    ```
    sudo useradd -s /usr/sbin/nologin mail_responder
    ```
 
-   * Also create a home directory for the user:
+   Also create a home directory for the user:
 
-     ```
-     sudo mkdir /home/mail_responder
-     sudo chown mail_responder:mail_responder /home/mail_responder
-     ```
+   ```
+   sudo mkdir /home/mail_responder
+   sudo chown mail_responder:mail_responder /home/mail_responder
+   ```
 
 4. Create a stub user that will be used for forwarding `support@` emails.
 
@@ -594,4 +594,107 @@ smtpd_recipient_restrictions =
 
 # Without this, some of the above reject lines can be bypassed.
 smtpd_helo_required = yes
+```
+
+
+## Elastic Mail Responder
+
+### Additional CloudWatch metrics
+
+Created by `mon-put-instance-data.pl`. Run as a cron job installed by `create_cron_jobs.py`.
+
+
+### Setup
+
+Derived from this: <http://boto.readthedocs.org/en/latest/autoscale_tut.html>
+
+Assumes that the base AMI and Load Balancer are already created.
+
+```python
+from boto.ec2.autoscale import AutoScaleConnection, LaunchConfiguration, AutoScalingGroup, ScalingPolicy
+import boto.ec2.cloudwatch
+from boto.ec2.cloudwatch import MetricAlarm
+
+access_id, secret_key = <high-enough privilege user creds>
+
+region = 'us-east-1a'
+launch_config_name = <something meaningful>
+image_id = <AMI ID>
+key_name = <key pair name>
+security_group = <VPC SG ID, not name>
+autoscaling_group_name = <something meaningful>
+load_balancer_name = <name for LB created in web interface>
+vpc_zone_identifier = <subnet ID>
+
+min_size = 2  # ?
+max_size = 4  # ?
+
+conn = AutoScaleConnection(access_id, secret_key)
+
+conn.get_all_groups()  # empty list if there aren't any
+
+# Create the Launch Configuration
+lc = LaunchConfiguration(name=launch_config_name, 
+                         image_id=image_id,
+                         key_name=key_name,
+                         security_groups=[security_group])
+conn.create_launch_configuration(lc)
+
+# After creating an object, we fetch it back so that we have the defaults filled in.
+lc = conn.get_all_launch_configurations(names=[lc.name])[0]
+
+# Create the Autoscaling Group
+ag = AutoScalingGroup(group_name=autoscaling_group_name, 
+                      load_balancers=[load_balancer_name],
+                      availability_zones=[region],
+                      launch_config=lc, 
+                      min_size=min_size, max_size=max_size,
+                      vpc_zone_identifier=vpc_zone_identifier,
+                      termination_policies=['NewestInstance'],
+                      connection=conn)
+conn.create_auto_scaling_group(ag)
+ag = conn.get_all_groups(names=[ag.name])[0]
+
+conn.get_all_activities(ag)  # should spit out info about instances spinning up
+
+# Create the scaling policies
+scale_up_policy = ScalingPolicy(
+            name='scale_up', adjustment_type='ChangeInCapacity',
+            as_name=ag.name, scaling_adjustment=1, cooldown=180)
+conn.create_scaling_policy(scale_up_policy)
+scale_up_policy = conn.get_all_policies(
+            as_group=ag.name, policy_names=[scale_up_policy.name])[0]
+
+scale_down_policy = ScalingPolicy(
+            name='scale_down', adjustment_type='ChangeInCapacity',
+            as_name=ag.name, scaling_adjustment=-1, cooldown=180)
+conn.create_scaling_policy(scale_down_policy)
+scale_down_policy = conn.get_all_policies(
+            as_group=ag.name, policy_names=[scale_down_policy.name])[0]
+
+cloudwatch_region = 'us-east-1' if region == 'us-east-1a' else region
+cloudwatch = boto.ec2.cloudwatch.connect_to_region(
+            cloudwatch_region, 
+            aws_access_key_id=adam['access_id'], 
+            aws_secret_access_key=adam['secret_key'])
+
+alarm_dimensions = { "AutoScalingGroupName": ag.name }
+
+scale_up_alarm = MetricAlarm(
+            name='scale_up_on_cpu', namespace='AWS/EC2',
+            metric='CPUUtilization', statistic='Average',
+            comparison='>', threshold='70',
+            period='60', evaluation_periods=2,
+            alarm_actions=[scale_up_policy.policy_arn],
+            dimensions=alarm_dimensions)
+cloudwatch.create_alarm(scale_up_alarm)
+
+scale_down_alarm = MetricAlarm(
+            name='scale_down_on_cpu', namespace='AWS/EC2',
+            metric='CPUUtilization', statistic='Average',
+            comparison='<', threshold='40',
+            period='60', evaluation_periods=2,
+            alarm_actions=[scale_down_policy.policy_arn],
+            dimensions=alarm_dimensions)
+cloudwatch.create_alarm(scale_down_alarm)
 ```

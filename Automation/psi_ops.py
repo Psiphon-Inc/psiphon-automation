@@ -124,6 +124,9 @@ except ImportError as error:
 WEBSITE_GENERATION_DIR = './website-out'
 
 
+EMAIL_RESPONDER_CONFIG_BUCKET_KEY = 'EmailResponder/conf.json'
+
+
 # NOTE: update compartmentalize() functions when adding fields
 
 PropagationChannel = psi_utils.recordtype(
@@ -225,11 +228,6 @@ ElasticHostsAccount.zone_values = ('ELASTICHOSTS_US1',  # sat-p
                                    'ELASTICHOSTS_UK1',  # lon-p
                                    'ELASTICHOSTS_UK2')  # lon-b
 
-EmailConfigLocation = psi_utils.recordtype(
-    'EmailConfigLocation',
-    'bucket, key',
-    default=None)
-
 StatsServerAccount = psi_utils.recordtype(
     'StatsServerAccount',
     'ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key',
@@ -289,7 +287,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             CLIENT_PLATFORM_WINDOWS: [],
             CLIENT_PLATFORM_ANDROID: []
         }
-        self.__email_config_location = EmailConfigLocation()
         self.__stats_server_account = StatsServerAccount()
         self.__aws_account = AwsAccount()
         self.__provider_ranks = []
@@ -310,6 +307,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__upgrade_package_signing_key_pair = None
         self.__default_email_autoresponder_account = None
         self.__deploy_website_required_for_sponsors = set()
+        self.__automation_bucket = None
+
         if initialize_plugins:
             self.initialize_plugins()
 
@@ -428,7 +427,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 sponsor.website_banner_link = None
             self.version = '0.22'
         if cmp(parse_version(self.version), parse_version('0.23')) < 0:
-            self.__email_config_location = EmailConfigLocation()
             self.version = '0.23'
 
     def initialize_plugins(self):
@@ -472,7 +470,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                      for sponsor in self.__sponsors.itervalues()]),
                 len(self.__hosts),
                 len(self.__servers),
-                '%s:%s' % (self.__email_config_location.bucket, self.__email_config_location.key),
+                self.__automation_bucket if self.__automation_bucket else 'None',
                 self.__stats_server_account.ip_address if self.__stats_server_account else 'None',
                 self.__client_versions[CLIENT_PLATFORM_WINDOWS][-1].version if self.__client_versions[CLIENT_PLATFORM_WINDOWS] else 'None',
                 self.__client_versions[CLIENT_PLATFORM_WINDOWS][-1].description if self.__client_versions[CLIENT_PLATFORM_WINDOWS] else '',
@@ -1982,7 +1980,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
                     campaign.log('configuring email')
 
-        psi_ops_s3.put_string_to_key(EMAIL_RESPONDER_CONFIG_BUCKET_NAME,
+        psi_ops_s3.put_string_to_key(self.__automation_bucket,
                                      EMAIL_RESPONDER_CONFIG_BUCKET_KEY,
                                      json.dumps(emails, indent=2),
                                      False)  # not public
@@ -2110,11 +2108,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             stats_username=acct.stats_username if stats_username is None else stats_username,
             rank=acct.rank if rank is None else rank)
 
-    def set_email_config_location(self, bucket, key):
+    def set_automation_bucket(self, bucket):
         assert(self.is_locked)
-        psi_utils.update_recordtype(
-            self.__email_config_location,
-            bucket=bucket, key=key)
+        self.__automation_bucket = bucket
+        # TODO: Log the change? Where?
 
     def set_stats_server_account(self, ip_address, ssh_port,
                                  ssh_username, ssh_password, ssh_host_key):
