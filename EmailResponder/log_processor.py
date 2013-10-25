@@ -23,6 +23,8 @@ import syslog
 import time
 import settings
 
+from boto.ec2.cloudwatch import CloudWatchConnection
+
 from sqlalchemy import create_engine
 from sqlalchemy import Column, String, Integer
 from sqlalchemy.dialects.mysql import BIGINT
@@ -389,6 +391,19 @@ class LogHandlers(object):
         mail = dbsession.query(IncomingMail).filter_by(queue_id=msgdict['queue_id']).first()
         if not mail: return self.NO_RECORD_MATCH
         mail.processing_end = now_milliseconds()
+
+        # Record the processing time as a CloudWatch metric.
+        if mail.processing_start and mail.processing_end:
+            cloudwatch = CloudWatchConnection()
+            cloudwatch.put_metric_data('Psiphon/MailResponder',
+                                       'processing_time',
+                                       mail.processing_end - mail.processing_start,
+                                       unit='Milliseconds')
+            cloudwatch.put_metric_data('Psiphon/MailResponder',
+                                       'response_sent',
+                                       1,
+                                       unit='Count')
+
 
         return self.SUCCESS
 

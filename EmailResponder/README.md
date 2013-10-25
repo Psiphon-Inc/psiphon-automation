@@ -610,7 +610,23 @@ Derived from this: <http://boto.readthedocs.org/en/latest/autoscale_tut.html>
 
 Assumes that the base AMI and Load Balancer are already created.
 
+The overall reason/rationale for this scaling policy is something like this:
+
+Most of the time we have a very stable daily number of requests. It sometimes
+grows and contracts, but generally it's predictable. We would like our "normal"
+state to be sufficient but not overkill -- saving money is important. We also
+sometimes have major spikes in requests -- like, sudden increases of 10x or 20x.
+This can result from a TV program mentioning us and all the viewers hitting us
+at the same time. In the past we have choked and lost requests and/or taken a 
+very long time to respond. We would like to be able to cope with such situations
+more gracefully.
+
+So our approach to scaling will be to go up very fast, and then let the pool
+shrink if the capacity isn't needed. This will probably be our best chance of
+coping with a sudden 20x request increase.
+
 ```python
+
 from boto.ec2.autoscale import AutoScaleConnection, LaunchConfiguration, AutoScalingGroup, ScalingPolicy
 import boto.ec2.cloudwatch
 from boto.ec2.cloudwatch import MetricAlarm
@@ -631,12 +647,11 @@ autoscaling_group_name = <something meaningful>
 load_balancer_name = <name for LB created in web interface>
 vpc_zone_identifier = <subnet ID>
 
-instance_type = 'm1.medium'
-min_size = 1  # ?
-max_size = 5  # ?
+instance_type = 'm1.large'
+min_size = 1
+max_size = 10
 
 alert_action = <alert action ARN>
-
 
 conn = AutoScaleConnection(access_id, secret_key)
 
@@ -669,16 +684,26 @@ ag = conn.get_all_groups(names=[ag.name])[0]
 conn.get_all_activities(ag)  # should spit out info about instances spinning up
 
 # Create the scaling policies
+
+# Cooldown is the wait time after taking a scaling action before allowing 
+# another scaling action. We'll make it long enough to properly observe the 
+# change resulting from the scaling action.
+
+# Because we sometimes have major sudden traffic spikes, we're going to scale
+# up by multiple instances.
+scale_up = 4
+scale_down = -1
+
 scale_up_policy = ScalingPolicy(
             name='scale_up', adjustment_type='ChangeInCapacity',
-            as_name=ag.name, scaling_adjustment=1, cooldown=180)
+            as_name=ag.name, scaling_adjustment=scale_up, cooldown=300)
 conn.create_scaling_policy(scale_up_policy)
 scale_up_policy = conn.get_all_policies(
             as_group=ag.name, policy_names=[scale_up_policy.name])[0]
 
 scale_down_policy = ScalingPolicy(
             name='scale_down', adjustment_type='ChangeInCapacity',
-            as_name=ag.name, scaling_adjustment=-1, cooldown=180)
+            as_name=ag.name, scaling_adjustment=scale_down, cooldown=300)
 conn.create_scaling_policy(scale_down_policy)
 scale_down_policy = conn.get_all_policies(
             as_group=ag.name, policy_names=[scale_down_policy.name])[0]
