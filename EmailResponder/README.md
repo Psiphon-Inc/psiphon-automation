@@ -627,10 +627,6 @@ coping with a sudden 20x request increase.
 
 ```python
 
-from boto.ec2.autoscale import AutoScaleConnection, LaunchConfiguration, AutoScalingGroup, ScalingPolicy
-import boto.ec2.cloudwatch
-from boto.ec2.cloudwatch import MetricAlarm
-
 access_id, secret_key = <high-enough privilege user creds>
 
 # It's possible to have the auto-scaling group go across availability zones
@@ -652,6 +648,10 @@ min_size = 1
 max_size = 10
 
 alert_action = <alert action ARN>
+
+from boto.ec2.autoscale import AutoScaleConnection, LaunchConfiguration, AutoScalingGroup, ScalingPolicy
+import boto.ec2.cloudwatch
+from boto.ec2.cloudwatch import MetricAlarm
 
 conn = AutoScaleConnection(access_id, secret_key)
 
