@@ -801,4 +801,13 @@ scale_down_alarm = MetricAlarm(
             alarm_actions=scale_down_actions,
             dimensions=alarm_dimensions)
 cloudwatch.create_alarm(scale_down_alarm)
+
+#
+# Destroying the setup
+# 
+
+ag.shutdown_instances()
+# Then wait for instances to shut down
+ag.delete()
+lc.delete()
 ```

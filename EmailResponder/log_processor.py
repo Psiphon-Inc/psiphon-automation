@@ -34,8 +34,8 @@ instance_id = httpconn.getresponse().read()
 # Get the autoscaling group name
 from boto.ec2 import EC2Connection
 ec2conn = EC2Connection()
-autoscaling_group = ec2conn.get_all_tags({'key': 'aws:autoscaling:groupName',
-                                          'resource-id': instance_id})[0].value
+tags = ec2conn.get_all_tags({'key': 'aws:autoscaling:groupName', 'resource-id': instance_id})
+autoscaling_group = tags[0].value if tags else None
 
 
 from sqlalchemy import create_engine
