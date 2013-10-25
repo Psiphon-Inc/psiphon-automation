@@ -50,7 +50,7 @@ class CronCreator(object):
         self._make_daily(cron)
 
     def _maintenance_jobs(self):
-        command = "/home/mail_responder/mon-put-instance-data.pl --disk-path=/ --mem-util --mem-used --mem-avail --swap-util --swap-used --disk-space-util --disk-space-used --disk-space-avail --from-cron --aws-access-key-id=`sed -n 's/aws_access_key_id = \(.*\)/\1/p' /etc/boto.cfg` --aws-secret-key=`sed -n 's/aws_secret_access_key = \(.*\)/\1/p' /etc/boto.cfg`"
+        command = "/home/mail_responder/mon-put-instance-data.pl --disk-path=/ --mem-util --mem-used --mem-avail --swap-util --swap-used --disk-space-util --disk-space-used --disk-space-avail --from-cron --aws-access-key-id=`/bin/sed -n 's/aws_access_key_id = \\(.*\\)/\\1/p' /etc/boto.cfg` --aws-secret-key=`/bin/sed -n 's/aws_secret_access_key = \\(.*\\)/\\1/p' /etc/boto.cfg`"
         self.normal_tab.remove_all(command)
         cron = self.normal_tab.new(command=command)
         cron.minute.every(5)

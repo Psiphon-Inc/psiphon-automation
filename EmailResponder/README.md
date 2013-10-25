@@ -759,10 +759,10 @@ scale_down_alarm = MetricAlarm(
             dimensions=alarm_dimensions)
 cloudwatch.create_alarm(scale_down_alarm)
 
-# CPU usage
+# Memory usage
 
 scale_up_alarm = MetricAlarm(
-            name='scale_up_on_cpu', namespace='System/Linux',
+            name='scale_up_on_memory', namespace='System/Linux',
             metric='MemoryUtilization', statistic='Average',
             comparison='>', threshold='80',
             period='60', evaluation_periods=2,
@@ -771,9 +771,29 @@ scale_up_alarm = MetricAlarm(
 cloudwatch.create_alarm(scale_up_alarm)
 
 scale_down_alarm = MetricAlarm(
-            name='scale_down_on_cpu', namespace='System/Linux',
+            name='scale_down_on_memory', namespace='System/Linux',
             metric='MemoryUtilization', statistic='Average',
             comparison='<', threshold='50',
+            period='60', evaluation_periods=2,
+            alarm_actions=scale_down_actions,
+            dimensions=alarm_dimensions)
+cloudwatch.create_alarm(scale_down_alarm)
+
+# Request processing time
+
+scale_up_alarm = MetricAlarm(
+            name='scale_up_on_processing_time', namespace='Psiphon/MailResponder',
+            metric='processing_time', statistic='Average',
+            comparison='>', threshold='10000',
+            period='60', evaluation_periods=2,
+            alarm_actions=scale_up_actions,
+            dimensions=alarm_dimensions)
+cloudwatch.create_alarm(scale_up_alarm)
+
+scale_down_alarm = MetricAlarm(
+            name='scale_down_on_processing_time', namespace='Psiphon/MailResponder',
+            metric='processing_time', statistic='Average',
+            comparison='<', threshold='5000',
             period='60', evaluation_periods=2,
             alarm_actions=scale_down_actions,
             dimensions=alarm_dimensions)
