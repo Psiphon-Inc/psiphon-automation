@@ -396,7 +396,7 @@ class LogHandlers(object):
         Process notification that mail_process.py finished its work.
         Record the time.
         '''
-        m = re.match('^(?P<queue_id>'+self.queue_id_matcher+'): .*',
+        m = re.match('^(?P<queue_id>'+self.queue_id_matcher+'): .*, orig_to=<(?P<request_address>[^>]+)>, .*',
                      logdict['message'])
         if not m: return self.FAILURE
         msgdict = m.groupdict()
@@ -416,6 +416,11 @@ class LogHandlers(object):
                                        dimensions=dimensions)
             cloudwatch.put_metric_data('Psiphon/MailResponder',
                                        'response_sent',
+                                       1,
+                                       unit='Count',
+                                       dimensions=dimensions)
+            cloudwatch.put_metric_data('Psiphon/MailResponder',
+                                       msgdict['request_address'],
                                        1,
                                        unit='Count',
                                        dimensions=dimensions)
