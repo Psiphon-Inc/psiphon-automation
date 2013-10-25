@@ -25,6 +25,19 @@ import settings
 
 from boto.ec2.cloudwatch import CloudWatchConnection
 
+# Get the current instace ID. This IP address is magical.
+import httplib
+httpconn = httplib.HTTPConnection('169.254.169.254')
+httpconn.request('GET', '/latest/meta-data/instance-id')
+instance_id = httpconn.getresponse().read()
+
+# Get the autoscaling group name
+from boto.ec2 import EC2Connection
+ec2conn = EC2Connection()
+autoscaling_group = ec2conn.get_all_tags({'key': 'aws:autoscaling:groupName',
+                                          'resource-id': instance_id})[0].value
+
+
 from sqlalchemy import create_engine
 from sqlalchemy import Column, String, Integer
 from sqlalchemy.dialects.mysql import BIGINT
@@ -398,12 +411,13 @@ class LogHandlers(object):
             cloudwatch.put_metric_data('Psiphon/MailResponder',
                                        'processing_time',
                                        mail.processing_end - mail.processing_start,
-                                       unit='Milliseconds')
+                                       unit='Milliseconds',
+                                       dimensions={ 'AutoScalingGroupName': autoscaling_group })
             cloudwatch.put_metric_data('Psiphon/MailResponder',
                                        'response_sent',
                                        1,
-                                       unit='Count')
-
+                                       unit='Count',
+                                       dimensions={ 'AutoScalingGroupName': autoscaling_group })
 
         return self.SUCCESS
 
