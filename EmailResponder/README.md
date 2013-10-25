@@ -673,7 +673,7 @@ lc = conn.get_all_launch_configurations(names=[lc.name])[0]
 ag = AutoScalingGroup(group_name=autoscaling_group_name,
                       load_balancers=[load_balancer_name],
                       availability_zones=[availability_zone],
-                      launch_config=lc,
+                      launch_config=lc.name,
                       min_size=min_size, max_size=max_size,
                       vpc_zone_identifier=vpc_zone_identifier,
                       termination_policies=['NewestInstance'],
