@@ -741,13 +741,16 @@ cloudwatch.create_alarm(scale_down_alarm)
 
 # Disk usage
 
+disk_alarm_dimensions = dict(alarm_dimensions, 
+                             **{'Filesystem': '/dev/xvda1', 'MountPath': '/'})
+
 scale_up_alarm = MetricAlarm(
             name='scale_up_on_diskspace', namespace='System/Linux',
             metric='DiskSpaceUtilization', statistic='Average',
             comparison='>', threshold='80',
             period='60', evaluation_periods=2,
             alarm_actions=scale_up_actions,
-            dimensions=alarm_dimensions)
+            dimensions=disk_alarm_dimensions)
 cloudwatch.create_alarm(scale_up_alarm)
 
 scale_down_alarm = MetricAlarm(
@@ -756,7 +759,7 @@ scale_down_alarm = MetricAlarm(
             comparison='<', threshold='50',
             period='60', evaluation_periods=2,
             alarm_actions=scale_down_actions,
-            dimensions=alarm_dimensions)
+            dimensions=disk_alarm_dimensions)
 cloudwatch.create_alarm(scale_down_alarm)
 
 # Memory usage

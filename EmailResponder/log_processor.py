@@ -407,17 +407,18 @@ class LogHandlers(object):
 
         # Record the processing time as a CloudWatch metric.
         if mail.processing_start and mail.processing_end:
+            dimensions = { 'AutoScalingGroupName': autoscaling_group } if autoscaling_group else None
             cloudwatch = CloudWatchConnection()
             cloudwatch.put_metric_data('Psiphon/MailResponder',
                                        'processing_time',
                                        mail.processing_end - mail.processing_start,
                                        unit='Milliseconds',
-                                       dimensions={ 'AutoScalingGroupName': autoscaling_group })
+                                       dimensions=dimensions)
             cloudwatch.put_metric_data('Psiphon/MailResponder',
                                        'response_sent',
                                        1,
                                        unit='Count',
-                                       dimensions={ 'AutoScalingGroupName': autoscaling_group })
+                                       dimensions=dimensions)
 
         return self.SUCCESS
 
