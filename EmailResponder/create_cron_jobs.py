@@ -55,10 +55,10 @@ class CronCreator(object):
         cron = self.normal_tab.new(command=command)
         cron.minute.every(5)
 
-        command = "cd /home/ubuntu/psiphon-circumvention-system/EmailResponder && /usr/bin/hg pull -u && /bin/sh install.sh"
+        command = "cd /home/ubuntu/psiphon-circumvention-system/EmailResponder && /usr/bin/hg pull -u && /bin/sh install.sh &>/dev/null"
         self.normal_tab.remove_all(command)
         cron = self.normal_tab.new(command=command)
-        cron.hour.every(1)
+        cron.minute.on(0)
 
 
 if __name__ == '__main__':
