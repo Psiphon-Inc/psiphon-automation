@@ -810,4 +810,25 @@ ag.shutdown_instances()
 # Then wait for instances to shut down
 ag.delete()
 lc.delete()
+
+#
+# Updating the AMI
+#
+
+new_image_id = <AMI ID>
+
+old_lc_name = lc.name
+
+lc = LaunchConfiguration(name=launch_config_name,
+                         image_id=new_image_id,
+                         instance_type=instance_type,
+                         key_name=key_name,
+                         security_groups=[security_group],
+                         instance_monitoring=True)
+conn.create_launch_configuration(lc)
+
+ag.launch_config_name = lc.name
+ag.update()
+
+conn.delete_launch_configuration(old_lc_name)
 ```
