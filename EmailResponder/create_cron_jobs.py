@@ -35,6 +35,7 @@ class CronCreator(object):
     def go(self):
         self._maintenance_jobs()
         self._blacklist_jobs()
+        self._instance_initialization_jobs()
         self.normal_tab.write()
         self.mail_tab.write()
 
@@ -55,10 +56,18 @@ class CronCreator(object):
         cron = self.normal_tab.new(command=command)
         cron.minute.every(5)
 
+        # Update source
         command = "cd /home/ubuntu/psiphon-circumvention-system/EmailResponder && /usr/bin/hg pull -u && /bin/sh install.sh &>/dev/null"
         self.normal_tab.remove_all(command)
         cron = self.normal_tab.new(command=command)
         cron.minute.on(0)
+
+    def _instance_initialization_jobs(self):
+        # If this directory isn't removed it will mess up metrics reporting
+        command = 'sudo rm -rf /var/tmp/aws-mon/'
+        self.normal_tab.remove_all(command)
+        cron = self.normal_tab.new(command=command)
+        cron.every_reboot()
 
 
 if __name__ == '__main__':
