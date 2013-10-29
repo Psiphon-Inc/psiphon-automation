@@ -18,6 +18,7 @@
 import os
 import errno
 import hashlib
+import urllib
 
 
 from boto.s3.connection import S3Connection
@@ -55,8 +56,11 @@ def get_s3_cached_file(cache_dir, bucketname, bucket_filename):
     key = bucket.get_key(bucket_filename)
     etag = key.etag.strip('"').lower()
 
-    # We store the cached file with the bucket name as the filename
-    cache_path = os.path.join(cache_dir, bucketname+bucket_filename)
+    # We store the cached file with the bucket name as the filename.
+    # URL encoding the filename is a bit of a hack, but is good enough for our
+    # purposes.
+    cache_filename = urllib.quote_plus(bucketname+bucket_filename)
+    cache_path = os.path.join(cache_dir, cache_filename)
 
     # Check if the file exists. If so, check if it's stale.
     if os.path.isfile(cache_path):
