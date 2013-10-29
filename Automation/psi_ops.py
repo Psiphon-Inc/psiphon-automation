@@ -427,6 +427,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 sponsor.website_banner_link = None
             self.version = '0.22'
         if cmp(parse_version(self.version), parse_version('0.23')) < 0:
+            self.__automation_bucket = None
             self.version = '0.23'
 
     def initialize_plugins(self):
@@ -440,11 +441,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             Sponsors:               %d
             Channels:               %d
             Twitter Campaigns:      %d
-            Email Config Location:  %d
+            Email Campaigns:        %d
             Total Campaigns:        %d
             Hosts:                  %d
             Servers:                %d
-            Email Server:           %s
+            Automation Bucket:      %s
             Stats Server:           %s
             Windows Client Version: %s %s
             Android Client Version: %s %s
