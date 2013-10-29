@@ -53,9 +53,9 @@ class MailResponder:
 
         try:
             # Note that json.load reads in unicode strings.
-            # TODO: Determine if this is significantly slow; if it is, cache S3 conf.
-            self._conf = json.loads(s3_helpers.get_s3_string(settings.CONFIG_S3_BUCKET,
-                                                             settings.CONFIG_S3_KEY))
+            self._conf = json.loads(s3_helpers.get_s3_cached_file(settings.ATTACHMENT_CACHE_DIR,
+                                                                  settings.CONFIG_S3_BUCKET,
+                                                                  settings.CONFIG_S3_KEY).read())
 
             # Do some validation
             for item in self._conf:

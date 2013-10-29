@@ -33,7 +33,8 @@ def get_s3_cached_file(cache_dir, bucketname, bucket_filename):
     given filename.
     This function checks if the file has already been downloaded. If it has,
     it checks that the checksum still matches the file in S3. If the file doesn't
-    exist, or if it the checksum doesn't match, the
+    exist, or if it the checksum doesn't match, the file is downloaded and
+    cached to disk.
     '''
 
     # Make the cache dir, if it doesn't exist
