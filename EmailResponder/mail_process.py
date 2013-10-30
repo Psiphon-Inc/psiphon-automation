@@ -31,7 +31,7 @@ from boto.exception import BotoServerError
 import settings
 import sendmail
 import blacklist
-import s3_helpers
+import aws_helpers
 
 
 class MailResponder:
@@ -53,9 +53,9 @@ class MailResponder:
 
         try:
             # Note that json.load reads in unicode strings.
-            self._conf = json.loads(s3_helpers.get_s3_cached_file(settings.ATTACHMENT_CACHE_DIR,
-                                                                  settings.CONFIG_S3_BUCKET,
-                                                                  settings.CONFIG_S3_KEY).read())
+            self._conf = json.loads(aws_helpers.get_s3_cached_file(settings.ATTACHMENT_CACHE_DIR,
+                                                                   settings.CONFIG_S3_BUCKET,
+                                                                   settings.CONFIG_S3_KEY).read())
 
             # Do some validation
             for item in self._conf:
@@ -106,9 +106,9 @@ class MailResponder:
                 attachments = []
                 for attachment_info in conf['attachments']:
                     bucketname, bucket_filename, attachment_filename = attachment_info
-                    attachments.append((s3_helpers.get_s3_attachment(settings.ATTACHMENT_CACHE_DIR,
-                                                                     bucketname,
-                                                                     bucket_filename),
+                    attachments.append((aws_helpers.get_s3_attachment(settings.ATTACHMENT_CACHE_DIR,
+                                                                      bucketname,
+                                                                      bucket_filename),
                                         attachment_filename))
 
             extra_headers = {'Reply-To': self.requested_addr}
@@ -393,5 +393,14 @@ if __name__ == '__main__':
     else:
         syslog.syslog(syslog.LOG_INFO,
                       'success: %s: %fs' % (requested_addr, time.time()-starttime))
+
+        aws_helpers.put_cloudwatch_metric_data('response_sent',
+                                               1,
+                                               'Count')
+
+        aws_helpers.put_cloudwatch_metric_data(requested_addr,
+                                               1,
+                                               'Count')
+
 
     exit(0)

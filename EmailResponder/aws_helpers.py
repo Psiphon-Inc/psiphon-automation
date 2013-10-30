@@ -21,6 +21,10 @@ import hashlib
 import urllib
 
 
+#
+# S3
+#
+
 from boto.s3.connection import S3Connection
 
 
@@ -90,3 +94,62 @@ def get_s3_string(bucketname, bucket_filename):
     bucket = conn.get_bucket(bucketname, validate=False)
     key = bucket.get_key(bucket_filename)
     return key.get_contents_as_string()
+
+
+#
+# CloudWatch
+#
+
+from boto.ec2 import EC2Connection
+from boto.ec2.cloudwatch import CloudWatchConnection
+import httplib
+
+
+_instance_id = None
+_autoscaling_group = None
+
+
+def _get_instance_id():
+    global _instance_id
+    if not _instance_id:
+        # Get the current instace ID. This IP address is magical.
+        httpconn = httplib.HTTPConnection('169.254.169.254')
+        httpconn.request('GET', '/latest/meta-data/instance-id')
+        _instance_id = httpconn.getresponse().read()
+
+    return _instance_id;
+
+
+def _get_autoscaling_group():
+    '''
+    Returns None if the current instance is not in an autoscaling group.
+    '''
+
+    global _autoscaling_group
+    if not _autoscaling_group:
+        # Get the autoscaling group name
+        ec2conn = EC2Connection()
+        tags = ec2conn.get_all_tags({ 'key': 'aws:autoscaling:groupName',
+                                      'resource-id': _get_instance_id() })
+        _autoscaling_group = tags[0].value if tags else None
+
+    return _autoscaling_group
+
+
+def put_cloudwatch_metric_data(name, value, unit,
+                               use_autoscaling_group=True,
+                               namespace='Psiphon/MailResponder'):
+    # TODO: Make this more efficient? There are some uses of this function that
+    # call it multiple times in succession -- should there be a batch mode?
+
+    dimensions = None
+    if use_autoscaling_group:
+        autoscaling_group = _get_autoscaling_group()
+        dimensions = { 'AutoScalingGroupName': autoscaling_group } if autoscaling_group else None
+
+    cloudwatch = CloudWatchConnection()
+    cloudwatch.put_metric_data(namespace,
+                               name,
+                               value,
+                               unit=unit,
+                               dimensions=dimensions)
