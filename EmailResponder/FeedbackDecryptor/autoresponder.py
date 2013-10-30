@@ -34,7 +34,7 @@ import email_validator
 
 # Make EmailResponder modules available
 sys.path.append('..')
-import s3_helpers
+import aws_helpers
 
 
 _SLEEP_TIME_SECS = 60
@@ -266,12 +266,12 @@ def _get_response_content(response_id, diagnostic_info):
     if response_id == 'download_new_version_links':
         pass
     elif response_id == 'download_new_version_attachments':
-        fp_windows = s3_helpers.get_s3_attachment('attachments',
-                                                  bucketname,
-                                                  psi_ops_helpers.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME)
-        fp_android = s3_helpers.get_s3_attachment('attachments',
-                                                  bucketname,
-                                                  psi_ops_helpers.DOWNLOAD_SITE_ANDROID_BUILD_FILENAME)
+        fp_windows = aws_helpers.get_s3_attachment('attachments',
+                                                   bucketname,
+                                                   psi_ops_helpers.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME)
+        fp_android = aws_helpers.get_s3_attachment('attachments',
+                                                   bucketname,
+                                                   psi_ops_helpers.DOWNLOAD_SITE_ANDROID_BUILD_FILENAME)
         attachments = [(fp_windows, psi_ops_helpers.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME),
                        (fp_android, psi_ops_helpers.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME)]
     else:
@@ -283,6 +283,26 @@ def _get_response_content(response_id, diagnostic_info):
         'body_html': body_html,
         'attachments': attachments
     }
+
+
+def _analyze_diagnostic_info(diagnostic_info):
+    '''
+    Determines what response should be sent based on `diagnostic_info` content.
+    Returns a list of response IDs.
+    Returns None if no response should be sent.
+    '''
+
+    # We don't send a response to Google Play Store clients
+    if utils.coalesce(diagnostic_info,
+                      ['DiagnosticInfo', 'SystemInformation', 'isPlayStoreBuild']):
+        return None
+
+    responses = ['download_new_version_links',
+                 # Disabling attachment responses for now. Not sure if
+                 # it's a good idea. Note that it needs to be tested.
+                 # 'download_new_version_attachments',
+                 ]
+    return responses
 
 
 def go():
@@ -303,13 +323,10 @@ def go():
         if _check_and_add_address_blacklist(reply_info['address']):
             continue
 
-        # Some day we'll do fancy analysis.
-        #responses = _analyze_diagnostic_info(diagnostic_info)
-        responses = ['download_new_version_links',
-                     # Disabling attachment responses for now. Not sure if
-                     # it's a good idea. Note that it needs to be tested.
-                     # 'download_new_version_attachments',
-                     ]
+        responses = _analyze_diagnostic_info(diagnostic_info)
+
+        if not responses:
+            continue
 
         logger.log('Sending feedback response')
 

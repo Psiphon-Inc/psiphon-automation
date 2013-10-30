@@ -408,6 +408,7 @@ def update_locations(zenoss_hosts, zenapi, mapped_locations):
 
 ####################################################
 if __name__ == "__main__":
+    print "Starting Zenoss Monitoring at: %s" % (datetime.datetime.now())
     start_time = time.time()
     # Open the db and load psiphon hosts as 'hosts'
     with open(PSI_OPS_DB_FILENAME) as file:

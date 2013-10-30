@@ -30,6 +30,7 @@ import subprocess
 import shlex
 import textwrap
 import datetime
+import httplib
 from boto.ses.connection import SESConnection
 
 import settings
@@ -219,6 +220,25 @@ def get_exception_info():
         return 'Exception files count: (not gathering)'
 
 
+def get_instance_info():
+    httpconn = httplib.HTTPConnection('169.254.169.254')
+    httpconn.request('GET', '/latest/meta-data/instance-id')
+    instance_id = httpconn.getresponse().read()
+    httpconn.request('GET', '/latest/meta-data/instance-type')
+    instance_type = httpconn.getresponse().read()
+    httpconn.request('GET', '/latest/meta-data/ami-id')
+    ami_id = httpconn.getresponse().read()
+    return textwrap.dedent(
+               u'''
+                 Instance ID:   %(instance_id)s
+                 Instance Type: %(instance_type)s
+                 AMI ID:        %(ami_id)s
+               ''' % {'instance_id': instance_id,
+                      'instance_type': instance_type,
+                      'ami_id': ami_id,
+                      })
+
+
 if __name__ == '__main__':
 
     # We want to process the most recently rotated file (so that we're processing
@@ -237,15 +257,17 @@ if __name__ == '__main__':
     email_body = '<pre>'
 
     email_body += loginfo
-    email_body += '\n\n\n'
+    email_body += '\n\n'
     email_body += 'Postfix queue counts\n----------------------\n' + queue_check
-    email_body += '\n\n\n'
+    email_body += '\n\n'
     email_body += get_send_info()
-    email_body += '\n\n\n'
+    email_body += '\n\n'
     email_body += get_exception_info()
-    email_body += '\n\n\n'
+    email_body += '\n\n'
     email_body += 'SES quota info\n----------------------\n' + get_ses_quota()
-    email_body += '\n\n\n'
+    email_body += '\n\n'
+    email_body += 'Instance info\n----------------------\n' + get_instance_info()
+    email_body += '\n\n'
     email_body += 'Logwatch Basic\n----------------------\n' + logwatch_basic
 
     email_body += '</pre>'

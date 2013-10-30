@@ -121,7 +121,7 @@ class WindowsSystem(Base):
         obj.net_original_internet_conn_offline = coalesce(base, 'internetConnectionOffline')
         obj.net_original_internet_ras_installed = coalesce(base, 'internetRASInstalled')
 
-        base = coalesce(diagnostic_info, ('DiagnosticInfo', 'SystemInformation', 'NetworkInfo', 'Original', 'Proxy')) or []
+        base = coalesce(diagnostic_info, ('DiagnosticInfo', 'SystemInformation', 'NetworkInfo', 'Original', 'Proxy'), [])
         # There's an array of proxy info, typically one per network connection.
         # We don't need to export all of them, so we'll take the one that doesn't
         # have a named network connection.
@@ -189,7 +189,10 @@ class UserFeedback(Base):
         if coalesce(diagnostic_info, ('Metadata', 'platform')) != 'windows':
             return None
 
-        results = coalesce(diagnostic_info, ('Feedback', 'Survey', 'results')) or []
+        results = coalesce(diagnostic_info, ('Feedback', 'Survey', 'results'))
+
+        if not results:
+            return None
 
         connectivity = filter(lambda r: coalesce(r, 'title') == 'Connectivity', results)
         speed = filter(lambda r: coalesce(r, 'title') == 'Speed', results)
@@ -199,6 +202,16 @@ class UserFeedback(Base):
         obj.connectivity = coalesce(connectivity[0], 'answer') if connectivity else None
         obj.speed = coalesce(speed[0], 'answer') if speed else None
         obj.compatibility = coalesce(compatibility[0], 'answer') if compatibility else None
+
+        # If the user was never able to connect to a server, then this feedback
+        # can't be considered to be for a particular server. But if the user
+        # has been (or is) connected to a server, we'll use the one they last
+        # connected to.
+        diagnostic_history = coalesce(diagnostic_info, ('DiagnosticInfo', 'DiagnosticHistory'), [])
+        connected_msg = 'ConnectedServer' if coalesce(diagnostic_info, ('Metadata', 'platform')) != 'windows' else 'ConnectingServer'
+        connected_entries = [entry for entry in diagnostic_history if coalesce(entry, 'msg') == connected_msg]
+        if connected_entries:
+            obj.server_id = coalesce(connected_entries[-1], ('data', 'ipAddress'))
 
         return obj
 
@@ -230,6 +243,17 @@ class AndroidSystem(Base):
         obj.psiphon_info_sponsorID = coalesce(base, ('PsiphonInfo', 'SPONSOR_ID'))
         obj.psiphon_info_propagationChannelID = coalesce(base, ('PsiphonInfo', 'PROPAGATION_CHANNEL_ID'))
         obj.psiphon_info_clientVersion = coalesce(base, ('PsiphonInfo', 'CLIENT_VERSION'))
+
+        BROWSER_ONLY_STATUS_ID = 'psiphon_running_browser_only'
+        CONNECTION_STATUS_IDS = (BROWSER_ONLY_STATUS_ID, 'psiphon_running_whole_device')
+        connection_log_ids = [coalesce(s, 'id') for s in coalesce(diagnostic_info,
+                                                                  ('DiagnosticInfo', 'StatusHistory'),
+                                                                  default_value=[],
+                                                                  required_types=(list, tuple))
+                              if coalesce(s, 'id') in CONNECTION_STATUS_IDS]
+        if connection_log_ids:
+            # The last connection log is the one we'll use as representative
+            obj.browserOnly = connection_log_ids[-1] == BROWSER_ONLY_STATUS_ID
 
         return obj
 
@@ -357,6 +381,11 @@ def _sanitize_session(session):
 
 
 def _process_diagnostic_info(diagnostic_info):
+    # We are not supporting old Android diagnostic data packages
+    if coalesce(diagnostic_info, ('Metadata', 'platform')) == 'android' \
+       and coalesce(diagnostic_info, ('Metadata', 'version'), 0, int) < 2:
+        return
+
     session = None
 
     try:
