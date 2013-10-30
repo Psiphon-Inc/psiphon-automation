@@ -44,16 +44,29 @@ class CronCreator(object):
         cron.minute.on(0)
         cron.hour.on(0)
 
+    @staticmethod
+    def _delete_commands(cron, command_id):
+        '''
+        Delete any pre-existing cron jobs with the given `command_id` as comment.
+        '''
+        [job.delete() for job in cron.find_comment(command_id)]
+
     def _blacklist_jobs(self):
+        command_id = 'Psiphon: blacklist clear'
         command = '/usr/bin/python %s' % os.path.join(self.dir, 'blacklist.py --clear-adhoc')
-        self.mail_tab.remove_all(command)
-        cron = self.mail_tab.new(command=command)
+
+        self._delete_commands(self.mail_tab, command_id)
+
+        cron = self.mail_tab.new(command=command, comment=command_id)
         self._make_daily(cron)
 
     def _maintenance_jobs(self):
+        command_id = 'Psiphon: put CloudWatch system metrics'
         command = "/usr/bin/perl /home/mail_responder/mon-put-instance-data.pl --disk-path=/ --mem-util --mem-used --mem-avail --swap-util --swap-used --disk-space-util --disk-space-used --disk-space-avail --from-cron --auto-scaling --aws-access-key-id=`/bin/sed -n 's/aws_access_key_id = \\(.*\\)/\\1/p' /etc/boto.cfg` --aws-secret-key=`/bin/sed -n 's/aws_secret_access_key = \\(.*\\)/\\1/p' /etc/boto.cfg`"
-        self.normal_tab.remove_all(command)
-        cron = self.normal_tab.new(command=command)
+
+        self._delete_commands(self.normal_tab, command_id)
+
+        cron = self.normal_tab.new(command=command, comment=command_id)
         cron.minute.every(5)
 
         # Update source
@@ -62,16 +75,27 @@ class CronCreator(object):
         # enough for this to be a big deal.
         # More efficient/complex methods here: http://stackoverflow.com/questions/8922787/mercurial-check-whether-last-pull-update-introduced-changes
         branch = 'default'
+
+        command_id = 'Psiphon: pull and update code'
         command = "cd /home/ubuntu/psiphon-circumvention-system/EmailResponder && /usr/bin/hg incoming && /usr/bin/hg pull && /usr/bin/hg up %s && /bin/sh install.sh &>/dev/null" % (branch,)
-        self.normal_tab.remove_all(command)
-        cron = self.normal_tab.new(command=command)
+
+        self._delete_commands(self.normal_tab, command_id)
+
+        # Do it every hour...
+        cron = self.normal_tab.new(command=command, comment=command_id)
         cron.minute.on(0)
+        # ...and on reboot
+        cron = self.normal_tab.new(command=command, comment=command_id)
+        cron.every_reboot()
 
     def _instance_initialization_jobs(self):
         # If this directory isn't removed it will mess up metrics reporting
+        command_id = 'Psiphon: delete cached instance info'
         command = 'sudo rm -rf /var/tmp/aws-mon/'
-        self.normal_tab.remove_all(command)
-        cron = self.normal_tab.new(command=command)
+
+        self._delete_commands(self.normal_tab, command_id)
+
+        cron = self.normal_tab.new(command=command, comment=command_id)
         cron.every_reboot()
 
 
