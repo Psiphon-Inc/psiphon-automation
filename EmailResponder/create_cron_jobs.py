@@ -35,6 +35,7 @@ class CronCreator(object):
     def go(self):
         self._maintenance_jobs()
         self._blacklist_jobs()
+        self._instance_initialization_jobs()
         self.normal_tab.write()
         self.mail_tab.write()
 
@@ -50,14 +51,28 @@ class CronCreator(object):
         self._make_daily(cron)
 
     def _maintenance_jobs(self):
-        # Disabled
-        return
-
-        # Clears the postfix message queue
-        command = "sudo postsuper -d ALL"
+        command = "/usr/bin/perl /home/mail_responder/mon-put-instance-data.pl --disk-path=/ --mem-util --mem-used --mem-avail --swap-util --swap-used --disk-space-util --disk-space-used --disk-space-avail --from-cron --auto-scaling --aws-access-key-id=`/bin/sed -n 's/aws_access_key_id = \\(.*\\)/\\1/p' /etc/boto.cfg` --aws-secret-key=`/bin/sed -n 's/aws_secret_access_key = \\(.*\\)/\\1/p' /etc/boto.cfg`"
         self.normal_tab.remove_all(command)
         cron = self.normal_tab.new(command=command)
-        self._make_daily(cron)
+        cron.minute.every(5)
+
+        # Update source
+        # It's inefficient to do hg incoming followed by hg pull, since there
+        # will be two downloads done. But our release branch doesn't change
+        # enough for this to be a big deal.
+        # More efficient/complex methods here: http://stackoverflow.com/questions/8922787/mercurial-check-whether-last-pull-update-introduced-changes
+        branch = 'default'
+        command = "cd /home/ubuntu/psiphon-circumvention-system/EmailResponder && /usr/bin/hg incoming && /usr/bin/hg pull && /usr/bin/hg up %s && /bin/sh install.sh &>/dev/null" % (branch,)
+        self.normal_tab.remove_all(command)
+        cron = self.normal_tab.new(command=command)
+        cron.minute.on(0)
+
+    def _instance_initialization_jobs(self):
+        # If this directory isn't removed it will mess up metrics reporting
+        command = 'sudo rm -rf /var/tmp/aws-mon/'
+        self.normal_tab.remove_all(command)
+        cron = self.normal_tab.new(command=command)
+        cron.every_reboot()
 
 
 if __name__ == '__main__':

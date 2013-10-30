@@ -135,12 +135,13 @@ def set_s3_bucket_contents(bucket, builds, remote_server_list):
     try:
         if builds:
             for (source_filename, target_filename) in builds:
-                put_file_to_key(bucket, target_filename, str(source_filename), _progress)
+                put_file_to_key(bucket, target_filename, str(source_filename), True, _progress)
 
         if remote_server_list:
             put_string_to_key(bucket,
                               DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME,
                               remote_server_list,
+                              True,
                               _progress)
 
     except:
@@ -174,13 +175,14 @@ def update_website(aws_account, bucket_id, custom_site, website_dir,
                     continue
                 file_path = os.path.abspath(os.path.join(root, name))
                 key_name = os.path.relpath(os.path.join(root, name), website_dir).replace('\\', '/')
-                put_file_to_key(bucket, key_name, file_path, _progress)
+                put_file_to_key(bucket, key_name, file_path, True, _progress)
 
         # Sponsors have optional custom banner images
         if website_banner_base64:
             put_string_to_key(bucket,
                               DOWNLOAD_SITE_SPONSOR_BANNER_KEY_NAME,
                               base64.b64decode(website_banner_base64),
+                              True,
                               _progress)
         else:
             # We need to make sure there's no old sponsor banner in the bucket.
@@ -192,6 +194,7 @@ def update_website(aws_account, bucket_id, custom_site, website_dir,
             put_string_to_key(bucket,
                               DOWNLOAD_SITE_SPONSOR_BANNER_LINK_KEY_NAME,
                               json.dumps(website_banner_link),
+                              True,
                               _progress)
         else:
             # We need to make sure there's no old sponsor banner link in the bucket.
@@ -208,6 +211,7 @@ def update_website(aws_account, bucket_id, custom_site, website_dir,
         put_string_to_key(bucket,
                           DOWNLOAD_SITE_QR_CODE_KEY_NAME,
                           qr_data,
+                          True,
                           _progress)
 
     except:
@@ -223,7 +227,15 @@ def update_website(aws_account, bucket_id, custom_site, website_dir,
     _fix_bucket_acl(bucket)
 
 
-def put_string_to_key(bucket, key_name, content, callback=None):
+def put_string_to_key_in_bucket(aws_account, bucket_id, key_name, content, is_public):
+    s3 = boto.s3.connection.S3Connection(
+            aws_account.access_id,
+            aws_account.secret_key)
+    bucket = s3.get_bucket(bucket_id)
+    put_string_to_key(bucket, key_name, content, is_public)
+    
+
+def put_string_to_key(bucket, key_name, content, is_public, callback=None):
     key = bucket.get_key(key_name)
     if key:
         etag = key.etag.strip('"').lower()
@@ -237,11 +249,14 @@ def put_string_to_key(bucket, key_name, content, callback=None):
     mimetype = mimetypes.guess_type(key_name)[0]
     if mimetype:
         key.set_metadata('Content-Type', mimetype)
-    key.set_contents_from_string(content, policy='public-read', cb=callback)
+
+    policy = 'public-read' if is_public else None
+
+    key.set_contents_from_string(content, policy=policy, cb=callback)
     key.close()
 
 
-def put_file_to_key(bucket, key_name, content_file, callback=None):
+def put_file_to_key(bucket, key_name, content_file, is_public, callback=None):
     """
     `content_file` can be a filename or a file object.
     """
@@ -252,7 +267,7 @@ def put_file_to_key(bucket, key_name, content_file, callback=None):
     else:
         content = content_file.read()
 
-    put_string_to_key(bucket, key_name, content, callback)
+    put_string_to_key(bucket, key_name, content, is_public, callback)
 
 
 def make_qr_code(url):
