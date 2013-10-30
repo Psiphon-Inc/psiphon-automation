@@ -18,22 +18,29 @@
 import os
 import errno
 import hashlib
+import urllib
+
 
 from boto.s3.connection import S3Connection
 
 
 def get_s3_attachment(attachment_cache_dir, bucketname, bucket_filename):
+    return get_s3_cached_file(attachment_cache_dir, bucketname, bucket_filename)
+
+
+def get_s3_cached_file(cache_dir, bucketname, bucket_filename):
     '''
-    Returns a file-type object for the Psiphon 3 executable in the requested
-    bucket with the given filename.
+    Returns a file-type object for the data in the requested bucket with the
+    given filename.
     This function checks if the file has already been downloaded. If it has,
     it checks that the checksum still matches the file in S3. If the file doesn't
-    exist, or if it the checksum doesn't match, the
+    exist, or if it the checksum doesn't match, the file is downloaded and
+    cached to disk.
     '''
 
-    # Make the attachment cache dir, if it doesn't exist
+    # Make the cache dir, if it doesn't exist
     try:
-        os.makedirs(attachment_cache_dir)
+        os.makedirs(cache_dir)
     except OSError as exc:
         if exc.errno == errno.EEXIST:
             pass
@@ -49,12 +56,15 @@ def get_s3_attachment(attachment_cache_dir, bucketname, bucket_filename):
     key = bucket.get_key(bucket_filename)
     etag = key.etag.strip('"').lower()
 
-    # We store the cached file with the bucket name as the filename
-    cache_path = os.path.join(attachment_cache_dir, bucketname+bucket_filename)
+    # We store the cached file with the bucket name as the filename.
+    # URL encoding the filename is a bit of a hack, but is good enough for our
+    # purposes.
+    cache_filename = urllib.quote_plus(bucketname+bucket_filename)
+    cache_path = os.path.join(cache_dir, cache_filename)
 
     # Check if the file exists. If so, check if it's stale.
     if os.path.isfile(cache_path):
-        cache_file = open(cache_path, 'r')
+        cache_file = open(cache_path, 'rb')
         cache_hex = hashlib.md5(cache_file.read()).hexdigest().lower()
 
         # Do the hashes match?
@@ -70,6 +80,13 @@ def get_s3_attachment(attachment_cache_dir, bucketname, bucket_filename):
 
     # Close the file and re-open for read-only
     cache_file.close()
-    cache_file = open(cache_path, 'r')
+    cache_file = open(cache_path, 'rb')
 
     return cache_file
+
+
+def get_s3_string(bucketname, bucket_filename):
+    conn = S3Connection()
+    bucket = conn.get_bucket(bucketname, validate=False)
+    key = bucket.get_key(bucket_filename)
+    return key.get_contents_as_string()
