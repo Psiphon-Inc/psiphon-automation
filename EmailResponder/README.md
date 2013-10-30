@@ -815,20 +815,29 @@ lc.delete()
 # Updating the AMI
 #
 
+# Determine the Autoscaling Group we used.
+print(conn.get_all_groups())
+ag_index = <figure out from all LCs>
+ag = conn.get_all_groups()[ag_index]
+
+print(conn.get_all_launch_configurations())
+old_lc_index = <figure out from all LCs>
+
+old_lc = conn.get_all_launch_configurations()[old_lc_index]
+
 new_image_id = <AMI ID>
+new_lc_name = <different from old LC name>
 
-old_lc_name = lc.name
-
-lc = LaunchConfiguration(name=launch_config_name,
+lc = LaunchConfiguration(name=new_lc_name,
                          image_id=new_image_id,
-                         instance_type=instance_type,
-                         key_name=key_name,
-                         security_groups=[security_group],
-                         instance_monitoring=True)
+                         instance_type=old_lc.instance_type,
+                         key_name=old_lc.key_name,
+                         security_groups=old_lc.security_groups,
+                         instance_monitoring=old_lc.instance_monitoring)
 conn.create_launch_configuration(lc)
 
 ag.launch_config_name = lc.name
 ag.update()
 
-conn.delete_launch_configuration(old_lc_name)
+conn.delete_launch_configuration(old_lc.name)
 ```
