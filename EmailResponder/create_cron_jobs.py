@@ -61,7 +61,7 @@ class CronCreator(object):
         # will be two downloads done. But our release branch doesn't change
         # enough for this to be a big deal.
         # More efficient/complex methods here: http://stackoverflow.com/questions/8922787/mercurial-check-whether-last-pull-update-introduced-changes
-        branch = 'elastic-mail-responder'
+        branch = 'default'
         command = "cd /home/ubuntu/psiphon-circumvention-system/EmailResponder && /usr/bin/hg incoming && /usr/bin/hg pull && /usr/bin/hg up %s && /bin/sh install.sh &>/dev/null" % (branch,)
         self.normal_tab.remove_all(command)
         cron = self.normal_tab.new(command=command)
