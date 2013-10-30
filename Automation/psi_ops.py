@@ -1981,10 +1981,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
                     campaign.log('configuring email')
 
-        psi_ops_s3.put_string_to_key(self.__automation_bucket,
-                                     EMAIL_RESPONDER_CONFIG_BUCKET_KEY,
-                                     json.dumps(emails, indent=2),
-                                     False)  # not public
+        psi_ops_s3.put_string_to_key_in_bucket(self.__aws_account,
+                                               self.__automation_bucket,
+                                               EMAIL_RESPONDER_CONFIG_BUCKET_KEY,
+                                               json.dumps(emails, indent=2),
+                                               False)  # not public
 
     def add_server_version(self):
         assert(self.is_locked)
@@ -2112,6 +2113,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def set_automation_bucket(self, bucket):
         assert(self.is_locked)
         self.__automation_bucket = bucket
+        self.__deploy_email_config_required = True
         # TODO: Log the change? Where?
 
     def set_stats_server_account(self, ip_address, ssh_port,

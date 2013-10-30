@@ -227,6 +227,14 @@ def update_website(aws_account, bucket_id, custom_site, website_dir,
     _fix_bucket_acl(bucket)
 
 
+def put_string_to_key_in_bucket(aws_account, bucket_id, key_name, content, is_public):
+    s3 = boto.s3.connection.S3Connection(
+            aws_account.access_id,
+            aws_account.secret_key)
+    bucket = s3.get_bucket(bucket_id)
+    put_string_to_key(bucket, key_name, content, is_public)
+    
+
 def put_string_to_key(bucket, key_name, content, is_public, callback=None):
     key = bucket.get_key(key_name)
     if key:
