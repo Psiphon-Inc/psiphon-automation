@@ -147,8 +147,10 @@ def launch_new_server(do_account, default_params=True, public_image=True):
 
     # Hostname generator
     image['name'] = generate_random_string(prefix=('do-' + str(image['region_id']) + str(image['size_id'])))
-    resp = do_api.create_new_droplet(image) # {u'status': u'OK', u'droplet': {u'event_id': 8547644, u'image_id': 12573, u'size_id': 63, u'id': 634684, u'name': u'do-263xruboaph'}}
+    resp = do_api.create_new_droplet(image)
     #TODO: verify droplet is powered on.  Wait a minute for IP and check
+    print 'Waiting for the droplet to power on'
+    time.sleep(30)
     # get more details about droplet
     droplet = do_api.droplet_show(resp['droplet']['id'])['droplet']
     provider_id = 'do-' + str(droplet['id'])
@@ -161,4 +163,5 @@ def launch_new_server(do_account, default_params=True, public_image=True):
             base_ssh_port, 'root', new_root_password, base_stats_username,
             new_stats_password, datacenter_name, region)
 
-
+if __name__ == "__main__":
+    print launch_new_server(_DO_ACCOUNT)
