@@ -1588,6 +1588,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             upgrade_url,
             get_new_version_url,
             get_new_version_email,
+            faq_url,
+            privacy_policy_url,
             platforms=None,
             test=False):
         if not platforms:
@@ -1640,6 +1642,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         upgrade_url,
                         get_new_version_url,
                         get_new_version_email,
+                        faq_url,
+                        privacy_policy_url,
                         self.__client_versions[platform][-1].version if self.__client_versions[platform] else 0,
                         propagation_channel.propagator_managed_upgrades,
                         test) for platform in platforms]
@@ -1777,12 +1781,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     s3_upgrade_resource_name = client_build_filenames[platform] + psi_ops_s3.DOWNLOAD_SITE_UPGRADE_SUFFIX
 
                     upgrade_url = psi_ops_s3.get_s3_bucket_resource_url(campaign.s3_bucket_name, s3_upgrade_resource_name)
-                    get_new_version_url = psi_ops_s3.get_s3_bucket_home_page_url(campaign.s3_bucket_name)
+                    get_new_version_url = psi_ops_s3.get_s3_bucket_download_page_url(campaign.s3_bucket_name)
 
                     assert(self.__default_email_autoresponder_account)
                     get_new_version_email = self.__default_email_autoresponder_account.email_address
                     if type(campaign.account) == EmailPropagationAccount:
                         get_new_version_email = campaign.account.email_address
+
+                    faq_url = psi_ops_s3.get_s3_bucket_faq_url(campaign.s3_bucket_name)
+                    privacy_policy_url = psi_ops_s3.get_s3_bucket_privacy_policy_url(campaign.s3_bucket_name)
 
                     build_filename = self.build(
                                         propagation_channel.name,
@@ -1792,6 +1799,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         upgrade_url,
                                         get_new_version_url,
                                         get_new_version_email,
+                                        faq_url,
+                                        privacy_policy_url,
                                         [platform])[0]
 
                     upgrade_filename = self.__make_upgrade_package_from_build(build_filename)

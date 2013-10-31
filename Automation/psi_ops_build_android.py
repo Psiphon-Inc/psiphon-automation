@@ -102,6 +102,8 @@ def write_embedded_values(propagation_channel_id,
                           upgrade_url,
                           get_new_version_url,
                           get_new_version_email,
+                          faq_url,
+                          privacy_policy_url,
                           propagator_managed_upgrades,
                           ignore_system_server_list=False):
     utils.set_embedded_values(client_version,
@@ -114,8 +116,8 @@ def write_embedded_values(propagation_channel_id,
                               upgrade_signature_public_key,
                               get_new_version_url,
                               get_new_version_email,
-                              get_new_version_url + '#other_frequently_asked_questions',
-                              get_new_version_url + '#what_user_information_does_psiphon_3_collect',
+                              faq_url,
+                              privacy_policy_url,
                               propagator_managed_upgrades,
                               propagation_channel_id,
                               sponsor_id,
@@ -157,6 +159,8 @@ def build_client(
         upgrade_url,
         get_new_version_url,
         get_new_version_email,
+        faq_url,
+        privacy_policy_url,
         version,
         propagator_managed_upgrades,
         test=False):
@@ -187,6 +191,8 @@ def build_client(
             upgrade_url,
             get_new_version_url,
             get_new_version_email,
+            faq_url,
+            privacy_policy_url,
             propagator_managed_upgrades,
             ignore_system_server_list=test)
 
@@ -231,6 +237,8 @@ def build_library(
         info_link_url,
         version):
 
+    # NOTE: intentionally left broken until we actually use this again.
+
     try:
         # overwrite embedded values source file
         write_embedded_values(
@@ -241,7 +249,14 @@ def build_library(
             remote_server_list_signature_public_key,
             feedback_encryption_public_key,
             remote_server_list_url,
-            info_link_url)
+            info_link_url,
+            upgrade_signature_public_key,
+            upgrade_url,
+            get_new_version_url,
+            get_new_version_email,
+            faq_url,
+            privacy_policy_url,
+            propagator_managed_upgrades)
 
         # TODO: clean the PSIPHON_LIB_SOURCE_ROOT directory of files that are not from source control
 
