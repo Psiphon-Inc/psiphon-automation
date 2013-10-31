@@ -25,6 +25,7 @@ import time
 import psi_utils
 
 import digitalocean.DigitalOceanAPI
+import digitalocean_credentials
 
 # A default public image
 _PUBLIC_IMAGE = {'distribution': 'Debian', 'slug': None, 'public': True, 'id': 12573, 'name': 'Debian 6.0 x64'}
@@ -32,8 +33,7 @@ _PUBLIC_IMAGE = {'distribution': 'Debian', 'slug': None, 'public': True, 'id': 1
 # Region : Amsterdam, Image: Debian 6 x64, Size: 1GB
 _DEFAULT_IMAGE_PARAMS = {'region_id': 2, 'image_id': 12573, 'size_id': 63}
 
-_DO_ACCOUNT = { 'client_id' : '2660a2459959e914df14c48de6a5d339',
-                'api_key' : '939c648586b7249c77b2ec3579ab3ee4'}
+_DO_ACCOUNT = digitalocean_credentials.account
 
 
 def check_default_image(do_api, default_image):
