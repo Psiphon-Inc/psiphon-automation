@@ -278,7 +278,7 @@ function setLanguage(langName, args)
     var RTL_LANGS = ['ar', 'fa', 'he'];
 
     var url = e.currentTarget.href;
-    url = url.replace(/\/([^\/\.]+)\.html/, '/'+currentLangName+'.html');
+    url = url.replace(/\/en\//, '/'+currentLangName+'/');
 
     // If this is a mailto link, we should bail.
     if (url === e.currentTarget.href) {{

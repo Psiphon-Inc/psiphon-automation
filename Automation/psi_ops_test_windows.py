@@ -224,6 +224,8 @@ def test_server(ip_address, capabilities, web_server_port, web_server_secret, en
                                     ('','',''), # upgrade_url
                                     '',         # get_new_version_url
                                     '',         # get_new_version_email
+                                    '',         # faq_url
+                                    '',         # privacy_policy_url
                                     version,
                                     False,
                                     True)
