@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2011, Psiphon Inc.
+# Copyright (c) 2013, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -26,7 +26,7 @@ import psi_utils
 import psi_ssh
 
 import digitalocean.DigitalOceanAPI
-import digitalocean_credentials
+
 
 # A default public image
 _PUBLIC_IMAGE = {'distribution': 'Debian', 'slug': None, 'public': True, 
@@ -36,7 +36,6 @@ _PUBLIC_IMAGE = {'distribution': 'Debian', 'slug': None, 'public': True,
 # Region : Amsterdam, Image: Debian 6 x64, Size: 1GB
 _DEFAULT_IMAGE_PARAMS = {'region_id': 2, 'image_id': 12573, 'size_id': 63}
 
-digitalocean_account = digitalocean_credentials.do_account
 
 def check_default_image(do_api, default_image):
     images = do_api.get_all_images()
@@ -148,14 +147,24 @@ def generate_random_string(prefix=None, size=8):
         prefix=''
     return '%s%s' % (prefix, ''.join(random.choice(string.ascii_lowercase) for x in range(size)))
 
-def launch_new_server(digitalocean_account, default_params=True, use_public_image=False):
+def refresh_credentials(digitalocean_account, ip_address, new_root_password, new_stats_password, pkey):
+    ssh = psi_ssh.make_ssh_session(ip_address, digitalocean_account.base_ssh_port, 'root', None, None, pkey)
+    ssh.exec_command('echo "root:%s" | chpasswd' % (new_root_password,))
+    ssh.exec_command('echo "%s:%s" | chpasswd' % (digitalocean_account.base_stats_username, new_stats_password))
+    ssh.exec_command('rm /etc/ssh/ssh_host_*')
+    ssh.exec_command('rm -rf /root/.ssh')
+    ssh.exec_command('dpkg-reconfigure openssh-server')
+    return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
+
+
+def launch_new_server(digitalocean_account, params=None, use_public_image=False):
     
-    image = {'name': None,
-             'size_id': None,
-             'image_id': None,
-             'region_id': None, 
-             'ssh_key_ids': [],
-            }
+    image_params = {'name': None,
+                    'size_id': None,
+                    'image_id': None,
+                    'region_id': None, 
+                    'ssh_key_ids': [],
+                    }
     
     try:
         new_root_password = psi_utils.generate_password()
@@ -163,49 +172,52 @@ def launch_new_server(digitalocean_account, default_params=True, use_public_imag
         do_api = digitalocean.DigitalOceanAPI.DigitalOceanAPI(digitalocean_account.client_id,
                                                               digitalocean_account.api_key)
         
-        if default_params:
-            image = dict(image.items() + _DEFAULT_IMAGE_PARAMS.items())
+        if params:
+            image = dict(image_params.items() + params.items())
+        else:
+            image = dict(image_params.items() + _DEFAULT_IMAGE_PARAMS.items())
         
         if use_public_image:
             result = check_default_image(do_api, _PUBLIC_IMAGE)
             if not result:
-                print 'Could not find default public image\n'
-                sys.exit()
+                raise 'Could not find default public image\n'
             else:
                 image['image_id'] = _PUBLIC_IMAGE['id']
         else:
             image['image_id'] = digitalocean_account.base_id
         
-        # Check region availability
-        # TODO: weighted choice
         regions = do_api.get_all_regions()
+        if image['region_id']:
+            # Check region availability
+            if image['region_id'] not in [region['id'] for region in regions]:
+                raise('Region not available')
+        else:
+            image['reigon_id'] = random.choice([region['id'] for region in regions])
+
         for r in regions:
-            if not image['region_id']:
-                print 'No region defined'
-                #sys.exit()
             if image['region_id'] == r['id']:
                 print 'Using region: %s' % (r['name'])
                 break
         
-        # Check the size of the image to be launched
+        if not image['size_id']:
+            image['size_id'] = _DEFAULT_IMAGE_PARAMS['size_id']
+        
         # get a list of image sizes and see if the size is available (maybe some checks)
         droplet_sizes = do_api.get_all_droplet_sizes()
-        for r in droplet_sizes:
-            if not image['size_id']:
-                print 'no size defined, setting default'
-                sys.exit()
-            if image['size_id'] == r['id']:
-                print 'Droplet Image size found'
-                break
-
-        # Hostname generator
-        image['name'] = generate_random_string(prefix=('do-' + str(image['region_id']) + str(image['size_id'])))
-        image['ssh_key_ids'] = digitalocean_account.ssh_key_template_id
+        if image['size_id'] not in [size['id'] for size in droplet_sizes]:
+            raise('Droplet size not available')
+                    
+        if not image['name']:
+            # Hostname generator
+            image['name'] = generate_random_string(prefix=('do-' + str(image['region_id']) + str(image['size_id']) + '-'))
+    
+        if not image['ssh_key_ids']:
+            image['ssh_key_ids'] = digitalocean_account.ssh_key_template_id
         
         print 'Launching %s, using image %s' % (image['name'], str(image['image_id']))
         resp = do_api.create_new_droplet(image)
-        print resp
-        print 'Waiting for the droplet to power on'
+        wait_on_event_completion(do_api, resp['droplet']['event_id'])
+        print 'Waiting for the droplet to power on and get an IP address'
         time.sleep(30)
         # get more details about droplet
         droplet = do_api.droplet_show(resp['droplet']['id'])['droplet']
@@ -217,16 +229,20 @@ def launch_new_server(digitalocean_account, default_params=True, use_public_imag
         provider_id = 'do-' + str(droplet['id'])
         region = get_datacenter_region(droplet['region_id'])
         datacenter_name = next((r for r in regions if r['id'] == droplet['region_id']), None)['name']
-        base_stats_username = generate_random_string(prefix='stats-')
+        
+        new_host_publickey = refresh_credentials(digitalocean_account, droplet['ip_address'], 
+                                                new_root_password, new_stats_password, image['ssh_key_ids'])
         
     except Exception as e:
         print 'Exception %s' % (str(e))
         raise
     
     return (image['name'], None, provider_id, droplet['ip_address'],
-            digitalocean_account.base_ssh_port, 'root', new_root_password, 
+            digitalocean_account.base_ssh_port, 'root', 
+            new_root_password, ' '.join(new_host_public_key.split(' ')[:2]),
             digitalocean_account.base_stats_username, new_stats_password, 
             datacenter_name, region)
 
 if __name__ == "__main__":
     print launch_new_server(digitalocean_account)
+    
