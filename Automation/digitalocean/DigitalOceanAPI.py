@@ -52,11 +52,6 @@ class DigitalOceanAPI():
         resp = self._get_content(self.api_requests['sizes'], self.credentials)
         return resp['sizes']
     
-    def show_running_droplets(self):
-        resp = self.get_running_droplets()
-        print 'Running Droplets: %s' % (len(resp))
-        print '%s' % ([l for l in resp])
-    
     def show_all_regions(self):
         resp = self.get_all_regions()
         print 'Regions Available:\n'
@@ -78,11 +73,6 @@ class DigitalOceanAPI():
     def create_new_droplet(self, params):
         resp = self._get_content((self.api_requests['droplets'] + 'new'), 
                                   dict(self.credentials.items() + params.items()))
-        return resp
-
-    def droplet_destroy(self, droplet_id):
-        resp = self._get_content((self.api_requests['droplets'] + str(droplet_id) + 
-                                  '/destroy/'), self.credentials)
         return resp
 
     def droplet_show(self, droplet_id):
@@ -130,14 +120,14 @@ class DigitalOceanAPI():
                                   '/snapshot/'), dict(snapshot.items() + self.credentials.items()))
         return resp
     
-    def droplet_restore(self, droplet_id, params):
+    def droplet_restore(self, droplet_id, params=dict()):
         resp = self._get_content((self.api_requests['droplets'] + str(droplet_id) +
                                   '/restore/'), dict(self.credentials.items() + params.items()))
         return resp
     
     # takes rebuilds droplet with image_id
     # params = {'image_id': ''}
-    def droplet_rebuild(self, droplet_id, params):
+    def droplet_rebuild(self, droplet_id, params=dict()):
         resp = self._get_content((self.api_requests['droplets'] + str(droplet_id) +
                                   '/rebuild/'), dict(self.credentials.items() + params.items()))
         return resp
@@ -153,12 +143,12 @@ class DigitalOceanAPI():
         return resp
     
     # takes in str(), {'name': 'new_name'}
-    def droplet_rename(self, droplet_id, params):
+    def droplet_rename(self, droplet_id, params=dict()):
         resp = self._get_content((self.api_requests['droplets'] + str(droplet_id) +
                                   '/restore/'), dict(self.credentials.items() + params.items()))
         return resp
     
-    def droplet_destroy(self, droplet_id, params):
+    def droplet_destroy(self, droplet_id, params=dict()):
         resp = self._get_content((self.api_requests['droplets'] + str(droplet_id) +
                                   '/destroy/'), dict(self.credentials.items() + params.items()))
         return resp
