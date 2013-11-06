@@ -41,8 +41,9 @@ def check_default_image(do_api, default_image):
     images = do_api.get_all_images()
     return (default_image in images)
 
-def show_running_droplets(do_api=digitalocean.DigitalOceanAPI.DigitalOceanAPI(digitalocean_account.client_id,
-                                                                              digitalocean_account.api_key)):
+def show_running_droplets():
+        do_api=digitalocean.DigitalOceanAPI.DigitalOceanAPI(digitalocean_account.client_id,
+                                                            digitalocean_account.api_key)
         resp = do_api.get_running_droplets()
         print 'Running Droplets: %s' % (len(resp))
         print '%s' % ([l for l in resp])
@@ -64,9 +65,9 @@ def wait_on_event_completion(do_api, event_id, interval=10):
     print 'Event %s did not complete in time' % (str(event_id))
     return False
 
-def stop_droplet(droplet_id, 
-                 do_api=digitalocean.DigitalOceanAPI.DigitalOceanAPI(digitalocean_account.client_id,
-                                                                     digitalocean_account.api_key)):
+def stop_droplet(droplet_id):
+    do_api=digitalocean.DigitalOceanAPI.DigitalOceanAPI(digitalocean_account.client_id,
+                                                        digitalocean_account.api_key)
     print 'Powering down droplet: %s' % (droplet_id)
     droplet_off = check_response(do_api.droplet_power_off(droplet_id))
     if not wait_on_event_completion(do_api, droplet_off['event_id'], interval=60):
@@ -77,9 +78,9 @@ def stop_droplet(droplet_id,
             print 'Problem powering droplet off, droplet state: %s' % (str(droplet_state))
             raise Exception
 
-def start_droplet(droplet_id,
-                  do_api=digitalocean.DigitalOceanAPI.DigitalOceanAPI(digitalocean_account.client_id,
-                                                                      digitalocean_account.api_key)):
+def start_droplet(droplet_id):
+    do_api=digitalocean.DigitalOceanAPI.DigitalOceanAPI(digitalocean_account.client_id,
+                                                        digitalocean_account.api_key)
     print 'Powering on droplet: %s' % (droplet_id)
     droplet_state = check_response(do_api.droplet_power_on(droplet_id))
     if not wait_on_event_completion(do_api, droplet_state['event_id'], interval=60):

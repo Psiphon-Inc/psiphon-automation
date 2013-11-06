@@ -62,6 +62,11 @@ except ImportError as error:
     print error
 
 try:
+    import psi_digitalocean
+except ImportError as error:
+    print error
+
+try:
     import psi_elastichosts
 except ImportError as error:
     print error
@@ -219,6 +224,14 @@ LinodeAccount = psi_utils.recordtype(
     'base_tarball_path',
     default=None)
 
+DigitalOceanAccount = psi_utils.recordtype(
+    'DigitalOceanAccount',
+    'client_id, api_key, base_id, base_ip_address, base_ssh_port, ' +
+    'base_root_password, base_stats_username, base_host_public_key, ' +
+    'base_known_hosts_entry, base_rsa_private_key, base_rsa_public_key, ' +
+    'base_tarball_path, ssh_key_template_id',
+    default=None)
+
 ElasticHostsAccount = psi_utils.recordtype(
     'ElasticHostsAccount',
     'zone, uuid, api_key, base_drive_id, cpu, mem, base_host_public_key, ' +
@@ -291,6 +304,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__aws_account = AwsAccount()
         self.__provider_ranks = []
         self.__linode_account = LinodeAccount()
+        self.__digitalocean_account = DigitalOceanAccount()
         self.__elastichosts_accounts = []
         self.__deploy_implementation_required_for_hosts = set()
         self.__deploy_data_required_for_all = False
@@ -452,6 +466,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             AWS Account:            %s
             Provider Ranks:         %s
             Linode Account:         %s
+            DigitalOcean Account:   11
             ElasticHosts Account:   %s
             Deploys Pending:        Host Implementations    %d
                                     Host Data               %s
@@ -480,6 +495,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 'Configured' if self.__aws_account.access_id else 'None',
                 'Configured' if self.__provider_ranks else 'None',
                 'Configured' if self.__linode_account.api_key else 'None',
+                
                 'Configured' if self.__elastichosts_accounts else 'None',
                 len(self.__deploy_implementation_required_for_hosts),
                 'Yes' if self.__deploy_data_required_for_all else 'No',
@@ -1255,6 +1271,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if provider.lower() == 'linode':
                 provider_launch_new_server = psi_linode.launch_new_server
                 provider_account = self.__linode_account
+            elif provider.lower() == 'digitalocean':
+                provider_launch_new_server = psi_digitalocean.launch_new_server
+                provider_account = self.__digitalocean_account
             elif provider.lower() == 'elastichosts':
                 provider_launch_new_server = psi_elastichosts.ElasticHosts().launch_new_server
                 provider_account = self._weighted_random_choice(self.__elastichosts_accounts)
