@@ -226,10 +226,9 @@ LinodeAccount = psi_utils.recordtype(
 
 DigitalOceanAccount = psi_utils.recordtype(
     'DigitalOceanAccount',
-    'client_id, api_key, base_id, base_ip_address, base_ssh_port, ' +
-    'base_root_password, base_stats_username, base_host_public_key, ' +
-    'base_known_hosts_entry, base_rsa_private_key, base_rsa_public_key, ' +
-    'base_tarball_path, ssh_key_template_id',
+    'client_id, api_key, base_id, base_ssh_port, ' +
+    'base_stats_username, base_host_public_key, ' +
+    'base_rsa_private_key, ssh_key_template_id',
     default=None)
 
 ElasticHostsAccount = psi_utils.recordtype(
@@ -326,7 +325,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.23'
+    class_version = '0.24'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -443,6 +442,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.23')) < 0:
             self.__automation_bucket = None
             self.version = '0.23'
+        if cmp(parse_version(self.version), parse_version('0.24')) < 0:
+            self.__digitalocean_account = DigitalOceanAccount()
+            self.version = '0.24'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -466,7 +468,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             AWS Account:            %s
             Provider Ranks:         %s
             Linode Account:         %s
-            DigitalOcean Account:   11
+            DigitalOcean Account:   %s
             ElasticHosts Account:   %s
             Deploys Pending:        Host Implementations    %d
                                     Host Data               %s
@@ -495,7 +497,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 'Configured' if self.__aws_account.access_id else 'None',
                 'Configured' if self.__provider_ranks else 'None',
                 'Configured' if self.__linode_account.api_key else 'None',
-                
+                'Configured' if self.__digitalocean_account.client_id and self.__digitalocean_account.api_key else 'None',
                 'Configured' if self.__elastichosts_accounts else 'None',
                 len(self.__deploy_implementation_required_for_hosts),
                 'Yes' if self.__deploy_data_required_for_all else 'No',
