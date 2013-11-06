@@ -391,8 +391,14 @@ if __name__ == '__main__':
                                                                        traceback.format_exc(),
                                                                        email_string))
     else:
+        processing_time = time.time()-starttime
+
         syslog.syslog(syslog.LOG_INFO,
-                      'success: %s: %fs' % (requested_addr, time.time()-starttime))
+                      'success: %s: %fs' % (requested_addr, processing_time))
+
+        aws_helpers.put_cloudwatch_metric_data('processing_time',
+                                               processing_time,
+                                               'Milliseconds')
 
         aws_helpers.put_cloudwatch_metric_data('response_sent',
                                                1,
