@@ -235,13 +235,21 @@ def launch_new_server(digitalocean_account, params=None, use_public_image=False)
         
     except Exception as e:
         print 'Exception %s' % (str(e))
-        raise
+        remove_droplet(digitalocean_account, droplet['id'])
+
     
     return (image['name'], None, provider_id, droplet['ip_address'],
             digitalocean_account.base_ssh_port, 'root', 
             new_root_password, ' '.join(new_host_public_key.split(' ')[:2]),
             digitalocean_account.base_stats_username, new_stats_password, 
             datacenter_name, region)
+
+def remove_droplet(digitalocean_account, droplet_id):
+    do_api = digitalocean.DigitalOceanAPI.DigitalOceanAPI(digitalocean_account.client_id, digitalocean_account.api_key)
+    try:
+        do_api.droplet_destroy(droplet_id)
+    except Exception as e:
+        raise e
 
 if __name__ == "__main__":
     print launch_new_server(digitalocean_account)
