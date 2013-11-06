@@ -118,20 +118,6 @@ def take_snapshot(digitalocean_account, droplet_id, snapshot_name={'name': None}
         print '%s' % (e)
 
 
-def pave_droplet(digitalocean_account, ip_address, pkey):
-    ssh = psi_ssh.make_ssh_session(ip_address, 2222, 'root', None, None, pkey)
-    ssh.exec_command('mkdir -p /root/.ssh')
-    ssh.exec_command('echo "%s" > /root/.ssh/known_hosts' % (digitalocean_account.base_known_hosts_entry,))
-    ssh.exec_command('echo "%s" > /root/.ssh/id_rsa' % (digitalocean_account.base_rsa_private_key,))
-    ssh.exec_command('chmod 600 /root/.ssh/id_rsa')
-    ssh.exec_command('echo "%s" > /root/.ssh/id_rsa.pub' % (digitalocean_account.base_rsa_public_key,))
-    ssh.exec_command('scp -P %d root@%s:%s /' % (digitalocean_account.base_ssh_port,
-                                                 digitalocean_account.base_ip_address,
-                                                 digitalocean_account.base_tarball_path))
-    ssh.exec_command('apt-get update > /dev/null')
-    ssh.exec_command('apt-get install -y bzip2 > /dev/null')
-    ssh.exec_command('tar xvpfj %s -C / > /dev/null' % (digitalocean_account.base_tarball_path,))
-
 def get_datacenter_region(location):
     #[{u'slug': u'nyc1', u'id': 1, u'name': u'New York 1'}, 
     # {u'slug': u'ams1', u'id': 2, u'name': u'Amsterdam 1'}, 
@@ -149,7 +135,7 @@ def generate_random_string(prefix=None, size=8):
     return '%s%s' % (prefix, ''.join(random.choice(string.ascii_lowercase) for x in range(size)))
 
 def refresh_credentials(digitalocean_account, ip_address, new_root_password, new_stats_password, pkey):
-    ssh = psi_ssh.make_ssh_session(ip_address, digitalocean_account.base_ssh_port, 'root', None, None, pkey)
+    ssh = psi_ssh.make_ssh_session(ip_address, digitalocean_account.base_ssh_port, 'root', digitalocean_account.base_host_public_key, None, pkey)
     ssh.exec_command('echo "root:%s" | chpasswd' % (new_root_password,))
     ssh.exec_command('echo "%s:%s" | chpasswd' % (digitalocean_account.base_stats_username, new_stats_password))
     ssh.exec_command('rm /etc/ssh/ssh_host_*')
@@ -223,8 +209,6 @@ def launch_new_server(digitalocean_account, params=None, use_public_image=False)
         # get more details about droplet
         droplet = do_api.droplet_show(resp['droplet']['id'])['droplet']
 
-        pave_droplet(digitalocean_account, droplet['ip_address'], image['ssh_key_ids'])
-        stop_droplet(droplet['id'])
         start_droplet(droplet['id'])
         
         provider_id = 'do-' + str(droplet['id'])
