@@ -59,7 +59,7 @@ def wait_on_event_completion(do_api, event_id, interval=10):
         resp = check_response(do_api.get_event(event_id))
         if resp['event']['action_status'] == 'done':
             return True
-        print '%s. event %s status: %s - trying again in %ss' % (str(attempt), str(event_id), resp['event']['action_status'], interval)
+        print '%s. %s status: %s - trying again in %ss' % (str(attempt), str(event_id), resp['event']['action_status'], interval)
         time.sleep(int(interval))
     print 'Event %s did not complete in time' % (str(event_id))
     return False
@@ -202,17 +202,22 @@ def launch_new_server(digitalocean_account, params=None, use_public_image=False)
         wait_on_event_completion(do_api, resp['droplet']['event_id'], interval=30)
         print 'Waiting for the droplet to power on and get an IP address'
         time.sleep(30)
+        
         # get more details about droplet
-        droplet = do_api.droplet_show(resp['droplet']['id'])['droplet']
-
-        start_droplet(do_api, droplet['id'])
+        resp = do_api.droplet_show(resp['droplet']['id'])
+        if resp['status'] != 'OK':
+            raise Exception(resp['message'] + ': ' + resp['error_message'])
+        
+        droplet = resp['droplet']
+        if droplet['status'] != 'active':
+            start_droplet(do_api, droplet['id'])
         
         provider_id = 'do-' + str(droplet['id'])
         region = get_datacenter_region(droplet['region_id'])
         datacenter_name = next((r for r in regions if r['id'] == droplet['region_id']), None)['name']
         
         new_host_public_key = refresh_credentials(digitalocean_account, droplet['ip_address'], 
-                                                new_root_password, new_stats_password)
+                                                  new_root_password, new_stats_password)
 
     except Exception as e:
         print type(e), str(e)

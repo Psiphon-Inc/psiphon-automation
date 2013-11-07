@@ -2092,7 +2092,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             base_stats_username=base_stats_username, base_host_public_key=base_host_public_key,
             base_known_hosts_entry=base_known_hosts_entry, base_rsa_private_key=base_rsa_private_key,
             base_rsa_public_key=base_rsa_public_key, base_tarball_path=base_tarball_path)
-
+    
+    def set_digitalocean_account(self, client_id, api_key, base_id, base_ssh_port,
+                                 base_stats_username, base_host_public_key, 
+                                 base_rsa_private_key, ssh_key_template_id):
+        assert(self.is_locked)
+        psi_utils.update_recordtype(
+            self.__digitalocean_account,
+            client_id=client_id, api_key=api_key, base_id=base_id, base_ssh_port=base_ssh_port,
+            base_stats_username=base_stats_username, base_host_public_key=base_host_public_key)
+    
     def upsert_elastichosts_account(self, zone, uuid, api_key, base_drive_id,
                                     cpu, mem, base_host_public_key, root_username,
                                     base_root_password, base_ssh_port, stats_username, rank):
