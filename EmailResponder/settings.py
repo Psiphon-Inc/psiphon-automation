@@ -46,9 +46,9 @@ DB_ROOT_PASSWORD = ''
 
 MAIL_RESPONDER_USERNAME = 'mail_responder'
 
-# The location of the config files.
-CONFIG_DIR = '/mail_responder_config'
-CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'conf.json')
+# The location of the responder config in S3.
+CONFIG_S3_BUCKET = 'psiphon-automation'
+CONFIG_S3_KEY = 'EmailResponder/conf.json'
 
 # The directory where attachment files are cached.
 ATTACHMENT_CACHE_DIR = os.path.expanduser('~%s/attach_cache' % MAIL_RESPONDER_USERNAME)
@@ -100,7 +100,7 @@ LOG_FILENAME = '/var/log/mail_responder.log'
 #
 DKIM_DOMAIN = STATS_SENDER_ADDRESS_BARE[STATS_SENDER_ADDRESS_BARE.index('@') + 1:]
 DKIM_SELECTOR = 'key1'
-DKIM_PRIVATE_KEY = os.path.join(CONFIG_DIR, 'dkim.key')
+DKIM_PRIVATE_KEY = './dkim.key'
 
 
 #
@@ -113,4 +113,3 @@ DKIM_PRIVATE_KEY = os.path.join(CONFIG_DIR, 'dkim.key')
 # Note: This should be used only when necessary. Recording user information is
 # undesireable.
 EXCEPTION_DIR = os.path.expanduser('~%s/exceptions' % MAIL_RESPONDER_USERNAME)
-
