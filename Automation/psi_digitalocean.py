@@ -74,6 +74,7 @@ def stop_droplet(do_api, droplet_id):
         else:
             print 'Problem powering droplet off, droplet state: %s' % (str(droplet_state))
             raise Exception
+    return True
 
 def start_droplet(do_api, droplet_id):
     print 'Powering on droplet: %s' % (droplet_id)
@@ -85,6 +86,7 @@ def start_droplet(do_api, droplet_id):
         else:
             print 'Problem powering droplet on, droplet state: %s' (str(droplet_state))
             raise Exception
+    return True
 
 def take_snapshot(do_api, droplet_id, snapshot_name={'name': None}):
     resp = check_response(do_api.droplet_show(droplet_id))
@@ -128,73 +130,45 @@ def generate_random_string(prefix=None, size=8):
     return '%s%s' % (prefix, ''.join(random.choice(string.ascii_lowercase) for x in range(size)))
 
 def refresh_credentials(digitalocean_account, ip_address, new_root_password, new_stats_password):
-    ssh = psi_ssh.make_ssh_session(ip_address, digitalocean_account.base_ssh_port, 'root', digitalocean_account.base_host_public_key, None, digitalocean_account.base_rsa_private_key)
+    ssh = psi_ssh.make_ssh_session(ip_address, digitalocean_account.base_ssh_port, 'root', None, None, digitalocean_account.base_rsa_private_key)
     ssh.exec_command('echo "root:%s" | chpasswd' % (new_root_password,))
     ssh.exec_command('echo "%s:%s" | chpasswd' % (digitalocean_account.base_stats_username, new_stats_password))
     ssh.exec_command('rm /etc/ssh/ssh_host_*')
     ssh.exec_command('rm -rf /root/.ssh')
     ssh.exec_command('dpkg-reconfigure openssh-server')
-    #TODO: Delete base rsa private key
     return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
 
 
-def launch_new_server(digitalocean_account, params=None, use_public_image=False):
+def launch_new_server(digitalocean_account):
     
-    image_params = {'name': None,
-                    'size_id': None,
-                    'image_id': None,
-                    'region_id': None, 
-                    'ssh_key_ids': [],
-                    }
+    image = {}
     droplet = None
     try:
         new_root_password = psi_utils.generate_password()
         new_stats_password = psi_utils.generate_password()
         do_api = digitalocean.DigitalOceanAPI.DigitalOceanAPI(digitalocean_account.client_id,
                                                               digitalocean_account.api_key)
-        
-        if params:
-            image = dict(image_params.items() + params.items())
-        else:
-            image = dict(image_params.items() + _DEFAULT_IMAGE_PARAMS.items())
-        
-        if use_public_image:
-            result = check_default_image(do_api, _PUBLIC_IMAGE)
-            if not result:
-                raise 'Could not find default public image\n'
-            else:
-                image['image_id'] = _PUBLIC_IMAGE['id']
-        else:
-            image['image_id'] = digitalocean_account.base_id
+        image['image_id'] = digitalocean_account.base_id
         
         regions = do_api.get_all_regions()
-        if image['region_id']:
-            # Check region availability
-            if image['region_id'] not in [region['id'] for region in regions]:
-                raise('Region not available')
-        else:
-            image['reigon_id'] = random.choice([region['id'] for region in regions])
+        image['region_id'] = random.choice([region['id'] for region in regions])
 
         for r in regions:
             if image['region_id'] == r['id']:
                 print 'Using region: %s' % (r['name'])
                 break
-        
-        if not image['size_id']:
-            image['size_id'] = _DEFAULT_IMAGE_PARAMS['size_id']
-        
+
+        image['size_id'] = digitalocean_account.base_size_id
+
         # get a list of image sizes and see if the size is available (maybe some checks)
         droplet_sizes = do_api.get_all_droplet_sizes()
         if image['size_id'] not in [size['id'] for size in droplet_sizes]:
             raise('Droplet size not available')
                     
-        if not image['name']:
-            # Hostname generator
-            image['name'] = generate_random_string(prefix=('do-' + str(image['region_id']) + str(image['size_id']) + '-'))
-    
-        if not image['ssh_key_ids']:
-            image['ssh_key_ids'] = digitalocean_account.ssh_key_template_id
-        
+        # Hostname generator
+        image['name'] = generate_random_string(prefix=('do-' + str(image['region_id']) + str(image['size_id']) + '-'))
+        image['ssh_key_ids'] = digitalocean_account.ssh_key_template_id
+
         print 'Launching %s, using image %s' % (image['name'], str(image['image_id']))
         resp = do_api.create_new_droplet(image)
         if resp['status'] != 'OK':
@@ -202,20 +176,20 @@ def launch_new_server(digitalocean_account, params=None, use_public_image=False)
         wait_on_event_completion(do_api, resp['droplet']['event_id'], interval=30)
         print 'Waiting for the droplet to power on and get an IP address'
         time.sleep(30)
-        
+
         # get more details about droplet
         resp = do_api.droplet_show(resp['droplet']['id'])
         if resp['status'] != 'OK':
             raise Exception(resp['message'] + ': ' + resp['error_message'])
-        
+
         droplet = resp['droplet']
         if droplet['status'] != 'active':
             start_droplet(do_api, droplet['id'])
-        
+
         provider_id = 'do-' + str(droplet['id'])
         region = get_datacenter_region(droplet['region_id'])
         datacenter_name = next((r for r in regions if r['id'] == droplet['region_id']), None)['name']
-        
+
         new_host_public_key = refresh_credentials(digitalocean_account, droplet['ip_address'], 
                                                   new_root_password, new_stats_password)
 
