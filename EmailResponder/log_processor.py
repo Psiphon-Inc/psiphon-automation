@@ -23,8 +23,6 @@ import syslog
 import time
 import settings
 
-import aws_helpers
-
 from sqlalchemy import create_engine
 from sqlalchemy import Column, String, Integer
 from sqlalchemy.dialects.mysql import BIGINT
@@ -391,13 +389,6 @@ class LogHandlers(object):
         mail = dbsession.query(IncomingMail).filter_by(queue_id=msgdict['queue_id']).first()
         if not mail: return self.NO_RECORD_MATCH
         mail.processing_end = now_milliseconds()
-
-        # Record the processing time as a CloudWatch metric.
-        if mail.processing_start and mail.processing_end:
-            aws_helpers.put_cloudwatch_metric_data(
-                            'processing_time',
-                            mail.processing_end - mail.processing_start,
-                            'Milliseconds')
 
         return self.SUCCESS
 
