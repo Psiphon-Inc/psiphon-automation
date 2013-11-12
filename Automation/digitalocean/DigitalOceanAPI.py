@@ -1,11 +1,5 @@
 #!/usr/bin/python
 
-'''
-Client ID: 2660a2459959e914df14c48de6a5d339
-API Key: 939c648586b7249c77b2ec3579ab3ee4
-https://api.digitalocean.com/droplets/?client_id=[your_client_id]&api_key=[your_api_key]
-'''
-
 import requests
 import sys
 
