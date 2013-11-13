@@ -27,16 +27,6 @@ import psi_ssh
 
 import digitalocean.DigitalOceanAPI
 
-
-# A default public image
-_PUBLIC_IMAGE = {'distribution': 'Debian', 'slug': None, 'public': True, 
-                 'id': 12573, 'name': 'Debian 6.0 x64'}
-
-# Our preferred image settings
-# Region : Amsterdam, Image: Debian 6 x64, Size: 1GB
-_DEFAULT_IMAGE_PARAMS = {'region_id': 2, 'image_id': 12573, 'size_id': 66}
-
-
 def check_default_image(do_api, default_image):
     images = do_api.get_all_images()
     return (default_image in images)
@@ -208,7 +198,7 @@ def launch_new_server(digitalocean_account):
 
 def remove_droplet(do_api, droplet_id):
     try:
-        do_api.droplet_destroy(droplet_id)
+        do_api.droplet_destroy(droplet_id, {'scrub_data': 1})
     except Exception as e:
         raise e
 
