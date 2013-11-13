@@ -146,7 +146,7 @@ def pave_linode(linode_account, ip_address, password):
 def refresh_credentials(linode_account, ip_address, new_root_password, new_stats_password):
     ssh = psi_ssh.make_ssh_session(ip_address, linode_account.base_ssh_port,
                                'root', linode_account.base_root_password,
-                               linode_account.base_host_public_key)
+                               linode_account.base_host_public_key, None)
     ssh.exec_command('echo "root:%s" | chpasswd' % (new_root_password,))
     ssh.exec_command('echo "%s:%s" | chpasswd' % (linode_account.base_stats_username, new_stats_password))
     ssh.exec_command('rm /etc/ssh/ssh_host_*')
