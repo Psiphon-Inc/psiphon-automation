@@ -52,9 +52,8 @@ RTL_LANGS = ('ar', 'fa', 'he')
 # one or the other needs to be updated.
 known_resources = \
     ['android-app-strings', 'android-app-browser-strings',
-     'user-documentation', 'email-template-strings',
-     'feedback-template-strings', 'android-library-strings',
-     'feedback-auto-responses', 'website-strings']
+     'email-template-strings', 'feedback-template-strings',
+     'android-library-strings', 'feedback-auto-responses', 'website-strings']
 
 
 def process_android_app_strings():
@@ -85,15 +84,6 @@ def process_android_app_browser_strings():
                      None,
                      bom=False,
                      langs=langs)
-
-
-def process_user_documentation():
-    process_resource('user-documentation',
-                     lambda lang: './DownloadSite/%s.html' % lang,
-                     html_doctype_add,
-                     bom=True)
-# This is needed externally:
-DOWNLOAD_SITE_LANGS = DEFAULT_LANGS.values()
 
 
 def process_email_template_strings():
@@ -173,6 +163,10 @@ def process_website_strings():
                      lambda lang: '../Website/_locales/%s/messages.json' % lang,
                      None,
                      bom=False)
+
+
+# This is needed externally:
+WEBSITE_LANGS = DEFAULT_LANGS.values()
 
 
 def process_resource(resource, output_path_fn, output_mutator_fn, bom, langs=None):
