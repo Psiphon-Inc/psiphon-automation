@@ -129,7 +129,7 @@ def stop_linode(linode_api, linode_id):
 def pave_linode(linode_account, ip_address, password):
     # Note: using auto-add-policy for host's SSH public key here since we can't get it through the Linode API.
     # There's a risk of man-in-the-middle.
-    ssh = psi_ssh.make_ssh_session(ip_address, 22, 'root', password, None)
+    ssh = psi_ssh.make_ssh_session(ip_address, 22, 'root', password)
     ssh.exec_command('mkdir -p /root/.ssh')
     ssh.exec_command('echo "%s" > /root/.ssh/known_hosts' % (linode_account.base_known_hosts_entry,))
     ssh.exec_command('echo "%s" > /root/.ssh/id_rsa' % (linode_account.base_rsa_private_key,))
