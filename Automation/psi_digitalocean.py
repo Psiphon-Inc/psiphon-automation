@@ -176,9 +176,9 @@ def launch_new_server(digitalocean_account):
         if droplet['status'] != 'active':
             start_droplet(do_api, droplet['id'])
 
-        provider_id = 'do-' + str(droplet['id'])
+        provider_id = str(droplet['id'])
         region = get_datacenter_region(droplet['region_id'])
-        datacenter_name = next((r for r in regions if r['id'] == droplet['region_id']), None)['name']
+        datacenter_name = 'Digital Ocean ' + next((r for r in regions if r['id'] == droplet['region_id']), None)['name']
 
         new_host_public_key = refresh_credentials(digitalocean_account, droplet['ip_address'], 
                                                   new_root_password, new_stats_password)
