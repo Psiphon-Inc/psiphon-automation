@@ -131,7 +131,7 @@ def refresh_credentials(digitalocean_account, ip_address, new_root_password, new
     return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
 
 
-def launch_new_server(digitalocean_account):
+def launch_new_server(digitalocean_account, _):
     
     image = {}
     droplet = None
@@ -155,7 +155,7 @@ def launch_new_server(digitalocean_account):
         # get a list of image sizes and see if the size is available (maybe some checks)
         droplet_sizes = do_api.get_all_droplet_sizes()
         if image['size_id'] not in [size['id'] for size in droplet_sizes]:
-            raise('Droplet size not available')
+            raise Exception('Droplet size not available')
                     
         # Hostname generator
         image['name'] = generate_random_string(prefix=('do-' + str(image['region_id']) + str(image['size_id']) + '-'))
