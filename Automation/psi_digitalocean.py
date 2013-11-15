@@ -120,6 +120,8 @@ def generate_random_string(prefix=None, size=8):
     return '%s%s' % (prefix, ''.join(random.choice(string.ascii_lowercase) for x in range(size)))
 
 def refresh_credentials(digitalocean_account, ip_address, new_root_password, new_stats_password):
+    # Note: using auto-add-policy for host's SSH public key here since we can't get it through the API.
+    # There's a risk of man-in-the-middle.
     ssh = psi_ssh.make_ssh_session(ip_address, digitalocean_account.base_ssh_port, 'root', None, None, digitalocean_account.base_rsa_private_key)
     ssh.exec_command('echo "root:%s" | chpasswd' % (new_root_password,))
     ssh.exec_command('echo "%s:%s" | chpasswd' % (digitalocean_account.base_stats_username, new_stats_password))
