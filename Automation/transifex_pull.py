@@ -274,9 +274,6 @@ def go():
     else:
         raise Exception('Known and available resources do not match')
 
-    process_user_documentation()
-    print('process_user_documentation: DONE')
-
     process_feedback_template_strings()
     print('process_feedback_template_strings: DONE')
 
