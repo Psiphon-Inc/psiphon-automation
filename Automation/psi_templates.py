@@ -20,11 +20,25 @@
 
 import os
 import yaml
-import transifex_pull
 import psi_ops_s3
 
 
-LANGUAGES = transifex_pull.DEFAULT_LANGS.values()
+LANGUAGES = [
+    'en',
+    'fa',
+    'ar',
+    'zh',
+    'uz@cyrillic',
+    'uz@Latn',
+    'ru',
+    'kk',
+    'az',
+    'tk',
+    'th',
+    'ug@Latn',
+    'es',
+    'vi'
+]
 
 
 def get_language_string(language, key):
