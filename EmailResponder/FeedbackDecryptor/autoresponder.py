@@ -247,7 +247,7 @@ def _get_response_content(response_id, diagnostic_info):
     # Fall back to English if that's the case.
     download_bucket_url = psi_ops_helpers.get_s3_bucket_home_page_url(
         bucketname,
-        lang_id if lang_id in psi_ops_helpers.DOWNLOAD_SITE_LANGS else 'en')
+        lang_id if lang_id in psi_ops_helpers.WEBSITE_LANGS else 'en')
 
     # Render the email body from the Mako template
     body_html = _render_email({
