@@ -823,14 +823,14 @@ def install_psi_limit_load(host, servers):
     script = '''
 #!/bin/bash
 
-threshold_load_per_cpu=1
+threshold_load_per_cpu=2
 threshold_mem=20
 threshold_swap=20
 
 while true; do
     loaded_cpu=0
     num_cpu=`grep 'model name' /proc/cpuinfo | wc -l`
-    threshold_cpu=$(($threshold_load_per_cpu * $num_cpu / 2 + 1))
+    threshold_cpu=$(($threshold_load_per_cpu * $num_cpu - 1))
     load_cpu=`uptime | cut -d , -f 4| cut -d : -f 2 | awk -F \. '{print $1}'`
     if [ "$load_cpu" -ge "$threshold_cpu" ]; then
         loaded_cpu=1
