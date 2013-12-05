@@ -61,32 +61,51 @@ def _progress(complete, total):
 
 def get_s3_bucket_resource_url(bucket_id, resource_name):
     # Assumes USEast
-    return ('https', 's3.amazonaws.com', "%s/%s" % (
-                bucket_id,
-                resource_name))
+    return ('https',
+            's3.amazonaws.com',
+            '%s/%s' % (bucket_id, resource_name))
 
 
-def get_s3_bucket_home_page_url(bucket_id):
+def get_s3_bucket_home_page_url(bucket_id, language=None):
+    '''
+    If `language` is `None`, the base redirect page (which attempts some crude
+    language detection) will be used.
+    '''
+
     # TODO: add a campaign language and direct to that page; or have the client
     # supply its system language and direct to that page.
 
     # Assumes USEast
-    return "https://s3.amazonaws.com/%s/index.html" % (bucket_id)
+
+    if language:
+        page = '%s/index.html' % (language,)
+    else:
+        page = 'index.html'
+
+    scheme, domain, path = get_s3_bucket_resource_url(bucket_id, page)
+
+    return '%s://%s/%s' % (scheme, domain, path)
 
 
 def get_s3_bucket_download_page_url(bucket_id, lang='en'):
     # Assumes USEast
-    return "https://s3.amazonaws.com/%s/%s/download.html" % (bucket_id, lang)
+    scheme, domain, path = get_s3_bucket_resource_url(bucket_id,
+                                                      '%s/download.html' % (lang,))
+    return '%s://%s/%s' % (scheme, domain, path)
 
 
 def get_s3_bucket_faq_url(bucket_id, lang='en'):
     # Assumes USEast
-    return "https://s3.amazonaws.com/%s/%s/faq.html" % (bucket_id, lang)
+    scheme, domain, path = get_s3_bucket_resource_url(bucket_id,
+                                                      '%s/faq.html' % (lang,))
+    return '%s://%s/%s' % (scheme, domain, path)
 
 
 def get_s3_bucket_privacy_policy_url(bucket_id, lang='en'):
     # Assumes USEast
-    return "https://s3.amazonaws.com/%s/%s/faq.html#information-collected" % (bucket_id, lang)
+    scheme, domain, path = get_s3_bucket_resource_url(bucket_id,
+                                                      '%s/faq.html#information-collected' % (lang,))
+    return '%s://%s/%s' % (scheme, domain, path)
 
 
 def create_s3_bucket(aws_account):
@@ -248,7 +267,7 @@ def put_string_to_key_in_bucket(aws_account, bucket_id, key_name, content, is_pu
             aws_account.secret_key)
     bucket = s3.get_bucket(bucket_id)
     put_string_to_key(bucket, key_name, content, is_public)
-    
+
 
 def put_string_to_key(bucket, key_name, content, is_public, callback=None):
     key = bucket.get_key(key_name)
