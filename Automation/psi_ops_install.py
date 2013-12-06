@@ -816,9 +816,9 @@ def install_psi_limit_load(host, servers):
             % (str(s.internal_ip_address), ) for s in servers
                 if s.capabilities['VPN']] )
                 
-    disable_services = '\n'.join(['iptables -I' + rule for rule in rules])
+    disable_services = '\n    '.join(['iptables -I' + rule for rule in rules])
     
-    enable_services = '\n'.join(['iptables -D' + rule for rule in rules])
+    enable_services = '\n    '.join(['iptables -D' + rule for rule in rules])
     
     script = '''
 #!/bin/bash
