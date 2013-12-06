@@ -262,7 +262,7 @@ def make_xinetd_config_file_command(servers):
     defaults_section = textwrap.dedent('''
         defaults
         {
-
+            cps             = 20 30
         }
         ''')
 
@@ -853,7 +853,11 @@ done
 if [ $loaded_cpu -eq 1 ] || [ $loaded_mem -eq 1 ] || [ $loaded_swap -eq 1 ]; then
     %s
     %s
+    service xinetd stop
 else
+    if [[ -z $(pgrep xinetd) ]]; then
+        service xinetd restart
+    fi
     %s
 fi
 exit 0
