@@ -28,6 +28,11 @@ def check_load_on_hosts(psinet, hosts):
     results = pool.map(check_load_on_host, hosts)
     
     for result in results:
+        if result[1] == -1:
+            # retry a failed host
+            print 'Retrying host ' + result[0]
+            result = check_load_on_host(psinet._PsiphonNetwork__hosts[result[0]])
+
         cur_users += result[1]
         loads[result[0]] = result[1:]
 
