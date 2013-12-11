@@ -62,6 +62,11 @@ except ImportError as error:
     print error
 
 try:
+    import psi_digitalocean
+except ImportError as error:
+    print error
+
+try:
     import psi_elastichosts
 except ImportError as error:
     print error
@@ -219,6 +224,13 @@ LinodeAccount = psi_utils.recordtype(
     'base_tarball_path',
     default=None)
 
+DigitalOceanAccount = psi_utils.recordtype(
+    'DigitalOceanAccount',
+    'client_id, api_key, base_id, base_size_id, base_region_id, ' +
+    'base_ssh_port, base_stats_username, base_host_public_key, ' +
+    'base_rsa_private_key, ssh_key_template_id',
+    default=None)
+
 ElasticHostsAccount = psi_utils.recordtype(
     'ElasticHostsAccount',
     'zone, uuid, api_key, base_drive_id, cpu, mem, base_host_public_key, ' +
@@ -291,6 +303,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__aws_account = AwsAccount()
         self.__provider_ranks = []
         self.__linode_account = LinodeAccount()
+        self.__digitalocean_account = DigitalOceanAccount()
         self.__elastichosts_accounts = []
         self.__deploy_implementation_required_for_hosts = set()
         self.__deploy_data_required_for_all = False
@@ -312,7 +325,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.23'
+    class_version = '0.24'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -429,6 +442,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.23')) < 0:
             self.__automation_bucket = None
             self.version = '0.23'
+        if cmp(parse_version(self.version), parse_version('0.24')) < 0:
+            self.__digitalocean_account = DigitalOceanAccount()
+            self.version = '0.24'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -452,6 +468,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             AWS Account:            %s
             Provider Ranks:         %s
             Linode Account:         %s
+            DigitalOcean Account:   %s
             ElasticHosts Account:   %s
             Deploys Pending:        Host Implementations    %d
                                     Host Data               %s
@@ -480,6 +497,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 'Configured' if self.__aws_account.access_id else 'None',
                 'Configured' if self.__provider_ranks else 'None',
                 'Configured' if self.__linode_account.api_key else 'None',
+                'Configured' if self.__digitalocean_account.client_id and self.__digitalocean_account.api_key else 'None',
                 'Configured' if self.__elastichosts_accounts else 'None',
                 len(self.__deploy_implementation_required_for_hosts),
                 'Yes' if self.__deploy_data_required_for_all else 'No',
@@ -1255,6 +1273,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if provider.lower() == 'linode':
                 provider_launch_new_server = psi_linode.launch_new_server
                 provider_account = self.__linode_account
+            elif provider.lower() == 'digitalocean':
+                provider_launch_new_server = psi_digitalocean.launch_new_server
+                provider_account = self.__digitalocean_account
             elif provider.lower() == 'elastichosts':
                 provider_launch_new_server = psi_elastichosts.ElasticHosts().launch_new_server
                 provider_account = self._weighted_random_choice(self.__elastichosts_accounts)
@@ -2080,7 +2101,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             base_stats_username=base_stats_username, base_host_public_key=base_host_public_key,
             base_known_hosts_entry=base_known_hosts_entry, base_rsa_private_key=base_rsa_private_key,
             base_rsa_public_key=base_rsa_public_key, base_tarball_path=base_tarball_path)
-
+    
+    def set_digitalocean_account(self, client_id, api_key, base_id, base_size_id, base_region_id, base_ssh_port,
+                                 base_stats_username, base_host_public_key, 
+                                 base_rsa_private_key, ssh_key_template_id):
+        assert(self.is_locked)
+        psi_utils.update_recordtype(
+            self.__digitalocean_account,
+            client_id=client_id, api_key=api_key, base_id=base_id,
+            base_size_id=base_size_id, base_region_id=base_region_id, base_ssh_port=base_ssh_port,
+            base_stats_username=base_stats_username, base_host_public_key=base_host_public_key,
+            base_rsa_private_key=base_rsa_private_key, ssh_key_template_id=ssh_key_template_id)
+    
     def upsert_elastichosts_account(self, zone, uuid, api_key, base_drive_id,
                                     cpu, mem, base_host_public_key, root_username,
                                     base_root_password, base_ssh_port, stats_username, rank):
