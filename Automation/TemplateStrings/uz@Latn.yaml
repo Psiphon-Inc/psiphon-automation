@@ -1,22 +1,7 @@
 uz@Latn:
   plaintext_email_no_attachment: |
-    O'zbekcha - {{0}}/{0}.html
+    O'zbekcha - {{0}}/{0}/index.html
   html_email_no_attachment: |
     <div style="direction: ltr;">
-    O'zbekcha - <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
+    O'zbekcha - <a href="{{0}}/{0}/index.html">{{0}}/{0}/index.html</a><br>
     </div>
-  plaintext_email_with_attachment: |
-    Psiphon 3 dan kompyuteringizda foydalanish uchun ilova qilingan faylni avval saqlang.
-    Keyin saqlangan fayl nomini ohiriga nuqta exe (.EXE) deb yozib o'zgartiring.
-    Ilova qilingan yana bir faylni yuklab olib Android sistemasida ishlaydigan telefoningizda (Samsung, HTC, LG, Motorola) ham Psiphon3 ni ishlatish mumkin.
-    Istasangiz mana bu linkni bosib Psiphon 3 ni ham kompyuteringizga ham telefoningizga o'rnating!
-    {{0}}/{0}.html
-  html_email_with_attachment: |
-    <div style="direction: ltr;">
-    Psiphon 3 dan kompyuteringizda foydalanish uchun ilova qilingan faylni avval saqlang.<br>
-    Keyin saqlangan fayl nomini ohiriga nuqta exe (.EXE) deb yozib o'zgartiring.<br>
-    Ilova qilingan yana bir faylni yuklab olib Android sistemasida ishlaydigan telefoningizda (Samsung, HTC, LG, Motorola) ham Psiphon3 ni ishlatish mumkin.<br>
-    Istasangiz mana bu linkni bosib Psiphon 3 ni ham kompyuteringizga ham telefoningizga o'rnating!<br>
-    <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
-    </div>
-    <br>

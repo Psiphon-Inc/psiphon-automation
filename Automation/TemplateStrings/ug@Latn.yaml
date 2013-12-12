@@ -1,14 +1,7 @@
 ug@Latn:
   plaintext_email_no_attachment: |
-    Uyghurche - {{0}}/{0}.html
+    Uyghurche - {{0}}/{0}/index.html
   html_email_no_attachment: |
     <div style="direction: ltr;">
-    Uyghurche - <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
+    Uyghurche - <a href="{{0}}/{0}/index.html">{{0}}/{0}/index.html</a><br>
     </div>
-  plaintext_email_with_attachment: |
-    Uyghurche - {{0}}/{0}.html
-  html_email_with_attachment: |
-    <div style="direction: ltr;">
-    Uyghurche - <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
-    </div>
-    <br>
