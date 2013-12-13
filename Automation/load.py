@@ -1,8 +1,13 @@
 #!/usr/bin/python
 
+import os
+import logging
 import pprint
 import operator
 from multiprocessing.pool import ThreadPool
+
+import psi_ops_stats_credentials
+import psi_ops
 
 def check_load_on_host(host):
     try:
@@ -39,6 +44,26 @@ def check_load_on_hosts(psinet, hosts):
     pprint.pprint(sorted(loads.iteritems(), key=operator.itemgetter(1)))
     return cur_users, loads
 
-def check_load(psinet):
+def check_load_on_all_hosts(psinet):
     return check_load_on_hosts(psinet, psinet.get_hosts())
     
+def check_load():
+    PSI_OPS_DB_FILENAME = os.path.join(os.path.abspath('.'), 'psi_ops_stats.dat')
+    psinet = psi_ops.PsiphonNetwork.load_from_file(PSI_OPS_DB_FILENAME)
+
+    hosts = psinet.get_hosts()
+    for h in hosts:
+        if h.ssh_username == '' and h.ssh_password == '':
+            h.ssh_username = h.stats_ssh_username
+            h.ssh_password = h.stats_ssh_password
+
+    return check_load_on_hosts(psinet, hosts)
+
+def log_load():
+    results = check_load()
+    with open('psi_host_load_results.log', 'a') as outfile:
+        outfile.write(str(results))
+        outfile.write('\n')
+
+if __name__ == "__main__":
+    log_load()
