@@ -1,21 +1,21 @@
 es:
   plaintext_email_no_attachment: |
-    Español - {{0}}/{0}.html
+    Español - {{0}}/{0}/index.html
   html_email_no_attachment: |
     <div style="direction: ltr;">
-    Español - <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
+    Español - <a href="{{0}}/{0}/index.html">{{0}}/{0}/index.html</a><br>
     </div>
   plaintext_email_with_attachment: |+
     Para usar Psiphon 3 para Windows, guarde el archivo adjunto {{1}} con una extensión ".exe".
     Para usar Psiphon 3 para Android, instale el fichero adjunto {{2}}.
     Para mayor información o para descargar nuevamente los archivos, haga clic en el enlace de debajo.
-    {{0}}/{0}.html
+    {{0}}/{0}/index.html
 
   html_email_with_attachment: |
     <div style="direction: ltr;">
     Para usar Psiphon 3 para Windows, guarde el archivo adjunto {{1}} con una extensión ".exe".<br>
     Para usar Psiphon 3 para Adroid, instale el fichero adjunto {{2}}.<br>
     Para mayor información o para descargar nuevamente los archivos, haga clic en el enlace de debajo.<br>
-    <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
+    <a href="{{0}}/{0}/index.html">{{0}}/{0}/index.html</a><br>
     </div>
     <br>

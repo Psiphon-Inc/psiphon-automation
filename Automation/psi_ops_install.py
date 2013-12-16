@@ -262,7 +262,7 @@ def make_xinetd_config_file_command(servers):
     defaults_section = textwrap.dedent('''
         defaults
         {
-
+            cps             = 20 30
         }
         ''')
 
@@ -614,14 +614,14 @@ def install_firewall_rules(host, servers, plugins):
     # SSH
     ['''
     -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --set
-    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --update --seconds 10 --hitcount 10 -j DROP
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --update --seconds 60 --hitcount 3 -j DROP
     -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -j ACCEPT'''.format(
             str(s.internal_ip_address), str(s.ssh_port)) for s in servers
                 if s.capabilities['SSH']]) + ''.join(
     # OSSH
     ['''
     -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --set
-    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --update --seconds 10 --hitcount 10 -j DROP
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --update --seconds 60 --hitcount 3 -j DROP
     -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -j ACCEPT'''.format(
             str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
                 if s.capabilities['OSSH']]) + ''.join(
@@ -816,9 +816,9 @@ def install_psi_limit_load(host, servers):
             % (str(s.internal_ip_address), ) for s in servers
                 if s.capabilities['VPN']] )
                 
-    disable_services = '\n'.join(['iptables -I' + rule for rule in rules])
+    disable_services = '\n    '.join(['iptables -I' + rule for rule in rules])
     
-    enable_services = '\n'.join(['iptables -D' + rule for rule in rules])
+    enable_services = '\n    '.join(['iptables -D' + rule for rule in rules])
     
     script = '''
 #!/bin/bash
@@ -853,7 +853,11 @@ done
 if [ $loaded_cpu -eq 1 ] || [ $loaded_mem -eq 1 ] || [ $loaded_swap -eq 1 ]; then
     %s
     %s
+    service xinetd stop
 else
+    if [[ -z $(pgrep xinetd) ]]; then
+        service xinetd restart
+    fi
     %s
 fi
 exit 0
