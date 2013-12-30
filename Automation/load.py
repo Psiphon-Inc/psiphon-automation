@@ -4,9 +4,9 @@ import os
 import logging
 import pprint
 import operator
+import datetime
 from multiprocessing.pool import ThreadPool
 
-import psi_ops_stats_credentials
 import psi_ops
 
 def check_load_on_host(host):
@@ -60,7 +60,11 @@ def check_load():
     return check_load_on_hosts(psinet, hosts)
 
 def log_load():
+    start_time = datetime.datetime.now()
     results = check_load()
+    end_time = datetime.datetime.now()
+    results = (str(start_time), str(end_time), (results))
+    print "Run completed at: %s\nTotal run time: %s" % (str(end_time), str(end_time-start_time))
     with open('psi_host_load_results.log', 'a') as outfile:
         outfile.write(str(results))
         outfile.write('\n')
