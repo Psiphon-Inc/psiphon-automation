@@ -1178,7 +1178,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             new_discovery_servers_count = propagation_channel.new_discovery_servers_count
         if new_discovery_servers_count > 0:
             try:
-            self.add_servers(new_discovery_servers_count, propagation_channel_name, new_discovery_date_range)
+                self.add_servers(new_discovery_servers_count, propagation_channel_name, new_discovery_date_range)
             except Exception as ex:
                 print str(ex)
                 failure = ex
@@ -1187,7 +1187,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             new_propagation_servers_count = propagation_channel.new_propagation_servers_count
         if new_propagation_servers_count > 0:
             try:
-            self.add_servers(new_propagation_servers_count, propagation_channel_name, None)
+                self.add_servers(new_propagation_servers_count, propagation_channel_name, None)
             except Exception as ex:
                 print str(ex)
                 failure = ex
