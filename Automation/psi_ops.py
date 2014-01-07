@@ -1172,15 +1172,28 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Use a default 2 week discovery date range.
         new_discovery_date_range = (today, today + datetime.timedelta(weeks=2))
 
+        failure = None
+        
         if new_discovery_servers_count == None:
             new_discovery_servers_count = propagation_channel.new_discovery_servers_count
         if new_discovery_servers_count > 0:
+            try:
             self.add_servers(new_discovery_servers_count, propagation_channel_name, new_discovery_date_range)
+            except Exception as ex:
+                print str(ex)
+                failure = ex
 
         if new_propagation_servers_count == None:
             new_propagation_servers_count = propagation_channel.new_propagation_servers_count
         if new_propagation_servers_count > 0:
+            try:
             self.add_servers(new_propagation_servers_count, propagation_channel_name, None)
+            except Exception as ex:
+                print str(ex)
+                failure = ex
+                
+        if failure:
+            raise failure
 
     def get_existing_server_ids(self):
         return [server.id for server in self.__servers.itervalues()] + \
