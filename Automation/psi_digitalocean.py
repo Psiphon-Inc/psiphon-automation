@@ -107,10 +107,11 @@ def get_datacenter_region(location):
     #[{u'slug': u'nyc1', u'id': 1, u'name': u'New York 1'}, 
     # {u'slug': u'ams1', u'id': 2, u'name': u'Amsterdam 1'}, 
     # {u'slug': u'sfo1', u'id': 3, u'name': u'San Francisco 1'}, 
-    # {u'slug': u'nyc2', u'id': 4, u'name': u'New York 2'}]
+    # {u'slug': u'nyc2', u'id': 4, u'name': u'New York 2'},
+    # {u'slug': u'ams2', u'id': 5, u'name': u'Amsterdam 2'}]
     if location in [1, 3, 4]:
         return 'US'
-    if location in [2]:
+    if location in [2, 5]:
         return 'NL'
     return ''
 

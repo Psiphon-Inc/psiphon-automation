@@ -1,19 +1,18 @@
 kk:
   plaintext_email_no_attachment: |
-    қазақ тілі - {{0}}/{0}.html
+    қазақ тілі - {{0}}/{0}/index.html
   html_email_no_attachment: |
     <div style="direction: ltr;">
-    қазақ тілі - <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
+    қазақ тілі - <a href="{{0}}/{0}/index.html">{{0}}/{0}/index.html</a><br>
     </div>
-  plaintext_email_with_attachment: |+
+  plaintext_email_with_attachment: |
     Psiphon 3 құралын қолдану үшін тіркелген файлды.exe пішімінде сақтаңыз.
     Немесе төмендегі сілтемені басыңыз.
-    {{0}}/{0}.html
-
+    {{0}}/{0}/index.html
   html_email_with_attachment: |
     <div style="direction: ltr;">
     Psiphon 3 құралын қолдану үшін тіркелген файлды.exe пішімінде сақтаңыз.<br>
     Немесе төмендегі сілтемені басыңыз.<br>
-    <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
+    <a href="{{0}}/{0}/index.html">{{0}}/{0}/index.html</a><br>
     </div>
     <br>
