@@ -1769,6 +1769,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         campaign.log('created s3 bucket %s' % (campaign.s3_bucket_name,))
                         self.save()  # don't leak buckets
 
+                        # When creating a new bucket we'll load the website into
+                        # it. Rather than setting flags in all of the creation
+                        # methods, we'll use the above creation as the chokepoint.
+                        # After this we just have to worry about website updates.
+                        self.update_static_site_content(sponsor, campaign)
+
                     # Remote server list: for clients to get new servers via S3, we embed the
                     # bucket URL in the build. So now we're ensuring the bucket exists and we
                     # have its URL before the build is uploaded to S3. The remote server list
@@ -2101,9 +2107,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             base_stats_username=base_stats_username, base_host_public_key=base_host_public_key,
             base_known_hosts_entry=base_known_hosts_entry, base_rsa_private_key=base_rsa_private_key,
             base_rsa_public_key=base_rsa_public_key, base_tarball_path=base_tarball_path)
-    
+
     def set_digitalocean_account(self, client_id, api_key, base_id, base_size_id, base_region_id, base_ssh_port,
-                                 base_stats_username, base_host_public_key, 
+                                 base_stats_username, base_host_public_key,
                                  base_rsa_private_key, ssh_key_template_id):
         assert(self.is_locked)
         psi_utils.update_recordtype(
@@ -2112,7 +2118,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             base_size_id=base_size_id, base_region_id=base_region_id, base_ssh_port=base_ssh_port,
             base_stats_username=base_stats_username, base_host_public_key=base_host_public_key,
             base_rsa_private_key=base_rsa_private_key, ssh_key_template_id=ssh_key_template_id)
-    
+
     def upsert_elastichosts_account(self, zone, uuid, api_key, base_drive_id,
                                     cpu, mem, base_host_public_key, root_username,
                                     base_root_password, base_ssh_port, stats_username, rank):
