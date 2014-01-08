@@ -1173,7 +1173,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         new_discovery_date_range = (today, today + datetime.timedelta(weeks=2))
 
         failure = None
-        
+
         if new_discovery_servers_count == None:
             new_discovery_servers_count = propagation_channel.new_discovery_servers_count
         if new_discovery_servers_count > 0:
@@ -1191,7 +1191,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             except Exception as ex:
                 print str(ex)
                 failure = ex
-                
+
         if failure:
             raise failure
 
@@ -1786,7 +1786,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         # it. Rather than setting flags in all of the creation
                         # methods, we'll use the above creation as the chokepoint.
                         # After this we just have to worry about website updates.
-                        self.update_static_site_content(sponsor, campaign)
+                        # Note that this generates the site. It's not very efficient
+                        # to do that here, but it happens infrequently enough to be okay.
+                        self.update_static_site_content(sponsor, campaign, True)
 
                     # Remote server list: for clients to get new servers via S3, we embed the
                     # bucket URL in the build. So now we're ensuring the bucket exists and we
