@@ -1925,13 +1925,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # Generate the static website from source
             website_generator.generate(WEBSITE_GENERATION_DIR)
 
+        assert(self.__default_email_autoresponder_account)
+        get_new_version_email = self.__default_email_autoresponder_account.email_address
+        if type(campaign.account) == EmailPropagationAccount:
+            get_new_version_email = campaign.account.email_address
+
         psi_ops_s3.update_website(
                         self.__aws_account,
                         campaign.s3_bucket_name,
                         campaign.custom_download_site,
                         WEBSITE_GENERATION_DIR,
                         sponsor.website_banner,
-                        sponsor.website_banner_link)
+                        sponsor.website_banner_link,
+                        get_new_version_email)
         campaign.log('updated website in S3 bucket %s' % (campaign.s3_bucket_name,))
 
     def update_routes(self):
