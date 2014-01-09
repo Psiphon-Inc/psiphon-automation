@@ -6,6 +6,7 @@ import logging
 import pprint
 import operator
 import datetime
+import pynliner
 from multiprocessing.pool import ThreadPool
 
 from mako.template import Template
@@ -89,8 +90,14 @@ def send_mail(record):
     # template. Because we're output untrusted user-supplied data, this is
     # essential.
     template = Template(filename=template_filename, default_filters=['unicode', 'h'], lookup=template_lookup)
-    rendered = template.render(data=record)
-    sender.send(config['statsEmailRecipients'], config['emailUsername'], 'Psiphon 3 Host Load Stats', repr(record), rendered)	
+    try:
+        rendered = template.render(data=record)
+    except:
+        raise Exception(exceptions.text_error_template().render())
+
+    # CSS in email HTML must be inline
+    rendered = pynliner.fromString(rendered)
+    sender.send(config['statsEmailRecipients'], config['emailUsername'], 'Psiphon 3 Host Load Stats', repr(record), rendered)
 
 if __name__ == "__main__":
     log_load()
