@@ -1,18 +1,29 @@
 #!/usr/bin/python
 
 import os
+import sys
 import logging
 import pprint
 import operator
 import datetime
 from multiprocessing.pool import ThreadPool
 
+from mako.template import Template
+from mako.lookup import TemplateLookup
+from mako import exceptions
+
+# Using the FeedbackDecryptor's mail capabilities
+sys.path.append(os.path.abspath(os.path.join('..', 'EmailResponder')))
+sys.path.append(os.path.abspath(os.path.join('..', 'EmailResponder', 'FeedbackDecryptor')))
+import sender
+from config import config
+
 import psi_ops
 
 def check_load_on_host(host):
     try:
         users = g_psinet._PsiphonNetwork__count_users_on_host(host.id)
-        load = g_psinet.run_command_on_host(host, 'uptime | cut -d , -f 4 | cut -d : -f 2 | awk -F \. \'{print $1}\'')
+        load = g_psinet.run_command_on_host(host, 'uptime | cut -d , -f 4 | cut -d : -f 2 | awk -F \. \'{print $1}\'').strip()
         free = g_psinet.run_command_on_host(host, 'free | grep "buffers/cache" | awk \'{print $4/($3+$4) * 100.0}\'')
         free_swap = g_psinet.run_command_on_host(host, 'free | grep "Swap" | awk \'{print $4/$2 * 100.0}\'')
         #psi_web = g_psinet.run_command_on_host(host, 'pgrep psi_web')
@@ -68,6 +79,18 @@ def log_load():
     with open('psi_host_load_results.log', 'a') as outfile:
         outfile.write(str(results))
         outfile.write('\n')
+    send_mail(results)
+
+def send_mail(record):
+    template_filename = 'psi_mail_hosts_load.mako'
+    template_lookup = TemplateLookup(directories=[os.path.dirname(os.path.abspath('__file__'))]) 
+    # SECURITY IMPORTANT: `'h'` in the `default_filters` list causes HTML
+    # escaping to be applied to all expression tags (${...}) in this
+    # template. Because we're output untrusted user-supplied data, this is
+    # essential.
+    template = Template(filename=template_filename, default_filters=['unicode', 'h'], lookup=template_lookup)
+    rendered = template.render(data=record)
+    sender.send(config['statsEmailRecipients'], config['emailUsername'], 'Psiphon 3 Host Load Stats', repr(record), rendered)	
 
 if __name__ == "__main__":
     log_load()
