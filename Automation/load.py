@@ -1,4 +1,19 @@
 #!/usr/bin/python
+## Copyright (c) 2014, Psiphon Inc.
+## All rights reserved.
+##
+## This program is free software: you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation, either version 3 of the License, or
+## (at your option) any later version.
+##
+## This program is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
 import sys
@@ -38,6 +53,7 @@ def check_load_on_host(host):
 def check_load_on_hosts(psinet, hosts):
     cur_users = 0
     loads = {}
+    unreachable_hosts = 0
     
     pool = ThreadPool(25)
     global g_psinet
@@ -49,12 +65,13 @@ def check_load_on_hosts(psinet, hosts):
             # retry a failed host
             print 'Retrying host ' + result[0]
             result = check_load_on_host(psinet._PsiphonNetwork__hosts[result[0]])
-
+            if result[1] == -1:
+                unreachable_hosts += 1
         cur_users += result[1]
         loads[result[0]] = result[1:]
-
-    pprint.pprint(sorted(loads.iteritems(), key=operator.itemgetter(1)))
-    return cur_users, loads
+    loads = sorted(loads.iteritems(), key=operator.itemgetter(1))
+    pprint.pprint(loads)
+    return cur_users, unreachable_hosts, loads
 
 def check_load_on_all_hosts(psinet):
     return check_load_on_hosts(psinet, psinet.get_hosts())
