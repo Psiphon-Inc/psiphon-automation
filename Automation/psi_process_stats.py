@@ -524,7 +524,7 @@ def process_stats(host, servers, db_cur, psinet, minimal, error_file=None):
                     event_type = match.group(3)
 
                     if minimal:
-                        if event_type not in ['connected']:
+                        if event_type not in ['connected', 'page_views']:
                             continue
 
                     event_values = [event_value.decode('utf-8', 'replace') for event_value in match.group(4).split()]
