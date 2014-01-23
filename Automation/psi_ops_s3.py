@@ -48,6 +48,7 @@ DOWNLOAD_SITE_QR_CODE_KEY_NAME = 'images/android/android-download-qr.png'
 
 DOWNLOAD_SITE_SPONSOR_BANNER_KEY_NAME = 'images/sponsor-banner.png'
 DOWNLOAD_SITE_SPONSOR_BANNER_LINK_KEY_NAME = 'images/sponsor-banner-link.json'
+DOWNLOAD_SITE_EMAIL_ADDRESS_KEY_NAME = 'images/sponsor-email.json'
 
 _IGNORE_FILENAMES = ('Thumbs.db',)
 
@@ -61,32 +62,51 @@ def _progress(complete, total):
 
 def get_s3_bucket_resource_url(bucket_id, resource_name):
     # Assumes USEast
-    return ('https', 's3.amazonaws.com', "%s/%s" % (
-                bucket_id,
-                resource_name))
+    return ('https',
+            's3.amazonaws.com',
+            '%s/%s' % (bucket_id, resource_name))
 
 
-def get_s3_bucket_home_page_url(bucket_id):
+def get_s3_bucket_home_page_url(bucket_id, language=None):
+    '''
+    If `language` is `None`, the base redirect page (which attempts some crude
+    language detection) will be used.
+    '''
+
     # TODO: add a campaign language and direct to that page; or have the client
     # supply its system language and direct to that page.
 
     # Assumes USEast
-    return "https://s3.amazonaws.com/%s/index.html" % (bucket_id)
+
+    if language:
+        page = '%s/index.html' % (language,)
+    else:
+        page = 'index.html'
+
+    scheme, domain, path = get_s3_bucket_resource_url(bucket_id, page)
+
+    return '%s://%s/%s' % (scheme, domain, path)
 
 
 def get_s3_bucket_download_page_url(bucket_id, lang='en'):
     # Assumes USEast
-    return "https://s3.amazonaws.com/%s/%s/download.html" % (bucket_id, lang)
+    scheme, domain, path = get_s3_bucket_resource_url(bucket_id,
+                                                      '%s/download.html' % (lang,))
+    return '%s://%s/%s' % (scheme, domain, path)
 
 
 def get_s3_bucket_faq_url(bucket_id, lang='en'):
     # Assumes USEast
-    return "https://s3.amazonaws.com/%s/%s/faq.html" % (bucket_id, lang)
+    scheme, domain, path = get_s3_bucket_resource_url(bucket_id,
+                                                      '%s/faq.html' % (lang,))
+    return '%s://%s/%s' % (scheme, domain, path)
 
 
 def get_s3_bucket_privacy_policy_url(bucket_id, lang='en'):
     # Assumes USEast
-    return "https://s3.amazonaws.com/%s/%s/faq.html#information-collected" % (bucket_id, lang)
+    scheme, domain, path = get_s3_bucket_resource_url(bucket_id,
+                                                      '%s/faq.html#information-collected' % (lang,))
+    return '%s://%s/%s' % (scheme, domain, path)
 
 
 def create_s3_bucket(aws_account):
@@ -172,7 +192,7 @@ def set_s3_bucket_contents(bucket, builds, remote_server_list):
 
 
 def update_website(aws_account, bucket_id, custom_site, website_dir,
-                   website_banner_base64, website_banner_link):
+                   website_banner_base64, website_banner_link, website_email_address):
     if custom_site:
         print('not updating website due to custom site in bucket: https://s3.amazonaws.com/%s/' % (bucket_id))
         return
@@ -216,6 +236,19 @@ def update_website(aws_account, bucket_id, custom_site, website_dir,
             # Fails silently if there's no such key.
             bucket.delete_key(DOWNLOAD_SITE_SPONSOR_BANNER_LINK_KEY_NAME)
 
+        # If sponsor/campaign has a specific email request address, we'll store
+        # that in the bucket for the site to use.
+        if website_email_address:
+            put_string_to_key(bucket,
+                              DOWNLOAD_SITE_EMAIL_ADDRESS_KEY_NAME,
+                              json.dumps(website_email_address),
+                              True,
+                              _progress)
+        else:
+            # We need to make sure there's no old campaign email address in the bucket.
+            # Fails silently if there's no such key.
+            bucket.delete_key(DOWNLOAD_SITE_EMAIL_ADDRESS_KEY_NAME)
+
         # We wrote a QR code image in the above upload, but it doesn't
         # point to the Android APK in this bucket. So generate a new one
         # and overwrite.
@@ -248,7 +281,7 @@ def put_string_to_key_in_bucket(aws_account, bucket_id, key_name, content, is_pu
             aws_account.secret_key)
     bucket = s3.get_bucket(bucket_id)
     put_string_to_key(bucket, key_name, content, is_public)
-    
+
 
 def put_string_to_key(bucket, key_name, content, is_public, callback=None):
     key = bucket.get_key(key_name)

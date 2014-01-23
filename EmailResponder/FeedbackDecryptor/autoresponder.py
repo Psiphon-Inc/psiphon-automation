@@ -34,7 +34,7 @@ import email_validator
 
 # Make EmailResponder modules available
 sys.path.append('..')
-import s3_helpers
+import aws_helpers
 
 
 _SLEEP_TIME_SECS = 60
@@ -247,7 +247,7 @@ def _get_response_content(response_id, diagnostic_info):
     # Fall back to English if that's the case.
     download_bucket_url = psi_ops_helpers.get_s3_bucket_home_page_url(
         bucketname,
-        lang_id if lang_id in psi_ops_helpers.DOWNLOAD_SITE_LANGS else 'en')
+        lang_id if lang_id in psi_ops_helpers.WEBSITE_LANGS else 'en')
 
     # Render the email body from the Mako template
     body_html = _render_email({
@@ -266,12 +266,12 @@ def _get_response_content(response_id, diagnostic_info):
     if response_id == 'download_new_version_links':
         pass
     elif response_id == 'download_new_version_attachments':
-        fp_windows = s3_helpers.get_s3_attachment('attachments',
-                                                  bucketname,
-                                                  psi_ops_helpers.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME)
-        fp_android = s3_helpers.get_s3_attachment('attachments',
-                                                  bucketname,
-                                                  psi_ops_helpers.DOWNLOAD_SITE_ANDROID_BUILD_FILENAME)
+        fp_windows = aws_helpers.get_s3_attachment('attachments',
+                                                   bucketname,
+                                                   psi_ops_helpers.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME)
+        fp_android = aws_helpers.get_s3_attachment('attachments',
+                                                   bucketname,
+                                                   psi_ops_helpers.DOWNLOAD_SITE_ANDROID_BUILD_FILENAME)
         attachments = [(fp_windows, psi_ops_helpers.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME),
                        (fp_android, psi_ops_helpers.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME)]
     else:

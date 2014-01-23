@@ -1,21 +1,21 @@
 zh:
   plaintext_email_no_attachment: |
-    中文 - {{0}}/{0}.html
+    中文 - {{0}}/{0}/index.html
   html_email_no_attachment: |
     <div style="direction: ltr;">
-    中文 - <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
+    中文 - <a href="{{0}}/{0}/index.html">{{0}}/{0}/index.html</a><br>
     </div>
   plaintext_email_with_attachment: |+
     要使用Psiphon 3的Windows, 保存文件 {{1}} 与“.exe”扩展名。
     要使用Psiphon 3的安卓，安装此文件 {{2}}。
     有关详细信息或者再次下载这些文件，请点击下面的链接。
-    {{0}}/{0}.html
+    {{0}}/{0}/index.html
 
   html_email_with_attachment: |
     <div style="direction: ltr;">
     要使用Psiphon 3的Windows, 保存文件 {{1}} 与“.exe”扩展名。<br>
     要使用Psiphon 3的安卓，安装文件PsiphonAndroid.apk {{2}}。<br>
     有关详细信息或者再次下载这些文件，请点击下面的链接。<br>
-    <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
+    <a href="{{0}}/{0}/index.html">{{0}}/{0}/index.html</a><br>
     </div>
     <br>

@@ -48,10 +48,7 @@ def generate(dest_dir):
     try:
         # using check_output to suppress output
 
-        subprocess.check_output('docpad upgrade --env %s' % (DOCPAD_ENV,),
-                                shell=True, stderr=subprocess.STDOUT)
-        subprocess.check_output('docpad update --env %s' % (DOCPAD_ENV,),
-                                shell=True, stderr=subprocess.STDOUT)
+        subprocess.check_output('npm install', shell=True, stderr=subprocess.STDOUT)
         subprocess.check_output('docpad clean --env %s --out "%s"' % (DOCPAD_ENV, dest_dir),
                                 shell=True, stderr=subprocess.STDOUT)
         subprocess.check_output('docpad generate --env %s --out "%s"' % (DOCPAD_ENV, dest_dir),

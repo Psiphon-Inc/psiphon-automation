@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# Copyright (c) 2012, Psiphon Inc.
+# Copyright (c) 2013, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -22,21 +22,6 @@ import re
 import syslog
 import time
 import settings
-
-from boto.ec2.cloudwatch import CloudWatchConnection
-
-# Get the current instace ID. This IP address is magical.
-import httplib
-httpconn = httplib.HTTPConnection('169.254.169.254')
-httpconn.request('GET', '/latest/meta-data/instance-id')
-instance_id = httpconn.getresponse().read()
-
-# Get the autoscaling group name
-from boto.ec2 import EC2Connection
-ec2conn = EC2Connection()
-tags = ec2conn.get_all_tags({'key': 'aws:autoscaling:groupName', 'resource-id': instance_id})
-autoscaling_group = tags[0].value if tags else None
-
 
 from sqlalchemy import create_engine
 from sqlalchemy import Column, String, Integer
@@ -404,26 +389,6 @@ class LogHandlers(object):
         mail = dbsession.query(IncomingMail).filter_by(queue_id=msgdict['queue_id']).first()
         if not mail: return self.NO_RECORD_MATCH
         mail.processing_end = now_milliseconds()
-
-        # Record the processing time as a CloudWatch metric.
-        if mail.processing_start and mail.processing_end:
-            dimensions = { 'AutoScalingGroupName': autoscaling_group } if autoscaling_group else None
-            cloudwatch = CloudWatchConnection()
-            cloudwatch.put_metric_data('Psiphon/MailResponder',
-                                       'processing_time',
-                                       mail.processing_end - mail.processing_start,
-                                       unit='Milliseconds',
-                                       dimensions=dimensions)
-            cloudwatch.put_metric_data('Psiphon/MailResponder',
-                                       'response_sent',
-                                       1,
-                                       unit='Count',
-                                       dimensions=dimensions)
-            cloudwatch.put_metric_data('Psiphon/MailResponder',
-                                       msgdict['request_address'],
-                                       1,
-                                       unit='Count',
-                                       dimensions=dimensions)
 
         return self.SUCCESS
 

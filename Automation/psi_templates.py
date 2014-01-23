@@ -20,6 +20,8 @@
 
 import os
 import yaml
+import psi_ops_s3
+
 
 LANGUAGES = [
     'en',
@@ -38,6 +40,7 @@ LANGUAGES = [
     'vi'
 ]
 
+
 def get_language_string(language, key):
     path = os.path.join('.', 'TemplateStrings', language + '.yaml')
     with open(path) as f:
@@ -53,8 +56,8 @@ def get_all_languages_string(key, languages):
         return ''.join([get_language_string(language, key) for language in LANGUAGES])
 
 def get_tweet_message(s3_bucket_name):
-    bucket_root_url = 'https://s3.amazonaws.com/' + s3_bucket_name
-    return 'Get Psiphon 3 here: %s/en.html' % (bucket_root_url,)
+    url = psi_ops_s3.get_s3_bucket_home_page_url(s3_bucket_name)
+    return 'Get Psiphon 3 here: %s' % (url,)
 
 def get_plaintext_email_content(
         s3_bucket_name,

@@ -36,7 +36,10 @@ if os.path.isfile('psi_data_config.py'):
     import psi_data_config
     try:
         sys.path.insert(0, psi_data_config.DATA_ROOT)
-        import psi_ops_config
+        if hasattr(psi_data_config, 'CONFIG_FILE'):
+            psi_ops_config = __import__(psi_data_config.CONFIG_FILE)
+        else:
+            psi_ops_config = __import__('psi_ops_config')
     except ImportError as error:
         print error
 

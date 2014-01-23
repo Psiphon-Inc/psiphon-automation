@@ -29,10 +29,10 @@ import time
 # SSH sessions are attempted soon after linodes are started.  We don't know when the ssh service
 # will be available so we can try every few seconds for up to a minute.
 # This is basically a retrying SSH factory.
-def make_ssh_session(ip_address, ssh_port, username, password, host_public_key, verbose=True):
+def make_ssh_session(ip_address, ssh_port, username, password, host_public_key, host_auth_key=None, verbose=True):
     for attempt in range(12):
         try:
-            ssh = SSH(ip_address, ssh_port, username, password, host_public_key)
+            ssh = SSH(ip_address, ssh_port, username, password, host_public_key, host_auth_key)
             return ssh
         except socket.error:
             if verbose: print('Waiting for ssh...')

@@ -74,8 +74,8 @@ def create_linode(linode_api):
 
 
 def create_linode_disks(linode_api, linode_id, bootstrap_password, plugins):
-    # DistributionID = 77: Debian 6
-    distribution_id = 77
+    # DistributionID = 108: Debian 7 32bit
+    distribution_id = 108
     for plugin in plugins:
         if hasattr(plugin, 'linode_distribution_id'):
             distribution_id = plugin.linode_distribution_id()
@@ -95,8 +95,8 @@ def create_linode_disks(linode_api, linode_id, bootstrap_password, plugins):
 
     
 def create_linode_configurations(linode_api, linode_id, disk_list, plugins):
-    # KernelID = 110: Latest 2.6
-    bootstrap_kernel_id = 110
+    # KernelID = 137: Latest 32 bit
+    bootstrap_kernel_id = 137
     # KernelID = 92: pv-grub-x86_32
     host_kernel_id = 92
     for plugin in plugins:
