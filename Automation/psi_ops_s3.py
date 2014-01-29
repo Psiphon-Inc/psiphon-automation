@@ -48,6 +48,7 @@ DOWNLOAD_SITE_QR_CODE_KEY_NAME = 'images/android/android-download-qr.png'
 
 DOWNLOAD_SITE_SPONSOR_BANNER_KEY_NAME = 'images/sponsor-banner.png'
 DOWNLOAD_SITE_SPONSOR_BANNER_LINK_KEY_NAME = 'images/sponsor-banner-link.json'
+DOWNLOAD_SITE_EMAIL_ADDRESS_KEY_NAME = 'images/sponsor-email.json'
 
 _IGNORE_FILENAMES = ('Thumbs.db',)
 
@@ -191,7 +192,7 @@ def set_s3_bucket_contents(bucket, builds, remote_server_list):
 
 
 def update_website(aws_account, bucket_id, custom_site, website_dir,
-                   website_banner_base64, website_banner_link):
+                   website_banner_base64, website_banner_link, website_email_address):
     if custom_site:
         print('not updating website due to custom site in bucket: https://s3.amazonaws.com/%s/' % (bucket_id))
         return
@@ -234,6 +235,19 @@ def update_website(aws_account, bucket_id, custom_site, website_dir,
             # We need to make sure there's no old sponsor banner link in the bucket.
             # Fails silently if there's no such key.
             bucket.delete_key(DOWNLOAD_SITE_SPONSOR_BANNER_LINK_KEY_NAME)
+
+        # If sponsor/campaign has a specific email request address, we'll store
+        # that in the bucket for the site to use.
+        if website_email_address:
+            put_string_to_key(bucket,
+                              DOWNLOAD_SITE_EMAIL_ADDRESS_KEY_NAME,
+                              json.dumps(website_email_address),
+                              True,
+                              _progress)
+        else:
+            # We need to make sure there's no old campaign email address in the bucket.
+            # Fails silently if there's no such key.
+            bucket.delete_key(DOWNLOAD_SITE_EMAIL_ADDRESS_KEY_NAME)
 
         # We wrote a QR code image in the above upload, but it doesn't
         # point to the Android APK in this bucket. So generate a new one
