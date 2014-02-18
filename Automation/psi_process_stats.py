@@ -741,7 +741,7 @@ def process_stats_on_host(args):
     return (host.id, time.time()-start_time)
 
 
-def build_db_connections:
+def build_db_connections():
     db_conn = {}
     if hasattr(psi_ops_stats_credentials,'DB_MAP'):
         for table,db_ipaddress in psi_ops_stats_credentials.DB_MAP.iteritems():
@@ -774,6 +774,7 @@ if __name__ == "__main__":
     psinet = psi_ops.PsiphonNetwork.load_from_file(PSI_OPS_DB_FILENAME)
     
     db_conn = build_db_connections()
+    print db_conn
 
     hosts = psinet.get_hosts()
     servers = psinet.get_servers()
