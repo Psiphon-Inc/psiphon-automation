@@ -707,7 +707,13 @@ COMMIT
     ['''
     -A PREROUTING -i eth+ -p tcp -d %s --dport 443 -j DNAT --to-destination :%s'''
             % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers
-                if s.capabilities['handshake']]) + '''
+                if s.capabilities['handshake']]) + ''.join(
+    # Port forward alternate ports
+    ['''
+    -A PREROUTING -i eth+ -p tcp -d %s --dport %s -j DNAT --to-destination :%s'''
+            % (str(s.internal_ip_address), str(alternate), str(s.ssh_obfuscated_port))
+                for s in servers if s.alternate_ssh_obfuscated_port and len(s.alternate_ssh_obfuscated_port) > 0
+                for alternate in s.alternate_ssh_obfuscated_port]) + '''
     -A POSTROUTING -s 10.0.0.0/8 -o eth+ -j MASQUERADE''' + ''.join(
     # tunneled web requests on NATed servers need to be redirected to the servers' internal ip addresses
     ['''
