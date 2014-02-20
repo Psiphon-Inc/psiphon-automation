@@ -9,3 +9,9 @@ The site can be served with any static file server. (But I really don't recommen
 ```
 sudo apt-get install python-twisted
 ```
+
+The web server can probably be run by adding something like this to `crontab`:
+
+```
+@reboot cd /opt/PsiphonV/psiphon-circumvention-system/Automation/host_reports && ./webserver.sh start
+```
