@@ -1,4 +1,6 @@
-# Copyright (c) 2013, Psiphon Inc.
+# -*- coding: utf-8 -*-
+
+# Copyright (c) 2014, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -396,17 +398,20 @@ if __name__ == '__main__':
         syslog.syslog(syslog.LOG_INFO,
                       'success: %s: %fs' % (requested_addr, processing_time))
 
-        aws_helpers.put_cloudwatch_metric_data('processing_time',
+        aws_helpers.put_cloudwatch_metric_data(CLOUDWATCH_PROCESSING_TIME_METRIC_NAME,
                                                processing_time,
-                                               'Milliseconds')
+                                               'Milliseconds',
+                                               settings.CLOUDWATCH_NAMESPACE)
 
-        aws_helpers.put_cloudwatch_metric_data('response_sent',
+        aws_helpers.put_cloudwatch_metric_data(settings.CLOUDWATCH_TOTAL_SENT_METRIC_NAME,
                                                1,
-                                               'Count')
+                                               'Count',
+                                               settings.CLOUDWATCH_NAMESPACE)
 
         aws_helpers.put_cloudwatch_metric_data(requested_addr,
                                                1,
-                                               'Count')
+                                               'Count',
+                                               settings.CLOUDWATCH_NAMESPACE)
 
 
     exit(0)

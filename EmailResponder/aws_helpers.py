@@ -1,4 +1,6 @@
-# Copyright (c) 2013, Psiphon Inc.
+# -*- coding: utf-8 -*-
+
+# Copyright (c) 2014, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -136,9 +138,8 @@ def _get_autoscaling_group():
     return _autoscaling_group
 
 
-def put_cloudwatch_metric_data(name, value, unit,
-                               use_autoscaling_group=True,
-                               namespace='Psiphon/MailResponder'):
+def put_cloudwatch_metric_data(name, value, unit, namespace,
+                               use_autoscaling_group=True):
     # TODO: Make this more efficient? There are some uses of this function that
     # call it multiple times in succession -- should there be a batch mode?
 

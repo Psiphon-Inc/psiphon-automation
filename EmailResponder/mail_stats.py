@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2012, Psiphon Inc.
+# Copyright (c) 2014, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -26,12 +26,14 @@ The MailStats class can be used to record stats about the mail responder.
 import json
 import re
 import os
+import sys
 import subprocess
 import shlex
 import textwrap
 import datetime
 import httplib
 from boto.ses.connection import SESConnection
+from boto.ec2.cloudwatch import CloudWatchConnection
 
 import settings
 import sendmail
@@ -170,7 +172,7 @@ def process_log_file(logfile):
 
     results = logtypes['success']['results']
 
-    text += '\nSuccessfully sent\n----------------------\n'
+    text += 'Successfully sent\n----------------------\n'
 
     text += 'TOTAL: %d\n' % sum(results.values())
 
@@ -239,7 +241,61 @@ def get_instance_info():
                       })
 
 
+TOP_THRESHOLD_COUNT = 10
+START_DELTA_AGO = datetime.timedelta(1)
+
+
+def get_cloudwatch_top_metrics():
+    conn = CloudWatchConnection()
+
+    metrics_names = []
+    next_token = None
+    while True:
+        res = conn.list_metrics(next_token=next_token,
+                                dimensions=settings.CLOUDWATCH_DIMENSIONS,
+                                namespace=settings.CLOUDWATCH_NAMESPACE)
+        metrics_names.extend([m.name for m in res])
+        next_token = res.next_token
+        if next_token is None:
+            break
+
+    # List of tuples like [(metric_name, count), ...]
+    metrics = []
+
+    for metric_name in metrics_names:
+        res = conn.get_metric_statistics(int(START_DELTA_AGO.total_seconds()),
+                                         datetime.datetime.now() - START_DELTA_AGO,
+                                         datetime.datetime.now(),
+                                         metric_name,
+                                         settings.CLOUDWATCH_NAMESPACE,
+                                         'Sum',
+                                         settings.CLOUDWATCH_DIMENSIONS,
+                                         'Count')
+
+        if not res:
+            # Some metrics will not have (or no longer have) results
+            continue
+
+        count = int(res[0]['Sum'])
+
+        if count >= TOP_THRESHOLD_COUNT:
+            metrics.append((metric_name, count))
+
+    metrics.sort(key=lambda x: x[1], reverse=True)
+
+    text = 'Responses sent\n----------------------\n'
+    for metric in metrics:
+        metric_name = 'TOTAL' if metric[0] == settings.CLOUDWATCH_TOTAL_SENT_METRIC_NAME else metric[0]
+        if metric_name == settings.CLOUDWATCH_PROCESSING_TIME_METRIC_NAME:
+            continue
+        text += '%s %s\n' % (str(metric[1]).rjust(5), metric_name)
+
+    return text
+
+
 if __name__ == '__main__':
+
+    cloudwatch_info = get_cloudwatch_top_metrics()
 
     # We want to process the most recently rotated file (so that we're processing
     # a whole day of results, and not a partial day).
@@ -254,10 +310,18 @@ if __name__ == '__main__':
     queue_check = subprocess.Popen(shlex.split('sudo perl %s' % os.path.expanduser('~%s/postfix_queue_check.pl' % settings.MAIL_RESPONDER_USERNAME)), stdout=subprocess.PIPE).communicate()[0]
     logwatch_basic = subprocess.Popen(shlex.split('logwatch --output stdout --format text'), stdout=subprocess.PIPE).communicate()[0]
 
-    email_body = '<pre>'
+    email_body = '<pre>\n'
 
-    email_body += loginfo
+    email_body += 'Cluster-wide stats\n\n'
+    email_body += cloudwatch_info
+
+    email_body += '\n======================\n\n'
+
+    email_body += 'Instance-specific stats'
+
     email_body += '\n\n'
+    email_body += loginfo
+
     email_body += 'Postfix queue counts\n----------------------\n' + queue_check
     email_body += '\n\n'
     email_body += get_send_info()
@@ -280,11 +344,11 @@ if __name__ == '__main__':
                                           [['plain', email_body], ['html', email_body]])
 
     if not raw_email:
-        exit(1)
+        sys.exit(1)
 
     if not sendmail.send_raw_email_smtp(raw_email,
                                         settings.STATS_SENDER_ADDRESS,
                                         settings.STATS_RECIPIENT_ADDRESS):
-        exit(1)
+        sys.exit(1)
 
-    exit(0)
+    sys.exit(0)
