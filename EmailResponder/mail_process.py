@@ -241,17 +241,17 @@ class MailResponder:
         raw = sendmail.create_raw_email(recipient, from_address, subject, body,
                                         attachments, extra_headers)
         if not raw:
-            print 'create_raw_email failed'
+            print('create_raw_email failed')
             return False
 
         raw = _dkim_sign_email(raw)
 
         # Throws exception on error
         if not sendmail.send_raw_email_smtp(raw, from_address, recipient):
-            print 'send_raw_email_smtp failed'
+            print('send_raw_email_smtp failed')
             return False
 
-        print 'Email sent'
+        print('Email sent')
         return True
 
 
@@ -329,7 +329,7 @@ def forward_to_administrator(email_type, email_string):
                                         '[MailResponder] ' + email_type,
                                         email_string)
         if not raw:
-            print 'create_raw_email failed'
+            print('create_raw_email failed')
             return False
 
         raw = _dkim_sign_email(raw)
@@ -338,10 +338,10 @@ def forward_to_administrator(email_type, email_string):
         if not sendmail.send_raw_email_smtp(raw,
                                             settings.RESPONSE_FROM_ADDR,
                                             settings.ADMIN_FORWARD_ADDRESSES):
-            print 'send_raw_email_smtp failed'
+            print('send_raw_email_smtp failed')
             return False
 
-        print 'Email sent'
+        print('Email sent')
         return True
 
 
@@ -364,21 +364,24 @@ def process_input(email_string):
 
 if __name__ == '__main__':
     '''
-    Note that we always exit with 0 so that the email server doesn't complain.
+    Note that we *must always* exit with 0. If we don't, the email we're
+    processing will be put back into the Postfix deferred queue and will get
+    processed again later. This will either end up in an infinite backlog of
+    email, or in responses to the same request being sent over and over.
     '''
 
-    starttime = time.time()
-
     try:
+        starttime = time.time()
+
         email_string = sys.stdin.read()
 
         if not email_string:
             syslog.syslog(syslog.LOG_CRIT, 'error: no stdin')
-            exit(0)
+            sys.exit(0)
 
         requested_addr = process_input(email_string)
         if not requested_addr:
-            exit(0)
+            sys.exit(0)
 
     except UnicodeDecodeError as ex:
         # Bad input. Just log and exit.
@@ -393,25 +396,31 @@ if __name__ == '__main__':
                                                                        traceback.format_exc(),
                                                                        email_string))
     else:
-        processing_time = time.time()-starttime
+        try:
+            processing_time = time.time()-starttime
 
-        syslog.syslog(syslog.LOG_INFO,
-                      'success: %s: %fs' % (requested_addr, processing_time))
+            syslog.syslog(syslog.LOG_INFO,
+                          'success: %s: %fs' % (requested_addr, processing_time))
 
-        aws_helpers.put_cloudwatch_metric_data(CLOUDWATCH_PROCESSING_TIME_METRIC_NAME,
-                                               processing_time,
-                                               'Milliseconds',
-                                               settings.CLOUDWATCH_NAMESPACE)
+            aws_helpers.put_cloudwatch_metric_data(settings.CLOUDWATCH_PROCESSING_TIME_METRIC_NAME,
+                                                   processing_time,
+                                                   'Milliseconds',
+                                                   settings.CLOUDWATCH_NAMESPACE)
 
-        aws_helpers.put_cloudwatch_metric_data(settings.CLOUDWATCH_TOTAL_SENT_METRIC_NAME,
-                                               1,
-                                               'Count',
-                                               settings.CLOUDWATCH_NAMESPACE)
+            aws_helpers.put_cloudwatch_metric_data(settings.CLOUDWATCH_TOTAL_SENT_METRIC_NAME,
+                                                   1,
+                                                   'Count',
+                                                   settings.CLOUDWATCH_NAMESPACE)
 
-        aws_helpers.put_cloudwatch_metric_data(requested_addr,
-                                               1,
-                                               'Count',
-                                               settings.CLOUDWATCH_NAMESPACE)
+            aws_helpers.put_cloudwatch_metric_data(requested_addr,
+                                                   1,
+                                                   'Count',
+                                                   settings.CLOUDWATCH_NAMESPACE)
+        except Exception as ex:
+            syslog.syslog(syslog.LOG_CRIT, 'exception: %s: %s' % (ex, traceback.format_exc()))
 
-
-    exit(0)
+            if settings.EXCEPTION_DIR:
+                dump_to_exception_file('Exception caught: %s\n%s' % (ex,
+                                                                     traceback.format_exc()))
+    finally:
+        sys.exit(0)
