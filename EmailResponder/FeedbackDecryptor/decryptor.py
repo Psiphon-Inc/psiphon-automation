@@ -82,7 +82,7 @@ def decrypt(data):
     aesCipher = M2Crypto.EVP.Cipher(alg='aes_128_cbc',
                                     key=aesKey,
                                     iv=iv,
-                                    op=M2Crypto.decrypt)
+                                    op=0)
 
     plaintext = aesCipher.update(ciphertext)
     plaintext += aesCipher.final()
