@@ -40,23 +40,34 @@ _BUCKET_ITEM_MAX_SIZE = (2000 * 1024)  # 2 MB
 
 
 def _is_bucket_item_sane(key):
+    logger.debug_log('maildecryptor._is_bucket_item_sane start')
+
     if key.size < _BUCKET_ITEM_MIN_SIZE or key.size > _BUCKET_ITEM_MAX_SIZE:
         err = 'item not sane size: %d' % key.size
         logger.error(err)
         return False
+
+    logger.debug_log('maildecryptor._is_bucket_item_sane end')
+
     return True
 
 
 def _bucket_iterator(bucket):
+    logger.debug_log('maildecryptor._bucket_iterator start')
+
     while True:
         for key in bucket.list():
             # Do basic sanity checks before trying to download the object
             if _is_bucket_item_sane(key):
+                logger.debug_log('maildecryptor._bucket_iterator: good item found, yielding')
                 yield key.get_contents_as_string()
 
             bucket.delete_key(key)
 
+        logger.debug_log('maildecryptor._bucket_iterator: no item found, sleeping')
         time.sleep(_SLEEP_TIME_SECS)
+
+    logger.debug_log('maildecryptor._bucket_iterator end')
 
 
 def _should_email_data(diagnostic_info):
@@ -70,12 +81,16 @@ def _should_email_data(diagnostic_info):
 
 
 def go():
+    logger.debug_log('maildecryptor.go: start')
+
     s3_conn = S3Connection(config['aws_access_key_id'], config['aws_secret_access_key'])
     bucket = s3_conn.get_bucket(config['s3_bucket_name'])
 
     # Note that `_bucket_iterator` throttles itself if/when there are no
     # available objects in the bucket.
     for encrypted_info_json in _bucket_iterator(bucket):
+        logger.debug_log('maildecryptor.go: processing item')
+
         # In theory, all bucket items should be usable by us, but there's
         # always the possibility that a user (or attacker) is messing with us.
         try:
@@ -101,6 +116,7 @@ def go():
             record_id = datastore.insert_diagnostic_info(diagnostic_info)
 
             if _should_email_data(diagnostic_info):
+                logger.debug_log('maildecryptor.go: should email')
                 # Record in the DB that the diagnostic info should be emailed
                 datastore.insert_email_diagnostic_info(record_id, None, None)
 
@@ -127,3 +143,5 @@ def go():
             # Try the next attachment/message
             logger.exception()
             logger.error(str(e))
+
+    logger.debug_log('maildecryptor.go: end')
