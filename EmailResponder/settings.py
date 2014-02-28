@@ -1,4 +1,6 @@
-# Copyright (c) 2012, Psiphon Inc.
+# -*- coding: utf-8 -*-
+
+# Copyright (c) 2014, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -93,6 +95,12 @@ STATS_SENDER_ADDRESS = 'Example Responder <%s>' % STATS_SENDER_ADDRESS_BARE
 
 # The location of our log file
 LOG_FILENAME = '/var/log/mail_responder.log'
+
+# TODO: Use aws_helpers._get_autoscaling_group() instead of this hardcoded value
+CLOUDWATCH_DIMENSIONS = { 'AutoScalingGroupName': 'mailresponder-autoscaling-group-1' }
+CLOUDWATCH_NAMESPACE = 'Psiphon/MailResponder'
+CLOUDWATCH_TOTAL_SENT_METRIC_NAME = 'response_sent'
+CLOUDWATCH_PROCESSING_TIME_METRIC_NAME = 'processing_time'
 
 
 #

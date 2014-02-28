@@ -183,7 +183,8 @@ Server = psi_utils.recordtype(
     'id, host_id, ip_address, egress_ip_address, internal_ip_address, ' +
     'propagation_channel_id, is_embedded, is_permanent, discovery_date_range, capabilities, ' +
     'web_server_port, web_server_secret, web_server_certificate, web_server_private_key, ' +
-    'ssh_port, ssh_username, ssh_password, ssh_host_key, ssh_obfuscated_port, ssh_obfuscated_key',
+    'ssh_port, ssh_username, ssh_password, ssh_host_key, ssh_obfuscated_port, ssh_obfuscated_key, ' +
+    'alternate_ssh_obfuscated_ports',
     default=None)
 
 
@@ -325,7 +326,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.24'
+    class_version = '0.25'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -445,6 +446,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.24')) < 0:
             self.__digitalocean_account = DigitalOceanAccount()
             self.version = '0.24'
+        if cmp(parse_version(self.version), parse_version('0.25')) < 0:
+            for server in self.__servers.itervalues():
+                server.alternate_ssh_obfuscated_ports = []
+            for server in self.__deleted_servers.itervalues():
+                server.alternate_ssh_obfuscated_ports = []
+            self.version = '0.25'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -2226,6 +2233,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             assert(ssh_host_key_type == 'ssh-rsa')
 
         extended_config['sshObfuscatedPort'] = int(server.ssh_obfuscated_port) if server.ssh_obfuscated_port else 0
+        if server.alternate_ssh_obfuscated_ports:
+            extended_config['sshObfuscatedPort'] = int(server.alternate_ssh_obfuscated_ports[-1])
         extended_config['sshObfuscatedKey'] = server.ssh_obfuscated_key if server.ssh_obfuscated_key else ''
 
         extended_config['capabilities'] = [capability for capability, enabled in server.capabilities.iteritems() if enabled] if server.capabilities else []
@@ -2362,6 +2371,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if server.ssh_obfuscated_port:
             config['ssh_obfuscated_port'] = int(server.ssh_obfuscated_port)
             config['ssh_obfuscated_key'] = server.ssh_obfuscated_key
+        if server.alternate_ssh_obfuscated_ports:
+            config['sshObfuscatedPort'] = int(server.alternate_ssh_obfuscated_ports[-1])
+            config['ssh_obfuscated_key'] = server.ssh_obfuscated_key
 
         # Give client a set of regexes indicating which pages should have individual stats
         config['page_view_regexes'] = []
@@ -2475,7 +2487,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 server.ssh_password,
                                                 server.ssh_host_key,
                                                 server.ssh_obfuscated_port,
-                                                server.ssh_obfuscated_key)
+                                                server.ssh_obfuscated_key,
+                                                server.alternate_ssh_obfuscated_ports)
 
         for sponsor in self.__sponsors.itervalues():
             copy_sponsor = Sponsor(
