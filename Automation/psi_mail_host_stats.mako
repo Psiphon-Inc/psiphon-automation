@@ -62,9 +62,9 @@
   }
 
   /* Note that pseudo-selectors don't work with pynliner, so this rule does nothing. */
-  table tr:nth-child(2n) {
+  /*table tr:nth-child(2n) {
     background-color: #F8F8F8;
-  }
+  }*/
 
   table tr.row-even {
   }
