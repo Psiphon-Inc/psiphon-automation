@@ -215,7 +215,7 @@ ProviderRank = psi_utils.recordtype(
     'ProviderRank',
     'provider, rank',
     default=None)
-ProviderRank.provider_values = ('linode', 'elastichosts')
+ProviderRank.provider_values = ('linode', 'elastichosts', 'digitalocean')
 
 LinodeAccount = psi_utils.recordtype(
     'LinodeAccount',
@@ -1333,7 +1333,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 capabilities['handshake'] = False
                 capabilities['VPN'] = False
                 capabilities['SSH'] = False
-                ssh_port = None
                 ossh_ports = range(1,1023)
                 ossh_ports.remove(15)
                 ossh_ports.remove(135)
