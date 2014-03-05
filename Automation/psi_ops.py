@@ -1176,8 +1176,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         now = datetime.datetime.now()
         today = datetime.datetime(now.year, now.month, now.day)
 
-        # Use a default 2 week discovery date range.
-        new_discovery_date_range = (today, today + datetime.timedelta(weeks=2))
+        # Use a default 2 day discovery date range.
+        new_discovery_date_range = (today, today + datetime.timedelta(days=2))
 
         failure = None
 
