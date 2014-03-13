@@ -262,7 +262,7 @@ def make_xinetd_config_file_command(servers):
     defaults_section = textwrap.dedent('''
         defaults
         {
-
+            cps             = 20 30
         }
         ''')
 
@@ -540,7 +540,7 @@ def install_host(host, servers, existing_server_ids, plugins):
     ssh.exec_command('echo "SHELL=/bin/sh" > %s;' % (cron_file,) +
                      'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
                      'echo "1 * * * * root %s restart" >> %s;' % ('/etc/init.d/xinetd', cron_file) +
-                     'echo "2 * * * * root %s restart" >> %s' % ('/etc/init.d/badvpn-udpgw', cron_file))
+                     'echo "2 * * * * root killall %s && %s restart" >> %s' % ('badvpn-udpgw', '/etc/init.d/badvpn-udpgw', cron_file))
 
     #
     # Add required packages and Python modules
@@ -613,17 +613,19 @@ def install_firewall_rules(host, servers, plugins):
                 if s.capabilities['handshake']]) + ''.join(
     # SSH
     ['''
-    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --set
-    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --update --seconds 10 --hitcount 10 -j DROP
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --set --name {2}
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --update --name {2} --seconds 60 --hitcount 3 -j DROP
     -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -j ACCEPT'''.format(
-            str(s.internal_ip_address), str(s.ssh_port)) for s in servers
+            str(s.internal_ip_address), str(s.ssh_port),
+            'LIMIT-' + str(s.internal_ip_address).replace('.', '-') + '-' + str(s.ssh_port)) for s in servers
                 if s.capabilities['SSH']]) + ''.join(
     # OSSH
     ['''
-    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --set
-    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --update --seconds 10 --hitcount 10 -j DROP
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --set --name {2}
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --update --name {2} --seconds 60 --hitcount 3 -j DROP
     -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -j ACCEPT'''.format(
-            str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
+            str(s.internal_ip_address), str(s.ssh_obfuscated_port),
+            'LIMIT-' + str(s.internal_ip_address).replace('.', '-') + '-' + str(s.ssh_obfuscated_port)) for s in servers
                 if s.capabilities['OSSH']]) + ''.join(
     # VPN
     ['''
@@ -707,7 +709,13 @@ COMMIT
     ['''
     -A PREROUTING -i eth+ -p tcp -d %s --dport 443 -j DNAT --to-destination :%s'''
             % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers
-                if s.capabilities['handshake']]) + '''
+                if s.capabilities['handshake']]) + ''.join(
+    # Port forward alternate ports
+    ['''
+    -A PREROUTING -i eth+ -p tcp -d %s --dport %s -j DNAT --to-destination :%s'''
+            % (str(s.internal_ip_address), str(alternate), str(s.ssh_obfuscated_port))
+                for s in servers if s.alternate_ssh_obfuscated_ports
+                for alternate in s.alternate_ssh_obfuscated_ports]) + '''
     -A POSTROUTING -s 10.0.0.0/8 -o eth+ -j MASQUERADE''' + ''.join(
     # tunneled web requests on NATed servers need to be redirected to the servers' internal ip addresses
     ['''
@@ -816,28 +824,48 @@ def install_psi_limit_load(host, servers):
             % (str(s.internal_ip_address), ) for s in servers
                 if s.capabilities['VPN']] )
                 
-    disable_services = '\n'.join(['iptables -I' + rule for rule in rules])
+    disable_services = '\n    '.join(['iptables -I' + rule for rule in rules])
     
-    enable_services = '\n'.join(['iptables -D' + rule for rule in rules])
+    enable_services = '\n    '.join(['iptables -D' + rule for rule in rules])
     
     script = '''
 #!/bin/bash
 
-threshold=20
+threshold_load_per_cpu=4
+threshold_mem=20
 threshold_swap=20
 
-free=$(free | grep "buffers/cache" | awk '{print $4/($3+$4) * 100.0}')
-loaded=$(echo "$free<$threshold" | bc)
-loaded_swap=0
-total_swap=$(free | grep "Swap" | awk '{print $2}')
-if [ $total_swap -ne 0 ]; then
-    free_swap=$(free | grep "Swap" | awk '{print $4/$2 * 100.0}')
-    loaded_swap=$(echo "$free_swap<$threshold_swap" | bc)
-fi
-if [ $loaded -eq 1 -o $loaded_swap -eq 1 ]; then
+while true; do
+    loaded_cpu=0
+    num_cpu=`grep 'model name' /proc/cpuinfo | wc -l`
+    threshold_cpu=$(($threshold_load_per_cpu * $num_cpu - 1))
+    load_cpu=`uptime | cut -d , -f 4 | cut -d : -f 2 | awk -F \. '{print $1}'`
+    if [ "$load_cpu" -ge "$threshold_cpu" ]; then
+        loaded_cpu=1
+        break
+    fi
+
+    free=$(free | grep "buffers/cache" | awk '{print $4/($3+$4) * 100.0}')
+    loaded_mem=$(echo "$free<$threshold_mem" | bc)
+
+    loaded_swap=0
+    total_swap=$(free | grep "Swap" | awk '{print $2}')
+    if [ $total_swap -ne 0 ]; then
+        free_swap=$(free | grep "Swap" | awk '{print $4/$2 * 100.0}')
+        loaded_swap=$(echo "$free_swap<$threshold_swap" | bc)
+    fi
+    
+    break
+done
+
+if [ $loaded_cpu -eq 1 ] || [ $loaded_mem -eq 1 ] || [ $loaded_swap -eq 1 ]; then
     %s
     %s
+    service xinetd stop
 else
+    if [[ -z $(pgrep xinetd) ]]; then
+        service xinetd restart
+    fi
     %s
 fi
 exit 0

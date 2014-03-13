@@ -23,7 +23,7 @@ import mailparser
 
 
 _SLEEP_TIME_SECS = 60
-_DEBUG = ('DEBUG' in os.environ) and os.environ['DEBUG']
+_DEBUG = os.environ.get('DEBUG', False)
 
 
 class EmailGetter():

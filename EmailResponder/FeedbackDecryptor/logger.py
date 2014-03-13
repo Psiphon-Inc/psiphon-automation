@@ -32,7 +32,7 @@ except Exception as e:
     print 'datastore import failed: %s' % str(e)
 
 
-_DEBUG = ('DEBUG' in os.environ) and os.environ['DEBUG']
+_DEBUG = os.environ.get('DEBUG', False)
 
 _my_logger = logging.getLogger('MyLogger')
 _my_logger.setLevel(logging.DEBUG if _DEBUG else logging.WARNING)

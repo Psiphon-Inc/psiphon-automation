@@ -47,6 +47,8 @@ def _upgrade_old_object(yaml_docs):
     Returns the appropriately modified YAML dict.
     '''
 
+    logger.debug_log('maildecryptor._upgrade_old_object start')
+
     # The non-versioned YAML used multiple docs, so that's the main test
     if len(yaml_docs) == 1:
         return yaml_docs.pop()
@@ -86,6 +88,8 @@ def _upgrade_old_object(yaml_docs):
     obj['StatusHistory'] = yaml_docs[idx]
     idx += 1
 
+    logger.debug_log('maildecryptor._upgrade_old_object end')
+
     return obj
 
 
@@ -110,6 +114,8 @@ def _load_yaml(yaml_string):
     # So we're going to try loading `yaml_string` as JSON first, and then fall
     # back to YAML if that fails.
 
+    logger.debug_log('maildecryptor._load_yaml start')
+
     try:
         obj = json.loads(yaml_string)
     except:
@@ -118,6 +124,8 @@ def _load_yaml(yaml_string):
             yaml_docs.append(yaml_doc)
 
         obj = _upgrade_old_object(yaml_docs)
+
+    logger.debug_log('maildecryptor._load_yaml end')
 
     return obj
 
@@ -128,6 +136,8 @@ _email_stripper_regex = re.compile(r'(.*<)?([^<>]+)(>)?')
 
 
 def _get_email_info(msg):
+    logger.debug_log('maildecryptor._get_email_info start')
+
     subject_translation = translation.translate(config['googleApiServers'],
                                                 config['googleApiKey'],
                                                 msg['subject'])
@@ -159,10 +169,14 @@ def _get_email_info(msg):
                       subject=subject,
                       body=body)
 
+    logger.debug_log('maildecryptor._get_email_info end')
+
     return email_info
 
 
 def go():
+    logger.debug_log('maildecryptor.go start')
+
     emailgetter = EmailGetter(config['popServer'],
                               config['popPort'],
                               config['emailUsername'],
@@ -172,7 +186,7 @@ def go():
     # Note that `emailgetter.get` throttles itself if/when there are no emails
     # immediately available.
     for msg in emailgetter.get():
-        logger.debug_log('maildecryptor: msg has %d attachments' % len(msg['attachments']))
+        logger.debug_log('maildecryptor.go: msg has %d attachments' % len(msg['attachments']))
 
         #
         # First try to process attachments.
@@ -234,3 +248,5 @@ def go():
                 # Try the next attachment/message
                 logger.exception()
                 logger.error(str(e))
+
+    logger.debug_log('maildecryptor.go end')

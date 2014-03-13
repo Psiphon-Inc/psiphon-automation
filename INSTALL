@@ -59,7 +59,7 @@ Dependencies
 
 - Install additional modules:
 
-  easy_install paramiko pyOpenSSL pywin32 jsonpickle PyYAML qrcode PIL
+  easy_install paramiko pyOpenSSL pywin32 jsonpickle PyYAML qrcode PIL requests
 
 [NOTE: you may require Visual C++ 2008, NOT 2010, to build Python modules
  (http://mail.python.org/pipermail/python-list/2010-April/1242706.html).

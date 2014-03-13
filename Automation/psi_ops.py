@@ -62,6 +62,11 @@ except ImportError as error:
     print error
 
 try:
+    import psi_digitalocean
+except ImportError as error:
+    print error
+
+try:
     import psi_elastichosts
 except ImportError as error:
     print error
@@ -178,7 +183,8 @@ Server = psi_utils.recordtype(
     'id, host_id, ip_address, egress_ip_address, internal_ip_address, ' +
     'propagation_channel_id, is_embedded, is_permanent, discovery_date_range, capabilities, ' +
     'web_server_port, web_server_secret, web_server_certificate, web_server_private_key, ' +
-    'ssh_port, ssh_username, ssh_password, ssh_host_key, ssh_obfuscated_port, ssh_obfuscated_key',
+    'ssh_port, ssh_username, ssh_password, ssh_host_key, ssh_obfuscated_port, ssh_obfuscated_key, ' +
+    'alternate_ssh_obfuscated_ports',
     default=None)
 
 
@@ -209,7 +215,7 @@ ProviderRank = psi_utils.recordtype(
     'ProviderRank',
     'provider, rank',
     default=None)
-ProviderRank.provider_values = ('linode', 'elastichosts')
+ProviderRank.provider_values = ('linode', 'elastichosts', 'digitalocean')
 
 LinodeAccount = psi_utils.recordtype(
     'LinodeAccount',
@@ -217,6 +223,13 @@ LinodeAccount = psi_utils.recordtype(
     'base_root_password, base_stats_username, base_host_public_key, ' +
     'base_known_hosts_entry, base_rsa_private_key, base_rsa_public_key, ' +
     'base_tarball_path',
+    default=None)
+
+DigitalOceanAccount = psi_utils.recordtype(
+    'DigitalOceanAccount',
+    'client_id, api_key, base_id, base_size_id, base_region_id, ' +
+    'base_ssh_port, base_stats_username, base_host_public_key, ' +
+    'base_rsa_private_key, ssh_key_template_id',
     default=None)
 
 ElasticHostsAccount = psi_utils.recordtype(
@@ -291,6 +304,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__aws_account = AwsAccount()
         self.__provider_ranks = []
         self.__linode_account = LinodeAccount()
+        self.__digitalocean_account = DigitalOceanAccount()
         self.__elastichosts_accounts = []
         self.__deploy_implementation_required_for_hosts = set()
         self.__deploy_data_required_for_all = False
@@ -312,7 +326,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.23'
+    class_version = '0.25'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -429,6 +443,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.23')) < 0:
             self.__automation_bucket = None
             self.version = '0.23'
+        if cmp(parse_version(self.version), parse_version('0.24')) < 0:
+            self.__digitalocean_account = DigitalOceanAccount()
+            self.version = '0.24'
+        if cmp(parse_version(self.version), parse_version('0.25')) < 0:
+            for server in self.__servers.itervalues():
+                server.alternate_ssh_obfuscated_ports = []
+            for server in self.__deleted_servers.itervalues():
+                server.alternate_ssh_obfuscated_ports = []
+            self.version = '0.25'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -452,6 +475,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             AWS Account:            %s
             Provider Ranks:         %s
             Linode Account:         %s
+            DigitalOcean Account:   %s
             ElasticHosts Account:   %s
             Deploys Pending:        Host Implementations    %d
                                     Host Data               %s
@@ -480,6 +504,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 'Configured' if self.__aws_account.access_id else 'None',
                 'Configured' if self.__provider_ranks else 'None',
                 'Configured' if self.__linode_account.api_key else 'None',
+                'Configured' if self.__digitalocean_account.client_id and self.__digitalocean_account.api_key else 'None',
                 'Configured' if self.__elastichosts_accounts else 'None',
                 len(self.__deploy_implementation_required_for_hosts),
                 'Yes' if self.__deploy_data_required_for_all else 'No',
@@ -756,7 +781,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def import_sponsor(self, id, name):
         assert(self.is_locked)
-        sponsor = Sponsor(id, name, None, {}, [], [], [])
+        sponsor = Sponsor(id, name, None, None, None, {}, [], [], [])
         assert(id not in self.__sponsors)
         assert(not filter(lambda x: x.name == name, self.__sponsors.itervalues()))
         self.__sponsors[id] = sponsor
@@ -1151,18 +1176,31 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         now = datetime.datetime.now()
         today = datetime.datetime(now.year, now.month, now.day)
 
-        # Use a default 2 week discovery date range.
-        new_discovery_date_range = (today, today + datetime.timedelta(weeks=2))
+        # Use a default 2 day discovery date range.
+        new_discovery_date_range = (today, today + datetime.timedelta(days=2))
+
+        failure = None
 
         if new_discovery_servers_count == None:
             new_discovery_servers_count = propagation_channel.new_discovery_servers_count
         if new_discovery_servers_count > 0:
-            self.add_servers(new_discovery_servers_count, propagation_channel_name, new_discovery_date_range)
+            try:
+                self.add_servers(new_discovery_servers_count, propagation_channel_name, new_discovery_date_range)
+            except Exception as ex:
+                print str(ex)
+                failure = ex
 
         if new_propagation_servers_count == None:
             new_propagation_servers_count = propagation_channel.new_propagation_servers_count
         if new_propagation_servers_count > 0:
-            self.add_servers(new_propagation_servers_count, propagation_channel_name, None)
+            try:
+                self.add_servers(new_propagation_servers_count, propagation_channel_name, None)
+            except Exception as ex:
+                print str(ex)
+                failure = ex
+
+        if failure:
+            raise failure
 
     def get_existing_server_ids(self):
         return [server.id for server in self.__servers.itervalues()] + \
@@ -1255,6 +1293,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if provider.lower() == 'linode':
                 provider_launch_new_server = psi_linode.launch_new_server
                 provider_account = self.__linode_account
+            elif provider.lower() == 'digitalocean':
+                provider_launch_new_server = psi_digitalocean.launch_new_server
+                provider_account = self.__digitalocean_account
             elif provider.lower() == 'elastichosts':
                 provider_launch_new_server = psi_elastichosts.ElasticHosts().launch_new_server
                 provider_account = self._weighted_random_choice(self.__elastichosts_accounts)
@@ -1292,7 +1333,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 capabilities['handshake'] = False
                 capabilities['VPN'] = False
                 capabilities['SSH'] = False
-                ssh_port = None
                 ossh_ports = range(1,1023)
                 ossh_ports.remove(15)
                 ossh_ports.remove(135)
@@ -1588,6 +1628,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             upgrade_url,
             get_new_version_url,
             get_new_version_email,
+            faq_url,
+            privacy_policy_url,
             platforms=None,
             test=False):
         if not platforms:
@@ -1640,6 +1682,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         upgrade_url,
                         get_new_version_url,
                         get_new_version_email,
+                        faq_url,
+                        privacy_policy_url,
                         self.__client_versions[platform][-1].version if self.__client_versions[platform] else 0,
                         propagation_channel.propagator_managed_upgrades,
                         test) for platform in platforms]
@@ -1744,6 +1788,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         campaign.log('created s3 bucket %s' % (campaign.s3_bucket_name,))
                         self.save()  # don't leak buckets
 
+                        # When creating a new bucket we'll load the website into
+                        # it. Rather than setting flags in all of the creation
+                        # methods, we'll use the above creation as the chokepoint.
+                        # After this we just have to worry about website updates.
+                        # Note that this generates the site. It's not very efficient
+                        # to do that here, but it happens infrequently enough to be okay.
+                        self.update_static_site_content(sponsor, campaign, True)
+
                     # Remote server list: for clients to get new servers via S3, we embed the
                     # bucket URL in the build. So now we're ensuring the bucket exists and we
                     # have its URL before the build is uploaded to S3. The remote server list
@@ -1777,12 +1829,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     s3_upgrade_resource_name = client_build_filenames[platform] + psi_ops_s3.DOWNLOAD_SITE_UPGRADE_SUFFIX
 
                     upgrade_url = psi_ops_s3.get_s3_bucket_resource_url(campaign.s3_bucket_name, s3_upgrade_resource_name)
-                    get_new_version_url = psi_ops_s3.get_s3_bucket_home_page_url(campaign.s3_bucket_name)
+                    get_new_version_url = psi_ops_s3.get_s3_bucket_download_page_url(campaign.s3_bucket_name)
 
                     assert(self.__default_email_autoresponder_account)
                     get_new_version_email = self.__default_email_autoresponder_account.email_address
                     if type(campaign.account) == EmailPropagationAccount:
                         get_new_version_email = campaign.account.email_address
+
+                    faq_url = psi_ops_s3.get_s3_bucket_faq_url(campaign.s3_bucket_name)
+                    privacy_policy_url = psi_ops_s3.get_s3_bucket_privacy_policy_url(campaign.s3_bucket_name)
 
                     build_filename = self.build(
                                         propagation_channel.name,
@@ -1792,6 +1847,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         upgrade_url,
                                         get_new_version_url,
                                         get_new_version_email,
+                                        faq_url,
+                                        privacy_policy_url,
                                         [platform])[0]
 
                     upgrade_filename = self.__make_upgrade_package_from_build(build_filename)
@@ -1889,13 +1946,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # Generate the static website from source
             website_generator.generate(WEBSITE_GENERATION_DIR)
 
+        assert(self.__default_email_autoresponder_account)
+        get_new_version_email = self.__default_email_autoresponder_account.email_address
+        if type(campaign.account) == EmailPropagationAccount:
+            get_new_version_email = campaign.account.email_address
+
         psi_ops_s3.update_website(
                         self.__aws_account,
                         campaign.s3_bucket_name,
                         campaign.custom_download_site,
                         WEBSITE_GENERATION_DIR,
                         sponsor.website_banner,
-                        sponsor.website_banner_link)
+                        sponsor.website_banner_link,
+                        get_new_version_email)
         campaign.log('updated website in S3 bucket %s' % (campaign.s3_bucket_name,))
 
     def update_routes(self):
@@ -1981,10 +2044,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
                     campaign.log('configuring email')
 
-        psi_ops_s3.put_string_to_key(self.__automation_bucket,
-                                     EMAIL_RESPONDER_CONFIG_BUCKET_KEY,
-                                     json.dumps(emails, indent=2),
-                                     False)  # not public
+        psi_ops_s3.put_string_to_key_in_bucket(self.__aws_account,
+                                               self.__automation_bucket,
+                                               EMAIL_RESPONDER_CONFIG_BUCKET_KEY,
+                                               json.dumps(emails, indent=2),
+                                               False)  # not public
 
     def add_server_version(self):
         assert(self.is_locked)
@@ -2071,6 +2135,17 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             base_known_hosts_entry=base_known_hosts_entry, base_rsa_private_key=base_rsa_private_key,
             base_rsa_public_key=base_rsa_public_key, base_tarball_path=base_tarball_path)
 
+    def set_digitalocean_account(self, client_id, api_key, base_id, base_size_id, base_region_id, base_ssh_port,
+                                 base_stats_username, base_host_public_key,
+                                 base_rsa_private_key, ssh_key_template_id):
+        assert(self.is_locked)
+        psi_utils.update_recordtype(
+            self.__digitalocean_account,
+            client_id=client_id, api_key=api_key, base_id=base_id,
+            base_size_id=base_size_id, base_region_id=base_region_id, base_ssh_port=base_ssh_port,
+            base_stats_username=base_stats_username, base_host_public_key=base_host_public_key,
+            base_rsa_private_key=base_rsa_private_key, ssh_key_template_id=ssh_key_template_id)
+
     def upsert_elastichosts_account(self, zone, uuid, api_key, base_drive_id,
                                     cpu, mem, base_host_public_key, root_username,
                                     base_root_password, base_ssh_port, stats_username, rank):
@@ -2112,6 +2187,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def set_automation_bucket(self, bucket):
         assert(self.is_locked)
         self.__automation_bucket = bucket
+        self.__deploy_email_config_required = True
         # TODO: Log the change? Where?
 
     def set_stats_server_account(self, ip_address, ssh_port,
@@ -2156,6 +2232,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             assert(ssh_host_key_type == 'ssh-rsa')
 
         extended_config['sshObfuscatedPort'] = int(server.ssh_obfuscated_port) if server.ssh_obfuscated_port else 0
+        if server.alternate_ssh_obfuscated_ports:
+            extended_config['sshObfuscatedPort'] = int(server.alternate_ssh_obfuscated_ports[-1])
         extended_config['sshObfuscatedKey'] = server.ssh_obfuscated_key if server.ssh_obfuscated_key else ''
 
         extended_config['capabilities'] = [capability for capability, enabled in server.capabilities.iteritems() if enabled] if server.capabilities else []
@@ -2292,6 +2370,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if server.ssh_obfuscated_port:
             config['ssh_obfuscated_port'] = int(server.ssh_obfuscated_port)
             config['ssh_obfuscated_key'] = server.ssh_obfuscated_key
+        if server.alternate_ssh_obfuscated_ports:
+            config['sshObfuscatedPort'] = int(server.alternate_ssh_obfuscated_ports[-1])
+            config['ssh_obfuscated_key'] = server.ssh_obfuscated_key
 
         # Give client a set of regexes indicating which pages should have individual stats
         config['page_view_regexes'] = []
@@ -2405,7 +2486,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 server.ssh_password,
                                                 server.ssh_host_key,
                                                 server.ssh_obfuscated_port,
-                                                server.ssh_obfuscated_key)
+                                                server.ssh_obfuscated_key,
+                                                server.alternate_ssh_obfuscated_ports)
 
         for sponsor in self.__sponsors.itervalues():
             copy_sponsor = Sponsor(

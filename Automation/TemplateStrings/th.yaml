@@ -1,15 +1,14 @@
 th:
   plaintext_email_no_attachment: |
-    ภาษาไทย - {{0}}/{0}.html
+    ภาษาไทย - {{0}}/{0}/index.html
   html_email_no_attachment: |
     <div style="direction: ltr;">
-    ภาษาไทย - <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
+    ภาษาไทย - <a href="{{0}}/{0}/index.html">{{0}}/{0}/index.html</a><br>
     </div>
-  plaintext_email_with_attachment: |+
-    ภาษาไทย - {{0}}/{0}.html
-
+  plaintext_email_with_attachment: |
+    ภาษาไทย - {{0}}/{0}/index.html
   html_email_with_attachment: |
     <div style="direction: ltr;">
-    ภาษาไทย - <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
+    ภาษาไทย - <a href="{{0}}/{0}/index.html">{{0}}/{0}/index.html</a><br>
     </div>
     <br>

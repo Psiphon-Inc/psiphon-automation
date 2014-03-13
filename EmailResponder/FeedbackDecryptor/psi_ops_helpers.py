@@ -16,6 +16,7 @@
 
 
 import sys
+import os
 
 from config import config
 
@@ -24,7 +25,6 @@ sys.path.append(config['psiOpsPath'])
 import psi_ops
 
 # We are effectively exporting these
-from transifex_pull import DOWNLOAD_SITE_LANGS
 from psi_ops_s3 import \
     get_s3_bucket_resource_url,\
     get_s3_bucket_home_page_url,\
@@ -32,7 +32,7 @@ from psi_ops_s3 import \
     EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME,\
     DOWNLOAD_SITE_ANDROID_BUILD_FILENAME,\
     EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME
-
+from transifex_pull import WEBSITE_LANGS
 
 
 _psinet = None
