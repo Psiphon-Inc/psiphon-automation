@@ -93,7 +93,7 @@ class CronCreator(object):
         # applied. This should be done in a more event-driven or change-driven
         # manner, instead of this brute-force way.
         command_id = 'Psiphon: reload Postfix config'
-        command = '/usr/sbin/postfix reload &>/dev/null'
+        command = 'sudo /usr/sbin/postfix reload &>/dev/null'
 
         self._delete_commands(self.normal_tab, command_id)
 
