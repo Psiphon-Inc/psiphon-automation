@@ -88,6 +88,19 @@ class CronCreator(object):
         cron = self.normal_tab.new(command=command, comment=command_id)
         cron.every_reboot()
 
+        # This is a hack. We sometimes modify Postfix config (or, specifically,
+        # files used by the Postfix config) and we need those changes to get
+        # applied. This should be done in a more event-driven or change-driven
+        # manner, instead of this brute-force way.
+        command_id = 'Psiphon: reload Postfix config'
+        command = 'sudo /usr/sbin/postfix reload &>/dev/null'
+
+        self._delete_commands(self.normal_tab, command_id)
+
+        # Do it every hour...
+        cron = self.normal_tab.new(command=command, comment=command_id)
+        cron.minute.on(0)
+
     def _instance_initialization_jobs(self):
         # If this directory isn't removed it will mess up metrics reporting
         command_id = 'Psiphon: delete cached instance info'
