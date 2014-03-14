@@ -31,13 +31,16 @@ from boto.s3.connection import S3Connection
 
 
 def get_s3_attachment(attachment_cache_dir, bucketname, bucket_filename):
-    return get_s3_cached_file(attachment_cache_dir, bucketname, bucket_filename)
+    '''
+    Returns a file-type object for the data.
+    '''
+    return get_s3_cached_file(attachment_cache_dir, bucketname, bucket_filename)[0]
 
 
 def get_s3_cached_file(cache_dir, bucketname, bucket_filename):
     '''
-    Returns a file-type object for the data in the requested bucket with the
-    given filename.
+    Returns a tuple of the file-type object for the data and a boolean indicating
+    if this data is new (not from the cache).
     This function checks if the file has already been downloaded. If it has,
     it checks that the checksum still matches the file in S3. If the file doesn't
     exist, or if it the checksum doesn't match, the file is downloaded and
@@ -76,7 +79,7 @@ def get_s3_cached_file(cache_dir, bucketname, bucket_filename):
         # Do the hashes match?
         if etag == cache_hex:
             cache_file.seek(0)
-            return cache_file
+            return (cache_file, False)
 
         cache_file.close()
 
@@ -88,7 +91,7 @@ def get_s3_cached_file(cache_dir, bucketname, bucket_filename):
     cache_file.close()
     cache_file = open(cache_path, 'rb')
 
-    return cache_file
+    return (cache_file, True)
 
 
 def get_s3_string(bucketname, bucket_filename):
