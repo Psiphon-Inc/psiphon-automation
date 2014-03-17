@@ -631,6 +631,10 @@ So our approach to scaling will be to go up very fast, and then let the pool
 shrink if the capacity isn't needed. This will probably be our best chance of
 coping with a sudden 20x request increase.
 
+NOTE: AWS has recently added the ability to manage scaling stuff (launch configs,
+scaling groups) via the EC2 web console. We now use that instead of Python+boto.
+
+
 ```python
 
 access_id, secret_key = <high-enough privilege user creds>
