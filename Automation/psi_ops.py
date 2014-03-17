@@ -1143,7 +1143,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 if server.propagation_channel_id == propagation_channel.id
                 and server.discovery_date_range
                 and server.discovery_date_range[1] < (today - datetime.timedelta(days=max_discovery_server_age_in_days))
-                and self.__hosts[server.host_id].provider == 'linode']
+                and self.__hosts[server.host_id].provider in ['linode', 'digitalocean']]
             removed, disabled = self.__prune_servers(old_discovery_servers)
             number_removed += removed
             number_disabled += disabled
@@ -1156,7 +1156,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 and not server.discovery_date_range
                 and not server.is_embedded
                 and server.logs[0][0] < (today - datetime.timedelta(days=max_propagation_server_age_in_days))
-                and self.__hosts[server.host_id].provider == 'linode']
+                and self.__hosts[server.host_id].provider in ['linode', 'digitalocean']]
             removed, disabled = self.__prune_servers(old_propagation_servers)
             number_removed += removed
             number_disabled += disabled
@@ -1405,6 +1405,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if host.provider == 'linode':
                 provider_remove_host = psi_linode.remove_server
                 provider_account = self.__linode_account
+            if host.provider == 'digitalocean':
+                provider_remove_host = psi_digitalocean.remove_droplet
+                provider_account = self.__digitalocean_account
             if provider_remove_host:
                 # Remove the actual host through the provider's API
                 provider_remove_host(provider_account, host.provider_id)

@@ -549,7 +549,13 @@ myhostname = example.com
 alias_maps = hash:/etc/aliases
 alias_database = hash:/etc/aliases
 myorigin = /etc/mailname
-extradomains = otherdomain1.com otherdomain2.com
+
+# This file contains the extra domains we support. Its contents will replace this path.
+# We rely on an external command (cron job) to reload the postfix config when
+# this file changes.
+# NOTE: the username here might differ with your particular setup.
+extradomains = /home/mail_responder/extradomains
+
 mydestination = $myhostname localhost.$mydomain localhost <ec2 external domain name> <ec2 internal domain name> $extradomains
 relayhost =
 mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
