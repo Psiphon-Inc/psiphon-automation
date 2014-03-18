@@ -57,12 +57,21 @@ def _bucket_iterator(bucket):
 
     while True:
         for key in bucket.list():
+            logger.debug_log('s3decryptor._bucket_iterator: %s' % key)
+
+            contents = None
+
             # Do basic sanity checks before trying to download the object
             if _is_bucket_item_sane(key):
                 logger.debug_log('s3decryptor._bucket_iterator: good item found, yielding')
-                yield key.get_contents_as_string()
+                contents = key.get_contents_as_string()
 
+            # Make sure to delete the key *before* proceeding, so we don't
+            # try to re-process if there's an error.
             bucket.delete_key(key)
+
+            if contents:
+                yield contents
 
         logger.debug_log('s3decryptor._bucket_iterator: no item found, sleeping')
         time.sleep(_SLEEP_TIME_SECS)
