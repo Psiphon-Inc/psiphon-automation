@@ -235,6 +235,11 @@ def remove_droplet(do_api, droplet_id):
     except Exception as e:
         raise e
 
+def remove_server(digitalocean_account, droplet_id):
+    do_api = digitalocean.DigitalOceanAPI.DigitalOceanAPI(digitalocean_account.client_id,
+                                                          digitalocean_account.api_key)
+    remove_droplet(do_api, droplet_id)
+
 if __name__ == "__main__":
     print launch_new_server(digitalocean_account)
     
