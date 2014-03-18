@@ -1406,7 +1406,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 provider_remove_host = psi_linode.remove_server
                 provider_account = self.__linode_account
             if host.provider == 'digitalocean':
-                provider_remove_host = psi_digitalocean.remove_droplet
+                provider_remove_host = psi_digitalocean.remove_server
                 provider_account = self.__digitalocean_account
             if provider_remove_host:
                 # Remove the actual host through the provider's API
