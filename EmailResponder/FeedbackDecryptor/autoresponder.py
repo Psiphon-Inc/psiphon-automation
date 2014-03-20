@@ -45,7 +45,7 @@ def _diagnostic_record_iter():
 
     while True:
         for rec in datastore.get_autoresponder_diagnostic_info_iterator():
-            logger.debug_log('_diagnostic_record_iter: yielding rec')
+            logger.debug_log('_diagnostic_record_iter: yielding rec: %s' % rec['_id'])
             yield rec
 
         logger.debug_log('_diagnostic_record_iter: sleeping')
