@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2011, Psiphon Inc.
+# Copyright (c) 2014, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -91,7 +91,7 @@ def get_s3_bucket_home_page_url(bucket_id, language=None):
 def get_s3_bucket_download_page_url(bucket_id, lang='en'):
     # Assumes USEast
     scheme, domain, path = get_s3_bucket_resource_url(bucket_id,
-                                                      '%s/download.html' % (lang,))
+                                                      '%s/download.html#direct' % (lang,))
     return '%s://%s/%s' % (scheme, domain, path)
 
 
