@@ -286,7 +286,7 @@ def _get_response_content(response_id, diagnostic_info):
 
     # The user might be using a language for which there isn't a download page.
     # Fall back to English if that's the case.
-    download_bucket_url = psi_ops_helpers.get_s3_bucket_home_page_url(
+    download_bucket_url = psi_ops_helpers.get_s3_bucket_download_page_url(
         bucketname,
         lang_id if lang_id in psi_ops_helpers.WEBSITE_LANGS else 'en')
 
