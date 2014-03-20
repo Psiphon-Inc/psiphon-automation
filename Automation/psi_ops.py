@@ -215,7 +215,7 @@ ProviderRank = psi_utils.recordtype(
     'ProviderRank',
     'provider, rank',
     default=None)
-ProviderRank.provider_values = ('linode', 'elastichosts')
+ProviderRank.provider_values = ('linode', 'elastichosts', 'digitalocean')
 
 LinodeAccount = psi_utils.recordtype(
     'LinodeAccount',
@@ -781,7 +781,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def import_sponsor(self, id, name):
         assert(self.is_locked)
-        sponsor = Sponsor(id, name, None, {}, [], [], [])
+        sponsor = Sponsor(id, name, None, None, None, {}, [], [], [])
         assert(id not in self.__sponsors)
         assert(not filter(lambda x: x.name == name, self.__sponsors.itervalues()))
         self.__sponsors[id] = sponsor
@@ -1143,7 +1143,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 if server.propagation_channel_id == propagation_channel.id
                 and server.discovery_date_range
                 and server.discovery_date_range[1] < (today - datetime.timedelta(days=max_discovery_server_age_in_days))
-                and self.__hosts[server.host_id].provider == 'linode']
+                and self.__hosts[server.host_id].provider in ['linode', 'digitalocean']]
             removed, disabled = self.__prune_servers(old_discovery_servers)
             number_removed += removed
             number_disabled += disabled
@@ -1156,7 +1156,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 and not server.discovery_date_range
                 and not server.is_embedded
                 and server.logs[0][0] < (today - datetime.timedelta(days=max_propagation_server_age_in_days))
-                and self.__hosts[server.host_id].provider == 'linode']
+                and self.__hosts[server.host_id].provider in ['linode', 'digitalocean']]
             removed, disabled = self.__prune_servers(old_propagation_servers)
             number_removed += removed
             number_disabled += disabled
@@ -1176,8 +1176,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         now = datetime.datetime.now()
         today = datetime.datetime(now.year, now.month, now.day)
 
-        # Use a default 2 week discovery date range.
-        new_discovery_date_range = (today, today + datetime.timedelta(weeks=2))
+        # Use a default 2 day discovery date range.
+        new_discovery_date_range = (today, today + datetime.timedelta(days=2))
 
         failure = None
 
@@ -1333,7 +1333,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 capabilities['handshake'] = False
                 capabilities['VPN'] = False
                 capabilities['SSH'] = False
-                ssh_port = None
                 ossh_ports = range(1,1023)
                 ossh_ports.remove(15)
                 ossh_ports.remove(135)
@@ -1406,6 +1405,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if host.provider == 'linode':
                 provider_remove_host = psi_linode.remove_server
                 provider_account = self.__linode_account
+            if host.provider == 'digitalocean':
+                provider_remove_host = psi_digitalocean.remove_server
+                provider_account = self.__digitalocean_account
             if provider_remove_host:
                 # Remove the actual host through the provider's API
                 provider_remove_host(provider_account, host.provider_id)

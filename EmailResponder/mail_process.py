@@ -36,7 +36,11 @@ import blacklist
 import aws_helpers
 
 
-class MailResponder:
+EXTRADOMAINS_LIST_FILE = os.path.join(os.path.expanduser('~%s' % settings.MAIL_RESPONDER_USERNAME),
+                                      'extradomains')
+
+
+class MailResponder(object):
     '''
     Takes a configuration file and an email and sends back the appropriate
     response to the sender.
@@ -44,6 +48,12 @@ class MailResponder:
 
     def __init__(self):
         self.requested_addr = None
+        self._response_from_addr = None
+        self._conf = None
+        self._email_string = None
+        self._email = None
+        self._subject = None
+        self._requester_msgid = None
 
     def read_conf(self):
         '''
@@ -55,16 +65,28 @@ class MailResponder:
 
         try:
             # Note that json.load reads in unicode strings.
-            self._conf = json.loads(aws_helpers.get_s3_cached_file(settings.ATTACHMENT_CACHE_DIR,
-                                                                   settings.CONFIG_S3_BUCKET,
-                                                                   settings.CONFIG_S3_KEY).read())
+            conf_data, new_conf = aws_helpers.get_s3_cached_file(
+                                                settings.ATTACHMENT_CACHE_DIR,
+                                                settings.CONFIG_S3_BUCKET,
+                                                settings.CONFIG_S3_KEY)
+            self._conf = json.loads(conf_data.read())
 
+            all_email_addrs = []
             # Do some validation
             for item in self._conf:
                 if 'email_addr' not in item \
                         or 'body' not in item \
                         or 'attachments' not in item:
                     raise Exception('invalid config item: %s' % repr(item))
+
+                all_email_addrs.append(item['email_addr'])
+
+            if new_conf:
+                # Write the domains used to a file that will be used by Postfix
+                # in its config.
+                email_domains = set([addr[addr.find('@')+1:] for addr in all_email_addrs])
+                with open(EXTRADOMAINS_LIST_FILE, 'w') as extradomains_file:
+                    extradomains_file.write(' '.join(email_domains))
 
         except Exception as ex:
             syslog.syslog(syslog.LOG_CRIT, 'error: config file read failed: %s; file: %s:%s' % (ex, settings.CONFIG_S3_BUCKET, settings.CONFIG_S3_KEY))
@@ -161,8 +183,8 @@ class MailResponder:
         '''
         Check if the current requester address has been blacklisted.
         '''
-        bl = blacklist.Blacklist()
-        return bl.check_and_add(self._requester_addr)
+        blst = blacklist.Blacklist()
+        return blst.check_and_add(self._requester_addr)
 
     def _parse_email(self, email_string):
         '''
@@ -232,35 +254,36 @@ class MailResponder:
 
         return True
 
-    def send_test_email(self, recipient, from_address, subject, body,
-                        attachments=None, extra_headers=None):
-        '''
-        Used for debugging purposes to send an email that's approximately like
-        a response email.
-        '''
-        raw = sendmail.create_raw_email(recipient, from_address, subject, body,
-                                        attachments, extra_headers)
-        if not raw:
-            print('create_raw_email failed')
-            return False
 
-        raw = _dkim_sign_email(raw)
+def send_test_email(recipient, from_address, subject, body,
+                    attachments=None, extra_headers=None):
+    '''
+    Used for debugging purposes to send an email that's approximately like
+    a response email.
+    '''
+    raw = sendmail.create_raw_email(recipient, from_address, subject, body,
+                                    attachments, extra_headers)
+    if not raw:
+        print('create_raw_email failed')
+        return False
 
-        # Throws exception on error
-        if not sendmail.send_raw_email_smtp(raw, from_address, recipient):
-            print('send_raw_email_smtp failed')
-            return False
+    raw = _dkim_sign_email(raw)
 
-        print('Email sent')
-        return True
+    # Throws exception on error
+    if not sendmail.send_raw_email_smtp(raw, from_address, recipient):
+        print('send_raw_email_smtp failed')
+        return False
+
+    print('Email sent')
+    return True
 
 
 def strip_email(email_address):
     '''
     Strips something that looks like:
         Fname Lname <mail@example.com>
-    Down to just mail@example.com and returns it. If passed a plain email address,
-    will return that email. Returns False if bad email address.
+    Down to just mail@example.com and returns it. If passed a plain email
+    address, will return that email. Returns False if bad email address.
     '''
 
     # This regex is adapted from:
