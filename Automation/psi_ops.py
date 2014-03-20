@@ -183,7 +183,8 @@ Server = psi_utils.recordtype(
     'id, host_id, ip_address, egress_ip_address, internal_ip_address, ' +
     'propagation_channel_id, is_embedded, is_permanent, discovery_date_range, capabilities, ' +
     'web_server_port, web_server_secret, web_server_certificate, web_server_private_key, ' +
-    'ssh_port, ssh_username, ssh_password, ssh_host_key, ssh_obfuscated_port, ssh_obfuscated_key',
+    'ssh_port, ssh_username, ssh_password, ssh_host_key, ssh_obfuscated_port, ssh_obfuscated_key, ' +
+    'alternate_ssh_obfuscated_ports',
     default=None)
 
 
@@ -214,7 +215,7 @@ ProviderRank = psi_utils.recordtype(
     'ProviderRank',
     'provider, rank',
     default=None)
-ProviderRank.provider_values = ('linode', 'elastichosts')
+ProviderRank.provider_values = ('linode', 'elastichosts', 'digitalocean')
 
 LinodeAccount = psi_utils.recordtype(
     'LinodeAccount',
@@ -325,7 +326,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.24'
+    class_version = '0.25'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -445,6 +446,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.24')) < 0:
             self.__digitalocean_account = DigitalOceanAccount()
             self.version = '0.24'
+        if cmp(parse_version(self.version), parse_version('0.25')) < 0:
+            for server in self.__servers.itervalues():
+                server.alternate_ssh_obfuscated_ports = []
+            for server in self.__deleted_servers.itervalues():
+                server.alternate_ssh_obfuscated_ports = []
+            self.version = '0.25'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -774,7 +781,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def import_sponsor(self, id, name):
         assert(self.is_locked)
-        sponsor = Sponsor(id, name, None, {}, [], [], [])
+        sponsor = Sponsor(id, name, None, None, None, {}, [], [], [])
         assert(id not in self.__sponsors)
         assert(not filter(lambda x: x.name == name, self.__sponsors.itervalues()))
         self.__sponsors[id] = sponsor
@@ -1136,7 +1143,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 if server.propagation_channel_id == propagation_channel.id
                 and server.discovery_date_range
                 and server.discovery_date_range[1] < (today - datetime.timedelta(days=max_discovery_server_age_in_days))
-                and self.__hosts[server.host_id].provider == 'linode']
+                and self.__hosts[server.host_id].provider in ['linode', 'digitalocean']]
             removed, disabled = self.__prune_servers(old_discovery_servers)
             number_removed += removed
             number_disabled += disabled
@@ -1149,7 +1156,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 and not server.discovery_date_range
                 and not server.is_embedded
                 and server.logs[0][0] < (today - datetime.timedelta(days=max_propagation_server_age_in_days))
-                and self.__hosts[server.host_id].provider == 'linode']
+                and self.__hosts[server.host_id].provider in ['linode', 'digitalocean']]
             removed, disabled = self.__prune_servers(old_propagation_servers)
             number_removed += removed
             number_disabled += disabled
@@ -1169,8 +1176,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         now = datetime.datetime.now()
         today = datetime.datetime(now.year, now.month, now.day)
 
-        # Use a default 2 week discovery date range.
-        new_discovery_date_range = (today, today + datetime.timedelta(weeks=2))
+        # Use a default 2 day discovery date range.
+        new_discovery_date_range = (today, today + datetime.timedelta(days=2))
 
         failure = None
 
@@ -1326,7 +1333,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 capabilities['handshake'] = False
                 capabilities['VPN'] = False
                 capabilities['SSH'] = False
-                ssh_port = None
                 ossh_ports = range(1,1023)
                 ossh_ports.remove(15)
                 ossh_ports.remove(135)
@@ -1399,6 +1405,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if host.provider == 'linode':
                 provider_remove_host = psi_linode.remove_server
                 provider_account = self.__linode_account
+            if host.provider == 'digitalocean':
+                provider_remove_host = psi_digitalocean.remove_server
+                provider_account = self.__digitalocean_account
             if provider_remove_host:
                 # Remove the actual host through the provider's API
                 provider_remove_host(provider_account, host.provider_id)
@@ -2226,6 +2235,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             assert(ssh_host_key_type == 'ssh-rsa')
 
         extended_config['sshObfuscatedPort'] = int(server.ssh_obfuscated_port) if server.ssh_obfuscated_port else 0
+        if server.alternate_ssh_obfuscated_ports:
+            extended_config['sshObfuscatedPort'] = int(server.alternate_ssh_obfuscated_ports[-1])
         extended_config['sshObfuscatedKey'] = server.ssh_obfuscated_key if server.ssh_obfuscated_key else ''
 
         extended_config['capabilities'] = [capability for capability, enabled in server.capabilities.iteritems() if enabled] if server.capabilities else []
@@ -2362,6 +2373,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if server.ssh_obfuscated_port:
             config['ssh_obfuscated_port'] = int(server.ssh_obfuscated_port)
             config['ssh_obfuscated_key'] = server.ssh_obfuscated_key
+        if server.alternate_ssh_obfuscated_ports:
+            config['sshObfuscatedPort'] = int(server.alternate_ssh_obfuscated_ports[-1])
+            config['ssh_obfuscated_key'] = server.ssh_obfuscated_key
 
         # Give client a set of regexes indicating which pages should have individual stats
         config['page_view_regexes'] = []
@@ -2475,7 +2489,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 server.ssh_password,
                                                 server.ssh_host_key,
                                                 server.ssh_obfuscated_port,
-                                                server.ssh_obfuscated_key)
+                                                server.ssh_obfuscated_key,
+                                                server.alternate_ssh_obfuscated_ports)
 
         for sponsor in self.__sponsors.itervalues():
             copy_sponsor = Sponsor(

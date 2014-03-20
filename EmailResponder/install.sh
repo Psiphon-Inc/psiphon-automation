@@ -49,6 +49,9 @@ sudo chmod a+x  $MAIL_HOME/log_processor.py
 # Nuke the compiled Python files, just in case.
 sudo rm $MAIL_HOME/*.pyc
 
+# Make sure the extradomains file exists (but don't delete it if it does)
+sudo -u $MAIL_USER touch $MAIL_HOME/extradomains
+
 
 # Copy the system/service config files.
 echo "Copying system config files..."

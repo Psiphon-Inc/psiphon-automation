@@ -74,8 +74,8 @@ def create_linode(linode_api):
 
 
 def create_linode_disks(linode_api, linode_id, bootstrap_password, plugins):
-    # DistributionID = 108: Debian 7 32bit
-    distribution_id = 108
+    # DistributionID = 109: 'Debian 7'
+    distribution_id = 109
     for plugin in plugins:
         if hasattr(plugin, 'linode_distribution_id'):
             distribution_id = plugin.linode_distribution_id()
@@ -95,10 +95,10 @@ def create_linode_disks(linode_api, linode_id, bootstrap_password, plugins):
 
     
 def create_linode_configurations(linode_api, linode_id, disk_list, plugins):
-    # KernelID = 137: Latest 32 bit
-    bootstrap_kernel_id = 137
-    # KernelID = 92: pv-grub-x86_32
-    host_kernel_id = 92
+    # KernelID = 138: Latest 64 bit
+    bootstrap_kernel_id = 138
+    # KernelID = 95: pv-grub-x86_64
+    host_kernel_id = 95
     for plugin in plugins:
         if hasattr(plugin, 'linode_kernel_ids'):
             bootstrap_kernel_id, host_kernel_id = plugin.linode_kernel_ids()
@@ -135,8 +135,9 @@ def pave_linode(linode_account, ip_address, password):
     ssh.exec_command('echo "%s" > /root/.ssh/id_rsa' % (linode_account.base_rsa_private_key,))
     ssh.exec_command('chmod 600 /root/.ssh/id_rsa')
     ssh.exec_command('echo "%s" > /root/.ssh/id_rsa.pub' % (linode_account.base_rsa_public_key,))
-    ssh.exec_command('scp -P %d root@%s:%s /' % (linode_account.base_ssh_port,
+    ssh.exec_command('scp -P %d root@%s:%s %s' % (linode_account.base_ssh_port,
                                                  linode_account.base_ip_address,
+                                                  linode_account.base_tarball_path,
                                                  linode_account.base_tarball_path))
     ssh.exec_command('apt-get update > /dev/null')
     ssh.exec_command('apt-get install -y bzip2 > /dev/null')
