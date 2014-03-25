@@ -12,44 +12,86 @@ $(function() {
     throw new Error('Your browser is rubbish. Use Chrome.');
   }
 
-  regressAllHosts().then(function(results) {
-    // We want the results with the steepest negative slope at the front of the array
-    results = results.sort(function(a, b) {
-      // Returning 1 pushes `a` toward the end of the array, and vice versa for -1.
+  $('#show-host-graph').click(showHostGraph);
 
-      if (isNaN(a[2])) {
-        return 1;
-      }
-      else if (isNaN(b[2])) {
-        return -1;
-      }
-      return (a[2] > b[2]) ? 1 : -1;
-    });
+  if (window.location.search.indexOf('hostID=') >= 0) {
+    var hostIDs = window.location.search.slice(
+                      window.location.search.indexOf('hostID=') + 'hostID='.length)
+                    .split('&')[0]
+                    .split(',');
 
-    //console.log(results);
+    if (!hostIDs) {
+      alert('No host ID supplied');
+      return;
+    }
 
-    $.each(results.slice(0, GRAPH_COUNT), function(idx, hostInfo) {
-      graphHost(hostInfo);
-    });
-  });
+    loadHostsIndex()
+      .then(function(hosts) {
+        var hostsInfo = [];
+        $.each(hostIDs, function(idx, hostID) {
+          var matches = _.filter(hosts, function(host) { return host[0] === hostID; });
+          if (matches.length === 0) {
+            alert('Requested Host ID does not exist!');
+            throw new Error('Requested Host ID does not exist!');
+          }
+
+          // There should only be one match
+
+          matches[0].push('N/A');
+
+          hostsInfo.push(matches[0]);
+        });
+
+        graphHosts(hostsInfo);
+      });
+  }
+  else {
+    loadHostsIndex()
+      .then(regressAllHosts)
+      .then(function(results) {
+        // We want the results with the steepest negative slope at the front of the array
+        results = results.sort(function(a, b) {
+          // Returning 1 pushes `a` toward the end of the array, and vice versa for -1.
+
+          if (isNaN(a[2])) {
+            return 1;
+          }
+          else if (isNaN(b[2])) {
+            return -1;
+          }
+          return (a[2] > b[2]) ? 1 : -1;
+        });
+
+        //console.log(results);
+
+        graphHosts(results.slice(0, GRAPH_COUNT));
+      });
+  }
 });
 
 
-// Resolves promise with array of [[hostname, datapath, slope], ...]
-function regressAllHosts() {
+function loadHostsIndex() {
   return new Promise(function(resolve, reject) {
     $.getJSON('./data.json')
       .fail(function(xhr) {
-        var error = new Error('Ajax failed for ./data.js: ' + textStatus);
+        var error = new Error('Ajax failed for ./data.json: ' + textStatus);
         progress.error(error);
         reject(error);
       })
       .done(function(hosts) {
-        var regressionPromises = $.map(hosts, regressHost);
-        Promise.all(regressionPromises).then(function(results) {
-          resolve(results);
-        });
+        resolve(hosts);
       });
+  });
+}
+
+
+// Resolves promise with array of [[hostname, datapath, slope], ...]
+function regressAllHosts(hosts) {
+  return new Promise(function(resolve, reject) {
+    var regressionPromises = $.map(hosts, regressHost);
+    Promise.all(regressionPromises).then(function(results) {
+      resolve(results);
+    });
   });
 }
 
@@ -98,6 +140,16 @@ function regressHost(hostInfo) {
 
         resolve([hostInfo[0], hostInfo[1], slope]);
       });
+  });
+}
+
+
+/*
+hostsInfo is an array of tuples of [hostname, datapath, slope]
+*/
+function graphHosts(hostsInfo) {
+  $.each(hostsInfo, function(idx, hostInfo) {
+    graphHost(hostInfo);
   });
 }
 
@@ -171,6 +223,13 @@ function addLoadProgress(msg) {
 
 function supportsTemplate() {
   return 'content' in document.createElement('template');
+}
+
+
+function showHostGraph() {
+  var hostID = $('#host-graph').val();
+  window.location.href = window.location.origin + window.location.pathname +
+                          '?hostID=' + hostID;
 }
 
 }());
