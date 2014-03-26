@@ -12,7 +12,10 @@ $(function() {
     throw new Error('Your browser is rubbish. Use Chrome.');
   }
 
-  $('#show-host-graph').click(showHostGraph);
+  $('#show-host-graph').submit(function(event) {
+    event.preventDefault();
+    showHostGraph();
+  });
 
   if (window.location.search.indexOf('hostID=') >= 0) {
     var hostIDs = window.location.search.slice(
