@@ -26,9 +26,11 @@
 <body>
 
   <div>
-    <label for="host-graph">Host:</label>&nbsp;
-    <input id="host-graph" type="text" />
-    <button id="show-host-graph">Go</button>
+    <form id="show-host-graph">
+      <label for="host-graph">Graph specific host(s):</label>&nbsp;
+      <input id="host-graph" type="text" placeholder="hostname1[,hostname2]"/>
+      <input type="submit" value="Go" />
+    </form>
   </div>
   <hr>
 
