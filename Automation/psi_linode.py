@@ -198,7 +198,9 @@ def launch_new_server(linode_account, plugins):
         raise
     finally:
         # Power down the base image linode
-        stop_linode(linode_api, linode_account.base_id)
+        #stop_linode(linode_api, linode_account.base_id)
+        # New: we'll leave this on now due to parallelization
+        pass
 
     return (hostname, None, str(linode_id), linode_ip_address,
             linode_account.base_ssh_port, 'root', new_root_password,
