@@ -549,7 +549,13 @@ myhostname = example.com
 alias_maps = hash:/etc/aliases
 alias_database = hash:/etc/aliases
 myorigin = /etc/mailname
-extradomains = otherdomain1.com otherdomain2.com
+
+# This file contains the extra domains we support. Its contents will replace this path.
+# We rely on an external command (cron job) to reload the postfix config when
+# this file changes.
+# NOTE: the username here might differ with your particular setup.
+extradomains = /home/mail_responder/extradomains
+
 mydestination = $myhostname localhost.$mydomain localhost <ec2 external domain name> <ec2 internal domain name> $extradomains
 relayhost =
 mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
@@ -624,6 +630,10 @@ more gracefully.
 So our approach to scaling will be to go up very fast, and then let the pool
 shrink if the capacity isn't needed. This will probably be our best chance of
 coping with a sudden 20x request increase.
+
+NOTE: AWS has recently added the ability to manage scaling stuff (launch configs,
+scaling groups) via the EC2 web console. We now use that instead of Python+boto.
+
 
 ```python
 

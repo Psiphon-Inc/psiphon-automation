@@ -201,11 +201,11 @@ def test_server(ip_address, capabilities, web_server_port, web_server_secret, en
                 results['WEB'] = 'PASS' if result else 'FAIL'
             except Exception as ex:
                 results['WEB'] = 'FAIL: ' + str(ex)
-            try:
-                result = __test_web_server(ip_address, '443', test_propagation_channel_id, web_server_secret)
-                results['443'] = 'PASS' if result else 'FAIL'
-            except Exception as ex:
-                results['443'] = 'FAIL: ' + str(ex)
+            #try:
+            #    result = __test_web_server(ip_address, '443', test_propagation_channel_id, web_server_secret)
+            #    results['443'] = 'PASS' if result else 'FAIL'
+            #except Exception as ex:
+            #    results['443'] = 'FAIL: ' + str(ex)
         elif test_case in ['VPN', 'OSSH', 'SSH']:
             if not executable_path:
                 executable_path = psi_ops_build_windows.build_client(

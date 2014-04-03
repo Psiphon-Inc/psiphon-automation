@@ -93,12 +93,13 @@ def go():
             subject = u'Re: %s' % (email_diagnostic_info['email_subject'] or '')
 
         try:
-            sender.send(config['decryptedEmailRecipient'],
+            sender.send_response(config['decryptedEmailRecipient'],
                         config['emailUsername'],
                         subject,
                         diagnostic_info_text,
                         diagnostic_info_html,
-                        email_diagnostic_info.get('email_id'))  # may be None
+                        email_diagnostic_info.get('email_id'),  # may be None
+                        None)  # no attachment
             logger.log('decrypted formatted email sent')
         except smtplib.SMTPException as e:
             logger.exception()

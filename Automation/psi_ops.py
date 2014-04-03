@@ -33,6 +33,7 @@ import operator
 import gzip
 import copy
 from pkg_resources import parse_version
+from multiprocessing.pool import ThreadPool
 
 import psi_utils
 import psi_ops_cms
@@ -183,7 +184,8 @@ Server = psi_utils.recordtype(
     'id, host_id, ip_address, egress_ip_address, internal_ip_address, ' +
     'propagation_channel_id, is_embedded, is_permanent, discovery_date_range, capabilities, ' +
     'web_server_port, web_server_secret, web_server_certificate, web_server_private_key, ' +
-    'ssh_port, ssh_username, ssh_password, ssh_host_key, ssh_obfuscated_port, ssh_obfuscated_key',
+    'ssh_port, ssh_username, ssh_password, ssh_host_key, ssh_obfuscated_port, ssh_obfuscated_key, ' +
+    'alternate_ssh_obfuscated_ports',
     default=None)
 
 
@@ -214,7 +216,7 @@ ProviderRank = psi_utils.recordtype(
     'ProviderRank',
     'provider, rank',
     default=None)
-ProviderRank.provider_values = ('linode', 'elastichosts')
+ProviderRank.provider_values = ('linode', 'elastichosts', 'digitalocean')
 
 LinodeAccount = psi_utils.recordtype(
     'LinodeAccount',
@@ -325,7 +327,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.24'
+    class_version = '0.25'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -445,6 +447,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.24')) < 0:
             self.__digitalocean_account = DigitalOceanAccount()
             self.version = '0.24'
+        if cmp(parse_version(self.version), parse_version('0.25')) < 0:
+            for server in self.__servers.itervalues():
+                server.alternate_ssh_obfuscated_ports = []
+            for server in self.__deleted_servers.itervalues():
+                server.alternate_ssh_obfuscated_ports = []
+            self.version = '0.25'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -774,7 +782,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def import_sponsor(self, id, name):
         assert(self.is_locked)
-        sponsor = Sponsor(id, name, None, {}, [], [], [])
+        sponsor = Sponsor(id, name, None, None, None, {}, [], [], [])
         assert(id not in self.__sponsors)
         assert(not filter(lambda x: x.name == name, self.__sponsors.itervalues()))
         self.__sponsors[id] = sponsor
@@ -1084,7 +1092,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server.capabilities['OSSH'] = False
         host = self.__hosts[server.host_id]
         servers = [s for s in self.__servers.itervalues() if s.host_id == server.host_id]
-        psi_ops_install.install_firewall_rules(host, servers, plugins)
+        psi_ops_install.install_firewall_rules(host, servers, plugins, False) # No need to update the malware blacklist
         self.save()
 
     def __count_users_on_host(self, host_id):
@@ -1136,7 +1144,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 if server.propagation_channel_id == propagation_channel.id
                 and server.discovery_date_range
                 and server.discovery_date_range[1] < (today - datetime.timedelta(days=max_discovery_server_age_in_days))
-                and self.__hosts[server.host_id].provider == 'linode']
+                and self.__hosts[server.host_id].provider in ['linode', 'digitalocean']]
             removed, disabled = self.__prune_servers(old_discovery_servers)
             number_removed += removed
             number_disabled += disabled
@@ -1149,7 +1157,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 and not server.discovery_date_range
                 and not server.is_embedded
                 and server.logs[0][0] < (today - datetime.timedelta(days=max_propagation_server_age_in_days))
-                and self.__hosts[server.host_id].provider == 'linode']
+                and self.__hosts[server.host_id].provider in ['linode', 'digitalocean']]
             removed, disabled = self.__prune_servers(old_propagation_servers)
             number_removed += removed
             number_disabled += disabled
@@ -1169,18 +1177,41 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         now = datetime.datetime.now()
         today = datetime.datetime(now.year, now.month, now.day)
 
-        # Use a default 2 week discovery date range.
-        new_discovery_date_range = (today, today + datetime.timedelta(weeks=2))
+        # Use a default 2 day discovery date range.
+        new_discovery_date_range = (today, today + datetime.timedelta(days=2))
 
         if new_discovery_servers_count == None:
             new_discovery_servers_count = propagation_channel.new_discovery_servers_count
-        if new_discovery_servers_count > 0:
-            self.add_servers(new_discovery_servers_count, propagation_channel_name, new_discovery_date_range)
-
         if new_propagation_servers_count == None:
             new_propagation_servers_count = propagation_channel.new_propagation_servers_count
+
+        def _launch_new_server(_):
+            try:
+                return self.launch_new_server()
+            except:
+                return None
+                
+        pool = ThreadPool(20)
+        new_servers = pool.map(_launch_new_server, [None for _ in range(new_discovery_servers_count + new_propagation_servers_count)])
+        
+        failure = None
+
+        if new_discovery_servers_count > 0:
+            try:
+                self.add_servers(new_servers[:new_discovery_servers_count], propagation_channel_name, new_discovery_date_range)
+            except Exception as ex:
+                print str(ex)
+                failure = ex
+
         if new_propagation_servers_count > 0:
-            self.add_servers(new_propagation_servers_count, propagation_channel_name, None)
+            try:
+                self.add_servers(new_servers[new_discovery_servers_count:], propagation_channel_name, None)
+            except Exception as ex:
+                print str(ex)
+                failure = ex
+
+        if failure:
+            raise failure
 
     def get_existing_server_ids(self):
         return [server.id for server in self.__servers.itervalues()] + \
@@ -1240,7 +1271,39 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for server in servers:
             self.test_server(server.id, ['handshake'])
 
-    def add_servers(self, count, propagation_channel_name, discovery_date_range, replace_others=True, server_capabilities=None):
+    def launch_new_server(self):
+        provider = self._weighted_random_choice(self.__provider_ranks).provider
+
+        # This is pretty dirty. We should use some proper OO technique.
+        provider_launch_new_server = None
+        provider_account = None
+        if provider.lower() == 'linode':
+            provider_launch_new_server = psi_linode.launch_new_server
+            provider_account = self.__linode_account
+        elif provider.lower() == 'digitalocean':
+            provider_launch_new_server = psi_digitalocean.launch_new_server
+            provider_account = self.__digitalocean_account
+        elif provider.lower() == 'elastichosts':
+            provider_launch_new_server = psi_elastichosts.ElasticHosts().launch_new_server
+            provider_account = self._weighted_random_choice(self.__elastichosts_accounts)
+        else:
+            raise ValueError('bad provider value: %s' % provider)
+
+        print 'starting %s process (up to 20 minutes)...' % provider
+
+        # Create a new cloud VPS
+        def provider_launch_new_server_with_retries():
+            for _ in range(3):
+                try:
+                    return provider_launch_new_server(provider_account, plugins)
+                except Exception as ex:
+                    print str(ex)
+            raise ex
+
+        server_info = provider_launch_new_server_with_retries()
+        return server_info[0:1] + (provider.lower(),) + server_info[2:]
+        
+    def add_servers(self, server_infos, propagation_channel_name, discovery_date_range, replace_others=True, server_capabilities=None):
         assert(self.is_locked)
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
 
@@ -1264,39 +1327,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             else:
                 self.__replace_propagation_channel_discovery_servers(propagation_channel.id)
 
-        for new_server_number in range(count):
-            provider = self._weighted_random_choice(self.__provider_ranks).provider
-
-            # This is pretty dirty. We should use some proper OO technique.
-            provider_launch_new_server = None
-            provider_account = None
-            if provider.lower() == 'linode':
-                provider_launch_new_server = psi_linode.launch_new_server
-                provider_account = self.__linode_account
-            elif provider.lower() == 'digitalocean':
-                provider_launch_new_server = psi_digitalocean.launch_new_server
-                provider_account = self.__digitalocean_account
-            elif provider.lower() == 'elastichosts':
-                provider_launch_new_server = psi_elastichosts.ElasticHosts().launch_new_server
-                provider_account = self._weighted_random_choice(self.__elastichosts_accounts)
-            else:
-                raise ValueError('bad provider value: %s' % provider)
-
-            print 'starting %s process (up to 20 minutes)...' % provider
-
-            # Create a new cloud VPS
-            def provider_launch_new_server_with_retries():
-                for _ in range(3):
-                    try:
-                        return provider_launch_new_server(provider_account, plugins)
-                    except Exception as ex:
-                        print str(ex)
-                        pass
-                raise ex
-
-            server_info = provider_launch_new_server_with_retries()
+        for new_server_number in range(len(server_infos)):
+            server_info = server_infos[new_server_number]
+            if type(server_info) != tuple:
+                continue
             host = Host(*server_info)
-            host.provider = provider.lower()
 
             # NOTE: jsonpickle will serialize references to discovery_date_range, which can't be
             # resolved when unpickling, if discovery_date_range is used directly.
@@ -1313,9 +1348,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 capabilities['handshake'] = False
                 capabilities['VPN'] = False
                 capabilities['SSH'] = False
-                ssh_port = None
                 ossh_ports = range(1,1023)
                 ossh_ports.remove(15)
+                ossh_ports.remove(25)
                 ossh_ports.remove(135)
                 ossh_ports.remove(136)
                 ossh_ports.remove(137)
@@ -1386,6 +1421,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if host.provider == 'linode':
                 provider_remove_host = psi_linode.remove_server
                 provider_account = self.__linode_account
+            if host.provider == 'digitalocean':
+                provider_remove_host = psi_digitalocean.remove_server
+                provider_account = self.__digitalocean_account
             if provider_remove_host:
                 # Remove the actual host through the provider's API
                 provider_remove_host(provider_account, host.provider_id)
@@ -1769,6 +1807,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         campaign.log('created s3 bucket %s' % (campaign.s3_bucket_name,))
                         self.save()  # don't leak buckets
 
+                        # When creating a new bucket we'll load the website into
+                        # it. Rather than setting flags in all of the creation
+                        # methods, we'll use the above creation as the chokepoint.
+                        # After this we just have to worry about website updates.
+                        # Note that this generates the site. It's not very efficient
+                        # to do that here, but it happens infrequently enough to be okay.
+                        self.update_static_site_content(sponsor, campaign, True)
+
                     # Remote server list: for clients to get new servers via S3, we embed the
                     # bucket URL in the build. So now we're ensuring the bucket exists and we
                     # have its URL before the build is uploaded to S3. The remote server list
@@ -1919,13 +1965,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # Generate the static website from source
             website_generator.generate(WEBSITE_GENERATION_DIR)
 
+        assert(self.__default_email_autoresponder_account)
+        get_new_version_email = self.__default_email_autoresponder_account.email_address
+        if type(campaign.account) == EmailPropagationAccount:
+            get_new_version_email = campaign.account.email_address
+
         psi_ops_s3.update_website(
                         self.__aws_account,
                         campaign.s3_bucket_name,
                         campaign.custom_download_site,
                         WEBSITE_GENERATION_DIR,
                         sponsor.website_banner,
-                        sponsor.website_banner_link)
+                        sponsor.website_banner_link,
+                        get_new_version_email)
         campaign.log('updated website in S3 bucket %s' % (campaign.s3_bucket_name,))
 
     def update_routes(self):
@@ -2101,9 +2153,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             base_stats_username=base_stats_username, base_host_public_key=base_host_public_key,
             base_known_hosts_entry=base_known_hosts_entry, base_rsa_private_key=base_rsa_private_key,
             base_rsa_public_key=base_rsa_public_key, base_tarball_path=base_tarball_path)
-    
+
     def set_digitalocean_account(self, client_id, api_key, base_id, base_size_id, base_region_id, base_ssh_port,
-                                 base_stats_username, base_host_public_key, 
+                                 base_stats_username, base_host_public_key,
                                  base_rsa_private_key, ssh_key_template_id):
         assert(self.is_locked)
         psi_utils.update_recordtype(
@@ -2112,7 +2164,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             base_size_id=base_size_id, base_region_id=base_region_id, base_ssh_port=base_ssh_port,
             base_stats_username=base_stats_username, base_host_public_key=base_host_public_key,
             base_rsa_private_key=base_rsa_private_key, ssh_key_template_id=ssh_key_template_id)
-    
+
     def upsert_elastichosts_account(self, zone, uuid, api_key, base_drive_id,
                                     cpu, mem, base_host_public_key, root_username,
                                     base_root_password, base_ssh_port, stats_username, rank):
@@ -2199,6 +2251,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             assert(ssh_host_key_type == 'ssh-rsa')
 
         extended_config['sshObfuscatedPort'] = int(server.ssh_obfuscated_port) if server.ssh_obfuscated_port else 0
+        if server.alternate_ssh_obfuscated_ports:
+            extended_config['sshObfuscatedPort'] = int(server.alternate_ssh_obfuscated_ports[-1])
         extended_config['sshObfuscatedKey'] = server.ssh_obfuscated_key if server.ssh_obfuscated_key else ''
 
         extended_config['capabilities'] = [capability for capability, enabled in server.capabilities.iteritems() if enabled] if server.capabilities else []
@@ -2335,6 +2389,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if server.ssh_obfuscated_port:
             config['ssh_obfuscated_port'] = int(server.ssh_obfuscated_port)
             config['ssh_obfuscated_key'] = server.ssh_obfuscated_key
+        if server.alternate_ssh_obfuscated_ports:
+            config['sshObfuscatedPort'] = int(server.alternate_ssh_obfuscated_ports[-1])
+            config['ssh_obfuscated_key'] = server.ssh_obfuscated_key
 
         # Give client a set of regexes indicating which pages should have individual stats
         config['page_view_regexes'] = []
@@ -2448,7 +2505,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 server.ssh_password,
                                                 server.ssh_host_key,
                                                 server.ssh_obfuscated_port,
-                                                server.ssh_obfuscated_key)
+                                                server.ssh_obfuscated_key,
+                                                server.alternate_ssh_obfuscated_ports)
 
         for sponsor in self.__sponsors.itervalues():
             copy_sponsor = Sponsor(

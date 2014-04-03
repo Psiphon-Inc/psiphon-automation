@@ -60,8 +60,10 @@ order by 2 desc
 windows_unique_users_by_region_template = '''
 select client_region, count(*) as uniques
 from connected
-where timestamp between current_timestamp - interval '{0}' and current_timestamp - interval '{1}'
-and last_connected < current_timestamp - interval '{0}'
+where timestamp between
+  date_trunc('hour', current_timestamp) - interval '{0}' and
+  date_trunc('hour', current_timestamp) - interval '{1}'
+and last_connected < date_trunc('hour', current_timestamp) - interval '{0}'
 and lower(client_platform) like 'windows%'
 group by client_region
 order by 2 desc
@@ -71,8 +73,10 @@ order by 2 desc
 android_unique_users_by_region_template = '''
 select client_region, count(*) as uniques
 from connected
-where timestamp between current_timestamp - interval '{0}' and current_timestamp - interval '{1}'
-and last_connected < current_timestamp - interval '{0}'
+where timestamp between
+ date_trunc('hour', current_timestamp) - interval '{0}' and
+ date_trunc('hour', current_timestamp) - interval '{1}'
+and last_connected < date_trunc('hour', current_timestamp) - interval '{0}'
 and lower(client_platform) like 'android%'
 group by client_region
 order by 2 desc
@@ -128,9 +132,9 @@ tables = [
 
 
 table_columns = [
-    ('Yesterday', '40 hours', '16 hours'),
-    ('1 week ago', '208 hours', '184 hours'),
-    ('Past Week', '184 hours', '16 hours'),
+    ('Yesterday', '36 hours', '12 hours'),
+    ('1 week ago', '204 hours', '180 hours'),
+    ('Past Week', '180 hours', '12 hours'),
 ]
 
 
