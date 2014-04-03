@@ -1908,7 +1908,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 # means some builds may be repeated unnecessarily in a failure case.
 
                 self.__deploy_builds_required_for_campaigns[platform].remove(target)
-                self.save()
+
+            # NOTE: it is too expensive to save too frequently.
+            # Save only after finishing all builds for a platform.
+            self.save()
 
         # Host data
 
