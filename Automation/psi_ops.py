@@ -1794,6 +1794,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Build
 
         for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
+            deployed_builds_for_platform = False
             for target in self.__deploy_builds_required_for_campaigns[platform].copy():
 
                 propagation_channel_id, sponsor_id = target
@@ -1908,10 +1909,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 # means some builds may be repeated unnecessarily in a failure case.
 
                 self.__deploy_builds_required_for_campaigns[platform].remove(target)
+                deployed_builds_for_platform = True
 
             # NOTE: it is too expensive to save too frequently.
             # Save only after finishing all builds for a platform.
-            self.save()
+            if deployed_builds_for_platform:
+                self.save()
 
         # Host data
 
