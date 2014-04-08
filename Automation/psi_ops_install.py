@@ -591,7 +591,7 @@ def install_host(host, servers, existing_server_ids, plugins):
     # NOTE: call psi_ops_deploy.deploy_host() to complete the install process
 
     
-def install_firewall_rules(host, servers, plugins):
+def install_firewall_rules(host, servers, plugins, do_blacklist=True):
 
     iptables_rules_path = '/etc/iptables.rules'
     iptables_rules_contents = '''
@@ -764,7 +764,8 @@ iptables-restore < %s
     ssh.exec_command(if_up_script_path)
     ssh.close()
     
-    install_malware_blacklist(host)
+    if do_blacklist:
+        install_malware_blacklist(host)
     
     
 def install_malware_blacklist(host):
