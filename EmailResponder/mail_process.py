@@ -36,8 +36,10 @@ import blacklist
 import aws_helpers
 
 
-EXTRADOMAINS_LIST_FILE = os.path.join(os.path.expanduser('~%s' % settings.MAIL_RESPONDER_USERNAME),
-                                      'extradomains')
+RESPONDER_DOMAINS_LIST_FILE = os.path.join(os.path.expanduser('~%s' % settings.MAIL_RESPONDER_USERNAME),
+                                           'postfix_responder_domains')
+ADDRESS_MAPS_LIST_FILE = os.path.join(os.path.expanduser('~%s' % settings.MAIL_RESPONDER_USERNAME),
+                                      'postfix_address_maps')
 
 
 class MailResponder(object):
@@ -64,14 +66,14 @@ class MailResponder(object):
         self._response_from_addr = settings.RESPONSE_FROM_ADDR
 
         try:
-            # Note that json.load reads in unicode strings.
-            conf_data, new_conf = aws_helpers.get_s3_cached_file(
-                                                settings.ATTACHMENT_CACHE_DIR,
-                                                settings.CONFIG_S3_BUCKET,
-                                                settings.CONFIG_S3_KEY)
-            self._conf = json.loads(conf_data.read())
+            with open(aws_helpers.get_s3_cached_filepath(
+                                    ATTACHMENT_CACHE_DIR,
+                                    settings.CONFIG_S3_BUCKET,
+                                    settings.CONFIG_S3_KEY) as conffile:
+                # Note that json.load reads in unicode strings.
+                self._conf = json.load(conffile)
 
-            all_email_addrs = []
+            all_email_addrs = set()
             # Do some validation
             for item in self._conf:
                 if 'email_addr' not in item \
@@ -79,14 +81,7 @@ class MailResponder(object):
                         or 'attachments' not in item:
                     raise Exception('invalid config item: %s' % repr(item))
 
-                all_email_addrs.append(item['email_addr'])
-
-            if new_conf:
-                # Write the domains used to a file that will be used by Postfix
-                # in its config.
-                email_domains = set([addr[addr.find('@')+1:] for addr in all_email_addrs])
-                with open(EXTRADOMAINS_LIST_FILE, 'w') as extradomains_file:
-                    extradomains_file.write(' '.join(email_domains))
+                all_email_addrs.add(item['email_addr'])
 
         except Exception as ex:
             syslog.syslog(syslog.LOG_CRIT, 'error: config file read failed: %s; file: %s:%s' % (ex, settings.CONFIG_S3_BUCKET, settings.CONFIG_S3_KEY))
