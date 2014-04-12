@@ -67,9 +67,9 @@ class MailResponder(object):
 
         try:
             with open(aws_helpers.get_s3_cached_filepath(
-                                    ATTACHMENT_CACHE_DIR,
+                                    settings.ATTACHMENT_CACHE_DIR,
                                     settings.CONFIG_S3_BUCKET,
-                                    settings.CONFIG_S3_KEY) as conffile:
+                                    settings.CONFIG_S3_KEY)) as conffile:
                 # Note that json.load reads in unicode strings.
                 self._conf = json.load(conffile)
 
