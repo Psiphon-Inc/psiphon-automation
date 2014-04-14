@@ -579,7 +579,11 @@ smtpd_junk_command_limit = 2
 message_size_limit = 8192000
 
 # Setting this to 0 indicates that "mail delivery should be tried only once"
-#bounce_queue_lifetime = 0
+# http://www.postfix.org/postconf.5.html#bounce_queue_lifetime
+bounce_queue_lifetime = 0
+# Consider a message undeliverable when it hits this time limit
+# http://www.postfix.org/postconf.5.html#maximal_queue_lifetime
+maximal_queue_lifetime = 1h
 
 # Reject messages that don't meet these criteria
 smtpd_recipient_restrictions =
