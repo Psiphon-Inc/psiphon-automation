@@ -131,6 +131,10 @@ def process_log_file(logfile):
                           'regex': re.compile('^([^ ]+) .* mail_process.py: error: (.*)'),
                           'results': {}
                           },
+                'bad_address': {
+                          'regex': re.compile('^([^ ]+) .* log_processor.py: bad_address: (.*)'),
+                          'results': {}
+                          },
                 }
 
     unmatched_lines = []
@@ -188,6 +192,21 @@ def process_log_file(logfile):
     results = logtypes['fail']['results']
 
     text += '\n\nFailures\n----------------------\n\n'
+
+    text += 'TOTAL: %d\n' % sum(results.values())
+
+    # Only itemize the entries with a reasonably large count
+    for item in filter(lambda (k,v): v >= 10,
+                       sorted(results.iteritems(),
+                              key=lambda (k,v): (v,k),
+                              reverse=True)):
+        text += '%s %s\n' % (str(item[1]).rjust(4), item[0])
+
+    # Bad addresses
+
+    results = logtypes['bad_address']['results']
+
+    text += '\n\Bad Addresses\n----------------------\n\n'
 
     text += 'TOTAL: %d\n' % sum(results.values())
 

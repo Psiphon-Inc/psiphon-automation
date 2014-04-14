@@ -438,18 +438,26 @@ class LogHandlers(object):
 
     def _process_local_msg_sent(self, logdict, dbsession):
         '''
-        A message was sent to the postmaster or other local account.
-        Just delete the message rather than pollute the DB with it. (Some day we
-        might want to record additional information, but not now.)
+        A message was sent to the postmaster, /dev/null, or some other local
+        account.
+        If it was an incorrect request address, we want to record it. Otherwise
+        trash it.
         '''
-        m = re.match('^(?P<queue_id>'+self.queue_id_matcher+'): .*',
+        m = re.match('^(?P<queue_id>'+self.queue_id_matcher+'): to=<(?P<local_addr>[^>]+)>, orig_to=<(?P<orig_addr>[^>]+)>.*',
                      logdict['message'])
         if not m: return self.FAILURE
         msgdict = m.groupdict()
 
+        # If we recorded this as outgoing mail, delete it.
         mail = dbsession.query(OutgoingMail).filter_by(queue_id=msgdict['queue_id']).first()
         if mail:
             dbsession.delete(mail)
+
+        # If this is a bad request address, record it in syslog
+        devnull_addr = '%s@localhost' % settings.SYSTEM_DEVNULL_USER
+        if msgdict.get('local_addr') == devnull_addr and \
+           msgdict.get('orig_addr'):
+            syslog.syslog(syslog.LOG_INFO, 'bad_address: %s' % msgdict.get('orig_addr'))
 
         return self.SUCCESS
 
