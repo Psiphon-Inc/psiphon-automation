@@ -69,7 +69,7 @@ def go():
                 responder_domains_file.write(' '.join(email_domains))
 
             address_maps_lines = ['%s\t\t%s' % (addr, settings.MAIL_RESPONDER_USERNAME) for addr in all_email_addrs]
-            catchall_lines = ['%s\t\t%s' % (domain, settings.SYSTEM_DEVNULL_USER) for domain in email_domains]
+            catchall_lines = ['@%s\t\t%s' % (domain, settings.SYSTEM_DEVNULL_USER) for domain in email_domains]
 
             with open(ADDRESS_MAPS_LIST_FILE, 'w') as address_maps_file:
                 address_maps_file.write('\n'.join(address_maps_lines))
