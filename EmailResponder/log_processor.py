@@ -448,7 +448,8 @@ class LogHandlers(object):
         msgdict = m.groupdict()
 
         mail = dbsession.query(OutgoingMail).filter_by(queue_id=msgdict['queue_id']).first()
-        dbsession.delete(mail)
+        if mail:
+            dbsession.delete(mail)
 
         return self.SUCCESS
 
