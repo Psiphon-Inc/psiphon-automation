@@ -206,7 +206,7 @@ def process_log_file(logfile):
 
     results = logtypes['bad_address']['results']
 
-    text += '\n\Bad Addresses\n----------------------\n\n'
+    text += '\n\nBad Addresses\n----------------------\n\n'
 
     text += 'TOTAL: %d\n' % sum(results.values())
 
