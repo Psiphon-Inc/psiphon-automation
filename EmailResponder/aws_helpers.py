@@ -30,6 +30,28 @@ import urllib
 from boto.s3.connection import S3Connection
 
 
+def get_s3_cached_filepath(cache_dir, bucketname, bucket_filename):
+    '''
+    Returns the path and name of the file where a cached file would be stored.
+    '''
+
+    # Make the cache dir, if it doesn't exist
+    try:
+        os.makedirs(cache_dir)
+    except OSError as exc:
+        if exc.errno == errno.EEXIST:
+            pass
+        else:
+            raise
+
+    # We store the cached file with the bucket name as the filename.
+    # URL encoding the filename is a bit of a hack, but is good enough for our
+    # purposes.
+    cache_filename = urllib.quote_plus(bucketname+bucket_filename)
+    cache_path = os.path.join(cache_dir, cache_filename)
+    return cache_path
+
+
 def get_s3_attachment(attachment_cache_dir, bucketname, bucket_filename):
     '''
     Returns a file-type object for the data.
@@ -47,14 +69,7 @@ def get_s3_cached_file(cache_dir, bucketname, bucket_filename):
     cached to disk.
     '''
 
-    # Make the cache dir, if it doesn't exist
-    try:
-        os.makedirs(cache_dir)
-    except OSError as exc:
-        if exc.errno == errno.EEXIST:
-            pass
-        else:
-            raise
+    cache_path = get_s3_cached_filepath(cache_dir, bucketname, bucket_filename)
 
     # Make the connection using the credentials in the boto config file.
     conn = S3Connection()
@@ -64,12 +79,6 @@ def get_s3_cached_file(cache_dir, bucketname, bucket_filename):
     bucket = conn.get_bucket(bucketname, validate=False)
     key = bucket.get_key(bucket_filename)
     etag = key.etag.strip('"').lower()
-
-    # We store the cached file with the bucket name as the filename.
-    # URL encoding the filename is a bit of a hack, but is good enough for our
-    # purposes.
-    cache_filename = urllib.quote_plus(bucketname+bucket_filename)
-    cache_path = os.path.join(cache_dir, cache_filename)
 
     # Check if the file exists. If so, check if it's stale.
     if os.path.isfile(cache_path):
