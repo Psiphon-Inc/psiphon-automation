@@ -1177,8 +1177,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         now = datetime.datetime.now()
         today = datetime.datetime(now.year, now.month, now.day)
 
-        # Use a default 2 day discovery date range.
-        new_discovery_date_range = (today, today + datetime.timedelta(days=2))
+        # Use a default 4 day discovery date range.
+        new_discovery_date_range = (today, today + datetime.timedelta(days=4))
 
         if new_discovery_servers_count == None:
             new_discovery_servers_count = propagation_channel.new_discovery_servers_count
@@ -1198,7 +1198,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         if new_discovery_servers_count > 0:
             try:
-                self.add_servers(new_servers[:new_discovery_servers_count], propagation_channel_name, new_discovery_date_range)
+                self.add_servers(new_servers[:new_discovery_servers_count], propagation_channel_name, new_discovery_date_range, False)
             except Exception as ex:
                 print str(ex)
                 failure = ex
