@@ -96,6 +96,7 @@ def deploy_implementation(host, plugins):
         for filename in filenames:
             ssh.put_file(os.path.join(os.path.abspath('..'), dir, filename),
                          posixpath.join(psi_config.HOST_SOURCE_ROOT, dir, filename))
+        ssh.exec_command('rm %s' % (posixpath.join(psi_config.HOST_SOURCE_ROOT, dir, '*.pyc'),))
 
     ssh.exec_command('chmod +x %s' % (
             posixpath.join(psi_config.HOST_SOURCE_ROOT, 'Server', 'psi_web.py'),))
