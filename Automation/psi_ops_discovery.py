@@ -23,6 +23,8 @@ import math
 import collections
 import string
 import random
+import hashlib
+import hmac
 
 
 def _calculate_bucket_count(length):
@@ -59,17 +61,18 @@ def select_servers(servers, ip_address, time_in_seconds=None):
     if len(servers) < 1:
         return []
 
-    # Use the lowest octet of the client's IP address, as
-    # discussed in the design document.
-    try:
-        ip_value = ord(socket.inet_aton(ip_address)[-1])
-    except socket.error:
-        return []
+    # Strategy parameters: change these to keep your strategy unique
+    TIME_GRANULARITY = 3600
+    HMAC_KEY = '0A1F42A6EECCAA5D5B1938F4D2351CB24DBBF12006849A0EE816B05631C1FC77' # don't use this value!
+
+    # Mix bits from all octets of the client IP address to determine the
+    # bucket. An HMAC is used to prevent pre-calculation of buckets for IPs.
+    ip_value = ord(hmac.new(HMAC_KEY, ip_address, hashlib.sha256).digest()[0])
 
     # Time-of-day is actually current time (epoch) truncated to an hour
     if not time_in_seconds:
         time_in_seconds = int(time.time())
-    time_value = (time_in_seconds/3600)
+    time_value = (time_in_seconds/TIME_GRANULARITY)
 
     # Divide servers into buckets. The bucket count is chosen such that the number
     # of buckets and the number of items in each bucket are close (using sqrt).
