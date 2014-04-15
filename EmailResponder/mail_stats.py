@@ -86,9 +86,12 @@ def get_send_info():
 
     # Get the middle value
     res = log_processor.dbengine.execute('SELECT * FROM sendtime ORDER BY time ASC LIMIT %d, 1;' % ((sendtime_count + 1) / 2))
-    median_sendtime = res.fetchone()[0]
+    res = res.fetchone()
+    median_sendtime = res[0] if res else -1
+
     res = log_processor.dbengine.execute('SELECT * FROM proctime ORDER BY time ASC LIMIT %d, 1;' % ((proctime_count + 1) / 2))
-    median_proctime = res.fetchone()[0]
+    res = res.fetchone()
+    median_proctime = res[0] if res else -1
 
     # Drop the tempoary tables (probably not necessary, but...)
     res = log_processor.dbengine.execute('DROP TABLE sendtime;')
