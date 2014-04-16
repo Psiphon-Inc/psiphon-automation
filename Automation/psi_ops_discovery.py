@@ -86,7 +86,7 @@ def select_servers(servers, ip_address_strategy_value, time_in_seconds=None):
     bucket_count = _calculate_bucket_count(len(servers))
 
     buckets = _partition(servers, bucket_count)
-    bucket = buckets[ip_address_strategy_value % len(buckets)]
+    bucket = buckets[int(ip_address_strategy_value) % len(buckets)]
     server = bucket[time_strategy_value % len(bucket)]
 
     return [server]
