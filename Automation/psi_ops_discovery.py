@@ -26,6 +26,10 @@ import random
 import hashlib
 import hmac
 
+# Strategy parameters: change these to keep your strategy unique
+TIME_GRANULARITY = 3600
+HMAC_KEY = '0A1F42A6EECCAA5D5B1938F4D2351CB24DBBF12006849A0EE816B05631C1FC77' # don't use this value!
+
 
 def _calculate_bucket_count(length):
     # Number of buckets such that first strategy picks among about the same number
@@ -40,7 +44,13 @@ def _partition(lst, n):
     return [ lst[int(round(division * i)): int(round(division * (i + 1)))] for i in xrange(n) ]
 
 
-def select_servers(servers, ip_address, time_in_seconds=None):
+def calculate_ip_address_strategy_value(ip_address):
+    # Mix bits from all octets of the client IP address to determine the
+    # bucket. An HMAC is used to prevent pre-calculation of buckets for IPs.
+    return ord(hmac.new(HMAC_KEY, ip_address, hashlib.sha256).digest()[0])
+
+
+def select_servers(servers, ip_address_strategy_value, time_in_seconds=None):
 
     # Combine client IP address and time-of-day strategies to give out different
     # discovery servers to different clients. The aim is to achieve defense against
@@ -61,28 +71,23 @@ def select_servers(servers, ip_address, time_in_seconds=None):
     if len(servers) < 1:
         return []
 
-    # Strategy parameters: change these to keep your strategy unique
-    TIME_GRANULARITY = 3600
-    HMAC_KEY = '0A1F42A6EECCAA5D5B1938F4D2351CB24DBBF12006849A0EE816B05631C1FC77' # don't use this value!
-
-    # Mix bits from all octets of the client IP address to determine the
-    # bucket. An HMAC is used to prevent pre-calculation of buckets for IPs.
-    ip_value = ord(hmac.new(HMAC_KEY, ip_address, hashlib.sha256).digest()[0])
-
     # Time-of-day is actually current time (epoch) truncated to an hour
     if not time_in_seconds:
         time_in_seconds = int(time.time())
-    time_value = (time_in_seconds/TIME_GRANULARITY)
+    time_strategy_value = (time_in_seconds/TIME_GRANULARITY)
 
     # Divide servers into buckets. The bucket count is chosen such that the number
     # of buckets and the number of items in each bucket are close (using sqrt).
     # IP address selects the bucket, time selects the item in the bucket.
+
+    # NOTE: this code assumes that range of possible time_values and
+    # ip_address_strategy_values is sufficient to index to all bucket items.
     
     bucket_count = _calculate_bucket_count(len(servers))
 
     buckets = _partition(servers, bucket_count)
-    bucket = buckets[ip_value % len(buckets)]
-    server = bucket[time_value % len(bucket)]
+    bucket = buckets[ip_address_strategy_value % len(buckets)]
+    server = bucket[time_strategy_value % len(bucket)]
 
     return [server]
 
