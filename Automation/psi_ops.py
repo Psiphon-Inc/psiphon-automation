@@ -2367,7 +2367,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Discovery
         # NOTE: Clients are expecting at least an empty list
         config['encoded_server_list'] = []
-        if client_ip_address:
+        if client_ip_address_strategy_value:
             config['encoded_server_list'], _ = \
                         self.__get_encoded_server_list(
                                                     propagation_channel_id,
