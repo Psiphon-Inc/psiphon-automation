@@ -106,7 +106,7 @@ class LogHandlers(object):
              self._no_op),
 
             # Jun 27 19:24:04 myhostname postfix/cleanup[30852]: 9B578221EA: message-id=<CAKJcm2Bs+AvgBWnsSMNKRGM9XR+pTFuWrs5xOb5NDnwODA56qw@mail.gmail.com>
-            # Jun 27 19:24:04 myhostname postfix/cleanup[30852]: DF85B221EB: message-id=<20120627192404.DF85B221EB@psiphon3.com>
+            # 2014-04-15T17:39:16.222151+00:00 myhostname postfix/cleanup[31522]: ECBCE4001E: message-id=<20140415173915.ECBCE4001E@localhost>
             (re.compile('^postfix/cleanup$'),
              re.compile('^'+self.queue_id_matcher+': message-id='),
              self._process_message_id),
@@ -337,7 +337,7 @@ class LogHandlers(object):
             return self.FAILURE
         msgdict = m.groupdict()
 
-        if msgdict['mail_domain'] == settings.COMPLAINTS_ADDRESS[settings.COMPLAINTS_ADDRESS.find('@')+1:]:
+        if msgdict['mail_domain'] == 'localhost':
             # Outgoing mail
             mail = OutgoingMail(queue_id=msgdict['queue_id'])
             dbsession.add(mail)
@@ -585,114 +585,106 @@ if __name__ == '__main__':
 
 
 '''
-This is a what the syslogs look like for a (mostly successful) request response.
+This is a what the syslogs look like for a successful request+response.
 
-Remote (sending) server connects.
+Remote (sending) server connects to load balancer, load balancer connects to this mail server.
+`2014-04-15T17:39:12.827507+00:00 myhostname postfix/smtpd[4560]: connect from unknown[192.168.1.2]`
 
-`Jun 27 19:24:04 myhostname postfix/smtpd[30850]: connect from mail-qa0-f44.google.com[209.85.216.44]`
-
-Incoming email gets a postfix queue ID.
-
-`Jun 27 19:24:04 myhostname postfix/smtpd[30850]: 9B578221EA: client=mail-qa0-f44.google.com[209.85.216.44]`
+Incoming email gets a Postfix queue ID.
+`2014-04-15T17:39:13.140250+00:00 myhostname postfix/smtpd[4560]: 2229C4002B: client=unknown[192.168.1.2]`
 
 Message ID is dumped.
-
-`Jun 27 19:24:04 myhostname postfix/cleanup[30852]: 9B578221EA: message-id=<CAKJcm2Bs+AvgBWnsSMNKRGM9XR+pTFuWrs5xOb5NDnwODA56qw@mail.gmail.com>`
+`2014-04-15T17:39:13.366300+00:00 myhostname postfix/cleanup[31523]: 2229C4002B: message-id=<CAKJcm2Bs+AvgBWnsSMNKRGM9XR+pTFuWrs5xOb5NDnwODA56qw@mail.gmail.com>`
 
 More message info dumped, including size. Added to active queue.
+`2014-04-15T17:39:13.378666+00:00 myhostname postfix/qmgr[6185]: 2229C4002B: from=<requesting-address@gmail.com>, size=1907, nrcpt=1 (queue active)`
 
-`Jun 27 19:24:04 myhostname postfix/qmgr[821]: 9B578221EA: from=<requesting-address@gmail.com>, size=1880, nrcpt=1 (queue active)`
+Incoming request is done. Connection (via load balancer) disconnects.
+`2014-04-15T17:39:13.482943+00:00 ip-192-168-12-210 postfix/smtpd[4560]: disconnect from unknown[192.168.11.2]`
 
-At this point the message is piped to our mail_process.py code. Email is processed and responses are enqueued.
+At this point the message is sent to our local `mail_responder` user, and via
+that user's `.forward` file is piped to our `mail_process.py` code.
+The email is processed and responses are enqueued -- one via local SMTP, one via SES.
 
-First email: connection from localhost.
+Response email: connection from `mail_process.py` to localhost SMTP.
+`2014-04-15T17:39:15.967663+00:00 myhostname postfix/smtpd[1332]: connect from localhost.localdomain[127.0.0.1]`
 
-`Jun 27 19:24:04 myhostname postfix/smtpd[30856]: connect from localhost[127.0.0.1]`
+Response email: outgoing email gets a queue ID.
+`2014-04-15T17:39:15.969840+00:00 myhostname postfix/smtpd[1332]: ECBCE4001E: client=localhost.localdomain[127.0.0.1]`
 
-First email: outgoing email gets a queue ID.
+Response email: outgoing email's message ID is dumped.
+`2014-04-15T17:39:16.222151+00:00 myhostname postfix/cleanup[31522]: ECBCE4001E: message-id=<20140415173915.ECBCE4001E@localhost>`
 
-`Jun 27 19:24:04 myhostname postfix/smtpd[30856]: DF85B221EB: client=localhost[127.0.0.1]`
+Response email: more info about the outgoing message. Note the large size --
+it's our with-attachment response. "complaints@" is the envelope sender address.
+`2014-04-15T17:39:16.457547+00:00 myhostname postfix/qmgr[6185]: ECBCE4001E: from=<complaints@example.com>, size=5785168, nrcpt=1 (queue active)`
 
-First email: outgoing email's message ID is dumped.
+Response email: local sending/enqueuing is done, so disconnect.
+`2014-04-15T17:39:16.466704+00:00 myhostname postfix/smtpd[1332]: disconnect from localhost.localdomain[127.0.0.1]`
 
-`Jun 27 19:24:04 myhostname postfix/cleanup[30852]: DF85B221EB: message-id=<20120627192404.DF85B221EB@psiphon3.com>`
+`mail_process.py`'s success log. It's done processing and sending.
+`2014-04-15T17:39:16.467590+00:00 myhostname mail_process.py: success: get@example.com: 2.762750s`
 
-First email: more info is dumped. Notice the small size -- it's the no-attachment email.
-"complaints@" is the envelope sender address.
+Delivery and processing of the original request email is done. Info and stats
+about it are logged.
+`2014-04-15T17:39:16.657286+00:00 myhostname postfix/local[2682]: 2229C4002B: to=<mail_responder@localhost>, orig_to=<get@example.com>, relay=local, delay=3.6, delays=0.34/0/0/3.3, dsn=2.0.0, status=sent (delivered to command: python /home/mail_responder/mail_process.py)`
 
-`Jun 27 19:24:04 myhostname postfix/qmgr[821]: DF85B221EB: from=<complaints@psiphon3.com>, size=5310, nrcpt=1 (queue active)`
+It's done, so removed from the queue.
+`2014-04-15T17:39:16.657565+00:00 myhostname postfix/qmgr[6185]: 2229C4002B: removed`
 
-First email: done, disconnect from postfix.
+When delivery of the response (to Gmail or whatever) is done, the response is
+removed from the queue.
+`2014-04-15T17:39:19.608561+00:00 myhostname postfix/qmgr[6185]: ECBCE4001E: removed`
 
-`Jun 27 19:24:04 myhostname postfix/smtpd[30856]: disconnect from localhost[127.0.0.1]`
+Info and stats about that delivery are logged.
+`2014-04-15T17:39:19.608593+00:00 myhostname postfix/smtp[10443]: ECBCE4001E: to=<requesting-address@gmail.com>, relay=aspmx.l.google.com[74.125.29.27]:25, delay=3.6, delays=0.49/0/0.18/3, dsn=2.0.0, status=sent (250 2.0.0 OK 1397583559 l41si19732640yhc.128 - gsmtp)
 
-Second email: connection from localhost.
+...
 
-`Jun 27 19:24:05 myhostname postfix/smtpd[30856]: connect from localhost[127.0.0.1]`
+A request to an invalid address looks like this:
 
-Second email: outgoing email gets a queue ID.
+```
+2014-04-15T17:51:54.778660+00:00 myhostname postfix/smtpd[10211]: connect from unknown[192.168.11.2]
+2014-04-15T17:51:55.097264+00:00 myhostname postfix/smtpd[10211]: 17A3140022: client=unknown[192.168.11.2]
+2014-04-15T17:51:55.308560+00:00 myhostname postfix/cleanup[14280]: 17A3140022: message-id=<CAKJcm2DMhDp85kNYKVz+9bA=Lxv9ma1=9sg=nwZ82OcL8iCcNw@mail.gmail.com>
+2014-04-15T17:51:55.316845+00:00 myhostname postfix/qmgr[6185]: 17A3140022: from=<requesting-address@gmail.com>, size=1911, nrcpt=1 (queue active)
+2014-04-15T17:51:55.324992+00:00 myhostname postfix/local[2509]: 17A3140022: to=<nobody@localhost>, orig_to=<get@example.com>, relay=local, delay=0.33, delays=0.33/0/0/0.01, dsn=2.0.0, status=sent (delivered to mailbox)
+2014-04-15T17:51:55.325136+00:00 myhostname postfix/qmgr[6185]: 17A3140022: removed
+2014-04-15T17:51:55.330119+00:00 myhostname log_processor.py: bad_address: get@example.com
+2014-04-15T17:51:55.420979+00:00 myhostname postfix/smtpd[10211]: disconnect from unknown[192.168.11.2]
+```
 
-`Jun 27 19:24:05 myhostname postfix/smtpd[30856]: 49A88221ED: client=localhost[127.0.0.1]`
+...
 
-Second email: outgoing email's message ID is dumped.
-
-`Jun 27 19:24:05 myhostname postfix/cleanup[30852]: 49A88221ED: message-id=<20120627192405.49A88221ED@psiphon3.com>`
-
-Second email: more info is dumped. Notice the large size -- it's the attachment email.
-
-`Jun 27 19:24:05 myhostname postfix/qmgr[821]: 49A88221ED: from=<complaints@psiphon3.com>, size=1147933, nrcpt=1 (queue active)`
-
-Second email: done, disconnect from postfix.
-
-`Jun 27 19:24:05 myhostname postfix/smtpd[30856]: disconnect from localhost[127.0.0.1]`
-
-This is mail_process.py's success line.
-
-`Jun 27 19:24:05 myhostname mail_process.py: success: get@psiphon3.com: 0.633003s`
-
-mail_process.py returned. Postfix reports some info and stats.
-
-`Jun 27 19:24:05 myhostname postfix/local[30853]: 9B578221EA: to=<mail_responder+get@localhost>, orig_to=<get@psiphon3.com>, relay=local, delay=0.83, delays=0.06/0.01/0/0.76, dsn=2.0.0, status=sent (delivered to command: python /home/mail_responder/mail_process.py)`
-
-Incoming email processing complete. Removed from queue.
-
-`Jun 27 19:24:05 myhostname postfix/qmgr[821]: 9B578221EA: removed`
+NOTE: What follows pre-dates the change to virtual domains+aliases.
 
 There are probably a bunch of lines like this related to the sending of our respones,
 but since the queue ID isn't mentioned, it's impossible to connect them exactly.
-
 `Jun 27 19:24:29 myhostname postfix/smtp[30383]: connect to alt2.aspmx.l.google.com[173.194.65.26]:25: Connection timed out`
-Maybe also some lines like this, although there are fewer of them than the above one.
 
+Maybe also some lines like this, although there are fewer of them than the above one.
 `Jun 27 19:24:34 myhostname postfix/smtpd[30850]: disconnect from mail-qa0-f44.google.com[209.85.216.44]`
 
 Some time later, an attempt to send the first email times out and is put in the deferred queue.
-
 `Jun 27 19:26:35 myhostname postfix/smtp[30407]: DF85B221EB: to=<requesting-address@gmail.com>, relay=none, delay=150, delays=0.02/0/150/0, dsn=4.4.1, status=deferred (connect to aspmx3.googlemail.com[74.125.127.27]:25: Connection timed out)`
 
 Ditto for the second email.
-
 `Jun 27 19:26:35 myhostname postfix/smtp[30389]: 49A88221ED: to=<requesting-address@gmail.com>, relay=none, delay=150, delays=0.14/0/150/0, dsn=4.4.1, status=deferred (connect to aspmx3.googlemail.com[74.125.127.27]:25: Connection timed out)`
 
 Five minutes go by and the first email is moved back into the active queue.
 I believe the five minutes comes from the postfix queue_run_delay setting (default 300s).
-
 `Jun 27 19:32:58 myhostname postfix/qmgr[821]: DF85B221EB: from=<complaints@psiphon3.com>, size=5310, nrcpt=1 (queue active)`
 
 Ditto for the second email.
-
 `Jun 27 19:32:58 myhostname postfix/qmgr[821]: 49A88221ED: from=<complaints@psiphon3.com>, size=1147933, nrcpt=1 (queue active)`
 
 A second attempt is made to send the first email. It succeeds.
-
 `Jun 27 19:33:30 myhostname postfix/smtp[2090]: DF85B221EB: to=<requesting-address@gmail.com>, relay=alt1.aspmx.l.google.com[173.194.66.27]:25, delay=566, delays=534/0.18/31/0.69, dsn=2.0.0, status=sent (250 2.0.0 OK 1340825647 z7si13020796wix.11)`
 
 The first email is removed from the queue.
-
 `Jun 27 19:33:30 myhostname postfix/qmgr[821]: DF85B221EB: removed`
 
 Ditto for the second email: sent successfully and removed from queue.
-
 `Jun 27 19:33:32 myhostname postfix/smtp[2092]: 49A88221ED: to=<requesting-address@gmail.com>, relay=alt1.aspmx.l.google.com[173.194.66.27]:25, delay=567, delays=533/0.2/30/3.4, dsn=2.0.0, status=sent (250 2.0.0 OK 1340825648 cp4si13058473wib.14)`
 `Jun 27 19:33:32 myhostname postfix/qmgr[821]: 49A88221ED: removed`
 '''

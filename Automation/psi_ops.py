@@ -1177,8 +1177,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         now = datetime.datetime.now()
         today = datetime.datetime(now.year, now.month, now.day)
 
-        # Use a default 2 day discovery date range.
-        new_discovery_date_range = (today, today + datetime.timedelta(days=2))
+        # Use a default 4 day discovery date range.
+        new_discovery_date_range = (today, today + datetime.timedelta(days=4))
 
         if new_discovery_servers_count == None:
             new_discovery_servers_count = propagation_channel.new_discovery_servers_count
@@ -1198,7 +1198,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         if new_discovery_servers_count > 0:
             try:
-                self.add_servers(new_servers[:new_discovery_servers_count], propagation_channel_name, new_discovery_date_range)
+                self.add_servers(new_servers[:new_discovery_servers_count], propagation_channel_name, new_discovery_date_range, False)
             except Exception as ex:
                 print str(ex)
                 failure = ex
@@ -2274,8 +2274,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     json.dumps(extended_config)))
 
     def __get_encoded_server_list(self, propagation_channel_id,
-                                  client_ip_address=None, event_logger=None, discovery_date=None):
-        if not client_ip_address:
+                                  client_ip_address_strategy_value=None, event_logger=None, discovery_date=None):
+        if not client_ip_address_strategy_value:
             # embedded (propagation) server list
             # output all servers for propagation channel ID with no discovery date
             servers = [server for server in self.__servers.itervalues()
@@ -2296,7 +2296,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                  if server.discovery_date_range is not None and
                                  server.discovery_date_range[0] <= discovery_date < server.discovery_date_range[1]]
 
-            servers = psi_ops_discovery.select_servers(candidate_servers, client_ip_address)
+            servers = psi_ops_discovery.select_servers(candidate_servers, client_ip_address_strategy_value)
 
         # optional logger (used by server to log each server IP address disclosed)
         if event_logger:
@@ -2343,7 +2343,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             return last_version
         return None
 
-    def handshake(self, server_ip_address, client_ip_address,
+    def handshake(self, server_ip_address, client_ip_address_strategy_value,
                   client_region, propagation_channel_id, sponsor_id,
                   client_platform_string, client_version, event_logger=None):
         # Legacy handshake output is a series of Name:Value lines returned to
@@ -2371,7 +2371,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             config['encoded_server_list'], _ = \
                         self.__get_encoded_server_list(
                                                     propagation_channel_id,
-                                                    client_ip_address,
+                                                    client_ip_address_strategy_value,
                                                     event_logger=event_logger)
 
         # VPN relay protocol info
