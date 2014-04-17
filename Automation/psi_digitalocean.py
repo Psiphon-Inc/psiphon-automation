@@ -76,6 +76,35 @@ def start_droplet(do_api, droplet_id):
             raise Exception
     return True
 
+def update_image(digitalocean_account, droplet_id, droplet_name):
+    try:
+        do_api = digitalocean.DigitalOceanAPI.DigitalOceanAPI(digitalocean_account.client_id,
+                                                              digitalocean_account.api_key)
+        result = take_snapshot(do_api, droplet_id, {'name': droplet_name})
+        if 'OK' in result['status']:
+            images = do_api.get_all_images()
+            new_image = [i for i in images if droplet_name in i['name']][0]
+            
+            regions = do_api.get_all_regions()
+            results = []
+            for r in regions:
+                results.append(do_api.image_transfer(new_image['id'], {'region_id': r['id']}))
+            #wait a while for the image to be transferred across regions
+            success_ids = [r['event_id'] for r in results if 'OK' in r['status']]
+            for id in success_ids:
+                wait_on_event_completion(do_api, id, interval=120)
+            
+            images = do_api.get_all_images()
+            image = [i for i in images if droplet_name in i['name']][0]
+            if image['regions'] == [r['id'] for r in regions]:
+                print 'Image creation and transfer complete. Remove the outdated image'
+                return image
+            else:
+                print 'Image was not transferred successfully'
+                raise
+    except Exception as e:
+        print '%s' % (e)
+
 def take_snapshot(do_api, droplet_id, snapshot_name={'name': None}):
     resp = check_response(do_api.droplet_show(droplet_id))
     droplet_state = resp['droplet']['status']
@@ -97,7 +126,7 @@ def take_snapshot(do_api, droplet_id, snapshot_name={'name': None}):
         else:
             stop_droplet(do_api, droplet_id)
         return resp
-    except Error as e:
+    except Exception as e:
         print '%s' % (e)
 
 
@@ -205,6 +234,11 @@ def remove_droplet(do_api, droplet_id):
         do_api.droplet_destroy(droplet_id, {'scrub_data': 1})
     except Exception as e:
         raise e
+
+def remove_server(digitalocean_account, droplet_id):
+    do_api = digitalocean.DigitalOceanAPI.DigitalOceanAPI(digitalocean_account.client_id,
+                                                          digitalocean_account.api_key)
+    remove_droplet(do_api, droplet_id)
 
 if __name__ == "__main__":
     print launch_new_server(digitalocean_account)

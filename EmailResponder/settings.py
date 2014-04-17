@@ -121,3 +121,6 @@ DKIM_PRIVATE_KEY = './dkim.key'
 # Note: This should be used only when necessary. Recording user information is
 # undesireable.
 EXCEPTION_DIR = os.path.expanduser('~%s/exceptions' % MAIL_RESPONDER_USERNAME)
+
+# User that will receive email sent to incorrect addresses -- should just be a blackhole
+SYSTEM_DEVNULL_USER = 'nobody'

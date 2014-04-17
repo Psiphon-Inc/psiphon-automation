@@ -591,7 +591,7 @@ def install_host(host, servers, existing_server_ids, plugins):
     # NOTE: call psi_ops_deploy.deploy_host() to complete the install process
 
     
-def install_firewall_rules(host, servers, plugins):
+def install_firewall_rules(host, servers, plugins, do_blacklist=True):
 
     iptables_rules_path = '/etc/iptables.rules'
     iptables_rules_contents = '''
@@ -613,17 +613,19 @@ def install_firewall_rules(host, servers, plugins):
                 if s.capabilities['handshake']]) + ''.join(
     # SSH
     ['''
-    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --set
-    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --update --seconds 60 --hitcount 3 -j DROP
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --set --name {2}
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --update --name {2} --seconds 60 --hitcount 3 -j DROP
     -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -j ACCEPT'''.format(
-            str(s.internal_ip_address), str(s.ssh_port)) for s in servers
+            str(s.internal_ip_address), str(s.ssh_port),
+            'LIMIT-' + str(s.internal_ip_address).replace('.', '-') + '-' + str(s.ssh_port)) for s in servers
                 if s.capabilities['SSH']]) + ''.join(
     # OSSH
     ['''
-    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --set
-    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --update --seconds 60 --hitcount 3 -j DROP
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --set --name {2}
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --update --name {2} --seconds 60 --hitcount 3 -j DROP
     -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -j ACCEPT'''.format(
-            str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
+            str(s.internal_ip_address), str(s.ssh_obfuscated_port),
+            'LIMIT-' + str(s.internal_ip_address).replace('.', '-') + '-' + str(s.ssh_obfuscated_port)) for s in servers
                 if s.capabilities['OSSH']]) + ''.join(
     # VPN
     ['''
@@ -762,7 +764,8 @@ iptables-restore < %s
     ssh.exec_command(if_up_script_path)
     ssh.close()
     
-    install_malware_blacklist(host)
+    if do_blacklist:
+        install_malware_blacklist(host)
     
     
 def install_malware_blacklist(host):

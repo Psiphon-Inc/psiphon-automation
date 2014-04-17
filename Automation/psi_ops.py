@@ -33,6 +33,7 @@ import operator
 import gzip
 import copy
 from pkg_resources import parse_version
+from multiprocessing.pool import ThreadPool
 
 import psi_utils
 import psi_ops_cms
@@ -1091,7 +1092,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server.capabilities['OSSH'] = False
         host = self.__hosts[server.host_id]
         servers = [s for s in self.__servers.itervalues() if s.host_id == server.host_id]
-        psi_ops_install.install_firewall_rules(host, servers, plugins)
+        psi_ops_install.install_firewall_rules(host, servers, plugins, False) # No need to update the malware blacklist
         self.save()
 
     def __count_users_on_host(self, host_id):
@@ -1143,7 +1144,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 if server.propagation_channel_id == propagation_channel.id
                 and server.discovery_date_range
                 and server.discovery_date_range[1] < (today - datetime.timedelta(days=max_discovery_server_age_in_days))
-                and self.__hosts[server.host_id].provider == 'linode']
+                and self.__hosts[server.host_id].provider in ['linode', 'digitalocean']]
             removed, disabled = self.__prune_servers(old_discovery_servers)
             number_removed += removed
             number_disabled += disabled
@@ -1156,7 +1157,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 and not server.discovery_date_range
                 and not server.is_embedded
                 and server.logs[0][0] < (today - datetime.timedelta(days=max_propagation_server_age_in_days))
-                and self.__hosts[server.host_id].provider == 'linode']
+                and self.__hosts[server.host_id].provider in ['linode', 'digitalocean']]
             removed, disabled = self.__prune_servers(old_propagation_servers)
             number_removed += removed
             number_disabled += disabled
@@ -1176,25 +1177,35 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         now = datetime.datetime.now()
         today = datetime.datetime(now.year, now.month, now.day)
 
-        # Use a default 2 day discovery date range.
-        new_discovery_date_range = (today, today + datetime.timedelta(days=2))
-
-        failure = None
+        # Use a default 4 day discovery date range.
+        new_discovery_date_range = (today, today + datetime.timedelta(days=4))
 
         if new_discovery_servers_count == None:
             new_discovery_servers_count = propagation_channel.new_discovery_servers_count
+        if new_propagation_servers_count == None:
+            new_propagation_servers_count = propagation_channel.new_propagation_servers_count
+
+        def _launch_new_server(_):
+            try:
+                return self.launch_new_server()
+            except:
+                return None
+                
+        pool = ThreadPool(20)
+        new_servers = pool.map(_launch_new_server, [None for _ in range(new_discovery_servers_count + new_propagation_servers_count)])
+        
+        failure = None
+
         if new_discovery_servers_count > 0:
             try:
-                self.add_servers(new_discovery_servers_count, propagation_channel_name, new_discovery_date_range)
+                self.add_servers(new_servers[:new_discovery_servers_count], propagation_channel_name, new_discovery_date_range, False)
             except Exception as ex:
                 print str(ex)
                 failure = ex
 
-        if new_propagation_servers_count == None:
-            new_propagation_servers_count = propagation_channel.new_propagation_servers_count
         if new_propagation_servers_count > 0:
             try:
-                self.add_servers(new_propagation_servers_count, propagation_channel_name, None)
+                self.add_servers(new_servers[new_discovery_servers_count:], propagation_channel_name, None)
             except Exception as ex:
                 print str(ex)
                 failure = ex
@@ -1260,7 +1271,39 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for server in servers:
             self.test_server(server.id, ['handshake'])
 
-    def add_servers(self, count, propagation_channel_name, discovery_date_range, replace_others=True, server_capabilities=None):
+    def launch_new_server(self):
+        provider = self._weighted_random_choice(self.__provider_ranks).provider
+
+        # This is pretty dirty. We should use some proper OO technique.
+        provider_launch_new_server = None
+        provider_account = None
+        if provider.lower() == 'linode':
+            provider_launch_new_server = psi_linode.launch_new_server
+            provider_account = self.__linode_account
+        elif provider.lower() == 'digitalocean':
+            provider_launch_new_server = psi_digitalocean.launch_new_server
+            provider_account = self.__digitalocean_account
+        elif provider.lower() == 'elastichosts':
+            provider_launch_new_server = psi_elastichosts.ElasticHosts().launch_new_server
+            provider_account = self._weighted_random_choice(self.__elastichosts_accounts)
+        else:
+            raise ValueError('bad provider value: %s' % provider)
+
+        print 'starting %s process (up to 20 minutes)...' % provider
+
+        # Create a new cloud VPS
+        def provider_launch_new_server_with_retries():
+            for _ in range(3):
+                try:
+                    return provider_launch_new_server(provider_account, plugins)
+                except Exception as ex:
+                    print str(ex)
+            raise ex
+
+        server_info = provider_launch_new_server_with_retries()
+        return server_info[0:1] + (provider.lower(),) + server_info[2:]
+        
+    def add_servers(self, server_infos, propagation_channel_name, discovery_date_range, replace_others=True, server_capabilities=None):
         assert(self.is_locked)
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
 
@@ -1284,39 +1327,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             else:
                 self.__replace_propagation_channel_discovery_servers(propagation_channel.id)
 
-        for new_server_number in range(count):
-            provider = self._weighted_random_choice(self.__provider_ranks).provider
-
-            # This is pretty dirty. We should use some proper OO technique.
-            provider_launch_new_server = None
-            provider_account = None
-            if provider.lower() == 'linode':
-                provider_launch_new_server = psi_linode.launch_new_server
-                provider_account = self.__linode_account
-            elif provider.lower() == 'digitalocean':
-                provider_launch_new_server = psi_digitalocean.launch_new_server
-                provider_account = self.__digitalocean_account
-            elif provider.lower() == 'elastichosts':
-                provider_launch_new_server = psi_elastichosts.ElasticHosts().launch_new_server
-                provider_account = self._weighted_random_choice(self.__elastichosts_accounts)
-            else:
-                raise ValueError('bad provider value: %s' % provider)
-
-            print 'starting %s process (up to 20 minutes)...' % provider
-
-            # Create a new cloud VPS
-            def provider_launch_new_server_with_retries():
-                for _ in range(3):
-                    try:
-                        return provider_launch_new_server(provider_account, plugins)
-                    except Exception as ex:
-                        print str(ex)
-                        pass
-                raise ex
-
-            server_info = provider_launch_new_server_with_retries()
+        for new_server_number in range(len(server_infos)):
+            server_info = server_infos[new_server_number]
+            if type(server_info) != tuple:
+                continue
             host = Host(*server_info)
-            host.provider = provider.lower()
 
             # NOTE: jsonpickle will serialize references to discovery_date_range, which can't be
             # resolved when unpickling, if discovery_date_range is used directly.
@@ -1335,6 +1350,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 capabilities['SSH'] = False
                 ossh_ports = range(1,1023)
                 ossh_ports.remove(15)
+                ossh_ports.remove(25)
                 ossh_ports.remove(135)
                 ossh_ports.remove(136)
                 ossh_ports.remove(137)
@@ -1405,6 +1421,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if host.provider == 'linode':
                 provider_remove_host = psi_linode.remove_server
                 provider_account = self.__linode_account
+            if host.provider == 'digitalocean':
+                provider_remove_host = psi_digitalocean.remove_server
+                provider_account = self.__digitalocean_account
             if provider_remove_host:
                 # Remove the actual host through the provider's API
                 provider_remove_host(provider_account, host.provider_id)
@@ -1775,6 +1794,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Build
 
         for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
+            deployed_builds_for_platform = False
             for target in self.__deploy_builds_required_for_campaigns[platform].copy():
 
                 propagation_channel_id, sponsor_id = target
@@ -1889,6 +1909,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 # means some builds may be repeated unnecessarily in a failure case.
 
                 self.__deploy_builds_required_for_campaigns[platform].remove(target)
+                deployed_builds_for_platform = True
+
+            # NOTE: it is too expensive to save too frequently.
+            # Save only after finishing all builds for a platform.
+            if deployed_builds_for_platform:
                 self.save()
 
         # Host data
@@ -2249,8 +2274,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     json.dumps(extended_config)))
 
     def __get_encoded_server_list(self, propagation_channel_id,
-                                  client_ip_address=None, event_logger=None, discovery_date=None):
-        if not client_ip_address:
+                                  client_ip_address_strategy_value=None, event_logger=None, discovery_date=None):
+        if not client_ip_address_strategy_value:
             # embedded (propagation) server list
             # output all servers for propagation channel ID with no discovery date
             servers = [server for server in self.__servers.itervalues()
@@ -2271,7 +2296,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                  if server.discovery_date_range is not None and
                                  server.discovery_date_range[0] <= discovery_date < server.discovery_date_range[1]]
 
-            servers = psi_ops_discovery.select_servers(candidate_servers, client_ip_address)
+            servers = psi_ops_discovery.select_servers(candidate_servers, client_ip_address_strategy_value)
 
         # optional logger (used by server to log each server IP address disclosed)
         if event_logger:
@@ -2318,7 +2343,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             return last_version
         return None
 
-    def handshake(self, server_ip_address, client_ip_address,
+    def handshake(self, server_ip_address, client_ip_address_strategy_value,
                   client_region, propagation_channel_id, sponsor_id,
                   client_platform_string, client_version, event_logger=None):
         # Legacy handshake output is a series of Name:Value lines returned to
@@ -2342,11 +2367,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Discovery
         # NOTE: Clients are expecting at least an empty list
         config['encoded_server_list'] = []
-        if client_ip_address:
+        if client_ip_address_strategy_value:
             config['encoded_server_list'], _ = \
                         self.__get_encoded_server_list(
                                                     propagation_channel_id,
-                                                    client_ip_address,
+                                                    client_ip_address_strategy_value,
                                                     event_logger=event_logger)
 
         # VPN relay protocol info

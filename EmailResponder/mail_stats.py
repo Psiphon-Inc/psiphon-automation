@@ -86,9 +86,12 @@ def get_send_info():
 
     # Get the middle value
     res = log_processor.dbengine.execute('SELECT * FROM sendtime ORDER BY time ASC LIMIT %d, 1;' % ((sendtime_count + 1) / 2))
-    median_sendtime = res.fetchone()[0]
+    res = res.fetchone()
+    median_sendtime = res[0] if res else None
+
     res = log_processor.dbengine.execute('SELECT * FROM proctime ORDER BY time ASC LIMIT %d, 1;' % ((proctime_count + 1) / 2))
-    median_proctime = res.fetchone()[0]
+    res = res.fetchone()
+    median_proctime = res[0] if res else None
 
     # Drop the tempoary tables (probably not necessary, but...)
     res = log_processor.dbengine.execute('DROP TABLE sendtime;')
@@ -101,10 +104,10 @@ def get_send_info():
                  Median process time: %(median_proctime)dms
                  Unsent: %(unsent_day)d
                  Expired: %(expireds)d
-               ''' % {'unsent_day': unsent_day,
-                      'median_sendtime': median_sendtime / 1000,
-                      'median_proctime': median_proctime,
-                      'expireds': expireds
+               ''' % {'unsent_day': unsent_day if unsent_day else 0,
+                      'median_sendtime': (median_sendtime / 1000) if median_sendtime else -1,
+                      'median_proctime': median_proctime if median_proctime else -1,
+                      'expireds': expireds if expireds else 0
                       })
 
 
@@ -129,6 +132,10 @@ def process_log_file(logfile):
                               },
                 'error': {
                           'regex': re.compile('^([^ ]+) .* mail_process.py: error: (.*)'),
+                          'results': {}
+                          },
+                'bad_address': {
+                          'regex': re.compile('^([^ ]+) .* log_processor.py: bad_address: (.*)'),
                           'results': {}
                           },
                 }
@@ -188,6 +195,21 @@ def process_log_file(logfile):
     results = logtypes['fail']['results']
 
     text += '\n\nFailures\n----------------------\n\n'
+
+    text += 'TOTAL: %d\n' % sum(results.values())
+
+    # Only itemize the entries with a reasonably large count
+    for item in filter(lambda (k,v): v >= 10,
+                       sorted(results.iteritems(),
+                              key=lambda (k,v): (v,k),
+                              reverse=True)):
+        text += '%s %s\n' % (str(item[1]).rjust(4), item[0])
+
+    # Bad addresses
+
+    results = logtypes['bad_address']['results']
+
+    text += '\n\nBad Addresses\n----------------------\n\n'
 
     text += 'TOTAL: %d\n' % sum(results.values())
 

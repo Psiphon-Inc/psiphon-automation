@@ -31,7 +31,7 @@ echo "Copying source files..."
 
 # Copy the simple files
 sudo cp blacklist.py log_processor.py mail_direct.py mail_process.py mail_stats.py \
-        aws_helpers.py sendmail.py settings.py postfix_queue_check.pl \
+        aws_helpers.py sendmail.py settings.py conf_pull.py postfix_queue_check.pl \
         mon-put-instance-data.pl CloudWatchClient.pm $MAIL_HOME
 
 # forward needs to be copied to .forward
@@ -68,6 +68,9 @@ if [ "$?" -ne "0" ]; then
     exit 1
 fi
 
+
+# Do an initial config pull
+cd $MAIL_HOME && sudo -u$MAIL_USER python conf_pull.py && cd -
+
+
 echo "Done"
-
-
