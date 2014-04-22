@@ -1919,11 +1919,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Host data
 
         if self.__deploy_data_required_for_all:
-            host_and_data_list = []
-            for host in self.__hosts.itervalues():
-                host_and_data_list.append(dict(host=host, data=self.__compartmentalize_data_for_host(host.id)))
-
-            psi_ops_deploy.deploy_data_to_hosts(host_and_data_list)
+            psi_ops_deploy.deploy_data_to_hosts(self.get_hosts(), self.__compartmentalize_data_for_host)
             self.__deploy_data_required_for_all = False
             self.save()
 
