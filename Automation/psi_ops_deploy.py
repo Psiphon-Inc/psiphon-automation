@@ -223,7 +223,7 @@ def deploy_data_to_hosts(hosts, data_generator):
             print 'Error deploying data to host %s' % (host.id,)
             raise
        
-    run_in_parallel(20, do_deploy_data, [(host, data_generator) for host in hosts])
+    run_in_parallel(40, do_deploy_data, [(host, data_generator) for host in hosts])
 
             
 def deploy_build(host, build_filename):
