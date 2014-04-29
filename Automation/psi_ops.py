@@ -1359,6 +1359,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 ossh_ports.remove(515)
                 ossh_ports.remove(593)
                 ossh_port = random.choice(ossh_ports)
+                # 50% chance of using either 53 or 443 instead of what was chosen above
+                if random.random() < 0.5:
+                    ossh_port = random.choice([53, 443])
 
             server = Server(
                         None,
