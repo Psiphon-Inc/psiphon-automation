@@ -176,7 +176,7 @@ Host = psi_utils.recordtype(
     'Host',
     'id, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key, ' +
     'stats_ssh_username, stats_ssh_password, ' +
-    'datacenter_name, region',
+    'datacenter_name, region, meek_server_port',
     default=None)
 
 Server = psi_utils.recordtype(
@@ -327,7 +327,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.25'
+    class_version = '0.26'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -453,6 +453,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for server in self.__deleted_servers.itervalues():
                 server.alternate_ssh_obfuscated_ports = []
             self.version = '0.25'
+        if cmp(parse_version(self.version), parse_version('0.26')) < 0:
+            for host in self.__hosts.itervalues():
+                host.meek_server_port = None
+            for host in self.__deleted_hosts:
+                host.meek_server_port = None
+            self.version = '0.26'
 
     def initialize_plugins(self):
         for plugin in plugins:

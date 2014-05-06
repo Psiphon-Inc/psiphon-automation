@@ -23,6 +23,7 @@ import os
 import posixpath
 import sys
 import textwrap
+import json
 import psi_ssh
 import psi_routes
 import psi_ops_install
@@ -38,21 +39,31 @@ import psi_config
 BUILDS_ROOT = os.path.join('.', 'Builds')
 
 SOURCE_FILES = [
-    ('Automation',
+    (('Automation',),
      ['psi_ops.py',
       'psi_ops_discovery.py',
       'psi_ops_cms.py',
       'psi_utils.py'
      ]),
 
-    ('Server',
+    (('Server',),
      ['psi_config.py',
       'psi_psk.py',
       'psi_web.py',
       'psi_auth.py',
       'psi_geoip.py',
       'pam.py',
-      'psi-check-services'])
+      'psi-check-services'
+     ]),
+      
+    (('go',  'meek-server'),
+     ['meek-server.go',
+      'Makefile'
+     ]),
+     
+    (('go', 'utils', 'crypto'),
+     ['crypto.go'
+     ])
 ]
 
 #==============================================================================
@@ -92,11 +103,11 @@ def deploy_implementation(host, plugins):
 
     for (dir, filenames) in SOURCE_FILES:
         ssh.exec_command('mkdir -p %s' % (
-                posixpath.join(psi_config.HOST_SOURCE_ROOT, dir),))
+                posixpath.join(psi_config.HOST_SOURCE_ROOT, *dir),))
         for filename in filenames:
-            ssh.put_file(os.path.join(os.path.abspath('..'), dir, filename),
-                         posixpath.join(psi_config.HOST_SOURCE_ROOT, dir, filename))
-        ssh.exec_command('rm %s' % (posixpath.join(psi_config.HOST_SOURCE_ROOT, dir, '*.pyc'),))
+            ssh.put_file(os.path.join(os.path.abspath('..'), *(dir + (filename,))),
+                         posixpath.join(psi_config.HOST_SOURCE_ROOT, *(dir + (filename,))))
+        ssh.exec_command('rm %s' % (posixpath.join(psi_config.HOST_SOURCE_ROOT, *(dir + ('*.pyc',))),))
 
     ssh.exec_command('chmod +x %s' % (
             posixpath.join(psi_config.HOST_SOURCE_ROOT, 'Server', 'psi_web.py'),))
@@ -125,6 +136,30 @@ def deploy_implementation(host, plugins):
 
     ssh.exec_command('%s restart' % (remote_init_file_path,))
 
+    # Set up meek-server if enabled for this host
+    
+    if host.meek_server_port:
+        ssh.exec_command('mkdir -p /opt/gocode/src/bitbucket.org/psiphon/psiphon-circumvention-system/')
+        ssh.exec_command('ln -s %s /opt/gocode/src/bitbucket.org/psiphon/psiphon-circumvention-system/' % (
+                posixpath.join(psi_config.HOST_SOURCE_ROOT, 'go'),))
+        ssh.exec_command('cd %s && GOBIN=. GOPATH=/opt/gocode/ go get' % (
+                posixpath.join(psi_config.HOST_SOURCE_ROOT, 'go', 'meek-server'),))
+                
+        meek_remote_init_file_path = posixpath.join(psi_config.HOST_INIT_DIR, 'meek-server')
+        ssh.put_file(os.path.join(os.path.abspath('..'), 'go', 'meek-server', 'meek-server-init'),
+                meek_remote_init_file_path)
+        ssh.exec_command('chmod +x %s' % (meek_remote_init_file_path,))
+        ssh.exec_command('update-rc.d %s defaults' % ('meek-server',))
+        
+        # TODO: real private key
+        ssh.exec_command('echo \'%s\' > /etc/meek-server.json' % (
+                json.dumps({'Port': int(host.meek_server_port),
+                            'ServerPrivateKeyBase64': 'Rz+cqOiIJN+Qd8BkFEKnhUXJUKtIRDbE6CfSIqOQaBI=',
+                            'LogFilename': '/var/log/meek-server.log'}),))
+        # TODO: logrotate
+        
+        ssh.exec_command('%s restart' % (meek_remote_init_file_path,))
+    
     # Install the cron job that calls psi-check-services
 
     cron_file = '/etc/cron.d/psi-check-services'
