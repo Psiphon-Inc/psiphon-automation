@@ -56,7 +56,7 @@ SOURCE_FILES = [
       'psi-check-services'
      ]),
       
-    (('go',  'meek-server'),
+    (('go',  'meek-server-combo'),
      ['meek-server.go',
       'Makefile'
      ]),
@@ -143,19 +143,21 @@ def deploy_implementation(host, plugins):
         ssh.exec_command('ln -s %s /opt/gocode/src/bitbucket.org/psiphon/psiphon-circumvention-system/' % (
                 posixpath.join(psi_config.HOST_SOURCE_ROOT, 'go'),))
         ssh.exec_command('cd %s && GOBIN=. GOPATH=/opt/gocode/ go get' % (
-                posixpath.join(psi_config.HOST_SOURCE_ROOT, 'go', 'meek-server'),))
+                posixpath.join(psi_config.HOST_SOURCE_ROOT, 'go', 'meek-server-combo'),))
                 
-        meek_remote_init_file_path = posixpath.join(psi_config.HOST_INIT_DIR, 'meek-server')
-        ssh.put_file(os.path.join(os.path.abspath('..'), 'go', 'meek-server', 'meek-server-init'),
+        meek_remote_init_file_path = posixpath.join(psi_config.HOST_INIT_DIR, 'meek-server-combo')
+        ssh.put_file(os.path.join(os.path.abspath('..'), 'go', 'meek-server-combo', 'meek-server-init'),
                 meek_remote_init_file_path)
         ssh.exec_command('chmod +x %s' % (meek_remote_init_file_path,))
-        ssh.exec_command('update-rc.d %s defaults' % ('meek-server',))
+        ssh.exec_command('update-rc.d %s defaults' % ('meek-server-combo',))
         
         # TODO: real private key
-        ssh.exec_command('echo \'%s\' > /etc/meek-server.json' % (
+        ssh.exec_command('echo \'%s\' > /etc/meek-server-combo.json' % (
                 json.dumps({'Port': int(host.meek_server_port),
-                            'ServerPrivateKeyBase64': 'Rz+cqOiIJN+Qd8BkFEKnhUXJUKtIRDbE6CfSIqOQaBI=',
-                            'LogFilename': '/var/log/meek-server.log'}),))
+                            'ListenTLS': False,
+                            'CookiePrivateKeyBase64': 'Rz+cqOiIJN+Qd8BkFEKnhUXJUKtIRDbE6CfSIqOQaBI=',
+                            'ObfuscationKeyword': 'OBFUSCATE',
+                            'LogFilename': '/var/log/meek-server-combo.log'}),))
         # TODO: logrotate
         
         ssh.exec_command('%s restart' % (meek_remote_init_file_path,))
