@@ -599,6 +599,12 @@ def install_firewall_rules(host, servers, plugins, do_blacklist=True):
     -A INPUT -i lo -p tcp -m tcp --dport 7300 -j ACCEPT
     -A INPUT -i lo -p tcp -m tcp --dport 6379 -j ACCEPT
     -A INPUT -i lo -p tcp -m tcp --dport 6000 -j ACCEPT''' + ''.join(
+    # tunneled OSSH
+    # TODO: if server has meek capability (or is fronted)
+    ['''
+    -A INPUT -i lo -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -j ACCEPT'''.format(
+            str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
+                if s.capabilities['OSSH'] and host.meek_server_port]) + ''.join(                
     # tunneled web requests
     ['''
     -A INPUT -i lo -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
@@ -606,6 +612,12 @@ def install_firewall_rules(host, servers, plugins, do_blacklist=True):
     -A INPUT -d 127.0.0.0/8 ! -i lo -j DROP
     -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
     -A INPUT -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT''' % (host.ssh_port,) + ''.join(
+    # meek server
+    # TODO: if server has meek capability (or is fronted)
+    ['''
+    -A INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(host.meek_server_port)) for s in servers
+                if host.meek_server_port]) + ''.join(
     # web servers
     ['''
     -A INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
@@ -648,6 +660,12 @@ def install_firewall_rules(host, servers, plugins, do_blacklist=True):
     -A FORWARD -s 10.0.0.0/8 -d 8.8.4.4 -p udp --dport 53 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 10.0.0.0/8 -j DROP
     -A FORWARD -s 10.0.0.0/8 -j REJECT''' + ''.join(
+    # tunneled ossh requests
+    ['''
+    -A OUTPUT -d {0} -o lo -p tcp -m tcp --dport {1} -j ACCEPT
+    -A OUTPUT -s {0} -o lo -p tcp -m tcp --sport {1} -j ACCEPT'''.format(
+            str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
+                if s.ssh_obfuscated_port]) + ''.join(
     # tunneled web requests (always provided, regardless of capabilities)
     ['''
     -A OUTPUT -d {0} -o lo -p tcp -m tcp --dport {1} -j ACCEPT
@@ -669,11 +687,21 @@ def install_firewall_rules(host, servers, plugins, do_blacklist=True):
     -A OUTPUT -p udp -m multiport --dports 5243,7985,9785 -j ACCEPT
     -A OUTPUT -p udp -m udp --dport 123 -j ACCEPT
     -A OUTPUT -p tcp -m tcp --sport %s -j ACCEPT''' % (host.ssh_port,) + ''.join(
+    # tunneled ossh requests on NATed servers
+    ['''
+    -A OUTPUT -d %s -p tcp -m tcp --dport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
+                if s.ssh_obfuscated_port and (s.ip_address != s.internal_ip_address)]) + ''.join(
     # tunneled web requests on NATed servers don't go out lo
     ['''
     -A OUTPUT -d %s -p tcp -m tcp --dport %s -j ACCEPT'''
             % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers
                 if s.ip_address != s.internal_ip_address]) + ''.join(
+    # meek server
+    ['''
+    -A OUTPUT -s %s -p tcp -m tcp --sport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(host.meek_server_port)) for s in servers
+                if host.meek_server_port]) + ''.join(
     # web servers
     ['''
     -A OUTPUT -s %s -p tcp -m tcp --sport %s -j ACCEPT'''
@@ -706,6 +734,7 @@ COMMIT
 
 *nat''' + ''.join(
     # Port forward from 443 to web servers
+    # TODO: exclude for servers with meek capability (or is fronted) and meek_server_port is 443
     ['''
     -A PREROUTING -i eth+ -p tcp -d %s --dport 443 -j DNAT --to-destination :%s'''
             % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers

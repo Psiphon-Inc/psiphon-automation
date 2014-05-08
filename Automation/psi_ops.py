@@ -1459,7 +1459,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.stats_ssh_username,
                         host.stats_ssh_password,
                         host.datacenter_name,
-                        host.region)
+                        host.region,
+                        host.meek_server_port)
         self.__hosts_to_remove_from_providers.add(host_copy)
 
         # Mark host and its servers as deleted in the database. We keep the
@@ -2489,7 +2490,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         '',  # Omit: stats_ssh_username isn't needed
                                         '',  # Omit: stats_ssh_password isn't needed
                                         '',  # Omit: datacenter_name isn't needed
-                                        host.region)
+                                        host.region,
+                                        '')  # Omit: meek_server_port isn't needed
 
         for server in self.__servers.itervalues():
             if ((server.discovery_date_range and server.host_id != host_id and server.discovery_date_range[1] <= discovery_date) or
@@ -2569,7 +2571,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.stats_ssh_username,
                                             host.stats_ssh_password,
                                             host.datacenter_name,
-                                            host.region)
+                                            host.region,
+                                            host.meek_server_port)
 
         for server in self.__servers.itervalues():
             copy.__servers[server.id] = Server(
