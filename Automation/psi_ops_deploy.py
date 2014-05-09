@@ -153,9 +153,9 @@ def deploy_implementation(host, plugins):
         # TODO: real private key
         ssh.exec_command('echo \'%s\' > /etc/meek-server.json' % (
                 json.dumps({'Port': int(host.meek_server_port),
-                            'ListenTLS': True,
+                            'ListenTLS': True if host.meek_server_fronting_domain else False,
                             'CookiePrivateKeyBase64': 'Rz+cqOiIJN+Qd8BkFEKnhUXJUKtIRDbE6CfSIqOQaBI=',
-                            'ObfuscationKeyword': 'OBFUSCATE',
+                            'ObfuscationKeyword': host.meek_server_obfuscation_key,
                             'LogFilename': '/var/log/meek-server.log'}),))
         # TODO: logrotate
         

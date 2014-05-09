@@ -1254,6 +1254,25 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for server in servers_on_host:
             self.test_server(server.id, ['handshake'])
 
+    def setup_fronting_for_server(self, server_id, meek_server_port, meek_server_fronting_domain, meek_server_fronting_host):
+        server = self.__servers[server_id]
+        host = self.__hosts[server.host_id]
+        
+        server.capabilities['FRONTED-MEEK'] = True
+        host.meek_server_port = meek_server_port
+        if not host.meek_server_obfuscation_key:
+            host.meek_server_obfuscation_key = binascii.hexlify(os.urandom(psi_ops_install.SSH_OBFUSCATED_KEY_BYTE_LENGTH))
+        host.meek_server_fronting_domain = meek_server_fronting_domain
+        host.meek_server_fronting_host = meek_server_fronting_host
+
+        servers = [s for s in self.__servers.itervalues() if s.host_id == server.host_id]
+        psi_ops_install.install_firewall_rules(host, servers, plugins, False) # No need to update the malware blacklist
+        psi_ops_install.install_psi_limit_load(host, servers)
+        psi_ops_deploy.deploy_implementation(host, plugins)
+        psi_ops_deploy.deploy_data(
+                            host,
+                            self.__compartmentalize_data_for_host(host.id))
+    
     def setup_server(self, host, servers):
         # Install Psiphon 3 and generate configuration values
         # Here, we're assuming one server/IP address per host
@@ -2281,9 +2300,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         extended_config['sshObfuscatedKey'] = server.ssh_obfuscated_key if server.ssh_obfuscated_key else ''
 
         extended_config['capabilities'] = [capability for capability, enabled in server.capabilities.iteritems() if enabled] if server.capabilities else []
-
+        
         host = self.__hosts[server.host_id]
         extended_config['region'] = host.region
+
+        extended_config['meekServerPort'] = int(host.meek_server_port) if host.meek_server_port else 0
+        extended_config['meekObfuscationKey'] = host.meek_server_obfuscation_key if host.meek_server_obfuscation_key else ''
+        extended_config['meekFrontingDomain'] = host.meek_server_fronting_domain if host.meek_server_fronting_domain else ''
+        extended_config['meekFrontingHost'] = host.meek_server_fronting_host if host.meek_server_fronting_host else ''
 
         return binascii.hexlify('%s %s %s %s %s' % (
                                     server.ip_address,
@@ -2504,10 +2528,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         '',  # Omit: stats_ssh_password isn't needed
                                         '',  # Omit: datacenter_name isn't needed
                                         host.region,
-                                        '',  # Omit: meek_server_port isn't needed
-                                        '',  # Omit: meek_server_obfuscation_key isn't needed
-                                        '',  # Omit: meek_server_fronting_domain isn't needed
-                                        '')  # Omit: meek_server_fronting_host isn't needed
+                                        host.meek_server_port,
+                                        host.meek_server_obfuscation_key,
+                                        host.meek_server_fronting_domain,
+                                        host.meek_server_fronting_host)
 
         for server in self.__servers.itervalues():
             if ((server.discovery_date_range and server.host_id != host_id and server.discovery_date_range[1] <= discovery_date) or

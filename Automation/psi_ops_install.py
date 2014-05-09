@@ -600,11 +600,10 @@ def install_firewall_rules(host, servers, plugins, do_blacklist=True):
     -A INPUT -i lo -p tcp -m tcp --dport 6379 -j ACCEPT
     -A INPUT -i lo -p tcp -m tcp --dport 6000 -j ACCEPT''' + ''.join(
     # tunneled OSSH
-    # TODO: if server has meek capability (or is fronted)
     ['''
     -A INPUT -i lo -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -j ACCEPT'''.format(
             str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
-                if s.capabilities['OSSH'] and host.meek_server_port]) + ''.join(                
+                if (s.capabilities['FRONTED-MEEK'] or s.capabilities['UNFRONTED-MEEK']) and s.ssh_obfuscated_port]) + ''.join(                
     # tunneled web requests
     ['''
     -A INPUT -i lo -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
@@ -613,11 +612,10 @@ def install_firewall_rules(host, servers, plugins, do_blacklist=True):
     -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
     -A INPUT -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT''' % (host.ssh_port,) + ''.join(
     # meek server
-    # TODO: if server has meek capability (or is fronted)
     ['''
     -A INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
             % (str(s.internal_ip_address), str(host.meek_server_port)) for s in servers
-                if host.meek_server_port]) + ''.join(
+                if (s.capabilities['FRONTED-MEEK'] or s.capabilities['UNFRONTED-MEEK']) and host.meek_server_port]) + ''.join(
     # web servers
     ['''
     -A INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
@@ -734,11 +732,12 @@ COMMIT
 
 *nat''' + ''.join(
     # Port forward from 443 to web servers
-    # TODO: exclude for servers with meek capability (or is fronted) and meek_server_port is 443
+    # NOTE: exclude for servers with meek capability (or is fronted) and meek_server_port is 443
     ['''
     -A PREROUTING -i eth+ -p tcp -d %s --dport 443 -j DNAT --to-destination :%s'''
             % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers
-                if s.capabilities['handshake']]) + ''.join(
+                if s.capabilities['handshake']
+                and not ((s.capabilities['FRONTED-MEEK'] or s.capabilities['UNFRONTED-MEEK']) and int(host.meek_server_port) == 443)]) + ''.join(
     # Port forward alternate ports
     ['''
     -A PREROUTING -i eth+ -p tcp -d %s --dport %s -j DNAT --to-destination :%s'''
@@ -840,6 +839,10 @@ def install_psi_limit_load(host, servers):
     #       would also prevent current VPN users from accessing the web server.
 
     rules = (
+    # Meek
+    [' INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j REJECT --reject-with tcp-reset'
+            % (str(s.internal_ip_address), str(host.meek_server_port)) for s in servers
+                if (s.capabilities['FRONTED-MEEK'] or s.capabilities['UNFRONTED-MEEK'])] +
     # SSH
     [' INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j REJECT --reject-with tcp-reset'
             % (str(s.internal_ip_address), str(s.ssh_port)) for s in servers
