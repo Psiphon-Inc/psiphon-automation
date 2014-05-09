@@ -227,7 +227,7 @@ def launch_new_server(digitalocean_account, _):
             digitalocean_account.base_ssh_port, 'root', 
             new_root_password, ' '.join(new_host_public_key.split(' ')[:2]),
             digitalocean_account.base_stats_username, new_stats_password, 
-            datacenter_name, region, None)
+            datacenter_name, region, None, None, None, None)
 
 def remove_droplet(do_api, droplet_id):
     try:

@@ -176,7 +176,8 @@ Host = psi_utils.recordtype(
     'Host',
     'id, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key, ' +
     'stats_ssh_username, stats_ssh_password, ' +
-    'datacenter_name, region, meek_server_port',
+    'datacenter_name, region, meek_server_port, meek_server_obfuscation_key, meek_server_fronting_domain, ' +
+    'meek_server_fronting_host',
     default=None)
 
 Server = psi_utils.recordtype(
@@ -193,12 +194,15 @@ def ServerCapabilities():
     capabilities = {}
     for capability in ('handshake', 'VPN', 'SSH', 'OSSH'):
         capabilities[capability] = True
+    # These are disabled by default
+    for capability in ('FRONTED-MEEK', 'UNFRONTED-MEEK'):
+        capabilities[capability] = False
     return capabilities
 
 
 def copy_server_capabilities(caps):
     capabilities = {}
-    for capability in ('handshake', 'VPN', 'SSH', 'OSSH'):
+    for capability in ('handshake', 'VPN', 'SSH', 'OSSH', 'FRONTED-MEEK', 'UNFRONTED-MEEK'):
         capabilities[capability] = caps[capability]
     return capabilities
 
@@ -456,8 +460,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.26')) < 0:
             for host in self.__hosts.itervalues():
                 host.meek_server_port = None
+                host.meek_server_obfuscation_key = None
+                host.meek_server_fronting_domain = None
+                host.meek_server_fronting_host = None
             for host in self.__deleted_hosts:
                 host.meek_server_port = None
+                host.meek_server_obfuscation_key = None
+                host.meek_server_fronting_domain = None
+                host.meek_server_fronting_host = None
             self.version = '0.26'
 
     def initialize_plugins(self):
@@ -1460,7 +1470,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.stats_ssh_password,
                         host.datacenter_name,
                         host.region,
-                        host.meek_server_port)
+                        host.meek_server_port,
+                        host.meek_server_obfuscation_key,
+                        host.meek_server_fronting_domain,
+                        host.meek_server_fronting_host)
         self.__hosts_to_remove_from_providers.add(host_copy)
 
         # Mark host and its servers as deleted in the database. We keep the
@@ -2491,7 +2504,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         '',  # Omit: stats_ssh_password isn't needed
                                         '',  # Omit: datacenter_name isn't needed
                                         host.region,
-                                        '')  # Omit: meek_server_port isn't needed
+                                        '',  # Omit: meek_server_port isn't needed
+                                        '',  # Omit: meek_server_obfuscation_key isn't needed
+                                        '',  # Omit: meek_server_fronting_domain isn't needed
+                                        '')  # Omit: meek_server_fronting_host isn't needed
 
         for server in self.__servers.itervalues():
             if ((server.discovery_date_range and server.host_id != host_id and server.discovery_date_range[1] <= discovery_date) or
@@ -2572,7 +2588,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.stats_ssh_password,
                                             host.datacenter_name,
                                             host.region,
-                                            host.meek_server_port)
+                                            host.meek_server_port,
+                                            host.meek_server_obfuscation_key,
+                                            host.meek_server_fronting_domain,
+                                            host.meek_server_fronting_host)
 
         for server in self.__servers.itervalues():
             copy.__servers[server.id] = Server(
