@@ -27,6 +27,7 @@ FEEDBACK_LANGUAGES = [
     'en',
     'fa',
     'ar',
+    'tr',
     'zh',
     'uz@cyrillic',
     'uz@Latn',
@@ -37,7 +38,8 @@ FEEDBACK_LANGUAGES = [
     'th',
     'ug@Latn',
     'es',
-    'vi'
+    'vi',
+    'nb'
 ]
 
 
