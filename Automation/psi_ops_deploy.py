@@ -96,6 +96,7 @@ def deploy_implementation(host, plugins):
         for filename in filenames:
             ssh.put_file(os.path.join(os.path.abspath('..'), dir, filename),
                          posixpath.join(psi_config.HOST_SOURCE_ROOT, dir, filename))
+        ssh.exec_command('rm %s' % (posixpath.join(psi_config.HOST_SOURCE_ROOT, dir, '*.pyc'),))
 
     ssh.exec_command('chmod +x %s' % (
             posixpath.join(psi_config.HOST_SOURCE_ROOT, 'Server', 'psi_web.py'),))
@@ -210,18 +211,19 @@ def deploy_data(host, host_data):
     ssh.close()
     
 
-def deploy_data_to_hosts(host_and_data_list):
+def deploy_data_to_hosts(hosts, data_generator):
 
     @retry_decorator_returning_exception
-    def do_deploy_data(host_and_data):
+    def do_deploy_data(host_and_data_generator):
+        host = host_and_data_generator[0]
+        host_data = host_and_data_generator[1](host.id)
         try:
-            deploy_data(host_and_data['host'], host_and_data['data'])
+            deploy_data(host, host_data)
         except:
-            print 'Error deploying data to host %s' % (host_and_data['host'].id,)
+            print 'Error deploying data to host %s' % (host.id,)
             raise
-        host_and_data['host'].log('deploy data')
        
-    run_in_parallel(20, do_deploy_data, host_and_data_list)
+    run_in_parallel(40, do_deploy_data, [(host, data_generator) for host in hosts])
 
             
 def deploy_build(host, build_filename):

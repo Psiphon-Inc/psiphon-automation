@@ -61,8 +61,8 @@ def create_linode(linode_api):
     datacenter = random.choice(avail_datacenters)
     datacenter_id = datacenter['DATACENTERID']
     datacenter_name = make_datacenter_name(datacenter['LOCATION'])
-    # We use PlanID = 3: linode 2048
-    new_node_id = linode_api.linode_create(DatacenterID=datacenter_id, PlanID=3, PaymentTerm=1)['LinodeID']
+    # We use PlanID = 1: linode 2048
+    new_node_id = linode_api.linode_create(DatacenterID=datacenter_id, PlanID=1, PaymentTerm=1)['LinodeID']
     # Status flag values: (partial list)
     # -1: Being Created
     #  0: Brand New
@@ -74,8 +74,8 @@ def create_linode(linode_api):
 
 
 def create_linode_disks(linode_api, linode_id, bootstrap_password, plugins):
-    # DistributionID = 109: 'Debian 7'
-    distribution_id = 109
+    # DistributionID = 125: 'Debian 7.5'
+    distribution_id = 125
     for plugin in plugins:
         if hasattr(plugin, 'linode_distribution_id'):
             distribution_id = plugin.linode_distribution_id()
@@ -198,7 +198,9 @@ def launch_new_server(linode_account, plugins):
         raise
     finally:
         # Power down the base image linode
-        stop_linode(linode_api, linode_account.base_id)
+        #stop_linode(linode_api, linode_account.base_id)
+        # New: we'll leave this on now due to parallelization
+        pass
 
     return (hostname, None, str(linode_id), linode_ip_address,
             linode_account.base_ssh_port, 'root', new_root_password,
