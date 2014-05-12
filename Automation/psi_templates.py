@@ -27,6 +27,7 @@ LANGUAGES = [
     'en',
     'fa',
     'ar',
+    'tr',
     'zh',
     'uz@cyrillic',
     'uz@Latn',
@@ -37,7 +38,8 @@ LANGUAGES = [
     'th',
     'ug@Latn',
     'es',
-    'vi'
+    'vi',
+    'nb'
 ]
 
 
