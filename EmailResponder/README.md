@@ -205,13 +205,7 @@ add this line:
    #bounce    unix  -       -       -       -       0       bounce
    ```
 
-6. Check the contents of `/etc/mailname`. It should be the FQDN of the current
-   instance's public name. If you're using an EC2 Static IP (which you surely
-   are), then the value in `/etc/mailname` is probably the public name that the
-   instance had *before* you assigned the static IP (at which point it got a new
-   public name). Make sure this is updated to the correct value.
-
-7. Reload postfix conf and restart:
+6. Reload postfix conf and restart:
 
    ```
    sudo postfix reload
@@ -384,6 +378,7 @@ Create the DB and user. TODO: Move this into `install.sh`.
 ```
 mysql -uroot
 CREATE USER '<username in settings.py>'@'localhost' IDENTIFIED BY '<password in settings.py>';
+CREATE DATABASE <DB name in settings.py>;
 GRANT ALL ON <DB name in settings.py>.* TO '<username in settings.py>'@'localhost';
 ```
 
@@ -422,7 +417,8 @@ The file is in JSON format, with these fields:
   {
     "email_addr": <emailaddress>,
     "body": [[<mimetype>, <body>], ...],
-    "attachments": null | [[<bucketname>, <bucketfilename>, <attachmentfilename>], ...]
+    "attachments": null | [[<bucketname>, <bucketfilename>, <attachmentfilename>], ...],
+    "send_method": "SMTP" | "SES"
   }
 ...
 ]
@@ -436,7 +432,8 @@ For example:
           ["plain", "English - https://example.com/en.html\n\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html"],
           ["html", "<a href=\"https://example.com/en.html\">English - https://example.com/en.html</a><br>\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html<br>"]
         ],
-    "attachments": null
+    "attachments": null,
+    "send_method": "SES"
   },
   {
     "email_addr": "multipart-email@example.com",
@@ -446,7 +443,8 @@ For example:
           ["html", "<a href=\"https://example.com/en.html\">English - https://example.com/en.html</a><br>\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html<br>"]
         ],
     "attachments": [["aaaa-bbbb-cccc-dddd", "Psiphon3.exe", "Psiphon3.asc"],
-                  ["aaaa-bbbb-cccc-dddd", "PsiphonAndroid.apk", "PsiphonAndroid.apk"]]
+                  ["aaaa-bbbb-cccc-dddd", "PsiphonAndroid.apk", "PsiphonAndroid.apk"]],
+    "send_method": "SMTP"
   },
   {
     "email_addr": "justtext@example.com",
@@ -454,7 +452,8 @@ For example:
         [
           ["plain", "Here's a download link. Please expect another email with attachments. https://example2.com/en.html"]
         ],
-    "attachments": null
+    "attachments": null,
+    "send_method": "SES"
   },
   {
     "email_addr": "justtext@example.com",
@@ -464,16 +463,19 @@ For example:
         ],
     "attachments": [["aaaa-bbbb-cccc-dddd", "Psiphon3.exe", "Psiphon3.asc"],
                   ["aaaa-bbbb-cccc-dddd", "PsiphonAndroid.apk", "PsiphonAndroid.apk"]]
+    "send_method": "SMTP"
   },
   {
     "email_addr": "simplebody@example2.com",
     "body": "Just a string",
-    "attachments": null
+    "attachments": null,
+    "send_method": "SES"
   },
   {
     "email_addr": "attachment@example3.com",
     "body": "I have an attachment",
-    "attachments": [["aaaa-bbbb-cccc-dddd", "Psiphon3.exe", "Psiphon3.asc"]]
+    "attachments": [["aaaa-bbbb-cccc-dddd", "Psiphon3.exe", "Psiphon3.asc"]],
+    "send_method": "SMTP"
   }
 ]
 ```
@@ -507,6 +509,13 @@ Things to notice about the format:
     we don't want to use an extension that typically has a file association
     (since we don't want anyone accidentally double-clicking and trying to open
     it before renaming it).
+
+* Once upon a time, Amazon SES had a whitelist of attachment types that it 
+  would send, which did not include executables (even renamed ones). So our
+  responder is configured up to use SES for email without attachments, and SMTP
+  for email with attachments. It appears that SES's policy may have changed,
+  and that now it blacklists rather than whitelists 
+  [certain attachment types](http://docs.aws.amazon.com/ses/latest/DeveloperGuide/mime-types.html).
 
 NOTE: The *last* mimetype will be the one that's preferred by mail clients,
   so you should put the 'html' body last.
