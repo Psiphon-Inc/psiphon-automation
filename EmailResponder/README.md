@@ -1,6 +1,27 @@
 
 # Psiphon Email Autoresponder README
 
+
+## How the autoresponder works
+
+Our supported domains have MX records configured to point to mail responder server (specifically, the load balancer in front of the server).
+
+On the server, Postfix is configured to use [virtual domains and aliases](http://www.postfix.org/VIRTUAL_README.html#virtual_alias). These aliases all point to a local, limited-privilege `mail_responder` user. 
+
+In the home directory for this user, there is a [`.forward` file](https://bitbucket.org/psiphon/psiphon-circumvention-system/src/tip/EmailResponder/forward?at=default) that points to our [`mail_process.py` file](https://bitbucket.org/psiphon/psiphon-circumvention-system/src/tip/EmailResponder/mail_process.py?at=default) using Postfix's [pipe](http://www.postfix.org/pipe.8.html) functionality.
+
+So, when a Postfix receives an email, it checks that it's for a valid domain and address, and then passes it off to `mail_process.py`. That code processes the request, generates the proper responses, and sends them.
+
+Typically two responses are send: one via Amazon SES that has links to the downloads but no attachments, and one with attachments via local Postfix using SMTP.
+
+
+### Future improvements
+
+In the current implementation, `mail_process.py` is run for each email that is processed. This is suboptimal. It would be better if the mail processor were a service that ran continuously.
+
+We could probably use Postfix's [virtual mailbox](http://www.postfix.org/VIRTUAL_README.html#virtual_mailbox) configuration to write incoming email to disk and then processing the mail files.
+
+
 ## Setup
 
 ### OS
@@ -141,39 +162,26 @@ allowed to access the SSH port.
 
 4. Edit `/etc/postfix/main.cf`
 
-   * Change `myhostname` to be the public DNS name of the instance, or the domain
-     name that's pointing to the instance.
-
-   * Change `mydestination` to be:
+   * Change `myhostname` and `mydestination` to be:
 
      ```
-     mydestination = $myhostname localhost.$mydomain localhost $extradomains
+     myhostname = localhost
+     mydestination = localhost.$mydomain localhost
      ```
-
-   * `extradomains` is a custom variable that will hold all of the domains that
-     our server accepts mail for (and responds to). So, you will have:
-
-     ```
-     extradomains = example1.com example2.com
-     ```
-
-     Note that the variable can be missing or empty and that's okay.
 
    * Change `smtpd_use_tls` to `no`
-
-   * Add these two lines to the end. They cause all email that doesn't
-     correspond to a real address to be forwarded to the `mail_responder` account
-     (which will then do the response processing).
-
-     ```
-     local_recipient_maps =
-     luser_relay = mail_responder+$local@localhost
-     ```
 
    * Reduce the maximum message size. Something like:
 
      ```
      message_size_limit = 8192000
+     ```
+
+   * Set up the virtual domain and address/alias support:
+
+     ```
+     virtual_alias_domains = /home/mail_responder/postfix_responder_domains
+     virtual_alias_maps = hash:/home/mail_responder/postfix_address_maps
      ```
 
    * See the bottom of this README for a sample `main.cf` file.
@@ -197,13 +205,7 @@ add this line:
    #bounce    unix  -       -       -       -       0       bounce
    ```
 
-6. Check the contents of `/etc/mailname`. It should be the FQDN of the current
-   instance's public name. If you're using an EC2 Static IP (which you surely
-   are), then the value in `/etc/mailname` is probably the public name that the
-   instance had *before* you assigned the static IP (at which point it got a new
-   public name). Make sure this is updated to the correct value.
-
-7. Reload postfix conf and restart:
+6. Reload postfix conf and restart:
 
    ```
    sudo postfix reload
@@ -376,6 +378,7 @@ Create the DB and user. TODO: Move this into `install.sh`.
 ```
 mysql -uroot
 CREATE USER '<username in settings.py>'@'localhost' IDENTIFIED BY '<password in settings.py>';
+CREATE DATABASE <DB name in settings.py>;
 GRANT ALL ON <DB name in settings.py>.* TO '<username in settings.py>'@'localhost';
 ```
 
@@ -414,7 +417,8 @@ The file is in JSON format, with these fields:
   {
     "email_addr": <emailaddress>,
     "body": [[<mimetype>, <body>], ...],
-    "attachments": null | [[<bucketname>, <bucketfilename>, <attachmentfilename>], ...]
+    "attachments": null | [[<bucketname>, <bucketfilename>, <attachmentfilename>], ...],
+    "send_method": "SMTP" | "SES"
   }
 ...
 ]
@@ -428,7 +432,8 @@ For example:
           ["plain", "English - https://example.com/en.html\n\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html"],
           ["html", "<a href=\"https://example.com/en.html\">English - https://example.com/en.html</a><br>\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html<br>"]
         ],
-    "attachments": null
+    "attachments": null,
+    "send_method": "SES"
   },
   {
     "email_addr": "multipart-email@example.com",
@@ -438,7 +443,8 @@ For example:
           ["html", "<a href=\"https://example.com/en.html\">English - https://example.com/en.html</a><br>\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html<br>"]
         ],
     "attachments": [["aaaa-bbbb-cccc-dddd", "Psiphon3.exe", "Psiphon3.asc"],
-                  ["aaaa-bbbb-cccc-dddd", "PsiphonAndroid.apk", "PsiphonAndroid.apk"]]
+                  ["aaaa-bbbb-cccc-dddd", "PsiphonAndroid.apk", "PsiphonAndroid.apk"]],
+    "send_method": "SMTP"
   },
   {
     "email_addr": "justtext@example.com",
@@ -446,7 +452,8 @@ For example:
         [
           ["plain", "Here's a download link. Please expect another email with attachments. https://example2.com/en.html"]
         ],
-    "attachments": null
+    "attachments": null,
+    "send_method": "SES"
   },
   {
     "email_addr": "justtext@example.com",
@@ -456,16 +463,19 @@ For example:
         ],
     "attachments": [["aaaa-bbbb-cccc-dddd", "Psiphon3.exe", "Psiphon3.asc"],
                   ["aaaa-bbbb-cccc-dddd", "PsiphonAndroid.apk", "PsiphonAndroid.apk"]]
+    "send_method": "SMTP"
   },
   {
     "email_addr": "simplebody@example2.com",
     "body": "Just a string",
-    "attachments": null
+    "attachments": null,
+    "send_method": "SES"
   },
   {
     "email_addr": "attachment@example3.com",
     "body": "I have an attachment",
-    "attachments": [["aaaa-bbbb-cccc-dddd", "Psiphon3.exe", "Psiphon3.asc"]]
+    "attachments": [["aaaa-bbbb-cccc-dddd", "Psiphon3.exe", "Psiphon3.asc"]],
+    "send_method": "SMTP"
   }
 ]
 ```
@@ -500,6 +510,13 @@ Things to notice about the format:
     (since we don't want anyone accidentally double-clicking and trying to open
     it before renaming it).
 
+* Once upon a time, Amazon SES had a whitelist of attachment types that it 
+  would send, which did not include executables (even renamed ones). So our
+  responder is configured up to use SES for email without attachments, and SMTP
+  for email with attachments. It appears that SES's policy may have changed,
+  and that now it blacklists rather than whitelists 
+  [certain attachment types](http://docs.aws.amazon.com/ses/latest/DeveloperGuide/mime-types.html).
+
 NOTE: The *last* mimetype will be the one that's preferred by mail clients,
   so you should put the 'html' body last.
 
@@ -516,15 +533,12 @@ NOTE: The *last* mimetype will be the one that's preferred by mail clients,
 ## Sample `main.cf`
 
 ```
-# See /usr/share/postfix/main.cf.dist for a commented, more complete version
-
-
 # Debian specific:  Specifying a file name will cause the first
 # line of that file to be used as the name.  The Debian default
 # is /etc/mailname.
 #myorigin = /etc/mailname
 
-smtpd_banner = $mail_name ESMTP
+smtpd_banner = ESMTP $mail_name
 biff = no
 
 # appending .domain is the MUA's job.
@@ -545,35 +559,24 @@ smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
 # See /usr/share/doc/postfix/TLS_README.gz in the postfix-doc package for
 # information on enabling SSL in the smtp client.
 
-myhostname = example.com
+myhostname = localhost
 alias_maps = hash:/etc/aliases
 alias_database = hash:/etc/aliases
-myorigin = /etc/mailname
 
-# This file contains the extra domains we support. Its contents will replace this path.
-# We rely on an external command (cron job) to reload the postfix config when
-# this file changes.
-# NOTE: the username here might differ with your particular setup.
-extradomains = /home/mail_responder/extradomains
-
-mydestination = $myhostname localhost.$mydomain localhost <ec2 external domain name> <ec2 internal domain name> $extradomains
+mydestination = localhost.$mydomain localhost
 relayhost =
 mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
 mailbox_size_limit = 0
 recipient_delimiter = +
 inet_interfaces = all
 
-
 # PSIPHON ADDITIONS
 
 # Notify postmaster of all errors
 # Note that if this results in too much pointless mail, we can just remove these values.
 #notify_classes = bounce, 2bounce, delay, policy, protocol, resource, software
-notify_classes = delay, policy, resource, software
-
-# Add a catch-all for all addresses
-local_recipient_maps =
-luser_relay = mail_responder+$local@localhost
+#notify_classes = delay, policy, resource, software
+notify_classes =
 
 # Tarpit those bots/clients/spammers who send errors or scan for accounts
 smtpd_error_sleep_time = 20s
@@ -583,6 +586,13 @@ smtpd_junk_command_limit = 2
 
 # Reduce the message size limit. There's no reason for large messages to be coming in.
 message_size_limit = 8192000
+
+# Setting this to 0 indicates that "mail delivery should be tried only once"
+# http://www.postfix.org/postconf.5.html#bounce_queue_lifetime
+bounce_queue_lifetime = 0
+# Consider a message undeliverable when it hits this time limit
+# http://www.postfix.org/postconf.5.html#maximal_queue_lifetime
+maximal_queue_lifetime = 1h
 
 # Reject messages that don't meet these criteria
 smtpd_recipient_restrictions =
@@ -600,6 +610,14 @@ smtpd_recipient_restrictions =
 
 # Without this, some of the above reject lines can be bypassed.
 smtpd_helo_required = yes
+
+
+# This file contains the domains we support. Its contents will replace this path.
+# We rely on an external command (cron job) to reload the postfix config when
+# this file changes.
+# NOTE: the user home path here might differ with your particular setup.
+virtual_alias_domains = /home/mail_responder/postfix_responder_domains
+virtual_alias_maps = hash:/home/mail_responder/postfix_address_maps
 ```
 
 

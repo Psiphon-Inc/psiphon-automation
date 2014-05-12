@@ -34,7 +34,7 @@ import psi_feedback_templates
 
 DEFAULT_LANGS = {'ar': 'ar', 'az': 'az', 'es': 'es', 'fa': 'fa', 'kk': 'kk',
                  'ru': 'ru', 'th': 'th', 'tk': 'tk', 'vi': 'vi', 'zh': 'zh',
-                 'ug': 'ug@Latn'}
+                 'ug': 'ug@Latn', 'nb_NO': 'no'}
 # Transifex does not support multiple character sets for Uzbek, but
 # Psiphon supports both uz@Latn and uz@cyrillic. So we're going to
 # use "Uzbek" ("uz") for uz@Latn and "Klingon" ("tlh") for uz@cyrillic.
