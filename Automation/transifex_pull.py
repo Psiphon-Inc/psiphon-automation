@@ -292,6 +292,9 @@ def go():
     process_website_strings()
     print('process_website_strings: DONE')
 
+    process_feedback_auto_responses()
+    print('process_feedback_auto_responses: DONE')
+
 
 if __name__ == '__main__':
     if os.getcwd().split(os.path.sep)[-1] != 'Automation':
