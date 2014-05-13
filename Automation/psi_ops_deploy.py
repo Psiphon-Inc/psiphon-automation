@@ -155,7 +155,7 @@ def deploy_implementation(host, plugins):
                 json.dumps({'Port': int(host.meek_server_port),
                             'ListenTLS': True if host.meek_server_fronting_domain else False,
                             'CookiePrivateKeyBase64': 'Rz+cqOiIJN+Qd8BkFEKnhUXJUKtIRDbE6CfSIqOQaBI=',
-                            'ObfuscationKeyword': host.meek_server_obfuscation_key,
+                            'ObfuscatedKeyword': host.meek_server_obfuscated_key,
                             'LogFilename': '/var/log/meek-server.log'}),))
         # TODO: logrotate
         

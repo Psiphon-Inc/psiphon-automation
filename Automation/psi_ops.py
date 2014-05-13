@@ -176,7 +176,7 @@ Host = psi_utils.recordtype(
     'Host',
     'id, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key, ' +
     'stats_ssh_username, stats_ssh_password, ' +
-    'datacenter_name, region, meek_server_port, meek_server_obfuscation_key, meek_server_fronting_domain, ' +
+    'datacenter_name, region, meek_server_port, meek_server_obfuscated_key, meek_server_fronting_domain, ' +
     'meek_server_fronting_host',
     default=None)
 
@@ -460,12 +460,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.26')) < 0:
             for host in self.__hosts.itervalues():
                 host.meek_server_port = None
-                host.meek_server_obfuscation_key = None
+                host.meek_server_obfuscated_key = None
                 host.meek_server_fronting_domain = None
                 host.meek_server_fronting_host = None
             for host in self.__deleted_hosts:
                 host.meek_server_port = None
-                host.meek_server_obfuscation_key = None
+                host.meek_server_obfuscated_key = None
                 host.meek_server_fronting_domain = None
                 host.meek_server_fronting_host = None
             self.version = '0.26'
@@ -1260,8 +1260,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         
         server.capabilities['FRONTED-MEEK'] = True
         host.meek_server_port = meek_server_port
-        if not host.meek_server_obfuscation_key:
-            host.meek_server_obfuscation_key = binascii.hexlify(os.urandom(psi_ops_install.SSH_OBFUSCATED_KEY_BYTE_LENGTH))
+        if not host.meek_server_obfuscated_key:
+            host.meek_server_obfuscated_key = binascii.hexlify(os.urandom(psi_ops_install.SSH_OBFUSCATED_KEY_BYTE_LENGTH))
         host.meek_server_fronting_domain = meek_server_fronting_domain
         host.meek_server_fronting_host = meek_server_fronting_host
 
@@ -1490,7 +1490,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.datacenter_name,
                         host.region,
                         host.meek_server_port,
-                        host.meek_server_obfuscation_key,
+                        host.meek_server_obfuscated_key,
                         host.meek_server_fronting_domain,
                         host.meek_server_fronting_host)
         self.__hosts_to_remove_from_providers.add(host_copy)
@@ -2305,7 +2305,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         extended_config['region'] = host.region
 
         extended_config['meekServerPort'] = int(host.meek_server_port) if host.meek_server_port else 0
-        extended_config['meekObfuscationKey'] = host.meek_server_obfuscation_key if host.meek_server_obfuscation_key else ''
+        extended_config['meekObfuscatedKey'] = host.meek_server_obfuscated_key if host.meek_server_obfuscated_key else ''
         extended_config['meekFrontingDomain'] = host.meek_server_fronting_domain if host.meek_server_fronting_domain else ''
         extended_config['meekFrontingHost'] = host.meek_server_fronting_host if host.meek_server_fronting_host else ''
 
@@ -2529,7 +2529,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         '',  # Omit: datacenter_name isn't needed
                                         host.region,
                                         host.meek_server_port,
-                                        host.meek_server_obfuscation_key,
+                                        host.meek_server_obfuscated_key,
                                         host.meek_server_fronting_domain,
                                         host.meek_server_fronting_host)
 
@@ -2613,7 +2613,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.datacenter_name,
                                             host.region,
                                             host.meek_server_port,
-                                            host.meek_server_obfuscation_key,
+                                            host.meek_server_obfuscated_key,
                                             host.meek_server_fronting_domain,
                                             host.meek_server_fronting_host)
 
