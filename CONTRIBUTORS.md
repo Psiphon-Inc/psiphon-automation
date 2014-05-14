@@ -57,7 +57,7 @@ more than about 1000 words.
 ### Norwegian
 
 * [kingu](https://www.transifex.com/accounts/profile/kingu/)
-   - Also gave great feedback and improvement suggestions.
+    - Also gave great feedback and improvement suggestions.
 
 ### Vietnamese
 
