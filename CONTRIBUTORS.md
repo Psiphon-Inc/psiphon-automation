@@ -18,10 +18,6 @@ Code
 Please see the ["Open Source" page](https://psiphon.ca/en/open-source.html) on
 our website for the list of projects that have helped us.
 
-Here are other projects and people that have contributed to our efforts:
-
-* David Fifield's [meek project](https://trac.torproject.org/projects/tor/wiki/doc/meek).
-
 
 Translations
 ------------
@@ -61,7 +57,7 @@ more than about 1000 words.
 ### Norwegian
 
 * [kingu](https://www.transifex.com/accounts/profile/kingu/)
-  - Also gave great feedback and improvement suggestions.
+   - Also gave great feedback and improvement suggestions.
 
 ### Vietnamese
 

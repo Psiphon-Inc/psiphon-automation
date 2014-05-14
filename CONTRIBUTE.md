@@ -68,10 +68,9 @@ let us know (create an issue, or post to our Google Group, or email us).
 
 ## Community 
 
-Psiphon has a lot of users, with a lot of problems, in a lot of languages -- this 
-is just the nature of a censorship circumvention tool. Any help that you can
-give to Psiphon users is a big help to us -- it frees us up to spend more time 
-making Psiphon great.
+You can help Psiphon to help its users by participating in the 
+[psiphon3-users Google Group](https://groups.google.com/forum/#!forum/psiphon3-users).
+If there's a question or problem that you can help with, feel free to chime in.
 
-The [psiphon3-users Google Group](https://groups.google.com/forum/#!forum/psiphon3-users)
-is a great place to start. 
+Any help that you can give to Psiphon users is a big help to us -- it frees us 
+up to spend more time making Psiphon great.
