@@ -32,6 +32,7 @@ import optparse
 import operator
 import gzip
 import copy
+import subprocess
 from pkg_resources import parse_version
 from multiprocessing.pool import ThreadPool
 
@@ -177,7 +178,7 @@ Host = psi_utils.recordtype(
     'id, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key, ' +
     'stats_ssh_username, stats_ssh_password, ' +
     'datacenter_name, region, meek_server_port, meek_server_obfuscated_key, meek_server_fronting_domain, ' +
-    'meek_server_fronting_host',
+    'meek_server_fronting_host, meek_cookie_encryption_public_key, meek_cookie_encryption_private_key',
     default=None)
 
 Server = psi_utils.recordtype(
@@ -327,6 +328,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__default_email_autoresponder_account = None
         self.__deploy_website_required_for_sponsors = set()
         self.__automation_bucket = None
+        self.__discovery_strategy_value_hmac_key = binascii.b2a_hex(os.urandom(32))
 
         if initialize_plugins:
             self.initialize_plugins()
@@ -458,16 +460,21 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 server.alternate_ssh_obfuscated_ports = []
             self.version = '0.25'
         if cmp(parse_version(self.version), parse_version('0.26')) < 0:
+            self.__discovery_strategy_value_hmac_key = binascii.b2a_hex(os.urandom(32))
             for host in self.__hosts.itervalues():
                 host.meek_server_port = None
                 host.meek_server_obfuscated_key = None
                 host.meek_server_fronting_domain = None
                 host.meek_server_fronting_host = None
+                host.meek_cookie_encryption_public_key = None
+                host.meek_cookie_encryption_private_key = None
             for host in self.__deleted_hosts:
                 host.meek_server_port = None
                 host.meek_server_obfuscated_key = None
                 host.meek_server_fronting_domain = None
                 host.meek_server_fronting_host = None
+                host.meek_cookie_encryption_public_key = None
+                host.meek_cookie_encryption_private_key = None
             self.version = '0.26'
 
     def initialize_plugins(self):
@@ -1106,6 +1113,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server.capabilities['handshake'] = False
         server.capabilities['SSH'] = False
         server.capabilities['OSSH'] = False
+        server.capabilities['FRONTED-MEEK'] = False
+        server.capabilities['UNFRONTED-MEEK'] = False
         host = self.__hosts[server.host_id]
         servers = [s for s in self.__servers.itervalues() if s.host_id == server.host_id]
         psi_ops_install.install_firewall_rules(host, servers, plugins, False) # No need to update the malware blacklist
@@ -1254,21 +1263,39 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for server in servers_on_host:
             self.test_server(server.id, ['handshake'])
 
-    def setup_fronting_for_server(self, server_id, meek_server_port, meek_server_fronting_domain, meek_server_fronting_host):
+    def setup_fronting_for_server(self, server_id, meek_server_fronting_domain, meek_server_fronting_host):
         server = self.__servers[server_id]
         host = self.__hosts[server.host_id]
         
         server.capabilities['FRONTED-MEEK'] = True
+        host.meek_server_fronting_domain = meek_server_fronting_domain
+        host.meek_server_fronting_host = meek_server_fronting_host
+        self.setup_meek_for_host(host, 443)
+        
+    def setup_unfronted_meek_for_server(self, server_id):
+        server = self.__servers[server_id]
+        host = self.__hosts[server.host_id]
+        
+        server.capabilities['handshake'] = False
+        server.capabilities['VPN'] = False
+        server.capabilities['SSH'] = False
+        server.capabilities['OSSH'] = False
+        server.capabilities['FRONTED-MEEK'] = False
+        server.capabilities['UNFRONTED-MEEK'] = True
+        self.setup_meek_for_host(host, 80)
+        
+    def setup_meek_for_host(self, host, meek_server_port):
         host.meek_server_port = meek_server_port
         if not host.meek_server_obfuscated_key:
             host.meek_server_obfuscated_key = binascii.hexlify(os.urandom(psi_ops_install.SSH_OBFUSCATED_KEY_BYTE_LENGTH))
-        host.meek_server_fronting_domain = meek_server_fronting_domain
-        host.meek_server_fronting_host = meek_server_fronting_host
-
-        servers = [s for s in self.__servers.itervalues() if s.host_id == server.host_id]
+        if not host.meek_cookie_encryption_public_key or not host.meek_cookie_encryption_private_key:
+            keypair = json.loads(subprocess.Popen([os.path.join('.', 'keygenerator.exe')], stdout=subprocess.PIPE).communicate()[0])
+            host.meek_cookie_encryption_public_key = keypair['publicKey']
+            host.meek_cookie_encryption_private_key = keypair['privateKey']
+        servers = [s for s in self.__servers.itervalues() if s.host_id == host.id]
         psi_ops_install.install_firewall_rules(host, servers, plugins, False) # No need to update the malware blacklist
         psi_ops_install.install_psi_limit_load(host, servers)
-        psi_ops_deploy.deploy_implementation(host, plugins)
+        psi_ops_deploy.deploy_implementation(host, self.__discovery_strategy_value_hmac_key, plugins)
         psi_ops_deploy.deploy_data(
                             host,
                             self.__compartmentalize_data_for_host(host.id))
@@ -1295,7 +1322,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # Deploy will upload web server source database data and client builds
         # (Only deploying for the new host, not broadcasting info yet...)
-        psi_ops_deploy.deploy_implementation(host, plugins)
+        psi_ops_deploy.deploy_implementation(host, self.__discovery_strategy_value_hmac_key, plugins)
         psi_ops_deploy.deploy_data(
                             host,
                             self.__compartmentalize_data_for_host(host.id))
@@ -1386,6 +1413,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 ossh_ports = range(1,1023)
                 ossh_ports.remove(15)
                 ossh_ports.remove(25)
+                ossh_ports.remove(80)
                 ossh_ports.remove(135)
                 ossh_ports.remove(136)
                 ossh_ports.remove(137)
@@ -1492,7 +1520,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.meek_server_port,
                         host.meek_server_obfuscated_key,
                         host.meek_server_fronting_domain,
-                        host.meek_server_fronting_host)
+                        host.meek_server_fronting_host,
+                        host.meek_cookie_encryption_public_key,
+                        host.meek_cookie_encryption_private_key)
         self.__hosts_to_remove_from_providers.add(host_copy)
 
         # Mark host and its servers as deleted in the database. We keep the
@@ -1530,7 +1560,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         host = self.__hosts[host_id]
         servers = [server for server in self.__servers.itervalues() if server.host_id == host_id]
         psi_ops_install.install_host(host, servers, self.get_existing_server_ids(), plugins)
-        psi_ops_deploy.deploy_implementation(host, plugins)
+        psi_ops_deploy.deploy_implementation(host, self.__discovery_strategy_value_hmac_key, plugins)
         # New data might have been generated
         # NOTE that if the client version has been incremented but a full deploy has not yet been run,
         # this following psi_ops_deploy.deploy_data call is not safe.  Data will specify a new version
@@ -1827,7 +1857,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Host implementation
 
         hosts = [self.__hosts[host_id] for host_id in self.__deploy_implementation_required_for_hosts]
-        psi_ops_deploy.deploy_implementation_to_hosts(hosts, plugins)
+        psi_ops_deploy.deploy_implementation_to_hosts(hosts, self.__discovery_strategy_value_hmac_key, plugins)
 
         if len(self.__deploy_implementation_required_for_hosts) > 0:
             self.__deploy_implementation_required_for_hosts.clear()
@@ -2145,7 +2175,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def deploy_implementation_and_data_for_host_with_server(self, server_id):
         server = filter(lambda x: x.id == server_id, self.__servers.itervalues())[0]
         host = filter(lambda x: x.id == server.host_id, self.__hosts.itervalues())[0]
-        psi_ops_deploy.deploy_implementation(host, plugins)
+        psi_ops_deploy.deploy_implementation(host, self.__discovery_strategy_value_hmac_key, plugins)
         psi_ops_deploy.deploy_data(host, self.__compartmentalize_data_for_host(host.id))
 
     def deploy_implementation_and_data_for_propagation_channel(self, propagation_channel_name):
@@ -2308,6 +2338,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         extended_config['meekObfuscatedKey'] = host.meek_server_obfuscated_key if host.meek_server_obfuscated_key else ''
         extended_config['meekFrontingDomain'] = host.meek_server_fronting_domain if host.meek_server_fronting_domain else ''
         extended_config['meekFrontingHost'] = host.meek_server_fronting_host if host.meek_server_fronting_host else ''
+        extended_config['meekCookieEncryptionPublicKey'] = host.meek_cookie_encryption_public_key if host.meek_cookie_encryption_public_key else ''
 
         return binascii.hexlify('%s %s %s %s %s' % (
                                     server.ip_address,
@@ -2531,7 +2562,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         host.meek_server_port,
                                         host.meek_server_obfuscated_key,
                                         host.meek_server_fronting_domain,
-                                        host.meek_server_fronting_host)
+                                        host.meek_server_fronting_host,
+                                        host.meek_cookie_encryption_public_key,
+                                        '')  # Omit: meek_cookie_encryption_private_key isn't needed
 
         for server in self.__servers.itervalues():
             if ((server.discovery_date_range and server.host_id != host_id and server.discovery_date_range[1] <= discovery_date) or
@@ -2615,7 +2648,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.meek_server_port,
                                             host.meek_server_obfuscated_key,
                                             host.meek_server_fronting_domain,
-                                            host.meek_server_fronting_host)
+                                            host.meek_server_fronting_host,
+                                            '',  # Omit: meek_cookie_encryption_public_key
+                                            '')  # Omit: meek_cookie_encryption_private_key
 
         for server in self.__servers.itervalues():
             copy.__servers[server.id] = Server(

@@ -89,7 +89,7 @@ def run_in_parallel(thread_pool_size, function, arguments):
             raise result
 
 
-def deploy_implementation(host, plugins):
+def deploy_implementation(host, discovery_strategy_value_hmac_key, plugins):
 
     print 'deploy implementation to host %s...' % (host.id,)
 
@@ -150,15 +150,14 @@ def deploy_implementation(host, plugins):
         ssh.exec_command('chmod +x %s' % (meek_remote_init_file_path,))
         ssh.exec_command('update-rc.d %s defaults' % ('meek-server',))
         
-        # TODO: real private key
         ssh.exec_command('echo \'%s\' > /etc/meek-server.json' % (
                 json.dumps({'Port': int(host.meek_server_port),
                             'ListenTLS': True if host.meek_server_fronting_domain else False,
-                            'CookiePrivateKeyBase64': 'Rz+cqOiIJN+Qd8BkFEKnhUXJUKtIRDbE6CfSIqOQaBI=',
+                            'CookiePrivateKeyBase64': host.meek_cookie_encryption_private_key,
                             'ObfuscatedKeyword': host.meek_server_obfuscated_key,
-                            'LogFilename': '/var/log/meek-server.log'}),))
-        # TODO: logrotate
-        
+                            'GeoIpServicePort': psi_config.GEOIP_SERVICE_PORT,
+                            'ClientIpAddressStrategyValueHmacKey': discovery_strategy_value_hmac_key}),))
+
         ssh.exec_command('%s restart' % (meek_remote_init_file_path,))
     
     # Install the cron job that calls psi-check-services
@@ -187,12 +186,12 @@ def deploy_implementation(host, plugins):
     ssh.close()
     
 
-def deploy_implementation_to_hosts(hosts, plugins):
+def deploy_implementation_to_hosts(hosts, discovery_strategy_value_hmac_key, plugins):
     
     @retry_decorator_returning_exception
     def do_deploy_implementation(host):
         try:
-            deploy_implementation(host, plugins)
+            deploy_implementation(host, discovery_strategy_value_hmac_key, plugins)
         except:
             print 'Error deploying implementation to host %s' % (host.id,)
             raise
