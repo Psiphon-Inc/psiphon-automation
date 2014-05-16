@@ -413,6 +413,7 @@ $(function() {{
   <option value="fa">فارسی</option>
   <option value="ar">العربي</option>
   <option value="zh">中文</option>
+  <option value="tr">Türkçe</option>
   <option value="uz@cyrillic">Ўзбекча</option>
   <option value="uz@Latn">O'zbekcha</option>
   <option value="ru">Русский</option>
@@ -423,6 +424,7 @@ $(function() {{
   <option value="ug@Latn">Uyghurche</option>
   <option value="es">Español</option>
   <option value="vi">Tiếng Việt</option>
+  <option value="nb">Norsk (bokmål)</option>
   </select>
 
   <h1 id="top_content_title"></h1>

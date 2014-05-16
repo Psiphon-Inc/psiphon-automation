@@ -1,21 +1,20 @@
 zh:
   plaintext_email_no_attachment: |
-    中文 - {{0}}/{0}/index.html
+    在这里下载 Psiphon: {{0}}/{0}/download.html#direct
   html_email_no_attachment: |
     <div style="direction: ltr;">
-    中文 - <a href="{{0}}/{0}/index.html">{{0}}/{0}/index.html</a><br>
+    点击这里下载 Psiphon: <a href="{{0}}/{0}/download.html">{{0}}/{0}/download.html#direct</a><br>
     </div>
-  plaintext_email_with_attachment: |+
-    要使用Psiphon 3的Windows, 保存文件 {{1}} 与“.exe”扩展名。
-    要使用Psiphon 3的安卓，安装此文件 {{2}}。
-    有关详细信息或者再次下载这些文件，请点击下面的链接。
-    {{0}}/{0}/index.html
-
+  plaintext_email_with_attachment: |
+    在 Windows 上使用 Psiphon 3, 保存这个后缀名为".exe"的附件 {{1}} 。
+    在 Android 上使用 Psiphon 3, 安装这个附件 {{2}}。
+    获取更多信息或者再次下载文件，点击以下链接。
+    {{0}}/{0}/download.html#direct
   html_email_with_attachment: |
     <div style="direction: ltr;">
-    要使用Psiphon 3的Windows, 保存文件 {{1}} 与“.exe”扩展名。<br>
-    要使用Psiphon 3的安卓，安装文件PsiphonAndroid.apk {{2}}。<br>
-    有关详细信息或者再次下载这些文件，请点击下面的链接。<br>
-    <a href="{{0}}/{0}/index.html">{{0}}/{0}/index.html</a><br>
+    在 Windows 上使用 Psiphon 3, 保存这个后缀名为".exe"的附件 {{1}} 。<br>
+    在 Android 上使用 Psiphon 3, 安装这个附件 {{2}}。<br>
+    获取更多信息或者再次下载文件，点击以下链接。<br>
+    <a href="{{0}}/{0}/download.html">{{0}}/{0}/download.html#direct</a><br>
     </div>
     <br>
