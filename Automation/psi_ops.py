@@ -1118,7 +1118,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         host = self.__hosts[server.host_id]
         servers = [s for s in self.__servers.itervalues() if s.host_id == server.host_id]
         psi_ops_install.install_firewall_rules(host, servers, plugins, False) # No need to update the malware blacklist
-        self.save()
+        # NOTE: caller is responsible for saving now
+        #self.save()
 
     def __count_users_on_host(self, host_id):
         vpn_users = int(self.run_command_on_host(self.__hosts[host_id],
@@ -1189,6 +1190,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # This deploy will update the stats server, so it doesn't try to pull stats from
         # hosts that no longer exist
+        # NOTE: This will also call save() only if a host has been removed and
+        # __deploy_stats_config_required is set. If hosts have only been disabled, a save()
+        # might not occur. That's OK because the disabled state doesn't need to be saved.
         self.deploy()
 
         return number_removed, number_disabled
@@ -1553,7 +1557,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         #       host data should be updated.
         # NOTE: If host was currently embedded, new campaign builds are needed.
 
-        self.save()
+        # NOTE: caller is responsible for saving now
+        #self.save()
 
     def reinstall_host(self, host_id):
         assert(self.is_locked)
