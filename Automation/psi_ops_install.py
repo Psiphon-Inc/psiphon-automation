@@ -780,6 +780,14 @@ iptables-restore < %s
         port    = {0}
         '''.format(','.join(ssh_ports)))
         
+    meek_server_egress_ips = set([(str(s.egress_ip_address)) for s in servers
+            if (s.capabilities['FRONTED-MEEK'] or s.capabilities['UNFRONTED-MEEK'])])
+    if meek_server_egress_ips:
+        fail2ban_local_contents = textwrap.dedent('''
+        [DEFAULT]
+        ignoreip = 127.0.0.1/8 {0}
+        '''.format(' '.join(meek_server_egress_ips))) + fail2ban_local_contents
+        
     ssh = psi_ssh.SSH(
             host.ip_address, host.ssh_port,
             host.ssh_username, host.ssh_password,
