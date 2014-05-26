@@ -108,9 +108,10 @@ def write_embedded_values(propagation_channel_id,
                           faq_url,
                           privacy_policy_url,
                           propagator_managed_upgrades,
-                          ignore_system_server_list=False):
+                          ignore_non_embedded_server_entries=False):
     utils.set_embedded_values(client_version,
                               '","'.join(embedded_server_list),
+                              ignore_non_embedded_server_entries,
                               feedback_encryption_public_key,
                               info_link_url,
                               '',
