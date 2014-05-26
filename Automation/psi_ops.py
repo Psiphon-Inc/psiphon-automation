@@ -2282,9 +2282,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if not client_ip_address_strategy_value:
             # embedded (propagation) server list
             # output all servers for propagation channel ID with no discovery date
+            # NEW: include a random selection of permanent servers for greater load balancing
+            permanent_server_ids = [server.id for server in self.__servers.itervalues()
+                                    if server.propagation_channel_id != propagation_channel_id
+                                    and server.is_permanent]
+            random.shuffle(permanent_server_ids)
+            
             servers = [server for server in self.__servers.itervalues()
-                       if server.propagation_channel_id == propagation_channel_id and
-                           server.is_embedded]
+                       if (server.propagation_channel_id == propagation_channel_id
+                           and server.is_embedded)
+                       or server.id in permanent_server_ids[0:50]]
         else:
             # discovery case
             if not discovery_date:
