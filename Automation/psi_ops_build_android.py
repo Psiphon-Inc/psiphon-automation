@@ -35,7 +35,7 @@ SOURCE_ROOT = os.path.join(os.path.abspath('..'), 'Android')
 PSIPHON_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'PsiphonAndroid')
 PSIPHON_LIB_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'PsiphonAndroidLibrary')
 ZIRCO_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'zirco-browser')
-KALIUM_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'kalium-jni', 'src', 'main', 'java', 'org', 'abstractj')
+KALIUM_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'kalium-jni', 'src', 'main', 'java', 'org')
 PSIPHON_LIB_SOURCE_SRC_ORG = os.path.join(PSIPHON_LIB_SOURCE_ROOT, 'src', 'org')
 
 BANNER_ROOT = os.path.join(os.path.abspath('..'), 'Data', 'Banners')
@@ -75,7 +75,7 @@ if os.path.isfile('psi_data_config.py'):
 def build_apk():
 
     commands = [
-        'copy /y "%s" "%s"' % (KALIUM_SOURCE_ROOT, PSIPHON_LIB_SOURCE_SRC_ORG),
+        'xcopy "%s" "%s" /e /y' % (KALIUM_SOURCE_ROOT, PSIPHON_LIB_SOURCE_SRC_ORG),
         'android update lib-project -p "%s"' % (ZIRCO_SOURCE_ROOT,),
         'android update lib-project -p "%s"' % (PSIPHON_LIB_SOURCE_ROOT,),
         'android update project -p "%s"' % (PSIPHON_SOURCE_ROOT,),
@@ -198,7 +198,7 @@ def build_client(
             faq_url,
             privacy_policy_url,
             propagator_managed_upgrades,
-            ignore_system_server_list=test)
+            ignore_non_embedded_server_entries=test)
 
         # copy feedback.html
         shutil.copy(FEEDBACK_HTML_PATH, PSIPHON_ASSETS)
