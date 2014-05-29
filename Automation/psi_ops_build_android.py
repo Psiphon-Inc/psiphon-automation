@@ -35,6 +35,8 @@ SOURCE_ROOT = os.path.join(os.path.abspath('..'), 'Android')
 PSIPHON_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'PsiphonAndroid')
 PSIPHON_LIB_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'PsiphonAndroidLibrary')
 ZIRCO_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'zirco-browser')
+KALIUM_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'kalium-jni', 'src', 'main', 'java', 'org', 'abstractj')
+PSIPHON_LIB_SOURCE_SRC_ORG = os.path.join(PSIPHON_LIB_SOURCE_ROOT, 'src', 'org')
 
 BANNER_ROOT = os.path.join(os.path.abspath('..'), 'Data', 'Banners')
 KEYSTORE_FILENAME = os.path.join(os.path.abspath('..'), 'Data', 'CodeSigning', 'test.keystore')
@@ -73,6 +75,7 @@ if os.path.isfile('psi_data_config.py'):
 def build_apk():
 
     commands = [
+        'copy /y "%s" "%s"' % (KALIUM_SOURCE_ROOT, PSIPHON_LIB_SOURCE_SRC_ORG),
         'android update lib-project -p "%s"' % (ZIRCO_SOURCE_ROOT,),
         'android update lib-project -p "%s"' % (PSIPHON_LIB_SOURCE_ROOT,),
         'android update project -p "%s"' % (PSIPHON_SOURCE_ROOT,),
@@ -105,9 +108,10 @@ def write_embedded_values(propagation_channel_id,
                           faq_url,
                           privacy_policy_url,
                           propagator_managed_upgrades,
-                          ignore_system_server_list=False):
+                          ignore_non_embedded_server_entries=False):
     utils.set_embedded_values(client_version,
                               '","'.join(embedded_server_list),
+                              ignore_non_embedded_server_entries,
                               feedback_encryption_public_key,
                               info_link_url,
                               '',
