@@ -217,9 +217,7 @@
     <span class="diagnostic-entry-msg">${entry['msg']}</span>
 
     ## We special-case some of the common diagnostic entries
-    % if entry['msg'] == 'ConnectingServer':
-      <span>${entry['data']['ipAddress']}</span>
-    % elif entry['msg'] == 'ServerResponseCheck':
+    % if entry['msg'] == 'ServerResponseCheck':
       <%
         ping_class = 'good'
         ping_value = int(entry['data']['responseTime'])
@@ -231,10 +229,15 @@
           ping_class = 'warn'
 
         ping_regionCode = utils.coalesce(entry, ('data', 'regionCode'), '')
+
+        remaining_data = entry['data']
+        remaining_data.pop('responseTime', None)
+        remaining_data.pop('responded', None)
+        remaining_data.pop('regionCode', None)
       %>
       <span>${ping_regionCode}</span>
       <span class="intcompare ${ping_class}">${ping_str}</span>
-      <span>${entry['data']['ipAddress']}</span>
+      <span>${repr(remaining_data)}</span>
     % else:
       <span>${repr(entry['data'])}</span>
     % endif
