@@ -550,7 +550,7 @@ def install_host(host, servers, existing_server_ids, plugins):
     ssh.exec_command('easy_install hiredis')
     ssh.exec_command('easy_install redis')
     ssh.exec_command('easy_install iso8601')
-    ssh.exec_command('apt-get install redis-server mercurial')
+    ssh.exec_command('apt-get install redis-server mercurial git')
 
     install_geoip_database(ssh)
     
@@ -847,18 +847,15 @@ def install_psi_limit_load(host, servers):
     #       would also prevent current VPN users from accessing the web server.
 
     rules = (
-    # Meek
-    [' INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j REJECT --reject-with tcp-reset'
-            % (str(s.internal_ip_address), str(host.meek_server_port)) for s in servers
-                if (s.capabilities['FRONTED-MEEK'] or s.capabilities['UNFRONTED-MEEK'])] +
     # SSH
     [' INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j REJECT --reject-with tcp-reset'
             % (str(s.internal_ip_address), str(s.ssh_port)) for s in servers
                 if s.capabilities['SSH']] +
     # OSSH
+    # NOTE: that this also disables new tunneled OSSH connections ie through meek
     [' INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j REJECT --reject-with tcp-reset'
             % (str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
-                if s.capabilities['OSSH']] +
+                if s.ssh_obfuscated_port] +
                 
     # VPN
     [' INPUT -d %s -p udp --dport 500 -j DROP'
