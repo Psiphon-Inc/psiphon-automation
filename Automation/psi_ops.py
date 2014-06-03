@@ -483,11 +483,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 host.meek_cookie_encryption_public_key = None
                 host.meek_cookie_encryption_private_key = None
             for server in self.__servers.itervalues():
-                server.capabilities['FRONTED-MEEK'] = False
-                server.capabilities['UNFRONTED-MEEK'] = False
+                if server.capabilities:
+                    server.capabilities['FRONTED-MEEK'] = False
+                    server.capabilities['UNFRONTED-MEEK'] = False
             for server in self.__deleted_servers.itervalues():
-                server.capabilities['FRONTED-MEEK'] = False
-                server.capabilities['UNFRONTED-MEEK'] = False
+                if server.capabilities:
+                    server.capabilities['FRONTED-MEEK'] = False
+                    server.capabilities['UNFRONTED-MEEK'] = False
             self.version = '0.26'
 
     def initialize_plugins(self):
