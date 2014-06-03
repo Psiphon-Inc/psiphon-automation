@@ -550,7 +550,7 @@ def install_host(host, servers, existing_server_ids, plugins):
     ssh.exec_command('easy_install hiredis')
     ssh.exec_command('easy_install redis')
     ssh.exec_command('easy_install iso8601')
-    ssh.exec_command('apt-get install redis-server mercurial git')
+    ssh.exec_command('apt-get install -y redis-server mercurial git')
 
     install_geoip_database(ssh)
     
