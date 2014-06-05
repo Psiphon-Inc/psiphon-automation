@@ -2345,7 +2345,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             assert(ssh_host_key_type == 'ssh-rsa')
 
         extended_config['sshObfuscatedPort'] = int(server.ssh_obfuscated_port) if server.ssh_obfuscated_port else 0
-        if server.alternate_ssh_obfuscated_ports:
+        # Use the latest alternate port unless tunneling through meek
+        if server.alternate_ssh_obfuscated_ports and not (server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK']):
             extended_config['sshObfuscatedPort'] = int(server.alternate_ssh_obfuscated_ports[-1])
         extended_config['sshObfuscatedKey'] = server.ssh_obfuscated_key if server.ssh_obfuscated_key else ''
 
@@ -2496,8 +2497,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if server.ssh_obfuscated_port:
             config['ssh_obfuscated_port'] = int(server.ssh_obfuscated_port)
             config['ssh_obfuscated_key'] = server.ssh_obfuscated_key
-        if server.alternate_ssh_obfuscated_ports:
-            config['sshObfuscatedPort'] = int(server.alternate_ssh_obfuscated_ports[-1])
+        if server.alternate_ssh_obfuscated_ports and not (server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK']):
+            config['ssh_obfuscated_port'] = int(server.alternate_ssh_obfuscated_ports[-1])
             config['ssh_obfuscated_key'] = server.ssh_obfuscated_key
 
         # Give client a set of regexes indicating which pages should have individual stats
