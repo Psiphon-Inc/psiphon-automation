@@ -1285,6 +1285,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def setup_fronting_for_server(self, server_id, meek_server_fronting_domain, meek_server_fronting_host):
         server = self.__servers[server_id]
         host = self.__hosts[server.host_id]
+        assert(host.meek_server_port == None)
         
         server.capabilities['FRONTED-MEEK'] = True
         host.meek_server_fronting_domain = meek_server_fronting_domain
@@ -1294,6 +1295,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def setup_unfronted_meek_for_server(self, server_id):
         server = self.__servers[server_id]
         host = self.__hosts[server.host_id]
+        assert(host.meek_server_port == None)
         
         server.capabilities['handshake'] = False
         server.capabilities['VPN'] = False
@@ -1304,6 +1306,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.setup_meek_for_host(host, 80)
         
     def setup_meek_for_host(self, host, meek_server_port):
+        assert(host.meek_server_port == None)
         host.meek_server_port = meek_server_port
         if not host.meek_server_obfuscated_key:
             host.meek_server_obfuscated_key = binascii.hexlify(os.urandom(psi_ops_install.SSH_OBFUSCATED_KEY_BYTE_LENGTH))
@@ -2771,13 +2774,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         psi_ops_deploy.run_in_parallel(50, do_copy_file_to_host, self.__hosts.itervalues())
 
-    def __test_server(self, server, test_cases):
-        test_propagation_channel = None
-        try:
-            test_propagation_channel = self.get_propagation_channel_by_name('Testing')
-        except:
-            pass
-        test_propagation_channel_id = test_propagation_channel.id if test_propagation_channel else '0'
+    def __test_server(self, server, test_cases, version, test_propagation_channel_id, executable_path):
 
         return psi_ops_test_windows.test_server(
                                 server.ip_address,
@@ -2785,18 +2782,54 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 server.web_server_port,
                                 server.web_server_secret,
                                 [self.__get_encoded_server_entry(server)],
-                                self.__client_versions[CLIENT_PLATFORM_WINDOWS][-1].version if self.__client_versions[CLIENT_PLATFORM_WINDOWS] else 0,  # This uses the Windows client
+                                version,
                                 [server.egress_ip_address],
                                 test_propagation_channel_id,
-                                test_cases)
+                                test_cases,
+                                executable_path)
 
     def __test_servers(self, servers, test_cases):
         results = {}
         passes = 0
         failures = 0
         servers_with_errors = set()
+        
+        test_propagation_channel = None
+        try:
+            test_propagation_channel = self.get_propagation_channel_by_name('Testing')
+        except:
+            pass
+        test_propagation_channel_id = test_propagation_channel.id if test_propagation_channel else '0'
+
+        version = self.__client_versions[CLIENT_PLATFORM_WINDOWS][-1].version if self.__client_versions[CLIENT_PLATFORM_WINDOWS] else 0  # This uses the Windows client
+
+        executable_path = None
+        # We will need a build if no test_cases are specified (run all tests) or if at least one of the following are requested
+        if not test_cases or set(test_cases).intersection(set(['VPN', 'OSSH', 'SSH'])):
+            executable_path = psi_ops_build_windows.build_client(
+                                    test_propagation_channel_id,
+                                    '0',        # sponsor_id
+                                    None,       # banner
+                                    [],
+                                    '',         # remote_server_list_signature_public_key
+                                    ('','',''), # remote_server_list_url
+                                    '',         # feedback_encryption_public_key
+                                    '',         # feedback_upload_server
+                                    '',         # feedback_upload_path
+                                    '',         # feedback_upload_server_headers
+                                    '',         # info_link_url
+                                    '',         # upgrade_signature_public_key
+                                    ('','',''), # upgrade_url
+                                    '',         # get_new_version_url
+                                    '',         # get_new_version_email
+                                    '',         # faq_url
+                                    '',         # privacy_policy_url
+                                    version,
+                                    False,
+                                    False)
+
         for server in servers:
-            result = self.__test_server(server, test_cases)
+            result = self.__test_server(server, test_cases, version, test_propagation_channel_id, executable_path)
             results[server.id] = result
             for test_result in result.itervalues():
                 if 'FAIL' in test_result:
@@ -2805,7 +2838,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # One final pass to re-test servers that failed
         for server_id in servers_with_errors:
             server = self.__servers[server_id]
-            result = self.__test_server(server, test_cases)
+            result = self.__test_server(server, test_cases, version, test_propagation_channel_id, executable_path)
             results[server.id] = result
         # Process results
         servers_with_errors.clear()
