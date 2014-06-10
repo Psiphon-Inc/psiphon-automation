@@ -38,11 +38,9 @@ def show_running_droplets(do_api):
         print '%s' % ([l for l in resp])
 
 def check_response(resp):
-    if resp['status'] == 'OK':
-        return resp
-    else:
+    if resp['status'] != 'OK':
         print 'Invalid Response: %s ' % (resp['status'])
-        sys.exit()
+    return resp
 
 def wait_on_event_completion(do_api, event_id, interval=10):
     for attempt in range(10):
@@ -78,6 +76,35 @@ def start_droplet(do_api, droplet_id):
             raise Exception
     return True
 
+def update_image(digitalocean_account, droplet_id, droplet_name):
+    try:
+        do_api = digitalocean.DigitalOceanAPI.DigitalOceanAPI(digitalocean_account.client_id,
+                                                              digitalocean_account.api_key)
+        result = take_snapshot(do_api, droplet_id, {'name': droplet_name})
+        if 'OK' in result['status']:
+            images = do_api.get_all_images()
+            new_image = [i for i in images if droplet_name in i['name']][0]
+            
+            regions = do_api.get_all_regions()
+            results = []
+            for r in regions:
+                results.append(do_api.image_transfer(new_image['id'], {'region_id': r['id']}))
+            #wait a while for the image to be transferred across regions
+            success_ids = [r['event_id'] for r in results if 'OK' in r['status']]
+            for id in success_ids:
+                wait_on_event_completion(do_api, id, interval=120)
+            
+            images = do_api.get_all_images()
+            image = [i for i in images if droplet_name in i['name']][0]
+            if image['regions'] == [r['id'] for r in regions]:
+                print 'Image creation and transfer complete. Remove the outdated image'
+                return image
+            else:
+                print 'Image was not transferred successfully'
+                raise
+    except Exception as e:
+        print '%s' % (e)
+
 def take_snapshot(do_api, droplet_id, snapshot_name={'name': None}):
     resp = check_response(do_api.droplet_show(droplet_id))
     droplet_state = resp['droplet']['status']
@@ -99,7 +126,7 @@ def take_snapshot(do_api, droplet_id, snapshot_name={'name': None}):
         else:
             stop_droplet(do_api, droplet_id)
         return resp
-    except Error as e:
+    except Exception as e:
         print '%s' % (e)
 
 
@@ -108,11 +135,14 @@ def get_datacenter_region(location):
     # {u'slug': u'ams1', u'id': 2, u'name': u'Amsterdam 1'}, 
     # {u'slug': u'sfo1', u'id': 3, u'name': u'San Francisco 1'}, 
     # {u'slug': u'nyc2', u'id': 4, u'name': u'New York 2'},
-    # {u'slug': u'ams2', u'id': 5, u'name': u'Amsterdam 2'}]
+    # {u'slug': u'ams2', u'id': 5, u'name': u'Amsterdam 2'},
+    # {u'slug': u'sgp1', u'id': 6, u'name': u'Singapore 1'}]
     if location in [1, 3, 4]:
         return 'US'
     if location in [2, 5]:
         return 'NL'
+    if location in [6]:
+        return 'SG'
     return ''
 
 def generate_random_string(prefix=None, size=8):
@@ -144,7 +174,7 @@ def launch_new_server(digitalocean_account, _):
         image['image_id'] = digitalocean_account.base_id
         
         regions = do_api.get_all_regions()
-        image['region_id'] = random.choice([region['id'] for region in regions])
+        image['region_id'] = random.choice([region['id'] for region in regions if region['id'] in [1,2,3,4,5]])
 
         for r in regions:
             if image['region_id'] == r['id']:
@@ -197,13 +227,18 @@ def launch_new_server(digitalocean_account, _):
             digitalocean_account.base_ssh_port, 'root', 
             new_root_password, ' '.join(new_host_public_key.split(' ')[:2]),
             digitalocean_account.base_stats_username, new_stats_password, 
-            datacenter_name, region)
+            datacenter_name, region, None, None, None, None)
 
 def remove_droplet(do_api, droplet_id):
     try:
         do_api.droplet_destroy(droplet_id, {'scrub_data': 1})
     except Exception as e:
         raise e
+
+def remove_server(digitalocean_account, droplet_id):
+    do_api = digitalocean.DigitalOceanAPI.DigitalOceanAPI(digitalocean_account.client_id,
+                                                          digitalocean_account.api_key)
+    remove_droplet(do_api, droplet_id)
 
 if __name__ == "__main__":
     print launch_new_server(digitalocean_account)

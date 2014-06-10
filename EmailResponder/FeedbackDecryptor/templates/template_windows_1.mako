@@ -275,9 +275,7 @@
     <span class="diagnostic-entry-msg">${entry['msg']}</span>
 
     ## We special-case some of the common diagnostic entries
-    % if entry['msg'] == 'ConnectingServer':
-      <span>${entry['data']['ipAddress']}</span>
-    % elif entry['msg'] == 'ServerResponseCheck':
+    % if entry['msg'] == 'ServerResponseCheck':
       <%
         ping_class = 'good'
         ping_str = '%dms' % entry['data']['responseTime']

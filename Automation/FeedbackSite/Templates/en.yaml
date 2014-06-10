@@ -45,12 +45,12 @@ en:
 
     compatibility_title:  Compatibility
 
-    compatibility_happy:  My web sites work as normal when I access them through Psiphon.
+    compatibility_happy:  Web sites work as normal when I access them through Psiphon.
 
-    compatibility_ok:  My web sites are sufficiently functional when I access them
+    compatibility_ok:  Web sites are sufficiently functional when I access them
         through Psiphon.
 
-    compatibility_sad:  My web sites load but I can't use certain important functions.
+    compatibility_sad:  Web sites load but I can't use certain important functions.
 
     submit_button: Submit
 

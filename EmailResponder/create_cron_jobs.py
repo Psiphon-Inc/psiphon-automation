@@ -1,7 +1,7 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2011, Psiphon Inc.
+# Copyright (c) 2014, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -36,6 +36,7 @@ class CronCreator(object):
         self._maintenance_jobs()
         self._blacklist_jobs()
         self._instance_initialization_jobs()
+        self._conf_update()
         self.normal_tab.write()
         self.mail_tab.write()
 
@@ -85,6 +86,32 @@ class CronCreator(object):
         cron = self.normal_tab.new(command=command, comment=command_id)
         cron.minute.on(0)
         # ...and on reboot
+        cron = self.normal_tab.new(command=command, comment=command_id)
+        cron.every_reboot()
+
+    def _conf_update(self):
+        command_id = 'Pull config'
+        command = 'cd /home/mail_responder && /usr/bin/env python conf_pull.py'
+
+        self._delete_commands(self.mail_tab, command_id)
+
+        # Do it every hour...
+        cron = self.mail_tab.new(command=command, comment=command_id)
+        cron.minute.on(0)
+        # And on reboot
+        cron = self.mail_tab.new(command=command, comment=command_id)
+        cron.every_reboot()
+
+        # Pulling config may have changed Postfix config, so we need to reload it
+        command_id = 'Psiphon: reload Postfix config'
+        command = 'cd /home/mail_responder && sudo /usr/sbin/postmap postfix_address_maps &>/dev/null; sudo /usr/sbin/postfix reload &>/dev/null'
+
+        self._delete_commands(self.normal_tab, command_id)
+
+        # Do it every hour...
+        cron = self.normal_tab.new(command=command, comment=command_id)
+        cron.minute.on(0)
+        # And on reboot
         cron = self.normal_tab.new(command=command, comment=command_id)
         cron.every_reboot()
 

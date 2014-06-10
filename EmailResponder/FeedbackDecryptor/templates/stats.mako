@@ -66,10 +66,6 @@
     padding: 0;
   }
 
-  table tr:nth-child(2n) {
-    background-color: #F8F8F8;
-  }
-
   table tr th, table tr td {
     font-size: 1em;
     border: 1px solid #CCC;

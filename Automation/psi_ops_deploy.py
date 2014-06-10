@@ -23,6 +23,7 @@ import os
 import posixpath
 import sys
 import textwrap
+import json
 import psi_ssh
 import psi_routes
 import psi_ops_install
@@ -38,21 +39,30 @@ import psi_config
 BUILDS_ROOT = os.path.join('.', 'Builds')
 
 SOURCE_FILES = [
-    ('Automation',
+    (('Automation',),
      ['psi_ops.py',
       'psi_ops_discovery.py',
       'psi_ops_cms.py',
       'psi_utils.py'
      ]),
 
-    ('Server',
+    (('Server',),
      ['psi_config.py',
       'psi_psk.py',
       'psi_web.py',
       'psi_auth.py',
       'psi_geoip.py',
       'pam.py',
-      'psi-check-services'])
+      'psi-check-services'
+     ]),
+      
+    (('go',  'meek-server'),
+     ['meek-server.go'
+     ]),
+     
+    (('go', 'utils', 'crypto'),
+     ['crypto.go'
+     ])
 ]
 
 #==============================================================================
@@ -79,7 +89,7 @@ def run_in_parallel(thread_pool_size, function, arguments):
             raise result
 
 
-def deploy_implementation(host, plugins):
+def deploy_implementation(host, discovery_strategy_value_hmac_key, plugins):
 
     print 'deploy implementation to host %s...' % (host.id,)
 
@@ -92,10 +102,11 @@ def deploy_implementation(host, plugins):
 
     for (dir, filenames) in SOURCE_FILES:
         ssh.exec_command('mkdir -p %s' % (
-                posixpath.join(psi_config.HOST_SOURCE_ROOT, dir),))
+                posixpath.join(psi_config.HOST_SOURCE_ROOT, *dir),))
         for filename in filenames:
-            ssh.put_file(os.path.join(os.path.abspath('..'), dir, filename),
-                         posixpath.join(psi_config.HOST_SOURCE_ROOT, dir, filename))
+            ssh.put_file(os.path.join(os.path.abspath('..'), *(dir + (filename,))),
+                         posixpath.join(psi_config.HOST_SOURCE_ROOT, *(dir + (filename,))))
+        ssh.exec_command('rm %s' % (posixpath.join(psi_config.HOST_SOURCE_ROOT, *(dir + ('*.pyc',))),))
 
     ssh.exec_command('chmod +x %s' % (
             posixpath.join(psi_config.HOST_SOURCE_ROOT, 'Server', 'psi_web.py'),))
@@ -124,6 +135,31 @@ def deploy_implementation(host, plugins):
 
     ssh.exec_command('%s restart' % (remote_init_file_path,))
 
+    # Set up meek-server if enabled for this host
+    
+    if host.meek_server_port:
+        ssh.exec_command('mkdir -p /opt/gocode/src/bitbucket.org/psiphon/psiphon-circumvention-system/')
+        ssh.exec_command('ln -s %s /opt/gocode/src/bitbucket.org/psiphon/psiphon-circumvention-system/' % (
+                posixpath.join(psi_config.HOST_SOURCE_ROOT, 'go'),))
+        ssh.exec_command('cd %s && GOBIN=. GOPATH=/opt/gocode/ go get' % (
+                posixpath.join(psi_config.HOST_SOURCE_ROOT, 'go', 'meek-server'),))
+                
+        meek_remote_init_file_path = posixpath.join(psi_config.HOST_INIT_DIR, 'meek-server')
+        ssh.put_file(os.path.join(os.path.abspath('..'), 'go', 'meek-server', 'meek-server-init'),
+                meek_remote_init_file_path)
+        ssh.exec_command('chmod +x %s' % (meek_remote_init_file_path,))
+        ssh.exec_command('update-rc.d %s defaults' % ('meek-server',))
+        
+        ssh.exec_command('echo \'%s\' > /etc/meek-server.json' % (
+                json.dumps({'Port': int(host.meek_server_port),
+                            'ListenTLS': True if host.meek_server_fronting_domain else False,
+                            'CookiePrivateKeyBase64': host.meek_cookie_encryption_private_key,
+                            'ObfuscatedKeyword': host.meek_server_obfuscated_key,
+                            'GeoIpServicePort': psi_config.GEOIP_SERVICE_PORT,
+                            'ClientIpAddressStrategyValueHmacKey': discovery_strategy_value_hmac_key}),))
+
+        ssh.exec_command('%s restart' % (meek_remote_init_file_path,))
+    
     # Install the cron job that calls psi-check-services
 
     cron_file = '/etc/cron.d/psi-check-services'
@@ -150,12 +186,12 @@ def deploy_implementation(host, plugins):
     ssh.close()
     
 
-def deploy_implementation_to_hosts(hosts, plugins):
+def deploy_implementation_to_hosts(hosts, discovery_strategy_value_hmac_key, plugins):
     
     @retry_decorator_returning_exception
     def do_deploy_implementation(host):
         try:
-            deploy_implementation(host, plugins)
+            deploy_implementation(host, discovery_strategy_value_hmac_key, plugins)
         except:
             print 'Error deploying implementation to host %s' % (host.id,)
             raise
@@ -210,18 +246,19 @@ def deploy_data(host, host_data):
     ssh.close()
     
 
-def deploy_data_to_hosts(host_and_data_list):
+def deploy_data_to_hosts(hosts, data_generator):
 
     @retry_decorator_returning_exception
-    def do_deploy_data(host_and_data):
+    def do_deploy_data(host_and_data_generator):
+        host = host_and_data_generator[0]
+        host_data = host_and_data_generator[1](host.id)
         try:
-            deploy_data(host_and_data['host'], host_and_data['data'])
+            deploy_data(host, host_data)
         except:
-            print 'Error deploying data to host %s' % (host_and_data['host'].id,)
+            print 'Error deploying data to host %s' % (host.id,)
             raise
-        host_and_data['host'].log('deploy data')
        
-    run_in_parallel(20, do_deploy_data, host_and_data_list)
+    run_in_parallel(40, do_deploy_data, [(host, data_generator) for host in hosts])
 
             
 def deploy_build(host, build_filename):

@@ -41,17 +41,33 @@ _SLEEP_TIME_SECS = 60
 
 
 def _diagnostic_record_iter():
+    logger.debug_log('_diagnostic_record_iter: enter')
+
     while True:
         for rec in datastore.get_autoresponder_diagnostic_info_iterator():
+            logger.debug_log('_diagnostic_record_iter: yielding rec: %s' % rec['_id'])
             yield rec
 
+        logger.debug_log('_diagnostic_record_iter: sleeping')
         time.sleep(_SLEEP_TIME_SECS)
+
+    logger.debug_log('_diagnostic_record_iter: exit')
 
 
 def _html_to_text(html):
+    '''
+    Convert given `html` to plain text.
+    '''
+
+    logger.debug_log('_html_to_text: enter')
+
     h2t = html2text.HTML2Text()
     h2t.body_width = 0
-    return h2t.handle(html)
+    txt = h2t.handle(html)
+
+    logger.debug_log('_html_to_text: returning text length %d' % len(txt))
+
+    return txt
 
 
 def _get_email_reply_info(diagnostic_info):
@@ -66,6 +82,8 @@ def _get_email_reply_info(diagnostic_info):
     Note that this function also validates the email address.
     '''
 
+    logger.debug_log('_get_email_reply_info: enter')
+
     reply_info = None
 
     if type(diagnostic_info.get('EmailInfo')) == dict:
@@ -78,6 +96,7 @@ def _get_email_reply_info(diagnostic_info):
                           subject=None)
 
     if not reply_info or not reply_info['address'] or not reply_info['address'].strip('<>'):
+        logger.debug_log('_get_email_reply_info: no/bad reply_info, exiting')
         return None
 
     # Sometimes the recorded address looks like "<example@example.com>"
@@ -88,8 +107,10 @@ def _get_email_reply_info(diagnostic_info):
         fixed_address = validator.validate_or_raise(reply_info['address'])
         reply_info['address'] = fixed_address
     except:
+        logger.debug_log('_get_email_reply_info: address validator raised, exiting')
         return None
 
+    logger.debug_log('_get_email_reply_info: exit')
     return reply_info
 
 
@@ -103,6 +124,8 @@ def _check_and_add_address_blacklist(address):
     and returns False.
     '''
 
+    logger.debug_log('_check_and_add_address_blacklist: enter')
+
     # We need to normalize, otherwise we could get fooled by the fact that
     # "example@gmail.com" is the same as "ex.ample+plus@gmail.com".
     # We're going to be fairly draconian and normalize down to just alpha-numerics.
@@ -113,7 +136,11 @@ def _check_and_add_address_blacklist(address):
     # Get rid of non-alphanumerics
     normalized_address = _email_address_normalize_regex.sub('', normalized_address)
 
-    return datastore.check_and_add_response_address_blacklist(normalized_address)
+    blacklisted = datastore.check_and_add_response_address_blacklist(normalized_address)
+
+    logger.debug_log('_check_and_add_address_blacklist: exiting with blacklisted=%s' % blacklisted)
+
+    return blacklisted
 
 
 def _get_lang_id_from_diagnostic_info(diagnostic_info):
@@ -121,6 +148,8 @@ def _get_lang_id_from_diagnostic_info(diagnostic_info):
     Derive the lanague from `diagnostic_info` and return its ID/code.
     Returns `None` if the language can't be determined.
     '''
+
+    logger.debug_log('_get_lang_id_from_diagnostic_info: enter')
 
     lang_id = None
 
@@ -155,6 +184,8 @@ def _get_lang_id_from_diagnostic_info(diagnostic_info):
                                         ['DiagnosticInfo', 'SystemInformation', 'language'],
                                         required_types=utils.string_types)
 
+    logger.debug_log('_get_lang_id_from_diagnostic_info: exiting with lang_id=%s' % lang_id)
+
     return lang_id
 
 
@@ -162,16 +193,21 @@ _template = None
 
 
 def _render_email(data):
+    logger.debug_log('_render_email: enter')
+
     global _template
     if not _template:
         _template = Template(filename='templates/feedback_response.mako',
                              default_filters=['unicode', 'h'],
                              lookup=TemplateLookup(directories=['.']))
+        logger.debug_log('_render_email: template loaded')
 
     rendered = _template.render(data=data)
 
     # CSS in email HTML must be inline
     rendered = pynliner.fromString(rendered)
+
+    logger.debug_log('_render_email: exiting with len(rendered)=%d' % len(rendered))
 
     return rendered
 
@@ -193,16 +229,20 @@ def _get_response_content(response_id, diagnostic_info):
     Returns None if no response content can be derived.
     '''
 
+    logger.debug_log('_get_response_content: enter')
+
     # On the first call, read in the subjects and bodies
     global _subjects
     if not _subjects:
         with open('responses/subjects.json') as subjects_file:
             _subjects = json.load(subjects_file)
+        logger.debug_log('_get_response_content: subjects loaded')
 
     global _bodies
     if not _bodies:
         with open('responses/bodies.json') as bodies_file:
             _bodies = json.load(bodies_file)
+        logger.debug_log('_get_response_content: bodies loaded')
 
     sponsor_name = utils.coalesce(diagnostic_info,
                                   ['DiagnosticInfo', 'SystemInformation', 'PsiphonInfo', 'SPONSOR_ID'],
@@ -241,11 +281,12 @@ def _get_response_content(response_id, diagnostic_info):
     # If, despite our best efforts, we still don't have a bucketname and
     # email address, just bail.
     if not bucketname or not email_address:
+        logger.debug_log('_get_response_content: exiting due to no bucketname or address')
         return None
 
     # The user might be using a language for which there isn't a download page.
     # Fall back to English if that's the case.
-    download_bucket_url = psi_ops_helpers.get_s3_bucket_home_page_url(
+    download_bucket_url = psi_ops_helpers.get_s3_bucket_download_page_url(
         bucketname,
         lang_id if lang_id in psi_ops_helpers.WEBSITE_LANGS else 'en')
 
@@ -277,6 +318,8 @@ def _get_response_content(response_id, diagnostic_info):
     else:
         pass
 
+    logger.debug_log('_get_response_content: exit')
+
     return {
         'subject': subject,
         'body_text': _html_to_text(body_html),
@@ -292,9 +335,12 @@ def _analyze_diagnostic_info(diagnostic_info):
     Returns None if no response should be sent.
     '''
 
+    logger.debug_log('_analyze_diagnostic_info: enter')
+
     # We don't send a response to Google Play Store clients
     if utils.coalesce(diagnostic_info,
                       ['DiagnosticInfo', 'SystemInformation', 'isPlayStoreBuild']):
+        logger.debug_log('_analyze_diagnostic_info: isPlayStoreBuild true, exiting')
         return None
 
     responses = ['download_new_version_links',
@@ -302,13 +348,20 @@ def _analyze_diagnostic_info(diagnostic_info):
                  # it's a good idea. Note that it needs to be tested.
                  # 'download_new_version_attachments',
                  ]
+
+    logger.debug_log('_analyze_diagnostic_info: exit')
+
     return responses
 
 
 def go():
+    logger.debug_log('go: enter')
+
     # Note that `_diagnostic_record_iter` throttles itself if/when there are
     # no records to process.
     for diagnostic_info in _diagnostic_record_iter():
+
+        logger.debug_log('go: got diagnostic_info record')
 
         # For now we don't do any interesting processing/analysis and we just
         # respond to every feedback with an exhortation to upgrade.
@@ -317,15 +370,18 @@ def go():
 
         if not reply_info or not reply_info['address']:
             # If we don't have any reply info, we can't reply
+            logger.debug_log('go: no reply_info or address')
             continue
 
         # Check if the address is blacklisted
         if _check_and_add_address_blacklist(reply_info['address']):
+            logger.debug_log('go: blacklisted')
             continue
 
         responses = _analyze_diagnostic_info(diagnostic_info)
 
         if not responses:
+            logger.debug_log('go: no response')
             continue
 
         logger.log('Sending feedback response')
@@ -334,6 +390,7 @@ def go():
             response_content = _get_response_content(response_id, diagnostic_info)
 
             if not response_content:
+                logger.debug_log('go: no response_content')
                 continue
 
             # The original diagnostic info may have originated from an email,
@@ -354,5 +411,6 @@ def go():
                                      reply_info['message_id'],
                                      response_content['attachments'])
             except Exception as e:
+                logger.debug_log('go: send_response excepted')
                 logger.exception()
                 logger.error(str(e))

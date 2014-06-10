@@ -61,8 +61,8 @@ def create_linode(linode_api):
     datacenter = random.choice(avail_datacenters)
     datacenter_id = datacenter['DATACENTERID']
     datacenter_name = make_datacenter_name(datacenter['LOCATION'])
-    # We use PlanID = 3: linode 2048
-    new_node_id = linode_api.linode_create(DatacenterID=datacenter_id, PlanID=3, PaymentTerm=1)['LinodeID']
+    # We use PlanID = 1: linode 2048
+    new_node_id = linode_api.linode_create(DatacenterID=datacenter_id, PlanID=1, PaymentTerm=1)['LinodeID']
     # Status flag values: (partial list)
     # -1: Being Created
     #  0: Brand New
@@ -74,8 +74,8 @@ def create_linode(linode_api):
 
 
 def create_linode_disks(linode_api, linode_id, bootstrap_password, plugins):
-    # DistributionID = 108: Debian 7 32bit
-    distribution_id = 108
+    # DistributionID = 125: 'Debian 7.5'
+    distribution_id = 125
     for plugin in plugins:
         if hasattr(plugin, 'linode_distribution_id'):
             distribution_id = plugin.linode_distribution_id()
@@ -95,10 +95,10 @@ def create_linode_disks(linode_api, linode_id, bootstrap_password, plugins):
 
     
 def create_linode_configurations(linode_api, linode_id, disk_list, plugins):
-    # KernelID = 137: Latest 32 bit
-    bootstrap_kernel_id = 137
-    # KernelID = 92: pv-grub-x86_32
-    host_kernel_id = 92
+    # KernelID = 138: Latest 64 bit
+    bootstrap_kernel_id = 138
+    # KernelID = 95: pv-grub-x86_64
+    host_kernel_id = 95
     for plugin in plugins:
         if hasattr(plugin, 'linode_kernel_ids'):
             bootstrap_kernel_id, host_kernel_id = plugin.linode_kernel_ids()
@@ -135,8 +135,9 @@ def pave_linode(linode_account, ip_address, password):
     ssh.exec_command('echo "%s" > /root/.ssh/id_rsa' % (linode_account.base_rsa_private_key,))
     ssh.exec_command('chmod 600 /root/.ssh/id_rsa')
     ssh.exec_command('echo "%s" > /root/.ssh/id_rsa.pub' % (linode_account.base_rsa_public_key,))
-    ssh.exec_command('scp -P %d root@%s:%s /' % (linode_account.base_ssh_port,
+    ssh.exec_command('scp -P %d root@%s:%s %s' % (linode_account.base_ssh_port,
                                                  linode_account.base_ip_address,
+                                                  linode_account.base_tarball_path,
                                                  linode_account.base_tarball_path))
     ssh.exec_command('apt-get update > /dev/null')
     ssh.exec_command('apt-get install -y bzip2 > /dev/null')
@@ -197,13 +198,15 @@ def launch_new_server(linode_account, plugins):
         raise
     finally:
         # Power down the base image linode
-        stop_linode(linode_api, linode_account.base_id)
+        #stop_linode(linode_api, linode_account.base_id)
+        # New: we'll leave this on now due to parallelization
+        pass
 
     return (hostname, None, str(linode_id), linode_ip_address,
             linode_account.base_ssh_port, 'root', new_root_password,
             ' '.join(new_host_public_key.split(' ')[:2]),
             linode_account.base_stats_username, new_stats_password,
-            datacenter_name, region)
+            datacenter_name, region, None, None, None, None)
 
 
 def remove_server(linode_account, linode_id):
