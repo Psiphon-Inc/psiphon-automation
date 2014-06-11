@@ -1,0 +1,57 @@
+nb:
+  title: Psiphon-tilbakemeldinger
+  top_content_title: Gi oss din tilbakemelding
+  top_para_1: |
+    Vennligst fullfør skjemaet under for å la oss vite hvordan Psiphon fungerer for deg
+    slik at vi kan gjøre systemet enda bedre!
+  top_para_2: |+
+    Mange problemer kan ordnes ved å laste ned siste versjon.
+    Du kan
+    <a class="newVersionURL" href="#">laste ned siste versjon ved å trykke her</a>,
+    eller du kan sende en epost til<span id="newVersionEmail"></span>.
+
+  top_para_3: |
+    Du kan finne svar på mange vanlige problemer i vår oversikt over
+    <a class="faqURL" href="#">Ofte Stilte Spørsmål</a>.
+  top_para_4: |
+    Hvis du har andre tilbakemeldinger, feilrapporter, eller lign. som du vil dele med oss, <a id="showTextFeedback" href="#">bare trykk her</a>.
+  questionnaire_diagnostic_check: |+
+    Last opp diagnostisk data. Vennligst merk at denne diagnostikk-dataen ikke
+    identifiserer deg, og at du kan hjelpe oss å holde Psiphon-hjulene med å fungere knirkefritt.
+    <a class="dataCollectionInfoURL" href="#">Trykk her for å se hva vi samler inn.</a>
+
+  connectivity_title: Tilkobling
+  connectivity_happy: Psiphon kobler til når det skal og holder seg tilkoblet.
+  connectivity_ok: Psiphon kobler ofte til, men mister noen ganger forbindelsen og kobler til på nytt.
+  connectivity_sad: Psiphon klarer ofte ikke å koble til eller blir frakoblet konstant.
+  speed_title: Fart
+  speed_happy: Jeg kan surfe på nettet gjennom Psiphon og se videoer; det er raskt eller raskere enn andre omgåelses-verktøy.
+  speed_ok: Jeg kan surfe på nettet gjennom Psiphon, men det er tregt.
+  speed_sad: Nettlesing gjennom Psiphon er for treigt, og jeg kommer ikke til å fortsette å bruke det.
+  compatibility_title: Kompabilitet
+  compatibility_happy: Nettsider fungerer som normalt når jeg surfer gjennom Psiphon.
+  compatibility_ok: Nettsider fungerer greit nok når jeg surfer gjennom Psiphon.
+  compatibility_sad: Nettsider laster, men noen viktige funksjoner uteblir.
+  submit_button: Send inn
+  text_feedback_submit: Send inn
+  text_feedback_top_para_android: |+
+    Hvis du har spesifikke spørsmål, eller videre informasjon om nettsider
+    som ikke virke, eller hvis ikke smørbrødlista med spørsmål ikke fungerer for deg,
+    vennligst send epost til <a href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>.
+    Merk at noe diagnostisk data vil bli tilknyttet eposten.
+    Denne diagnostikk-dataen vil ikke identifisere deg, og du kan hjelpe oss å holde
+    Psiphon fungerende knirkefritt.
+    <a class="dataCollectionInfoURL" href="#">Trykk her for å se hvordan data vi innhenter.</a>
+
+  text_feedback_top_para_windows: |
+    Hvis du har spesifikke kommentarer, videregående informasjon om nettsider som ikke virker, eller smørbrødlista med spørsmål ikke virker for deg, vennligst fyll inn skjemaet under.
+  text_feedback_bottom_para_windows: |
+    Hvis overstående skjema ikke virker, eller du vil sende oss skjermbilder, vennligst send epost til <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>
+  text_feedback_email_prompt: |
+    Hvis du ønsker at vi svarer deg, vennligst legg ved din epost-adresse:
+  text_feedback_diagnostic_check: |+
+    Last opp diagnostisk data. Vennligst merk at denne diagnostikk-dataen ikke
+    identifiserer deg, og at du kan hjelpe oss å holde Psiphon-hjulene med å fungere knirkefritt.
+    <a class="dataCollectionInfoURL" href="#">Trykk her for å se hva vi samler inn.</a>
+
+...

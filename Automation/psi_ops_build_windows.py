@@ -42,6 +42,7 @@ BUILDS_ROOT = os.path.join('.', 'Builds', 'Windows')
 BUILD_FILENAME_TEMPLATE = 'psiphon-%s-%s.exe'
 POLIPO_EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', '3rdParty', 'polipo.exe')
 PLONK_EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', '3rdParty', 'plonk.exe')
+MEEK_EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', '3rdParty', 'meek.exe')
 
 FEEDBACK_SOURCE_ROOT = os.path.join('.', 'FeedbackSite')
 FEEDBACK_HTML_SOURCE_PATH = os.path.join(FEEDBACK_SOURCE_ROOT, 'feedback.html')
@@ -78,6 +79,8 @@ def build_client_executable():
           signtool_filename, CODE_SIGNING_PFX_FILENAME, POLIPO_EXECUTABLE_FILENAME),
         '"%s" sign /t http://timestamp.digicert.com /f "%s" "%s"\n' % (
           signtool_filename, CODE_SIGNING_PFX_FILENAME, PLONK_EXECUTABLE_FILENAME),
+        '"%s" sign /t http://timestamp.digicert.com /f "%s" "%s"\n' % (
+          signtool_filename, CODE_SIGNING_PFX_FILENAME, MEEK_EXECUTABLE_FILENAME),
         'msbuild "%s" /v:quiet /t:Rebuild /p:Configuration=Release\n' % (
           CLIENT_SOLUTION_FILENAME,),
         '"%s" -qq "%s"\n' % (UPX_FILENAME, EXECUTABLE_FILENAME),
@@ -206,7 +209,8 @@ def build_client(
              EMAIL_BANNER_FILENAME,
              FEEDBACK_HTML_PATH,
              POLIPO_EXECUTABLE_FILENAME,
-             PLONK_EXECUTABLE_FILENAME])
+             PLONK_EXECUTABLE_FILENAME,
+             MEEK_EXECUTABLE_FILENAME])
 
         # Copy custom email banner from Data to source tree
         # (there's only one custom email banner for all sponsors)

@@ -90,7 +90,7 @@ def __test_web_server(ip_address, web_server_port, propagation_channel_id, web_s
 
 
 @retry_on_exception_decorator
-def __test_server(executable_path, transport, expected_egress_ip_addresses):
+def __test_server(executable_path, transport, encoded_server_list, expected_egress_ip_addresses):
     # test:
     # - spawn client process, which starts the VPN
     # - sleep 5 seconds, which allows time to establish connection
@@ -99,6 +99,8 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
 
     has_remote_check = len(CHECK_IP_ADDRESS_URL_REMOTE) > 0
     has_local_check = len(CHECK_IP_ADDRESS_URL_LOCAL) > 0
+    
+    servers_registry_value = 'Servers' + transport
 
     # Internally we refer to "OSSH", but the display name is "SSH+", which is also used
     # in the registry setting to control which transport is used.
@@ -120,12 +122,15 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
         proc = None
         transport_value, transport_type = None, None
         split_tunnel_value, split_tunnel_type = None, None
+        servers_value, servers_type = None, None
         reg_key = _winreg.OpenKey(REGISTRY_ROOT_KEY, REGISTRY_PRODUCT_KEY, 0, _winreg.KEY_ALL_ACCESS)
         transport_value, transport_type = _winreg.QueryValueEx(reg_key, REGISTRY_TRANSPORT_VALUE)
         _winreg.SetValueEx(reg_key, REGISTRY_TRANSPORT_VALUE, None, _winreg.REG_SZ, transport)
         split_tunnel_value, split_tunnel_type = _winreg.QueryValueEx(reg_key, REGISTRY_SPLIT_TUNNEL_VALUE)
         # Enable split tunnel with registry setting
         _winreg.SetValueEx(reg_key, REGISTRY_SPLIT_TUNNEL_VALUE, None, _winreg.REG_DWORD, 1 if split_tunnel_mode else 0)
+        servers_value, servers_type = _winreg.QueryValueEx(reg_key, servers_registry_value)
+        _winreg.SetValueEx(reg_key, servers_registry_value, None, _winreg.REG_SZ, '\n'.join(encoded_server_list))
 
         proc = subprocess.Popen([executable_path])
 
@@ -167,6 +172,8 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
             _winreg.SetValueEx(reg_key, REGISTRY_TRANSPORT_VALUE, None, transport_type, transport_value)
         if split_tunnel_value and split_tunnel_type:
             _winreg.SetValueEx(reg_key, REGISTRY_SPLIT_TUNNEL_VALUE, None, split_tunnel_type, split_tunnel_value)
+        if servers_type and servers_value:
+            _winreg.SetValueEx(reg_key, servers_registry_value, None, servers_type, servers_value)
         try:
             win32ui.FindWindow(None, psi_ops_build_windows.APPLICATION_TITLE).PostMessage(win32con.WM_CLOSE)
         except Exception as e:
@@ -176,7 +183,7 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
 
 
 def test_server(ip_address, capabilities, web_server_port, web_server_secret, encoded_server_list, version,
-                expected_egress_ip_addresses, test_propagation_channel_id = '0', test_cases = None):
+                expected_egress_ip_addresses, test_propagation_channel_id = '0', test_cases = None, executable_path = None):
 
     local_test_cases = copy.copy(test_cases) if test_cases else ['handshake', 'VPN', 'OSSH', 'SSH']
 
@@ -188,8 +195,6 @@ def test_server(ip_address, capabilities, web_server_port, web_server_secret, en
             local_test_cases.remove(test_case)
 
     results = {}
-
-    executable_path = None
 
     for test_case in local_test_cases:
 
@@ -230,7 +235,7 @@ def test_server(ip_address, capabilities, web_server_port, web_server_secret, en
                                     False,
                                     True)
             try:
-                __test_server(executable_path, test_case, expected_egress_ip_addresses)
+                __test_server(executable_path, test_case, encoded_server_list, expected_egress_ip_addresses)
                 results[test_case] = 'PASS'
             except Exception as ex:
                 results[test_case] = 'FAIL: ' + str(ex)

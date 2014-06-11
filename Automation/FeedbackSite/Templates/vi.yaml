@@ -3,7 +3,4 @@ vi: {title: Thông Tin Phản Hồi về Psiphon, top_content_title: Cho Chúng 
     kết nối, nhưng đôi khi ngắt kết nối và tái kết nối.', connectivity_sad: Psiphon thường không thể kết nối hoặc thường xuyên
     bị ngắt kết nối., speed_title: Tốc độ, speed_happy: Tôi có thể duyệt web qua Psiphon và xem video; nó nhanh bằng hoặc nhanh
     hơn các công cụ giải quyết khác., speed_ok: Tôi có thể duyệt web qua Psiphon nhưng có tốc độ chậm., speed_sad: Duyệt web
-    qua Psiphon quá chậm và tôi sẽ không tiếp tục sử dụng nó., compatibility_title: Khả năng tương thích, compatibility_happy: Các
-    trang web của tôi hoạt động bình thường khi tôi truy cập chúng qua Psiphon., compatibility_ok: Các trang web cảu tôi hoạt
-    động đầy đủ khi tôi truy cập chúng qua Psiphon., compatibility_sad: Các trang web của tôi tải nội dung nhưng tôi không thể
-    sử dụng các chức năng quan trọng nhất định., submit_button: Gửi}
+    qua Psiphon quá chậm và tôi sẽ không tiếp tục sử dụng nó., compatibility_title: Khả năng tương thích, submit_button: Gửi}
