@@ -1396,6 +1396,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # connect to a server.
         is_embedded_server = (discovery_date_range is None)
 
+        # The following changes will be saved if at least one server is successfully added
+
         if replace_others:
             # If we are creating new propagation servers, stop embedding the old ones
             # (they are still active, but not embedded in builds or discovered)
@@ -1410,6 +1412,21 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # If we are creating new discovery servers, stop discovering existing ones
             else:
                 self.__replace_propagation_channel_discovery_servers(propagation_channel.id)
+
+        self.__deploy_data_required_for_all = True
+        self.__deploy_stats_config_required = True
+
+        # Unless the node is reserved for discovery, release it through
+        # the campaigns associated with the propagation channel
+        # TODO: recover from partially complete state...
+        if is_embedded_server:
+            for sponsor in self.__sponsors.itervalues():
+                for campaign in sponsor.campaigns:
+                    if campaign.propagation_channel_id == propagation_channel.id:
+                        for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
+                            self.__deploy_builds_required_for_campaigns[platform].add(
+                                    (campaign.propagation_channel_id, sponsor.id))
+                        campaign.log('marked for build and publish (new embedded server)')
 
         for new_server_number in range(len(server_infos)):
             server_info = server_infos[new_server_number]
@@ -1473,26 +1490,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             self.save()
 
-        self.__deploy_data_required_for_all = True
-        self.__deploy_stats_config_required = True
-
-        # Unless the node is reserved for discovery, release it through
-        # the campaigns associated with the propagation channel
-        # TODO: recover from partially complete state...
-        if is_embedded_server:
-            for sponsor in self.__sponsors.itervalues():
-                for campaign in sponsor.campaigns:
-                    if campaign.propagation_channel_id == propagation_channel.id:
-                        for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
-                            self.__deploy_builds_required_for_campaigns[platform].add(
-                                    (campaign.propagation_channel_id, sponsor.id))
-                        campaign.log('marked for build and publish (new embedded server)')
-
-        # Ensure new server configuration is saved to CMS before deploying new
+        # The save() above ensures new server configuration is saved to CMS before deploying new
         # server info to the network
-
-        # TODO: add need-save flag
-        self.save()
 
         # This deploy will broadcast server info, propagate builds, and update
         # the stats and email server
