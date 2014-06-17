@@ -22,6 +22,7 @@ embedded_values = {}
 
 def set_embedded_values(client_version,
                         embedded_server_list,
+                        ignore_non_embedded_server_entries,
                         feedback_encryption_public_key,
                         info_link_url,
                         proxied_web_app_http_auth_username,
@@ -40,6 +41,7 @@ def set_embedded_values(client_version,
     global embedded_values
     embedded_values['CLIENT_VERSION'] = client_version
     embedded_values['EMBEDDED_SERVER_LIST'] = embedded_server_list
+    embedded_values['IGNORE_NON_EMBEDDED_SERVER_ENTRIES'] = ignore_non_embedded_server_entries
     embedded_values['FEEDBACK_ENCRYPTION_PUBLIC_KEY'] = feedback_encryption_public_key
     embedded_values['INFO_LINK_URL'] = info_link_url
     embedded_values['PROXIED_WEB_APP_HTTP_AUTH_USERNAME'] = proxied_web_app_http_auth_username

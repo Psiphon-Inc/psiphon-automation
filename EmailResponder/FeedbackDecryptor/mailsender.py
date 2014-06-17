@@ -72,7 +72,8 @@ def go():
 
         # Convert the modified YAML back into a string for emailing.
         diagnostic_info_text = yaml.safe_dump(diagnostic_info,
-                                              default_flow_style=False)
+                                              default_flow_style=False,
+                                              width=75)
 
         try:
             diagnostic_info_html = mailformatter.format(diagnostic_info)

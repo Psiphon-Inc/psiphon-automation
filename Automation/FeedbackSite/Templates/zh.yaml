@@ -1,44 +1,41 @@
 zh:
-  title: Psiphon 反馈
-  top_content_title: 给我们您反馈
+  title: 赛风的反馈
+  top_content_title: 向我们提供您的反馈
   top_para_1: |
-    请填写下面的表格，让我们知道如何赛风是为你工作，这样我们就可以使系统更好地！
+    请填写下面的表格，让我们知道如何赛风是为你工作，这样我们就可以更好地的完善系统！
   top_para_2: |
-    可以修复很多问题如果下载最新版本的。您可以 <a class="newVersionURL" href="#">下载最新版本通过单击这里</a>，或者您可以发送电子邮件至 <span id="newVersionEmail"></span>。
+    您可以通过下载最新版本解决很多问题 <a class="newVersionURL" href="#">您可以单击这里下载最新版本</a>，或者发送电子邮件至 <span id="newVersionEmail"></span>。
   top_para_3: |
-    您还可以找到许多共同问题的解决在我们的 <a class="faqURL" href="#">常见问题解答</a>。
+    您还可以找到许多共同问题的答案，在我们的 <a class="faqURL" href="#">常见问题解答</a>。
   top_para_4: |
-    如果您有任何其他反馈、bug报告等，你想给我们，<a id="showTextFeedback" href="#">请点击这里
+    如果您有任何其他反馈、bug报告等，你想反馈给我们，<aid="showTextFeedback" href="#">请点击这里
     </a>。
   questionnaire_diagnostic_check: |
-    上载诊断数据。请注意此诊断数据不会识别你，它将帮助我们保持赛风平稳运行的。
-    <a class="dataCollectionInfoURL" href="#">要查看我们收集的数据，请单击这里。</a>
-  connectivity_title: 连接性
-  connectivity_happy: Psiphon始终连接并保持连接。
-  connectivity_ok: Psiphon经常连接，但是有时断开并重新连接。
+    上传诊断数据。请注意此诊断数据不会泄露你的身份，它将帮助我们保持赛风平稳运行的。
+    <a class="dataCollectionInfoURL" href="#">点击这里查看我们收集的数据。</a>
+  connectivity_title: 连接
+  connectivity_happy: 赛风一直能够连接，并保持连接状态。
+  connectivity_ok: 赛风经常能连接，但是有时会断开并重新连接。
   connectivity_sad: Psiphon经常连接失败或常常断开。
   speed_title: 速度
-  speed_happy: 我可以通过Psiphon上网浏览和观看视频；它是快速或比其他翻墙工具更快。
-  speed_ok: 我可以通过Psiphon上网浏览，但很慢。
-  speed_sad: 通过Psiphon上网浏览太慢并不要继续使用它。
+  speed_happy: 我可以通过赛风上网浏览和观看视频；它是跟其他翻墙工具一样块或者更快。
+  speed_ok: 我可以通过赛风上网浏览，但它很慢。
+  speed_sad: 通过赛风上网浏览太慢，我不会继续使用它。
   compatibility_title: 兼容性
-  compatibility_happy: 当我访问网站通过Psiphon时，都是充分功能的。
-  compatibility_ok: 当访问网站通过Psiphon时，有功能的。
-  compatibility_sad: 我的网站加载好，但我不能使用某些重要功能。
   submit_button: 提交
   text_feedback_submit: 提交
   text_feedback_top_para_android: |
-    I如果您有任何具体的评论，有信息一些网站不工作，或如果调查问卷不工作，
+    I如果您有任何具体的评论，更多有网站不工作的信息，或如果调查问卷无法使用，
     请发电子邮件 <a href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>。
-    请注意某些诊断数据将被附加到电子邮件。
-    此诊断数据不会识别你，并它将帮助我们保持赛风平稳运行的。
-    <a class="dataCollectionInfoURL" href="#">要查看我们收集的数据，请单击这里。</a>
+    请注意某些诊断数据将会作为电子邮件的附件。
+    此诊断数据不会泄露你的身份，它将帮助我们保持赛风平稳运行的。
+    <a class="dataCollectionInfoURL" href="#">点击这里查看我们收集的数据。</a>
   text_feedback_top_para_windows: |
-    如果您有任何具体意见，进一步信息不工作的网站，或者如果不是为你工作的调查问卷，请填写下面的表格。
+    如果您有任何具体意见，更多有关网站不工作的信息，或者调查问卷无法使用，请填写下面的表格。
   text_feedback_bottom_para_windows: |
-    如果上面的表格不是工作，或者你想发送截图，请给我们发电子邮件至 <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>
+    如果上面的表格无法使用，或者你想发送截图，请给我们发电子邮件至 <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>
   text_feedback_email_prompt: |
     如果您想我们给你回复，请输入您的电子邮件地址：
   text_feedback_diagnostic_check: |
-    上载诊断数据。请注意此诊断数据不会识别你，它将帮助我们保持赛风平稳运行的。
-    <a class="dataCollectionInfoURL" href="#">要查看我们收集的数据，请单击这里。</a>
+    上载诊断数据。请注意此诊断数据不会泄露你的身份，它将帮助我们保持赛风平稳运行的。
+    <a class="dataCollectionInfoURL" href="#">点击这里查看我们收集的数据。</a>
