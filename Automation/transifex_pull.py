@@ -34,7 +34,7 @@ import psi_feedback_templates
 
 DEFAULT_LANGS = {'ar': 'ar', 'az': 'az', 'es': 'es', 'fa': 'fa', 'kk': 'kk',
                  'ru': 'ru', 'th': 'th', 'tk': 'tk', 'vi': 'vi', 'zh': 'zh',
-                 'ug': 'ug@Latn', 'nb_NO': 'nb', 'tr': 'tr'}
+                 'ug': 'ug@Latn', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr'}
 # Transifex does not support multiple character sets for Uzbek, but
 # Psiphon supports both uz@Latn and uz@cyrillic. So we're going to
 # use "Uzbek" ("uz") for uz@Latn and "Klingon" ("tlh") for uz@cyrillic.
@@ -58,7 +58,7 @@ known_resources = \
 
 def process_android_app_strings():
     langs = {'ar': 'ar', 'es': 'es', 'fa': 'fa', 'ru': 'ru', 'tk': 'tk',
-             'vi': 'vi', 'zh': 'zh', 'nb_NO': 'nb', 'tr': 'tr'}
+             'vi': 'vi', 'zh': 'zh', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr'}
     process_resource('android-app-strings',
                      lambda lang: '../Android/PsiphonAndroid/res/values-%s/strings.xml' % lang,
                      None,
@@ -68,7 +68,7 @@ def process_android_app_strings():
 
 def process_android_library_strings():
     langs = {'ar': 'ar', 'es': 'es', 'fa': 'fa', 'ru': 'ru', 'tk': 'tk',
-             'vi': 'vi', 'zh': 'zh', 'nb_NO': 'nb', 'tr': 'tr'}
+             'vi': 'vi', 'zh': 'zh', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr'}
     process_resource('android-library-strings',
                      lambda lang: '../Android/PsiphonAndroidLibrary/res/values-%s/strings.xml' % lang,
                      None,
@@ -78,7 +78,7 @@ def process_android_library_strings():
 
 def process_android_app_browser_strings():
     langs = {'ar': 'ar', 'es': 'es', 'fa': 'fa', 'ru': 'ru', 'tk': 'tk',
-             'vi': 'vi', 'zh': 'zh', 'nb_NO': 'nb', 'tr': 'tr'}
+             'vi': 'vi', 'zh': 'zh', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr'}
     process_resource('android-app-browser-strings',
                      lambda lang: '../Android/zirco-browser/res/values-%s/strings.xml' % lang,
                      None,
