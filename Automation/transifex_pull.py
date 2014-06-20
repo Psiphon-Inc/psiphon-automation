@@ -53,7 +53,8 @@ RTL_LANGS = ('ar', 'fa', 'he')
 known_resources = \
     ['android-app-strings', 'android-app-browser-strings',
      'email-template-strings', 'feedback-template-strings',
-     'android-library-strings', 'feedback-auto-responses', 'website-strings']
+     'android-library-strings', 'feedback-auto-responses', 'website-strings',
+     'store-assets']
 
 
 def process_android_app_strings():
@@ -161,6 +162,13 @@ def process_feedback_auto_responses():
 def process_website_strings():
     process_resource('website-strings',
                      lambda lang: '../Website/_locales/%s/messages.json' % lang,
+                     None,
+                     bom=False)
+
+
+def process_store_assets():
+    process_resource('store-assets',
+                     lambda lang: '../Assets/Store/%s/text.html' % lang,
                      None,
                      bom=False)
 
@@ -294,6 +302,9 @@ def go():
 
     process_feedback_auto_responses()
     print('process_feedback_auto_responses: DONE')
+
+    process_store_assets()
+    print('process_store_assets: DONE')
 
 
 if __name__ == '__main__':
