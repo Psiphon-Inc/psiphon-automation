@@ -34,7 +34,7 @@ import psi_feedback_templates
 
 DEFAULT_LANGS = {'ar': 'ar', 'az': 'az', 'es': 'es', 'fa': 'fa', 'kk': 'kk',
                  'ru': 'ru', 'th': 'th', 'tk': 'tk', 'vi': 'vi', 'zh': 'zh',
-                 'ug': 'ug@Latn', 'nb_NO': 'nb', 'tr': 'tr'}
+                 'ug': 'ug@Latn', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr'}
 # Transifex does not support multiple character sets for Uzbek, but
 # Psiphon supports both uz@Latn and uz@cyrillic. So we're going to
 # use "Uzbek" ("uz") for uz@Latn and "Klingon" ("tlh") for uz@cyrillic.
@@ -53,12 +53,13 @@ RTL_LANGS = ('ar', 'fa', 'he')
 known_resources = \
     ['android-app-strings', 'android-app-browser-strings',
      'email-template-strings', 'feedback-template-strings',
-     'android-library-strings', 'feedback-auto-responses', 'website-strings']
+     'android-library-strings', 'feedback-auto-responses', 'website-strings',
+     'store-assets']
 
 
 def process_android_app_strings():
     langs = {'ar': 'ar', 'es': 'es', 'fa': 'fa', 'ru': 'ru', 'tk': 'tk',
-             'vi': 'vi', 'zh': 'zh', 'nb_NO': 'nb', 'tr': 'tr'}
+             'vi': 'vi', 'zh': 'zh', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr'}
     process_resource('android-app-strings',
                      lambda lang: '../Android/PsiphonAndroid/res/values-%s/strings.xml' % lang,
                      None,
@@ -68,7 +69,7 @@ def process_android_app_strings():
 
 def process_android_library_strings():
     langs = {'ar': 'ar', 'es': 'es', 'fa': 'fa', 'ru': 'ru', 'tk': 'tk',
-             'vi': 'vi', 'zh': 'zh', 'nb_NO': 'nb', 'tr': 'tr'}
+             'vi': 'vi', 'zh': 'zh', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr'}
     process_resource('android-library-strings',
                      lambda lang: '../Android/PsiphonAndroidLibrary/res/values-%s/strings.xml' % lang,
                      None,
@@ -78,7 +79,7 @@ def process_android_library_strings():
 
 def process_android_app_browser_strings():
     langs = {'ar': 'ar', 'es': 'es', 'fa': 'fa', 'ru': 'ru', 'tk': 'tk',
-             'vi': 'vi', 'zh': 'zh', 'nb_NO': 'nb', 'tr': 'tr'}
+             'vi': 'vi', 'zh': 'zh', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr'}
     process_resource('android-app-browser-strings',
                      lambda lang: '../Android/zirco-browser/res/values-%s/strings.xml' % lang,
                      None,
@@ -161,6 +162,13 @@ def process_feedback_auto_responses():
 def process_website_strings():
     process_resource('website-strings',
                      lambda lang: '../Website/_locales/%s/messages.json' % lang,
+                     None,
+                     bom=False)
+
+
+def process_store_assets():
+    process_resource('store-assets',
+                     lambda lang: '../Assets/Store/%s/text.html' % lang,
                      None,
                      bom=False)
 
@@ -294,6 +302,9 @@ def go():
 
     process_feedback_auto_responses()
     print('process_feedback_auto_responses: DONE')
+
+    process_store_assets()
+    print('process_store_assets: DONE')
 
 
 if __name__ == '__main__':
