@@ -21,6 +21,7 @@ import os
 import shlex
 import subprocess
 import psi_ops_stats_credentials
+import logging
 
 PSI_OPS_DB_FILENAME = os.path.join(os.path.abspath('.'), 'psi_ops_stats.dat')
 # Can't overwrite target file directly due to Wine limitation
@@ -28,7 +29,9 @@ export_filename = os.path.join(os.path.abspath('.'), 'psi_ops_stats.dat.temp')
 
 if __name__ == "__main__":
     try:
+        logging.basicConfig(filename='psi_update_stats_dat.log', format='%(asctime)s %(levelname)s %(message)s', level=logging.DEBUG)
         if os.path.isfile(export_filename):
+            logging.info('Removing temp file')
             os.remove(export_filename)
         cmd = 'wine ./CipherShare/CipherShareScriptingClient.exe \
                 ExportDocument \
@@ -49,11 +52,19 @@ if __name__ == "__main__":
         output = proc.communicate()
 
         if proc.returncode != 0:
-            raise Exception('CipherShare export failed: ' + str(output))
+            msg = 'CipherShare export failed %s' % str(output)
+            logging.warning(msg)
+            raise Exception(msg)
 
-        if os.path.isfile(PSI_OPS_DB_FILENAME):
-            os.remove(PSI_OPS_DB_FILENAME)
-        os.rename(export_filename, PSI_OPS_DB_FILENAME)
+        if os.path.isfile(export_filename):
+            if os.path.isfile(PSI_OPS_DB_FILENAME):
+                os.remove(PSI_OPS_DB_FILENAME)
+                logging.info('%s removed', PSI_OPS_DB_FILENAME)
+            os.rename(export_filename, PSI_OPS_DB_FILENAME)
+            logging.info('%s renamed to %s', export_filename, PSI_OPS_DB_FILENAME)
+        else:
+            logging.info('%s is not found', export_filename)
 
     except Exception as e:
+        logging.warning('Exception: %s', str(e)) 
         print str(e)
