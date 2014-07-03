@@ -73,7 +73,7 @@ def check_load_on_hosts(psinet, hosts):
                 unreachable_hosts += 1
         cur_users += result[1]
         loads[result[0]] = result[1:]
-    loads = sorted(loads.iteritems(), key=operator.itemgetter(1))
+    loads = sorted(loads.iteritems(), key=operator.itemgetter(1), reverse=True)
     pprint.pprint(loads)
     return cur_users, unreachable_hosts, loads
 
