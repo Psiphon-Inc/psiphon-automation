@@ -165,6 +165,7 @@ def _get_email_info(msg):
         stripped_address = match.group(2)
 
     email_info = dict(address=stripped_address,
+                      to=msg['to'],
                       message_id=msg['msgobj']['Message-ID'],
                       subject=subject,
                       body=body)
@@ -187,6 +188,8 @@ def go():
     # immediately available.
     for msg in emailgetter.get():
         logger.debug_log('maildecryptor.go: msg has %d attachments' % len(msg['attachments']))
+
+        diagnostic_info = None
 
         #
         # First try to process attachments.
@@ -214,19 +217,6 @@ def go():
                 # Modifies diagnostic_info
                 datatransformer.transform(diagnostic_info)
 
-                # Add the user's email information to diagnostic_info.
-                # This will allow us to later auto-respond, or act as a
-                # remailer between the user and the Psiphon support team.
-                diagnostic_info['EmailInfo'] = _get_email_info(msg)
-
-                # Store the diagnostic info
-                record_id = datastore.insert_diagnostic_info(diagnostic_info)
-
-                # Store the association between the diagnostic info and the email
-                datastore.insert_email_diagnostic_info(record_id,
-                                                       msg['msgobj']['Message-ID'],
-                                                       msg['subject'])
-
                 logger.log('email attachment decrypted')
                 break
 
@@ -248,5 +238,29 @@ def go():
                 # Try the next attachment/message
                 logger.exception()
                 logger.error(str(e))
+
+        #
+        # Store what info we have
+        #
+
+        email_info = _get_email_info(msg)
+        diagnostic_info_record_id = None
+
+        if diagnostic_info:
+            # Add the user's email information to diagnostic_info.
+            # This will allow us to later auto-respond, or act as a
+            # remailer between the user and the Psiphon support team.
+            diagnostic_info['EmailInfo'] = email_info
+
+            # Store the diagnostic info
+            diagnostic_info_record_id = datastore.insert_diagnostic_info(diagnostic_info)
+
+            # Store the association between the diagnostic info and the email
+            datastore.insert_email_diagnostic_info(diagnostic_info_record_id,
+                                                   msg['msgobj']['Message-ID'],
+                                                   msg['subject'])
+
+        # Store autoresponder info regardless of whether there was a diagnostic info
+        datastore.insert_autoresponder_entry(email_info, diagnostic_info_record_id)
 
     logger.debug_log('maildecryptor.go end')
