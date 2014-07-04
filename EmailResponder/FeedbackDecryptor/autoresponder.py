@@ -40,18 +40,21 @@ import aws_helpers
 _SLEEP_TIME_SECS = 60
 
 
-def _diagnostic_record_iter():
-    logger.debug_log('_diagnostic_record_iter: enter')
+def _autoresponder_record_iter():
+    logger.debug_log('_autoresponder_record_iter: enter')
 
     while True:
-        for rec in datastore.get_autoresponder_diagnostic_info_iterator():
-            logger.debug_log('_diagnostic_record_iter: yielding rec: %s' % rec['_id'])
+        for rec in datastore.get_autoresponder_iterator():
+            logger.debug_log('_autoresponder_record_iter: %s' % repr(rec))
+            if rec.get('diagnostic_info_record_id'):
+                rec['diagnostic_info'] = datastore.find_diagnostic_info(rec.get('diagnostic_info_record_id'))
+            logger.debug_log('_autoresponder_record_iter: yielding rec: %s' % rec['_id'])
             yield rec
 
         logger.debug_log('_diagnostic_record_iter: sleeping')
         time.sleep(_SLEEP_TIME_SECS)
 
-    logger.debug_log('_diagnostic_record_iter: exit')
+    logger.debug_log('_autoresponder_record_iter: exit')
 
 
 def _html_to_text(html):
@@ -70,7 +73,7 @@ def _html_to_text(html):
     return txt
 
 
-def _get_email_reply_info(diagnostic_info):
+def _get_email_reply_info(autoresponder_info):
     '''
     Returns None if no reply info found, otherwise:
         {
@@ -84,13 +87,19 @@ def _get_email_reply_info(diagnostic_info):
 
     logger.debug_log('_get_email_reply_info: enter')
 
+    email_info = autoresponder_info.get('email_info')
+    diagnostic_info = autoresponder_info.get('diagnostic_info')
     reply_info = None
 
-    if type(diagnostic_info.get('EmailInfo')) == dict:
+    if email_info:
+        reply_info = dict(address=email_info.get('address'),
+                          message_id=email_info.get('message_id'),
+                          subject=email_info.get('subject'))
+    elif utils.coalesce(diagnostic_info, 'EmailInfo', required_types=dict):
         reply_info = dict(address=diagnostic_info['EmailInfo'].get('address'),
                           message_id=diagnostic_info['EmailInfo'].get('message_id'),
                           subject=diagnostic_info['EmailInfo'].get('subject'))
-    elif type(diagnostic_info.get('Feedback')) == dict:
+    elif utils.coalesce(diagnostic_info, 'Feedback', required_types=dict):
         reply_info = dict(address=diagnostic_info['Feedback'].get('email'),
                           message_id=None,
                           subject=None)
@@ -359,14 +368,17 @@ def go():
 
     # Note that `_diagnostic_record_iter` throttles itself if/when there are
     # no records to process.
-    for diagnostic_info in _diagnostic_record_iter():
+    for autoresponder_info in _autoresponder_record_iter():
 
-        logger.debug_log('go: got diagnostic_info record')
+        diagnostic_info = autoresponder_info.get('diagnostic_info')
+        email_info = autoresponder_info.get('email_info')
+
+        logger.debug_log('go: got autoresponder record')
 
         # For now we don't do any interesting processing/analysis and we just
         # respond to every feedback with an exhortation to upgrade.
 
-        reply_info = _get_email_reply_info(diagnostic_info)
+        reply_info = _get_email_reply_info(autoresponder_info)
 
         if not reply_info or not reply_info['address']:
             # If we don't have any reply info, we can't reply
