@@ -158,7 +158,7 @@ EmailPropagationAccount = psi_utils.recordtype(
 # makes no sense to have the latter without the former).
 Sponsor = psi_utils.recordtype(
     'Sponsor',
-    'id, name, banner, website_banner, website_banner_link, home_pages, ' +
+    'id, name, banner, website_banner, website_banner_link, home_pages, mobile_home_pages, ' +
     'campaigns, page_view_regexes, https_request_regexes')
 
 SponsorHomePage = psi_utils.recordtype(
@@ -333,7 +333,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.26'
+    class_version = '0.27'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -491,6 +491,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     server.capabilities['FRONTED-MEEK'] = False
                     server.capabilities['UNFRONTED-MEEK'] = False
             self.version = '0.26'
+        if cmp(parse_version(self.version), parse_version('0.27')) < 0:
+            for sponsor in self.__sponsors.itervalues():
+                sponsor.mobile_home_pages = {}
+            self.version = '0.27'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -575,6 +579,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             ID:                      %(id)s
             Name:                    %(name)s
             Home Pages:              %(home_pages)s
+            Mobile Home Pages:       %(mobile_home_pages)s
             Page View Regexes:       %(page_view_regexes)s
             HTTPS Request Regexes:   %(https_request_regexes)s
             Campaigns:               %(campaigns)s
@@ -584,6 +589,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     'home_pages': '\n                         '.join(['%s: %s' % (region.ljust(5) if region else 'All',
                                                          '\n                                '.join([h.url for h in home_pages]))
                                                          for region, home_pages in sorted(s.home_pages.items())]),
+                    'mobile_home_pages': '\n                         '.join(['%s: %s' % (region.ljust(5) if region else 'All',
+                                                         '\n                                '.join([h.url for h in mobile_home_pages]))
+                                                         for region, mobile_home_pages in sorted(s.mobile_home_pages.items())]),
                     'page_view_regexes': '\n                         '.join(['%s -> %s' % (page_view_regex.regex, page_view_regex.replace)
                                                                              for page_view_regex in s.page_view_regexes]),
                     'https_request_regexes': '\n                         '.join(['%s -> %s' % (https_request_regex.regex, https_request_regex.replace)
@@ -820,7 +828,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def import_sponsor(self, id, name):
         assert(self.is_locked)
-        sponsor = Sponsor(id, name, None, None, None, {}, [], [], [])
+        sponsor = Sponsor(id, name, None, None, None, {}, {}, [], [], [])
         assert(id not in self.__sponsors)
         assert(not filter(lambda x: x.name == name, self.__sponsors.itervalues()))
         self.__sponsors[id] = sponsor
@@ -983,6 +991,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if home_page not in sponsor.home_pages[region]:
             sponsor.home_pages[region].append(home_page)
             sponsor.log('set home page %s for %s' % (url, region if region else 'All'))
+            self.__deploy_data_required_for_all = True
+            sponsor.log('marked all hosts for data deployment')
+
+    def set_sponsor_mobile_home_page(self, sponsor_name, region, url):
+        assert(self.is_locked)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
+        mobile_home_page = SponsorHomePage(region, url)
+        if region not in sponsor.mobile_home_pages:
+            sponsor.mobile_home_pages[region] = []
+        if mobile_home_page not in sponsor.mobile_home_pages[region]:
+            sponsor.mobile_home_pages[region].append(mobile_home_page)
+            sponsor.log('set mobile home page %s for %s' % (url, region if region else 'All'))
             self.__deploy_data_required_for_all = True
             sponsor.log('marked all hosts for data deployment')
 
@@ -2409,18 +2429,22 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return ([self.__get_encoded_server_entry(server) for server in servers],
                 [server.egress_ip_address for server in servers])
 
-    def __get_sponsor_home_pages(self, sponsor_id, region):
+    def __get_sponsor_home_pages(self, sponsor_id, region, client_platform):
         # Web server support function: fails gracefully
         if sponsor_id not in self.__sponsors:
             return []
         sponsor = self.__sponsors[sponsor_id]
-        # case: lookup succeeded and corresponding region home page found
         sponsor_home_pages = []
-        if region in sponsor.home_pages:
-            sponsor_home_pages = [home_page.url for home_page in sponsor.home_pages[region]]
+        home_pages = sponsor.home_pages
+        if client_platform == CLIENT_PLATFORM_ANDROID:
+            if sponsor.mobile_home_pages:
+                home_pages = sponsor.mobile_home_pages
+        # case: lookup succeeded and corresponding region home page found
+        if region in home_pages:
+            sponsor_home_pages = [home_page.url for home_page in home_pages[region]]
         # case: lookup failed or no corresponding region home page found --> use default
-        if not sponsor_home_pages and 'None' in sponsor.home_pages:
-            sponsor_home_pages = [home_page.url for home_page in sponsor.home_pages['None']]
+        if not sponsor_home_pages and 'None' in home_pages:
+            sponsor_home_pages = [home_page.url for home_page in home_pages['None']]
         return sponsor_home_pages
 
     def _get_sponsor_page_view_regexes(self, sponsor_id):
@@ -2457,13 +2481,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         config = {}
 
-        # Give client a set of landing pages to open when connection established
-        config['homepages'] = self.__get_sponsor_home_pages(sponsor_id, client_region)
-
         # Match a client platform to client_platform_string
         platform = CLIENT_PLATFORM_WINDOWS
         if CLIENT_PLATFORM_ANDROID.lower() in client_platform_string.lower():
             platform = CLIENT_PLATFORM_ANDROID
+
+        # Give client a set of landing pages to open when connection established
+        config['homepages'] = self.__get_sponsor_home_pages(sponsor_id, client_region, platform)
 
         # Tell client if an upgrade is available
         config['upgrade_client_version'] = self.__check_upgrade(platform, client_version)
@@ -2632,11 +2656,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 None,  # Omit website_banner
                                 None,  # Omit website_banner_link
                                 {},
+                                {},
                                 [],  # Omit campaigns
                                 sponsor.page_view_regexes,
                                 sponsor.https_request_regexes)
             for region, home_pages in sponsor.home_pages.iteritems():
                 copy_sponsor.home_pages[region] = home_pages
+            for region, mobile_home_pages in sponsor.mobile_home_pages.iteritems():
+                copy_sponsor.mobile_home_pages[region] = mobile_home_pages
             copy.__sponsors[copy_sponsor.id] = copy_sponsor
 
         for platform in self.__client_versions.iterkeys():
@@ -2727,6 +2754,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         None,   # omit website_banner
                                         None,   # omit website_banner_link
                                         {},     # omit home_pages
+                                        {},     # omit mobile_home_pages
                                         sponsor.campaigns,
                                         [],     # omit page_view_regexes
                                         [])     # omit https_request_regexes
