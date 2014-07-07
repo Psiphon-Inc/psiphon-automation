@@ -613,7 +613,7 @@ def install_firewall_rules(host, servers, plugins, do_blacklist=True):
     -A INPUT -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT''' % (host.ssh_port,) + ''.join(
     # meek server
     ['''
-    -A INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -m limit --limit 1000/sec --limit-burst 500 -j ACCEPT'''
+    -A INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -m limit --limit 100/sec -j ACCEPT'''
             % (str(s.internal_ip_address), str(host.meek_server_port)) for s in servers
                 if (s.capabilities['FRONTED-MEEK'] or s.capabilities['UNFRONTED-MEEK']) and host.meek_server_port]) + ''.join(
     # web servers

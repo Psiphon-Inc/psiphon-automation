@@ -42,6 +42,7 @@ import psi_ops
 
 def check_load_on_host(host):
     try:
+        log_diagnostics('checking host: %s' % (host.id))
         users = g_psinet._PsiphonNetwork__count_users_on_host(host.id)
         load = g_psinet.run_command_on_host(host, 'uptime | cut -d , -f 4 | cut -d : -f 2 | awk -F \. \'{print $1}\'').strip()
         free = g_psinet.run_command_on_host(host, 'free | grep "buffers/cache" | awk \'{print $4/($3+$4) * 100.0}\'')
@@ -62,7 +63,9 @@ def check_load_on_hosts(psinet, hosts):
     pool = ThreadPool(25)
     global g_psinet
     g_psinet = psinet
+    log_diagnostics('Checking Hosts...')
     results = pool.map(check_load_on_host, hosts)
+    log_diagnostics('...done checking hosts')
 
     for result in results:
         if result[1] == -1:
@@ -73,7 +76,7 @@ def check_load_on_hosts(psinet, hosts):
                 unreachable_hosts += 1
         cur_users += result[1]
         loads[result[0]] = result[1:]
-    loads = sorted(loads.iteritems(), key=operator.itemgetter(1))
+    loads = sorted(loads.iteritems(), key=operator.itemgetter(1), reverse=True)
     pprint.pprint(loads)
     return cur_users, unreachable_hosts, loads
 

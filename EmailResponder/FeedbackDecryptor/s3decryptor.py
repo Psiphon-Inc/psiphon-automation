@@ -128,6 +128,9 @@ def go():
                 # Record in the DB that the diagnostic info should be emailed
                 datastore.insert_email_diagnostic_info(record_id, None, None)
 
+            # Store an autoresponder entry for this diagnostic info
+            datastore.insert_autoresponder_entry(None, record_id)
+
             logger.log('decrypted diagnostic data')
 
         except decryptor.DecryptorException as e:
