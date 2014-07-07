@@ -36,13 +36,12 @@ import datatransformer
 
 _SLEEP_TIME_SECS = 60
 _BUCKET_ITEM_MIN_SIZE = 100
-_BUCKET_ITEM_MAX_SIZE = (2000 * 1024)  # 2 MB
 
 
 def _is_bucket_item_sane(key):
     logger.debug_log('s3decryptor._is_bucket_item_sane start')
 
-    if key.size < _BUCKET_ITEM_MIN_SIZE or key.size > _BUCKET_ITEM_MAX_SIZE:
+    if key.size < _BUCKET_ITEM_MIN_SIZE or key.size > int(config['s3ObjectMaxSize']):
         err = 'item not sane size: %d' % key.size
         logger.error(err)
         return False
@@ -128,6 +127,9 @@ def go():
                 logger.debug_log('s3decryptor.go: should email')
                 # Record in the DB that the diagnostic info should be emailed
                 datastore.insert_email_diagnostic_info(record_id, None, None)
+
+            # Store an autoresponder entry for this diagnostic info
+            datastore.insert_autoresponder_entry(None, record_id)
 
             logger.log('decrypted diagnostic data')
 

@@ -1160,7 +1160,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if users_on_host == 0:
                 self.remove_host(server.host_id)
                 number_removed += 1
-            elif users_on_host < 15:
+            elif users_on_host < 50:
                 self.__disable_server(server)
                 number_disabled += 1
         return number_removed, number_disabled
@@ -1396,6 +1396,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # connect to a server.
         is_embedded_server = (discovery_date_range is None)
 
+        # The following changes will be saved if at least one server is successfully added
+
         if replace_others:
             # If we are creating new propagation servers, stop embedding the old ones
             # (they are still active, but not embedded in builds or discovered)
@@ -1410,6 +1412,21 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # If we are creating new discovery servers, stop discovering existing ones
             else:
                 self.__replace_propagation_channel_discovery_servers(propagation_channel.id)
+
+        self.__deploy_data_required_for_all = True
+        self.__deploy_stats_config_required = True
+
+        # Unless the node is reserved for discovery, release it through
+        # the campaigns associated with the propagation channel
+        # TODO: recover from partially complete state...
+        if is_embedded_server:
+            for sponsor in self.__sponsors.itervalues():
+                for campaign in sponsor.campaigns:
+                    if campaign.propagation_channel_id == propagation_channel.id:
+                        for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
+                            self.__deploy_builds_required_for_campaigns[platform].add(
+                                    (campaign.propagation_channel_id, sponsor.id))
+                        campaign.log('marked for build and publish (new embedded server)')
 
         for new_server_number in range(len(server_infos)):
             server_info = server_infos[new_server_number]
@@ -1473,26 +1490,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             self.save()
 
-        self.__deploy_data_required_for_all = True
-        self.__deploy_stats_config_required = True
-
-        # Unless the node is reserved for discovery, release it through
-        # the campaigns associated with the propagation channel
-        # TODO: recover from partially complete state...
-        if is_embedded_server:
-            for sponsor in self.__sponsors.itervalues():
-                for campaign in sponsor.campaigns:
-                    if campaign.propagation_channel_id == propagation_channel.id:
-                        for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
-                            self.__deploy_builds_required_for_campaigns[platform].add(
-                                    (campaign.propagation_channel_id, sponsor.id))
-                        campaign.log('marked for build and publish (new embedded server)')
-
-        # Ensure new server configuration is saved to CMS before deploying new
+        # The save() above ensures new server configuration is saved to CMS before deploying new
         # server info to the network
-
-        # TODO: add need-save flag
-        self.save()
 
         # This deploy will broadcast server info, propagate builds, and update
         # the stats and email server
@@ -2788,7 +2787,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 test_cases,
                                 executable_path)
 
-    def __test_servers(self, servers, test_cases):
+    def __test_servers(self, servers, test_cases, build_with_embedded_servers=False):
         results = {}
         passes = 0
         failures = 0
@@ -2805,7 +2804,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         executable_path = None
         # We will need a build if no test_cases are specified (run all tests) or if at least one of the following are requested
-        if not test_cases or set(test_cases).intersection(set(['VPN', 'OSSH', 'SSH'])):
+        if ((not build_with_embedded_servers) and
+            (not test_cases or set(test_cases).intersection(set(['VPN', 'OSSH', 'SSH'])))):
             executable_path = psi_ops_build_windows.build_client(
                                     test_propagation_channel_id,
                                     '0',        # sponsor_id
@@ -2860,14 +2860,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         sys.stderr.write('SUCCESS\n' if failures == 0 else 'FAIL\n')
         assert(failures == 0)
 
-    def test_server(self, server_id, test_cases=None):
+    def test_server(self, server_id, test_cases=None, build_with_embedded_servers=False):
         if not server_id in self.__servers:
             print 'Server "%s" not found' % (server_id,)
         elif self.__servers[server_id].propagation_channel_id == None:
             print 'Server "%s" does not have a propagation channel id' % (server_id,)
         else:
             servers = [self.__servers[server_id]]
-            self.__test_servers(servers, test_cases)
+            self.__test_servers(servers, test_cases, build_with_embedded_servers)
 
     def test_host(self, host_id, test_cases=None):
         if not host_id in self.__hosts:
