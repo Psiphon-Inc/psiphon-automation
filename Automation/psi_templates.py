@@ -39,7 +39,7 @@ LANGUAGES = [
     'ug@Latn',
     'es',
     'vi',
-    'fr',
+    #'fr',
     'nb'
 ]
 
