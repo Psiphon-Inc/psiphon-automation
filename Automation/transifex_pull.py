@@ -111,69 +111,25 @@ def process_feedback_template_strings():
 
 
 def process_feedback_auto_responses():
-    def strip_outer_div(html, _):
+    def auto_response_modifier(html, _):
         # For some reason Transifex wraps everything in a <div>, so we need to
         # drill into the elements to get our stuff.
-        print html
         soup = BeautifulSoup(html)
         divs = soup.findAll('div', 'response-subject')
         divs += soup.findAll('div', 'response-body')
-        return '\n\n'.join([str(div) for div in divs])
+        result = u'\n\n'.join([unicode(div) for div in divs])
+
+        # For some reason (again), Transifex replaces some "%"" with "&#37;",
+        # which wrecks our formatting efforts.
+        result = result.replace(u'&#37;', u'%')
+
+        return result
 
     process_resource('feedback-auto-responses',
                      lambda lang: '../EmailResponder/FeedbackDecryptor/responses/%s.html' % lang,
-                     strip_outer_div,
+                     auto_response_modifier,
                      bom=False,
                      skip_untranslated=True)
-
-    '''
-    # TODO: Rather than skipping whole translations if they aren't translated,
-    # or, conversely, including untranslated response bodies because another
-    # response body is translated, we should operate on a per-response basis.
-    # One way is to compare the bare translation text against the bare English
-    # text to see if it's different. To do this, we'll need to strip out
-    # HTML comments. See: http://stackoverflow.com/a/3507360/729729
-
-    # See ../EmailResponder/FeedbackDecryptor/responses/master.html for info
-    # about how this file works.
-    res = gather_resource('feedback-auto-responses', skip_untranslated=True)
-
-    if 'en' not in res:
-        with open('../EmailResponder/FeedbackDecryptor/responses/master.html') as master:
-            res['en'] = master.read()
-
-    subjects = {}
-    bodies = {}
-
-    for lang, value in res.iteritems():
-        subjects[lang] = {}
-        bodies[lang] = {}
-
-        soup = BeautifulSoup(value)
-
-        # For some reason Transifex wraps everything in a <div>, so we need to
-        # drill into the elements to get our stuff. (But not for 'en'.)
-        if len(soup.contents) == 1:
-            soup = soup.contents[0]
-
-        for subject in soup.findAll('div', attrs={'class': 'response-subject'}):
-            subject_id = dict(subject.attrs)['id']
-            subjects[lang][subject_id] = subject.text
-
-        for body in soup.findAll('div', attrs={'class': 'response-body'}):
-            if lang in RTL_LANGS:
-                # Include both methods of specifying direction.
-                body.attrs.extend([('style', 'direction: rtl;'), ('dir', 'rtl')])
-
-            body_id = dict(body.attrs)['id']
-            bodies[lang][body_id] = str(body)
-
-    with open('../EmailResponder/FeedbackDecryptor/responses/subjects.json', 'w') as subjects_file:
-        json.dump(subjects, subjects_file, indent=2)
-
-    with open('../EmailResponder/FeedbackDecryptor/responses/bodies.json', 'w') as bodies_file:
-        json.dump(bodies, bodies_file, indent=2)
-    '''
 
 
 def process_website_strings():
