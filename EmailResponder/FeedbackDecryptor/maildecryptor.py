@@ -155,7 +155,7 @@ def _get_email_info(msg):
                 text_translated=body_translation[2],
                 html=msg['html'])
 
-    raw_address = msg['msgobj'].get('Return-Path') or msg['from']
+    raw_address = msg['from'] or msg['msgobj'].get('Return-Path')
     stripped_address = None
     if raw_address:
         match = _email_stripper_regex.match(raw_address)
