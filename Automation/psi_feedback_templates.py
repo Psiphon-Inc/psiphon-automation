@@ -39,6 +39,7 @@ FEEDBACK_LANGUAGES = [
     'ug@Latn',
     'es',
     'vi',
+    'fr',
     'nb'
 ]
 

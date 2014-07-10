@@ -92,7 +92,8 @@ def update_image(digitalocean_account, droplet_id, droplet_name):
             #wait a while for the image to be transferred across regions
             success_ids = [r['event_id'] for r in results if 'OK' in r['status']]
             for id in success_ids:
-                wait_on_event_completion(do_api, id, interval=120)
+                if not wait_on_event_completion(do_api, id, interval=120):
+                    raise Exception('Could not update image')
             
             images = do_api.get_all_images()
             image = [i for i in images if droplet_name in i['name']][0]
@@ -194,18 +195,22 @@ def launch_new_server(digitalocean_account, _):
 
         print 'Launching %s, using image %s' % (image['name'], str(image['image_id']))
         resp = do_api.create_new_droplet(image)
+        droplet = resp['droplet']
         if resp['status'] != 'OK':
             raise Exception(resp['message'] + ': ' + resp['error_message'])
-        wait_on_event_completion(do_api, resp['droplet']['event_id'], interval=30)
+        
+        if not wait_on_event_completion(do_api, resp['droplet']['event_id'], interval=30):
+            raise Exception('Event did not complete in time')
+        
         print 'Waiting for the droplet to power on and get an IP address'
         time.sleep(30)
 
         # get more details about droplet
         resp = do_api.droplet_show(resp['droplet']['id'])
+        droplet = resp['droplet']
         if resp['status'] != 'OK':
             raise Exception(resp['message'] + ': ' + resp['error_message'])
 
-        droplet = resp['droplet']
         if droplet['status'] != 'active':
             start_droplet(do_api, droplet['id'])
 
@@ -219,7 +224,10 @@ def launch_new_server(digitalocean_account, _):
     except Exception as e:
         print type(e), str(e)
         if droplet != None:
-            remove_droplet(do_api, droplet['id'])
+            if 'id' in droplet:
+                remove_droplet(do_api, droplet['id'])
+            else:
+                print type(e), "No droplet to be deleted: ", str(droplet)
         raise
 
     

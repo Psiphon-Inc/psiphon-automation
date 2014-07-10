@@ -424,6 +424,7 @@ $(function() {{
   <option value="ug@Latn">Uyghurche</option>
   <option value="es">Español</option>
   <option value="vi">Tiếng Việt</option>
+  <option value="fr">Français</option>
   <option value="nb">Norsk (bokmål)</option>
   </select>
 
