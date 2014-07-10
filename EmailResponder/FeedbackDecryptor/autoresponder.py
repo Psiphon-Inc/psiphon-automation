@@ -1,4 +1,4 @@
-# Copyright (c) 2013, Psiphon Inc.
+# Copyright (c) 2014, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -83,17 +83,26 @@ def _html_to_text(html):
     return txt
 
 
+class _ReplyInfo(object):
+    """A simple object to help us give structure to the reply info.
+    """
+    def __init__(self, address, message_id, subject, to):
+        """
+        address: user's email address; required
+        message_id: original email Message-ID; may be None
+        subject: original email subject; may be None
+        to: original address the feedback was sent to; may be None
+        """
+        self.address = address
+        self.message_id = message_id
+        self.subject = subject
+        self.to = to
+
+
 def _get_email_reply_info(autoresponder_info):
-    '''
-    Returns None if no reply info found, otherwise:
-        {
-            address: user's email address,
-            message_id: original email Message-ID,
-            subject: original email subject
-        }
-    Any field may be None.
+    """Returns None if no reply info found, otherwise an instance of _ReplyInfo.
     Note that this function also validates the email address.
-    '''
+    """
 
     logger.debug_log('_get_email_reply_info: enter')
 
@@ -102,29 +111,38 @@ def _get_email_reply_info(autoresponder_info):
     reply_info = None
 
     if email_info:
-        reply_info = dict(address=email_info.get('address'),
-                          message_id=email_info.get('message_id'),
-                          subject=email_info.get('subject'))
+        reply_info = _ReplyInfo(email_info.get('address'),
+                                email_info.get('message_id'),
+                                email_info.get('subject'),
+                                email_info.get('to'))
     elif utils.coalesce(diagnostic_info, 'EmailInfo', required_types=dict):
-        reply_info = dict(address=diagnostic_info['EmailInfo'].get('address'),
-                          message_id=diagnostic_info['EmailInfo'].get('message_id'),
-                          subject=diagnostic_info['EmailInfo'].get('subject'))
+        reply_info = _ReplyInfo(diagnostic_info['EmailInfo'].get('address'),
+                                diagnostic_info['EmailInfo'].get('message_id'),
+                                diagnostic_info['EmailInfo'].get('subject'),
+                                diagnostic_info['EmailInfo'].get('to'))
     elif utils.coalesce(diagnostic_info, 'Feedback', required_types=dict):
-        reply_info = dict(address=diagnostic_info['Feedback'].get('email'),
-                          message_id=None,
-                          subject=None)
+        reply_info = _ReplyInfo(diagnostic_info['Feedback'].get('email'),
+                                None, None, None)
 
-    if not reply_info or not reply_info['address'] or not reply_info['address'].strip('<>'):
+    if not reply_info:
         logger.debug_log('_get_email_reply_info: no/bad reply_info, exiting')
         return None
 
     # Sometimes the recorded address looks like "<example@example.com>"
-    reply_info['address'] = reply_info['address'].strip('<>')
+    if reply_info.address:
+        reply_info.address = reply_info.address.strip('<>')
+
+    if not reply_info.address:
+        logger.debug_log('_get_email_reply_info: no/bad reply_info.address, exiting')
+        return None
+
+    if reply_info.to:
+        reply_info.to = reply_info.to.strip('<>')
 
     validator = email_validator.EmailValidator(fix=True, lookup_dns='mx')
     try:
-        fixed_address = validator.validate_or_raise(reply_info['address'])
-        reply_info['address'] = fixed_address
+        fixed_address = validator.validate_or_raise(reply_info.address)
+        reply_info.address = fixed_address
     except:
         logger.debug_log('_get_email_reply_info: address validator raised, exiting')
         return None
@@ -133,29 +151,8 @@ def _get_email_reply_info(autoresponder_info):
     return reply_info
 
 
-_plus_finder_regex = re.compile(r'\+[^@]*@')
-_name_part_normalize_regex = re.compile(r'[^a-zA-Z0-9]')
-_domain_part_normalize_regex = re.compile(r'[^a-zA-Z0-9.\-]')
-
-
-def _normalize_email_address(address):
-    # We need to normalize, otherwise we could get fooled by the fact that
-    # "example@gmail.com" is the same as "ex.ample+plus@gmail.com".
-
-    # Get rid of the "plus" part and split into name part and domain part.
-    name_domain = _plus_finder_regex.split(address)
-
-    if len(name_domain) != 2:
-        # Someone is messing with us
-        raise ValueError('invalid email address')
-
-    # Break the address at the '@'
-    name, domain = name_domain
-
-    name = _name_part_normalize_regex.sub('', name)
-    domain = _domain_part_normalize_regex.sub('', domain)
-
-    return '%s@%s' % (name, domain)
+_address_splitter = re.compile(r'^([^\+]+)(\+[^@]*)?@(.+)$')
+_address_name_normalize_regex = re.compile(r'[^a-zA-Z0-9]')
 
 
 def _check_and_add_address_blacklist(address):
@@ -166,7 +163,26 @@ def _check_and_add_address_blacklist(address):
 
     logger.debug_log('_check_and_add_address_blacklist: enter')
 
-    normalized_address = _normalize_email_address(address)
+    # We need to normalize, otherwise we could get fooled by the fact that
+    # "example@gmail.com" is the same as "ex.ample+plus@gmail.com".
+    # We're going to be fairly draconian and normalize down to just alpha-numerics.
+
+    match = _address_splitter.match(address)
+    if not match:
+        # Someone is messing with us
+        raise ValueError('invalid email address: match failed')
+
+    # Discard the '+'' part
+    name, _, domain = match.groups()
+
+    # Get rid of non-alphanumerics
+    name = _address_name_normalize_regex.sub('', name)
+
+    if not name:
+        # Someone is messing with us
+        raise ValueError('invalid email address: name part is invalid')
+
+    normalized_address = '%s@%s' % (name, domain)
 
     blacklisted = datastore.check_and_add_response_address_blacklist(normalized_address)
 
@@ -230,8 +246,9 @@ def _render_email(data):
     global _template
     if not _template:
         _template = Template(filename='templates/feedback_response.mako',
-                             default_filters=['unicode', 'h'],
-                             lookup=TemplateLookup(directories=['.']))
+                             default_filters=['unicode', 'h', 'decode.utf8'],
+                             input_encoding='utf-8', output_encoding='utf-8',
+                              lookup=TemplateLookup(directories=['.']))
         logger.debug_log('_render_email: template loaded')
 
     rendered = _template.render(data=data)
@@ -288,7 +305,7 @@ def _get_response_content(response_id, diagnostic_info):
                 lang = 'en'
 
             with open(os.path.join(root, name)) as translation_file:
-                translation = translation_file.read()
+                translation = translation_file.read().decode('utf-8')
 
             # Strip leading and trailing whitespace so that we don't get extra
             # text elements in our BeautifulSoup
@@ -338,11 +355,11 @@ def _get_response_content(response_id, diagnostic_info):
             subject = soup.find(id='default_response_subject')
             if subject:
                 # Strip outer element
-                subject = ''.join(str(elem) for elem in subject.contents).strip()
+                subject = u''.join(unicode(elem) for elem in subject.contents).strip()
         body = soup.find(id=response_id)
         if body:
             # Strip outer element
-            body = ''.join(str(elem) for elem in body.contents).strip()
+            body = u''.join(unicode(elem) for elem in body.contents).strip()
 
             # The user might be using a language for which there isn't a
             # download page. Fall back to English if that's the case.
@@ -358,7 +375,7 @@ def _get_response_content(response_id, diagnostic_info):
                 '1': download_page_url,
                 '2': home_page_url
             }
-            body = str(body) % format_dict
+            body = unicode(body) % format_dict
             bodies.append(body)
 
     # Render the email body from the Mako template
@@ -395,7 +412,7 @@ def _get_response_content(response_id, diagnostic_info):
     }
 
 
-def _analyze_diagnostic_info(diagnostic_info, email_info):
+def _analyze_diagnostic_info(diagnostic_info, reply_info):
     '''
     Determines what response should be sent based on `diagnostic_info` content.
     Returns a list of response IDs.
@@ -404,23 +421,43 @@ def _analyze_diagnostic_info(diagnostic_info, email_info):
 
     logger.debug_log('_analyze_diagnostic_info: enter')
 
-    to_address = email_info.get('to', '') if email_info else ''
-    to_address = _normalize_email_address(to_address)
-
     responses = None
 
+    AddressParts = collections.namedtuple('AddressParts', ['name', 'plus', 'domain'])
+
+    # Get our local email address parts
+    match = _address_splitter.match(config['emailUsername'])
+    local_email_parts = AddressParts(*match.groups())
+
+    # We'll break apart the "to" address (if applicable)
+    to_parts = AddressParts(None, None, None)
+    if reply_info.to:
+        match = _address_splitter.match(reply_info.to)
+        if not match:
+            # Someone is messing with us
+            raise ValueError('invalid email address: to-address match failed')
+        to_parts = AddressParts(*match.groups())
+
     # TODO: more flexible rules, not so hard-coded
-    if to_address == 'info@psiphon.ca':
+    if utils.coalesce(diagnostic_info,
+                      ['DiagnosticInfo', 'SystemInformation', 'isPlayStoreBuild']):
+        # No download links in Play Store email
         responses = ['generic_info']
-    elif utils.coalesce(diagnostic_info,
-                        ['DiagnosticInfo', 'SystemInformation', 'isPlayStoreBuild']):
-        responses = ['generic_info']
-    elif to_address == config['emailUsername']:
+    elif to_parts.name == local_email_parts.name and \
+         to_parts.domain == local_email_parts.domain:
+        # E.g., feedback@psiphon.ca, feedback+android@psiphon.ca
         responses = ['download_new_version_links',
                      # Disabling attachment responses for now. Not sure if
                      # it's a good idea. Note that it needs to be tested.
                      # 'download_new_version_attachments',
                     ]
+    elif to_parts.domain == local_email_parts.domain:
+        # E.g., *@psiphon.ca
+        responses = ['generic_info']
+    elif not reply_info.to and \
+         utils.coalesce(diagnostic_info, ('Metadata', 'platform'), utils.string_types):
+        # Windows S3 feedback
+        responses = ['download_new_version_links']
 
     logger.debug_log('_analyze_diagnostic_info: exit: %s' % responses)
 
@@ -444,17 +481,17 @@ def go():
 
         reply_info = _get_email_reply_info(autoresponder_info)
 
-        if not reply_info or not reply_info['address']:
+        if not reply_info or not reply_info.address:
             # If we don't have any reply info, we can't reply
             logger.debug_log('go: no reply_info or address')
             continue
 
         # Check if the address is blacklisted
-        if _check_and_add_address_blacklist(reply_info['address']):
+        if _check_and_add_address_blacklist(reply_info.address):
             logger.debug_log('go: blacklisted')
             continue
 
-        responses = _analyze_diagnostic_info(diagnostic_info, email_info)
+        responses = _analyze_diagnostic_info(diagnostic_info, reply_info)
 
         if not responses:
             logger.debug_log('go: no response')
@@ -473,18 +510,18 @@ def go():
             # in which case we have a subject to reply to. Or it may have have
             # originated from an uploaded data package, in which case we need
             # set our own subject.
-            if type(reply_info.get('subject')) is dict and reply_info['subject'].get('text'):
-                subject = u'Re: %s' % reply_info['subject']['text']
+            if type(reply_info.subject) is dict:
+                subject = u'Re: %s' % reply_info.subject.get('text', '')
             else:
                 subject = response_content['subject']
 
             try:
-                sender.send_response(reply_info['address'],
+                sender.send_response(reply_info.address,
                                      config['reponseEmailAddress'],
                                      subject,
                                      response_content['body_text'],
                                      response_content['body_html'],
-                                     reply_info['message_id'],
+                                     reply_info.message_id,
                                      response_content['attachments'])
             except Exception as e:
                 logger.debug_log('go: send_response excepted')
