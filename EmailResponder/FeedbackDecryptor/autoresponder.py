@@ -15,6 +15,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import os
+import collections
 import time
 import html2text
 import sys
@@ -23,6 +25,7 @@ import json
 from mako.template import Template
 from mako.lookup import TemplateLookup
 import pynliner
+from BeautifulSoup import BeautifulSoup
 
 from config import config
 import logger
@@ -38,6 +41,13 @@ import aws_helpers
 
 
 _SLEEP_TIME_SECS = 60
+_RESPONSES_DIR = 'responses'
+
+
+# Specifies which languages should be at the top of the email by default.
+# Other languages will follow in an unspecified order. (Not that we don't love
+# everyone equally! But we have more users that speak some things than others.)
+_TOP_LANGS = ['en', 'fa', 'ar', 'zh', 'ru']
 
 
 def _autoresponder_record_iter():
@@ -123,8 +133,29 @@ def _get_email_reply_info(autoresponder_info):
     return reply_info
 
 
-_gmail_plus_finder_regex = re.compile(r'\+[^@]*@')
-_email_address_normalize_regex = re.compile(r'[^a-zA-Z0-9]')
+_plus_finder_regex = re.compile(r'\+[^@]*@')
+_name_part_normalize_regex = re.compile(r'[^a-zA-Z0-9]')
+_domain_part_normalize_regex = re.compile(r'[^a-zA-Z0-9.\-]')
+
+
+def _normalize_email_address(address):
+    # We need to normalize, otherwise we could get fooled by the fact that
+    # "example@gmail.com" is the same as "ex.ample+plus@gmail.com".
+
+    # Get rid of the "plus" part and split into name part and domain part.
+    name_domain = _plus_finder_regex.split(address)
+
+    if len(name_domain) != 2:
+        # Someone is messing with us
+        raise ValueError('invalid email address')
+
+    # Break the address at the '@'
+    name, domain = name_domain
+
+    name = _name_part_normalize_regex.sub('', name)
+    domain = _domain_part_normalize_regex.sub('', domain)
+
+    return '%s@%s' % (name, domain)
 
 
 def _check_and_add_address_blacklist(address):
@@ -135,15 +166,7 @@ def _check_and_add_address_blacklist(address):
 
     logger.debug_log('_check_and_add_address_blacklist: enter')
 
-    # We need to normalize, otherwise we could get fooled by the fact that
-    # "example@gmail.com" is the same as "ex.ample+plus@gmail.com".
-    # We're going to be fairly draconian and normalize down to just alpha-numerics.
-
-    # Get rid of the "plus" part.
-    normalized_address = '@'.join(_gmail_plus_finder_regex.split(address))
-
-    # Get rid of non-alphanumerics
-    normalized_address = _email_address_normalize_regex.sub('', normalized_address)
+    normalized_address = _normalize_email_address(address)
 
     blacklisted = datastore.check_and_add_response_address_blacklist(normalized_address)
 
@@ -221,12 +244,10 @@ def _render_email(data):
     return rendered
 
 
-_subjects = None
-_bodies = None
-
-
 def _get_response_content(response_id, diagnostic_info):
-    '''
+    """Gets the response for the given response_id. diagnostic_info will be
+    used to determine language and some content, but may be None.
+
     Returns a dict of the form:
         {
             subject: <subject text>,
@@ -236,22 +257,9 @@ def _get_response_content(response_id, diagnostic_info):
         }
 
     Returns None if no response content can be derived.
-    '''
+    """
 
     logger.debug_log('_get_response_content: enter')
-
-    # On the first call, read in the subjects and bodies
-    global _subjects
-    if not _subjects:
-        with open('responses/subjects.json') as subjects_file:
-            _subjects = json.load(subjects_file)
-        logger.debug_log('_get_response_content: subjects loaded')
-
-    global _bodies
-    if not _bodies:
-        with open('responses/bodies.json') as bodies_file:
-            _bodies = json.load(bodies_file)
-        logger.debug_log('_get_response_content: bodies loaded')
 
     sponsor_name = utils.coalesce(diagnostic_info,
                                   ['DiagnosticInfo', 'SystemInformation', 'PsiphonInfo', 'SPONSOR_ID'],
@@ -268,13 +276,40 @@ def _get_response_content(response_id, diagnostic_info):
     lang_id = _get_lang_id_from_diagnostic_info(diagnostic_info)
     # lang_id may be None, if the language could not be determined
 
-    # Get the subject, default to English.
-    if lang_id and lang_id in _subjects:
-        subject = _subjects[lang_id]['default_response_subject']
-    else:
-        subject = _subjects['en']['default_response_subject']
+    # Read in all translations HTML
+    response_translations = []
+    for root, _, files in os.walk(_RESPONSES_DIR):
+        for name in files:
+            lang, ext = os.path.splitext(name)
+            if ext != '.html':
+                continue
 
-    assert(response_id in _bodies['en'])
+            if lang == 'master':
+                lang = 'en'
+
+            with open(os.path.join(root, name)) as translation_file:
+                translation = translation_file.read()
+
+            # Strip leading and trailing whitespace so that we don't get extra
+            # text elements in our BeautifulSoup
+            translation = translation.strip()
+
+            response_translations.append((lang, translation.strip()))
+
+    # Reorder the array according to the detected language and _TOP_LANGS
+    def lang_sorter(item):
+        lang, _ = item
+        rank = 999
+        try:
+            if lang == lang_id:
+                rank = -1
+            else:
+                rank = _TOP_LANGS.index(lang)
+        except ValueError:
+            pass
+        return rank
+
+    response_translations.sort(key=lang_sorter)
 
     # Gather the info we'll need for formatting the email
     bucketname, email_address = psi_ops_helpers.get_bucket_name_and_email_address(sponsor_name, prop_channel_name)
@@ -293,21 +328,44 @@ def _get_response_content(response_id, diagnostic_info):
         logger.debug_log('_get_response_content: exiting due to no bucketname or address')
         return None
 
-    # The user might be using a language for which there isn't a download page.
-    # Fall back to English if that's the case.
-    download_bucket_url = psi_ops_helpers.get_s3_bucket_download_page_url(
-        bucketname,
-        lang_id if lang_id in psi_ops_helpers.WEBSITE_LANGS else 'en')
+    # Collect the translations of the specific response we're sending
+
+    subject = None
+    bodies = []
+    for lang_id, html in response_translations:
+        soup = BeautifulSoup(html)
+        if not subject:
+            subject = soup.find(id='default_response_subject')
+            if subject:
+                # Strip outer element
+                subject = ''.join(str(elem) for elem in subject.contents).strip()
+        body = soup.find(id=response_id)
+        if body:
+            # Strip outer element
+            body = ''.join(str(elem) for elem in body.contents).strip()
+
+            # The user might be using a language for which there isn't a
+            # download page. Fall back to English if that's the case.
+            home_page_url = psi_ops_helpers.get_s3_bucket_home_page_url(
+                bucketname,
+                lang_id if lang_id in psi_ops_helpers.WEBSITE_LANGS else 'en')
+            download_page_url = psi_ops_helpers.get_s3_bucket_download_page_url(
+                bucketname,
+                lang_id if lang_id in psi_ops_helpers.WEBSITE_LANGS else 'en')
+
+            format_dict = {
+                '0': email_address,
+                '1': download_page_url,
+                '2': home_page_url
+            }
+            body = str(body) % format_dict
+            bodies.append(body)
 
     # Render the email body from the Mako template
     body_html = _render_email({
         'lang_id': lang_id,
         'response_id': response_id,
-        'responses': _bodies,
-        'format_dict': {
-            '0': email_address,
-            '1': download_bucket_url,
-        }
+        'responses': bodies
     })
 
     # Get attachments.
@@ -337,7 +395,7 @@ def _get_response_content(response_id, diagnostic_info):
     }
 
 
-def _analyze_diagnostic_info(diagnostic_info):
+def _analyze_diagnostic_info(diagnostic_info, email_info):
     '''
     Determines what response should be sent based on `diagnostic_info` content.
     Returns a list of response IDs.
@@ -346,19 +404,25 @@ def _analyze_diagnostic_info(diagnostic_info):
 
     logger.debug_log('_analyze_diagnostic_info: enter')
 
-    # We don't send a response to Google Play Store clients
-    if utils.coalesce(diagnostic_info,
-                      ['DiagnosticInfo', 'SystemInformation', 'isPlayStoreBuild']):
-        logger.debug_log('_analyze_diagnostic_info: isPlayStoreBuild true, exiting')
-        return None
+    to_address = email_info.get('to', '') if email_info else ''
+    to_address = _normalize_email_address(to_address)
 
-    responses = ['download_new_version_links',
-                 # Disabling attachment responses for now. Not sure if
-                 # it's a good idea. Note that it needs to be tested.
-                 # 'download_new_version_attachments',
-                 ]
+    responses = None
 
-    logger.debug_log('_analyze_diagnostic_info: exit')
+    # TODO: more flexible rules, not so hard-coded
+    if to_address == 'info@psiphon.ca':
+        responses = ['generic_info']
+    elif utils.coalesce(diagnostic_info,
+                        ['DiagnosticInfo', 'SystemInformation', 'isPlayStoreBuild']):
+        responses = ['generic_info']
+    elif to_address == config['emailUsername']:
+        responses = ['download_new_version_links',
+                     # Disabling attachment responses for now. Not sure if
+                     # it's a good idea. Note that it needs to be tested.
+                     # 'download_new_version_attachments',
+                    ]
+
+    logger.debug_log('_analyze_diagnostic_info: exit: %s' % responses)
 
     return responses
 
@@ -390,7 +454,7 @@ def go():
             logger.debug_log('go: blacklisted')
             continue
 
-        responses = _analyze_diagnostic_info(diagnostic_info)
+        responses = _analyze_diagnostic_info(diagnostic_info, email_info)
 
         if not responses:
             logger.debug_log('go: no response')

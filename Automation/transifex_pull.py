@@ -110,6 +110,22 @@ def process_feedback_template_strings():
 
 
 def process_feedback_auto_responses():
+    def strip_outer_div(html, _):
+        # For some reason Transifex wraps everything in a <div>, so we need to
+        # drill into the elements to get our stuff.
+        print html
+        soup = BeautifulSoup(html)
+        divs = soup.findAll('div', 'response-subject')
+        divs += soup.findAll('div', 'response-body')
+        return '\n\n'.join([str(div) for div in divs])
+
+    process_resource('feedback-auto-responses',
+                     lambda lang: '../EmailResponder/FeedbackDecryptor/responses/%s.html' % lang,
+                     strip_outer_div,
+                     bom=False,
+                     skip_untranslated=True)
+
+    '''
     # TODO: Rather than skipping whole translations if they aren't translated,
     # or, conversely, including untranslated response bodies because another
     # response body is translated, we should operate on a per-response basis.
@@ -156,6 +172,7 @@ def process_feedback_auto_responses():
 
     with open('../EmailResponder/FeedbackDecryptor/responses/bodies.json', 'w') as bodies_file:
         json.dump(bodies, bodies_file, indent=2)
+    '''
 
 
 def process_website_strings():
@@ -169,7 +186,8 @@ def process_website_strings():
 WEBSITE_LANGS = DEFAULT_LANGS.values()
 
 
-def process_resource(resource, output_path_fn, output_mutator_fn, bom, langs=None):
+def process_resource(resource, output_path_fn, output_mutator_fn, bom,
+                     langs=None, skip_untranslated=False):
     '''
     `output_path_fn` must be callable. It will be passed the language code and
     must return the path+filename to write to.
@@ -180,6 +198,11 @@ def process_resource(resource, output_path_fn, output_mutator_fn, bom, langs=Non
         langs = DEFAULT_LANGS
 
     for in_lang, out_lang in langs.items():
+        if skip_untranslated:
+            stats = request('resource/%s/stats/%s' % (resource, in_lang))
+            if stats['completed'] == '0%':
+                continue
+
         r = request('resource/%s/translation/%s' % (resource, in_lang))
 
         if output_mutator_fn:
