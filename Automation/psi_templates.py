@@ -39,28 +39,46 @@ LANGUAGES = [
     'ug@Latn',
     'es',
     'vi',
-    #'fr',
+    'fr',
     'nb'
 ]
 
 
 def get_language_string(language, key):
+    """Returns None if key not found for language.
+    """
     path = os.path.join('.', 'TemplateStrings', language + '.yaml')
-    with open(path) as f:
-        str = yaml.load(f.read())[language][key]
-    # Assumes strings have one {0} format specifier to receive the language name
-    # Other format specifiers, to be substituted later, should be escaped: {{N}}
-    return str.format(language)
+    with open(path) as lang_file:
+        lang_dict = yaml.load(lang_file.read())
+
+    string = lang_dict.get(language, {}).get(key)
+
+    if string:
+        # Assumes strings have one {0} format specifier to receive the
+        # language name Other format specifiers, to be substituted later,
+        # should be escaped: {{N}}
+        string = string.format(language)
+
+    return string
+
 
 def get_all_languages_string(key, languages):
+    strings = []
     if languages:
-        return ''.join([get_language_string(language, key) for language in languages if language in LANGUAGES])
+        strings = [get_language_string(language, key) for language in languages if language in LANGUAGES]
     else:
-        return ''.join([get_language_string(language, key) for language in LANGUAGES])
+        strings = [get_language_string(language, key) for language in LANGUAGES]
+
+    # Get rid of None elements and strip
+    strings = [string.strip() for string in filter(None, strings)]
+
+    return '\n\n'.join(strings)
+
 
 def get_tweet_message(s3_bucket_name):
     url = psi_ops_s3.get_s3_bucket_home_page_url(s3_bucket_name)
     return 'Get Psiphon 3 here: %s' % (url,)
+
 
 def get_plaintext_email_content(
         s3_bucket_name,
@@ -70,6 +88,7 @@ def get_plaintext_email_content(
         'plaintext_email_no_attachment',
         languages).format(bucket_root_url)
 
+
 def get_html_email_content(
         s3_bucket_name,
         languages):
@@ -77,6 +96,7 @@ def get_html_email_content(
     return get_all_languages_string(
         'html_email_no_attachment',
         languages).format(bucket_root_url)
+
 
 def get_plaintext_attachment_email_content(
         s3_bucket_name,
@@ -90,6 +110,7 @@ def get_plaintext_attachment_email_content(
             bucket_root_url,
             windows_attachment_filename,
             android_attachment_filename)
+
 
 def get_html_attachment_email_content(
         s3_bucket_name,
