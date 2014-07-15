@@ -88,6 +88,14 @@ class LogHandlers(object):
             # of the flow of syslog entries.
             #
 
+            # These tuples are of the form:
+            # ( process matcher,
+            #   message matcher -- may include capture groups,
+            #   handler for the whole log dict
+            # )
+            # Many of the log handlers are curried calls to _process_error,
+            # which is a generic-but-flexible error recorder.
+
             # Jun 27 19:24:04 myhostname postfix/smtpd[30850]: connect from mail-qa0-f44.google.com[209.85.216.44]
             # Jun 27 19:24:04 myhostname postfix/smtpd[30856]: connect from localhost[127.0.0.1]
             (re.compile('^postfix/smtpd$'),
@@ -266,6 +274,11 @@ class LogHandlers(object):
                    matcher='warning: hostname (?P<mail_host>[^ ]+) does not resolve to address (?P<mail_ip>[^:]+)',
                    error_msg='hostname does not resolve to address')),
 
+            # 2014-07-15T19:10:47.569085+00:00 myhostname postfix/smtpd[27435]: NOQUEUE: reject: RCPT from unknown[192.168.xxx.xxx]: 450 4.1.8 <garbage@moregarbage.com>: Sender address rejected: Domain not found; from=<garbage@moregarbage.com> to=<get@example.com> proto=ESMTP helo=<moregarbage.com>
+            (re.compile('^postfix/smtpd$'),
+             re.compile('^NOQUEUE: reject: .* Sender address rejected: Domain not found*$'),
+             self._no_op),  # Don't bother recording anything -- junk domain name
+
             # 2012-07-09T18:58:59.121424+00:00 myhostname postfix/smtp[1433]: connect to example.com[xxx.xxx.xxx.xxx]:25: Connection refused
             (re.compile('^postfix/smtp$'),
              re.compile('^connect to [^ ]+: Connection refused$'),
@@ -317,7 +330,7 @@ class LogHandlers(object):
             # This log occurs when the load balancer does a health check
             # 2013-10-22T18:15:09.330363+00:00 myhostname postfix/smtpd[28303]: lost connection after CONNECT from unknown[192.168.xx.xx]
             (re.compile('^postfix/smtpd'),
-             re.compile('^lost connection after CONNECT from unknown\[192\.168\..*$'),
+             re.compile('^lost connection after (CONNECT|RCPT) from unknown\[192\.168\..*$'),
              self._no_op),
 
             )
