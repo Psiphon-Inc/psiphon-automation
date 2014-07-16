@@ -137,16 +137,13 @@ def get_datacenter_region(location):
     # {u'slug': u'sfo1', u'id': 3, u'name': u'San Francisco 1'}, 
     # {u'slug': u'nyc2', u'id': 4, u'name': u'New York 2'},
     # {u'slug': u'ams2', u'id': 5, u'name': u'Amsterdam 2'},
-    # {u'slug': u'sgp1', u'id': 6, u'name': u'Singapore 1'},
-    # {u'slug': u'lon1', u'id': 7, u'name': u'London 1'}]
+    # {u'slug': u'sgp1', u'id': 6, u'name': u'Singapore 1'}]
     if location in [1, 3, 4]:
         return 'US'
     if location in [2, 5]:
         return 'NL'
     if location in [6]:
         return 'SG'
-    if location in [7]:
-        return 'GB'
     return ''
 
 def generate_random_string(prefix=None, size=8):
@@ -165,16 +162,6 @@ def refresh_credentials(digitalocean_account, ip_address, new_root_password, new
     ssh.exec_command('dpkg-reconfigure openssh-server')
     return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
 
-def create_swap(digitalocean_account, ip_address):
-    ssh = psi_ssh.make_ssh_session(ip_address, digitalocean_account.base_ssh_port, 'root', None, None, digitalocean_account.base_rsa_private_key)
-    ssh.exec_command("dd if=/dev/zero of=/swapfile bs=1024 count=1048576")
-    ssh.exec_command("mkswap /swapfile")
-    ssh.exec_command("chown root:root /swapfile")
-    ssh.exec_command("chmod 0600 /swapfile")
-    ssh.exec_command('''echo "
-/swapfile swap swap default 0 0
-" | tee -a /etc/fstab''')
-    ssh.exec_command("swapon -a")
 
 def launch_new_server(digitalocean_account, _):
     
@@ -188,8 +175,8 @@ def launch_new_server(digitalocean_account, _):
         image['image_id'] = digitalocean_account.base_id
         
         regions = do_api.get_all_regions()
-        image['region_id'] = random.choice([region['id'] for region in regions if region['id'] in [1,2,3,4,5,7]])
-    
+        image['region_id'] = random.choice([region['id'] for region in regions if region['id'] in [1,2,3,4,5]])
+
         for r in regions:
             if image['region_id'] == r['id']:
                 print 'Using region: %s' % (r['name'])
