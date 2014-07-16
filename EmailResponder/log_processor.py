@@ -276,7 +276,12 @@ class LogHandlers(object):
 
             # 2014-07-15T19:10:47.569085+00:00 myhostname postfix/smtpd[27435]: NOQUEUE: reject: RCPT from unknown[192.168.xxx.xxx]: 450 4.1.8 <garbage@moregarbage.com>: Sender address rejected: Domain not found; from=<garbage@moregarbage.com> to=<get@example.com> proto=ESMTP helo=<moregarbage.com>
             (re.compile('^postfix/smtpd$'),
-             re.compile('^NOQUEUE: reject: .* Sender address rejected: Domain not found*$'),
+             re.compile('^NOQUEUE: reject: .* Sender address rejected: Domain not found.*$'),
+             self._no_op),  # Don't bother recording anything -- junk domain name
+
+            # 2014-07-15T19:10:47.569085+00:00 myhostname postfix/smtpd[27435]: NOQUEUE: reject: RCPT from unknown[192.168.xxx.xxx]: 504 5.5.2 <NS3>: Helo command rejected: need fully-qualified hostname; from=<example@hotmail.com> to=<get@responder.com> proto=SMTP helo=<NS3>
+            (re.compile('^postfix/smtpd$'),
+             re.compile('^NOQUEUE: reject: .* Helo command rejected: need fully-qualified hostname.*$'),
              self._no_op),  # Don't bother recording anything -- junk domain name
 
             # 2012-07-09T18:58:59.121424+00:00 myhostname postfix/smtp[1433]: connect to example.com[xxx.xxx.xxx.xxx]:25: Connection refused
