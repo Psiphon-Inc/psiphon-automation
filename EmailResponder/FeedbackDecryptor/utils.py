@@ -201,7 +201,7 @@ def is_diagnostic_info_sane(obj):
                 'Metadata': {
                              'platform': lambda val: val in ['android', 'windows'],
                              'version': lambda val: val in range(1, 4),
-                             'id': lambda val: re.match(r'^[a-fA-F0-9]{16}', val) is not None
+                             'id': lambda val: re.match(r'^[a-fA-F0-9]{16}', str(val)) is not None
                              },
 
                 # These two fields are special in MongoDB and should not be
@@ -259,7 +259,7 @@ def _check_exemplar(check, exemplar):
         try:
             return exemplar(check)
         except:
-            # Log the value that failed, and raise, but still raise it
+            # Log the value that failed, but still raise it
             logger.error('Exemplar check failed for: %s' % str(check))
             raise
 

@@ -3,7 +3,7 @@ zh:
     在这里下载 Psiphon: {{0}}/{0}/download.html#direct
   html_email_no_attachment: |
     <div style="direction: ltr;">
-    点击这里下载 Psiphon: <a href="{{0}}/{0}/download.html">{{0}}/{0}/download.html#direct</a><br>
+    点击这里下载 Psiphon: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
     </div>
   plaintext_email_with_attachment: |
     在 Windows 上使用 Psiphon 3, 保存这个后缀名为".exe"的附件 {{1}} 。
@@ -15,6 +15,6 @@ zh:
     在 Windows 上使用 Psiphon 3, 保存这个后缀名为".exe"的附件 {{1}} 。<br>
     在 Android 上使用 Psiphon 3, 安装这个附件 {{2}}。<br>
     获取更多信息或者再次下载文件，点击以下链接。<br>
-    <a href="{{0}}/{0}/download.html">{{0}}/{0}/download.html#direct</a><br>
+    <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
     </div>
     <br>
