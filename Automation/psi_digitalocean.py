@@ -137,13 +137,16 @@ def get_datacenter_region(location):
     # {u'slug': u'sfo1', u'id': 3, u'name': u'San Francisco 1'}, 
     # {u'slug': u'nyc2', u'id': 4, u'name': u'New York 2'},
     # {u'slug': u'ams2', u'id': 5, u'name': u'Amsterdam 2'},
-    # {u'slug': u'sgp1', u'id': 6, u'name': u'Singapore 1'}]
+    # {u'slug': u'sgp1', u'id': 6, u'name': u'Singapore 1'},
+    # {u'slug': u'lon1', u'id': 7, u'name': u'London 1'}]
     if location in [1, 3, 4]:
         return 'US'
     if location in [2, 5]:
         return 'NL'
     if location in [6]:
         return 'SG'
+    if location in [7]:
+        return 'GB'
     return ''
 
 def generate_random_string(prefix=None, size=8):
@@ -175,7 +178,7 @@ def launch_new_server(digitalocean_account, _):
         image['image_id'] = digitalocean_account.base_id
         
         regions = do_api.get_all_regions()
-        image['region_id'] = random.choice([region['id'] for region in regions if region['id'] in [1,2,3,4,5]])
+        image['region_id'] = random.choice([region['id'] for region in regions if region['id'] in [1,2,3,4,5,7]])
 
         for r in regions:
             if image['region_id'] == r['id']:
