@@ -1773,7 +1773,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         sponsor = self.get_sponsor_by_name(sponsor_name)
         encoded_server_list, expected_egress_ip_addresses = \
-                    self.__get_encoded_server_list(propagation_channel.id)
+                    self.__get_encoded_server_list(propagation_channel.id, test=test)
 
         remote_server_list_signature_public_key = \
             psi_ops_crypto_tools.get_base64_der_public_key(
@@ -2393,7 +2393,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     json.dumps(extended_config)))
 
     def __get_encoded_server_list(self, propagation_channel_id,
-                                  client_ip_address_strategy_value=None, event_logger=None, discovery_date=None):
+                                  client_ip_address_strategy_value=None, event_logger=None, discovery_date=None, test=False):
         if not client_ip_address_strategy_value:
             # embedded (propagation) server list
             # output all servers for propagation channel ID with no discovery date
@@ -2406,7 +2406,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             servers = [server for server in self.__servers.itervalues()
                        if (server.propagation_channel_id == propagation_channel_id
                            and server.is_embedded)
-                       or server.id in permanent_server_ids[0:50]]
+                       or (not test and (server.id in permanent_server_ids[0:50]))]
         else:
             # discovery case
             if not discovery_date:
@@ -2764,6 +2764,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return jsonpickle.encode(copy)
 
     def run_command_on_host(self, host, command):
+        if type(host) == str:
+            host = self.__hosts[host]
         ssh = psi_ssh.SSH(
                 host.ip_address, host.ssh_port,
                 host.ssh_username, host.ssh_password,
