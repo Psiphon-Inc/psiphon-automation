@@ -1312,7 +1312,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server.capabilities['FRONTED-MEEK'] = True
         host.meek_server_fronting_domain = meek_server_fronting_domain
         host.meek_server_fronting_host = meek_server_fronting_host
-        self.setup_meek_for_host(host, 443)
+        self.setup_meek_parameters_for_host(host, 443)
+        self.install_meek_for_host(host)
         
     def setup_unfronted_meek_for_server(self, server_id):
         server = self.__servers[server_id]
@@ -1325,9 +1326,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server.capabilities['OSSH'] = False
         server.capabilities['FRONTED-MEEK'] = False
         server.capabilities['UNFRONTED-MEEK'] = True
-        self.setup_meek_for_host(host, 80)
+        self.setup_meek_parameters_for_host(host, 80)
+        self.install_meek_for_host(host)
         
-    def setup_meek_for_host(self, host, meek_server_port):
+    def setup_meek_parameters_for_host(self, host, meek_server_port):
         assert(host.meek_server_port == None)
         host.meek_server_port = meek_server_port
         if not host.meek_server_obfuscated_key:
@@ -1336,6 +1338,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             keypair = json.loads(subprocess.Popen([os.path.join('.', 'keygenerator.exe')], stdout=subprocess.PIPE).communicate()[0])
             host.meek_cookie_encryption_public_key = keypair['publicKey']
             host.meek_cookie_encryption_private_key = keypair['privateKey']
+    
+    def install_meek_for_host(self, host):
         servers = [s for s in self.__servers.itervalues() if s.host_id == host.id]
         psi_ops_install.install_firewall_rules(host, servers, plugins, False) # No need to update the malware blacklist
         psi_ops_install.install_psi_limit_load(host, servers)
@@ -1466,8 +1470,20 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             capabilities = ServerCapabilities()
             if server_capabilities:
                 capabilities = copy_server_capabilities(server_capabilities)
+            elif discovery:
+                # Discovery servers will either be OSSH-only or UNFRONTED-MEEK-only
+                capabilities['handshake'] = False
+                capabilities['VPN'] = False
+                capabilities['SSH'] = False
+                if random.random() < 0.5:
+                    ossh_port = random.choice([53, 443])
+                else:
+                    capabilities['OSSH'] = False
+                    capabilities['FRONTED-MEEK'] = False
+                    capabilities['UNFRONTED-MEEK'] = True
+                    self.setup_meek_parameters_for_host(host, 80)
             elif new_server_number % 2 == 1:
-                # We would like every other new server created to be somewhat obfuscated
+                # We would like every other new propagation server created to be somewhat obfuscated
                 capabilities['handshake'] = False
                 capabilities['VPN'] = False
                 capabilities['SSH'] = False
@@ -1483,9 +1499,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 ossh_ports.remove(515)
                 ossh_ports.remove(593)
                 ossh_port = random.choice(ossh_ports)
-                # 50% chance of using either 53 or 443 instead of what was chosen above
-                if random.random() < 0.5:
-                    ossh_port = random.choice([53, 443])
 
             server = Server(
                         None,
