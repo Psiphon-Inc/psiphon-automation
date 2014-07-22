@@ -75,6 +75,7 @@ def _postprocess_yaml(data):
     This function is a hack to let us use datetimes in JSON-formatted feedback
     objects. Otherwise the datetimes will remain strings after loading the YAML.
     Modifies the YAML object directly.
+    It's also used for any other YAML massaging.
     '''
 
     TIMESTAMP_SUFFIX = '!!timestamp'
@@ -91,6 +92,13 @@ def _postprocess_yaml(data):
         new_val = datetime.datetime.strptime(val, '%Y-%m-%dT%H:%M:%S.%fZ')
         utils.rename_key_in_obj_at_path(data, path, new_path[-1])
         utils.assign_value_to_obj_at_path(data, new_path, new_val)
+
+    #
+    # Fix integer-looking IDs
+    #
+    # If a hex ID happens to have all numbers, YAML will decode it as an
+    # integer rather than a string. This could mess up processing later on.
+    data['Metadata']['id'] = str(data['Metadata']['id'])
 
 
 def transform(data):

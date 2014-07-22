@@ -29,6 +29,7 @@ from sqlalchemy import create_engine
 from sqlalchemy import Column, String, Integer
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.exc import IntegrityError
 
 
 _Base = declarative_base()
@@ -130,7 +131,18 @@ class Blacklist(object):
 
         # We added/incremented the request count for this user, but they haven't
         # exceeded the limit.
-        dbsession.commit()
+
+        try:
+            dbsession.commit()
+        except IntegrityError:
+            # This can occur in a race condition scenario: two emails arrive
+            # from the same email address at the same time; two
+            # mail_process.py instances are created to process them; both
+            # instances do  blacklist checks and don't find a pre-existing
+            # entry; both  instances try to insert a new blacklist entry; the
+            # last to commit get a duplicate primary key error.
+            return False
+
         return True
 
     def add_to_blacklist(self, email_or_domain):

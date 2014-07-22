@@ -92,7 +92,8 @@ def update_image(digitalocean_account, droplet_id, droplet_name):
             #wait a while for the image to be transferred across regions
             success_ids = [r['event_id'] for r in results if 'OK' in r['status']]
             for id in success_ids:
-                wait_on_event_completion(do_api, id, interval=120)
+                if not wait_on_event_completion(do_api, id, interval=120):
+                    raise Exception('Could not update image')
             
             images = do_api.get_all_images()
             image = [i for i in images if droplet_name in i['name']][0]
@@ -136,13 +137,16 @@ def get_datacenter_region(location):
     # {u'slug': u'sfo1', u'id': 3, u'name': u'San Francisco 1'}, 
     # {u'slug': u'nyc2', u'id': 4, u'name': u'New York 2'},
     # {u'slug': u'ams2', u'id': 5, u'name': u'Amsterdam 2'},
-    # {u'slug': u'sgp1', u'id': 6, u'name': u'Singapore 1'}]
+    # {u'slug': u'sgp1', u'id': 6, u'name': u'Singapore 1'},
+    # {u'slug': u'lon1', u'id': 7, u'name': u'London 1'}]
     if location in [1, 3, 4]:
         return 'US'
     if location in [2, 5]:
         return 'NL'
     if location in [6]:
         return 'SG'
+    if location in [7]:
+        return 'GB'
     return ''
 
 def generate_random_string(prefix=None, size=8):
@@ -174,7 +178,7 @@ def launch_new_server(digitalocean_account, _):
         image['image_id'] = digitalocean_account.base_id
         
         regions = do_api.get_all_regions()
-        image['region_id'] = random.choice([region['id'] for region in regions if region['id'] in [1,2,3,4,5]])
+        image['region_id'] = random.choice([region['id'] for region in regions if region['id'] in [1,2,3,4,5,7]])
 
         for r in regions:
             if image['region_id'] == r['id']:
@@ -194,18 +198,22 @@ def launch_new_server(digitalocean_account, _):
 
         print 'Launching %s, using image %s' % (image['name'], str(image['image_id']))
         resp = do_api.create_new_droplet(image)
+        droplet = resp['droplet']
         if resp['status'] != 'OK':
             raise Exception(resp['message'] + ': ' + resp['error_message'])
-        wait_on_event_completion(do_api, resp['droplet']['event_id'], interval=30)
+        
+        if not wait_on_event_completion(do_api, resp['droplet']['event_id'], interval=30):
+            raise Exception('Event did not complete in time')
+        
         print 'Waiting for the droplet to power on and get an IP address'
         time.sleep(30)
 
         # get more details about droplet
         resp = do_api.droplet_show(resp['droplet']['id'])
+        droplet = resp['droplet']
         if resp['status'] != 'OK':
             raise Exception(resp['message'] + ': ' + resp['error_message'])
 
-        droplet = resp['droplet']
         if droplet['status'] != 'active':
             start_droplet(do_api, droplet['id'])
 
@@ -219,7 +227,10 @@ def launch_new_server(digitalocean_account, _):
     except Exception as e:
         print type(e), str(e)
         if droplet != None:
-            remove_droplet(do_api, droplet['id'])
+            if 'id' in droplet:
+                remove_droplet(do_api, droplet['id'])
+            else:
+                print type(e), "No droplet to be deleted: ", str(droplet)
         raise
 
     

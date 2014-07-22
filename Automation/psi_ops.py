@@ -158,7 +158,7 @@ EmailPropagationAccount = psi_utils.recordtype(
 # makes no sense to have the latter without the former).
 Sponsor = psi_utils.recordtype(
     'Sponsor',
-    'id, name, banner, website_banner, website_banner_link, home_pages, ' +
+    'id, name, banner, website_banner, website_banner_link, home_pages, mobile_home_pages, ' +
     'campaigns, page_view_regexes, https_request_regexes')
 
 SponsorHomePage = psi_utils.recordtype(
@@ -333,7 +333,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.26'
+    class_version = '0.27'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -491,6 +491,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     server.capabilities['FRONTED-MEEK'] = False
                     server.capabilities['UNFRONTED-MEEK'] = False
             self.version = '0.26'
+        if cmp(parse_version(self.version), parse_version('0.27')) < 0:
+            for sponsor in self.__sponsors.itervalues():
+                sponsor.mobile_home_pages = {}
+            self.version = '0.27'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -575,6 +579,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             ID:                      %(id)s
             Name:                    %(name)s
             Home Pages:              %(home_pages)s
+            Mobile Home Pages:       %(mobile_home_pages)s
             Page View Regexes:       %(page_view_regexes)s
             HTTPS Request Regexes:   %(https_request_regexes)s
             Campaigns:               %(campaigns)s
@@ -584,6 +589,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     'home_pages': '\n                         '.join(['%s: %s' % (region.ljust(5) if region else 'All',
                                                          '\n                                '.join([h.url for h in home_pages]))
                                                          for region, home_pages in sorted(s.home_pages.items())]),
+                    'mobile_home_pages': '\n                         '.join(['%s: %s' % (region.ljust(5) if region else 'All',
+                                                         '\n                                '.join([h.url for h in mobile_home_pages]))
+                                                         for region, mobile_home_pages in sorted(s.mobile_home_pages.items())]),
                     'page_view_regexes': '\n                         '.join(['%s -> %s' % (page_view_regex.regex, page_view_regex.replace)
                                                                              for page_view_regex in s.page_view_regexes]),
                     'https_request_regexes': '\n                         '.join(['%s -> %s' % (https_request_regex.regex, https_request_regex.replace)
@@ -701,6 +709,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             Is Embedded:             %s
             Is Permanent:            %s
             Discovery Date Range:    %s
+            Capabilities:            %s
             ''') % (
                 s.id,
                 s.host_id,
@@ -713,7 +722,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 s.is_embedded,
                 s.is_permanent,
                 ('%s - %s' % (s.discovery_date_range[0].isoformat(),
-                            s.discovery_date_range[1].isoformat())) if s.discovery_date_range else 'None')
+                            s.discovery_date_range[1].isoformat())) if s.discovery_date_range else 'None',
+                ', '.join([capability for capability, enabled in s.capabilities.iteritems() if enabled]))
         self.__show_logs(s)
 
     def show_host(self, host_id, show_logs=False):
@@ -820,7 +830,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def import_sponsor(self, id, name):
         assert(self.is_locked)
-        sponsor = Sponsor(id, name, None, None, None, {}, [], [], [])
+        sponsor = Sponsor(id, name, None, None, None, {}, {}, [], [], [])
         assert(id not in self.__sponsors)
         assert(not filter(lambda x: x.name == name, self.__sponsors.itervalues()))
         self.__sponsors[id] = sponsor
@@ -983,6 +993,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if home_page not in sponsor.home_pages[region]:
             sponsor.home_pages[region].append(home_page)
             sponsor.log('set home page %s for %s' % (url, region if region else 'All'))
+            self.__deploy_data_required_for_all = True
+            sponsor.log('marked all hosts for data deployment')
+
+    def set_sponsor_mobile_home_page(self, sponsor_name, region, url):
+        assert(self.is_locked)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
+        mobile_home_page = SponsorHomePage(region, url)
+        if region not in sponsor.mobile_home_pages:
+            sponsor.mobile_home_pages[region] = []
+        if mobile_home_page not in sponsor.mobile_home_pages[region]:
+            sponsor.mobile_home_pages[region].append(mobile_home_page)
+            sponsor.log('set mobile home page %s for %s' % (url, region if region else 'All'))
             self.__deploy_data_required_for_all = True
             sponsor.log('marked all hosts for data deployment')
 
@@ -1160,7 +1182,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if users_on_host == 0:
                 self.remove_host(server.host_id)
                 number_removed += 1
-            elif users_on_host < 15:
+            elif users_on_host < 20:
                 self.__disable_server(server)
                 number_disabled += 1
         return number_removed, number_disabled
@@ -1290,7 +1312,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server.capabilities['FRONTED-MEEK'] = True
         host.meek_server_fronting_domain = meek_server_fronting_domain
         host.meek_server_fronting_host = meek_server_fronting_host
-        self.setup_meek_for_host(host, 443)
+        self.setup_meek_parameters_for_host(host, 443)
+        self.install_meek_for_host(host)
         
     def setup_unfronted_meek_for_server(self, server_id):
         server = self.__servers[server_id]
@@ -1303,9 +1326,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server.capabilities['OSSH'] = False
         server.capabilities['FRONTED-MEEK'] = False
         server.capabilities['UNFRONTED-MEEK'] = True
-        self.setup_meek_for_host(host, 80)
+        self.setup_meek_parameters_for_host(host, 80)
+        self.install_meek_for_host(host)
         
-    def setup_meek_for_host(self, host, meek_server_port):
+    def setup_meek_parameters_for_host(self, host, meek_server_port):
         assert(host.meek_server_port == None)
         host.meek_server_port = meek_server_port
         if not host.meek_server_obfuscated_key:
@@ -1314,6 +1338,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             keypair = json.loads(subprocess.Popen([os.path.join('.', 'keygenerator.exe')], stdout=subprocess.PIPE).communicate()[0])
             host.meek_cookie_encryption_public_key = keypair['publicKey']
             host.meek_cookie_encryption_private_key = keypair['privateKey']
+    
+    def install_meek_for_host(self, host):
         servers = [s for s in self.__servers.itervalues() if s.host_id == host.id]
         psi_ops_install.install_firewall_rules(host, servers, plugins, False) # No need to update the malware blacklist
         psi_ops_install.install_psi_limit_load(host, servers)
@@ -1396,6 +1422,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # connect to a server.
         is_embedded_server = (discovery_date_range is None)
 
+        # The following changes will be saved if at least one server is successfully added
+
         if replace_others:
             # If we are creating new propagation servers, stop embedding the old ones
             # (they are still active, but not embedded in builds or discovered)
@@ -1410,6 +1438,21 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # If we are creating new discovery servers, stop discovering existing ones
             else:
                 self.__replace_propagation_channel_discovery_servers(propagation_channel.id)
+
+        self.__deploy_data_required_for_all = True
+        self.__deploy_stats_config_required = True
+
+        # Unless the node is reserved for discovery, release it through
+        # the campaigns associated with the propagation channel
+        # TODO: recover from partially complete state...
+        if is_embedded_server:
+            for sponsor in self.__sponsors.itervalues():
+                for campaign in sponsor.campaigns:
+                    if campaign.propagation_channel_id == propagation_channel.id:
+                        for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
+                            self.__deploy_builds_required_for_campaigns[platform].add(
+                                    (campaign.propagation_channel_id, sponsor.id))
+                        campaign.log('marked for build and publish (new embedded server)')
 
         for new_server_number in range(len(server_infos)):
             server_info = server_infos[new_server_number]
@@ -1427,8 +1470,20 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             capabilities = ServerCapabilities()
             if server_capabilities:
                 capabilities = copy_server_capabilities(server_capabilities)
+            elif discovery:
+                # Discovery servers will either be OSSH-only or UNFRONTED-MEEK-only
+                capabilities['handshake'] = False
+                capabilities['VPN'] = False
+                capabilities['SSH'] = False
+                if random.random() < 0.5:
+                    ossh_port = random.choice([53, 443])
+                else:
+                    capabilities['OSSH'] = False
+                    capabilities['FRONTED-MEEK'] = False
+                    capabilities['UNFRONTED-MEEK'] = True
+                    self.setup_meek_parameters_for_host(host, 80)
             elif new_server_number % 2 == 1:
-                # We would like every other new server created to be somewhat obfuscated
+                # We would like every other new propagation server created to be somewhat obfuscated
                 capabilities['handshake'] = False
                 capabilities['VPN'] = False
                 capabilities['SSH'] = False
@@ -1444,9 +1499,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 ossh_ports.remove(515)
                 ossh_ports.remove(593)
                 ossh_port = random.choice(ossh_ports)
-                # 50% chance of using either 53 or 443 instead of what was chosen above
-                if random.random() < 0.5:
-                    ossh_port = random.choice([53, 443])
 
             server = Server(
                         None,
@@ -1473,26 +1525,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             self.save()
 
-        self.__deploy_data_required_for_all = True
-        self.__deploy_stats_config_required = True
-
-        # Unless the node is reserved for discovery, release it through
-        # the campaigns associated with the propagation channel
-        # TODO: recover from partially complete state...
-        if is_embedded_server:
-            for sponsor in self.__sponsors.itervalues():
-                for campaign in sponsor.campaigns:
-                    if campaign.propagation_channel_id == propagation_channel.id:
-                        for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
-                            self.__deploy_builds_required_for_campaigns[platform].add(
-                                    (campaign.propagation_channel_id, sponsor.id))
-                        campaign.log('marked for build and publish (new embedded server)')
-
-        # Ensure new server configuration is saved to CMS before deploying new
+        # The save() above ensures new server configuration is saved to CMS before deploying new
         # server info to the network
-
-        # TODO: add need-save flag
-        self.save()
 
         # This deploy will broadcast server info, propagate builds, and update
         # the stats and email server
@@ -1752,7 +1786,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         sponsor = self.get_sponsor_by_name(sponsor_name)
         encoded_server_list, expected_egress_ip_addresses = \
-                    self.__get_encoded_server_list(propagation_channel.id)
+                    self.__get_encoded_server_list(propagation_channel.id, test=test)
 
         remote_server_list_signature_public_key = \
             psi_ops_crypto_tools.get_base64_der_public_key(
@@ -2372,7 +2406,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     json.dumps(extended_config)))
 
     def __get_encoded_server_list(self, propagation_channel_id,
-                                  client_ip_address_strategy_value=None, event_logger=None, discovery_date=None):
+                                  client_ip_address_strategy_value=None, event_logger=None, discovery_date=None, test=False):
         if not client_ip_address_strategy_value:
             # embedded (propagation) server list
             # output all servers for propagation channel ID with no discovery date
@@ -2385,7 +2419,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             servers = [server for server in self.__servers.itervalues()
                        if (server.propagation_channel_id == propagation_channel_id
                            and server.is_embedded)
-                       or server.id in permanent_server_ids[0:50]]
+                       or (not test and (server.id in permanent_server_ids[0:50]))]
         else:
             # discovery case
             if not discovery_date:
@@ -2410,18 +2444,22 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return ([self.__get_encoded_server_entry(server) for server in servers],
                 [server.egress_ip_address for server in servers])
 
-    def __get_sponsor_home_pages(self, sponsor_id, region):
+    def __get_sponsor_home_pages(self, sponsor_id, region, client_platform):
         # Web server support function: fails gracefully
         if sponsor_id not in self.__sponsors:
             return []
         sponsor = self.__sponsors[sponsor_id]
-        # case: lookup succeeded and corresponding region home page found
         sponsor_home_pages = []
-        if region in sponsor.home_pages:
-            sponsor_home_pages = [home_page.url for home_page in sponsor.home_pages[region]]
+        home_pages = sponsor.home_pages
+        if client_platform == CLIENT_PLATFORM_ANDROID:
+            if sponsor.mobile_home_pages:
+                home_pages = sponsor.mobile_home_pages
+        # case: lookup succeeded and corresponding region home page found
+        if region in home_pages:
+            sponsor_home_pages = [home_page.url for home_page in home_pages[region]]
         # case: lookup failed or no corresponding region home page found --> use default
-        if not sponsor_home_pages and 'None' in sponsor.home_pages:
-            sponsor_home_pages = [home_page.url for home_page in sponsor.home_pages['None']]
+        if not sponsor_home_pages and 'None' in home_pages:
+            sponsor_home_pages = [home_page.url for home_page in home_pages['None']]
         return sponsor_home_pages
 
     def _get_sponsor_page_view_regexes(self, sponsor_id):
@@ -2458,13 +2496,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         config = {}
 
-        # Give client a set of landing pages to open when connection established
-        config['homepages'] = self.__get_sponsor_home_pages(sponsor_id, client_region)
-
         # Match a client platform to client_platform_string
         platform = CLIENT_PLATFORM_WINDOWS
         if CLIENT_PLATFORM_ANDROID.lower() in client_platform_string.lower():
             platform = CLIENT_PLATFORM_ANDROID
+
+        # Give client a set of landing pages to open when connection established
+        config['homepages'] = self.__get_sponsor_home_pages(sponsor_id, client_region, platform)
 
         # Tell client if an upgrade is available
         config['upgrade_client_version'] = self.__check_upgrade(platform, client_version)
@@ -2633,11 +2671,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 None,  # Omit website_banner
                                 None,  # Omit website_banner_link
                                 {},
+                                {},
                                 [],  # Omit campaigns
                                 sponsor.page_view_regexes,
                                 sponsor.https_request_regexes)
             for region, home_pages in sponsor.home_pages.iteritems():
                 copy_sponsor.home_pages[region] = home_pages
+            for region, mobile_home_pages in sponsor.mobile_home_pages.iteritems():
+                copy_sponsor.mobile_home_pages[region] = mobile_home_pages
             copy.__sponsors[copy_sponsor.id] = copy_sponsor
 
         for platform in self.__client_versions.iterkeys():
@@ -2728,6 +2769,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         None,   # omit website_banner
                                         None,   # omit website_banner_link
                                         {},     # omit home_pages
+                                        {},     # omit mobile_home_pages
                                         sponsor.campaigns,
                                         [],     # omit page_view_regexes
                                         [])     # omit https_request_regexes
@@ -2735,6 +2777,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return jsonpickle.encode(copy)
 
     def run_command_on_host(self, host, command):
+        if type(host) == str:
+            host = self.__hosts[host]
         ssh = psi_ssh.SSH(
                 host.ip_address, host.ssh_port,
                 host.ssh_username, host.ssh_password,
@@ -2788,7 +2832,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 test_cases,
                                 executable_path)
 
-    def __test_servers(self, servers, test_cases):
+    def __test_servers(self, servers, test_cases, build_with_embedded_servers=False):
         results = {}
         passes = 0
         failures = 0
@@ -2805,7 +2849,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         executable_path = None
         # We will need a build if no test_cases are specified (run all tests) or if at least one of the following are requested
-        if not test_cases or set(test_cases).intersection(set(['VPN', 'OSSH', 'SSH'])):
+        if ((not build_with_embedded_servers) and
+            (not test_cases or set(test_cases).intersection(set(['VPN', 'OSSH', 'SSH'])))):
             executable_path = psi_ops_build_windows.build_client(
                                     test_propagation_channel_id,
                                     '0',        # sponsor_id
@@ -2860,14 +2905,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         sys.stderr.write('SUCCESS\n' if failures == 0 else 'FAIL\n')
         assert(failures == 0)
 
-    def test_server(self, server_id, test_cases=None):
+    def test_server(self, server_id, test_cases=None, build_with_embedded_servers=False):
         if not server_id in self.__servers:
             print 'Server "%s" not found' % (server_id,)
         elif self.__servers[server_id].propagation_channel_id == None:
             print 'Server "%s" does not have a propagation channel id' % (server_id,)
         else:
             servers = [self.__servers[server_id]]
-            self.__test_servers(servers, test_cases)
+            self.__test_servers(servers, test_cases, build_with_embedded_servers)
 
     def test_host(self, host_id, test_cases=None):
         if not host_id in self.__hosts:

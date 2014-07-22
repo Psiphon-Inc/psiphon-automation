@@ -188,6 +188,9 @@ def test_server(ip_address, capabilities, web_server_port, web_server_secret, en
     local_test_cases = copy.copy(test_cases) if test_cases else ['handshake', 'VPN', 'OSSH', 'SSH']
 
     for test_case in copy.copy(local_test_cases):
+        if test_case == 'OSSH' and (capabilities['FRONTED-MEEK'] or capabilities['UNFRONTED-MEEK']):
+            print 'Testing OSSH through meek'
+            continue
         if (not capabilities[test_case]
             or (test_case == 'VPN' # VPN requires handshake, SSH or SSH+
                 and not (capabilities['handshake'] or capabilities['OSSH'] or capabilities['SSH']))):
