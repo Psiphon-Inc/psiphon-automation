@@ -228,7 +228,7 @@ def _make_request(apiServers, apiKey, action, params=None):
                 success = False
                 err = 'translate request not ok; failing over: %s; %d; %s' \
                         % (apiServer, req.status_code, extra_fail)
-                logger.error(err)
+                # logger.error(err)  # don't log -- not useful
                 ex = Exception(err)
             elif req.ok:
                 _lastGoodApiServer = apiServer
@@ -237,14 +237,14 @@ def _make_request(apiServers, apiKey, action, params=None):
                 success = False
                 err = 'translate request not ok; failing over: %s; %d; %s; %s' \
                         % (apiServer, req.status_code, req.reason, req.text)
-                logger.error(err)
+                # logger.error(err)  # don't log -- not useful
                 ex = Exception(err)
 
         # These exceptions are the ones we've seen when the API server is
         # being flaky.
         except (requests.ConnectionError, requests.Timeout) as ex:
             success = False
-            logger.error('%s.py: API error; failing over: %s' % (__name__, utils.safe_str(ex)))
+            # logger.error('%s.py: API error; failing over: %s' % (__name__, utils.safe_str(ex)))  # don't log -- not useful
         except Exception as ex:
             # Unexpected error. Not going to fail over.
             logger.error('%s.py: request error: %s' % (__name__, utils.safe_str(ex)))

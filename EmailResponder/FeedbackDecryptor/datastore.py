@@ -41,11 +41,37 @@ import pytz
 
 _connection = MongoClient()
 _db = _connection.maildecryptor
+
+
+#
+# The tables in our DB
+#
+
+# Holds diagnostic info sent by users. This typically includes info about
+# client version, OS, server response time, etc. Data in this table is
+# permanent. The idea is that we can mine it to find out relationships between
+# Psiphon performance and user environment.
 _diagnostic_info_store = _db.diagnostic_info
+
+# This table indicates that a particlar diagnostic_info record should be
+# formatted and emailed. It might also record additional information (like the
+# email ID and subject) about the email that should be sent. Once the
+# diagnostic_info has been sent, the associated record is removed from this
+# table.
 _email_diagnostic_info_store = _db.email_diagnostic_info
+
+# Single-record DB that stores the last time a stats email was sent.
 _stats_store = _db.stats
+
+# Stores info about autoresponses that should be sent.
 _autoresponder_store = _db.autoresponder
+
+# Time-limited store of email address to which responses have been sent. This
+# is used to help us avoid sending responses to the same person more than once
+# per day (or whatever).
 _response_blacklist_store = _db.response_blacklist
+
+# A store of the errors we've seen. Printed into the stats email.
 _errors_store = _db.errors
 
 
@@ -101,6 +127,9 @@ def get_email_diagnostic_info_iterator():
 
 
 def find_diagnostic_info(diagnostic_info_record_id):
+    if not diagnostic_info_record_id:
+        return None
+
     return _diagnostic_info_store.find_one({'_id': diagnostic_info_record_id})
 
 
@@ -112,42 +141,27 @@ def remove_email_diagnostic_info(email_diagnostic_info):
 # Functions related to the autoresponder
 #
 
-def get_autoresponder_diagnostic_info_iterator():
-    # We'll use a custom iterator around the DB iterator, so we can store
-    # the position for each iteration
-    class IteratorWrapper(object):
-        def __init__(self):
-            state_rec = _autoresponder_store.find_one()
+def insert_autoresponder_entry(email_info, diagnostic_info_record_id):
+    if not email_info and not diagnostic_info_record_id:
+        return
 
-            # This will only be true on the very first run
-            if not state_rec or not state_rec.get('last_diagnostic_info_datetime'):
-                # Use a recent time as the starting point if we don't have a saved position.
-                _autoresponder_store.update({},
-                                            {'$set': {'last_diagnostic_info_datetime': datetime.datetime.now() - datetime.timedelta(40)}},
-                                            upsert=True)
-                state_rec = _autoresponder_store.find_one()
+    obj = {'diagnostic_info_record_id': diagnostic_info_record_id,
+           'email_info': email_info,
+           'datetime': datetime.datetime.now()
+           }
+    return _autoresponder_store.insert(obj)
 
-            self.cursor = _diagnostic_info_store.find({'datetime': {'$gt': state_rec['last_diagnostic_info_datetime']}})
-            self.cursor.sort('datetime')
 
-        def __iter__(self):
-            return self
+def get_autoresponder_iterator():
+    while True:
+        next_rec = _autoresponder_store.find_and_modify(remove=True)
+        if not next_rec:
+            raise StopIteration()
+        yield next_rec
 
-        def next(self):
-            # This will raise StopIteration if there are no more records
-            next_rec = self.cursor.next()
 
-            # Update the last known timestamp, so that we can re-start from this
-            # position if execution is interrupted.
-            # Note that if multiple records have identical timestamps, then we
-            # will end up skipping some of them. Unfortunate but acceptable.
-            _autoresponder_store.update({},
-                                        {'$set': {'last_diagnostic_info_datetime': next_rec['datetime']}},
-                                        upsert=True)
-
-            return next_rec
-
-    return IteratorWrapper()
+def remove_autoresponder_entry(entry):
+    return _autoresponder_store.remove(entry)
 
 
 #

@@ -53,7 +53,7 @@ def make_feedback_html():
     feedback_template_path = os.path.join('.', 'FeedbackSite', 'Templates', 'feedback.html.tpl')
 
     format = {
-        "langJSON": json.JSONEncoder().encode(lang),
+        "langJSON": json.dumps(lang, indent=2),
         "speed": hashlib.md5(lang['en']['speed_title']).hexdigest(),
         "speed_en": lang['en']['speed_title'],
         "connectivity": hashlib.md5(lang['en']['connectivity_title']).hexdigest(),

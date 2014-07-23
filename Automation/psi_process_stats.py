@@ -431,10 +431,10 @@ def process_stats(host, servers, db_cur, psinet, minimal, error_file=None):
     # Only process logs lines after last timestamp processed. This gives a
     # significant performance boost.
 
-    db_cur.execute(
+    db_cur[None].execute(
         'select last_timestamp from processed_logs where host_id = %s',
         [host.id])
-    last_timestamp = db_cur.fetchone()
+    last_timestamp = db_cur[None].fetchone()
     if last_timestamp:
         last_timestamp = last_timestamp[0]
     next_last_timestamp = None
@@ -610,7 +610,14 @@ def process_stats(host, servers, db_cur, psinet, minimal, error_file=None):
                     command = event_sql[event_type]
 
                     try:
-                        db_cur.execute(command, field_values + field_values)
+                        table = event_type
+                        if table.find('.') != -1:
+                            table = table.split('.')[0]
+                        if table in db_cur:
+                            cursor = db_cur[table]
+                        else:
+                            cursor = db_cur[None]
+                        cursor.execute(command, field_values + field_values)
                     except psycopg2.DataError as data_error:
                         print host.id + ': ' + filename + ': ' + str(data_error)
 
@@ -624,11 +631,11 @@ def process_stats(host, servers, db_cur, psinet, minimal, error_file=None):
 
     if next_last_timestamp:
         if not last_timestamp:
-            db_cur.execute(
+            db_cur[None].execute(
                 'insert into processed_logs (host_id, last_timestamp) values (%s, %s)',
                 [host.id, next_last_timestamp])
         else:
-            db_cur.execute(
+            db_cur[None].execute(
                 'update processed_logs set last_timestamp = %s where host_id = %s',
                 [next_last_timestamp, host.id])
 
@@ -713,24 +720,46 @@ def process_stats_on_host(args):
     psinet = args[2]                                                                                 
     minimal = args[3]
                                                                                                      
-    db_conn = psycopg2.connect(                                                                      
-        'dbname=%s user=%s password=%s port=%d' % (                                                  
-            psi_ops_stats_credentials.POSTGRES_DBNAME,                                               
-            psi_ops_stats_credentials.POSTGRES_USER,                                                 
-            psi_ops_stats_credentials.POSTGRES_PASSWORD,                                             
-            psi_ops_stats_credentials.POSTGRES_PORT))                                                
-    try:                                                                                             
-        db_cur = db_conn.cursor()                                                                    
-        process_stats(host, servers, db_cur, psinet, minimal)                                                 
-        db_cur.close()                                                                               
-        db_conn.commit()                                                                             
+    db_conn = build_db_connections()
+    cursors = {}
+                                                
+    try:
+        for table, conn in db_conn.iteritems():
+            cursors[table] = conn.cursor()
+        process_stats(host, servers, cursors, psinet, minimal)                                                 
+        for cursor in cursors.itervalues():
+            cursor.close()
+        for connection in db_conn.itervalues():
+            connection.commit()                                                                          
     except Exception as e:                                                                           
         for line in traceback.format_exc().split('\n'):                                              
             print line                                                                               
     finally:                                                                                         
-        db_conn.close()                                                                              
+        for connection in db_conn.itervalues():
+            connection.close()                                                                            
 
     return (host.id, time.time()-start_time)
+
+
+def build_db_connections():
+    db_conn = {}
+    if hasattr(psi_ops_stats_credentials,'DB_MAP'):
+        for table,db_ipaddress in psi_ops_stats_credentials.DB_MAP.iteritems():
+            db_conn[table] = psycopg2.connect(
+                'dbname=%s user=%s password=%s port=%d host=%s' % (
+                    psi_ops_stats_credentials.POSTGRES_DBNAME,
+                    psi_ops_stats_credentials.POSTGRES_USER,
+                    psi_ops_stats_credentials.POSTGRES_PASSWORD,
+                    psi_ops_stats_credentials.POSTGRES_PORT,
+                    db_ipaddress))
+    else:
+        db_conn[None] = psycopg2.connect(
+            'dbname=%s user=%s password=%s port=%d' % (
+                psi_ops_stats_credentials.POSTGRES_DBNAME,
+                psi_ops_stats_credentials.POSTGRES_USER,
+                psi_ops_stats_credentials.POSTGRES_PASSWORD,
+                psi_ops_stats_credentials.POSTGRES_PORT))
+    return db_conn
 
 
 if __name__ == "__main__":
@@ -743,13 +772,9 @@ if __name__ == "__main__":
     start_time = time.time()
 
     psinet = psi_ops.PsiphonNetwork.load_from_file(PSI_OPS_DB_FILENAME)
-
-    db_conn = psycopg2.connect(
-        'dbname=%s user=%s password=%s port=%d' % (
-            psi_ops_stats_credentials.POSTGRES_DBNAME,
-            psi_ops_stats_credentials.POSTGRES_USER,
-            psi_ops_stats_credentials.POSTGRES_PASSWORD,
-            psi_ops_stats_credentials.POSTGRES_PORT))
+    
+    db_conn = build_db_connections()
+    print db_conn
 
     hosts = psinet.get_hosts()
     servers = psinet.get_servers()
@@ -757,9 +782,9 @@ if __name__ == "__main__":
     sponsors = psinet.get_sponsors()
 
     try:
-        update_propagation_channels(db_conn, propagation_channels)
-        update_sponsors(db_conn, sponsors)
-        update_servers(db_conn, psinet)
+        update_propagation_channels(db_conn[None], propagation_channels)
+        update_sponsors(db_conn[None], sponsors)
+        update_servers(db_conn[None], psinet)
 
         pool = multiprocessing.pool.ThreadPool(4)
         results = pool.map(process_stats_on_host, [(host, servers, psinet, args.minimal) for host in hosts])
@@ -769,13 +794,15 @@ if __name__ == "__main__":
                 in sorted(results, key=lambda item: item[1], reverse=True)]) + '}'
 
         if not args.minimal:
-            reconstruct_sessions(db_conn)
+            reconstruct_sessions(db_conn[None])
 
-        db_conn.commit()
+        for connection in db_conn.itervalues():
+            connection.commit()
     except Exception as e:
         for line in traceback.format_exc().split('\n'):
             print line
     finally:
-        db_conn.close()
+        for connection in db_conn.itervalues():
+            connection.close()
 
     print 'Total stats processing elapsed time: %fs' % (time.time()-start_time,)
