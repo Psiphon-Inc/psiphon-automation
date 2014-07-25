@@ -162,28 +162,6 @@ allowed to access the SSH port.
 
 4. Edit `/etc/postfix/main.cf`
 
-   * Change `myhostname` and `mydestination` to be:
-
-     ```
-     myhostname = localhost
-     mydestination = localhost.$mydomain localhost
-     ```
-
-   * Change `smtpd_use_tls` to `no`
-
-   * Reduce the maximum message size. Something like:
-
-     ```
-     message_size_limit = 8192000
-     ```
-
-   * Set up the virtual domain and address/alias support:
-
-     ```
-     virtual_alias_domains = /home/mail_responder/postfix_responder_domains
-     virtual_alias_maps = hash:/home/mail_responder/postfix_address_maps
-     ```
-
    * See the bottom of this README for a sample `main.cf` file.
 
 (Note: If too much error email is being sent to the postmaster, we can also
@@ -549,12 +527,26 @@ append_dot_mydomain = no
 
 readme_directory = no
 
+#
 # TLS parameters
+#
+smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
+smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
+
+# If you don't want to use TLS, use these lines:
 smtpd_tls_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
 smtpd_tls_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
 smtpd_use_tls=no
-smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
-smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
+
+# To use TLS, use these lines:
+#smtpd_tls_cert_file=/etc/postfix/mycert.crt
+#smtpd_tls_key_file=/etc/postfix/mykey.key
+#smtpd_tls_CAfile=/etc/postfix/myCA-bundle
+#smtpd_tls_received_header=yes
+#tls_random_source=dev:/dev/urandom
+#smtpd_tls_security_level=encrypt  # Or 'may' to not require encryption
+#smtp_tls_security_level=encrypt   # Or 'may' to not require encryption
+
 
 # See /usr/share/doc/postfix/TLS_README.gz in the postfix-doc package for
 # information on enabling SSL in the smtp client.

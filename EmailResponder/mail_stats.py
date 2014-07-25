@@ -370,7 +370,8 @@ if __name__ == '__main__':
 
     if not sendmail.send_raw_email_smtp(raw_email,
                                         settings.STATS_SENDER_ADDRESS,
-                                        settings.STATS_RECIPIENT_ADDRESS):
+                                        settings.STATS_RECIPIENT_ADDRESS,
+                                        settings.FORCE_SMTP_SSL):
         sys.exit(1)
 
     sys.exit(0)

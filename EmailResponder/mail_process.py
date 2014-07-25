@@ -166,7 +166,8 @@ class MailResponder(object):
 
                 if not sendmail.send_raw_email_smtp(raw_response,
                                                     settings.COMPLAINTS_ADDRESS,  # will be Return-Path
-                                                    self._requester_addr):
+                                                    self._requester_addr,
+                                                    settings.FORCE_SMTP_SSL):
                     full_success = False
                     continue
 
@@ -265,7 +266,8 @@ def send_test_email(recipient, from_address, subject, body,
     raw = _dkim_sign_email(raw)
 
     # Throws exception on error
-    if not sendmail.send_raw_email_smtp(raw, from_address, recipient):
+    if not sendmail.send_raw_email_smtp(raw, from_address, recipient,
+                                        settings.FORCE_SMTP_SSL):
         print('send_raw_email_smtp failed')
         return False
 
@@ -355,7 +357,8 @@ def forward_to_administrator(email_type, email_string):
         # Throws exception on error
         if not sendmail.send_raw_email_smtp(raw,
                                             settings.RESPONSE_FROM_ADDR,
-                                            settings.ADMIN_FORWARD_ADDRESSES):
+                                            settings.ADMIN_FORWARD_ADDRESSES,
+                                            settings.FORCE_SMTP_SSL):
             print('send_raw_email_smtp failed')
             return False
 
