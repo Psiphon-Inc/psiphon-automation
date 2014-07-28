@@ -67,10 +67,6 @@ COMPLAINTS_ADDRESS = 'complaints@example.com'
 # Set to empty array if no such emails should be sent.
 ADMIN_FORWARD_ADDRESSES = ['mick@example.com', 'keith@example.com']
 
-# This will cause SMTP send requests to use SSL. If your mail server doesn't
-# have SSL/TLS configured, this can cause failures.
-FORCE_SMTP_SSL = False
-
 
 #
 # Blacklist stuff
