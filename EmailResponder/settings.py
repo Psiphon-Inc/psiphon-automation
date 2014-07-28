@@ -67,6 +67,9 @@ COMPLAINTS_ADDRESS = 'complaints@example.com'
 # Set to empty array if no such emails should be sent.
 ADMIN_FORWARD_ADDRESSES = ['mick@example.com', 'keith@example.com']
 
+# This must match the local send service specified in /etc/postfix/master.cf
+LOCAL_SMTP_SEND_PORT = 2525
+
 
 #
 # Blacklist stuff

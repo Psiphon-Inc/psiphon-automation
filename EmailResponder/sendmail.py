@@ -25,6 +25,8 @@ from email import encoders
 import smtplib
 from boto.ses.connection import SESConnection
 
+import settings
+
 
 # Adapted from http://radix.twistedmatrix.com/2010/07/how-to-send-good-unicode-email-with.html
 def create_raw_email(recipients,
@@ -148,7 +150,7 @@ def send_raw_email_smtp(raw_email,
     '''
 
     if smtp_server is None:
-        smtp_server = smtplib.SMTP('localhost')
+        smtp_server = smtplib.SMTP('localhost', settings.LOCAL_SMTP_SEND_PORT)
 
     smtp_server.sendmail(from_address, recipients, raw_email)
     smtp_server.quit()
