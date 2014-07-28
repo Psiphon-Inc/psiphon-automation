@@ -138,25 +138,20 @@ def create_raw_email(recipients,
 def send_raw_email_smtp(raw_email,
                         from_address,
                         recipients,
-                        force_ssl,
                         smtp_server=None):
     '''
     Sends the raw email via the specified SMTP server.
     `smtp_server` should be None, or a logged-in instance of smtplib.SMTP or smtplib.SMTP_SSL.
     `smtp_server.quit()` is called when done.
     `recipients` may be an array of address or a single address string.
-    `force_ssl` is a boolean indicating whether SSL should be used for the SMTP
-    connection.
     Raises exception on error. Returns true otherwise.
     '''
 
     if smtp_server is None:
-        smtp_server = smtplib.SMTP('localhost')
-
-    if force_ssl:
-        smtp_server.ehlo()
-        smtp_server.starttls()
-        smtp_server.ehlo()
+        # Only import this file as needed, as it may not have been set up for
+        # services other than the mailresponder.
+        import settings
+        smtp_server = smtplib.SMTP('localhost', settings.LOCAL_SMTP_SEND_PORT)
 
     smtp_server.sendmail(from_address, recipients, raw_email)
     smtp_server.quit()

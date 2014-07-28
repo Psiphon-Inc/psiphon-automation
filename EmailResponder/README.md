@@ -183,7 +183,17 @@ add this line:
    #bounce    unix  -       -       -       -       0       bounce
    ```
 
-6. Reload postfix conf and restart:
+6. When sending mail via our local Postfix we don't want to have to make a TLS
+   connection. So we'll run an instance of `stmpd` on `localhost` on a different
+   port and use that for sending. Add these two lines to `master.cf`. NOTE: The 
+   port specified must match the one in `settings.LOCAL_SMTP_SEND_PORT`.
+
+   ```
+   127.0.0.1:2525      inet  n       -       -       -       -       smtpd
+     -o smtpd_tls_security_level=none
+   ```
+
+7. Reload postfix conf and restart:
 
    ```
    sudo postfix reload
@@ -530,6 +540,9 @@ readme_directory = no
 #
 # TLS parameters
 #
+# See: http://www.postfix.org/TLS_README.html
+
+# Set these always
 smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
 smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
 
@@ -539,17 +552,18 @@ smtpd_tls_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
 smtpd_use_tls=no
 
 # To use TLS, use these lines:
-#smtpd_tls_cert_file=/etc/postfix/mycert.crt
-#smtpd_tls_key_file=/etc/postfix/mykey.key
-#smtpd_tls_CAfile=/etc/postfix/myCA-bundle
-#smtpd_tls_received_header=yes
-#tls_random_source=dev:/dev/urandom
-#smtpd_tls_security_level=encrypt  # Or 'may' to not require encryption
-#smtp_tls_security_level=encrypt   # Or 'may' to not require encryption
+smtpd_tls_cert_file=/etc/postfix/mx.psiphon3.com.crt
+smtpd_tls_key_file=/etc/postfix/mx.psiphon3.com.key
+smtpd_tls_CAfile=/etc/postfix/mx.psiphon3.com-bundle
+smtpd_tls_received_header=yes
+tls_random_source=dev:/dev/urandom
+smtp_tls_CApath=/etc/ssl/certs
+# These two can be set to 'may' to not require encryption.
+smtpd_tls_security_level=encrypt
+smtp_tls_security_level=encrypt
+#smtp_tls_security_level=secure -- forces cert validation, but it never seems to succeed
 
-
-# See /usr/share/doc/postfix/TLS_README.gz in the postfix-doc package for
-# information on enabling SSL in the smtp client.
+# /TLS
 
 myhostname = localhost
 alias_maps = hash:/etc/aliases
