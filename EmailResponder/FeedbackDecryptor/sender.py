@@ -54,6 +54,7 @@ def send(recipients, from_address,
     sendmail.send_raw_email_smtp(raw_email,
                                  from_address,
                                  recipients,
+                                 True,  # force_ssl
                                  smtp_server)
 
 
