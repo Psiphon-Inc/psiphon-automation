@@ -33,6 +33,7 @@ import operator
 import gzip
 import copy
 import subprocess
+import traceback
 from pkg_resources import parse_version
 from multiprocessing.pool import ThreadPool
 
@@ -709,6 +710,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             Is Embedded:             %s
             Is Permanent:            %s
             Discovery Date Range:    %s
+            Capabilities:            %s
             ''') % (
                 s.id,
                 s.host_id,
@@ -721,7 +723,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 s.is_embedded,
                 s.is_permanent,
                 ('%s - %s' % (s.discovery_date_range[0].isoformat(),
-                            s.discovery_date_range[1].isoformat())) if s.discovery_date_range else 'None')
+                            s.discovery_date_range[1].isoformat())) if s.discovery_date_range else 'None',
+                ', '.join([capability for capability, enabled in s.capabilities.iteritems() if enabled]))
         self.__show_logs(s)
 
     def show_host(self, host_id, show_logs=False):
@@ -1180,7 +1183,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if users_on_host == 0:
                 self.remove_host(server.host_id)
                 number_removed += 1
-            elif users_on_host < 50:
+            elif users_on_host < 20:
                 self.__disable_server(server)
                 number_disabled += 1
         return number_removed, number_disabled
@@ -1264,14 +1267,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             try:
                 self.add_servers(new_servers[:new_discovery_servers_count], propagation_channel_name, new_discovery_date_range, False)
             except Exception as ex:
-                print str(ex)
+                for line in traceback.format_exc().split('\n'):
+                    print line
                 failure = ex
 
         if new_propagation_servers_count > 0:
             try:
                 self.add_servers(new_servers[new_discovery_servers_count:], propagation_channel_name, None)
             except Exception as ex:
-                print str(ex)
+                for line in traceback.format_exc().split('\n'):
+                    print line
                 failure = ex
 
         if failure:
@@ -1310,7 +1315,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server.capabilities['FRONTED-MEEK'] = True
         host.meek_server_fronting_domain = meek_server_fronting_domain
         host.meek_server_fronting_host = meek_server_fronting_host
-        self.setup_meek_for_host(host, 443)
+        self.setup_meek_parameters_for_host(host, 443)
+        self.install_meek_for_host(host)
         
     def setup_unfronted_meek_for_server(self, server_id):
         server = self.__servers[server_id]
@@ -1323,9 +1329,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server.capabilities['OSSH'] = False
         server.capabilities['FRONTED-MEEK'] = False
         server.capabilities['UNFRONTED-MEEK'] = True
-        self.setup_meek_for_host(host, 80)
+        self.setup_meek_parameters_for_host(host, 80)
+        self.install_meek_for_host(host)
         
-    def setup_meek_for_host(self, host, meek_server_port):
+    def setup_meek_parameters_for_host(self, host, meek_server_port):
         assert(host.meek_server_port == None)
         host.meek_server_port = meek_server_port
         if not host.meek_server_obfuscated_key:
@@ -1334,6 +1341,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             keypair = json.loads(subprocess.Popen([os.path.join('.', 'keygenerator.exe')], stdout=subprocess.PIPE).communicate()[0])
             host.meek_cookie_encryption_public_key = keypair['publicKey']
             host.meek_cookie_encryption_private_key = keypair['privateKey']
+    
+    def install_meek_for_host(self, host):
         servers = [s for s in self.__servers.itervalues() if s.host_id == host.id]
         psi_ops_install.install_firewall_rules(host, servers, plugins, False) # No need to update the malware blacklist
         psi_ops_install.install_psi_limit_load(host, servers)
@@ -1464,8 +1473,20 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             capabilities = ServerCapabilities()
             if server_capabilities:
                 capabilities = copy_server_capabilities(server_capabilities)
+            elif discovery:
+                # Discovery servers will either be OSSH-only or UNFRONTED-MEEK-only
+                capabilities['handshake'] = False
+                capabilities['VPN'] = False
+                capabilities['SSH'] = False
+                if random.random() < 0.5:
+                    ossh_port = random.choice([53, 443])
+                else:
+                    capabilities['OSSH'] = False
+                    capabilities['FRONTED-MEEK'] = False
+                    capabilities['UNFRONTED-MEEK'] = True
+                    self.setup_meek_parameters_for_host(host, 80)
             elif new_server_number % 2 == 1:
-                # We would like every other new server created to be somewhat obfuscated
+                # We would like every other new propagation server created to be somewhat obfuscated
                 capabilities['handshake'] = False
                 capabilities['VPN'] = False
                 capabilities['SSH'] = False
@@ -1481,9 +1502,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 ossh_ports.remove(515)
                 ossh_ports.remove(593)
                 ossh_port = random.choice(ossh_ports)
-                # 50% chance of using either 53 or 443 instead of what was chosen above
-                if random.random() < 0.5:
-                    ossh_port = random.choice([53, 443])
 
             server = Server(
                         None,
@@ -1771,7 +1789,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         sponsor = self.get_sponsor_by_name(sponsor_name)
         encoded_server_list, expected_egress_ip_addresses = \
-                    self.__get_encoded_server_list(propagation_channel.id)
+                    self.__get_encoded_server_list(propagation_channel.id, test=test)
 
         remote_server_list_signature_public_key = \
             psi_ops_crypto_tools.get_base64_der_public_key(
@@ -2391,7 +2409,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     json.dumps(extended_config)))
 
     def __get_encoded_server_list(self, propagation_channel_id,
-                                  client_ip_address_strategy_value=None, event_logger=None, discovery_date=None):
+                                  client_ip_address_strategy_value=None, event_logger=None, discovery_date=None, test=False):
         if not client_ip_address_strategy_value:
             # embedded (propagation) server list
             # output all servers for propagation channel ID with no discovery date
@@ -2404,7 +2422,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             servers = [server for server in self.__servers.itervalues()
                        if (server.propagation_channel_id == propagation_channel_id
                            and server.is_embedded)
-                       or server.id in permanent_server_ids[0:50]]
+                       or (not test and (server.id in permanent_server_ids[0:50]))]
         else:
             # discovery case
             if not discovery_date:
@@ -2762,6 +2780,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return jsonpickle.encode(copy)
 
     def run_command_on_host(self, host, command):
+        if type(host) == str:
+            host = self.__hosts[host]
         ssh = psi_ssh.SSH(
                 host.ip_address, host.ssh_port,
                 host.ssh_username, host.ssh_password,

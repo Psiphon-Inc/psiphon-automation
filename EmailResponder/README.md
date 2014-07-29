@@ -162,28 +162,6 @@ allowed to access the SSH port.
 
 4. Edit `/etc/postfix/main.cf`
 
-   * Change `myhostname` and `mydestination` to be:
-
-     ```
-     myhostname = localhost
-     mydestination = localhost.$mydomain localhost
-     ```
-
-   * Change `smtpd_use_tls` to `no`
-
-   * Reduce the maximum message size. Something like:
-
-     ```
-     message_size_limit = 8192000
-     ```
-
-   * Set up the virtual domain and address/alias support:
-
-     ```
-     virtual_alias_domains = /home/mail_responder/postfix_responder_domains
-     virtual_alias_maps = hash:/home/mail_responder/postfix_address_maps
-     ```
-
    * See the bottom of this README for a sample `main.cf` file.
 
 (Note: If too much error email is being sent to the postmaster, we can also
@@ -205,7 +183,17 @@ add this line:
    #bounce    unix  -       -       -       -       0       bounce
    ```
 
-6. Reload postfix conf and restart:
+6. When sending mail via our local Postfix we don't want to have to make a TLS
+   connection. So we'll run an instance of `stmpd` on `localhost` on a different
+   port and use that for sending. Add these two lines to `master.cf`. NOTE: The 
+   port specified must match the one in `settings.LOCAL_SMTP_SEND_PORT`.
+
+   ```
+   127.0.0.1:2525      inet  n       -       -       -       -       smtpd
+     -o smtpd_tls_security_level=none
+   ```
+
+7. Reload postfix conf and restart:
 
    ```
    sudo postfix reload
@@ -549,15 +537,33 @@ append_dot_mydomain = no
 
 readme_directory = no
 
+#
 # TLS parameters
-smtpd_tls_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
-smtpd_tls_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
-smtpd_use_tls=no
+#
+# See: http://www.postfix.org/TLS_README.html
+
+# Set these always
 smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
 smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
 
-# See /usr/share/doc/postfix/TLS_README.gz in the postfix-doc package for
-# information on enabling SSL in the smtp client.
+# If you don't want to use TLS, use these lines:
+smtpd_tls_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
+smtpd_tls_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
+smtpd_use_tls=no
+
+# To use TLS, use these lines:
+smtpd_tls_cert_file=/etc/postfix/mx.psiphon3.com.crt
+smtpd_tls_key_file=/etc/postfix/mx.psiphon3.com.key
+smtpd_tls_CAfile=/etc/postfix/mx.psiphon3.com-bundle
+smtpd_tls_received_header=yes
+tls_random_source=dev:/dev/urandom
+smtp_tls_CApath=/etc/ssl/certs
+# These two can be set to 'may' to not require encryption.
+smtpd_tls_security_level=encrypt
+smtp_tls_security_level=encrypt
+#smtp_tls_security_level=secure -- forces cert validation, but it never seems to succeed
+
+# /TLS
 
 myhostname = localhost
 alias_maps = hash:/etc/aliases
