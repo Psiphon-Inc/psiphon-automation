@@ -181,7 +181,7 @@ def launch_new_server(digitalocean_account, _):
         image['image_id'] = digitalocean_account.base_id
         
         regions = do_api.get_all_regions()
-        image['region_id'] = random.choice([region['id'] for region in regions if region['id'] in [1,2,3,4,5,7]])
+        image['region_id'] = random.choice([region['id'] for region in regions if region['id'] in [1,2,3,4,5,6,7]])
 
         for r in regions:
             if image['region_id'] == r['id']:
