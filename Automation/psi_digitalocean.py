@@ -31,6 +31,9 @@ def check_default_image(do_api, default_image):
     images = do_api.get_all_images()
     return (default_image in images)
 
+def get_image_by_id(do_api, droplet_id):
+    return do_api.droplet_show(droplet_id)
+
 def show_running_droplets(do_api):
         
         resp = do_api.get_running_droplets()
@@ -198,7 +201,7 @@ def launch_new_server(digitalocean_account, _):
 
         print 'Launching %s, using image %s' % (image['name'], str(image['image_id']))
         resp = do_api.create_new_droplet(image)
-        droplet = resp['droplet']
+
         if resp['status'] != 'OK':
             raise Exception(resp['message'] + ': ' + resp['error_message'])
         
