@@ -226,6 +226,7 @@ def launch_new_server(digitalocean_account, _):
 
         new_host_public_key = refresh_credentials(digitalocean_account, droplet['ip_address'], 
                                                   new_root_password, new_stats_password)
+        assert(new_host_public_key)
 
     except Exception as e:
         print type(e), str(e)
