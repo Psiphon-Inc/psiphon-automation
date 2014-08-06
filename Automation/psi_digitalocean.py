@@ -31,6 +31,9 @@ def check_default_image(do_api, default_image):
     images = do_api.get_all_images()
     return (default_image in images)
 
+def get_image_by_id(do_api, droplet_id):
+    return do_api.droplet_show(droplet_id)
+
 def show_running_droplets(do_api):
         
         resp = do_api.get_running_droplets()
@@ -178,7 +181,7 @@ def launch_new_server(digitalocean_account, _):
         image['image_id'] = digitalocean_account.base_id
         
         regions = do_api.get_all_regions()
-        image['region_id'] = random.choice([region['id'] for region in regions if region['id'] in [1,2,3,4,5,7]])
+        image['region_id'] = random.choice([region['id'] for region in regions if region['id'] in [1,2,3,4,5,6,7]])
 
         for r in regions:
             if image['region_id'] == r['id']:
@@ -198,7 +201,7 @@ def launch_new_server(digitalocean_account, _):
 
         print 'Launching %s, using image %s' % (image['name'], str(image['image_id']))
         resp = do_api.create_new_droplet(image)
-        droplet = resp['droplet']
+
         if resp['status'] != 'OK':
             raise Exception(resp['message'] + ': ' + resp['error_message'])
         
@@ -223,6 +226,7 @@ def launch_new_server(digitalocean_account, _):
 
         new_host_public_key = refresh_credentials(digitalocean_account, droplet['ip_address'], 
                                                   new_root_password, new_stats_password)
+        assert(new_host_public_key)
 
     except Exception as e:
         print type(e), str(e)
