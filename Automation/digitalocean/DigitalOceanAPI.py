@@ -20,7 +20,7 @@ class DigitalOceanAPI():
                            }
         
         for k in self.api_requests:
-            self.api_requests[k] = 'https://api.digitalocean.com/' + k + '/'
+            self.api_requests[k] = 'https://api.digitalocean.com/v1/' + k + '/'
     
     def _get_content(self, url, payload=None):
         resp = requests.get(url, params=payload)

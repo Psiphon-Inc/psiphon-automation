@@ -224,7 +224,6 @@
         ping_str = '%dms' % ping_value
         if not entry['data']['responded'] or ping_value < 0:
           ping_class = 'bad'
-          ping_str = 'none'
         elif ping_value > 2000:
           ping_class = 'warn'
 
@@ -232,7 +231,6 @@
 
         remaining_data = entry['data']
         remaining_data.pop('responseTime', None)
-        remaining_data.pop('responded', None)
         remaining_data.pop('regionCode', None)
       %>
       <span>${ping_regionCode}</span>
