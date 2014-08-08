@@ -26,7 +26,7 @@ _locale_codes = json.load(open('locale_codes.json'))
 _country_dialing_codes = json.load(open('country_dialing_codes.json'))
 
 
-def _windows_1(data):
+def _windows_1_2(data):
     if data.get('Feedback', {}).get('Message'):
         trans = translation.translate(config['googleApiServers'],
                                       config['googleApiKey'],
@@ -66,7 +66,8 @@ def _windows_1(data):
 
 
 _transformations = {
-                    'windows_1': _windows_1
+                    'windows_1': _windows_1_2,
+                    'windows_2': _windows_1_2
                     }
 
 

@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # coding=utf-8
 #
-# Copyright (c) 2011, Psiphon Inc.
+# Copyright (c) 2014, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -54,12 +54,8 @@ def make_feedback_html():
 
     format = {
         "langJSON": json.dumps(lang, indent=2),
-        "speed": hashlib.md5(lang['en']['speed_title']).hexdigest(),
-        "speed_en": lang['en']['speed_title'],
-        "connectivity": hashlib.md5(lang['en']['connectivity_title']).hexdigest(),
-        "connectivity_en": lang['en']['connectivity_title'],
-        "compatibility": hashlib.md5(lang['en']['compatibility_title']).hexdigest(),
-        "compatibility_en": lang['en']['compatibility_title']
+        "smiley": hashlib.md5(lang['en']['smiley_title']).hexdigest(),
+        "smiley_en": lang['en']['smiley_title'],
     }
 
     with open(feedback_template_path) as f:
