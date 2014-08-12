@@ -173,7 +173,7 @@ html {{
 
       <div id="text_feedback_form">
         <p>
-          <span id="text_feedback_top_para"></span>
+          <span id="text_feedback_prompt"></span>
         </p>
         <textarea id="text_feedback_textarea"></textarea>
 
@@ -315,7 +315,7 @@ function setLanguage(langName, args)
     else if (name === 'title') {{
       document.title = val; //supported in all browsers
     }}
-    else if (name === 'text_feedback_top_para' || name === 'text_feedback_bottom_para') {{
+    else if (name === 'text_feedback_bottom_para') {{
       // Replace the feedback address with a platform specific value.
       val = val.replace(
                   /([a-z0-9]+)@([^\.]+)\.([a-z]+)/g,

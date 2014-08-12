@@ -28,7 +28,7 @@ en:
 
     submit_button: Submit
 
-    text_feedback_top_para: |
+    text_feedback_prompt: |
         Please enter your comments here:
 
     text_feedback_email_prompt: |

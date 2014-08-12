@@ -26,7 +26,7 @@ _locale_codes = json.load(open('locale_codes.json'))
 _country_dialing_codes = json.load(open('country_dialing_codes.json'))
 
 
-def _windows_1_2(data):
+def _translate_feedback(data):
     if data.get('Feedback', {}).get('Message'):
         trans = translation.translate(config['googleApiServers'],
                                       config['googleApiKey'],
@@ -35,6 +35,8 @@ def _windows_1_2(data):
         data['Feedback']['Message']['text_lang_name'] = trans[1]
         data['Feedback']['Message']['text_translated'] = trans[2]
 
+
+def _parse_survey_results(data):
     if data.get('Feedback', {}).get('Survey'):
         try:
             data['Feedback']['Survey']['results'] = json.loads(data['Feedback']['Survey']['json'])
@@ -42,6 +44,8 @@ def _windows_1_2(data):
             # Illegal JSON
             data['Feedback']['Survey']['results'] = None
 
+
+def _convert_locale_info(data):
     # Map numeric locale and country values to more human-usable values.
     os_info = data.get('DiagnosticInfo', {}).get('SystemInformation', {}).get('OSInfo')
     if os_info:
@@ -66,8 +70,10 @@ def _windows_1_2(data):
 
 
 _transformations = {
-                    'windows_1': _windows_1_2,
-                    'windows_2': _windows_1_2
+                    'windows': (_translate_feedback, _parse_survey_results,
+                                _convert_locale_info),
+                    'android_4': (_translate_feedback, _parse_survey_results,
+                                _convert_locale_info),
                     }
 
 
@@ -110,9 +116,12 @@ def transform(data):
     An exception may be thrown if `data` is malformed.
     '''
 
-    transform_key = '%s_%s' % (data['Metadata']['platform'],
-                               data['Metadata']['version'])
-    if transform_key in _transformations:
-        _transformations[transform_key](data)
+    transform_keys = set((data['Metadata']['platform'],))
+    transform_keys.add('%s_%s' % (data['Metadata']['platform'],
+                                  data['Metadata']['version']))
+
+    for key in transform_keys.intersection(_transformations.keys()):
+        for transformation in _transformations[key]:
+            transformation(data)
 
     _postprocess_yaml(data)
