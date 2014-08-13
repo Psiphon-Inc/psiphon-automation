@@ -32,7 +32,7 @@ import linode.api
 
 def wait_while_condition(condition, max_wait_seconds, description):
     total_wait_seconds = 0
-    wait_seconds = 1
+    wait_seconds = 5
     while condition() == True:
         if total_wait_seconds > max_wait_seconds:
             raise Exception('Took more than %d seconds to %s' % (max_wait_seconds, description))
