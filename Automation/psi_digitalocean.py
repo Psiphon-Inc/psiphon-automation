@@ -25,7 +25,7 @@ import time
 import psi_utils
 import psi_ssh
 
-import digitalocean.DigitalOceanAPI
+from digitalocean_v1.DigitalOceanAPI import DigitalOceanAPI
 
 def check_default_image(do_api, default_image):
     images = do_api.get_all_images()
@@ -81,8 +81,8 @@ def start_droplet(do_api, droplet_id):
 
 def update_image(digitalocean_account, droplet_id, droplet_name):
     try:
-        do_api = digitalocean.DigitalOceanAPI.DigitalOceanAPI(digitalocean_account.client_id,
-                                                              digitalocean_account.api_key)
+        do_api = DigitalOceanAPI(digitalocean_account.client_id, digitalocean_account.api_key)
+        
         result = take_snapshot(do_api, droplet_id, {'name': droplet_name})
         if 'OK' in result['status']:
             images = do_api.get_all_images()
@@ -176,8 +176,8 @@ def launch_new_server(digitalocean_account, _):
     try:
         new_root_password = psi_utils.generate_password()
         new_stats_password = psi_utils.generate_password()
-        do_api = digitalocean.DigitalOceanAPI.DigitalOceanAPI(digitalocean_account.client_id,
-                                                              digitalocean_account.api_key)
+        do_api = DigitalOceanAPI(digitalocean_account.client_id, digitalocean_account.api_key)
+        
         image['image_id'] = digitalocean_account.base_id
         
         regions = do_api.get_all_regions()
@@ -226,6 +226,7 @@ def launch_new_server(digitalocean_account, _):
 
         new_host_public_key = refresh_credentials(digitalocean_account, droplet['ip_address'], 
                                                   new_root_password, new_stats_password)
+        assert(new_host_public_key)
 
     except Exception as e:
         print type(e), str(e)
@@ -250,8 +251,7 @@ def remove_droplet(do_api, droplet_id):
         raise e
 
 def remove_server(digitalocean_account, droplet_id):
-    do_api = digitalocean.DigitalOceanAPI.DigitalOceanAPI(digitalocean_account.client_id,
-                                                          digitalocean_account.api_key)
+    do_api = DigitalOceanAPI(digitalocean_account.client_id, digitalocean_account.api_key)
     remove_droplet(do_api, droplet_id)
 
 if __name__ == "__main__":
