@@ -148,7 +148,10 @@ def send_raw_email_smtp(raw_email,
     '''
 
     if smtp_server is None:
-        smtp_server = smtplib.SMTP('localhost')
+        # Only import this file as needed, as it may not have been set up for
+        # services other than the mailresponder.
+        import settings
+        smtp_server = smtplib.SMTP('localhost', settings.LOCAL_SMTP_SEND_PORT)
 
     smtp_server.sendmail(from_address, recipients, raw_email)
     smtp_server.quit()
