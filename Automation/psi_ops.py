@@ -1183,7 +1183,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if users_on_host == 0:
                 self.remove_host(server.host_id)
                 number_removed += 1
-            elif users_on_host < 30:
+            elif users_on_host < 50:
                 self.__disable_server(server)
                 number_disabled += 1
         return number_removed, number_disabled
@@ -1257,10 +1257,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 return self.launch_new_server()
             except:
                 return None
-                
+
         pool = ThreadPool(20)
         new_servers = pool.map(_launch_new_server, [None for _ in range(new_discovery_servers_count + new_propagation_servers_count)])
-        
+
         failure = None
 
         if new_discovery_servers_count > 0:
@@ -1311,18 +1311,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server = self.__servers[server_id]
         host = self.__hosts[server.host_id]
         assert(host.meek_server_port == None)
-        
+
         server.capabilities['FRONTED-MEEK'] = True
         host.meek_server_fronting_domain = meek_server_fronting_domain
         host.meek_server_fronting_host = meek_server_fronting_host
         self.setup_meek_parameters_for_host(host, 443)
         self.install_meek_for_host(host)
-        
+
     def setup_unfronted_meek_for_server(self, server_id):
         server = self.__servers[server_id]
         host = self.__hosts[server.host_id]
         assert(host.meek_server_port == None)
-        
+
         server.capabilities['handshake'] = False
         server.capabilities['VPN'] = False
         server.capabilities['SSH'] = False
@@ -1331,7 +1331,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server.capabilities['UNFRONTED-MEEK'] = True
         self.setup_meek_parameters_for_host(host, 80)
         self.install_meek_for_host(host)
-        
+
     def setup_meek_parameters_for_host(self, host, meek_server_port):
         assert(host.meek_server_port == None)
         host.meek_server_port = meek_server_port
@@ -1341,7 +1341,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             keypair = json.loads(subprocess.Popen([os.path.join('.', 'keygenerator.exe')], stdout=subprocess.PIPE).communicate()[0])
             host.meek_cookie_encryption_public_key = keypair['publicKey']
             host.meek_cookie_encryption_private_key = keypair['privateKey']
-    
+
     def install_meek_for_host(self, host):
         servers = [s for s in self.__servers.itervalues() if s.host_id == host.id]
         psi_ops_install.install_firewall_rules(host, servers, plugins, False) # No need to update the malware blacklist
@@ -1350,7 +1350,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         psi_ops_deploy.deploy_data(
                             host,
                             self.__compartmentalize_data_for_host(host.id))
-    
+
     def setup_server(self, host, servers):
         # Install Psiphon 3 and generate configuration values
         # Here, we're assuming one server/IP address per host
@@ -1415,7 +1415,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         server_info = provider_launch_new_server_with_retries()
         return server_info[0:1] + (provider.lower(),) + server_info[2:]
-        
+
     def add_servers(self, server_infos, propagation_channel_name, discovery_date_range, replace_others=True, server_capabilities=None):
         assert(self.is_locked)
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
@@ -1863,6 +1863,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 self.get_feedback_encryption_key_pair().pem_key_pair,
                 self.get_feedback_encryption_key_pair().password)
 
+        feedback_upload_info = self.get_feedback_upload_info()
+
         remote_server_list_url = psi_ops_s3.get_s3_bucket_resource_url(
                                     campaign.s3_bucket_name,
                                     psi_ops_s3.DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME)
@@ -1877,8 +1879,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         sponsor.id,
                         encoded_server_list,
                         remote_server_list_signature_public_key,
-                        feedback_encryption_public_key,
                         remote_server_list_url,
+                        feedback_encryption_public_key,
+                        feedback_upload_info.upload_server,
+                        feedback_upload_info.upload_path,
+                        feedback_upload_info.upload_server_headers,
                         info_link_url,
                         self.__client_versions[CLIENT_PLATFORM_ANDROID][-1].version if self.__client_versions[CLIENT_PLATFORM_ANDROID] else 0)
 
@@ -2391,7 +2396,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         extended_config['sshObfuscatedKey'] = server.ssh_obfuscated_key if server.ssh_obfuscated_key else ''
 
         extended_config['capabilities'] = [capability for capability, enabled in server.capabilities.iteritems() if enabled] if server.capabilities else []
-        
+
         host = self.__hosts[server.host_id]
         extended_config['region'] = host.region
 
@@ -2418,7 +2423,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     if server.propagation_channel_id != propagation_channel_id
                                     and server.is_permanent]
             random.shuffle(permanent_server_ids)
-            
+
             servers = [server for server in self.__servers.itervalues()
                        if (server.propagation_channel_id == propagation_channel_id
                            and server.is_embedded)
@@ -2840,7 +2845,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         passes = 0
         failures = 0
         servers_with_errors = set()
-        
+
         test_propagation_channel = None
         try:
             test_propagation_channel = self.get_propagation_channel_by_name('Testing')
