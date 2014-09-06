@@ -75,9 +75,10 @@ input[type="submit"] {{
 textarea {{
   width: 90%;
   margin: auto;
-  height: 10em;
+  height: 6em;
   display: block;
   font-size: 1.1em;
+  font-family: sans-serif;
   padding: 0.5em;
   border-width: 2px;
   -webkit-border-radius: 5px;
@@ -85,7 +86,7 @@ textarea {{
   border-radius: 5px;
 }}
 
-input[type="text"] {{
+input[type="text"], input[type="email"] {{
   width: 90%;
   margin: auto;
   display: block;
@@ -100,7 +101,7 @@ input[type="text"] {{
 <!--[if lt IE 9]>
 <style type="text/css">
 body {{
-    padding: 40px;
+    padding: 20px;
     max-width: 700px;
     min-width: 600px;
   }}
@@ -181,7 +182,7 @@ html {{
           <p>
             <span id="text_feedback_email_prompt"></span>
           </p>
-          <input type="text" id="text_feedback_email">
+          <input type="email" id="text_feedback_email">
         </div>
         <br>
       </div>
