@@ -33,13 +33,11 @@ def parse_attachment(message_part, attachments=None):
                 else:
                     file_data = message_part.get_payload(decode=True)
                     if not file_data:
-                        payload = message_part.get_payload(decode=True)
+                        payload = message_part.get_payload()
                         if isinstance(payload, list):
                             for msgobj in payload:
                                 _parse2(msgobj, attachments)
-                            return None
-                        print >>sys.stderr, message_part.get_payload()
-                        print >>sys.stderr, message_part.get_content_charset()
+                        return None  # PSIPHON: fixed conditional return
                     attachment = StringIO(file_data)
                     attachment.content_type = message_part.get_content_type()
                     attachment.size = len(file_data)
