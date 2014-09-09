@@ -1,4 +1,4 @@
-# Copyright (c) 2013, Psiphon Inc.
+# Copyright (c) 2014, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -200,7 +200,7 @@ def is_diagnostic_info_sane(obj):
     exemplar = {
                 'Metadata': {
                              'platform': lambda val: val in ['android', 'windows'],
-                             'version': lambda val: val in range(1, 4),
+                             'version': lambda val: val in range(1, 5),
                              'id': lambda val: re.match(r'^[a-fA-F0-9]{16}', str(val)) is not None
                              },
 

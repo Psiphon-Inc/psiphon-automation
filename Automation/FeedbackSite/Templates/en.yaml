@@ -4,8 +4,7 @@ en:
     top_content_title:  Give Us Your Feedback
 
     top_para_1: |
-        Please complete the form below to let us know how Psiphon is working
-        for you so we can make the system better!
+        Please let us know how Psiphon is working for you so we can make the system better!
 
     top_para_2: |
         Many problems can be fixed by downloading the latest version. You can
@@ -16,65 +15,24 @@ en:
         You can also find solutions to many common problems in our
         <a class="faqURL" href="#">Frequently Asked Questions</a>.
 
-    top_para_4: |
-        If you have any other feedback, bug reports, etc., that you'd like to
-        give us, <a id="showTextFeedback" href="#">just click here</a>.
-
-    questionnaire_diagnostic_check: |
+    diagnostic_check: |
         Upload diagnostic data. Please note that this diagnostic data does not
         identify you, and it will help us to keep Psiphon running smoothly.
         <a class="dataCollectionInfoURL" href="#">Click here to see what data we collect.</a>
 
-    connectivity_title:  Connectivity
+    smiley_title:  Overall satisfaction
 
-    connectivity_happy:  Psiphon consistently connects and stays connected.
+    smiley_happy:  Psiphon connects and performs the way I want it to.
 
-    connectivity_ok:  Psiphon often connects, but sometimes disconnects and reconnects.
-
-    connectivity_sad:  Psiphon often fails to connect or constantly get disconnected.
-
-    speed_title:  Speed
-
-    speed_happy:  I can browse the web through Psiphon and watch video; it is as fast
-        or faster than other circumvention tools.
-
-    speed_ok:  I can browse the web through Psiphon but it’s slow.
-
-    speed_sad:  Browsing the web through Psiphon is too slow and I won’t continue to
-        use it.
-
-    compatibility_title:  Compatibility
-
-    compatibility_happy:  Web sites work as normal when I access them through Psiphon.
-
-    compatibility_ok:  Web sites are sufficiently functional when I access them
-        through Psiphon.
-
-    compatibility_sad:  Web sites load but I can't use certain important functions.
+    smiley_sad:  Psiphon often fails to connect or doesn't perform well enough.
 
     submit_button: Submit
 
-    text_feedback_submit: Submit
-
-    text_feedback_top_para_android: |
-        If you have any specific comments, further information about web sites
-        that do not work, or if the questionnaire is not working for you,
-        please email <a href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>.
-        Please note that some diagnostic data will be attached to the email.
-        This diagnostic data does not identify you, and it will help us to keep
-        Psiphon running smoothly.
-        <a class="dataCollectionInfoURL" href="#">Click here to see what data we collect.</a>
-
-    text_feedback_top_para_windows: |
-        If you have any specific comments, further information about web sites that do not work, or if the questionnaire is not working for you, please fill in the form below.
-
-    text_feedback_bottom_para_windows: |
-        If the above form is not working, or you would like to send screenshots, please email us at <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>
+    text_feedback_prompt: |
+        Please enter your comments here:
 
     text_feedback_email_prompt: |
         If you would like us to respond to you, please enter your email address:
 
-    text_feedback_diagnostic_check: |
-        Upload diagnostic data. Please note that this diagnostic data does not
-        identify you, and it will help us to keep Psiphon running smoothly.
-        <a class="dataCollectionInfoURL" href="#">Click here to see what data we collect.</a>
+    text_feedback_bottom_para: |
+        If the above form is not working, or you would like to send screenshots, please email us at <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>
