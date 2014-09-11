@@ -75,7 +75,9 @@ def update_stats_dat():
 
 if __name__ == "__main__":
     count = 0
-    stats_db_ctime = os.path.getctime(PSI_OPS_DB_FILENAME)
+    stats_db_ctime = None
+    if os.path.exists(PSI_OPS_DB_FILENAME):
+        stats_db_ctime = os.path.getctime(PSI_OPS_DB_FILENAME)
     logging.basicConfig(filename='psi_update_stats_dat.log', format='%(asctime)s %(levelname)s %(message)s', level=logging.DEBUG)
     while count < MAX_RETRIES:
         update_stats_dat()
