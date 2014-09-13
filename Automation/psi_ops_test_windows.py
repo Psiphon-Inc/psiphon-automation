@@ -134,7 +134,7 @@ def __test_server(executable_path, transport, encoded_server_list, expected_egre
 
         proc = subprocess.Popen([executable_path])
 
-        time.sleep(15)
+        time.sleep(20)
 
         # In VPN mode, all traffic is routed through the proxy. In SSH mode, the
         # urlib2 ProxyHandler picks up the Windows Internet Settings and uses the
