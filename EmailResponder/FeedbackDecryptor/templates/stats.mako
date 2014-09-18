@@ -15,7 +15,9 @@
 ## along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 <%!
-  from operator import itemgetter
+  import operator
+  import functools
+  import collections
   import utils
 %>
 
@@ -105,9 +107,9 @@
 
 <%
 # Like: ORDER BY sponsor_id, propagation_channel_id, platform
-data['stats'] = sorted(data['stats'], key=itemgetter('platform'))
-data['stats'] = sorted(data['stats'], key=itemgetter('propagation_channel_id'))
-data['stats'] = sorted(data['stats'], key=itemgetter('sponsor_id'))
+data['stats'] = sorted(data['stats'], key=operator.itemgetter('platform'))
+data['stats'] = sorted(data['stats'], key=operator.itemgetter('propagation_channel_id'))
+data['stats'] = sorted(data['stats'], key=operator.itemgetter('sponsor_id'))
 
 prev_sponsor_id = None
 prev_propagation_channel_id = None
@@ -121,16 +123,10 @@ def ff(f):
 <%def name="output_survey_results(item)">
   <%
   survey = item.get('survey_results', {})
-  keys = sorted(survey.keys())
+  vals = survey.values()
+  res = dict(functools.reduce(operator.add, map(collections.Counter, vals)))
   %>
-  % for key in keys:
-    <tr>
-      <td>${key}</td>
-      <td class="numcompare">${survey[key].get(0, 0)}</td>
-      <td class="numcompare">${survey[key].get(1, 0)}</td>
-      <td class="numcompare">${survey[key].get(2, 0)}</td>
-    </tr>
-  % endfor
+  <img src="https://chart.googleapis.com/chart?cht=bvg:nda&amp;chs=45x40&amp;chds=a&amp;chco=BEFFC1|FFBEBE&amp;chbh=20,0,1&amp;chm=r,FFFFFF,0,-0.01,0.01,1|R,FFFFFF,0,-0.01,0.01,1&amp;chd=t:${res.get(0, 0)},${res.get(1, 0)}" alt="Happy/Sad chart" title="${res.get(0, 0)},${res.get(1, 0)}">
 </%def>
 
 
@@ -139,7 +135,7 @@ def ff(f):
     <tr>
       <th>Sponsor</th><th>Prop.Ch.</th><th>Platform</th><th>#</th>
       <th>Response (ms)</th><th>Failrate</th>
-      <th>Survey</th>
+      <th>Happy/Sad</th>
     </tr>
   </thead>
   <tbody>
@@ -159,17 +155,7 @@ def ff(f):
         <td class="numcompare">${ff(r['failrate'])}</td>
         <td>
           % if r.get('survey_results'):
-            <table>
-              <thead>
-                <tr>
-                  ## &#8209; is the non-breaking hyphen -- we don't want our faces to get split
-                  <th></th><th>:&#8209;)</th><th>:&#8209;|</th><th>:&#8209;(</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${output_survey_results(r)}
-              </tbody>
-            </table>
+            ${output_survey_results(r)}
           % endif
         </td>
       </tr>
