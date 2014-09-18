@@ -188,6 +188,7 @@ def refresh_base_images():
 
 def update_dat():
     import psi_update_dat
+    psi_update_dat.main()
     
 
 def main(infile=None, send_mail_stats=False):
@@ -260,6 +261,7 @@ if __name__ == "__main__":
     (options, _) = parser.parse_args()
     if options.update_dat:
         update_dat()
+        exit(0)
     if options.infile:
         infile = options.infile
         print infile
