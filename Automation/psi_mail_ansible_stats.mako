@@ -44,52 +44,56 @@ count_skipped = len(hosts_skipped)
 
 <hr>
 
+<h3>Unreachable Hosts: ${count_unreachable}</h3>
 % if count_unreachable > 0:
-	<h3>Unreachable Hosts</h3>
 	<tbody>
 	% for c in hosts_dark:
-		<tr>${c}</tr>
+		<tr>${c}, ${hosts_dark[c]}, ${len(hosts_dark)}</tr>
 	% endfor
 	</tbody>
 % endif
+<hr>
 
+<h3>Failed Hosts: ${count_failed}</h3>
 % if count_failed > 0:
-	<h3>Failed Hosts</h3>
 	<tbody>
 	% for c in hosts_failed:
 		<tr>${c}</tr>
 	% endfor
 	</tbody>
 % endif
+<hr>
 
-% if count_processed > 0:
-	<h3>Procssed Hosts</h3>
-	<tbody>
-	% for c in hosts_processed:
-		<tr>${c}</tr>
-	% endfor
-	</tbody>
-% endif
-
+<h3>Skipped Hosts: ${count_skipped}</h3>
 % if count_skipped > 0:
-	<h3>Skipped Hosts</h3>
 	<tbody>
 	% for c in hosts_skipped:
 		<tr>${c}</tr>
 	% endfor
 	</tbody>
 % endif
+<hr>
 
+<h3>Processed Hosts: ${count_processed}</h3>
+% if count_processed > 0:
+	<tbody>
+	% for c in hosts_processed:
+		<tr>${c}</tr>
+	% endfor
+	</tbody>
+% endif
+<hr>
+
+<h3>Changed Hosts: ${count_changed}</h3>
 % if count_changed > 0:
-	<h3>Changed Hosts</h3>
 	<tbody>
 	% for c in hosts_changed:
 		<tr>${c}</tr>
 	% endfor
 	</tbody>
 % endif
-
 <hr>
+
 <p>
 	<sub>
 	Start Time: ${start_time}

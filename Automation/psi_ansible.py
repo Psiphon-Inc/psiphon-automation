@@ -133,7 +133,8 @@ def populate_ansible_hosts(hosts=list()):
     
     return ansible_hosts
 
-def run_playbook(playbook_file, inventory, verbose=psi_ops_config.ANSIBLE_VERBOSE_LEVEL, email_stats=True):
+def run_playbook(playbook_file=None, inventory=ansible.inventory.Inventory([]), 
+                 verbose=psi_ops_config.ANSIBLE_VERBOSE_LEVEL, email_stats=True):
     """
         Runs a playbook file and returns the result
         playbook_file : Playbook file to open and run (String)
@@ -185,6 +186,10 @@ def refresh_base_images():
     except Exception as e:
         raise
 
+def update_dat():
+    import psi_update_dat
+    
+
 def main(infile=None, send_mail_stats=False):
     try:
         psinet = psi_ops.PsiphonNetwork.load_from_file(PSI_OPS_DB_FILENAME)
@@ -197,7 +202,7 @@ def main(infile=None, send_mail_stats=False):
             print 'Running Playbook against subset'
             subset_hosts_list = psi_ops_config.ANSIBLE_TEST_DIGITALOCEAN + psi_ops_config.ANSIBLE_TEST_LINODES + psi_ops_config.ANSIBLE_TEST_FASTHOSTS
             psinet_hosts_list = [h for h in psinet_hosts_list if h.id in subset_hosts_list]
-            
+        
         psinet_hosts_dict = organize_hosts_by_provider(psinet_hosts_list)
         
         for provider in psinet_hosts_dict:
@@ -246,12 +251,15 @@ if __name__ == "__main__":
     parser.add_option("-b", "--base_image", action="store_true", help="Forces base image to be included")
     parser.add_option("-r", "--refresh_base_images", action="store_true", help="Updates base images for linode and digitalocean")
     parser.add_option("-m", "--send_mail", action="store_true", help="Send email after playbook is run")
+    parser.add_option("-u", "--update_dat", action="store_true", help="Update dat file")
 	
     
     infile=None
     send_mail_stats = False
     
     (options, _) = parser.parse_args()
+    if options.update_dat:
+        update_dat()
     if options.infile:
         infile = options.infile
         print infile
