@@ -2,8 +2,7 @@ es:
   title: Comentarios sobre Psiphon
   top_content_title: Envíenos sus comentarios
   top_para_1: |
-    Por favor complete el formulario de abajo para permitirnos saber cómo está
-    funcionando Psiphon para usted, así podremos mejorar el sistema!
+    ¡Por favor háganos saber cómo está funcionando Psiphon para usted para que podamos mejorar el sistema!
   top_para_2: |
     Muchos problemas pueden arreglarse descargando la última versión. Puede
     <a class="newVersionURL" href="#">descargar la última versión haciendo clic aquí</a>,
@@ -11,43 +10,18 @@ es:
   top_para_3: |
     También puede encontrar soluciones a muchos problemas comunes en nuestras
     <a class="faqURL" href="#">Preguntas frecuentes</a>.
-  top_para_4: |
-    Si tiene cualquier otro comentario, informes de errores, entre otros, que quisiera
-    proporcionarnos, <a id="showTextFeedback" href="#">haga clic aquí</a>.
-  questionnaire_diagnostic_check: |
-    Subir datos de diagnóstico. Por favor observe que estos datos de diagnóstico
-    no le identifican, y nos ayudarán a mantener Psiphon funcionando sin sobresaltos.
-    <a class="dataCollectionInfoURL" href="#">Haga clic aquí para ver qué datos recogemos.</a>
-  connectivity_title: Conectividad
-  connectivity_happy: Psiphon se conecta consistentemente y se mantiene conectado.
-  connectivity_ok: Psiphon se conecta con frecuencia, pero en ocasiones se desconecta y se vuelve a conectar.
-  connectivity_sad: Psiphon falla frecuentemente al conectarse o se desconecta constantemente.
-  speed_title: Velocidad
-  speed_happy: Puedo navegar por la web a través de Psiphon y ver vídeos; es tanto o más rápido que otras herramientas de evasión.
-  speed_ok: Puedo navegar por la web a través de Psiphon, pero es lento.
-  speed_sad: Navegar por la web a través de Psiphon es demasiado lento y no lo seguiré usando.
-  compatibility_title: Compatibilidad
-  compatibility_happy: Los sitios web funcionan con normalidad cuando accedo a ellos a través de Psiphon.
-  compatibility_ok: Los sitios web son suficientemente funcionales cuando accedo a ellos a través de Psiphon.
-  compatibility_sad: Los sitios web cargan pero no puedo usar ciertas funciones importantes.
-  submit_button: Enviar
-  text_feedback_submit: Enviar
-  text_feedback_top_para_android: |
-    Si tiene algún comentario específico, mayor información acerca de sitios
-    web que no funcionan, o si el cuestionario no le está funcionando,
-    por favor envíe un correo a <a href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>.
-    Observe que algunos datos de diagnóstico serán adjuntados al correo.
-    Estos datos de diagnóstico no le identifican, y nos ayudarán a mantener
-    Psiphon funcionando sin sobresaltos.
-    <a class="dataCollectionInfoURL" href="#">Haga clic aquí para ver qué datos recogemos</a>
-  text_feedback_top_para_windows: |
-    Si tiene algún comentario específico, o mayor información acerca de los sitios que no le funcionan, o si el cuestionario no está funcionando para usted, por favor rellene el formulario de abajo.
-  text_feedback_bottom_para_windows: |
-    Si el formulario de arriba no le está funcionando, o si quisiese enviar capturas de pantalla, por favor envíenos un correo a <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>
-  text_feedback_email_prompt: |
-    Si quiere que nosotros le respondamos, por favor introduzca su dirección de correo electrónico
-  text_feedback_diagnostic_check: |
+  diagnostic_check: |
     Suba datos de diagnóstico. Por favor observe que estos datos de
     diagnóstico no le identifican, y nos ayudarán a mantener Psiphon
     funcionando sin sobresaltos.
     <a class="dataCollectionInfoURL" href="#">Haga clic aquí para ver que datos recogemos.</a>
+  smiley_title: Satisfacción del conjunto
+  smiley_happy: Psiphon conecta y rinde de la forma que yo quiero.
+  smiley_sad: Psiphon falla a menudo al conectar o no rinde suficientemente bien.
+  submit_button: Enviar
+  text_feedback_prompt: |
+    Por favor introduzca sus comentarios aquí:
+  text_feedback_email_prompt: |
+    Si quiere que nosotros le respondamos, por favor introduzca su dirección de correo electrónico
+  text_feedback_bottom_para: |
+    Si el formulario de arriba no le está funcionando, o si quisiese enviar capturas de pantalla, por favor envíenos un correo a <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>
