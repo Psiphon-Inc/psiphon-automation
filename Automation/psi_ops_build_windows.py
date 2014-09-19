@@ -200,7 +200,8 @@ def build_client(
         privacy_policy_url,
         version,
         propagator_managed_upgrades,
-        test=False):
+        test=False,
+        _=None):
 
     try:
         # Backup/restore original files minimize chance of checking values into source control
