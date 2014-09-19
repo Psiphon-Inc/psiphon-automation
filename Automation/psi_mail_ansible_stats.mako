@@ -16,6 +16,7 @@
 
 <h1>Psiphon 3 Ansible Stats</h1>
 <%
+
 start_time, end_time, playbook_file, hosts_processed, hosts_dark, hosts_failed, hosts_changed, hosts_skipped, hosts_summary = data
 
 import datetime
@@ -48,7 +49,7 @@ count_skipped = len(hosts_skipped)
 % if count_unreachable > 0:
 	<tbody>
 	% for c in hosts_dark:
-		<tr>${c}, ${hosts_dark[c]}, ${len(hosts_dark)}</tr>
+		<tr>${c}</tr>
 	% endfor
 	</tbody>
 % endif
@@ -96,8 +97,8 @@ count_skipped = len(hosts_skipped)
 
 <p>
 	<sub>
-	Start Time: ${start_time}
-	End Time: ${end_time}
-	Elapsed: ${elapsed_time}
+	Start Time: ${start_time}<br>
+	End Time: ${end_time}<br>
+	Elapsed: ${elapsed_time}<br>
 	</sub>
 </p>

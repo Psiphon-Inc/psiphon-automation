@@ -8,6 +8,7 @@ import sys
 import datetime
 import psi_ops
 import pynliner
+import collections
 
 import psi_ops_config
 
@@ -23,14 +24,13 @@ sys.path.append(os.path.abspath(os.path.join('..', 'EmailResponder', 'FeedbackDe
 import sender
 from config import config
 
-def prepare_linode_base_host(host):
-    ansible_base_linode = create_host(host_name='linode_base_image', 
-                                   host_vars={'ansible_ssh_host': host.base_ip_address,
-                                              'ansible_ssh_user': 'root', 
-                                              'ansible_ssh_pass': host.base_root_password,
-                                              'ansible_ssh_port': host.base_ssh_port,
-                                             })
-    return ansible_base_linode
+def prepare_linode_base_host(account):
+    linode_account = account
+    Host = collections.namedtuple('Host', ['id', 'ip_address', 'ssh_username', 'ssh_password', 'ssh_port'])
+    base_host = Host('linode_base_image', linode_account.base_ip_address, 'root', 
+                     linode_account.base_root_password, linode_account.base_ssh_port)
+    base_host = populate_ansible_hosts([base_host])
+    return base_host
 
 def create_host(host_name=None, host_vars=dict()):
     """
@@ -160,11 +160,13 @@ def run_playbook(playbook_file=None, inventory=ansible.inventory.Inventory([]),
             # stats.failures : (dict) number of hosts that failed to complete the tasks
             record = (str(start_time), str(end_time), playbook_file, stats.processed, stats.dark, stats.failures, stats.changed, stats.skipped, res)
             send_mail(record)
+        
+        return (stats, res)
     
     except Exception as e:
         raise e
 
-def send_mail(record, subject='PSI ANSIBLE'):
+def send_mail(record, subject='PSI Ansible Report'):
     template_filename = 'psi_mail_ansible_stats.mako'
     template_lookup = TemplateLookup(directories=[os.path.dirname(os.path.abspath('__file__'))])
     template = Template(filename=template_filename, default_filters=['unicode', 'h'], lookup=template_lookup)
@@ -179,14 +181,32 @@ def send_mail(record, subject='PSI ANSIBLE'):
     
     sender.send(config['emailRecipients'], config['emailUsername'], subject, repr(record), rendered)
 
-def refresh_base_images():
+def refresh_base_images(providers=['linode']):
+    """
+        Updates providers base images
+        providers : a list of providers so they can be selectively updated
+    """
     try:
         psinet = psi_ops.PsiphonNetwork.load_from_file(PSI_OPS_DB_FILENAME)
+        linode_base_host = prepare_linode_base_host(psinet._PsiphonNetwork__linode_account)
+        
+        inv = ansible.inventory.Inventory([])
+        
+        for provider_name in providers:
+            group = ansible.inventory.Group(provider_name)
+            add_hosts_to_group(linode_base_host, group)
+            inv.add_group(group)
+        
+        (stats, res) = run_playbook(playbook_file='ansible/update_base_images.yml', inventory=inv, email_stats=True)
         
     except Exception as e:
-        raise
+        raise e
 
 def update_dat():
+    """
+        Calls external script to update dat file.
+    """
+    print "Updating psi_ops.dat"
     import psi_update_dat
     psi_update_dat.main()
     
@@ -237,7 +257,7 @@ def main(infile=None, send_mail_stats=False):
             raise "Must specify input file" 
         
         playbook_file = infile
-        res = run_playbook(playbook_file, inv, send_mail_stats)
+        (stats, res) = run_playbook(playbook_file, inv, send_mail_stats)
         print res
         
     except Exception as e:
@@ -253,18 +273,12 @@ if __name__ == "__main__":
     parser.add_option("-r", "--refresh_base_images", action="store_true", help="Updates base images for linode and digitalocean")
     parser.add_option("-m", "--send_mail", action="store_true", help="Send email after playbook is run")
     parser.add_option("-u", "--update_dat", action="store_true", help="Update dat file")
-	
     
     infile=None
     send_mail_stats = False
     
     (options, _) = parser.parse_args()
-    if options.update_dat:
-        update_dat()
-        exit(0)
-    if options.infile:
-        infile = options.infile
-        print infile
+    
     if options.send_mail:
         send_mail_stats=True
     if options.test_servers:
@@ -273,9 +287,18 @@ if __name__ == "__main__":
         psi_ops_config.RUN_AGAINST_SUBSET = True
     if options.base_image:
         psi_ops_config.ANSIBLE_INCLUDE_BASE_IMAGE = True
-    if options.refresh_base_images:
-        refresh_base_images()
     
-    main(infile=infile, send_mail_stats=send_mail_stats)
+    if options.update_dat:
+        update_dat()
+    
+    if options.refresh_base_images:
+        refresh_base_images(['Testing'])
+        exit(0)
+        
+    if options.infile:
+        infile = options.infile
+        print infile
+        main(infile=infile, send_mail_stats=send_mail_stats)
+    
 
 
