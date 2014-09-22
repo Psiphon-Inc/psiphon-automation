@@ -330,11 +330,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__deploy_website_required_for_sponsors = set()
         self.__automation_bucket = None
         self.__discovery_strategy_value_hmac_key = binascii.b2a_hex(os.urandom(32))
+        self.__android_home_tab_url_exclusions = set()
 
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.27'
+    class_version = '0.28'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -496,6 +497,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for sponsor in self.__sponsors.itervalues():
                 sponsor.mobile_home_pages = {}
             self.version = '0.27'
+        if cmp(parse_version(self.version), parse_version('0.28')) < 0:
+            self.__android_home_tab_url_exclusions = set()
+            self.version = '0.28'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1837,7 +1841,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         privacy_policy_url,
                         self.__client_versions[platform][-1].version if self.__client_versions[platform] else 0,
                         propagation_channel.propagator_managed_upgrades,
-                        test) for platform in platforms]
+                        test,
+                        list(self.__android_home_tab_url_exclusions)) for platform in platforms]
 
     def build_android_library(
             self,
