@@ -40,7 +40,8 @@ def set_embedded_values(client_version,
                         propagation_channel_id,
                         sponsor_id,
                         remote_server_list_url,
-                        remote_server_list_signature_public_key):
+                        remote_server_list_signature_public_key,
+                        home_tab_url_exclusions):
     global embedded_values
     embedded_values['CLIENT_VERSION'] = client_version
     embedded_values['EMBEDDED_SERVER_LIST'] = embedded_server_list
@@ -63,6 +64,7 @@ def set_embedded_values(client_version,
     embedded_values['SPONSOR_ID'] = sponsor_id
     embedded_values['REMOTE_SERVER_LIST_URL'] = remote_server_list_url
     embedded_values['REMOTE_SERVER_LIST_SIGNATURE_PUBLIC_KEY'] = remote_server_list_signature_public_key
+    embedded_values['HOME_TAB_URL_EXCLUSIONS'] = home_tab_url_exclusions
 
 
 # This function is to be called by psi_ops_build_android.py, retaining compatibility
