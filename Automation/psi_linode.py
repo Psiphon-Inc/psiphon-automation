@@ -74,8 +74,8 @@ def create_linode(linode_api):
 
 
 def create_linode_disks(linode_api, linode_id, bootstrap_password, plugins):
-    # DistributionID = 125: 'Debian 7.5'
-    distribution_id = 125
+    # DistributionID = 130: 'Debian 7.6'
+    distribution_id = 130
     for plugin in plugins:
         if hasattr(plugin, 'linode_distribution_id'):
             distribution_id = plugin.linode_distribution_id()
