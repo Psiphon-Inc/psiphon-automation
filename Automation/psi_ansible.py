@@ -70,7 +70,8 @@ def add_hosts_to_group(hosts, group):
         print type(e), str(e)
         raise e
 
-def run_against_inventory(inv=ansible.inventory.Inventory([]), mod_name='ping', mod_args='', pattern='*', forks=10):
+def run_against_inventory(inv=ansible.inventory.Inventory([]), 
+                          mod_name='ping', mod_args='', pattern='*', forks=10):
     """
         Run a single task against an Inventory.
         inv : Ansible Inventory object
@@ -158,7 +159,9 @@ def run_playbook(playbook_file=None, inventory=ansible.inventory.Inventory([]),
         if email_stats == True:
             # stats.dark : (dict) number of hosts that could not be contacted 
             # stats.failures : (dict) number of hosts that failed to complete the tasks
-            record = (str(start_time), str(end_time), playbook_file, stats.processed, stats.dark, stats.failures, stats.changed, stats.skipped, res)
+            (host_output, host_errs) = process_playbook_vars_cache(playbook)
+            setup_cache = process_playbook_setup_cache(playbook)
+            record = (str(start_time), str(end_time), playbook_file, stats.processed, stats.dark, stats.failures, stats.changed, stats.skipped, res, host_output, host_errs, setup_cache)
             send_mail(record)
         
         return (stats, res)
@@ -166,8 +169,29 @@ def run_playbook(playbook_file=None, inventory=ansible.inventory.Inventory([]),
     except Exception as e:
         raise e
 
-def send_mail(record, subject='PSI Ansible Report'):
-    template_filename = 'psi_mail_ansible_stats.mako'
+def process_playbook_vars_cache(playbook):
+    cache = playbook.VARS_CACHE
+    
+    host_errs = dict()
+    host_output = dict()
+    for host in cache:
+        if cache[host]['cmd_result']['changed']:
+            if cache[host]['cmd_result']['stderr']:
+                host_errs[host] = cache[host]
+            elif cache[host]['cmd_result']['stdout']:
+                host_output[host] = cache[host]
+    return (host_output, host_errs)
+
+def process_playbook_setup_cache(playbook):
+    setup_cache = dict()
+    
+    for host in playbook.SETUP_CACHE:
+        setup_cache[host] = playbook.SETUP_CACHE[host]
+    return setup_cache
+
+def send_mail(record, subject='PSI Ansible Report', 
+              template_filename='psi_mail_ansible_system_update.mako'):
+    
     template_lookup = TemplateLookup(directories=[os.path.dirname(os.path.abspath('__file__'))])
     template = Template(filename=template_filename, default_filters=['unicode', 'h'], lookup=template_lookup)
     
@@ -218,6 +242,19 @@ def main(infile=None, send_mail_stats=False):
                 
         inv = ansible.inventory.Inventory([])
         
+        # Add test group if set
+        if psi_ops_config.ANSIBLE_INCLUDE_TEST_GROUP == True:
+            print "Creating Test Group"
+            test_hosts_list = list()
+            for h in psinet_hosts_list:
+                if h.id in psi_ops_config.ANSIBLE_TEST_HOSTS:
+                    test_hosts_list.append(h)
+            
+            ansible_hosts_list = populate_ansible_hosts(test_hosts_list)
+            group = ansible.inventory.Group(psi_ops_config.ANSIBLE_TEST_GROUP)
+            add_hosts_to_group(ansible_hosts_list, group)
+            inv.add_group(group)
+        
         #Run against subset
         if psi_ops_config.RUN_AGAINST_SUBSET == True:
             print 'Running Playbook against subset'
@@ -229,19 +266,6 @@ def main(infile=None, send_mail_stats=False):
         for provider in psinet_hosts_dict:
             group = ansible.inventory.Group(provider)
             ansible_hosts_list = populate_ansible_hosts(psinet_hosts_dict[provider])
-            add_hosts_to_group(ansible_hosts_list, group)
-            inv.add_group(group)
-        
-        # Add test group if set
-        if psi_ops_config.ANSIBLE_INCLUDE_TEST_GROUP == True:
-            print "Creating Test Group"
-            test_hosts_list = list()
-            for h in psinet_hosts_list:
-                if h.id in psi_ops_config.ANSIBLE_TEST_HOSTS:
-                    test_hosts_list.append(h)
-            
-            ansible_hosts_list = populate_ansible_hosts(test_hosts_list)
-            group = ansible.inventory.Group(psi_ops_config.ANSIBLE_TEST_GROUP)
             add_hosts_to_group(ansible_hosts_list, group)
             inv.add_group(group)
         
@@ -258,7 +282,6 @@ def main(infile=None, send_mail_stats=False):
         
         playbook_file = infile
         (stats, res) = run_playbook(playbook_file, inv, send_mail_stats)
-        print res
         
     except Exception as e:
         raise type(e), str(e)

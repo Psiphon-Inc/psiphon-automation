@@ -24,7 +24,7 @@ import operator
 
 elapsed_time = datetime.datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S.%f") - datetime.datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S.%f")
 
-count_processed = len(hosts_processed)
+len(hosts_processed) = len(hosts_processed)
 count_unreachable = len(hosts_dark)
 count_failed = len(hosts_failed)
 count_changed = len(hosts_changed)
@@ -42,8 +42,8 @@ count_skipped = len(hosts_skipped)
 
 <h3>Host Stats</h3>
 <ul>
-	<li>Unreachable: ${count_unreachable}</li>
-	<li>Processed: ${count_processed} </li>
+	<li>Unreachable: ${len(hosts_dark)}</li>
+	<li>Processed: ${len(hosts_processed)} </li>
 	<li>Failed: ${count_failed}</li>
 	<li>Changed: ${count_changed}</li>
 	<li>Skipped: ${count_skipped}</li>
@@ -51,17 +51,87 @@ count_skipped = len(hosts_skipped)
 
 <hr>
 
-<h3>Unreachable Hosts: ${count_unreachable}</h3>
-% if count_unreachable > 0:
+<h3>Unreachable Hosts: ${len(hosts_dark)}</h3>
+% if len(hosts_dark) > 0:
 	<tbody>
-	% for c in hosts_dark:
-		<tr>${c}</tr>
+	% for host in hosts_dark:
+		<tr>
+            % for d in [3]:
+                <td>
+                    ${host}
+                </td>
+            $ endfor
+        </tr>
 	% endfor
 	</tbody>
 % endif
 <hr>
 
-<h3>Host STDERR: ${hosts_errs}</h3>
+<h3>Failed Hosts: ${len(hosts_failed)}</h3>
+% if len(hosts_failed) > 0:
+	<tbody>
+	% for host in hosts_failed:
+		<tr>
+            % for d in [3]:
+                <td>
+                    ${host}
+                </td>
+            $ endfor
+        </tr>
+	% endfor
+	</tbody>
+% endif
+<hr>
+
+<h3>Skipped Hosts: ${len(hosts_skipped)}</h3>
+% if len(hosts_skipped) > 0:
+	<tbody>
+	% for host in hosts_skipped:
+		<tr>
+            % for d in [3]:
+                <td>
+                    ${host}
+                </td>
+            $ endfor
+        </tr>
+	% endfor
+	</tbody>
+% endif
+<hr>
+
+<h3>Processed Hosts: ${len(hosts_processed)}</h3>
+% if len(hosts_processed) > 0:
+	<tbody>
+	% for host in hosts_processed:
+		<tr>
+            % for d in [3]:
+                <td>
+                    ${host}
+                </td>
+            $ endfor
+        </tr>
+	% endfor
+	</tbody>
+% endif
+<hr>
+
+<h3>Changed Hosts: ${len(hosts_changed)}</h3>
+% if len(hosts_changed) > 0:
+	<tbody>
+	% for host in hosts_changed:
+		<tr>
+            % for d in [3]:
+                <td>
+                    ${host}
+                </td>
+            $ endfor
+        </tr>
+	% endfor
+	</tbody>
+% endif
+<hr>
+
+<h3>Host STDERR: ${len(hosts_errs)}</h3>
 % if len(hosts_errs) > 0:
 	<tbody>
     <tr>
@@ -99,12 +169,5 @@ count_skipped = len(hosts_skipped)
 % endif
 
 <hr width=100%>
-
-
-<h3>Processed Hosts: ${count_processed}</h3>
-% if count_processed > 0:
-<p>${hosts_processed}</p>
-% endif
-<hr>
 
 
