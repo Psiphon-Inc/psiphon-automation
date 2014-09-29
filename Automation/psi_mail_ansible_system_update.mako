@@ -17,18 +17,12 @@
 <h1>Psiphon 3 Ansible Stats</h1>
 <%
 
-start_time, end_time, playbook_file, hosts_processed, hosts_dark, hosts_failed, hosts_changed, hosts_skipped, hosts_summar, hosts_output, hosts_errs, hosts_info = data
+start_time, end_time, playbook_file, hosts_processed, hosts_dark, hosts_failed, hosts_changed, hosts_skipped, hosts_summary, hosts_output, hosts_errs, hosts_info = data
 
 import datetime
 import operator
 
 elapsed_time = datetime.datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S.%f") - datetime.datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S.%f")
-
-len(hosts_processed) = len(hosts_processed)
-count_unreachable = len(hosts_dark)
-count_failed = len(hosts_failed)
-count_changed = len(hosts_changed)
-count_skipped = len(hosts_skipped)
 
 %>
 
@@ -44,9 +38,9 @@ count_skipped = len(hosts_skipped)
 <ul>
 	<li>Unreachable: ${len(hosts_dark)}</li>
 	<li>Processed: ${len(hosts_processed)} </li>
-	<li>Failed: ${count_failed}</li>
-	<li>Changed: ${count_changed}</li>
-	<li>Skipped: ${count_skipped}</li>
+	<li>Failed: ${len(hosts_failed)}</li>
+	<li>Changed: ${len(hosts_changed)}</li>
+	<li>Skipped: ${len(hosts_skipped)}</li>
 </ul>
 
 <hr>
@@ -60,7 +54,7 @@ count_skipped = len(hosts_skipped)
                 <td>
                     ${host}
                 </td>
-            $ endfor
+            % endfor
         </tr>
 	% endfor
 	</tbody>
@@ -76,7 +70,7 @@ count_skipped = len(hosts_skipped)
                 <td>
                     ${host}
                 </td>
-            $ endfor
+            % endfor
         </tr>
 	% endfor
 	</tbody>
@@ -92,7 +86,7 @@ count_skipped = len(hosts_skipped)
                 <td>
                     ${host}
                 </td>
-            $ endfor
+            % endfor
         </tr>
 	% endfor
 	</tbody>
@@ -108,7 +102,7 @@ count_skipped = len(hosts_skipped)
                 <td>
                     ${host}
                 </td>
-            $ endfor
+            % endfor
         </tr>
 	% endfor
 	</tbody>
@@ -124,7 +118,7 @@ count_skipped = len(hosts_skipped)
                 <td>
                     ${host}
                 </td>
-            $ endfor
+            % endfor
         </tr>
 	% endfor
 	</tbody>

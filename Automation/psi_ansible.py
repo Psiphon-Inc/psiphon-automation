@@ -171,15 +171,17 @@ def run_playbook(playbook_file=None, inventory=ansible.inventory.Inventory([]),
 
 def process_playbook_vars_cache(playbook):
     cache = playbook.VARS_CACHE
-    
     host_errs = dict()
     host_output = dict()
-    for host in cache:
-        if cache[host]['cmd_result']['changed']:
-            if cache[host]['cmd_result']['stderr']:
-                host_errs[host] = cache[host]
-            elif cache[host]['cmd_result']['stdout']:
-                host_output[host] = cache[host]
+    
+    if len(cache) > 0:
+        for host in cache:
+            if cache[host]['cmd_result']['changed']:
+                if cache[host]['cmd_result']['stderr']:
+                    host_errs[host] = cache[host]
+                elif cache[host]['cmd_result']['stdout']:
+                    host_output[host] = cache[host]
+    
     return (host_output, host_errs)
 
 def process_playbook_setup_cache(playbook):
@@ -191,6 +193,9 @@ def process_playbook_setup_cache(playbook):
 
 def send_mail(record, subject='PSI Ansible Report', 
               template_filename='psi_mail_ansible_system_update.mako'):
+    
+    if not os.path.isfile(template_filename):
+        raise
     
     template_lookup = TemplateLookup(directories=[os.path.dirname(os.path.abspath('__file__'))])
     template = Template(filename=template_filename, default_filters=['unicode', 'h'], lookup=template_lookup)
@@ -279,9 +284,9 @@ def main(infile=None, send_mail_stats=False):
         
         if not infile: 
             raise "Must specify input file" 
-        
-        playbook_file = infile
-        (stats, res) = run_playbook(playbook_file, inv, send_mail_stats)
+        elif os.path.isfile(infile):
+            playbook_file = infile
+            (stats, res) = run_playbook(playbook_file, inv, send_mail_stats)
         
     except Exception as e:
         raise type(e), str(e)
