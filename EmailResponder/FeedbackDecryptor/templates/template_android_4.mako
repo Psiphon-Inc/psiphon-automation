@@ -118,6 +118,10 @@
   .rtl {
     direction: rtl;
   }
+
+  .emoticon {
+    font-size: 3em;
+  }
 </style>
 
 
@@ -182,7 +186,7 @@
   <h2>Survey</h2>
   <table>
     % for result in feedback['Survey']['results']:
-      ${sys_info_row(result['title'], [':-)', ':-('][result['answer']])}
+      ${sys_info_row_emoticon(result['title'], ['☺', '☹'][result['answer']])}
     % endfor
   </table>
 % endif
@@ -231,6 +235,13 @@
     <td>${val}</td>
   </tr>
 </%def>
+<%def name="sys_info_row_emoticon(key, val)">
+  <tr>
+    <th>${sys_info_key_map(key)}</th>
+    <td class="emoticon">${val}</td>
+  </tr>
+</%def>
+
 
 <h3>Build Info</h3>
 <table>
