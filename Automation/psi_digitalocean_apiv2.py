@@ -18,19 +18,16 @@
 #
 
 import collections
+import random
+import string
 
 import psi_utils
 
 import digitalocean
 
-def generate_random_string(prefix=None, size=8):
-    if not prefix:
-        prefix=''
-    return '%s%s' % (prefix, ''.join(random.choice(string.ascii_lowercase) for x in range(size)))
-
-def get_droplet_by_id(digitalocean_account, droplet_id=digitalocean_account.base_id):
+def get_droplet_by_id(digitalocean_account=None, droplet_id=None):
     try:
-        do_image = digitalocean.Image(token=digitalocean_account.oauth_apiv2, 
+        do_image = digitalocean.Image(token=digitalocean_account.oauth_token, 
                                           id=droplet_id)
         base_droplet = do_image.load()
         
@@ -43,30 +40,48 @@ def launch_new_server(digitalocean_account, _):
     image = {}
     
     try:
-        Droplet = collections.namedtuple('Droplet', ['name', 'region', 'image', 'size', 'backups'])
+        Droplet = collections.namedtuple('Droplet', ['name', 'region', 'image', 
+                                                     'size', 'backups'])
         new_root_password = psi_utils.generate_password()
         new_stats_password = psi_utils.generate_password()
-        
-        do_mgr = digitalocean.Manager(token=digitalocean_account.oauth_apiv2)
-        
+
+        do_mgr = digitalocean.Manager(token=digitalocean_account.oauth_token)
+
         # Get the base image
         base_droplet = get_droplet_by_id(digitalocean_account, digitalocean_account.base_id)
         Droplet.image = base_droplet.id
-        
+
+        Droplet.name = str('do-' + 
+                           ''.join(random.choice(string.ascii_lowercase) for x in range(8)))
+
         # Set the default size
         droplet_sizes = do_mgr.get_all_sizes()
-        
+        if not unicode(digitalocean_account.base_size_slug) in [unicode(s.slug) for s in droplet_sizes]:
+            raise "Size slug not found"
+
         Droplet.size = digitalocean_account.base_size_slug
-        
+
         droplet_regions = do_mgr.get_all_regions()
-        available_regions = [base_droplet.regions, [r.slug for r in droplet_regions if r.available]]
-        common_regions = reduce(set.intersection, available_regions, set(available_regions[0]))
-        Droplet.region = random.choice(list(common_regions))
-        
-        Droplet.name = generate_random_string(prefix=('do-' + str(image['region_id']) + str(image['size_id']) + '-'))
-        
+        common_regions = list(set([r.slug for r in droplet_regions if r.available])
+                                 .intersection(base_droplet.regions))
+
+        Droplet.region = random.choice(common_regions)
+                
         #### TODO: SSH KEY
-        
+        sshkeys = do_mgr.get_all_sshkeys()
+        # treat sshkey id as unique
+        if not unicode(digitalocean_account.ssh_key_template_id) in [unicode(k.id) for k in sshkeys]:
+            raise "No SSHKey found"
+
+        droplet = digitalocean.Droplet(token=digitalocean_account.oauth_token,
+                                       name=Droplet.name,
+                                       region=Droplet.region,
+                                       image=Droplet.image,
+                                       size=Droplet.size,
+                                       backups=False)
+
+        droplet.create(ssh_keys=str(digitalocean_account.ssh_key_template_id))
+    
     except Exception as e:
         print type(e), str(e)
 
