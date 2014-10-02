@@ -205,6 +205,7 @@ def launch_new_server(digitalocean_account, _):
         if resp['status'] != 'OK':
             raise Exception(resp['message'] + ': ' + resp['error_message'])
         
+        droplet = resp['droplet']
         if not wait_on_event_completion(do_api, resp['droplet']['event_id'], interval=30):
             raise Exception('Event did not complete in time')
         
