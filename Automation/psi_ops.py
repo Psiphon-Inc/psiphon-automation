@@ -237,7 +237,7 @@ DigitalOceanAccount = psi_utils.recordtype(
     'client_id, api_key, base_id, base_size_id, base_region_id, ' +
     'base_ssh_port, base_stats_username, base_host_public_key, ' +
     'base_rsa_private_key, ssh_key_template_id ' +
-    'oauth_token, base_size_slug',
+    'oauth_token, base_size_slug, droplet_size_slug', 
     default=None)
 
 ElasticHostsAccount = psi_utils.recordtype(

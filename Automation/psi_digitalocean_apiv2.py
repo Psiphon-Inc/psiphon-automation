@@ -38,6 +38,10 @@ def refresh_credentials(digitalocean_account, ip_address, new_root_password, new
     ssh.exec_command('dpkg-reconfigure openssh-server')
     return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
 
+def update_system_packages(digitalocean_account, ip_address):
+    ssh = psi_ssh.make_ssh_session(ip_address, digitalocean_account.base_ssh_port, 'root', None, None, digitalocean_account.base_rsa_private_key)
+    ssh.exec_command('export DEBIAN_FRONTEND=noninteractive && aptitude update -q && aptitude safe-upgrade -y -o Dpkg::Options::="--force-confdef"')
+
 def get_datacenter_region(region):
     '''
         nyc1 New York 1
@@ -101,6 +105,43 @@ def get_droplet_by_id(digitalocean_account=None, droplet_id=None):
         return droplet
     except Exception as e:
         raise e
+
+def update_image(digitalocean_account=None, droplet_id=None, droplet_name=None, droplet_size=None):
+    try:
+        if not digitalocean_account:
+            raise Exception('DigitalOcean account must be provided')
+
+        Droplet = collections.namedtuple('Droplet', ['name', 'region', 'image', 
+                                                     'size', 'backups'])
+
+        base_droplet = get_image_by_id(digitalocean_account, digitalocean_account.base_id)
+        base_droplet = base_droplet.load()
+
+        Droplet.image = base_droplet.id if not droplet_id else droplet_id
+        Droplet.name = base_droplet.name if not droplet_name else droplet_name
+        Droplet.size = digitalocean_account.base_size_slug if not droplet_size else droplet_size
+        Droplet.region = base_droplet.regions[0] if len(base_droplet.regions) > 0 else 'nyc1'
+
+        sshkeys = do_mgr.get_all_sshkeys()
+        # treat sshkey id as unique
+        if not unicode(digitalocean_account.ssh_key_template_id) in [unicode(k.id) for k in sshkeys]:
+            raise 'No SSHKey found'
+
+        droplet = digitalocean.Droplet(token=digitalocean_account.oauth_token,
+                                       name=Droplet.name,
+                                       region=Droplet.region,
+                                       image=Droplet.image,
+                                       size=Droplet.size,
+                                       backups=False)
+
+        droplet.create(ssh_keys=str(digitalocean_account.ssh_key_template_id))
+        if not wait_on_action(droplet, interval=30, action_type='create', action_status='completed'):
+            raise Exception('Event did not complete in time')
+
+        droplet = get_droplet_by_id(digitalocean_account, droplet.id)
+        update_system_packages(digitalocean_account, droplet.ip_address)
+    except Exception as e:
+        print type(e), str(e)
 
 def launch_new_server(digitalocean_account, _):
     try:
