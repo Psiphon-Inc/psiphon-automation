@@ -139,6 +139,10 @@ def launch_new_server(digitalocean_account, _):
     
     except Exception as e:
         print type(e), str(e)
+        if droplet != None:
+            droplet.destroy()
+        else:
+            print type(e), "No droplet to be destroyed: ", str(droplet)
         raise
     
     return (droplet.name, None, droplet.id, droplet.ip_address, 
