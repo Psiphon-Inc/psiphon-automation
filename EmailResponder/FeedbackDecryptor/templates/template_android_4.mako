@@ -186,7 +186,7 @@
   <h2>Survey</h2>
   <table>
     % for result in feedback['Survey']['results']:
-      ${sys_info_row_emoticon(result['title'], ['☺', '☹'][result['answer']])}
+      ${sys_info_row_emoticon(result['title'], result['answer']==0)}
     % endfor
   </table>
 % endif
@@ -235,10 +235,16 @@
     <td>${val}</td>
   </tr>
 </%def>
-<%def name="sys_info_row_emoticon(key, val)">
+<%def name="sys_info_row_emoticon(key, is_happy)">
   <tr>
     <th>${sys_info_key_map(key)}</th>
-    <td class="emoticon">${val}</td>
+    <td class="emoticon">
+      % if is_happy:
+        &#9786;
+      % else:
+        &#9785;
+      % endif
+    </td>
   </tr>
 </%def>
 
