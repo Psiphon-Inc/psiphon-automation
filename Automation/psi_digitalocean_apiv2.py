@@ -20,35 +20,78 @@
 import collections
 import random
 import string
+import time
 
 import psi_utils
+import psi_ssh
 
 import digitalocean
 
-def get_droplet_by_id(digitalocean_account=None, droplet_id=None):
+def refresh_credentials(digitalocean_account, ip_address, new_root_password, new_stats_password):
+    # Note: using auto-add-policy for host's SSH public key here since we can't get it through the API.
+    # There's a risk of man-in-the-middle.
+    ssh = psi_ssh.make_ssh_session(ip_address, digitalocean_account.base_ssh_port, 'root', None, None, digitalocean_account.base_rsa_private_key)
+    ssh.exec_command('echo "root:%s" | chpasswd' % (new_root_password,))
+    ssh.exec_command('echo "%s:%s" | chpasswd' % (digitalocean_account.base_stats_username, new_stats_password))
+    ssh.exec_command('rm /etc/ssh/ssh_host_*')
+    ssh.exec_command('rm -rf /root/.ssh')
+    ssh.exec_command('dpkg-reconfigure openssh-server')
+    return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
+
+def wait_on_action(droplet=None, interval=10, action_type='create', action_status='completed'):
+    """
+        Check an action periodically
+    """
+    try:
+        if droplet is None:
+            raise 'Droplet not defined'
+        
+        droplet_actions = droplet.get_actions()
+        for attempt in range(10):
+            droplet_actions = droplet.get_actions()
+            if len(droplet_actions) < 1:
+                time.sleep(int(interval))
+                continue
+            for action in droplet_actions:
+                if action.type == action_type and action.status == action_status:
+                    return True
+            print '%s. %s - %s not found - trying again in %ss' % (str(attempt), action_type, action_status, interval)
+            time.sleep(int(interval))
+    except Exception as e:
+        raise e
+    
+    return False
+
+def get_image_by_id(digitalocean_account=None, image_id=None):
     try:
         do_image = digitalocean.Image(token=digitalocean_account.oauth_token, 
-                                          id=droplet_id)
-        base_droplet = do_image.load()
-        
-        return base_droplet
-        
+                                          id=image_id)
+        image = do_image.load()
+        return image
     except Exception as e:
-        raise
+        raise e
+
+def get_droplet_by_id(digitalocean_account=None, droplet_id=None):
+    try:
+        do_droplet = digitalocean.Droplet(token=digitalocean_account.oauth_token, 
+                                          id=droplet_id)
+        droplet = do_droplet.load()
+        return droplet
+    except Exception as e:
+        raise e
 
 def launch_new_server(digitalocean_account, _):
-    image = {}
-    
     try:
         Droplet = collections.namedtuple('Droplet', ['name', 'region', 'image', 
                                                      'size', 'backups'])
+
         new_root_password = psi_utils.generate_password()
         new_stats_password = psi_utils.generate_password()
 
         do_mgr = digitalocean.Manager(token=digitalocean_account.oauth_token)
 
         # Get the base image
-        base_droplet = get_droplet_by_id(digitalocean_account, digitalocean_account.base_id)
+        base_droplet = get_image_by_id(digitalocean_account, digitalocean_account.base_id)
         Droplet.image = base_droplet.id
 
         Droplet.name = str('do-' + 
@@ -57,7 +100,7 @@ def launch_new_server(digitalocean_account, _):
         # Set the default size
         droplet_sizes = do_mgr.get_all_sizes()
         if not unicode(digitalocean_account.base_size_slug) in [unicode(s.slug) for s in droplet_sizes]:
-            raise "Size slug not found"
+            raise 'Size slug not found'
 
         Droplet.size = digitalocean_account.base_size_slug
 
@@ -66,12 +109,11 @@ def launch_new_server(digitalocean_account, _):
                                  .intersection(base_droplet.regions))
 
         Droplet.region = random.choice(common_regions)
-                
-        #### TODO: SSH KEY
+
         sshkeys = do_mgr.get_all_sshkeys()
         # treat sshkey id as unique
         if not unicode(digitalocean_account.ssh_key_template_id) in [unicode(k.id) for k in sshkeys]:
-            raise "No SSHKey found"
+            raise 'No SSHKey found'
 
         droplet = digitalocean.Droplet(token=digitalocean_account.oauth_token,
                                        name=Droplet.name,
@@ -81,18 +123,26 @@ def launch_new_server(digitalocean_account, _):
                                        backups=False)
 
         droplet.create(ssh_keys=str(digitalocean_account.ssh_key_template_id))
+        if not wait_on_action(droplet, interval=30, action_type='create', action_status='completed'):
+            raise Exception('Event did not complete in time')
+
+        droplet = get_droplet_by_id(digitalocean_account, droplet.id)
+        
+        region = droplet.region['name']
+        datacenter_name = 'Digital Ocean ' + region
+        
+        new_droplet_public_key = refresh_credentials(digitalocean_account, 
+                                                     droplet.ip_address, 
+                                                     new_root_password, 
+                                                     new_stats_password)
+        assert(new_droplet_public_key)
     
     except Exception as e:
         print type(e), str(e)
-
-
-
-'''
-droplet = digitalocean.Droplet(token="secretspecialuniquesnowflake",
-                               name='Example',
-                               region='nyc2', # New York 2
-                               image='ubuntu-14-04-x64', # Ubuntu 14.04 x64
-                               size='512mb',  # 512MB
-                               backups=True)
-droplet.create()
-'''
+        raise
+    
+    return (droplet.name, None, droplet.id, droplet.ip_address, 
+            digitalocean_account.base_ssh_port, 'root', new_root_password, 
+            ' '.join(new_droplet_public_key.split(' ')[:2]),
+            digitalocean_account.base_stats_username, new_stats_password,
+            datacenter_name, region, None, None, None, None)
