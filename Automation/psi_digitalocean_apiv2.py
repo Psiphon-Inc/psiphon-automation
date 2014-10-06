@@ -39,13 +39,6 @@ def refresh_credentials(digitalocean_account, ip_address, new_root_password, new
     return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
 
 def get_datacenter_region(region):
-    #[{u'slug': u'nyc1', u'id': 1, u'name': u'New York 1'}, 
-    # {u'slug': u'ams1', u'id': 2, u'name': u'Amsterdam 1'}, 
-    # {u'slug': u'sfo1', u'id': 3, u'name': u'San Francisco 1'}, 
-    # {u'slug': u'nyc2', u'id': 4, u'name': u'New York 2'},
-    # {u'slug': u'ams2', u'id': 5, u'name': u'Amsterdam 2'},
-    # {u'slug': u'sgp1', u'id': 6, u'name': u'Singapore 1'},
-    # {u'slug': u'lon1', u'id': 7, u'name': u'London 1'}]
     '''
         nyc1 New York 1
         ams1 Amsterdam 1
@@ -157,7 +150,7 @@ def launch_new_server(digitalocean_account, _):
 
         droplet = get_droplet_by_id(digitalocean_account, droplet.id)
         
-        region = get_datacenter_region(droplet.region['id'])
+        region = get_datacenter_region(droplet.region['slug'])
         datacenter_name = 'Digital Ocean ' + droplet.region['name']
         
         new_droplet_public_key = refresh_credentials(digitalocean_account, 
