@@ -88,24 +88,6 @@ def wait_on_action(droplet=None, interval=10, action_type='create', action_statu
     
     return False
 
-def get_image_by_id(digitalocean_account=None, image_id=None):
-    try:
-        do_image = digitalocean.Image(token=digitalocean_account.oauth_token, 
-                                          id=image_id)
-        image = do_image.load()
-        return image
-    except Exception as e:
-        raise e
-
-def get_droplet_by_id(digitalocean_account=None, droplet_id=None):
-    try:
-        do_droplet = digitalocean.Droplet(token=digitalocean_account.oauth_token, 
-                                          id=droplet_id)
-        droplet = do_droplet.load()
-        return droplet
-    except Exception as e:
-        raise e
-
 def update_image(digitalocean_account=None, droplet_id=None, droplet_name=None, droplet_size=None):
     try:
         if not digitalocean_account:
@@ -114,13 +96,13 @@ def update_image(digitalocean_account=None, droplet_id=None, droplet_name=None, 
         Droplet = collections.namedtuple('Droplet', ['name', 'region', 'image', 
                                                      'size', 'backups'])
 
-        base_droplet = get_image_by_id(digitalocean_account, digitalocean_account.base_id)
-        base_droplet = base_droplet.load()
+        do_mgr = digitalocean.Manager(token=digitalocean_account.oauth_token)
+        base_image = do_mgr.get_image(digitalocean_account.base_id)
 
-        Droplet.image = base_droplet.id if not droplet_id else droplet_id
-        Droplet.name = base_droplet.name if not droplet_name else droplet_name
+        Droplet.image = base_image.id if not droplet_id else droplet_id
+        Droplet.name = base_image.name if not droplet_name else droplet_name
         Droplet.size = digitalocean_account.base_size_slug if not droplet_size else droplet_size
-        Droplet.region = base_droplet.regions[0] if len(base_droplet.regions) > 0 else 'nyc1'
+        Droplet.region = base_image.regions[0] if len(base_image.regions) > 0 else 'nyc1'
 
         sshkeys = do_mgr.get_all_sshkeys()
         # treat sshkey id as unique
@@ -135,11 +117,14 @@ def update_image(digitalocean_account=None, droplet_id=None, droplet_name=None, 
                                        backups=False)
 
         droplet.create(ssh_keys=str(digitalocean_account.ssh_key_template_id))
+
         if not wait_on_action(droplet, interval=30, action_type='create', action_status='completed'):
             raise Exception('Event did not complete in time')
 
-        droplet = get_droplet_by_id(digitalocean_account, droplet.id)
+        droplet = do_mgr.get_droplet(droplet.id)
+        
         update_system_packages(digitalocean_account, droplet.ip_address)
+        
     except Exception as e:
         print type(e), str(e)
 
@@ -154,8 +139,10 @@ def launch_new_server(digitalocean_account, _):
         do_mgr = digitalocean.Manager(token=digitalocean_account.oauth_token)
 
         # Get the base image
-        base_droplet = get_image_by_id(digitalocean_account, digitalocean_account.base_id)
-        Droplet.image = base_droplet.id
+        base_image = do_mgr.get_image(digitalocean_account.base_id)
+        if not base_image:
+            raise Exception("Base image with ID: %s is not found" % (digitalocean_account.base_id))
+        Droplet.image = base_image.id
 
         Droplet.name = str('do-' + 
                            ''.join(random.choice(string.ascii_lowercase) for x in range(8)))
@@ -169,7 +156,7 @@ def launch_new_server(digitalocean_account, _):
 
         droplet_regions = do_mgr.get_all_regions()
         common_regions = list(set([r.slug for r in droplet_regions if r.available])
-                                 .intersection(base_droplet.regions))
+                                 .intersection(base_image.regions))
 
         Droplet.region = random.choice(common_regions)
 
@@ -189,7 +176,7 @@ def launch_new_server(digitalocean_account, _):
         if not wait_on_action(droplet, interval=30, action_type='create', action_status='completed'):
             raise Exception('Event did not complete in time')
 
-        droplet = get_droplet_by_id(digitalocean_account, droplet.id)
+        droplet = do_mgr.get_droplet(droplet.id)
         
         region = get_datacenter_region(droplet.region['slug'])
         datacenter_name = 'Digital Ocean ' + droplet.region['name']
