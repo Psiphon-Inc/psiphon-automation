@@ -1103,6 +1103,57 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             return servers[0]
         return None
 
+    def get_host_object(self, id, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
+                        stats_ssh_username, stats_ssh_password, datacenter_name, region, meek_server_port,
+                        meek_server_obfuscated_key, meek_server_fronting_domain, meek_server_fronting_host, 
+                        meek_cookie_encryption_public_key, meek_cookie_encryption_private_key):
+        return Host(id, 
+                    provider, 
+                    provider_id, 
+                    ip_address, 
+                    ssh_port, 
+                    ssh_username, 
+                    ssh_password, 
+                    ssh_host_key,
+                    stats_ssh_username, 
+                    stats_ssh_password,
+                    datacenter_name, 
+                    region, 
+                    meek_server_port, 
+                    meek_server_obfuscated_key, 
+                    meek_server_fronting_domain,
+                    meek_server_fronting_host, 
+                    meek_cookie_encryption_public_key, 
+                    meek_cookie_encryption_private_key,
+                    )
+    
+    def get_server_object(self, id, host_id, ip_address, egress_ip_address, internal_ip_address, propagation_channel_id, 
+                        is_embedded, is_permanent, discovery_date_range, capabilities, web_server_port, web_server_secret, 
+                        web_server_certificate, web_server_private_key, ssh_port, ssh_username, ssh_password, 
+                        ssh_host_key, ssh_obfuscated_port, ssh_obfuscated_key, alternate_ssh_obfuscated_ports):
+        return Server(id, 
+                    host_id, 
+                    ip_address, 
+                    egress_ip_address, 
+                    internal_ip_address, 
+                    propagation_channel_id, 
+                    is_embedded, 
+                    is_permanent, 
+                    discovery_date_range, 
+                    capabilities,
+                    web_server_port, 
+                    web_server_secret, 
+                    web_server_certificate, 
+                    web_server_private_key,
+                    ssh_port, 
+                    ssh_username, 
+                    ssh_password, 
+                    ssh_host_key, 
+                    ssh_obfuscated_port, 
+                    ssh_obfuscated_key,
+                    alternate_ssh_obfuscated_ports,
+                    )
+    
     def import_host(self, id, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
                     stats_ssh_username, stats_ssh_password):
         assert(self.is_locked)

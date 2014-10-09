@@ -64,21 +64,28 @@ def get_datacenter_region(region):
         return 'GB'
     return ''
 
-def wait_on_action(droplet=None, interval=10, action_type='create', action_status='completed'):
+def wait_on_action(do_mgr=None, droplet=None, action_id=None, interval=10, 
+                   action_type='create', action_status='completed'):
     """
         Check an action periodically
     """
-    try:
-        if droplet is None:
-            raise 'Droplet not defined'
-        
-        droplet_actions = droplet.get_actions()
+    try:        
         for attempt in range(10):
-            droplet_actions = droplet.get_actions()
-            if len(droplet_actions) < 1:
-                time.sleep(int(interval))
-                continue
-            for action in droplet_actions:
+            if not action_id:
+                if not droplet:
+                    raise Exception('Droplet not defined')
+                
+                droplet_actions = droplet.get_actions()
+                if len(droplet_actions) < 1:
+                    time.sleep(int(interval))
+                    continue
+                for action in droplet_actions:
+                    if action.type == action_type and action.status == action_status:
+                        return True
+            else:
+                if not do_mgr:
+                    raise Exception('DigitalOcean Manager object required')
+                action = do_mgr.get_action(action_id)
                 if action.type == action_type and action.status == action_status:
                     return True
             print '%s. %s - %s not found - trying again in %ss' % (str(attempt), action_type, action_status, interval)
@@ -88,7 +95,71 @@ def wait_on_action(droplet=None, interval=10, action_type='create', action_statu
     
     return False
 
-def update_image(digitalocean_account=None, droplet_id=None, droplet_name=None, droplet_size=None):
+def transfer_image_to_region(do_mgr = None, image_id=None, regions=list()):
+    try:
+        if not (do_mgr or image_id):
+            raise
+        
+        image = do_mgr.get_image(image_id)
+        droplet_regions = do_mgr.get_all_regions()
+        common_regions = [r.slug for r in droplet_regions if r.available]
+        if len(regions) == 0:
+            # transfer to all!
+            regions = [r for r in common_regions if r not in image.regions]
+        else:
+            regions = [r for r in common_regions if r in regions]
+        
+        transfer_results = dict()
+        for r in regions:
+            transfer_results[r] = image.transfer(r)
+        
+        failed_transfers = list()
+        for location in transfer_results:
+            if not wait_on_action(do_mgr, None, transfer_results[location]['action']['id'], 
+                                  300, 'transfer', 'completed'):
+                failed_transfers.append(location)
+        
+        return failed_transfers
+    except Exception as e:
+        raise
+
+def setup_new_server(droplet):
+    try:
+        new_root_password = psi_utils.generate_password()
+        new_stats_password = psi_utils.generate_password()
+        region = get_datacenter_region(droplet.region['slug'])
+        datacenter_name = 'Digital Ocean ' + droplet.region['name']
+        
+        new_droplet_public_key = refresh_credentials(digitalocean_account, 
+                                                     droplet.ip_address, 
+                                                     new_root_password, 
+                                                     new_stats_password)
+
+        assert(new_droplet_public_key)
+        
+        host = psinet.get_host_object(droplet.name, None, droplet.id, droplet.ip_address, 
+                    digitalocean_account.base_ssh_port, 'root', new_root_password, 
+                    ' '.join(new_droplet_public_key.split(' ')[:2]),
+                    digitalocean_account.base_stats_username, new_stats_password,
+                    datacenter_name, region, None, None, None, None, None, None)
+        
+        ssh_port = '22'
+        ossh_port = random.choice(['280', '591', '901'])
+        capabilities = {'handshake': True, 'FRONTED-MEEK': False, 'UNFRONTED-MEEK': False, 
+                        'SSH': True, 'OSSH': True, 'VPN': True}
+        
+        server = psinet.get_server_object(None, droplet.name, droplet.ip_address, droplet.ip_address,
+                    droplet.ip_address, psinet.get_propagation_channel_by_name('Testing').id,
+                    False, False, None, capabilities, str(random.randrange(8000, 9000)), None, None, None,
+                    ssh_port, None, None, None, ossh_port, None, None)
+        psinet.setup_server(host, [server])
+        return True
+    except Exception as e:
+        raise e
+    
+    return False
+
+def update_image(digitalocean_account=None, droplet_id=None, droplet_name=None, droplet_size=None, test=True):
     try:
         if not digitalocean_account:
             raise Exception('DigitalOcean account must be provided')
@@ -118,12 +189,56 @@ def update_image(digitalocean_account=None, droplet_id=None, droplet_name=None, 
 
         droplet.create(ssh_keys=str(digitalocean_account.ssh_key_template_id))
 
-        if not wait_on_action(droplet, interval=30, action_type='create', action_status='completed'):
+        if not wait_on_action(do_mgr, droplet, action_id=None, interval=30, 
+                              action_type='create', action_status='completed'):
             raise Exception('Event did not complete in time')
 
         droplet = do_mgr.get_droplet(droplet.id)
-        
+        if droplet.status != 'active':
+            result = droplet.power_on()
+            if not wait_on_action(do_mgr, droplet, result['action']['id'], 30, 'power_on', 'completed'):
+                raise Exception('Event did not complete in time')
+            
+            droplet = droplet.load()
+
         update_system_packages(digitalocean_account, droplet.ip_address)
+
+        if droplet.status == 'active':
+            result = droplet.shutdown()
+            if not wait_on_action(do_mgr, droplet, result['action']['id'], 30, 'shutdown', 'completed'):
+                raise Exception('Event did not complete in time')
+            
+            droplet = droplet.load()
+
+        if droplet.status == 'off':
+            result = droplet.take_snapshot('psiphon3-template-snapshot')
+            if not wait_on_action(do_mgr, droplet, result['action']['id'], 120, 'snapshot', 'completed'):
+                raise Exception('Snapshot took too long to create')
+            
+            droplet = droplet.load()
+
+        if len(droplet.snapshot_ids) < 1:
+            raise Exception('No snapshot found for image')
+
+        # test the servertewt
+        if test:
+            result = setup_new_server(droplet)
+
+        if not result:
+            raise 'Could not set up server successfully'
+        
+        # transfer image
+        failures = transfer_image_to_region(do_mgr, droplet.snapshot_ids[0])
+        if len(failures) > 0:
+            print "Failed to transfer image to regions: %s" % (failures)
+
+        if psinet.is_locked:
+            base_image.rename(base_image.name + '_bak')
+            image = do_mgr.get_image(droplet.snapshot_ids[0])
+            digitalocean_account.base_id = image.id
+            psinet.save()
+        
+        droplet.destroy()
         
     except Exception as e:
         print type(e), str(e)
@@ -173,7 +288,7 @@ def launch_new_server(digitalocean_account, _):
                                        backups=False)
 
         droplet.create(ssh_keys=str(digitalocean_account.ssh_key_template_id))
-        if not wait_on_action(droplet, interval=30, action_type='create', action_status='completed'):
+        if not wait_on_action(do_mgr, droplet, None, 30, 'create', 'completed'):
             raise Exception('Event did not complete in time')
 
         droplet = do_mgr.get_droplet(droplet.id)
@@ -199,4 +314,4 @@ def launch_new_server(digitalocean_account, _):
             digitalocean_account.base_ssh_port, 'root', new_root_password, 
             ' '.join(new_droplet_public_key.split(' ')[:2]),
             digitalocean_account.base_stats_username, new_stats_password,
-            datacenter_name, region, None, None, None, None)
+            datacenter_name, region, None, None, None, None, None, None)
