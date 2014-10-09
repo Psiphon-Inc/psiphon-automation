@@ -21,6 +21,9 @@ import collections
 import random
 import string
 import time
+import optparse
+import os
+import sys
 
 import psi_utils
 import psi_ssh
@@ -158,6 +161,28 @@ def setup_new_server(droplet):
         raise e
     
     return False
+
+def prep_for_image_update():
+    PSI_OPS_ROOT = os.path.abspath(os.path.join('..', 'Data', 'PsiOps'))
+    PSI_OPS_DB_FILENAME = os.path.join(PSI_OPS_ROOT, 'psi_ops.dat')
+    
+    import psi_ops
+    
+    if os.path.isfile('psi_data_config.py'):
+        import psi_data_config
+        try:
+            sys.path.insert(0, psi_data_config.DATA_ROOT)
+            if hasattr(psi_data_config, 'CONFIG_FILE'):
+                psi_ops_config = __import__(psi_data_config.CONFIG_FILE)
+            else:
+                psi_ops_config = __import__('psi_ops_config')
+        except ImportError as error:
+            print error
+    
+    global psinet
+    psinet = psi_ops.PsiphonNetwork.load_from_file(PSI_OPS_DB_FILENAME)
+    update_image(psinet._PsiphonNetwork__digitalocean_account)
+    
 
 def update_image(digitalocean_account=None, droplet_id=None, droplet_name=None, droplet_size=None, test=True):
     try:
@@ -315,3 +340,12 @@ def launch_new_server(digitalocean_account, _):
             ' '.join(new_droplet_public_key.split(' ')[:2]),
             digitalocean_account.base_stats_username, new_stats_password,
             datacenter_name, region, None, None, None, None, None, None)
+
+if __name__ == "__main__":
+    parser = optparse.OptionParser('usage: %prog [options]')
+    parser.add_option('-u', "--update-image", dest="update", action="store_true",
+                      help="Update the base image")
+    
+    (options, _) = parser.parse_args()
+    if options.update:
+        prep_for_image_update()
