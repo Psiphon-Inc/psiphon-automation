@@ -126,7 +126,7 @@ def transfer_image_to_region(do_mgr = None, image_id=None, regions=list()):
     except Exception as e:
         raise
 
-def setup_new_server(droplet):
+def setup_new_server(digitalocean_account, droplet):
     try:
         new_root_password = psi_utils.generate_password()
         new_stats_password = psi_utils.generate_password()
@@ -227,6 +227,13 @@ def update_image(digitalocean_account=None, droplet_id=None, droplet_name=None, 
             droplet = droplet.load()
 
         update_system_packages(digitalocean_account, droplet.ip_address)
+        droplet = droplet.load()
+
+        result = droplet.reboot()
+        if not wait_on_action(do_mgr, droplet, result['action']['id'], 30, 'reboot', 'completed'):
+            raise Exception('Event did not complete in time')
+
+        droplet = droplet.load()
 
         if droplet.status == 'active':
             result = droplet.shutdown()
@@ -245,13 +252,13 @@ def update_image(digitalocean_account=None, droplet_id=None, droplet_name=None, 
         if len(droplet.snapshot_ids) < 1:
             raise Exception('No snapshot found for image')
 
-        # test the servertewt
+        # test the server
         if test:
-            result = setup_new_server(droplet)
+            result = setup_new_server(digitalocean_account, droplet)
 
         if not result:
             raise 'Could not set up server successfully'
-        
+
         # transfer image
         failures = transfer_image_to_region(do_mgr, droplet.snapshot_ids[0])
         if len(failures) > 0:
@@ -262,9 +269,9 @@ def update_image(digitalocean_account=None, droplet_id=None, droplet_name=None, 
             image = do_mgr.get_image(droplet.snapshot_ids[0])
             digitalocean_account.base_id = image.id
             psinet.save()
-        
+
         droplet.destroy()
-        
+    
     except Exception as e:
         print type(e), str(e)
 
@@ -292,7 +299,7 @@ def launch_new_server(digitalocean_account, _):
         if not unicode(digitalocean_account.base_size_slug) in [unicode(s.slug) for s in droplet_sizes]:
             raise 'Size slug not found'
 
-        Droplet.size = digitalocean_account.base_size_slug
+        Droplet.size = '8gb'
 
         droplet_regions = do_mgr.get_all_regions()
         common_regions = list(set([r.slug for r in droplet_regions if r.available])
