@@ -65,7 +65,7 @@ except ImportError as error:
     print error
 
 try:
-    import psi_digitalocean
+    import psi_digitalocean_apiv2 as psi_digitalocean
 except ImportError as error:
     print error
 
