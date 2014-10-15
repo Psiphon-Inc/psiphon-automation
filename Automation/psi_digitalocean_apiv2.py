@@ -168,7 +168,7 @@ def remove_server(digitalocean_account, droplet_id):
         droplet = do_mgr.get_droplet(droplet_id)
         result = droplet.destroy()
         if not result:
-            raise e
+            raise Exception('Could not destroy droplet: %s' % str(droplet_id))
     except Exception as e:
         raise e
 
