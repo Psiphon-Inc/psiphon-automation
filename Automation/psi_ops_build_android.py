@@ -98,8 +98,11 @@ def write_embedded_values(propagation_channel_id,
                           client_version,
                           embedded_server_list,
                           remote_server_list_signature_public_key,
-                          feedback_encryption_public_key,
                           remote_server_list_url,
+                          feedback_encryption_public_key,
+                          feedback_upload_server,
+                          feedback_upload_path,
+                          feedback_upload_server_headers,
                           info_link_url,
                           upgrade_signature_public_key,
                           upgrade_url,
@@ -108,11 +111,15 @@ def write_embedded_values(propagation_channel_id,
                           faq_url,
                           privacy_policy_url,
                           propagator_managed_upgrades,
-                          ignore_non_embedded_server_entries=False):
+                          ignore_non_embedded_server_entries=False,
+                          home_tab_url_exclusions=[]):
     utils.set_embedded_values(client_version,
                               '","'.join(embedded_server_list),
                               ignore_non_embedded_server_entries,
                               feedback_encryption_public_key,
+                              feedback_upload_server,
+                              feedback_upload_path,
+                              feedback_upload_server_headers,
                               info_link_url,
                               '',
                               '',
@@ -126,8 +133,9 @@ def write_embedded_values(propagation_channel_id,
                               propagation_channel_id,
                               sponsor_id,
                               remote_server_list_url[0] + '://' + remote_server_list_url[1] + '/' + remote_server_list_url[2],
-                              remote_server_list_signature_public_key)
-                              
+                              remote_server_list_signature_public_key,
+                              '","'.join(home_tab_url_exclusions))
+
     cog_args = shlex.split('cog -U -I "%s" -o "%s" -D buildname="" "%s"' % (os.getcwd(), EMBEDDED_VALUES_FILENAME, EMBEDDED_VALUES_FILENAME + '.stub'))
     ret_error = Cog().main(cog_args)
 
@@ -155,9 +163,9 @@ def build_client(
         remote_server_list_signature_public_key,
         remote_server_list_url,
         feedback_encryption_public_key,
-        feedback_upload_server,          # unused by Android
-        feedback_upload_path,            # unused by Android
-        feedback_upload_server_headers,  # unused by Android
+        feedback_upload_server,
+        feedback_upload_path,
+        feedback_upload_server_headers,
         info_link_url,
         upgrade_signature_public_key,
         upgrade_url,
@@ -167,7 +175,8 @@ def build_client(
         privacy_policy_url,
         version,
         propagator_managed_upgrades,
-        test=False):
+        test=False,
+        home_tab_url_exclusions=[]):
 
     try:
         # Backup/restore original files minimize chance of checking values into source control
@@ -188,8 +197,11 @@ def build_client(
             version,
             encoded_server_list,
             remote_server_list_signature_public_key,
-            feedback_encryption_public_key,
             remote_server_list_url,
+            feedback_encryption_public_key,
+            feedback_upload_server,
+            feedback_upload_path,
+            feedback_upload_server_headers,
             info_link_url,
             upgrade_signature_public_key,
             upgrade_url,
@@ -198,7 +210,8 @@ def build_client(
             faq_url,
             privacy_policy_url,
             propagator_managed_upgrades,
-            ignore_non_embedded_server_entries=test)
+            test,
+            home_tab_url_exclusions)
 
         # copy feedback.html
         shutil.copy(FEEDBACK_HTML_PATH, PSIPHON_ASSETS)
@@ -236,8 +249,11 @@ def build_library(
         sponsor_id,
         encoded_server_list,
         remote_server_list_signature_public_key,
-        feedback_encryption_public_key,
         remote_server_list_url,
+        feedback_encryption_public_key,
+        feedback_upload_server,
+        feedback_upload_path,
+        feedback_upload_server_headers,
         info_link_url,
         version):
 
@@ -251,8 +267,11 @@ def build_library(
             version,
             encoded_server_list,
             remote_server_list_signature_public_key,
-            feedback_encryption_public_key,
             remote_server_list_url,
+            feedback_encryption_public_key,
+            feedback_upload_server,
+            feedback_upload_path,
+            feedback_upload_server_headers,
             info_link_url,
             upgrade_signature_public_key,
             upgrade_url,

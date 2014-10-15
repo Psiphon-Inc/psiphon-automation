@@ -25,11 +25,14 @@ import time
 import psi_utils
 import psi_ssh
 
-import digitalocean.DigitalOceanAPI
+from digitalocean_v1.DigitalOceanAPI import DigitalOceanAPI
 
 def check_default_image(do_api, default_image):
     images = do_api.get_all_images()
     return (default_image in images)
+
+def get_image_by_id(do_api, droplet_id):
+    return do_api.droplet_show(droplet_id)
 
 def show_running_droplets(do_api):
         
@@ -78,8 +81,8 @@ def start_droplet(do_api, droplet_id):
 
 def update_image(digitalocean_account, droplet_id, droplet_name):
     try:
-        do_api = digitalocean.DigitalOceanAPI.DigitalOceanAPI(digitalocean_account.client_id,
-                                                              digitalocean_account.api_key)
+        do_api = DigitalOceanAPI(digitalocean_account.client_id, digitalocean_account.api_key)
+        
         result = take_snapshot(do_api, droplet_id, {'name': droplet_name})
         if 'OK' in result['status']:
             images = do_api.get_all_images()
@@ -173,12 +176,12 @@ def launch_new_server(digitalocean_account, _):
     try:
         new_root_password = psi_utils.generate_password()
         new_stats_password = psi_utils.generate_password()
-        do_api = digitalocean.DigitalOceanAPI.DigitalOceanAPI(digitalocean_account.client_id,
-                                                              digitalocean_account.api_key)
+        do_api = DigitalOceanAPI(digitalocean_account.client_id, digitalocean_account.api_key)
+        
         image['image_id'] = digitalocean_account.base_id
         
         regions = do_api.get_all_regions()
-        image['region_id'] = random.choice([region['id'] for region in regions if region['id'] in [1,2,3,4,5,7]])
+        image['region_id'] = random.choice([region['id'] for region in regions if region['id'] in [1,2,3,4,5,6,7]])
 
         for r in regions:
             if image['region_id'] == r['id']:
@@ -198,10 +201,11 @@ def launch_new_server(digitalocean_account, _):
 
         print 'Launching %s, using image %s' % (image['name'], str(image['image_id']))
         resp = do_api.create_new_droplet(image)
-        droplet = resp['droplet']
+
         if resp['status'] != 'OK':
             raise Exception(resp['message'] + ': ' + resp['error_message'])
         
+        droplet = resp['droplet']
         if not wait_on_event_completion(do_api, resp['droplet']['event_id'], interval=30):
             raise Exception('Event did not complete in time')
         
@@ -223,6 +227,7 @@ def launch_new_server(digitalocean_account, _):
 
         new_host_public_key = refresh_credentials(digitalocean_account, droplet['ip_address'], 
                                                   new_root_password, new_stats_password)
+        assert(new_host_public_key)
 
     except Exception as e:
         print type(e), str(e)
@@ -247,8 +252,7 @@ def remove_droplet(do_api, droplet_id):
         raise e
 
 def remove_server(digitalocean_account, droplet_id):
-    do_api = digitalocean.DigitalOceanAPI.DigitalOceanAPI(digitalocean_account.client_id,
-                                                          digitalocean_account.api_key)
+    do_api = DigitalOceanAPI(digitalocean_account.client_id, digitalocean_account.api_key)
     remove_droplet(do_api, droplet_id)
 
 if __name__ == "__main__":

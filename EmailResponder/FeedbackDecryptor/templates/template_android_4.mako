@@ -1,4 +1,4 @@
-## Copyright (c) 2012, Psiphon Inc.
+## Copyright (c) 2014, Psiphon Inc.
 ## All rights reserved.
 ##
 ## This program is free software: you can redistribute it and/or modify
@@ -22,11 +22,13 @@
 
 <%
   metadata = data['Metadata']
-  diagnostic_info = data['DiagnosticInfo']
+  diagnostic_info = utils.coalesce(data, ('DiagnosticInfo',))
 
-  sys_info = diagnostic_info['SystemInformation']
-  status_history = diagnostic_info['StatusHistory']
-  diagnostic_history = diagnostic_info['DiagnosticHistory']
+  sys_info = utils.coalesce(data, ('DiagnosticInfo', 'SystemInformation'))
+  status_history = utils.coalesce(data, ('DiagnosticInfo', 'StatusHistory'))
+  diagnostic_history = utils.coalesce(data, ('DiagnosticInfo', 'DiagnosticHistory'))
+
+  feedback = data.get('Feedback')
 %>
 
 <style>
@@ -88,14 +90,114 @@
     text-align: right;
     font-family: monospace;
   }
+
+  .english_message {
+    margin: 1em 0px;
+    border-left-width: 4px;
+    border-left-style: solid;
+    border-left-color: rgb(221, 221, 221);
+    padding: 0px 1em;
+    /* This renders newlines as newlines */
+    white-space: pre-wrap;
+  }
+
+  .original_message {
+    margin: 1em 0px;
+    border-left-width: 4px;
+    border-left-style: solid;
+    border-left-color: rgb(221, 221, 221);
+    padding: 0px 1em;
+    /* This renders newlines as newlines */
+    white-space: pre-wrap;
+  }
+
+  .smaller {
+    font-size: 0.8em;
+  }
+
+  .rtl {
+    direction: rtl;
+  }
+
+  .emoticon {
+    font-size: 3em;
+  }
 </style>
 
 
 <h1>Android</h1>
 
 ##
+## Survey and feedback message, original and translation
+##
+
+% if feedback and feedback.get('Message') and feedback['Message'].get('text'):
+<%
+  # Through experimentation, we have found that the maximum number of urlencoded
+  # UTF-8 characters that can successfully be put into a Google Translate URL
+  # is about 600. So if there are more characters than that, we'll just link
+  # to the blank form.
+  gtranslate_url = 'https://translate.google.com/#auto/en/'
+  urlencoded_msg = utils.urlencode(feedback['Message']['text'].encode('utf8'))
+  if len(urlencoded_msg) < 600:
+    gtranslate_url += urlencoded_msg
+
+  # There are some special values that text_lang_code might have that indicate
+  # a problem during translation.
+  no_translation = feedback['Message']['text_lang_code'] in ('[INDETERMINATE]', '[TRANSLATION_FAIL]')
+%>
+
+  <h2>Feedback</h2>
+
+  % if no_translation:
+    <div>
+      Auto-translate failed: ${feedback['Message']['text_lang_name']}
+    </div>
+  % else:
+    <div class="english_message">
+      ${feedback['Message']['text_translated']}
+    </div>
+  % endif
+
+  % if feedback['Message']['text'] != feedback['Message']['text_translated']:
+    % if not no_translation:
+      <div class="smaller">
+        Auto-translated from ${feedback['Message']['text_lang_name']}.
+      </div>
+      <br>
+    % endif
+
+    <% direction = 'rtl' if feedback['Message']['text_lang_code'] in ['fa', 'ar', 'iw', 'yi'] else '' %>
+    <div class="original_message ${direction}">${feedback['Message']['text']}</div>
+
+    <div class="smaller">
+      <a href="${gtranslate_url}">Google Translate.</a>
+    </div>
+
+    <br>
+  % endif
+
+  <div>
+    User email: ${feedback['email'] if feedback['email'] else '(not supplied)'}
+  </div>
+% endif
+
+% if feedback and feedback.get('Survey') and feedback['Survey'].get('results'):
+  <h2>Survey</h2>
+  <table>
+    % for result in feedback['Survey']['results']:
+      ${sys_info_row_emoticon(result['title'], result['answer']==0)}
+    % endfor
+  </table>
+% endif
+
+
+##
 ## System Info
 ##
+
+## Start of diagnostic info
+% if diagnostic_info:
 
 <h2>System Info</h2>
 
@@ -133,6 +235,19 @@
     <td>${val}</td>
   </tr>
 </%def>
+<%def name="sys_info_row_emoticon(key, is_happy)">
+  <tr>
+    <th>${sys_info_key_map(key)}</th>
+    <td class="emoticon">
+      % if is_happy:
+        &#9786;
+      % else:
+        &#9785;
+      % endif
+    </td>
+  </tr>
+</%def>
+
 
 <h3>Build Info</h3>
 <table>
@@ -224,6 +339,7 @@
         ping_str = '%dms' % ping_value
         if not entry['data']['responded'] or ping_value < 0:
           ping_class = 'bad'
+          ping_str = 'none'
         elif ping_value > 2000:
           ping_class = 'warn'
 
@@ -231,6 +347,7 @@
 
         remaining_data = entry['data']
         remaining_data.pop('responseTime', None)
+        remaining_data.pop('responded', None)
         remaining_data.pop('regionCode', None)
       %>
       <span>${ping_regionCode}</span>
@@ -262,3 +379,6 @@
   % endif
   <% last_timestamp = entry['timestamp'] %>
 % endfor
+
+## end of diagnostic info
+% endif

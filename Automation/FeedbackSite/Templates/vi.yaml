@@ -1,6 +1,2 @@
-vi: {title: Thông Tin Phản Hồi về Psiphon, top_content_title: Cho Chúng Tôi Biết Thông Tin Phản Hồi của Bạn, connectivity_title: Khả
-    năng kết nối, connectivity_happy: Psiphon kết nối một cách nhất quán và đảm bảo kết nối., connectivity_ok: 'Psiphon thường
-    kết nối, nhưng đôi khi ngắt kết nối và tái kết nối.', connectivity_sad: Psiphon thường không thể kết nối hoặc thường xuyên
-    bị ngắt kết nối., speed_title: Tốc độ, speed_happy: Tôi có thể duyệt web qua Psiphon và xem video; nó nhanh bằng hoặc nhanh
-    hơn các công cụ giải quyết khác., speed_ok: Tôi có thể duyệt web qua Psiphon nhưng có tốc độ chậm., speed_sad: Duyệt web
-    qua Psiphon quá chậm và tôi sẽ không tiếp tục sử dụng nó., compatibility_title: Khả năng tương thích, submit_button: Gửi}
+vi: {title: Thông Tin Phản Hồi về Psiphon, top_content_title: Cho Chúng Tôi Biết Thông
+    Tin Phản Hồi của Bạn, submit_button: Gửi}

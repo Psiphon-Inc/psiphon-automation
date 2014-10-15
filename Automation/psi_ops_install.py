@@ -540,7 +540,7 @@ def install_host(host, servers, existing_server_ids, plugins):
     ssh.exec_command('echo "SHELL=/bin/sh" > %s;' % (cron_file,) +
                      'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
                      'echo "1 * * * * root %s restart" >> %s;' % ('/etc/init.d/xinetd', cron_file) +
-                     'echo "2 * * * * root killall %s && %s restart" >> %s' % ('badvpn-udpgw', '/etc/init.d/badvpn-udpgw', cron_file))
+                     'echo "2 * * * * root killall -9 %s && %s restart" >> %s' % ('badvpn-udpgw', '/etc/init.d/badvpn-udpgw', cron_file))
 
     #
     # Add required packages and Python modules
@@ -613,7 +613,7 @@ def install_firewall_rules(host, servers, plugins, do_blacklist=True):
     -A INPUT -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT''' % (host.ssh_port,) + ''.join(
     # meek server
     ['''
-    -A INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -m limit --limit 100/sec -j ACCEPT'''
+    -A INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -m limit --limit 1000/sec -j ACCEPT'''
             % (str(s.internal_ip_address), str(host.meek_server_port)) for s in servers
                 if (s.capabilities['FRONTED-MEEK'] or s.capabilities['UNFRONTED-MEEK']) and host.meek_server_port]) + ''.join(
     # web servers
@@ -650,10 +650,10 @@ def install_firewall_rules(host, servers, plugins, do_blacklist=True):
     -A INPUT -j DROP
     -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
-    -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 5242,4244 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 5242,4244,9339 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 5243,7985,9785 -j ACCEPT
-    -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 110,143,2560,9180,25565 -j ACCEPT
-    -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 110,143,2560,9180,25565 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 110,143,2560,8080,9180,25565 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 110,143,2560,8080,9180,25565 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.8.8 -p tcp --dport 53 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.8.8 -p udp --dport 53 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.4.4 -p tcp --dport 53 -j ACCEPT
@@ -683,10 +683,10 @@ def install_firewall_rules(host, servers, plugins, do_blacklist=True):
     -A OUTPUT -p udp -m multiport --dports 53,80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
     -A OUTPUT -p tcp -m multiport --dports 5222,5223,5228,5229,5230,14259 -j ACCEPT
     -A OUTPUT -p udp -m multiport --dports 5222,5223,5228,5229,5230,14259 -j ACCEPT
-    -A OUTPUT -p tcp -m multiport --dports 5242,4244 -j ACCEPT
+    -A OUTPUT -p tcp -m multiport --dports 5242,4244,9339 -j ACCEPT
     -A OUTPUT -p udp -m multiport --dports 5243,7985,9785 -j ACCEPT
-    -A OUTPUT -p tcp -m multiport --dports 110,143,2560,9180,25565 -j ACCEPT
-    -A OUTPUT -p udp -m multiport --dports 110,143,2560,9180,25565 -j ACCEPT
+    -A OUTPUT -p tcp -m multiport --dports 110,143,2560,8080,9180,25565 -j ACCEPT
+    -A OUTPUT -p udp -m multiport --dports 110,143,2560,8080,9180,25565 -j ACCEPT
     -A OUTPUT -p udp -m udp --dport 123 -j ACCEPT
     -A OUTPUT -p tcp -m tcp --sport %s -j ACCEPT''' % (host.ssh_port,) + ''.join(
     # tunneled ossh requests on NATed servers
