@@ -162,6 +162,16 @@ def setup_new_server(digitalocean_account, droplet):
     
     return False
 
+def remove_server(digitalocean_account, droplet_id):
+    try:
+        do_mgr = digitalocean.Manager(token=digitalocean_account.oauth_token)
+        droplet = do_mgr.get_droplet(droplet_id)
+        result = droplet.destroy()
+        if not result:
+            raise e
+    except Exception as e:
+        raise e
+
 def prep_for_image_update():
     PSI_OPS_ROOT = os.path.abspath(os.path.join('..', 'Data', 'PsiOps'))
     PSI_OPS_DB_FILENAME = os.path.join(PSI_OPS_ROOT, 'psi_ops.dat')
