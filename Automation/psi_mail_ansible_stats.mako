@@ -72,7 +72,9 @@ count_skipped = len(hosts_skipped)
 	% for c in hosts_errs:
 		<tr>
             <td>${c}</td>
-            <td>${hosts_errs[c]['cmd_result']['stderr']}</td>
+            % if 'cmd_result' in hosts_output[c]:
+                <td>${hosts_errs[c]['cmd_result']['stderr']}</td>
+            % endif
             <td>${hosts_info[c]['ansible_lsb']['codename']}</td>
         </tr>
 	% endfor
@@ -91,7 +93,9 @@ count_skipped = len(hosts_skipped)
 	% for c in hosts_output:
 		<tr>
             <td>${c}</td>
-            <td>${hosts_output[c]['cmd_result']['stdout']}</td>
+            % if 'cmd_result' in hosts_output[c]:
+                <td>${hosts_output[c]['cmd_result']['stdout']}</td>
+            % endif
             <td>${hosts_info[c]['ansible_lsb']['codename']}</td>
         </tr>
 	% endfor
