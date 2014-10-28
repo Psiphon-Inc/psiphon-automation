@@ -40,14 +40,14 @@ PSIPHON_LIB_SOURCE_SRC_ORG = os.path.join(PSIPHON_LIB_SOURCE_ROOT, 'src', 'org')
 
 BANNER_ROOT = os.path.join(os.path.abspath('..'), 'Data', 'Banners')
 KEYSTORE_FILENAME = os.path.join(os.path.abspath('..'), 'Data', 'CodeSigning', 'test.keystore')
+KEYSTORE_ALIAS = 'psiphon'
 KEYSTORE_PASSWORD = 'password'
 
 BANNER_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'res', 'drawable', 'banner.bmp')
 EMBEDDED_VALUES_FILENAME = os.path.join(PSIPHON_LIB_SOURCE_ROOT, 'src', 'com', 'psiphon3', 'psiphonlibrary', 'EmbeddedValues.java')
 ANDROID_MANIFEST_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'AndroidManifest.xml')
 
-RELEASE_UNSIGNED_APK_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'bin', 'PsiphonAndroid-release-unsigned.apk')
-RELEASE_SIGNED_APK_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'bin', 'PsiphonAndroid-release-signed-unaligned.apk')
+LOCAL_PROPERTIES_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'local.properties')
 ZIPALIGNED_APK_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'bin', 'PsiphonAndroid-release.apk')
 
 LIB_FILENAME = 'PsiphonAndroidLibrary.jar'
@@ -74,6 +74,16 @@ if os.path.isfile('psi_data_config.py'):
 
 def build_apk():
 
+    local_properties_contents = '''
+key.store=%s
+key.store.password=%s
+key.alias=%s
+key.alias.password=%s
+''' % (KEYSTORE_FILENAME, KEYSTORE_PASSWORD, KEYSTORE_ALIAS, KEYSTORE_PASSWORD)
+
+    with open(LOCAL_PROPERTIES_FILENAME, 'w') as local_properties_file:
+        local_properties_file.write(local_properties_contents)
+                
     commands = [
         'xcopy "%s" "%s" /e /y' % (KALIUM_SOURCE_ROOT, PSIPHON_LIB_SOURCE_SRC_ORG),
         'android update lib-project -p "%s"' % (ZIRCO_SOURCE_ROOT,),
@@ -83,10 +93,7 @@ def build_apk():
         'ant -q -f "%s" clean' % (os.path.join(PSIPHON_LIB_SOURCE_ROOT, 'build.xml'),),
         'ant -q -f "%s" clean' % (os.path.join(PSIPHON_SOURCE_ROOT, 'build.xml'),),
         'ant -q -f "%s" release' % (os.path.join(PSIPHON_SOURCE_ROOT, 'build.xml'),),
-        'jarsigner -sigalg SHA1withRSA -digestalg SHA1 -keystore "%s" -storepass %s "%s" psiphon' % (
-            KEYSTORE_FILENAME, KEYSTORE_PASSWORD, RELEASE_UNSIGNED_APK_FILENAME),
-        'move "%s" "%s"' % (RELEASE_UNSIGNED_APK_FILENAME, RELEASE_SIGNED_APK_FILENAME),
-        'zipalign -f 4 "%s" "%s"' % (RELEASE_SIGNED_APK_FILENAME, ZIPALIGNED_APK_FILENAME)]
+        ]
 
     for command in commands:
         if 0 != os.system(command):

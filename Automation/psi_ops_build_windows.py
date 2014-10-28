@@ -53,6 +53,7 @@ VISUAL_STUDIO_ENV_BATCH_FILENAME_x86 = 'C:\\Program Files (x86)\\Microsoft Visua
 
 SIGN_TOOL_FILENAME = 'C:\\Program Files\\Microsoft SDKs\\Windows\\v7.1\\Bin\\signtool.exe'
 SIGN_TOOL_FILENAME_ALT = 'C:\\Program Files\\Microsoft SDKs\\Windows\\v7.0A\\Bin\\signtool.exe'
+SIGN_TOOL_FILENAME_x64 = 'C:\\Program Files (x86)\\Microsoft SDKs\\Windows\\v7.1A\\Bin\signtool.exe'
 
 UPX_FILENAME = '.\Tools\upx.exe'
 
@@ -74,6 +75,8 @@ def build_client_executable():
     signtool_filename = SIGN_TOOL_FILENAME
     if not os.path.isfile(signtool_filename):
         signtool_filename = SIGN_TOOL_FILENAME_ALT
+    if not os.path.isfile(signtool_filename):
+        signtool_filename = SIGN_TOOL_FILENAME_x64
     commands = [
         '"%s" sign /t http://timestamp.digicert.com /f "%s" "%s"\n' % (
           signtool_filename, CODE_SIGNING_PFX_FILENAME, POLIPO_EXECUTABLE_FILENAME),

@@ -1,4 +1,4 @@
-## Copyright (c) 2013, Psiphon Inc.
+## Copyright (c) 2014, Psiphon Inc.
 ## All rights reserved.
 ##
 ## This program is free software: you can redistribute it and/or modify
@@ -106,10 +106,15 @@
 <h2>Response Times</h2>
 
 <%
-# Like: ORDER BY sponsor_id, propagation_channel_id, platform
+# Like: ORDER BY sponsor_record_count, sponsor_id, propagation_channel_id, platform
 data['stats'] = sorted(data['stats'], key=operator.itemgetter('platform'))
 data['stats'] = sorted(data['stats'], key=operator.itemgetter('propagation_channel_id'))
 data['stats'] = sorted(data['stats'], key=operator.itemgetter('sponsor_id'))
+data['stats'] = sorted(data['stats'],
+                       key=lambda item: sum([d['record_count']
+                                             for d in data['stats']
+                                             if d['sponsor_id'] == item['sponsor_id']]),
+                       reverse=True)
 
 prev_sponsor_id = None
 prev_propagation_channel_id = None
@@ -126,7 +131,10 @@ def ff(f):
   vals = survey.values()
   res = dict(functools.reduce(operator.add, map(collections.Counter, vals)))
   %>
-  <img src="https://chart.googleapis.com/chart?cht=bvg:nda&amp;chs=45x40&amp;chds=a&amp;chco=BEFFC1|FFBEBE&amp;chbh=20,0,1&amp;chm=r,FFFFFF,0,-0.01,0.01,1|R,FFFFFF,0,-0.01,0.01,1&amp;chd=t:${res.get(0, 0)},${res.get(1, 0)}" alt="Happy/Sad chart" title="${res.get(0, 0)},${res.get(1, 0)}">
+  ## If there are few responses, then the data isn't useful. Pick an arbitrary cut-off.
+  % if sum(res.values()) > 20:
+    <img src="https://chart.googleapis.com/chart?cht=bvg:nda&amp;chs=45x40&amp;chds=a&amp;chco=BEFFC1|FFBEBE&amp;chbh=20,0,1&amp;chm=r,FFFFFF,0,-0.01,0.01,1|R,FFFFFF,0,-0.01,0.01,1&amp;chd=t:${res.get(0, 0)},${res.get(1, 0)}" alt="Happy/Sad chart" title="${res.get(0, 0)},${res.get(1, 0)}">
+  % endif
 </%def>
 
 
@@ -148,7 +156,8 @@ def ff(f):
           ${r['record_count']} (${r['response_sample_count']})
         </td>
         <td>
-          % if r['quartiles']:
+          ## Pick an arbitrary minimum number of samples before we show the plot.
+          % if r['response_sample_count'] > 50 and r['quartiles']:
             <img src="https://chart.googleapis.com/chart?chs=75x75&amp;cht=bhs&amp;chd=t0:${ff(r['quartiles'][0])}|${ff(r['quartiles'][1])}|${ff(r['quartiles'][3])}|${ff(r['quartiles'][4])}|${ff(r['quartiles'][2])}&amp;chm=F,000000,0,1,10|H,000000,0,1,1:10|H,000000,3,1,1:10|H,000000,4,1,1:10&amp;chxt=x&amp;chxr=0,0,2000&amp;chds=0,2000" alt="Show images for box plot">
           % endif
         </td>
