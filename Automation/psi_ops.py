@@ -65,7 +65,7 @@ except ImportError as error:
     print error
 
 try:
-    import psi_digitalocean
+    import psi_digitalocean_apiv2 as psi_digitalocean
 except ImportError as error:
     print error
 
@@ -236,7 +236,8 @@ DigitalOceanAccount = psi_utils.recordtype(
     'DigitalOceanAccount',
     'client_id, api_key, base_id, base_size_id, base_region_id, ' +
     'base_ssh_port, base_stats_username, base_host_public_key, ' +
-    'base_rsa_private_key, ssh_key_template_id',
+    'base_rsa_private_key, ssh_key_template_id, ' +
+    'oauth_token, base_size_slug', 
     default=None)
 
 ElasticHostsAccount = psi_utils.recordtype(
@@ -330,11 +331,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__deploy_website_required_for_sponsors = set()
         self.__automation_bucket = None
         self.__discovery_strategy_value_hmac_key = binascii.b2a_hex(os.urandom(32))
+        self.__android_home_tab_url_exclusions = set()
 
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.27'
+    class_version = '0.28'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -496,6 +498,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for sponsor in self.__sponsors.itervalues():
                 sponsor.mobile_home_pages = {}
             self.version = '0.27'
+        if cmp(parse_version(self.version), parse_version('0.28')) < 0:
+            self.__android_home_tab_url_exclusions = set()
+            self.version = '0.28'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1098,6 +1103,57 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             return servers[0]
         return None
 
+    def get_host_object(self, id, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
+                        stats_ssh_username, stats_ssh_password, datacenter_name, region, meek_server_port,
+                        meek_server_obfuscated_key, meek_server_fronting_domain, meek_server_fronting_host, 
+                        meek_cookie_encryption_public_key, meek_cookie_encryption_private_key):
+        return Host(id, 
+                    provider, 
+                    provider_id, 
+                    ip_address, 
+                    ssh_port, 
+                    ssh_username, 
+                    ssh_password, 
+                    ssh_host_key,
+                    stats_ssh_username, 
+                    stats_ssh_password,
+                    datacenter_name, 
+                    region, 
+                    meek_server_port, 
+                    meek_server_obfuscated_key, 
+                    meek_server_fronting_domain,
+                    meek_server_fronting_host, 
+                    meek_cookie_encryption_public_key, 
+                    meek_cookie_encryption_private_key,
+                    )
+    
+    def get_server_object(self, id, host_id, ip_address, egress_ip_address, internal_ip_address, propagation_channel_id, 
+                        is_embedded, is_permanent, discovery_date_range, capabilities, web_server_port, web_server_secret, 
+                        web_server_certificate, web_server_private_key, ssh_port, ssh_username, ssh_password, 
+                        ssh_host_key, ssh_obfuscated_port, ssh_obfuscated_key, alternate_ssh_obfuscated_ports):
+        return Server(id, 
+                    host_id, 
+                    ip_address, 
+                    egress_ip_address, 
+                    internal_ip_address, 
+                    propagation_channel_id, 
+                    is_embedded, 
+                    is_permanent, 
+                    discovery_date_range, 
+                    capabilities,
+                    web_server_port, 
+                    web_server_secret, 
+                    web_server_certificate, 
+                    web_server_private_key,
+                    ssh_port, 
+                    ssh_username, 
+                    ssh_password, 
+                    ssh_host_key, 
+                    ssh_obfuscated_port, 
+                    ssh_obfuscated_key,
+                    alternate_ssh_obfuscated_ports,
+                    )
+    
     def import_host(self, id, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
                     stats_ssh_username, stats_ssh_password):
         assert(self.is_locked)
@@ -1183,7 +1239,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if users_on_host == 0:
                 self.remove_host(server.host_id)
                 number_removed += 1
-            elif users_on_host < 50:
+            elif users_on_host < 100:
                 self.__disable_server(server)
                 number_disabled += 1
         return number_removed, number_disabled
@@ -1837,7 +1893,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         privacy_policy_url,
                         self.__client_versions[platform][-1].version if self.__client_versions[platform] else 0,
                         propagation_channel.propagator_managed_upgrades,
-                        test) for platform in platforms]
+                        test,
+                        list(self.__android_home_tab_url_exclusions)) for platform in platforms]
 
     def build_android_library(
             self,
