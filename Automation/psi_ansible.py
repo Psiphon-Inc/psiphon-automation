@@ -13,6 +13,7 @@ import collections
 import psi_ops_config
 
 PSI_OPS_DB_FILENAME = os.path.join(os.path.abspath('.'), 'psi_ops.dat')
+MAKO_TEMPLATE='psi_mail_ansible_system_update.mako'
 
 from mako.template import Template
 from mako.lookup import TemplateLookup
@@ -272,13 +273,14 @@ def main(infile=None, send_mail_stats=False):
             subset_hosts_list = psi_ops_config.ANSIBLE_TEST_DIGITALOCEAN + psi_ops_config.ANSIBLE_TEST_LINODES + psi_ops_config.ANSIBLE_TEST_FASTHOSTS
             psinet_hosts_list = [h for h in psinet_hosts_list if h.id in subset_hosts_list]
 
-        psinet_hosts_dict = organize_hosts_by_provider(psinet_hosts_list)
+        if psi_ops_config.ANSIBLE_INCLUDE_TEST_GROUP != True:
+            psinet_hosts_dict = organize_hosts_by_provider(psinet_hosts_list)
 
-        for provider in psinet_hosts_dict:
-            group = ansible.inventory.Group(provider)
-            ansible_hosts_list = populate_ansible_hosts(psinet_hosts_dict[provider])
-            add_hosts_to_group(ansible_hosts_list, group)
-            inv.add_group(group)
+            for provider in psinet_hosts_dict:
+                group = ansible.inventory.Group(provider)
+                ansible_hosts_list = populate_ansible_hosts(psinet_hosts_dict[provider])
+                add_hosts_to_group(ansible_hosts_list, group)
+                inv.add_group(group)
 
         # Add linode base image group
         if psi_ops_config.ANSIBLE_INCLUDE_BASE_IMAGE == True:
@@ -306,6 +308,7 @@ if __name__ == "__main__":
     parser.add_option("-b", "--base_image", action="store_true", help="Forces base image to be included")
     parser.add_option("-r", "--refresh_base_images", action="store_true", help="Updates base images for linode and digitalocean")
     parser.add_option("-m", "--send_mail", action="store_true", help="Send email after playbook is run")
+    parser.add_option("-T", "--template", help="Specify mail template file")
     parser.add_option("-u", "--update_dat", action="store_true", help="Update dat file")
     
     infile=None
@@ -315,6 +318,10 @@ if __name__ == "__main__":
     
     if options.send_mail:
         send_mail_stats=True
+    if options.template:
+        send_mail_stats=True
+        MAKO_TEMPLATE=options.template
+        print "Using template: %s" % (MAKO_TEMPLATE)
     if options.test_servers:
         psi_ops_config.ANSIBLE_INCLUDE_TEST_GROUP = True
     if options.subset:
