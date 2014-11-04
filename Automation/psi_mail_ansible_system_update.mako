@@ -45,8 +45,8 @@ elapsed_time = datetime.datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S.%f") - da
 
 <hr>
 
-<h3>Unreachable Hosts: ${len(hosts_dark)}</h3>
 % if len(hosts_dark) > 0:
+    <h3>Unreachable Hosts: ${len(hosts_dark)}</h3>
 	<tbody>
 	% for host in hosts_dark:
 		<tr>
@@ -58,11 +58,11 @@ elapsed_time = datetime.datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S.%f") - da
         </tr>
 	% endfor
 	</tbody>
+    <hr>
 % endif
-<hr>
 
-<h3>Failed Hosts: ${len(hosts_failed)}</h3>
 % if len(hosts_failed) > 0:
+    <h3>Failed Hosts: ${len(hosts_failed)}</h3>
 	<tbody>
 	% for host in hosts_failed:
 		<tr>
@@ -74,11 +74,11 @@ elapsed_time = datetime.datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S.%f") - da
         </tr>
 	% endfor
 	</tbody>
+    <hr>
 % endif
-<hr>
 
-<h3>Skipped Hosts: ${len(hosts_skipped)}</h3>
 % if len(hosts_skipped) > 0:
+    <h3>Skipped Hosts: ${len(hosts_skipped)}</h3>
 	<tbody>
 	% for host in hosts_skipped:
 		<tr>
@@ -90,27 +90,11 @@ elapsed_time = datetime.datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S.%f") - da
         </tr>
 	% endfor
 	</tbody>
+    <hr>
 % endif
-<hr>
 
-<h3>Processed Hosts: ${len(hosts_processed)}</h3>
-% if len(hosts_processed) > 0:
-	<tbody>
-	% for host in hosts_processed:
-		<tr>
-            % for d in [3]:
-                <td>
-                    ${host}
-                </td>
-            % endfor
-        </tr>
-	% endfor
-	</tbody>
-% endif
-<hr>
-
-<h3>Changed Hosts: ${len(hosts_changed)}</h3>
 % if len(hosts_changed) > 0:
+    <h3>Changed Hosts: ${len(hosts_changed)}</h3>
 	<tbody>
 	% for host in hosts_changed:
 		<tr>
@@ -122,11 +106,28 @@ elapsed_time = datetime.datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S.%f") - da
         </tr>
 	% endfor
 	</tbody>
+    <hr>
 % endif
-<hr>
 
-<h3>Host STDERR: ${len(hosts_errs)}</h3>
+% if len(hosts_processed) > 0:
+    <h3>Processed Hosts: ${len(hosts_processed)}</h3>
+	<tbody>
+	% for host in hosts_processed:
+		<tr>
+            % for d in [3]:
+                <td>
+                    ${host}
+                </td>
+            % endfor
+        </tr>
+	% endfor
+	</tbody>
+    <hr>
+% endif
+
+
 % if len(hosts_errs) > 0:
+    <h3>Host STDERR: ${len(hosts_errs)}</h3>
 	<tbody>
     <tr>
         <th width="33%">Host</th>
@@ -141,11 +142,12 @@ elapsed_time = datetime.datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S.%f") - da
         </tr>
 	% endfor
 	</tbody>
+    <hr>
 % endif
-<hr>
 
-<h3>Host STDOUT: ${len(hosts_output)}</h3>
+
 % if len(hosts_output) > 0:
+    <h3>Host STDOUT: ${len(hosts_output)}</h3>
 	<tbody>
     <tr>
         <th width="33%">Host</th>
