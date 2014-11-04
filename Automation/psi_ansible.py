@@ -199,7 +199,7 @@ def process_playbook_setup_cache(playbook):
     return setup_cache
 
 def send_mail(record, subject='PSI Ansible Report', 
-              template_filename='psi_mail_ansible_stats.mako'):
+              template_filename=MAKO_TEMPLATE):
     
     if not os.path.isfile(template_filename):
         raise
