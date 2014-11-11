@@ -22,6 +22,8 @@ import errno
 import hashlib
 import urllib
 
+import psi_ops_s3
+
 
 #
 # S3
@@ -74,6 +76,11 @@ def get_s3_cached_file(cache_dir, bucketname, bucket_filename):
     # Make the connection using the credentials in the boto config file.
     conn = S3Connection()
 
+    # `bucketname` may be just a bucket name, or it may be a
+    # bucket_name+key_prefix combo. We'll split it up.
+    bucketname, key_prefix = psi_ops_s3.split_bucket_id(bucketname)
+    bucket_filename = '%s/%s' % (key_prefix, bucket_filename)
+
     # If we don't specify `validate=False`, then this call will attempt to
     # list all keys, which might not be permitted by the bucket (and isn't).
     bucket = conn.get_bucket(bucketname, validate=False)
@@ -105,6 +112,12 @@ def get_s3_cached_file(cache_dir, bucketname, bucket_filename):
 
 def get_s3_string(bucketname, bucket_filename):
     conn = S3Connection()
+
+    # `bucketname` may be just a bucket name, or it may be a
+    # bucket_name+key_prefix combo. We'll split it up.
+    bucketname, key_prefix = psi_ops_s3.split_bucket_id(bucketname)
+    bucket_filename = '%s/%s' % (key_prefix, bucket_filename)
+
     bucket = conn.get_bucket(bucketname, validate=False)
     key = bucket.get_key(bucket_filename)
     return key.get_contents_as_string()
