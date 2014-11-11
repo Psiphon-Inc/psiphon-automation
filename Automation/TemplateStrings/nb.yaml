@@ -1,0 +1,22 @@
+nb:
+  plaintext_email_no_attachment: |
+    Last ned Psiphon her: {{0}}/{0}/download.html#direct
+  html_email_no_attachment: |
+    <div style="direction: ltr;">
+    Last ned Psiphon her: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
+  plaintext_email_with_attachment: |+
+    For å bruke Psiphon 3 for Windows, lagre vedlagt fil {{1}} med ".exe" endelse.
+    For å bruke Psiphon 3 for Android, installer vedlagt fil {{2}}.
+    For mer informasjon eller beskrivelse av hvordan man laster ned filene igjen, trykk lenken under.
+    {{0}}/{0}/download.html#direct
+
+
+  html_email_with_attachment: |
+    <div style="direction: ltr;">
+    For å bruke Psiphon 3 for Windows, lagre vedlagt fil {{1}}med ".exe" filendelse.<br>
+    For å bruke Psiphon 3 for Android, installer vedlagt fil {{2}}.<br>
+    For ytterligere informasjon eller for å få tilgang til installasjonsfilene igjen, klikk på lenken nedenfor<br>
+    <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
+    <br>

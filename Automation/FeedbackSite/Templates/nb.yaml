@@ -1,0 +1,29 @@
+nb:
+  title: Psiphon-tilbakemeldinger
+  top_content_title: Gi oss din tilbakemelding
+  top_para_1: |
+    La høre fra deg om hvordan Psiphon fungerer slik at vi kan gjøre systemet enda bedre!
+  top_para_2: |+
+    Mange problemer kan ordnes ved å laste ned siste versjon.
+    Du kan
+    <a class="newVersionURL" href="#">laste ned siste versjon ved å trykke her</a>,
+    eller du kan sende en epost til<span id="newVersionEmail"></span>.
+
+  top_para_3: |
+    Du kan finne svar på mange vanlige problemer i vår oversikt over
+    <a class="faqURL" href="#">Ofte Stilte Spørsmål</a>.
+  diagnostic_check: |+
+    Last opp diagnostisk data. Vennligst merk at denne diagnostikk-dataen ikke
+    identifiserer deg, og at du kan hjelpe oss å holde Psiphon-hjulene med å fungere knirkefritt.
+    <a class="dataCollectionInfoURL" href="#">Trykk her for å se hva vi samler inn.</a>
+
+  smiley_title: Helhetsinntrykk
+  smiley_happy: Psiphon kobler til og fungerer slik jeg ønsker det.
+  smiley_sad: Psiphon klarer ikke og koble til eller fungerer ikke bra nok.
+  submit_button: Send inn
+  text_feedback_prompt: |
+    Kommenter her:
+  text_feedback_email_prompt: |
+    Hvis du ønsker at vi svarer deg, vennligst legg ved din epost-adresse:
+  text_feedback_bottom_para: |
+    Hvis overstående skjema ikke virker, eller du vil sende oss skjermbilder, vennligst send epost til <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>

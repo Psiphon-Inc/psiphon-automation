@@ -27,6 +27,9 @@ import collections
 import time
 import traceback
 import psycopg2
+import sys
+import multiprocessing
+import argparse
 
 import psi_ssh
 import psi_ops
@@ -68,7 +71,7 @@ TESTING_PROPAGATION_CHANNEL_NAME = 'Testing'
 # timestamp, host ID, and event type. The schema array defines the additional
 # fields expected for each valid event type.
 
-LOG_LINE_PATTERN = '([\dT\.:\+-]+) ([\w-]+) psiphonv: (\w+) (.+)'
+LOG_LINE_PATTERN = '([\dT\.:\+-]+) ([\w\(\)-]+) psiphonv: (\w+) (.+)'
 
 LOG_ENTRY_COMMON_FIELDS = ('timestamp', 'host_id')
 
@@ -76,6 +79,15 @@ LOG_EVENT_TYPE_SCHEMA = {
     'started' :             ('server_id',),
     'handshake.7' :         ('server_id',
                              'client_region',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol'),
+    'handshake.9' :         ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
                              'propagation_channel_id',
                              'sponsor_id',
                              'client_version',
@@ -89,9 +101,21 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'sponsor_id',
                              'client_version',
                              'client_platform',
-                             'relay_protocol'),
+                             'relay_protocol',
+                             'tunnel_whole_device'),
     'discovery.9' :         ('server_id',
                              'client_region',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'discovery_server_id',
+                             'client_unknown'),
+    'discovery.11' :        ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
                              'propagation_channel_id',
                              'sponsor_id',
                              'client_version',
@@ -108,6 +132,7 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'client_version',
                              'client_platform',
                              'relay_protocol',
+                             'tunnel_whole_device',
                              'discovery_server_id',
                              'client_unknown'),
     'connected.8' :         ('server_id',
@@ -118,7 +143,7 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'client_platform',
                              'relay_protocol',
                              'session_id'),
-    'connected' :           ('server_id',
+    'connected.11' :        ('server_id',
                              'client_region',
                              'client_city',
                              'client_isp',
@@ -129,8 +154,30 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'relay_protocol',
                              'session_id',
                              'last_connected'),
+    'connected' :           ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'tunnel_whole_device',
+                             'session_id',
+                             'last_connected'),
     'failed.8' :            ('server_id',
                              'client_region',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'error_code'),
+    'failed.10' :           ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
                              'propagation_channel_id',
                              'sponsor_id',
                              'client_version',
@@ -146,9 +193,18 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'client_version',
                              'client_platform',
                              'relay_protocol',
+                             'tunnel_whole_device',
                              'error_code'),
     'download.6' :          ('server_id',
                              'client_region',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform'),
+    'download.8' :          ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
                              'propagation_channel_id',
                              'sponsor_id',
                              'client_version',
@@ -160,7 +216,9 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'propagation_channel_id',
                              'sponsor_id',
                              'client_version',
-                             'client_platform'),
+                             'client_platform',
+                             'relay_protocol',
+                             'tunnel_whole_device'),
     'disconnected' :        ('relay_protocol',
                              'session_id'),
     'status' :              ('relay_protocol',
@@ -173,6 +231,18 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'client_platform',
                              'relay_protocol',
                              'bytes'),
+    'bytes_transferred.12' :('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'session_id',
+                             'connected',
+                             'bytes'),
     'bytes_transferred' :   ('server_id',
                              'client_region',
                              'client_city',
@@ -182,6 +252,7 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'client_version',
                              'client_platform',
                              'relay_protocol',
+                             'tunnel_whole_device',
                              'session_id',
                              'connected',
                              'bytes'),
@@ -194,6 +265,19 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'relay_protocol',
                              'pagename',
                              'viewcount'),
+    'page_views.13' :       ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'session_id',
+                             'connected',
+                             'pagename',
+                             'viewcount'),
     'page_views' :          ('server_id',
                              'client_region',
                              'client_city',
@@ -203,6 +287,7 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'client_version',
                              'client_platform',
                              'relay_protocol',
+                             'tunnel_whole_device',
                              'session_id',
                              'connected',
                              'pagename',
@@ -216,7 +301,7 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'relay_protocol',
                              'domain',
                              'count'),
-    'https_requests' :      ('server_id',
+    'https_requests.13' :   ('server_id',
                              'client_region',
                              'client_city',
                              'client_isp',
@@ -229,8 +314,35 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'connected',
                              'domain',
                              'count'),
+    'https_requests' :      ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'tunnel_whole_device',
+                             'session_id',
+                             'connected',
+                             'domain',
+                             'count'),
     'speed.11' :            ('server_id',
                              'client_region',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'operation',
+                             'info',
+                             'milliseconds',
+                             'size'),
+    'speed.13' :            ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
                              'propagation_channel_id',
                              'sponsor_id',
                              'client_version',
@@ -249,10 +361,23 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'client_version',
                              'client_platform',
                              'relay_protocol',
+                             'tunnel_whole_device',
                              'operation',
                              'info',
                              'milliseconds',
                              'size'),
+    'feedback.12' :         ('server_id',
+                             'client_region',
+                             'client_city',
+                             'client_isp',
+                             'propagation_channel_id',
+                             'sponsor_id',
+                             'client_version',
+                             'client_platform',
+                             'relay_protocol',
+                             'session_id',
+                             'question',
+                             'answer'),
     'feedback' :            ('server_id',
                              'client_region',
                              'client_city',
@@ -262,6 +387,7 @@ LOG_EVENT_TYPE_SCHEMA = {
                              'client_version',
                              'client_platform',
                              'relay_protocol',
+                             'tunnel_whole_device',
                              'session_id',
                              'question',
                              'answer'),
@@ -285,13 +411,13 @@ def iso8601_to_utc(timestamp):
     return (localized_datetime - timezone_delta).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
 
 
-def process_stats(host, servers, db_cur, psinet, error_file=None):
+def process_stats(host, servers, db_cur, psinet, minimal, error_file=None):
 
     print 'process stats from host %s...' % (host.id,)
 
     server_ip_address_to_id = {}
     for server in servers:
-        server_ip_address_to_id[server.ip_address] = server.id
+        server_ip_address_to_id[server.internal_ip_address] = server.id
 
     line_re = re.compile(LOG_LINE_PATTERN)
 
@@ -305,10 +431,10 @@ def process_stats(host, servers, db_cur, psinet, error_file=None):
     # Only process logs lines after last timestamp processed. This gives a
     # significant performance boost.
 
-    db_cur.execute(
+    db_cur[None].execute(
         'select last_timestamp from processed_logs where host_id = %s',
         [host.id])
-    last_timestamp = db_cur.fetchone()
+    last_timestamp = db_cur[None].fetchone()
     if last_timestamp:
         last_timestamp = last_timestamp[0]
     next_last_timestamp = None
@@ -362,9 +488,9 @@ def process_stats(host, servers, db_cur, psinet, error_file=None):
                 file = gzip.open(path)
             else:
                 file = open(path)
+            print 'processing %s...' % (filename,)
+            lines_processed = 0
             try:
-                print 'processing %s...' % (filename,)
-                lines_processed = 0
                 lines = file.read().split('\n')
                 for line in reversed(lines):
                     match = line_re.match(line)
@@ -390,12 +516,17 @@ def process_stats(host, servers, db_cur, psinet, error_file=None):
 
                     if last_timestamp and timestamp < last_timestamp:
                         # Assumes processing the lines in reverse chronological order
-                        continue
+                        break
                     if not next_last_timestamp or timestamp > next_last_timestamp:
                         next_last_timestamp = timestamp
 
-                    host_id = match.group(2)
+                    host_id = host.id
                     event_type = match.group(3)
+
+                    if minimal:
+                        if event_type not in ['connected', 'page_views']:
+                            continue
+
                     event_values = [event_value.decode('utf-8', 'replace') for event_value in match.group(4).split()]
                     event_fields = LOG_EVENT_TYPE_SCHEMA[event_type]
 
@@ -424,19 +555,25 @@ def process_stats(host, servers, db_cur, psinet, error_file=None):
 
                     if event_type == 'bytes_transferred.8':
                         assert(field_names[9] == 'bytes')
-                        if not (0 <= int(field_values[9]) < 2147483647):
-                            err = 'invalid byte fields %s' % (line,)
-                            print err
-                            if error_file:
-                                error_file.write(err + '\n')
-                            continue
-
                         # Client version 24 had a bug which resulted in
                         # corrupt byte transferred values, so discard them
-                        
                         assert(field_names[6] == 'client_version')
                         if int(field_values[6]) == 24:
                             continue
+
+                    invalid_byte_field = False
+                    for index, field_name in enumerate(field_names):
+                        if field_name == 'bytes':
+                            # This is an integer field
+                            if not (0 <= int(field_values[index]) < 2147483647):
+                                err = 'invalid byte fields %s' % (line,)
+                                print err
+                                if error_file:
+                                    error_file.write(err + '\n')
+                                invalid_byte_field = True
+                                break
+                    if invalid_byte_field:
+                        continue
 
                     # Don't record entries for testing or deployment-validation logs
                     try:
@@ -472,20 +609,33 @@ def process_stats(host, servers, db_cur, psinet, error_file=None):
 
                     command = event_sql[event_type]
 
-                    db_cur.execute(command, field_values + field_values)
+                    try:
+                        table = event_type
+                        if table.find('.') != -1:
+                            table = table.split('.')[0]
+                        if table in db_cur:
+                            cursor = db_cur[table]
+                        else:
+                            cursor = db_cur[None]
+                        cursor.execute(command, field_values + field_values)
+                    except psycopg2.DataError as data_error:
+                        print host.id + ': ' + filename + ': ' + str(data_error)
+
                     lines_processed += 1
 
             finally:
                 file.close()
-        print '%d new lines processed' % (lines_processed)
+
+            print '%d new lines processed' % (lines_processed)
+            sys.stdout.flush()
 
     if next_last_timestamp:
         if not last_timestamp:
-            db_cur.execute(
+            db_cur[None].execute(
                 'insert into processed_logs (host_id, last_timestamp) values (%s, %s)',
                 [host.id, next_last_timestamp])
         else:
-            db_cur.execute(
+            db_cur[None].execute(
                 'update processed_logs set last_timestamp = %s where host_id = %s',
                 [next_last_timestamp, host.id])
 
@@ -499,13 +649,14 @@ def reconstruct_sessions(db):
     session_cursor = db.cursor()    
     
     print 'Reconstructing sessions...'
+    sys.stdout.flush()
     start_time = time.time()
 
     session_cursor.execute('SELECT doSessionReconstruction()')
 
     session_cursor.execute('COMMIT')
 
-    print 'elapsed time: %fs' % (time.time()-start_time,)
+    print 'Reconstruct sessions elapsed time: %fs' % (time.time()-start_time,)
 
 
 def update_propagation_channels(db, propagation_channels):
@@ -542,7 +693,14 @@ def update_servers(db, psinet):
 
     for server in psinet.get_servers():
         host = psinet.get_host_for_server(server)
-        server_type = 'Discovery' if server.discovery_date_range else 'Propagation'
+        server_type = 'Propagation'
+        if server.discovery_date_range:
+            server_type = 'Discovery'
+        else:
+            if server.is_embedded:
+                server_type = 'Embedded'
+            if server.is_permanent:
+                server_type = 'Permanent'
         cursor.execute('UPDATE server SET type = %s, datacenter_name = %s WHERE id = %s',
                        [server_type, host.datacenter_name, server.id])
         cursor.execute('INSERT INTO server (id, type, datacenter_name) SELECT %s, %s, %s ' +
@@ -553,18 +711,70 @@ def update_servers(db, psinet):
     cursor.execute('COMMIT')
 
 
+def process_stats_on_host(args):
+
+    start_time = time.time()
+
+    host = args[0]
+    servers = args[1]
+    psinet = args[2]                                                                                 
+    minimal = args[3]
+                                                                                                     
+    db_conn = build_db_connections()
+    cursors = {}
+                                                
+    try:
+        for table, conn in db_conn.iteritems():
+            cursors[table] = conn.cursor()
+        process_stats(host, servers, cursors, psinet, minimal)                                                 
+        for cursor in cursors.itervalues():
+            cursor.close()
+        for connection in db_conn.itervalues():
+            connection.commit()                                                                          
+    except Exception as e:                                                                           
+        for line in traceback.format_exc().split('\n'):                                              
+            print line                                                                               
+    finally:                                                                                         
+        for connection in db_conn.itervalues():
+            connection.close()                                                                            
+
+    return (host.id, time.time()-start_time)
+
+
+def build_db_connections():
+    db_conn = {}
+    if hasattr(psi_ops_stats_credentials,'DB_MAP'):
+        for table,db_ipaddress in psi_ops_stats_credentials.DB_MAP.iteritems():
+            db_conn[table] = psycopg2.connect(
+                'dbname=%s user=%s password=%s port=%d host=%s' % (
+                    psi_ops_stats_credentials.POSTGRES_DBNAME,
+                    psi_ops_stats_credentials.POSTGRES_USER,
+                    psi_ops_stats_credentials.POSTGRES_PASSWORD,
+                    psi_ops_stats_credentials.POSTGRES_PORT,
+                    db_ipaddress))
+    else:
+        db_conn[None] = psycopg2.connect(
+            'dbname=%s user=%s password=%s port=%d' % (
+                psi_ops_stats_credentials.POSTGRES_DBNAME,
+                psi_ops_stats_credentials.POSTGRES_USER,
+                psi_ops_stats_credentials.POSTGRES_PASSWORD,
+                psi_ops_stats_credentials.POSTGRES_PORT))
+    return db_conn
+
+
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-m', '--minimal', dest='minimal', action='store_true',                                         
+                        help='minimal processing')
+    args = parser.parse_args()
 
     start_time = time.time()
 
     psinet = psi_ops.PsiphonNetwork.load_from_file(PSI_OPS_DB_FILENAME)
-
-    db_conn = psycopg2.connect(
-        'dbname=%s user=%s password=%s port=%d' % (
-            psi_ops_stats_credentials.POSTGRES_DBNAME,
-            psi_ops_stats_credentials.POSTGRES_USER,
-            psi_ops_stats_credentials.POSTGRES_PASSWORD,
-            psi_ops_stats_credentials.POSTGRES_PORT))
+    
+    db_conn = build_db_connections()
+    print db_conn
 
     hosts = psinet.get_hosts()
     servers = psinet.get_servers()
@@ -572,21 +782,27 @@ if __name__ == "__main__":
     sponsors = psinet.get_sponsors()
 
     try:
-        update_propagation_channels(db_conn, propagation_channels)
-        update_sponsors(db_conn, sponsors)
-        update_servers(db_conn, psinet)
+        update_propagation_channels(db_conn[None], propagation_channels)
+        update_sponsors(db_conn[None], sponsors)
+        update_servers(db_conn[None], psinet)
 
-        for host in hosts:
-            db_cur = db_conn.cursor()
-            process_stats(host, servers, db_cur, psinet)
-            db_cur.close()
-            db_conn.commit()
-        reconstruct_sessions(db_conn)
-        db_conn.commit()
+        pool = multiprocessing.pool.ThreadPool(4)
+        results = pool.map(process_stats_on_host, [(host, servers, psinet, args.minimal) for host in hosts])
+
+        # print results as a dict (sorted for visual inspection)
+        print '{' + ','.join(['"%s": %f' % (host_id, host_time) for (host_id, host_time)
+                in sorted(results, key=lambda item: item[1], reverse=True)]) + '}'
+
+        if not args.minimal:
+            reconstruct_sessions(db_conn[None])
+
+        for connection in db_conn.itervalues():
+            connection.commit()
     except Exception as e:
         for line in traceback.format_exc().split('\n'):
             print line
     finally:
-        db_conn.close()
+        for connection in db_conn.itervalues():
+            connection.close()
 
-    print 'elapsed time: %fs' % (time.time()-start_time,)
+    print 'Total stats processing elapsed time: %fs' % (time.time()-start_time,)

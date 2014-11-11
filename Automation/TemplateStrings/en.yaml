@@ -1,19 +1,21 @@
 en:
     plaintext_email_no_attachment: |
-        English - {{0}}/{0}.html
+        Download Psiphon here: {{0}}/{0}/download.html#direct
     html_email_no_attachment: |
         <div style="direction: ltr;">
-        English - <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
+        Download Psiphon here: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
         </div>
     plaintext_email_with_attachment: |+
         To use Psiphon 3 for Windows, save the attached file {{1}} with a ".exe" extension.
+        To use Psiphon 3 for Android, install the attached file {{2}}.
         For more information or to download the files again, click the link below.
-        {{0}}/{0}.html
+        {{0}}/{0}/download.html#direct
 
     html_email_with_attachment: |
         <div style="direction: ltr;">
         To use Psiphon 3 for Windows, save the attached file {{1}} with a ".exe" extension.<br>
+        To use Psiphon 3 for Android, install the attached file {{2}}.<br>
         For more information or to download the files again, click the link below.<br>
-        <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
+        <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
         </div>
         <br>

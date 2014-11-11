@@ -1,0 +1,26 @@
+tr:
+  title: Psiphon Geribildirimi
+  top_content_title: Geri Bildirim Yapın
+  top_para_1: |
+    Lütfen Psiphon'un nasıl çalıştığını öğrenmemiz için aşağıdaki formu tamamlayın böylece sistemi daha iyi yapalım!
+  top_para_2: |
+    Çoğu sorun en son sürüm indirilerek çözülebilir. <a class="newVersionURL" href="#">En son sürümü buraya tıklayarak</a>
+    veya <span id="newVersionEmail"></span> adresine
+    e-posta göndererek indirebilirsiniz.
+  top_para_3: |
+    Ayrıca çoğu ortak soruna çözümleri
+    <a class="faqURL" href="#">Sıkça Sorulan Sorular</a> sayfamızda bulabilirsiniz.
+  diagnostic_check: |
+    Kullanım verisini yükle. Lütfen bu kullanım verisinin sizin kimliğinizin tanımlanması
+    için değil Psiphon'un akıcı şekilde tutulmasına yardımcı olması için kullanılacağını unutmayın.
+    <a class="dataCollectionInfoURL" href="#">Topladığımız bilgiler için buraya tıklayın.</a>
+  smiley_title: Toplam memnuniyet
+  smiley_happy: Psiphon istediğim gibi bağlanıyor ve çalışıyor.
+  smiley_sad: Psiphon genellikle bağlanamıyor ve yeterince iyi çalışmıyor.
+  submit_button: Gönder
+  text_feedback_prompt: |
+    Lütfen yorumlarınızı buraya girin:
+  text_feedback_email_prompt: |
+    Eğer size geri dönmememizi isterseniz, lütfen e-posta adresinizi girin:
+  text_feedback_bottom_para: |
+    Eğer yukarıdaki form çalışmıyorsa veya ekran görüntüsü yollamak isterseniz, lütfen bize <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a> adresinden e-posta gönderin.

@@ -26,12 +26,13 @@ if [ "$?" -ne "1" ]; then
     exit 1
 fi
 
-# Put the source files where they need to be. 
+# Put the source files where they need to be.
 echo "Copying source files..."
 
 # Copy the simple files
-sudo cp settings.py mail_process.py sendmail.py blacklist.py mail_stats.py \
-        mail_direct.py postfix_queue_check.pl log_processor.py $MAIL_HOME
+sudo cp blacklist.py log_processor.py mail_direct.py mail_process.py mail_stats.py \
+        aws_helpers.py sendmail.py settings.py conf_pull.py postfix_queue_check.pl \
+        mon-put-instance-data.pl CloudWatchClient.pm $MAIL_HOME
 
 # forward needs to be copied to .forward
 sudo cp forward $MAIL_HOME/.forward
@@ -51,7 +52,7 @@ sudo rm $MAIL_HOME/*.pyc
 
 # Copy the system/service config files.
 echo "Copying system config files..."
-sed "s|\(.*\)%MAIL_HOME%\(.*\)|\1$MAIL_HOME\2|g" psiphon-log-rotate.conf > psiphon-log-rotate.tmp 
+sed "s|\(.*\)%MAIL_HOME%\(.*\)|\1$MAIL_HOME\2|g" psiphon-log-rotate.conf > psiphon-log-rotate.tmp
 sudo mv psiphon-log-rotate.tmp /etc/logrotate.d/psiphon-log-rotate.conf
 sudo cp 20-psiphon-logging.conf /etc/rsyslog.d/
 sudo reload rsyslog
@@ -67,6 +68,9 @@ if [ "$?" -ne "0" ]; then
     exit 1
 fi
 
+
+# Do an initial config pull
+cd $MAIL_HOME && sudo -u$MAIL_USER python conf_pull.py && cd -
+
+
 echo "Done"
-
-

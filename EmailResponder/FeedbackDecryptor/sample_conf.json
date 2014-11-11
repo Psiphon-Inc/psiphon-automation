@@ -1,0 +1,54 @@
+// Note that comments are not valid JSON.
+{
+  "popServer": "pop.gmail.com",
+  "popPort": 995,
+  "smtpServer": "smtp.gmail.com",
+  "smtpPort": 465,
+  "emailUsername": "feedback@example.com",
+  "emailPassword": "password1",
+  "privateKeyPemFile": "priv.pem",
+  "privateKeyPassword": "password2",
+  "decryptedEmailRecipient": "user-talk@example.com",
+
+  // Should belong to an IAM user with only necessary permissions:
+  //  - list keys in upload bucket
+  //  - get objects in upload bucket
+  //  - delete objects in upload bucket
+  "aws_access_key_id": "...",
+  "aws_secret_access_key": "...",
+
+  // S3 bucket where some clients upload diagnostic data and feedback
+  "s3_bucket_name": "...",
+
+  // Directory where the psi_ops.py file can be found.
+  "psiOpsPath": "../../Automation",
+  // File-path to the psinet DB file.
+  "psinetFilePath": "../../Automation/psi_ops_stats.dat",
+
+  // Used for making requests to the Google Translate API.
+  // You can get a key here: https://code.google.com/apis/console
+  "googleApiKey": "...",
+
+  // Used for Google API failover. Must be []/null or correspond to entries in
+  // the `/etc/hosts` file.
+  "googleApiServers": ["...", "..."],
+
+  // The email addresses to which the daily stats email should be sent.
+  "statsEmailRecipients": ["a@example.com", "b@example.com"],
+  // If the number of diagnostic data records created per minute exceeds this
+  // value, a warning email should be sent to the statsEmailRecipients.
+  "statsWarningThresholdPerMinute": 1.0,
+
+  // Email address that auto-responses should be sent from.
+  "reponseEmailAddress": "noreply@example.com",
+
+  // The Sponsor and Propagation Channel that should be used for auto-responses
+  // if no user-specific value can be determined.
+  "defaultSponsorName": "Psiphon",
+  "defaultPropagationChannelName": "Psiphon - email autoresponder",
+
+  "sqlExporterDBConnectionString": "mysql://root@localhost/diagnostic_feedback?unix_socket=/data/mariadb-data/mariadb.sock",
+
+  // This is the maximum acceptable size for S3 feedback objects.
+  "s3ObjectMaxSize": 4194304 // 4MiB
+}

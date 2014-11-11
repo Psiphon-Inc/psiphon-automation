@@ -18,6 +18,7 @@
 #
 
 import os
+import sys
 import time
 import re
 import multiprocessing
@@ -103,6 +104,7 @@ def sync_log_files(host):
     except pexpect.ExceptionPexpect as e:
         print 'failed host %s: %s' % (host.id, str(e))
 
+    sys.stdout.flush()
     return time.time()-start_time
 
 
@@ -126,10 +128,17 @@ if __name__ == "__main__":
                   host['stats_ssh_password'])
              for host in psinet['_PsiphonNetwork__hosts'].itervalues()]
 
+    # Remove the known_hosts file entry for each host.  Since servers are destroyed
+    # and recreated often, it is possible to have an old entry in the known_hosts file
+    # that matches a current host's ip address and port
+    for host in hosts:
+        os.system('ssh-keygen -R [%s]:%s' % (host.ip_address, host.ssh_port))
+
     pool = multiprocessing.Pool(200)
     results = pool.map(sync_log_files, hosts)
 
-    print 'elapsed time: %fs' % (time.time()-start_time,)
+    print 'Sync log files elapsed time: %fs' % (time.time()-start_time,)
 
     # TODO: check for failure
     print ['%fs' % (x,) for x in results]
+

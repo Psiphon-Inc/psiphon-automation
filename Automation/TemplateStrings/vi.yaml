@@ -1,21 +1,17 @@
 vi:
   plaintext_email_no_attachment: |+
-    Tiếng Anh - {{0}}/{0}.html
+    Tiếng Anh - {{0}}/{0}/index.html
 
-  html_email_no_attachment: "<div style=\"direction: ltr;\"> \nTiếng Anh - <a href=\"\
-    {{0}}/{0}.html\">{{0}}/{0}.html</a><br>\n</div>\n\n"
-  plaintext_email_with_attachment: |+
+  html_email_no_attachment: "<div style=\"direction: ltr;\"> \nTiếng Anh - <a href=\"{{0}}/{0}/index.html\">{{0}}/{0}/index.html</a><br>\n\
+    </div>\n\n"
+  plaintext_email_with_attachment: |
     Để sử dụng Psiphon 3 dành cho Windows, hãy lưu tập tin đính kèm {{1}} có đuôi mở rộng ".exe".
     Để biết thêm thông tin hoặc để tải các tập tin xuống lại, hãy nhấp vào liên kết bên dưới.
-    {{0}}/{0}.html
-
-
-  html_email_with_attachment: |+
+    {{0}}/{0}/index.html
+  html_email_with_attachment: |
     <div style="direction: ltr;">
     Để sử dụng Psiphon 3 dành cho Windows, hãy lưu tập tin đính kèm {{1}} có đuôi mở rộng ".exe".<br>
     Để biết thêm thông tin hoặc để tải các tập tin xuống lại, hãy nhấp vào liên kết bên dưới.<br>
-    <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
+    <a href="{{0}}/{0}/index.html">{{0}}/{0}/index.html</a><br>
     </div>
     <br>
-
-...

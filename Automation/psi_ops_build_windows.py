@@ -40,6 +40,9 @@ EMBEDDED_VALUES_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', 'embeddedvalue
 EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, 'Release', 'psiphon.exe')
 BUILDS_ROOT = os.path.join('.', 'Builds', 'Windows')
 BUILD_FILENAME_TEMPLATE = 'psiphon-%s-%s.exe'
+POLIPO_EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', '3rdParty', 'polipo.exe')
+PLONK_EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', '3rdParty', 'plonk.exe')
+MEEK_EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', '3rdParty', 'meek.exe')
 
 FEEDBACK_SOURCE_ROOT = os.path.join('.', 'FeedbackSite')
 FEEDBACK_HTML_SOURCE_PATH = os.path.join(FEEDBACK_SOURCE_ROOT, 'feedback.html')
@@ -50,6 +53,7 @@ VISUAL_STUDIO_ENV_BATCH_FILENAME_x86 = 'C:\\Program Files (x86)\\Microsoft Visua
 
 SIGN_TOOL_FILENAME = 'C:\\Program Files\\Microsoft SDKs\\Windows\\v7.1\\Bin\\signtool.exe'
 SIGN_TOOL_FILENAME_ALT = 'C:\\Program Files\\Microsoft SDKs\\Windows\\v7.0A\\Bin\\signtool.exe'
+SIGN_TOOL_FILENAME_x64 = 'C:\\Program Files (x86)\\Microsoft SDKs\\Windows\\v7.1A\\Bin\signtool.exe'
 
 UPX_FILENAME = '.\Tools\upx.exe'
 
@@ -71,12 +75,20 @@ def build_client_executable():
     signtool_filename = SIGN_TOOL_FILENAME
     if not os.path.isfile(signtool_filename):
         signtool_filename = SIGN_TOOL_FILENAME_ALT
+    if not os.path.isfile(signtool_filename):
+        signtool_filename = SIGN_TOOL_FILENAME_x64
     commands = [
-        'msbuild "%s" /v:quiet /t:Rebuild /p:Configuration=Release\n' % (CLIENT_SOLUTION_FILENAME,),
+        '"%s" sign /t http://timestamp.digicert.com /f "%s" "%s"\n' % (
+          signtool_filename, CODE_SIGNING_PFX_FILENAME, POLIPO_EXECUTABLE_FILENAME),
+        '"%s" sign /t http://timestamp.digicert.com /f "%s" "%s"\n' % (
+          signtool_filename, CODE_SIGNING_PFX_FILENAME, PLONK_EXECUTABLE_FILENAME),
+        '"%s" sign /t http://timestamp.digicert.com /f "%s" "%s"\n' % (
+          signtool_filename, CODE_SIGNING_PFX_FILENAME, MEEK_EXECUTABLE_FILENAME),
+        'msbuild "%s" /v:quiet /t:Rebuild /p:Configuration=Release\n' % (
+          CLIENT_SOLUTION_FILENAME,),
         '"%s" -qq "%s"\n' % (UPX_FILENAME, EXECUTABLE_FILENAME),
-        '"%s" sign /t http://timestamp.digicert.com /f "%s" "%s"\n' % (signtool_filename,
-                                             CODE_SIGNING_PFX_FILENAME,
-                                             EXECUTABLE_FILENAME)]
+        '"%s" sign /t http://timestamp.digicert.com /f "%s" "%s"\n' % (
+          signtool_filename, CODE_SIGNING_PFX_FILENAME, EXECUTABLE_FILENAME)]
     command_filename = 'build.cmd'
     for command in commands:
         with open(command_filename, 'w') as file:
@@ -95,7 +107,17 @@ def write_embedded_values(propagation_channel_id,
                           embedded_server_list,
                           remote_server_list_signature_public_key,
                           remote_server_list_url,
+                          feedback_encryption_public_key,
+                          feedback_upload_server,
+                          feedback_upload_path,
+                          feedback_upload_server_headers,
                           info_link_url,
+                          upgrade_signature_public_key,
+                          upgrade_url,
+                          get_new_version_url,
+                          get_new_version_email,
+                          faq_url,
+                          privacy_policy_url,
                           ignore_system_server_list=False):
     template = textwrap.dedent('''
         #pragma once
@@ -116,14 +138,27 @@ def write_embedded_values(propagation_channel_id,
         static const int IGNORE_SYSTEM_SERVER_LIST = %d;
 
         static const char* REMOTE_SERVER_LIST_SIGNATURE_PUBLIC_KEY = "%s";
-
         static const char* REMOTE_SERVER_LIST_ADDRESS = "%s";
-        
         static const char* REMOTE_SERVER_LIST_REQUEST_PATH = "%s";
+
+        // These values are used when uploading diagnostic info
+        static const char* FEEDBACK_ENCRYPTION_PUBLIC_KEY = "%s";
+        static const char* FEEDBACK_DIAGNOSTIC_INFO_UPLOAD_SERVER = "%s";
+        static const char* FEEDBACK_DIAGNOSTIC_INFO_UPLOAD_PATH = "%s";
+        static const char* FEEDBACK_DIAGNOSTIC_INFO_UPLOAD_SERVER_HEADERS = "%s";
 
         // NOTE: Info link may be opened when not tunneled
         static const TCHAR* INFO_LINK_URL
             = _T("%s");
+
+        static const char* UPGRADE_SIGNATURE_PUBLIC_KEY = "%s";
+        static const char* UPGRADE_ADDRESS = "%s";
+        static const char* UPGRADE_REQUEST_PATH = "%s";
+
+        static const char* GET_NEW_VERSION_URL = "%s";
+        static const char* GET_NEW_VERSION_EMAIL = "%s";
+        static const char* FAQ_URL = "%s";
+        static const char* DATA_COLLECTION_INFO_URL = "%s";
         ''')
     with open(EMBEDDED_VALUES_FILENAME, 'w') as file:
         file.write(template % (propagation_channel_id,
@@ -134,7 +169,18 @@ def write_embedded_values(propagation_channel_id,
                                remote_server_list_signature_public_key,
                                remote_server_list_url[1],
                                remote_server_list_url[2],
-                               info_link_url))
+                               feedback_encryption_public_key,
+                               feedback_upload_server,
+                               feedback_upload_path,
+                               feedback_upload_server_headers,
+                               info_link_url,
+                               upgrade_signature_public_key,
+                               upgrade_url[1],
+                               upgrade_url[2],
+                               get_new_version_url,
+                               get_new_version_email,
+                               faq_url,
+                               privacy_policy_url))
 
 
 def build_client(
@@ -144,14 +190,31 @@ def build_client(
         encoded_server_list,
         remote_server_list_signature_public_key,
         remote_server_list_url,
+        feedback_encryption_public_key,
+        feedback_upload_server,
+        feedback_upload_path,
+        feedback_upload_server_headers,
         info_link_url,
+        upgrade_signature_public_key,
+        upgrade_url,
+        get_new_version_url,
+        get_new_version_email,
+        faq_url,
+        privacy_policy_url,
         version,
-        test=False):
+        propagator_managed_upgrades,
+        test=False,
+        _=None):
 
     try:
         # Backup/restore original files minimize chance of checking values into source control
         backup = psi_utils.TemporaryBackup(
-            [BANNER_FILENAME, EMAIL_BANNER_FILENAME, EMBEDDED_VALUES_FILENAME, FEEDBACK_HTML_PATH])
+            [BANNER_FILENAME,
+             EMAIL_BANNER_FILENAME,
+             FEEDBACK_HTML_PATH,
+             POLIPO_EXECUTABLE_FILENAME,
+             PLONK_EXECUTABLE_FILENAME,
+             MEEK_EXECUTABLE_FILENAME])
 
         # Copy custom email banner from Data to source tree
         # (there's only one custom email banner for all sponsors)
@@ -171,7 +234,17 @@ def build_client(
             encoded_server_list,
             remote_server_list_signature_public_key,
             remote_server_list_url,
+            feedback_encryption_public_key,
+            feedback_upload_server,
+            feedback_upload_path,
+            feedback_upload_server_headers,
             info_link_url,
+            upgrade_signature_public_key,
+            upgrade_url,
+            get_new_version_url,
+            get_new_version_email,
+            faq_url,
+            privacy_policy_url,
             ignore_system_server_list=test)
 
         # copy feedback.html

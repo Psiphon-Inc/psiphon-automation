@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2011, Psiphon Inc.
+# Copyright (c) 2014, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -22,6 +22,7 @@ import urllib2
 import subprocess
 import time
 import random
+import copy
 from functools import wraps
 try:
     import win32ui
@@ -89,7 +90,7 @@ def __test_web_server(ip_address, web_server_port, propagation_channel_id, web_s
 
 
 @retry_on_exception_decorator
-def __test_server(executable_path, transport, expected_egress_ip_addresses):
+def __test_server(executable_path, transport, encoded_server_list, expected_egress_ip_addresses):
     # test:
     # - spawn client process, which starts the VPN
     # - sleep 5 seconds, which allows time to establish connection
@@ -98,6 +99,13 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
 
     has_remote_check = len(CHECK_IP_ADDRESS_URL_REMOTE) > 0
     has_local_check = len(CHECK_IP_ADDRESS_URL_LOCAL) > 0
+    
+    servers_registry_value = 'Servers' + transport
+
+    # Internally we refer to "OSSH", but the display name is "SSH+", which is also used
+    # in the registry setting to control which transport is used.
+    if transport == 'OSSH':
+        transport = 'SSH+'
 
     # Split tunnelling is not implemented for VPN.
     # Also, if there is no remote check, don't use split tunnel mode because we always want
@@ -114,17 +122,20 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
         proc = None
         transport_value, transport_type = None, None
         split_tunnel_value, split_tunnel_type = None, None
+        servers_value, servers_type = None, None
         reg_key = _winreg.OpenKey(REGISTRY_ROOT_KEY, REGISTRY_PRODUCT_KEY, 0, _winreg.KEY_ALL_ACCESS)
         transport_value, transport_type = _winreg.QueryValueEx(reg_key, REGISTRY_TRANSPORT_VALUE)
         _winreg.SetValueEx(reg_key, REGISTRY_TRANSPORT_VALUE, None, _winreg.REG_SZ, transport)
         split_tunnel_value, split_tunnel_type = _winreg.QueryValueEx(reg_key, REGISTRY_SPLIT_TUNNEL_VALUE)
         # Enable split tunnel with registry setting
         _winreg.SetValueEx(reg_key, REGISTRY_SPLIT_TUNNEL_VALUE, None, _winreg.REG_DWORD, 1 if split_tunnel_mode else 0)
-        
+        servers_value, servers_type = _winreg.QueryValueEx(reg_key, servers_registry_value)
+        _winreg.SetValueEx(reg_key, servers_registry_value, None, _winreg.REG_SZ, '\n'.join(encoded_server_list))
+
         proc = subprocess.Popen([executable_path])
-        
-        time.sleep(15)
-    
+
+        time.sleep(25)
+
         # In VPN mode, all traffic is routed through the proxy. In SSH mode, the
         # urlib2 ProxyHandler picks up the Windows Internet Settings and uses the
         # HTTP Proxy that is set by the client.
@@ -132,11 +143,11 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
 
         if has_local_check:
             # Get egress IP from web site in same GeoIP region; local split tunnel is not proxied
-    
+
             egress_ip_address = urllib2.urlopen(CHECK_IP_ADDRESS_URL_LOCAL, timeout=30).read().split('\n')[0]
 
             is_proxied = (egress_ip_address in expected_egress_ip_addresses)
-    
+
             if (transport == 'VPN' or not split_tunnel_mode) and not is_proxied:
                 raise Exception('Local case/VPN/not split tunnel: egress is %s and expected egresses are %s' % (
                                     egress_ip_address, ','.join(expected_egress_ip_addresses)))
@@ -144,42 +155,51 @@ def __test_server(executable_path, transport, expected_egress_ip_addresses):
             if transport != 'VPN' and split_tunnel_mode and is_proxied:
                 raise Exception('Local case/not VPN/split tunnel: egress is %s and expected egresses are ANYTHING OTHER THAN %s' % (
                                     egress_ip_address, ','.join(expected_egress_ip_addresses)))
-    
+
         if has_remote_check:
             # Get egress IP from web site in different GeoIP region; remote split tunnel is proxied
 
             egress_ip_address = urllib2.urlopen(CHECK_IP_ADDRESS_URL_REMOTE, timeout=30).read().split('\n')[0]
-    
+
             is_proxied = (egress_ip_address in expected_egress_ip_addresses)
 
             if not is_proxied:
                 raise Exception('Remote case: egress is %s and expected egresses are %s' % (
                                     egress_ip_address, ','.join(expected_egress_ip_addresses)))
-        
+
     finally:
         if transport_type and transport_value:
             _winreg.SetValueEx(reg_key, REGISTRY_TRANSPORT_VALUE, None, transport_type, transport_value)
         if split_tunnel_value and split_tunnel_type:
             _winreg.SetValueEx(reg_key, REGISTRY_SPLIT_TUNNEL_VALUE, None, split_tunnel_type, split_tunnel_value)
+        if servers_type and servers_value:
+            _winreg.SetValueEx(reg_key, servers_registry_value, None, servers_type, servers_value)
         try:
             win32ui.FindWindow(None, psi_ops_build_windows.APPLICATION_TITLE).PostMessage(win32con.WM_CLOSE)
         except Exception as e:
             print e
         if proc:
             proc.wait()
-            
 
-def test_server(ip_address, web_server_port, web_server_secret, encoded_server_list, version,
-                expected_egress_ip_addresses, test_propagation_channel_id = '0', test_cases = None):
 
-    if not test_cases:
-        test_cases = ['handshake', 'VPN', 'SSH+', 'SSH']
+def test_server(ip_address, capabilities, web_server_port, web_server_secret, encoded_server_list, version,
+                expected_egress_ip_addresses, test_propagation_channel_id = '0', test_cases = None, executable_path = None):
+
+    local_test_cases = copy.copy(test_cases) if test_cases else ['handshake', 'VPN', 'OSSH', 'SSH']
+
+    for test_case in copy.copy(local_test_cases):
+        if test_case == 'OSSH' and (capabilities['FRONTED-MEEK'] or capabilities['UNFRONTED-MEEK']):
+            print 'Testing OSSH through meek'
+            continue
+        if (not capabilities[test_case]
+            or (test_case == 'VPN' # VPN requires handshake, SSH or SSH+
+                and not (capabilities['handshake'] or capabilities['OSSH'] or capabilities['SSH']))):
+            print 'Server does not support %s' % (test_case,)
+            local_test_cases.remove(test_case)
 
     results = {}
 
-    executable_path = None
-
-    for test_case in test_cases:
+    for test_case in local_test_cases:
 
         print 'test case %s...' % (test_case,)
 
@@ -189,12 +209,12 @@ def test_server(ip_address, web_server_port, web_server_secret, encoded_server_l
                 results['WEB'] = 'PASS' if result else 'FAIL'
             except Exception as ex:
                 results['WEB'] = 'FAIL: ' + str(ex)
-            try:
-                result = __test_web_server(ip_address, '443', test_propagation_channel_id, web_server_secret)
-                results['443'] = 'PASS' if result else 'FAIL'
-            except Exception as ex:
-                results['443'] = 'FAIL: ' + str(ex)
-        elif test_case in ['VPN', 'SSH+', 'SSH']:
+            #try:
+            #    result = __test_web_server(ip_address, '443', test_propagation_channel_id, web_server_secret)
+            #    results['443'] = 'PASS' if result else 'FAIL'
+            #except Exception as ex:
+            #    results['443'] = 'FAIL: ' + str(ex)
+        elif test_case in ['VPN', 'OSSH', 'SSH']:
             if not executable_path:
                 executable_path = psi_ops_build_windows.build_client(
                                     test_propagation_channel_id,
@@ -203,13 +223,24 @@ def test_server(ip_address, web_server_port, web_server_secret, encoded_server_l
                                     encoded_server_list,
                                     '',         # remote_server_list_signature_public_key
                                     ('','',''), # remote_server_list_url
-                                    '',   # info_link_url
+                                    '',         # feedback_encryption_public_key
+                                    '',         # feedback_upload_server
+                                    '',         # feedback_upload_path
+                                    '',         # feedback_upload_server_headers
+                                    '',         # info_link_url
+                                    '',         # upgrade_signature_public_key
+                                    ('','',''), # upgrade_url
+                                    '',         # get_new_version_url
+                                    '',         # get_new_version_email
+                                    '',         # faq_url
+                                    '',         # privacy_policy_url
                                     version,
+                                    False,
                                     True)
             try:
-                __test_server(executable_path, test_case, expected_egress_ip_addresses)
+                __test_server(executable_path, test_case, encoded_server_list, expected_egress_ip_addresses)
                 results[test_case] = 'PASS'
             except Exception as ex:
                 results[test_case] = 'FAIL: ' + str(ex)
-    
+
     return results

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2011, Psiphon Inc.
+# Copyright (c) 2014, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -26,6 +26,10 @@ import boto.s3.connection
 import boto.s3.key
 import qrcode
 import cStringIO
+import hashlib
+import mimetypes
+import base64
+import json
 
 
 #==== Config  =================================================================
@@ -36,28 +40,73 @@ EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME = 'psiphon3.ex_'
 DOWNLOAD_SITE_ANDROID_BUILD_FILENAME = 'PsiphonAndroid.apk'
 EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME = 'PsiphonAndroid.apk'
 
+DOWNLOAD_SITE_UPGRADE_SUFFIX = '.upgrade'
+
 DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME = 'server_list'
 
-DOWNLOAD_SITE_QR_CODE_FILENAME = 'qr.png'
+DOWNLOAD_SITE_QR_CODE_KEY_NAME = 'images/android/android-download-qr.png'
 
-DOWNLOAD_SITE_CONTENT_ROOT = os.path.join('.', 'DownloadSite')
+DOWNLOAD_SITE_SPONSOR_BANNER_KEY_NAME = 'images/sponsor-banner.png'
+DOWNLOAD_SITE_SPONSOR_BANNER_LINK_KEY_NAME = 'images/sponsor-banner-link.json'
+DOWNLOAD_SITE_EMAIL_ADDRESS_KEY_NAME = 'images/sponsor-email.json'
+
+_IGNORE_FILENAMES = ('Thumbs.db',)
 
 #==============================================================================
 
 
-def get_s3_bucket_remote_server_list_url(bucket_id):
+def _progress(complete, total):
+    sys.stdout.write('.')
+    sys.stdout.flush()
+
+
+def get_s3_bucket_resource_url(bucket_id, resource_name):
     # Assumes USEast
-    return ('https', 's3.amazonaws.com', "%s/%s" % (
-                bucket_id,
-                DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME))
+    return ('https',
+            's3.amazonaws.com',
+            '%s/%s' % (bucket_id, resource_name))
 
 
-def get_s3_bucket_home_page_url(bucket_id):
+def get_s3_bucket_home_page_url(bucket_id, language=None):
+    '''
+    If `language` is `None`, the base redirect page (which attempts some crude
+    language detection) will be used.
+    '''
+
     # TODO: add a campaign language and direct to that page; or have the client
     # supply its system language and direct to that page.
 
     # Assumes USEast
-    return "https://s3.amazonaws.com/%s/en.html" % (bucket_id,)
+
+    if language:
+        page = '%s/index.html' % (language,)
+    else:
+        page = 'index.html'
+
+    scheme, domain, path = get_s3_bucket_resource_url(bucket_id, page)
+
+    return '%s://%s/%s' % (scheme, domain, path)
+
+
+def get_s3_bucket_download_page_url(bucket_id, lang='en'):
+    # Assumes USEast
+    scheme, domain, path = get_s3_bucket_resource_url(bucket_id,
+                                                      '%s/download.html#direct' % (lang,))
+    return '%s://%s/%s' % (scheme, domain, path)
+
+
+def get_s3_bucket_faq_url(bucket_id, lang='en'):
+    # Assumes USEast
+    scheme, domain, path = get_s3_bucket_resource_url(bucket_id,
+                                                      '%s/faq.html' % (lang,))
+    return '%s://%s/%s' % (scheme, domain, path)
+
+
+def get_s3_bucket_privacy_policy_url(bucket_id, lang='en'):
+    # Assumes USEast
+    scheme, domain, path = get_s3_bucket_resource_url(bucket_id,
+                                                      '%s/faq.html#information-collected' % (lang,))
+    return '%s://%s/%s' % (scheme, domain, path)
 
 
 def create_s3_bucket(aws_account):
@@ -70,7 +119,7 @@ def create_s3_bucket(aws_account):
 
     # Seed with /dev/urandom (http://docs.python.org/library/random.html#random.seed)
     random.seed()
-    
+
     # TODO: select location at random
     location = random.choice([
                     boto.s3.connection.Location.APNortheast,
@@ -82,7 +131,7 @@ def create_s3_bucket(aws_account):
     location = boto.s3.connection.Location.DEFAULT
 
     print 'selected location: %s' % (location,)
-                    
+
     # Generate random bucket ID
     # Note: S3 bucket names can't contain uppercase letters or most symbols
     # Format: XXXX-XXXX-XXXX. Each segment has about 20 bits of entropy
@@ -91,71 +140,44 @@ def create_s3_bucket(aws_account):
         [''.join([random.choice(string.lowercase + string.digits)
                  for j in range(4)])
          for i in range(3)])
-    
+
     # Create new bucket
     # TODO: retry on boto.exception.S3CreateError: S3Error[409]: Conflict
     bucket = s3.create_bucket(bucket_id, location=location)
-    
-    print 'new download URL: https://s3.amazonaws.com/%s/en.html' % (bucket_id)
+
+    bucket.configure_website(suffix='index.html')
+
+    print 'new bucket: https://s3.amazonaws.com/%s/' % (bucket_id)
 
     return bucket_id
 
 
 def update_s3_download(aws_account, builds, remote_server_list, bucket_id):
-    
     # Connect to AWS
 
     s3 = boto.s3.connection.S3Connection(
                 aws_account.access_id,
                 aws_account.secret_key)
-                
+
     bucket = s3.get_bucket(bucket_id)
-    
-    set_s3_bucket_contents(bucket, bucket_id, builds, remote_server_list)
 
-    print 'updated download URL: https://s3.amazonaws.com/%s/en.html' % (bucket_id)
-    
-    
-def set_s3_bucket_contents(bucket, bucket_id, builds, remote_server_list):
+    set_s3_bucket_contents(bucket, builds, remote_server_list)
 
+    print 'updated bucket: https://s3.amazonaws.com/%s/' % (bucket_id)
+
+
+def set_s3_bucket_contents(bucket, builds, remote_server_list):
     try:
-        def progress(complete, total):
-            sys.stdout.write('.')
-            sys.stdout.flush()
-        
         if builds:
-            for (source_filename, target_filename) in builds:        
-                key = bucket.new_key(target_filename)
-                key.set_contents_from_filename(source_filename, cb=progress)
-                key.close()
+            for (source_filename, target_filename) in builds:
+                put_file_to_key(bucket, target_filename, str(source_filename), True, _progress)
 
         if remote_server_list:
-            key = bucket.new_key(DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME)
-            key.set_contents_from_string(remote_server_list, cb=progress)
-            key.close()
-
-        # QR code image points to Android APK
-        
-        qr_code_url = 'https://s3.amazonaws.com/%s/%s' % (
-                            bucket_id, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME)
-
-        key = bucket.new_key(DOWNLOAD_SITE_QR_CODE_FILENAME)
-        key.set_contents_from_string(make_qr_code(qr_code_url), cb=progress)
-        key.close()
-
-        # Update the HTML after the builds, to ensure items it references exist
-
-        # Upload the download site static content. This include the download page in
-        # each available language and the associated images.
-        # The download URLs will be the main page referenced by language, for example:
-        # https://s3.amazonaws.com/[bucket_id]/en.html
-        for name in os.listdir(DOWNLOAD_SITE_CONTENT_ROOT):
-            path = os.path.join(DOWNLOAD_SITE_CONTENT_ROOT, name)
-            if (os.path.isfile(path) and
-                os.path.split(path)[1] != DOWNLOAD_SITE_QR_CODE_FILENAME):
-                key = bucket.new_key(name)
-                key.set_contents_from_filename(path, cb=progress)
-                key.close()
+            put_string_to_key(bucket,
+                              DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME,
+                              remote_server_list,
+                              True,
+                              _progress)
 
     except:
         # TODO: delete all keys
@@ -164,10 +186,136 @@ def set_s3_bucket_contents(bucket, bucket_id, builds, remote_server_list):
         raise
 
     print ' done'
-    
-    # Make the whole bucket public now that it's uploaded
+
     bucket.disable_logging()
-    bucket.make_public(recursive=True)
+    _fix_bucket_acl(bucket)
+
+
+def update_website(aws_account, bucket_id, custom_site, website_dir,
+                   website_banner_base64, website_banner_link, website_email_address):
+    if custom_site:
+        print('not updating website due to custom site in bucket: https://s3.amazonaws.com/%s/' % (bucket_id))
+        return
+
+    s3 = boto.s3.connection.S3Connection(
+                aws_account.access_id,
+                aws_account.secret_key)
+
+    bucket = s3.get_bucket(bucket_id)
+
+    try:
+        for root, dirs, files in os.walk(website_dir):
+            for name in files:
+                if name in _IGNORE_FILENAMES:
+                    continue
+                file_path = os.path.abspath(os.path.join(root, name))
+                key_name = os.path.relpath(os.path.join(root, name), website_dir).replace('\\', '/')
+                put_file_to_key(bucket, key_name, file_path, True, _progress)
+
+        # Sponsors have optional custom banner images
+        if website_banner_base64:
+            put_string_to_key(bucket,
+                              DOWNLOAD_SITE_SPONSOR_BANNER_KEY_NAME,
+                              base64.b64decode(website_banner_base64),
+                              True,
+                              _progress)
+        else:
+            # We need to make sure there's no old sponsor banner in the bucket.
+            # Fails silently if there's no such key.
+            bucket.delete_key(DOWNLOAD_SITE_SPONSOR_BANNER_KEY_NAME)
+
+        # Sponsor banner can optionally link to somewhere.
+        if website_banner_link:
+            put_string_to_key(bucket,
+                              DOWNLOAD_SITE_SPONSOR_BANNER_LINK_KEY_NAME,
+                              json.dumps(website_banner_link),
+                              True,
+                              _progress)
+        else:
+            # We need to make sure there's no old sponsor banner link in the bucket.
+            # Fails silently if there's no such key.
+            bucket.delete_key(DOWNLOAD_SITE_SPONSOR_BANNER_LINK_KEY_NAME)
+
+        # If sponsor/campaign has a specific email request address, we'll store
+        # that in the bucket for the site to use.
+        if website_email_address:
+            put_string_to_key(bucket,
+                              DOWNLOAD_SITE_EMAIL_ADDRESS_KEY_NAME,
+                              json.dumps(website_email_address),
+                              True,
+                              _progress)
+        else:
+            # We need to make sure there's no old campaign email address in the bucket.
+            # Fails silently if there's no such key.
+            bucket.delete_key(DOWNLOAD_SITE_EMAIL_ADDRESS_KEY_NAME)
+
+        # We wrote a QR code image in the above upload, but it doesn't
+        # point to the Android APK in this bucket. So generate a new one
+        # and overwrite.
+
+        qr_code_url = 'https://s3.amazonaws.com/%s/%s' % (
+                            bucket.name, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME)
+        qr_data = make_qr_code(qr_code_url)
+        put_string_to_key(bucket,
+                          DOWNLOAD_SITE_QR_CODE_KEY_NAME,
+                          qr_data,
+                          True,
+                          _progress)
+
+    except:
+        # TODO: delete all keys
+        #print 'upload failed, deleting bucket'
+        #bucket.delete()
+        raise
+
+    print('updated website in bucket: https://s3.amazonaws.com/%s/' % (bucket_id))
+
+    bucket.configure_website(suffix='index.html')
+    bucket.disable_logging()
+    _fix_bucket_acl(bucket)
+
+
+def put_string_to_key_in_bucket(aws_account, bucket_id, key_name, content, is_public):
+    s3 = boto.s3.connection.S3Connection(
+            aws_account.access_id,
+            aws_account.secret_key)
+    bucket = s3.get_bucket(bucket_id)
+    put_string_to_key(bucket, key_name, content, is_public)
+
+
+def put_string_to_key(bucket, key_name, content, is_public, callback=None):
+    key = bucket.get_key(key_name)
+    if key:
+        etag = key.etag.strip('"').lower()
+        local_etag = hashlib.md5(content).hexdigest().lower()
+
+        if etag == local_etag:
+            # key contents haven't changed
+            return
+
+    key = bucket.new_key(key_name)
+    mimetype = mimetypes.guess_type(key_name)[0]
+    if mimetype:
+        key.set_metadata('Content-Type', mimetype)
+
+    policy = 'public-read' if is_public else None
+
+    key.set_contents_from_string(content, policy=policy, cb=callback)
+    key.close()
+
+
+def put_file_to_key(bucket, key_name, content_file, is_public, callback=None):
+    """
+    `content_file` can be a filename or a file object.
+    """
+    key = bucket.new_key(key_name)
+    if isinstance(content_file, str):
+        with open(content_file, 'rb') as f:
+          content = f.read()
+    else:
+        content = content_file.read()
+
+    put_string_to_key(bucket, key_name, content, is_public, callback)
 
 
 def make_qr_code(url):
@@ -178,3 +326,18 @@ def make_qr_code(url):
     stream = cStringIO.StringIO()
     image.save(stream, 'PNG')
     return stream.getvalue()
+
+
+def _fix_bucket_acl(bucket):
+    '''
+    Some old buckets have the "everyone can list" permission set. We want to
+    remove this.
+    '''
+
+    policy = bucket.get_acl()
+    new_grants = [grant for grant in policy.acl.grants
+                  if grant.uri != 'http://acs.amazonaws.com/groups/global/AllUsers']
+    if new_grants != policy.acl.grants:
+        print 'changed'
+        policy.acl.grants = new_grants
+        bucket.set_acl(policy)

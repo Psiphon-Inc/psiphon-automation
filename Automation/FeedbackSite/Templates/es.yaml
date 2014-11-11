@@ -1,29 +1,27 @@
 es:
-  title: Comentarios a Psiphon 3
-  top_content_title: Denos sus comentarios
-  top_content: |
-    <p>
-    Por favor llene la siguiente forma para indicarnos cómo está trabajando Psiphon 3 para usted  y podamos hacer un mejor sistema.
-    </p>
-
-    <p>
-     Si tiene comentarios específicos, mayor información de sitios que no funcionan o si esta forma no está funcionando para usted, por favor envíe un mensaje a <a href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>.
-    </p>
-  connectivity_title: Conectividad
-  connectivity_happy: Psiphon se conecta consistentemente y se mantiene conectado.
-  connectivity_ok: Psiphon se conecta con frecuencia, pero en ocasiones se desconecta
-    y se vuelve a conectar.
-  connectivity_sad: Psiphon falla frecuentemente para conectarse o se desconecta constantemente.
-  speed_title: Velocidad
-  speed_happy: Puedo navegar la red por medio de Psiphon y ver video; es tan o más
-    rápido que otras herramientas similares.
-  speed_ok: Puedo navegar la red con Psiphon pero es lento.
-  speed_sad: Navegar la red por medio de Psiphon es muy lento y no lo seguiré usando.
-  compatibility_title: Compatibilidad
-  compatibility_happy: Mis sitios de internet funcionan de manera normal cuando accedo
-    a ellos con Psiphon.
-  compatibility_ok: Mis sitios de internet funcionan lo suficientemente bien cuando
-    accedo a ellos con Psiphon.
-  compatibility_sad: Mis sitios de internet son desplegados pero no puedo usar algunas
-    funciones importantes.
+  title: Comentarios sobre Psiphon
+  top_content_title: Envíenos sus comentarios
+  top_para_1: |
+    ¡Por favor háganos saber cómo está funcionando Psiphon para usted para que podamos mejorar el sistema!
+  top_para_2: |
+    Muchos problemas pueden arreglarse descargando la última versión. Puede
+    <a class="newVersionURL" href="#">descargar la última versión haciendo clic aquí</a>,
+    o puede enviar un correo a <span id="newVersionEmail"></span>.
+  top_para_3: |
+    También puede encontrar soluciones a muchos problemas comunes en nuestras
+    <a class="faqURL" href="#">Preguntas frecuentes</a>.
+  diagnostic_check: |
+    Suba datos de diagnóstico. Por favor observe que estos datos de
+    diagnóstico no le identifican, y nos ayudarán a mantener Psiphon
+    funcionando sin sobresaltos.
+    <a class="dataCollectionInfoURL" href="#">Haga clic aquí para ver que datos recogemos.</a>
+  smiley_title: Satisfacción del conjunto
+  smiley_happy: Psiphon conecta y rinde de la forma que yo quiero.
+  smiley_sad: Psiphon falla a menudo al conectar o no rinde suficientemente bien.
   submit_button: Enviar
+  text_feedback_prompt: |
+    Por favor introduzca sus comentarios aquí:
+  text_feedback_email_prompt: |
+    Si quiere que nosotros le respondamos, por favor introduzca su dirección de correo electrónico
+  text_feedback_bottom_para: |
+    Si el formulario de arriba no le está funcionando, o si quisiese enviar capturas de pantalla, por favor envíenos un correo a <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>

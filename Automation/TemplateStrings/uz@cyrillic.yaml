@@ -1,21 +1,20 @@
-﻿uz@cyrillic:
-    plaintext_email_no_attachment: |
-        Ўзбекча - {{0}}/{0}.html
-
-    html_email_no_attachment: |
-        <div style="direction: ltr;">
-        Ўзбекча - <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
-        </div>
-
-    plaintext_email_with_attachment: |+
-        Psiphon 3 дан фойдаланиш учун илова қилинган файлни .exe кенгайтиришда сақланг.
-        Ёки қуйидаги уланишни босинг. 
-        {{0}}/{0}.html
-
-    html_email_with_attachment: |
-        <div style="direction: ltr;">
-        Psiphon 3 дан фойдаланиш учун илова қилинган файлни .exe форматида сақланг.<br>
-        Ёки мана бу линкни босинг.<br>
-        <a href="{{0}}/{0}.html">{{0}}/{0}.html</a><br>
-        </div>
-        <br>
+uz@cyrillic:
+  plaintext_email_no_attachment: |
+    Ўзбекча - {{0}}/{0}/index.html
+  html_email_no_attachment: |
+    <div style="direction: ltr;">
+    Ўзбекча - <a href="{{0}}/{0}/index.html">{{0}}/{0}/index.html</a><br>
+    </div>
+  plaintext_email_with_attachment: |
+    Psiphon 3 дан компютерингизда фойдаланиш учун илова қилингани файлни аввал сақланг. Кейин сақланган файл номини охирига нуқта exe (.EXE) деб ёзиб ўзгартиринг.
+    Илова қилинган иккинчи файлни юклаб олиб Android системасида ишлайдиган телефонингизда (Samsung, HTC, LG, Motorola) ҳам  Psiphon3 ни ишлатиш мумкин.
+    Истасангиз мана бу линкни босиб Psiphon 3 ҳам компютерингизга ҳам телефонингизга ўрнатинг!
+    {{0}}/{0}/index.html
+  html_email_with_attachment: |
+    <div style="direction: ltr;">
+    Psiphon 3 дан компютерингизда фойдаланиш учун илова қилингани файлни аввал сақланг. Кейин сақланган файл номини охирига нуқта exe (.EXE) деб ёзиб ўзгартиринг.<br>
+    Илова қилинган иккинчи файлни юклаб олиб Android системасида ишлайдиган телефонингизда (Samsung, HTC, LG, Motorola) ҳам  Psiphon3 ни ишлатиш мумкин.<br>
+    Истасангиз мана бу линкни босиб Psiphon 3 ҳам компютерингизга ҳам телефонингизга ўрнатинг!<br>
+    <a href="{{0}}/{0}/index.html">{{0}}/{0}/index.html</a><br>
+    </div>
+    <br>
