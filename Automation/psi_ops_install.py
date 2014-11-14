@@ -539,7 +539,7 @@ def install_host(host, servers, existing_server_ids, plugins):
     cron_file = '/etc/cron.d/psi-restart-services'
     ssh.exec_command('echo "SHELL=/bin/sh" > %s;' % (cron_file,) +
                      'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
-                     'echo "1 * * * * root %s restart" >> %s;' % ('/etc/init.d/xinetd', cron_file) +
+                     'echo "1 * * * * root killall -9 %s && %s restart" >> %s;' % ('xinetd', '/etc/init.d/xinetd', cron_file) +
                      'echo "2 * * * * root killall -9 %s && %s restart" >> %s' % ('badvpn-udpgw', '/etc/init.d/badvpn-udpgw', cron_file))
 
     #
@@ -737,6 +737,7 @@ COMMIT
 *nat''' + ''.join(
     # Port forward from 443 to web servers
     # NOTE: exclude for servers with meek capability (or is fronted) and meek_server_port is 443
+    #       or OSSH is running on 443
     ['''
     -A PREROUTING -i eth+ -p tcp -d %s --dport 443 -j DNAT --to-destination :%s'''
             % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers
