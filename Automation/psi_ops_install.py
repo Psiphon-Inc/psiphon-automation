@@ -741,7 +741,9 @@ COMMIT
     -A PREROUTING -i eth+ -p tcp -d %s --dport 443 -j DNAT --to-destination :%s'''
             % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers
                 if s.capabilities['handshake']
-                and not ((s.capabilities['FRONTED-MEEK'] or s.capabilities['UNFRONTED-MEEK']) and int(host.meek_server_port) == 443)]) + ''.join(
+                and not (
+                    ((s.capabilities['FRONTED-MEEK'] or s.capabilities['UNFRONTED-MEEK']) and int(host.meek_server_port) == 443) or
+                    (s.capabilities['OSSH'] and int(s.ssh_obfuscated_port) == 443))]) + ''.join(
     # Port forward alternate ports
     ['''
     -A PREROUTING -i eth+ -p tcp -d %s --dport %s -j DNAT --to-destination :%s'''
