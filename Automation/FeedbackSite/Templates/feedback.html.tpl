@@ -30,36 +30,31 @@ body {{
   }}
 }}
 
-.feedback{{
+.feedback {{
   padding: 0px;
 }}
 
-.feedback li{{
-  list-style-type: none;
-  padding: 25px 10px 25px 52px;
-  vertical-align: middle;
-  opacity: 0.4;
-  filter:alpha(opacity=40); /* For IE8 and earlier */
+.feedback .feedback-choice {{
+  padding: 1em;
+  text-align: center;
+  opacity: 0.6;
+  filter:alpha(opacity=60); /* For IE8 and earlier */
+  width: 50%;
+  border: thin #ccc solid;
+  -webkit-border-radius: 5px;
+  -moz-border-radius: 5px;
+  border-radius: 5px;
+  -webkit-box-shadow: 0px 0px 10px 0px rgba(50, 50, 50, 0.75);
+  -moz-box-shadow:    0px 0px 10px 0px rgba(50, 50, 50, 0.75);
+  box-shadow:         0px 0px 10px 0px rgba(50, 50, 50, 0.75);
 }}
 
-.feedback li:hover {{
+.feedback .feedback-choice:hover {{
   cursor: pointer;
   cursor: hand;
 }}
 
-li.happy {{
-  background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAkdJREFUeNrsWettgzAQtjKBNygjZIN6g3oEj8AGZQNG8Ai0E9ANSCagG9BO0BrprF5PPM42Dvzgk05UCXXu7e9sIU6cOHECIJ0YJ9ZJ66RzMsBnh0YBSo/K/kxI4+TqpILnoVASxce/aycaDMPv+Xd6eKfYO10sUdww0qsh0RlTTe2hfEdSREbUSk8MeVhEsBfrxLWwIQOkWlZUSPky07o2MKJsXMmP5FjfN4QuhxEdWjxnS87yOwZ5P3cvx5HYLNL9RkXLhUIO01t5f8hVXDOwaONLQpuxcNfqwUfBbLFIsRJyxYiQDNx5bWpBl4wFDKEUcsEZoW1SrznwsrLACzzfV7xKacKcARJ1Gk5avJEoB8Nbr5jcaFhos5RDcfPa/0+V0sq4/Vswa0BFNJEmlp90Yl9UiLEG1cATPD+PPA5eVlroiPtBdL3FdKERXzsr/gzP71gDbgc4NIiKANfzGgothCcZaLmaobw34CPUgDuzPY7fvwZwJQmsVqKNcsk53vvBqayZFFoiisChvi2TX2EaH03mBuY+oNFOrBYMxQcCFSPNkmm8ZVCJKVJnETtVoOwQMFPjqFapHWB2F5yhH/i8hwr36KRBw0zyEFVHDDRa/B3ytqCQYSpTbjlOUhZpRF7gNNx0/sbDSK7BHns+C4HExx2N2G7ApwfFWQ615oaX1BzVpOizKj/F0WOPyDXZ0B555vSvLnDo/cWFWpjE6ok224sd7gioIbWYvmJa2hN6ccD7M38X1s4o34Kxh7srO3HixE74FWAArk8AQckCFBgAAAAASUVORK5CYII=') no-repeat left center;
-}}
-
-li.ok {{
-  background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAkFJREFUeNrsWettwjAQDhX/605Qd4NsUHeDjMAIbNB0gnSDdAPKBKEThE4AG4ROQI10lq6uhR3nzgGRk04UMM59977rXXbldDcBmADcOIA50725ZqFZwft3zQfNLXy+17zW/Al/XwQVmmvNneajxSs4Uzu+qwHUaLTQvHMI1mgugZXDQiUC24ECklLuELzuKchJ8xX6/SKV8EuH4HKgFZOBwH7cgiWoXNHcW6QQniP4FigmZMZ0uRGei1YoCZCRRBmjZnZRgZ5FFg8N8vkUOdtYe0dxmUKuk2fpaEdlhTqR67BYQSDtS0+MmKorzwjU9KgZOBai02qBfD8kc5zTWIPOdFTW97XTxufXnnMHyxrKc0YEWmGNFDko+xQB5m6sztPlZjE53riRGgJAZeORkWF5rRPZF7w+XiuAvRWPUQDEBQAYNNTnIwJQQwAY/3seEYDx/W0MgD2DBcy2ogy811jg2/XlLKCNNpX1RfMmoHJLS1sKWVFaBexU3B48wpua8RS7gmkhD1c9cnYorwJbiUHDzbJH/5LDwzqr72nQmqXo4TpHikLKMiH1sDzJaFlRTkg9lweKKnN053oSpuVBRXkxjgWRQPiW4wEsKw9LQazLA4GCqya8057oJKePUoJQ2d8Fcaq1zb8JTEQI3jiKWvKut0SBXXoEEGgzcbQKXfTMOyMAcfLXV1TkNtAL/cD7e6i8yjHkf2h+swb+0UhCJmk9/U8L50jcZcYIyFVBt9TanjMC2KQw+/SP7gnArQP4FWAAJNXstWpafx0AAAAASUVORK5CYII=') no-repeat left center;
-}}
-
-li.sad {{
-  background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAipJREFUeNrsWYttgzAQJVEHYAQ2KBvUG5QR3A0yAhswQroBI5BOAJmAbOBskDjSWbpaAc722aQqTzoligy+z/N9nCzbsOF/Y5doH4G+D1qur+6YSkurRWm5TUinpdZSvJryuZZ+RvEpY8Taipdajk+UU6BgAx43Xn+I1DKitS04ICmKJ4qPoHBJfIdEdFMOzwVDWjwPoUIOzycz4mh5XDC/N6oRWPljBN52yDF5TOVlxEymkINYOR9beVxLzF6CK9sYr9SJkkSHkgMbdfqEKVqgKBSh3qeEs0EtQj5T8A4OCplCd+DwfrtQiW9Wdppbo4DnS2g4Im+4XxGjNMVbQVgz90wQDxUxc/SwVi4cTJcUGZSNas5MgJziokw/xYA94eF3+PxhNOAEQsUVnSFnA5K3ty7YO3ptLQwcBqw9LP1pAwwu9g9vjpnj5OG5ElXdAeTiGYGLj9UtpLDGoRWuF24kemIVtgtk7hOBM2xGmY4qa8C5QtTOaM0nvOvhmG8tX8Q7Je/7JGopF1afM9fQCRShpbmic2SAdy/UO86ypu2QRPoEtdOUbrTmnJ6s8xfcxrB5Ys2RkhIFzsKlOLg/dVNQJVK+5+7FRORLJ5ydVCy6SrSBYIxunf2+6StjHzB88VQEKm7fryZp4QtrPGwhOgWB4weUInHxk9kKEJYh2JNYxom+aASDvLy+Y47Ig1ofVgf6rCUeYEQ9zQ0rrwKRJfzDYsOGDRvS4i7AAKt+ADTSw7VmAAAAAElFTkSuQmCC') no-repeat left center;
-}}
-
-li.selected {{
+.feedback .selected {{
   color: #000;
   opacity: 1.0;
   filter:alpha(opacity=100); /* For IE8 and earlier */
@@ -77,26 +72,36 @@ input[type="submit"] {{
   cursor: hand;
 }}
 
-#text_feedback_form {{
+textarea {{
   width: 90%;
   margin: auto;
-}}
-
-textarea {{
-  width: 100%;
-  height: 20em;
+  height: 6em;
   display: block;
+  font-size: 1.1em;
+  font-family: sans-serif;
+  padding: 0.5em;
+  border-width: 2px;
+  -webkit-border-radius: 5px;
+  -moz-border-radius: 5px;
+  border-radius: 5px;
 }}
 
-input[type="text"] {{
-  width: 100%;
+input[type="text"], input[type="email"] {{
+  width: 90%;
+  margin: auto;
+  display: block;
+  font-size: 1.1em;
+  padding: 0.5em;
+  -webkit-border-radius: 5px;
+  -moz-border-radius: 5px;
+  border-radius: 5px;
 }}
 
 </style>
 <!--[if lt IE 9]>
 <style type="text/css">
 body {{
-    padding: 40px;
+    padding: 20px;
     max-width: 700px;
     min-width: 600px;
   }}
@@ -141,50 +146,64 @@ html {{
       <p id="top_para_1"></p>
       <p id="top_para_2"></p>
       <p id="top_para_3"></p>
-      <p id="top_para_4"></p>
     </div>
-    <br/>
+    <br>
 
     <form name="feedback" action="feedback" method="get" id="feedback">
-      <h2 id="connectivity_title"></h2>
 
-      <ul class="feedback" id="connectivity">
-        <li class="happy selected" id="connectivity_happy"></li>
-        <li class="ok" id="connectivity_ok"></li>
-        <li class="sad" id="connectivity_sad"></li>
-        </ul>
+      <div>
+        <table class="feedback" id="smiley">
+          <tr>
+            <td class="happy feedback-choice">
+              <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAkdJREFUeNrsWettgzAQtjKBNygjZIN6g3oEj8AGZQNG8Ai0E9ANSCagG9BO0BrprF5PPM42Dvzgk05UCXXu7e9sIU6cOHECIJ0YJ9ZJ66RzMsBnh0YBSo/K/kxI4+TqpILnoVASxce/aycaDMPv+Xd6eKfYO10sUdww0qsh0RlTTe2hfEdSREbUSk8MeVhEsBfrxLWwIQOkWlZUSPky07o2MKJsXMmP5FjfN4QuhxEdWjxnS87yOwZ5P3cvx5HYLNL9RkXLhUIO01t5f8hVXDOwaONLQpuxcNfqwUfBbLFIsRJyxYiQDNx5bWpBl4wFDKEUcsEZoW1SrznwsrLACzzfV7xKacKcARJ1Gk5avJEoB8Nbr5jcaFhos5RDcfPa/0+V0sq4/Vswa0BFNJEmlp90Yl9UiLEG1cATPD+PPA5eVlroiPtBdL3FdKERXzsr/gzP71gDbgc4NIiKANfzGgothCcZaLmaobw34CPUgDuzPY7fvwZwJQmsVqKNcsk53vvBqayZFFoiisChvi2TX2EaH03mBuY+oNFOrBYMxQcCFSPNkmm8ZVCJKVJnETtVoOwQMFPjqFapHWB2F5yhH/i8hwr36KRBw0zyEFVHDDRa/B3ytqCQYSpTbjlOUhZpRF7gNNx0/sbDSK7BHns+C4HExx2N2G7ApwfFWQ615oaX1BzVpOizKj/F0WOPyDXZ0B555vSvLnDo/cWFWpjE6ok224sd7gioIbWYvmJa2hN6ccD7M38X1s4o34Kxh7srO3HixE74FWAArk8AQckCFBgAAAAASUVORK5CYII=">
+              <br>
+              <span id="smiley_happy">
+              </span>
+            </td>
+            <td class="sad feedback-choice">
+              <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAipJREFUeNrsWYttgzAQJVEHYAQ2KBvUG5QR3A0yAhswQroBI5BOAJmAbOBskDjSWbpaAc722aQqTzoligy+z/N9nCzbsOF/Y5doH4G+D1qur+6YSkurRWm5TUinpdZSvJryuZZ+RvEpY8Taipdajk+UU6BgAx43Xn+I1DKitS04ICmKJ4qPoHBJfIdEdFMOzwVDWjwPoUIOzycz4mh5XDC/N6oRWPljBN52yDF5TOVlxEymkINYOR9beVxLzF6CK9sYr9SJkkSHkgMbdfqEKVqgKBSh3qeEs0EtQj5T8A4OCplCd+DwfrtQiW9Wdppbo4DnS2g4Im+4XxGjNMVbQVgz90wQDxUxc/SwVi4cTJcUGZSNas5MgJziokw/xYA94eF3+PxhNOAEQsUVnSFnA5K3ty7YO3ptLQwcBqw9LP1pAwwu9g9vjpnj5OG5ElXdAeTiGYGLj9UtpLDGoRWuF24kemIVtgtk7hOBM2xGmY4qa8C5QtTOaM0nvOvhmG8tX8Q7Je/7JGopF1afM9fQCRShpbmic2SAdy/UO86ypu2QRPoEtdOUbrTmnJ6s8xfcxrB5Ys2RkhIFzsKlOLg/dVNQJVK+5+7FRORLJ5ydVCy6SrSBYIxunf2+6StjHzB88VQEKm7fryZp4QtrPGwhOgWB4weUInHxk9kKEJYh2JNYxom+aASDvLy+Y47Ig1ofVgf6rCUeYEQ9zQ0rrwKRJfzDYsOGDRvS4i7AAKt+ADTSw7VmAAAAAElFTkSuQmCC">
+              <br>
+              <span id="smiley_sad">
+              </span>
+            </td>
+          </tr>
+        </table>
+      </div>
 
-      <h2 id="speed_title"></h2>
+      <br>
 
-      <ul class="feedback" id="speed">
-        <li class="happy selected" id="speed_happy"></li>
-        <li class="ok" id="speed_ok"></li>
-        <li class="sad" id="speed_sad"></li>
-      </ul>
+      <div id="text_feedback_form">
+        <p>
+          <span id="text_feedback_prompt"></span>
+        </p>
+        <textarea id="text_feedback_textarea"></textarea>
 
-      <h2 id="compatibility_title"></h2>
+        <div>
+          <p>
+            <span id="text_feedback_email_prompt"></span>
+          </p>
+          <input type="email" id="text_feedback_email">
+        </div>
+        <br>
+      </div>
 
-      <ul class="feedback" id="compatibility">
-        <li class="happy selected" id="compatibility_happy"></li>
-        <li class="ok" id="compatibility_ok"></li>
-        <li class="sad" id="compatibility_sad"></li>
-      </ul><br />
+      <br>
 
-      <div class="not-android">
+      <div>
         <table>
           <tr>
             <td>
-              <input type="checkbox" checked id="questionnaire_send_diagnostic">
+              <input type="checkbox" checked id="send_diagnostic">
             </td>
             <td>
-              <label for="questionnaire_send_diagnostic">
-                <span id="questionnaire_diagnostic_check"></span>
+              <label for="send_diagnostic">
+                <span id="diagnostic_check"></span>
               </label>
             </td>
           </tr>
         </table>
-        <br>
       </div>
+      <br>
 
       <center>
         <input type="submit" value="" id="submit_button" />
@@ -192,49 +211,13 @@ html {{
       <input type="hidden" value="" id="formdata" name="formdata">
     </form>
 
-  </div>
+  </div><!-- /questionnaireContent -->
 
-  <div id="textFeedbackContent" style="display:none">
-    <p>
-      <span id="text_feedback_top_para"></span>
-    </p>
+  <br>
+  <p>
+    <span id="text_feedback_bottom_para"></span>
+  </p>
 
-    <div class="not-android">
-      <div id="text_feedback_form">
-
-        <textarea id="text_feedback_textarea"></textarea>
-        <br>
-
-        <div>
-          <div id="text_feedback_email_prompt"></div>
-          <input type="text" id="text_feedback_email">
-        </div>
-        <br>
-
-        <table>
-          <tr>
-            <td>
-              <input type="checkbox" checked id="text_feedback_send_diagnostic">
-            </td>
-            <td>
-              <label for="text_feedback_send_diagnostic">
-                <span id="text_feedback_diagnostic_check"></span>
-              </label>
-            </td>
-          </tr>
-        </table>
-        <br>
-
-        <center>
-          <input type="submit" value="" id="text_feedback_submit" />
-        </center>
-      </div>
-
-      <p>
-        <span id="text_feedback_bottom_para"></span>
-      </p>
-    </div>
-  </div>
 
 <script>
     /*! jQuery v1.7.2 jquery.com | jquery.org/license */
@@ -295,19 +278,13 @@ function setLanguage(langName, args)
   if (langName == 'fa' || langName == 'ar') {{
     direction = 'rtl';
     float = 'left';
-    padding ='25px 52px 25px 10px';
-    bg_position_x = '100%';
   }}
   else {{
     direction = 'ltr';
     float = 'right';
-    padding ='25px 10px 25px 52px';
-    bg_position_x = '0';
   }}
   $('body').css('direction', direction);
   $('#language_selector').css('float', float);
-  $('.feedback > li').css('padding', padding);
-  $('.feedback > li').css('background-position-x', bg_position_x);
 
   $.each(currentLanguage, function(name, val){{
     // Not all strings are for all platforms.
@@ -339,7 +316,7 @@ function setLanguage(langName, args)
     else if (name === 'title') {{
       document.title = val; //supported in all browsers
     }}
-    else if (name === 'text_feedback_top_para' || name === 'text_feedback_bottom_para') {{
+    else if (name === 'text_feedback_bottom_para') {{
       // Replace the feedback address with a platform specific value.
       val = val.replace(
                   /([a-z0-9]+)@([^\.]+)\.([a-z]+)/g,
@@ -354,14 +331,6 @@ function setLanguage(langName, args)
 
   // NOTE: Link handlers need to be added every time the language changes
   // because the links are inline in the translations.
-
-  // Freeform (text) feedback link clicked
-  $('#showTextFeedback').click(function(e) {{
-    e.preventDefault();
-    $('#questionnaireContent').hide();
-    $('#textFeedbackContent').show();
-    $('#text_feedback_textarea').focus();
-  }});
 
   //
   // Some pages and paras need data filled in from the dialog arguments.
@@ -447,9 +416,9 @@ $(function() {{
   }}
 
   //set onClick listener to the feedback table cells
-  $('.feedback li').click(function() {{
-    $(this).toggleClass("selected", true);
-    $(this).siblings().toggleClass("selected", false);
+  $('.feedback .feedback-choice').click(function() {{
+    $('.feedback .feedback-choice').removeClass("selected");
+    $(this).addClass("selected");
   }});
 
   //set onChange listener to language dropdown
@@ -457,33 +426,25 @@ $(function() {{
     setLanguage($(this).val(), args);
   }});
 
-  $('ul#connectivity.feedback').data('hash', '{connectivity}');
-  $('ul#connectivity.feedback').data('title', '{connectivity_en}');
-  $('ul#speed.feedback').data('hash', '{speed}');
-  $('ul#speed.feedback').data('title', '{speed_en}');
-  $('ul#compatibility.feedback').data('hash', '{compatibility}');
-  $('ul#compatibility.feedback').data('title', '{compatibility_en}');
+  $('#smiley').data('hash', '{smiley}');
+  $('#smiley').data('title', '{smiley_en}');
 
-  //submit button clicked.
+  // submit button clicked.
   $('#submit_button').click(function(e) {{
     e.preventDefault();
     responses = new Array();
-    //get all selected and their parents
-    selected = $('li.selected');
+    // get all selected and their parents
+    selected = $('.feedback .selected');
     selected.each(function() {{
-      //get hash of parent ul
-      var hash = $(this).parent('ul.feedback').data('hash');
-      var title = $(this).parent('ul.feedback').data('title');
+      var hash = $('#smiley').data('hash');
+      var title = $('#smiley').data('title');
       var answer = null;
 
       if ($(this).hasClass('happy')) {{
         answer = 0;
       }}
-      else if ($(this).hasClass('ok')) {{
-        answer = 1;
-      }}
       else if ($(this).hasClass('sad')) {{
-        answer = 2;
+        answer = 1;
       }}
 
       responses.push({{title: title, question: hash, answer: answer}});
@@ -491,29 +452,9 @@ $(function() {{
 
     s = JSON.stringify({{
       'responses': responses,
-      'sendDiagnosticInfo': !!$('#questionnaire_send_diagnostic').attr('checked')
-    }});
-
-    //Windows client expects result in the window.returnValue magic variable
-    //No need to actually submit data
-    if (window.dialogArguments !== undefined) {{
-      window.returnValue = s;
-      window.close();
-    }}
-    else {{
-      $('input[name=formdata]').val(s);
-      $('#feedback').submit();
-    }}
-  }});
-
-  // Freeform (text) feedback submit
-  $('#text_feedback_submit').click(function(e) {{
-    e.preventDefault();
-    responses = new Array();
-    s = JSON.stringify({{
       'feedback': $('#text_feedback_textarea').val(),
       'email': $('#text_feedback_email').val(),
-      'sendDiagnosticInfo': !!$('#text_feedback_send_diagnostic').attr('checked')
+      'sendDiagnosticInfo': !!$('#send_diagnostic').attr('checked')
     }});
 
     //Windows client expects result in the window.returnValue magic variable
@@ -527,6 +468,7 @@ $(function() {{
       $('#feedback').submit();
     }}
   }});
+
 }});
 
 </script>

@@ -32,7 +32,7 @@ import linode.api
 
 def wait_while_condition(condition, max_wait_seconds, description):
     total_wait_seconds = 0
-    wait_seconds = 1
+    wait_seconds = 5
     while condition() == True:
         if total_wait_seconds > max_wait_seconds:
             raise Exception('Took more than %d seconds to %s' % (max_wait_seconds, description))
@@ -61,8 +61,8 @@ def create_linode(linode_api):
     datacenter = random.choice(avail_datacenters)
     datacenter_id = datacenter['DATACENTERID']
     datacenter_name = make_datacenter_name(datacenter['LOCATION'])
-    # We use PlanID = 1: linode 2048
-    new_node_id = linode_api.linode_create(DatacenterID=datacenter_id, PlanID=1, PaymentTerm=1)['LinodeID']
+    # We use PlanID = 2: linode 2048
+    new_node_id = linode_api.linode_create(DatacenterID=datacenter_id, PlanID=2, PaymentTerm=1)['LinodeID']
     # Status flag values: (partial list)
     # -1: Being Created
     #  0: Brand New
@@ -74,8 +74,8 @@ def create_linode(linode_api):
 
 
 def create_linode_disks(linode_api, linode_id, bootstrap_password, plugins):
-    # DistributionID = 125: 'Debian 7.5'
-    distribution_id = 125
+    # DistributionID = 130: 'Debian 7.6'
+    distribution_id = 130
     for plugin in plugins:
         if hasattr(plugin, 'linode_distribution_id'):
             distribution_id = plugin.linode_distribution_id()

@@ -108,7 +108,16 @@ def go():
 
             diagnostic_info = diagnostic_info.strip()
 
-            diagnostic_info = yaml.safe_load(diagnostic_info)
+            # HACK: PyYaml only supports YAML 1.1, which is not a true superset
+            # of JSON. Therefore it can (and does) throw errors on some Android
+            # feedback. We will try to load using JSON first.
+            # TODO: Get rid of all YAML feedback and remove it from here.
+            try:
+                diagnostic_info = json.loads(diagnostic_info)
+                logger.debug_log('s3decryptor.go: loaded JSON')
+            except:
+                diagnostic_info = yaml.safe_load(diagnostic_info)
+                logger.debug_log('s3decryptor.go: loaded YAML')
 
             # Modifies diagnostic_info
             utils.convert_psinet_values(config, diagnostic_info)

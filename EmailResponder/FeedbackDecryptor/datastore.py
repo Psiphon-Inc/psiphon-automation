@@ -276,7 +276,7 @@ def _get_stats_helper(since_time):
     for platform, version in (('android', 2), ('windows', 1)):
         cur = _diagnostic_info_store.find({'datetime': {'$gt': since_time},
                                            'Metadata.platform': platform,
-                                           'Metadata.version': version})
+                                           'Metadata.version': {'$gt': version}})
         for rec in cur:
             propagation_channel_id = rec.get('DiagnosticInfo', {})\
                                         .get('SystemInformation', {})\

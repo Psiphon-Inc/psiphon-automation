@@ -547,9 +547,9 @@ smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
 smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
 
 # If you don't want to use TLS, use these lines:
-smtpd_tls_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
-smtpd_tls_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
-smtpd_use_tls=no
+#smtpd_tls_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
+#smtpd_tls_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
+#smtpd_use_tls=no
 
 # To use TLS, use these lines:
 smtpd_tls_cert_file=/etc/postfix/mx.psiphon3.com.crt
@@ -557,11 +557,20 @@ smtpd_tls_key_file=/etc/postfix/mx.psiphon3.com.key
 smtpd_tls_CAfile=/etc/postfix/mx.psiphon3.com-bundle
 smtpd_tls_received_header=yes
 tls_random_source=dev:/dev/urandom
-smtp_tls_CApath=/etc/ssl/certs
-# These two can be set to 'may' to not require encryption.
+
+# Postfix runs in a chroot jail, so it can't access /etc/ssl/certs. Instead use:
+smtp_tls_CAfile=/etc/ssl/certs/ca-certificates.crt
+
+# These two can be set to 'may' to use encryption oppotunistically, but not require it.
+# Note that this level of security will mean that connections to and from some
+# mail servers will fail. It works with all of the major webmail providers, 
+# though. It's probably best to not reply at all than to reply unencrypted to
+# a sketchy mail provider that might be in-country.
 smtpd_tls_security_level=encrypt
-smtp_tls_security_level=encrypt
-#smtp_tls_security_level=secure -- forces cert validation, but it never seems to succeed
+smtp_tls_security_level=verify
+
+# Handy for debugging:
+#smtp_tls_loglevel=2
 
 # /TLS
 

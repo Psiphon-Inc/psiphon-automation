@@ -2,8 +2,7 @@ tr:
   title: Psiphon Geribildirimi
   top_content_title: Geri Bildirim Yapın
   top_para_1: |
-    Lütfen Psiphon'un nasıl çalıştığını öğrenmemiz için aşağıdaki formu tamamlayın
-    böylece sistemi daha iyi yapalım!
+    Lütfen Psiphon'un nasıl çalıştığını öğrenmemiz için aşağıdaki formu tamamlayın böylece sistemi daha iyi yapalım!
   top_para_2: |
     Çoğu sorun en son sürüm indirilerek çözülebilir. <a class="newVersionURL" href="#">En son sürümü buraya tıklayarak</a>
     veya <span id="newVersionEmail"></span> adresine
@@ -11,41 +10,17 @@ tr:
   top_para_3: |
     Ayrıca çoğu ortak soruna çözümleri
     <a class="faqURL" href="#">Sıkça Sorulan Sorular</a> sayfamızda bulabilirsiniz.
-  top_para_4: |
-    Eğer bize göndermek istediğiniz diğer geri bildirimler, hata raporları vb. bulunuyorsa
-    <a id="showTextFeedback" href="#">buraya tıklamanız yeterli</a>.
-  questionnaire_diagnostic_check: |
+  diagnostic_check: |
     Kullanım verisini yükle. Lütfen bu kullanım verisinin sizin kimliğinizin tanımlanması
     için değil Psiphon'un akıcı şekilde tutulmasına yardımcı olması için kullanılacağını unutmayın.
     <a class="dataCollectionInfoURL" href="#">Topladığımız bilgiler için buraya tıklayın.</a>
-  connectivity_title: Bağlanabilirlik
-  connectivity_happy: Psiphon sürekli bağlanıyor ve bağlı kalıyor.
-  connectivity_ok: Psiphon çoğu zaman bağlanıyor ancak bazen bağlantısı kesilip tekrar bağlanıyor.
-  connectivity_sad: Psiphon çoğu zaman bağlanamıyor veya bağlantısı kesiliyor.
-  speed_title: Hız
-  speed_happy: Psiphon ile web'de gezinip video izleyebiliyorum ve diğer önleyici araçlardan daha hızlı veya en az onlar kadar hızlı.
-  speed_ok: Psiphon aracılığıyla web'de gezinebiliyorum ancak yavaş.
-  speed_sad: Psiphon kullanılarak web'de gezinmek çok yavaş ve artık kullanmayacağım.
-  compatibility_title: Uyumluluk
-  compatibility_happy: Psiphon aracılığıyla erişmeye çalıştığımda web siteleri normal çalışıyor.
-  compatibility_ok: Psiphon aracılığıyla erişmeye çalıştığımda web siteleri yeterince işlevsel çalışıyor.
-  compatibility_sad: Web siteleri yükleniyor ancak bazı önemli işlevlerini kullanamıyorum.
+  smiley_title: Toplam memnuniyet
+  smiley_happy: Psiphon istediğim gibi bağlanıyor ve çalışıyor.
+  smiley_sad: Psiphon genellikle bağlanamıyor ve yeterince iyi çalışmıyor.
   submit_button: Gönder
-  text_feedback_submit: Gönder
-  text_feedback_top_para_android: |
-    Çalışmayan web siteleri hakkında özel yorumlarınız veya bilginiz varsa
-    veya anket sizin için çalışmıyorsa lütfen
-    <a href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a> adresine e-posta gönderin.
-    E-postaya bazı kullanım bilgilerinin ekleneceğini unutmayın.
-    Bu kullanım verisi kimliğinizi içermemekle birlikte, Psiphon'un akıcı çalışmasını korumamıza yardımcı olması için kullanılacaktır.
-    <a class="dataCollectionInfoURL" href="#">Topladığımız verileri görmek için tıklayın.</a>
-  text_feedback_top_para_windows: |
-    Çalışmayan web siteleri hakkında özel yorumlarınız veya bilginiz varsa veya anket sizin için çalışmıyorsa lütfen aşağıdaki formu doldurun.
-  text_feedback_bottom_para_windows: |
-    Eğer yukarıdaki form çalışmıyorsa veya ekran görüntüsü yollamak isterseniz, lütfen bize <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a> adresinden e-posta gönderin.
+  text_feedback_prompt: |
+    Lütfen yorumlarınızı buraya girin:
   text_feedback_email_prompt: |
     Eğer size geri dönmememizi isterseniz, lütfen e-posta adresinizi girin:
-  text_feedback_diagnostic_check: |
-    Kullanım verisini yükle. Lütfen bu kullanım verisinin sizin kimliğinizin tanımlanması
-    için değil Psiphon'un akıcı şekilde tutulmasına yardımcı olması için kullanılacağını unutmayın.
-    <a class="dataCollectionInfoURL" href="#">Topladığımız bilgiler için buraya tıklayın.</a>
+  text_feedback_bottom_para: |
+    Eğer yukarıdaki form çalışmıyorsa veya ekran görüntüsü yollamak isterseniz, lütfen bize <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a> adresinden e-posta gönderin.

@@ -24,6 +24,9 @@ def set_embedded_values(client_version,
                         embedded_server_list,
                         ignore_non_embedded_server_entries,
                         feedback_encryption_public_key,
+                        feedback_upload_server,
+                        feedback_upload_path,
+                        feedback_upload_server_headers,
                         info_link_url,
                         proxied_web_app_http_auth_username,
                         proxied_web_app_http_auth_password,
@@ -37,12 +40,16 @@ def set_embedded_values(client_version,
                         propagation_channel_id,
                         sponsor_id,
                         remote_server_list_url,
-                        remote_server_list_signature_public_key):
+                        remote_server_list_signature_public_key,
+                        home_tab_url_exclusions):
     global embedded_values
     embedded_values['CLIENT_VERSION'] = client_version
     embedded_values['EMBEDDED_SERVER_LIST'] = embedded_server_list
     embedded_values['IGNORE_NON_EMBEDDED_SERVER_ENTRIES'] = ignore_non_embedded_server_entries
     embedded_values['FEEDBACK_ENCRYPTION_PUBLIC_KEY'] = feedback_encryption_public_key
+    embedded_values['FEEDBACK_DIAGNOSTIC_INFO_UPLOAD_SERVER'] = feedback_upload_server
+    embedded_values['FEEDBACK_DIAGNOSTIC_INFO_UPLOAD_PATH'] = feedback_upload_path
+    embedded_values['FEEDBACK_DIAGNOSTIC_INFO_UPLOAD_SERVER_HEADERS'] = feedback_upload_server_headers
     embedded_values['INFO_LINK_URL'] = info_link_url
     embedded_values['PROXIED_WEB_APP_HTTP_AUTH_USERNAME'] = proxied_web_app_http_auth_username
     embedded_values['PROXIED_WEB_APP_HTTP_AUTH_PASSWORD'] = proxied_web_app_http_auth_password
@@ -57,8 +64,9 @@ def set_embedded_values(client_version,
     embedded_values['SPONSOR_ID'] = sponsor_id
     embedded_values['REMOTE_SERVER_LIST_URL'] = remote_server_list_url
     embedded_values['REMOTE_SERVER_LIST_SIGNATURE_PUBLIC_KEY'] = remote_server_list_signature_public_key
- 
-    
+    embedded_values['HOME_TAB_URL_EXCLUSIONS'] = home_tab_url_exclusions
+
+
 # This function is to be called by psi_ops_build_android.py, retaining compatibility
 # with cog functionality originally written for the PsiphonProxiedWebApp
 def get_embedded_value(_, key):

@@ -53,7 +53,8 @@ SOURCE_FILES = [
       'psi_auth.py',
       'psi_geoip.py',
       'pam.py',
-      'psi-check-services'
+      'psi-check-services',
+      'psi_web_patch.py'
      ]),
       
     (('go',  'meek-server'),

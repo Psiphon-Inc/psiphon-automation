@@ -335,6 +335,17 @@ class LogHandlers(object):
              re.compile(r'^lost connection after (CONNECT|RCPT) from unknown\[192\.168\..*$'),
              self._no_op),
 
+            # 2014-07-29T19:44:31.570804+00:00 myhostname postfix/smtpd[1235]: lost connection after EHLO from unknown[192.168.xx.xx]
+            # 2014-07-29T19:46:48.452238+00:00 myhostname postfix/smtpd[1235]: lost connection after HELO from unknown[192.168.xx.xx]
+            (re.compile(r'^postfix/smtpd'),
+             re.compile(r'^lost connection after (EHLO|HELO) from unknown\[192\.168\..*$'),
+             self._no_op),
+
+            # 2014-07-28T19:40:30.896235+00:00 myhostname postfix/smtpd[10293]: too many errors after EHLO from unknown[192.168.xx.xx]
+            (re.compile(r'^postfix/smtpd'),
+             re.compile(r'^too many errors after EHLO from unknown\[192\.168\..*$'),
+             self._no_op),
+
             # 2012-07-10T03:13:34.468267+00:00 myhostname postfix/smtp[7550]: 7961621FE0: conversation with example.com[xxx.xxx.xxx.xxx] timed out while sending message body
             (re.compile(r'^postfix/smtp$'),
              re.compile(r'^'+self.queue_id_matcher+': conversation with .* timed out while sending message body$'),
