@@ -1239,7 +1239,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if users_on_host == 0:
                 self.remove_host(server.host_id)
                 number_removed += 1
-            elif users_on_host < 100:
+            elif users_on_host < 80:
                 self.__disable_server(server)
                 number_disabled += 1
         return number_removed, number_disabled
