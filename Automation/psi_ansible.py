@@ -13,7 +13,7 @@ import collections
 import psi_ops_config
 
 PSI_OPS_DB_FILENAME = os.path.join(os.path.abspath('.'), 'psi_ops.dat')
-MAKO_TEMPLATE='psi_mail_ansible_system_update.mako'
+MAKO_TEMPLATE='psi_mail_ansible_template.mako'
 
 from mako.template import Template
 from mako.lookup import TemplateLookup
