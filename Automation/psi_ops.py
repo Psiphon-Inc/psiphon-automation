@@ -1239,7 +1239,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if users_on_host == 0:
                 self.remove_host(server.host_id)
                 number_removed += 1
-            elif users_on_host < 100:
+            elif users_on_host < 50:
                 self.__disable_server(server)
                 number_disabled += 1
         return number_removed, number_disabled
@@ -1525,7 +1525,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             discovery = self.__copy_date_range(discovery_date_range) if discovery_date_range else None
 
             ssh_port = '22'
-            ossh_port = random.choice(['280', '591', '901'])
+            ossh_port = random.choice([53, 443])
             capabilities = ServerCapabilities()
             if server_capabilities:
                 capabilities = copy_server_capabilities(server_capabilities)
