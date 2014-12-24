@@ -13,6 +13,30 @@
 ##
 ## You should have received a copy of the GNU General Public License
 ## along with this program.  If not, see <http://www.gnu.org/licenses/>.
+<style>
+    table {
+        padding: 0;
+        border: 1px solid black;
+    }
+    
+    table tr {
+        border: 0;
+        border-top: 1px solid #CCC;
+        background-color: white;
+        margin: 0;
+        padding: 0;
+    }
+    
+    table, tbody tr, td{
+        border: 1px solid black;
+        padding-left: 5px;
+        white-space: pre;
+    }
+    
+    table, tr, td.col-odd {
+        vertical-align: top;
+    }
+</style>
 
 <h1>Psiphon 3 Ansible Stats</h1>
 <%
@@ -63,43 +87,58 @@ count_skipped = len(hosts_skipped)
 
 <h3>Host STDERR: ${hosts_errs}</h3>
 % if len(hosts_errs) > 0:
-	<tbody>
+    <table>
+	<thead>
     <tr>
         <th width="33%">Host</th>
         <th width="33%">Message</th>
         <th width="33%">OS Release</th>
     </tr>
+    </thead>
+    <tbody>
 	% for c in hosts_errs:
 		<tr>
             <td>${c}</td>
-            % if 'cmd_result' in hosts_output[c]:
-                <td>${hosts_errs[c]['cmd_result']['stderr']}</td>
+            % if 'response' in hosts_output[c]:
+                <td>
+                    % for line in hosts_output[c]['response']['stdout_lines']:
+                        ${line}
+                    % endfor
+                </td>
             % endif
-            <td>${hosts_info[c]['ansible_lsb']['codename']}</td>
         </tr>
 	% endfor
 	</tbody>
+    </table>
 % endif
 <hr>
 
 <h3>Host STDOUT: ${len(hosts_output)}</h3>
 % if len(hosts_output) > 0:
-	<tbody>
+    <table>
+	<thead>
     <tr>
-        <th width="33%">Host</th>
-        <th width="33%">Message</th>
-        <th width="33%">OS Release</th>
+        <th width="20%">Host</th>
+        <th width="60%">Message</th>
+        <th width="20%">OS Release</th>
     </tr>
+    </thead>
+    <tbody>
 	% for c in hosts_output:
 		<tr>
             <td>${c}</td>
-            % if 'cmd_result' in hosts_output[c]:
-                <td>${hosts_output[c]['cmd_result']['stdout']}</td>
+            % if 'response' in hosts_output[c]:
+                <td>
+                    % for line in hosts_output[c]['response']['stdout_lines']:
+                        ${line}
+                    % endfor
+                </td>
             % endif
             <td>${hosts_info[c]['ansible_lsb']['codename']}</td>
         </tr>
 	% endfor
 	</tbody>
+    </table>
 % endif
 
 <hr width=100%>
