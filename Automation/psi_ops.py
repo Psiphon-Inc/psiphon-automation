@@ -2937,14 +2937,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     None,       # banner
                                     [],
                                     '',         # remote_server_list_signature_public_key
-                                    ('','',''), # remote_server_list_url
+                                    ('','','','',''), # remote_server_list_url
                                     '',         # feedback_encryption_public_key
                                     '',         # feedback_upload_server
                                     '',         # feedback_upload_path
                                     '',         # feedback_upload_server_headers
                                     '',         # info_link_url
                                     '',         # upgrade_signature_public_key
-                                    ('','',''), # upgrade_url
+                                    ('','','','',''), # upgrade_url
                                     '',         # get_new_version_url
                                     '',         # get_new_version_email
                                     '',         # faq_url
