@@ -30,7 +30,11 @@ import urlparse
 
 import boto.s3.connection
 import boto.s3.key
-import qrcode
+
+try:
+    import qrcode
+except ImportError as error:
+    print error
 
 
 #==== Config  =================================================================
