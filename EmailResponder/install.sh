@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2012, Psiphon Inc.
+# Copyright (c) 2014, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -32,7 +32,9 @@ echo "Copying source files..."
 # Copy the simple files
 sudo cp blacklist.py log_processor.py mail_direct.py mail_process.py mail_stats.py \
         aws_helpers.py sendmail.py settings.py conf_pull.py postfix_queue_check.pl \
-        mon-put-instance-data.pl CloudWatchClient.pm $MAIL_HOME
+        mon-put-instance-data.pl CloudWatchClient.pm \
+        ../Automaton/psi_ops_s3.py \
+        $MAIL_HOME
 
 # forward needs to be copied to .forward
 sudo cp forward $MAIL_HOME/.forward
