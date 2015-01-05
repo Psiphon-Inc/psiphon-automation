@@ -17,6 +17,7 @@
     table {
         padding: 0;
         border: 1px solid black;
+        width: 100%
     }
     
     table tr {
@@ -24,17 +25,22 @@
         border-top: 1px solid #CCC;
         background-color: white;
         margin: 0;
-        padding: 0;
+        /*padding: 0; */
     }
     
     table, tbody tr, td{
         border: 1px solid black;
         padding-left: 5px;
-        white-space: pre;
+        vertical-align: top;
+        padding-top: 5px;
     }
     
-    table, tr, td.col-odd {
-        vertical-align: top;
+    table#stdoutTable td.message {
+        font-size: smaller;
+    }
+    
+    table#stdoutTable tbody td.message {
+        white-space: pre-wrap
     }
 </style>
 
@@ -102,7 +108,7 @@ count_skipped = len(hosts_skipped)
             % if 'response' in hosts_output[c]:
                 <td>
                     % for line in hosts_output[c]['response']['stdout_lines']:
-                        ${line}
+                        ${line}<br>
                     % endfor
                 </td>
             % endif
@@ -115,20 +121,20 @@ count_skipped = len(hosts_skipped)
 
 <h3>Host STDOUT: ${len(hosts_output)}</h3>
 % if len(hosts_output) > 0:
-    <table>
+    <table id="stdoutTable">
 	<thead>
     <tr>
         <th width="20%">Host</th>
-        <th width="60%">Message</th>
-        <th width="20%">OS Release</th>
+        <th>Message</th>
+        <th width="15%">OS Release</th>
     </tr>
     </thead>
     <tbody>
 	% for c in hosts_output:
 		<tr>
-            <td>${c}</td>
+            <td class="default">${c}</td>
             % if 'response' in hosts_output[c]:
-                <td>
+                <td class="message">
                     % for line in hosts_output[c]['response']['stdout_lines']:
                         ${line}
                     % endfor

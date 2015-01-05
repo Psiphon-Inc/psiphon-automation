@@ -162,6 +162,10 @@ def run_playbook(playbook_file=None, inventory=ansible.inventory.Inventory([]),
             # stats.failures : (dict) number of hosts that failed to complete the tasks
             (host_output, host_errs) = process_playbook_vars_cache(playbook)
             setup_cache = process_playbook_setup_cache(playbook)
+            
+            if 'apt_update_cache' or 'apt_update_safe' in playbook_file:
+                host_output = process_playbook_apt_update_cache(host_output)
+            
             record = (str(start_time), str(end_time), playbook_file, stats.processed, stats.dark, stats.failures, stats.changed, stats.skipped, res, host_output, host_errs, setup_cache)
             send_mail(record)
         
@@ -178,18 +182,19 @@ def process_playbook_vars_cache(playbook, keywords=['response', 'cmd_result']):
     if len(cache) > 0:
         for host in cache:
             keyword = [k for k in keywords if k in cache[host]]
+            
             if len(keyword) == 0:
-                return (host_output, host_errs)
+                continue
             
             keyword = keyword[0]
-            
             if keyword in cache[host]:
-                if cache[host][keyword]['changed']:
-                    if cache[host][keyword]['stderr']:
-                        host_errs[host] = cache[host]
-                    elif cache[host][keyword]['stdout']:
-                        host_output[host] = cache[host]
+                if cache[host][keyword]['stderr']:
+                    host_errs[host] = cache[host]
+                elif cache[host][keyword]['stdout']:
+                    host_output[host] = cache[host]
+    
     return (host_output, host_errs)
+
 
 def process_playbook_setup_cache(playbook):
     setup_cache = dict()
@@ -197,6 +202,39 @@ def process_playbook_setup_cache(playbook):
     for host in playbook.SETUP_CACHE:
         setup_cache[host] = playbook.SETUP_CACHE[host]
     return setup_cache
+
+def process_playbook_apt_update_cache(host_output):
+    register_var = 'response' # This is the variable set in the ansible playbook and should be handled more gracefully:
+                              # register: response
+    package_upgrade_line = 'The following packages will be upgraded:'
+    #'26 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.' 
+    #'87 to upgrade, 0 to newly install, 0 to remove and 9 not to upgrade.
+    if len(host_output) == 0:
+        print "No hosts found"
+        return
+    
+    # for each host, go through the log and check what is ready for upgrade
+    lines_of_interest = list()
+    for host_id in host_output:
+        lines_of_interest = []
+        of_interest_flag = False
+        for line in host_output[host_id][register_var]['stdout_lines']:
+            if package_upgrade_line in line:
+                of_interest_flag = True
+                print line
+            
+            if 'upgrade' and 'newly install' and 'remove' in line: # TODO: Regex probably
+                print line
+                lines_of_interest.insert(0, line)
+                of_interest_flag = False
+            
+            if of_interest_flag:
+                lines_of_interest.append(line)
+        
+        if lines_of_interest > 0:
+            host_output[host_id][register_var]['stdout_lines'] = lines_of_interest
+    
+    return host_output
 
 def send_mail(record, subject='PSI Ansible Report', 
               template_filename=MAKO_TEMPLATE):
