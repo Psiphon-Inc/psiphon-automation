@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2012, Psiphon Inc.
+# Copyright (c) 2014, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -166,9 +166,16 @@ SponsorHomePage = psi_utils.recordtype(
     'SponsorHomePage',
     'region, url')
 
+# Note that `s3_bucket_name` has two different meanings/uses: Originally, each
+# `SponsorCampaign` had its own S3 bucket, so `s3_bucket_name` really was the
+# bucket name. But we hit the bucket limit, so we started storing the
+# `SponsorCampaign` websites in a single bucket, with different key prefixes
+# (like folders). So now `s3_bucket_name` is the bucket name and key prefix for
+# the `SponsorCampaign`'s website.
 SponsorCampaign = psi_utils.recordtype(
     'SponsorCampaign',
-    'propagation_channel_id, propagation_mechanism_type, account, s3_bucket_name, languages, custom_download_site')
+    'propagation_channel_id, propagation_mechanism_type, account, ' +
+    's3_bucket_name, languages, custom_download_site')
 
 SponsorRegex = psi_utils.recordtype(
     'SponsorRegex',
@@ -237,7 +244,7 @@ DigitalOceanAccount = psi_utils.recordtype(
     'client_id, api_key, base_id, base_size_id, base_region_id, ' +
     'base_ssh_port, base_stats_username, base_host_public_key, ' +
     'base_rsa_private_key, ssh_key_template_id, ' +
-    'oauth_token, base_size_slug', 
+    'oauth_token, base_size_slug',
     default=None)
 
 ElasticHostsAccount = psi_utils.recordtype(
@@ -964,7 +971,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         (campaign.propagation_channel_id, sponsor.id))
             campaign.log('marked for build and publish (new campaign)')
 
-    def set_sponsor_campaign_s3_bucket_name(self, sponsor_name, propagation_channel_name, account, s3_bucket_name):
+    def set_sponsor_campaign_s3_bucket_name(self, sponsor_name,
+                                            propagation_channel_name, account,
+                                            s3_bucket_name):
         assert(self.is_locked)
         sponsor = self.get_sponsor_by_name(sponsor_name)
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
@@ -1105,55 +1114,55 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def get_host_object(self, id, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
                         stats_ssh_username, stats_ssh_password, datacenter_name, region, meek_server_port,
-                        meek_server_obfuscated_key, meek_server_fronting_domain, meek_server_fronting_host, 
+                        meek_server_obfuscated_key, meek_server_fronting_domain, meek_server_fronting_host,
                         meek_cookie_encryption_public_key, meek_cookie_encryption_private_key):
-        return Host(id, 
-                    provider, 
-                    provider_id, 
-                    ip_address, 
-                    ssh_port, 
-                    ssh_username, 
-                    ssh_password, 
+        return Host(id,
+                    provider,
+                    provider_id,
+                    ip_address,
+                    ssh_port,
+                    ssh_username,
+                    ssh_password,
                     ssh_host_key,
-                    stats_ssh_username, 
+                    stats_ssh_username,
                     stats_ssh_password,
-                    datacenter_name, 
-                    region, 
-                    meek_server_port, 
-                    meek_server_obfuscated_key, 
+                    datacenter_name,
+                    region,
+                    meek_server_port,
+                    meek_server_obfuscated_key,
                     meek_server_fronting_domain,
-                    meek_server_fronting_host, 
-                    meek_cookie_encryption_public_key, 
+                    meek_server_fronting_host,
+                    meek_cookie_encryption_public_key,
                     meek_cookie_encryption_private_key,
                     )
-    
-    def get_server_object(self, id, host_id, ip_address, egress_ip_address, internal_ip_address, propagation_channel_id, 
-                        is_embedded, is_permanent, discovery_date_range, capabilities, web_server_port, web_server_secret, 
-                        web_server_certificate, web_server_private_key, ssh_port, ssh_username, ssh_password, 
+
+    def get_server_object(self, id, host_id, ip_address, egress_ip_address, internal_ip_address, propagation_channel_id,
+                        is_embedded, is_permanent, discovery_date_range, capabilities, web_server_port, web_server_secret,
+                        web_server_certificate, web_server_private_key, ssh_port, ssh_username, ssh_password,
                         ssh_host_key, ssh_obfuscated_port, ssh_obfuscated_key, alternate_ssh_obfuscated_ports):
-        return Server(id, 
-                    host_id, 
-                    ip_address, 
-                    egress_ip_address, 
-                    internal_ip_address, 
-                    propagation_channel_id, 
-                    is_embedded, 
-                    is_permanent, 
-                    discovery_date_range, 
+        return Server(id,
+                    host_id,
+                    ip_address,
+                    egress_ip_address,
+                    internal_ip_address,
+                    propagation_channel_id,
+                    is_embedded,
+                    is_permanent,
+                    discovery_date_range,
                     capabilities,
-                    web_server_port, 
-                    web_server_secret, 
-                    web_server_certificate, 
+                    web_server_port,
+                    web_server_secret,
+                    web_server_certificate,
                     web_server_private_key,
-                    ssh_port, 
-                    ssh_username, 
-                    ssh_password, 
-                    ssh_host_key, 
-                    ssh_obfuscated_port, 
+                    ssh_port,
+                    ssh_username,
+                    ssh_password,
+                    ssh_host_key,
+                    ssh_obfuscated_port,
                     ssh_obfuscated_key,
                     alternate_ssh_obfuscated_ports,
                     )
-    
+
     def import_host(self, id, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
                     stats_ssh_username, stats_ssh_password):
         assert(self.is_locked)
@@ -1239,7 +1248,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if users_on_host == 0:
                 self.remove_host(server.host_id)
                 number_removed += 1
-            elif users_on_host < 50:
+            elif users_on_host < 30:
                 self.__disable_server(server)
                 number_disabled += 1
         return number_removed, number_disabled
@@ -1830,9 +1839,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self,
             propagation_channel_name,
             sponsor_name,
-            remote_server_list_url,
+            remote_server_list_url_split,
             info_link_url,
-            upgrade_url,
+            upgrade_url_split,
             get_new_version_url,
             get_new_version_email,
             faq_url,
@@ -1879,14 +1888,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         base64.b64decode(sponsor.banner),
                         encoded_server_list,
                         remote_server_list_signature_public_key,
-                        remote_server_list_url,
+                        remote_server_list_url_split,
                         feedback_encryption_public_key,
                         feedback_upload_info.upload_server,
                         feedback_upload_info.upload_path,
                         feedback_upload_info.upload_server_headers,
                         info_link_url,
                         upgrade_signature_public_key,
-                        upgrade_url,
+                        upgrade_url_split,
                         get_new_version_url,
                         get_new_version_email,
                         faq_url,
@@ -1896,6 +1905,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         test,
                         list(self.__android_home_tab_url_exclusions)) for platform in platforms]
 
+    '''
+    # DEFUNCT: Should we wish to use this function in the future, it will need
+    # to be heavily updated to work with the current data structures, etc.
     def build_android_library(
             self,
             propagation_channel_name,
@@ -1922,7 +1934,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         feedback_upload_info = self.get_feedback_upload_info()
 
-        remote_server_list_url = psi_ops_s3.get_s3_bucket_resource_url(
+        remote_server_list_url_split = psi_ops_s3.get_s3_bucket_resource_url_split(
                                     campaign.s3_bucket_name,
                                     psi_ops_s3.DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME)
 
@@ -1936,13 +1948,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         sponsor.id,
                         encoded_server_list,
                         remote_server_list_signature_public_key,
-                        remote_server_list_url,
+                        remote_server_list_url_split,
                         feedback_encryption_public_key,
                         feedback_upload_info.upload_server,
                         feedback_upload_info.upload_path,
                         feedback_upload_info.upload_server_headers,
                         info_link_url,
                         self.__client_versions[CLIENT_PLATFORM_ANDROID][-1].version if self.__client_versions[CLIENT_PLATFORM_ANDROID] else 0)
+    '''
 
     def __make_upgrade_package_from_build(self, build_filename):
         with open(build_filename, 'rb') as f:
@@ -1998,9 +2011,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 for campaign in filter(lambda x: x.propagation_channel_id == propagation_channel_id, sponsor.campaigns):
 
                     if not campaign.s3_bucket_name:
-                        campaign.s3_bucket_name = psi_ops_s3.create_s3_bucket(self.__aws_account)
+                        campaign.s3_bucket_name = psi_ops_s3.create_s3_website_bucket_name()
                         campaign.log('created s3 bucket %s' % (campaign.s3_bucket_name,))
-                        self.save()  # don't leak buckets
+
+                        # We're no longer actually creating buckets, so we
+                        # don't need to save here.
+                        # self.save()  # don't leak buckets
 
                         # When creating a new bucket we'll load the website into
                         # it. Rather than setting flags in all of the creation
@@ -2010,12 +2026,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         # to do that here, but it happens infrequently enough to be okay.
                         self.update_static_site_content(sponsor, campaign, True)
 
-                    # Remote server list: for clients to get new servers via S3, we embed the
-                    # bucket URL in the build. So now we're ensuring the bucket exists and we
-                    # have its URL before the build is uploaded to S3. The remote server list
-                    # is placed in the S3 bucket.
+                    # Remote server list: for clients to get new servers via S3,
+                    # we embed the bucket URL in the build. The remote server
+                    # list is placed in the S3 bucket.
 
-                    remote_server_list_url = psi_ops_s3.get_s3_bucket_resource_url(
+                    remote_server_list_url_split = psi_ops_s3.get_s3_bucket_resource_url_split(
                                                 campaign.s3_bucket_name,
                                                 psi_ops_s3.DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME)
 
@@ -2042,7 +2057,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
                     s3_upgrade_resource_name = client_build_filenames[platform] + psi_ops_s3.DOWNLOAD_SITE_UPGRADE_SUFFIX
 
-                    upgrade_url = psi_ops_s3.get_s3_bucket_resource_url(campaign.s3_bucket_name, s3_upgrade_resource_name)
+                    upgrade_url_split = psi_ops_s3.get_s3_bucket_resource_url_split(campaign.s3_bucket_name, s3_upgrade_resource_name)
                     get_new_version_url = psi_ops_s3.get_s3_bucket_download_page_url(campaign.s3_bucket_name)
 
                     assert(self.__default_email_autoresponder_account)
@@ -2056,9 +2071,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     build_filename = self.build(
                                         propagation_channel.name,
                                         sponsor.name,
-                                        remote_server_list_url,
+                                        remote_server_list_url_split,
                                         info_link_url,
-                                        upgrade_url,
+                                        upgrade_url_split,
                                         get_new_version_url,
                                         get_new_version_email,
                                         faq_url,
@@ -2145,7 +2160,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 sponsor = self.__sponsors[sponsor_id]
                 for campaign in sponsor.campaigns:
                     if not campaign.s3_bucket_name:
-                        campaign.s3_bucket_name = psi_ops_s3.create_s3_bucket(self.__aws_account)
+                        campaign.s3_bucket_name = psi_ops_s3.create_s3_website_bucket_name()
                         campaign.log('created s3 bucket %s' % (campaign.s3_bucket_name,))
                         self.save()  # don't leak buckets
 
@@ -2922,14 +2937,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     None,       # banner
                                     [],
                                     '',         # remote_server_list_signature_public_key
-                                    ('','',''), # remote_server_list_url
+                                    ('','','','',''), # remote_server_list_url
                                     '',         # feedback_encryption_public_key
                                     '',         # feedback_upload_server
                                     '',         # feedback_upload_path
                                     '',         # feedback_upload_server_headers
                                     '',         # info_link_url
                                     '',         # upgrade_signature_public_key
-                                    ('','',''), # upgrade_url
+                                    ('','','','',''), # upgrade_url
                                     '',         # get_new_version_url
                                     '',         # get_new_version_email
                                     '',         # faq_url
