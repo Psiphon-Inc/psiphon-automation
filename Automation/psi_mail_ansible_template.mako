@@ -60,6 +60,10 @@ count_failed = len(hosts_failed)
 count_changed = len(hosts_changed)
 count_skipped = len(hosts_skipped)
 
+if hosts_output is None:
+    hosts_output = []
+endif
+
 %>
 
 <h2>Playbook: ${playbook_file}</h2>
@@ -91,27 +95,28 @@ count_skipped = len(hosts_skipped)
 % endif
 <hr>
 
-<h3>Host STDERR: ${hosts_errs}</h3>
+<h3>Host STDERR: ${len(hosts_errs)}</h3>
 % if len(hosts_errs) > 0:
     <table>
 	<thead>
     <tr>
-        <th width="33%">Host</th>
+        <th width="20%">Host</th>
         <th width="33%">Message</th>
-        <th width="33%">OS Release</th>
+        <th width="15%">OS Release</th>
     </tr>
     </thead>
     <tbody>
 	% for c in hosts_errs:
 		<tr>
             <td>${c}</td>
-            % if 'response' in hosts_output[c]:
+            % if 'response' in hosts_errs[c]:
                 <td>
-                    % for line in hosts_output[c]['response']['stdout_lines']:
+                    % for line in hosts_errs[c]['response']['stderr'].split('\n'):
                         ${line}<br>
                     % endfor
                 </td>
             % endif
+            <td>${hosts_info[c]['ansible_lsb']['codename']}</td>
         </tr>
 	% endfor
 	</tbody>
@@ -119,8 +124,9 @@ count_skipped = len(hosts_skipped)
 % endif
 <hr>
 
-<h3>Host STDOUT: ${len(hosts_output)}</h3>
+
 % if len(hosts_output) > 0:
+<h3>Host STDOUT: ${len(hosts_output)}</h3>
     <table id="stdoutTable">
 	<thead>
     <tr>

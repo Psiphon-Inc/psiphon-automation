@@ -163,7 +163,8 @@ def run_playbook(playbook_file=None, inventory=ansible.inventory.Inventory([]),
             (host_output, host_errs) = process_playbook_vars_cache(playbook)
             setup_cache = process_playbook_setup_cache(playbook)
             
-            if 'apt_update_cache' or 'apt_update_safe' in playbook_file:
+            if 'apt_update' in playbook_file:
+                print playbook_file
                 host_output = process_playbook_apt_update_cache(host_output)
             
             record = (str(start_time), str(end_time), playbook_file, stats.processed, stats.dark, stats.failures, stats.changed, stats.skipped, res, host_output, host_errs, setup_cache)
