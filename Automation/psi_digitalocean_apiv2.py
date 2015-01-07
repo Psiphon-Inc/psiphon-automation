@@ -168,9 +168,11 @@ def remove_server(digitalocean_account, droplet_id):
         droplet = do_mgr.get_droplet(droplet_id)
         result = droplet.destroy()
         if not result:
-            raise e
+            raise Exception('Could not destroy droplet: %s' % str(droplet_id))
     except Exception as e:
-        raise e
+        # Don't raise the exception if the server has already been removed
+        if "The resource you were accessing could not be found." not in str(e):
+            raise e
 
 def prep_for_image_update():
     PSI_OPS_ROOT = os.path.abspath(os.path.join('..', 'Data', 'PsiOps'))
