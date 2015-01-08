@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2011, Psiphon Inc.
+# Copyright (c) 2014, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -21,9 +21,6 @@ import os
 import shutil
 import subprocess
 import textwrap
-import tempfile
-import traceback
-import sys
 import psi_utils
 
 #==== Build File Locations  ===================================================
@@ -106,14 +103,14 @@ def write_embedded_values(propagation_channel_id,
                           client_version,
                           embedded_server_list,
                           remote_server_list_signature_public_key,
-                          remote_server_list_url,
+                          remote_server_list_url_split,
                           feedback_encryption_public_key,
                           feedback_upload_server,
                           feedback_upload_path,
                           feedback_upload_server_headers,
                           info_link_url,
                           upgrade_signature_public_key,
-                          upgrade_url,
+                          upgrade_url_split,
                           get_new_version_url,
                           get_new_version_email,
                           faq_url,
@@ -167,16 +164,22 @@ def write_embedded_values(propagation_channel_id,
                                '\\n\" + \"'.join(embedded_server_list),
                                (1 if ignore_system_server_list else 0),
                                remote_server_list_signature_public_key,
-                               remote_server_list_url[1],
-                               remote_server_list_url[2],
+                               remote_server_list_url_split[1],
+                               '%s%s' % (
+                                   remote_server_list_url_split[2],
+                                   '?%s' % remote_server_list_url_split[3] if remote_server_list_url_split[3] else '',
+                               ),
                                feedback_encryption_public_key,
                                feedback_upload_server,
                                feedback_upload_path,
                                feedback_upload_server_headers,
                                info_link_url,
                                upgrade_signature_public_key,
-                               upgrade_url[1],
-                               upgrade_url[2],
+                               upgrade_url_split[1],
+                               '%s%s' % (
+                                   upgrade_url_split[2],
+                                   '?%s' % upgrade_url_split[3] if upgrade_url_split[3] else '',
+                               ),
                                get_new_version_url,
                                get_new_version_email,
                                faq_url,
@@ -189,14 +192,14 @@ def build_client(
         banner,
         encoded_server_list,
         remote_server_list_signature_public_key,
-        remote_server_list_url,
+        remote_server_list_url_split,
         feedback_encryption_public_key,
         feedback_upload_server,
         feedback_upload_path,
         feedback_upload_server_headers,
         info_link_url,
         upgrade_signature_public_key,
-        upgrade_url,
+        upgrade_url_split,
         get_new_version_url,
         get_new_version_email,
         faq_url,
@@ -233,14 +236,14 @@ def build_client(
             version,
             encoded_server_list,
             remote_server_list_signature_public_key,
-            remote_server_list_url,
+            remote_server_list_url_split,
             feedback_encryption_public_key,
             feedback_upload_server,
             feedback_upload_path,
             feedback_upload_server_headers,
             info_link_url,
             upgrade_signature_public_key,
-            upgrade_url,
+            upgrade_url_split,
             get_new_version_url,
             get_new_version_email,
             faq_url,
