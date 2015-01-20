@@ -1,4 +1,4 @@
-# Copyright (c) 2013, Psiphon Inc.
+# Copyright (c) 2014, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -26,7 +26,7 @@ import psi_ops
 
 # We are effectively exporting these
 from psi_ops_s3 import \
-    get_s3_bucket_resource_url,\
+    get_s3_bucket_resource_url_split,\
     get_s3_bucket_home_page_url,\
     get_s3_bucket_download_page_url,\
     DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME,\

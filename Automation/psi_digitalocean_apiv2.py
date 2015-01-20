@@ -28,7 +28,7 @@ import sys
 import psi_utils
 import psi_ssh
 
-import digitalocean
+import digitalocean_v2.digitalocean as digitalocean
 
 def refresh_credentials(digitalocean_account, ip_address, new_root_password, new_stats_password):
     # Note: using auto-add-policy for host's SSH public key here since we can't get it through the API.
@@ -170,7 +170,9 @@ def remove_server(digitalocean_account, droplet_id):
         if not result:
             raise Exception('Could not destroy droplet: %s' % str(droplet_id))
     except Exception as e:
-        raise e
+        # Don't raise the exception if the server has already been removed
+        if "The resource you were accessing could not be found." not in str(e):
+            raise e
 
 def prep_for_image_update():
     PSI_OPS_ROOT = os.path.abspath(os.path.join('..', 'Data', 'PsiOps'))
