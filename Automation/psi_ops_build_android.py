@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2012, Psiphon Inc.
+# Copyright (c) 2014, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -20,9 +20,9 @@
 import os
 import shutil
 import shlex
-import textwrap
 import sys
 import fileinput
+import urlparse
 import psi_utils
 import utils
 from cogapp import Cog
@@ -40,14 +40,14 @@ PSIPHON_LIB_SOURCE_SRC_ORG = os.path.join(PSIPHON_LIB_SOURCE_ROOT, 'src', 'org')
 
 BANNER_ROOT = os.path.join(os.path.abspath('..'), 'Data', 'Banners')
 KEYSTORE_FILENAME = os.path.join(os.path.abspath('..'), 'Data', 'CodeSigning', 'test.keystore')
+KEYSTORE_ALIAS = 'psiphon'
 KEYSTORE_PASSWORD = 'password'
 
 BANNER_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'res', 'drawable', 'banner.bmp')
 EMBEDDED_VALUES_FILENAME = os.path.join(PSIPHON_LIB_SOURCE_ROOT, 'src', 'com', 'psiphon3', 'psiphonlibrary', 'EmbeddedValues.java')
 ANDROID_MANIFEST_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'AndroidManifest.xml')
 
-RELEASE_UNSIGNED_APK_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'bin', 'PsiphonAndroid-release-unsigned.apk')
-RELEASE_SIGNED_APK_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'bin', 'PsiphonAndroid-release-signed-unaligned.apk')
+LOCAL_PROPERTIES_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'local.properties')
 ZIPALIGNED_APK_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'bin', 'PsiphonAndroid-release.apk')
 
 LIB_FILENAME = 'PsiphonAndroidLibrary.jar'
@@ -74,6 +74,16 @@ if os.path.isfile('psi_data_config.py'):
 
 def build_apk():
 
+    local_properties_contents = '''
+key.store=%s
+key.store.password=%s
+key.alias=%s
+key.alias.password=%s
+''' % (KEYSTORE_FILENAME, KEYSTORE_PASSWORD, KEYSTORE_ALIAS, KEYSTORE_PASSWORD)
+
+    with open(LOCAL_PROPERTIES_FILENAME, 'w') as local_properties_file:
+        local_properties_file.write(local_properties_contents)
+                
     commands = [
         'xcopy "%s" "%s" /e /y' % (KALIUM_SOURCE_ROOT, PSIPHON_LIB_SOURCE_SRC_ORG),
         'android update lib-project -p "%s"' % (ZIRCO_SOURCE_ROOT,),
@@ -83,10 +93,7 @@ def build_apk():
         'ant -q -f "%s" clean' % (os.path.join(PSIPHON_LIB_SOURCE_ROOT, 'build.xml'),),
         'ant -q -f "%s" clean' % (os.path.join(PSIPHON_SOURCE_ROOT, 'build.xml'),),
         'ant -q -f "%s" release' % (os.path.join(PSIPHON_SOURCE_ROOT, 'build.xml'),),
-        'jarsigner -sigalg SHA1withRSA -digestalg SHA1 -keystore "%s" -storepass %s "%s" psiphon' % (
-            KEYSTORE_FILENAME, KEYSTORE_PASSWORD, RELEASE_UNSIGNED_APK_FILENAME),
-        'move "%s" "%s"' % (RELEASE_UNSIGNED_APK_FILENAME, RELEASE_SIGNED_APK_FILENAME),
-        'zipalign -f 4 "%s" "%s"' % (RELEASE_SIGNED_APK_FILENAME, ZIPALIGNED_APK_FILENAME)]
+        ]
 
     for command in commands:
         if 0 != os.system(command):
@@ -98,14 +105,14 @@ def write_embedded_values(propagation_channel_id,
                           client_version,
                           embedded_server_list,
                           remote_server_list_signature_public_key,
-                          remote_server_list_url,
+                          remote_server_list_url_split,
                           feedback_encryption_public_key,
                           feedback_upload_server,
                           feedback_upload_path,
                           feedback_upload_server_headers,
                           info_link_url,
                           upgrade_signature_public_key,
-                          upgrade_url,
+                          upgrade_url_split,
                           get_new_version_url,
                           get_new_version_email,
                           faq_url,
@@ -123,7 +130,7 @@ def write_embedded_values(propagation_channel_id,
                               info_link_url,
                               '',
                               '',
-                              upgrade_url[0] + '://' + upgrade_url[1] + '/' + upgrade_url[2],
+                              urlparse.urlunsplit(upgrade_url_split),
                               upgrade_signature_public_key,
                               get_new_version_url,
                               get_new_version_email,
@@ -132,7 +139,7 @@ def write_embedded_values(propagation_channel_id,
                               propagator_managed_upgrades,
                               propagation_channel_id,
                               sponsor_id,
-                              remote_server_list_url[0] + '://' + remote_server_list_url[1] + '/' + remote_server_list_url[2],
+                              urlparse.urlunsplit(remote_server_list_url_split),
                               remote_server_list_signature_public_key,
                               '","'.join(home_tab_url_exclusions))
 
@@ -161,14 +168,14 @@ def build_client(
         banner,
         encoded_server_list,
         remote_server_list_signature_public_key,
-        remote_server_list_url,
+        remote_server_list_url_split,
         feedback_encryption_public_key,
         feedback_upload_server,
         feedback_upload_path,
         feedback_upload_server_headers,
         info_link_url,
         upgrade_signature_public_key,
-        upgrade_url,
+        upgrade_url_split,
         get_new_version_url,
         get_new_version_email,
         faq_url,
@@ -197,14 +204,14 @@ def build_client(
             version,
             encoded_server_list,
             remote_server_list_signature_public_key,
-            remote_server_list_url,
+            remote_server_list_url_split,
             feedback_encryption_public_key,
             feedback_upload_server,
             feedback_upload_path,
             feedback_upload_server_headers,
             info_link_url,
             upgrade_signature_public_key,
-            upgrade_url,
+            upgrade_url_split,
             get_new_version_url,
             get_new_version_email,
             faq_url,
@@ -249,7 +256,7 @@ def build_library(
         sponsor_id,
         encoded_server_list,
         remote_server_list_signature_public_key,
-        remote_server_list_url,
+        remote_server_list_url_split,
         feedback_encryption_public_key,
         feedback_upload_server,
         feedback_upload_path,
@@ -267,7 +274,7 @@ def build_library(
             version,
             encoded_server_list,
             remote_server_list_signature_public_key,
-            remote_server_list_url,
+            remote_server_list_url_split,
             feedback_encryption_public_key,
             feedback_upload_server,
             feedback_upload_path,
