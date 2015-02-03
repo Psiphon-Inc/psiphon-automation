@@ -28,7 +28,7 @@ import sys
 import psi_utils
 import psi_ssh
 
-import digitalocean
+import digitalocean_v2.digitalocean as digitalocean
 
 def refresh_credentials(digitalocean_account, ip_address, new_root_password, new_stats_password):
     # Note: using auto-add-policy for host's SSH public key here since we can't get it through the API.
