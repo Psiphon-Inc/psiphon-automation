@@ -517,8 +517,6 @@ def process_stats(host, servers, db_cur, psinet, minimal, error_file=None):
                     if last_timestamp and timestamp < last_timestamp:
                         # Assumes processing the lines in reverse chronological order
                         break
-                    if not next_last_timestamp or timestamp > next_last_timestamp:
-                        next_last_timestamp = timestamp
 
                     host_id = host.id
                     event_type = match.group(3)
@@ -526,6 +524,9 @@ def process_stats(host, servers, db_cur, psinet, minimal, error_file=None):
                     if minimal:
                         if event_type not in ['connected', 'page_views']:
                             continue
+
+                    if not next_last_timestamp or timestamp > next_last_timestamp:
+                        next_last_timestamp = timestamp
 
                     event_values = [event_value.decode('utf-8', 'replace') for event_value in match.group(4).split()]
                     event_fields = LOG_EVENT_TYPE_SCHEMA[event_type]
