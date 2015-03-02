@@ -37,6 +37,10 @@ import email_validator
 
 # Make EmailResponder modules available
 sys.path.append('..')
+
+# Make the Automation (psi_ops) modules available
+sys.path.append(config['psiOpsPath'])
+
 import aws_helpers
 
 

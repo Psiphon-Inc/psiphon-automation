@@ -1,7 +1,7 @@
 ﻿#!/usr/bin/python
 # coding=utf-8
 #
-# Copyright (c) 2011, Psiphon Inc.
+# Copyright (c) 2014, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -83,7 +83,7 @@ def get_tweet_message(s3_bucket_name):
 def get_plaintext_email_content(
         s3_bucket_name,
         languages):
-    bucket_root_url = 'https://s3.amazonaws.com/' + s3_bucket_name
+    bucket_root_url = psi_ops_s3.get_s3_bucket_site_root(s3_bucket_name)
     return get_all_languages_string(
         'plaintext_email_no_attachment',
         languages).format(bucket_root_url)
@@ -92,7 +92,7 @@ def get_plaintext_email_content(
 def get_html_email_content(
         s3_bucket_name,
         languages):
-    bucket_root_url = 'https://s3.amazonaws.com/' + s3_bucket_name
+    bucket_root_url = psi_ops_s3.get_s3_bucket_site_root(s3_bucket_name)
     return get_all_languages_string(
         'html_email_no_attachment',
         languages).format(bucket_root_url)
@@ -103,7 +103,7 @@ def get_plaintext_attachment_email_content(
         windows_attachment_filename,
         android_attachment_filename,
         languages):
-    bucket_root_url = 'https://s3.amazonaws.com/' + s3_bucket_name
+    bucket_root_url = psi_ops_s3.get_s3_bucket_site_root(s3_bucket_name)
     return get_all_languages_string(
         'plaintext_email_with_attachment',
         languages).format(
@@ -117,7 +117,7 @@ def get_html_attachment_email_content(
         windows_attachment_filename,
         android_attachment_filename,
         languages):
-    bucket_root_url = 'https://s3.amazonaws.com/' + s3_bucket_name
+    bucket_root_url = psi_ops_s3.get_s3_bucket_site_root(s3_bucket_name)
     return get_all_languages_string(
         'html_email_with_attachment',
         languages).format(
