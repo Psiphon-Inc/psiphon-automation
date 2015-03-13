@@ -1544,12 +1544,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 capabilities['VPN'] = False
                 capabilities['SSH'] = False
                 if random.random() < 0.5:
-                    ossh_port = random.choice([53, 443])
-                else:
                     capabilities['OSSH'] = False
-                    capabilities['FRONTED-MEEK'] = False
                     capabilities['UNFRONTED-MEEK'] = True
-                    self.setup_meek_parameters_for_host(host, 80)
             elif new_server_number % 2 == 1:
                 # We would like every other new propagation server created to be somewhat obfuscated
                 capabilities['handshake'] = False
@@ -1567,6 +1563,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 ossh_ports.remove(515)
                 ossh_ports.remove(593)
                 ossh_port = random.choice(ossh_ports)
+            else:
+                # Regular propagation servers also have UNFRONTED-MEEK
+                capabilities['UNFRONTED-MEEK'] = True
+                
+
+            if capabilities['UNFRONTED-MEEK']:
+                self.setup_meek_parameters_for_host(host, 80)
 
             server = Server(
                         None,
