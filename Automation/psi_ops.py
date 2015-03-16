@@ -289,6 +289,10 @@ UpgradePackageSigningKeyPair = psi_utils.recordtype(
 # database, so we don't require a secret key pair wrapping password
 UPGRADE_PACKAGE_SIGNING_KEY_PAIR_PASSWORD = 'none'
 
+RoutesSigningKeyPair = psi_utils.recordtype(
+    'RoutesSigningKeyPair',
+    'pem_key_pair, password')
+
 CLIENT_PLATFORM_WINDOWS = 'Windows'
 CLIENT_PLATFORM_ANDROID = 'Android'
 
@@ -1809,6 +1813,39 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__feedback_encryption_key_pair.pem_key_pair.encode('ascii', 'ignore')
         return self.__feedback_encryption_key_pair
 
+    def create_routes_signing_key_pair(self):
+        '''
+        Generate a routes signing key pair and wrapping password.
+        Overwrites any existing values.
+        '''
+
+        assert(self.is_locked)
+
+        if self.__routes_signing_key_pair:
+            print('WARNING: You are overwriting the previous value')
+
+        password = psi_utils.generate_password()
+
+        self.__routes_signing_key_pair = \
+            RoutesSigningKeyPair(
+                psi_ops_crypto_tools.generate_key_pair(password),
+                password)
+
+    def get_routes_signing_key_pair(self):
+        '''
+        Retrieves the routes signing keypair and wrapping password.
+        Generates those values if they don't already exist.
+        '''
+
+        if not self.__routes_signing_key_pair:
+            self.create_routes_signing_key_pair()
+
+        # This may be serialized/deserialized into a unicode string, but M2Crypto won't accept that.
+        # The key pair should only contain ascii anyways, so encoding to ascii should be safe.
+        self.__routes_signing_key_pair.pem_key_pair = \
+            self.__routes_signing_key_pair.pem_key_pair.encode('ascii', 'ignore')
+        return self.__routes_signing_key_pair
+
     def get_feedback_upload_info(self):
         assert(self.__feedback_upload_info)
         return self.__feedback_upload_info
@@ -2197,6 +2234,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def update_routes(self):
         assert(self.is_locked)  # (host.log is called by deploy)
         psi_routes.make_routes()
+        psi_routes.make_signed_routes(
+                self.get_routes_signing_key_pair().pem_key_pair,
+                self.get_routes_signing_key_pair().password)
         psi_ops_deploy.deploy_routes_to_hosts(self.__hosts.values())
 
     def push_stats_config(self):

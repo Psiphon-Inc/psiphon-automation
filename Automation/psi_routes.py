@@ -186,7 +186,7 @@ def make_routes():
         tar.add(zlib_path, arcname=os.path.split(zlib_path)[1], recursive=False)
     tar.close()
 
-def make_signed_routes(key_pair, private_key_password):
+def make_signed_routes(pem_key_pair, private_key_password):
     for root, dirs, files in os.walk(GEO_ROUTES_ROOT):
         for name in files:
             if(name.endswith(GEO_ROUTES_EXTENSION)):
@@ -194,7 +194,7 @@ def make_signed_routes(key_pair, private_key_password):
                 with open(path, 'rb') as file:
                     data = file.read()
                 signed_routes_data  =  psi_ops_crypto_tools.make_signed_data(
-                        key_pair,
+                        pem_key_pair,
                         private_key_password,
                         base64.b64encode(data))
 
