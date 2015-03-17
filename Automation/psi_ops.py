@@ -2234,10 +2234,17 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def update_routes(self):
         assert(self.is_locked)  # (host.log is called by deploy)
         psi_routes.make_routes()
+        psi_ops_deploy.deploy_routes_to_hosts(self.__hosts.values())
+
+    def update_external_signed_routes(self):
+        assert(self.is_locked)  # (host.log is called by deploy)
         psi_routes.make_signed_routes(
                 self.get_routes_signing_key_pair().pem_key_pair,
                 self.get_routes_signing_key_pair().password)
-        psi_ops_deploy.deploy_routes_to_hosts(self.__hosts.values())
+        psi_ops_s3.upload_signed_routes(
+                self.__aws_account,
+                psi_routes.GEO_ROUTES_ROOT, 
+                psi_routes.GEO_ROUTES_EXTENSION)
 
     def push_stats_config(self):
         assert(self.is_locked)

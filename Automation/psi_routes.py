@@ -187,6 +187,7 @@ def make_routes():
     tar.close()
 
 def make_signed_routes(pem_key_pair, private_key_password):
+    make_routes()
     for root, dirs, files in os.walk(GEO_ROUTES_ROOT):
         for name in files:
             if(name.endswith(GEO_ROUTES_EXTENSION)):
