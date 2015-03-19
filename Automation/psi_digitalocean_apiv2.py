@@ -28,7 +28,7 @@ import sys
 import psi_utils
 import psi_ssh
 
-import digitalocean
+import digitalocean_v2.digitalocean as digitalocean
 
 def refresh_credentials(digitalocean_account, ip_address, new_root_password, new_stats_password):
     # Note: using auto-add-policy for host's SSH public key here since we can't get it through the API.
@@ -222,9 +222,10 @@ def update_image(digitalocean_account=None, droplet_id=None, droplet_name=None, 
                                        region=Droplet.region,
                                        image=Droplet.image,
                                        size=Droplet.size,
+                                       ssh_keys=[int(digitalocean_account.ssh_key_template_id)],
                                        backups=False)
 
-        droplet.create(ssh_keys=str(digitalocean_account.ssh_key_template_id))
+        droplet.create()
 
         if not wait_on_action(do_mgr, droplet, action_id=None, interval=30, 
                               action_type='create', action_status='completed'):
@@ -311,7 +312,7 @@ def launch_new_server(digitalocean_account, _):
         if not unicode(digitalocean_account.base_size_slug) in [unicode(s.slug) for s in droplet_sizes]:
             raise 'Size slug not found'
 
-        Droplet.size = '2gb'
+        Droplet.size = '4gb'
 
         droplet_regions = do_mgr.get_all_regions()
         common_regions = list(set([r.slug for r in droplet_regions if r.available])
@@ -329,9 +330,10 @@ def launch_new_server(digitalocean_account, _):
                                        region=Droplet.region,
                                        image=Droplet.image,
                                        size=Droplet.size,
+                                       ssh_keys=[int(digitalocean_account.ssh_key_template_id)],
                                        backups=False)
 
-        droplet.create(ssh_keys=str(digitalocean_account.ssh_key_template_id))
+        droplet.create()
         if not wait_on_action(do_mgr, droplet, None, 30, 'create', 'completed'):
             raise Exception('Event did not complete in time')
 
