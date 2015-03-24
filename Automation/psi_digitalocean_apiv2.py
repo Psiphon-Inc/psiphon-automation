@@ -222,9 +222,10 @@ def update_image(digitalocean_account=None, droplet_id=None, droplet_name=None, 
                                        region=Droplet.region,
                                        image=Droplet.image,
                                        size=Droplet.size,
+                                       ssh_keys=[int(digitalocean_account.ssh_key_template_id)],
                                        backups=False)
 
-        droplet.create(ssh_keys=str(digitalocean_account.ssh_key_template_id))
+        droplet.create()
 
         if not wait_on_action(do_mgr, droplet, action_id=None, interval=30, 
                               action_type='create', action_status='completed'):
@@ -329,9 +330,10 @@ def launch_new_server(digitalocean_account, _):
                                        region=Droplet.region,
                                        image=Droplet.image,
                                        size=Droplet.size,
+                                       ssh_keys=[int(digitalocean_account.ssh_key_template_id)],
                                        backups=False)
 
-        droplet.create(ssh_keys=str(digitalocean_account.ssh_key_template_id))
+        droplet.create()
         if not wait_on_action(do_mgr, droplet, None, 30, 'create', 'completed'):
             raise Exception('Event did not complete in time')
 

@@ -1661,7 +1661,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 server_ids_on_host.append(server.id)
         for server_id in server_ids_on_host:
             assert(server_id not in self.__deleted_servers)
-            self.__deleted_servers[server_id] = self.__servers.pop(server_id)
+            deleted_server = self.__servers.pop(server_id)
+            # Clear some unneeded data that might be contributing to a MemoryError
+            deleted_server.web_server_certificate = None
+            deleted_server.web_server_secret = None
+            deleted_server.web_server_private_key = None
+            deleted_server.ssh_password = None
+            deleted_server.ssh_host_key = None
+            deleted_server.ssh_obfuscated_key = None
+            self.__deleted_servers[server_id] = deleted_server
         # We don't assign host IDs and can't guarentee uniqueness, so not
         # archiving deleted host keyed by ID.
         deleted_host = self.__hosts.pop(host.id)
