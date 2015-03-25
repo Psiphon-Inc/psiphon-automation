@@ -336,6 +336,7 @@ def main(infile=None, send_mail_stats=False):
             (stats, res) = run_playbook(playbook_file, inv, send_mail_stats)
         
     except Exception as e:
+        print type(e), str(e)
         raise type(e), str(e)
 
 
@@ -372,7 +373,7 @@ if __name__ == "__main__":
         update_dat()
     
     if options.refresh_base_images:
-        refresh_base_images(['Testing'])
+        refresh_base_images()
         exit(0)
         
     if options.infile:
