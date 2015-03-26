@@ -254,7 +254,7 @@ def send_mail(record, subject='PSI Ansible Report',
     # CSS in email HTML must be inline
     rendered = pynliner.fromString(rendered)
     
-    sender.send(config['emailRecipients'], config['emailUsername'], subject, repr(record), rendered)
+    sender.send(config['emailRecipients'], config['emailUsername'], subject, None, rendered)
 
 def refresh_base_images(providers=['linode']):
     """
