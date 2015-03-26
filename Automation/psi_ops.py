@@ -340,7 +340,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__automation_bucket = None
         self.__discovery_strategy_value_hmac_key = binascii.b2a_hex(os.urandom(32))
         self.__android_home_tab_url_exclusions = set()
-        self.__alternate_meek_fronting_addresses = defaultdict(list)
+        self.__alternate_meek_fronting_addresses = defaultdict(set)
 
         if initialize_plugins:
             self.initialize_plugins()
@@ -511,7 +511,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__android_home_tab_url_exclusions = set()
             self.version = '0.28'
         if cmp(parse_version(self.version), parse_version('0.29')) < 0:
-            self.__alternate_meek_fronting_addresses = defaultdict(list)
+            self.__alternate_meek_fronting_addresses = defaultdict(set)
             self.version = '0.29'
 
     def initialize_plugins(self):
@@ -2495,7 +2495,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         extended_config['meekCookieEncryptionPublicKey'] = host.meek_cookie_encryption_public_key if host.meek_cookie_encryption_public_key else ''
 
         if host.meek_server_fronting_domain:
-            # Copy the list to avoid shuffling the original
+            # Copy the set to avoid shuffling the original
             alternate_meek_fronting_addresses = list(self.__alternate_meek_fronting_addresses[host.meek_server_fronting_domain])
             if len(alternate_meek_fronting_addresses) > 0:
                 random.shuffle(alternate_meek_fronting_addresses)
