@@ -2499,7 +2499,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             alternate_meek_fronting_addresses = list(self.__alternate_meek_fronting_addresses[host.meek_server_fronting_domain])
             if len(alternate_meek_fronting_addresses) > 0:
                 random.shuffle(alternate_meek_fronting_addresses)
-                extended_config['meekAlternateFrontingAddresses'] = alternate_meek_fronting_addresses[:3]
+                extended_config['meekFrontingAddresses'] = alternate_meek_fronting_addresses[:3]
 
         return binascii.hexlify('%s %s %s %s %s' % (
                                     server.ip_address,
