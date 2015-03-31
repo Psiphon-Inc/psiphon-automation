@@ -944,7 +944,7 @@ def change_weekly_crontab_runday(host, weekdaynum):
     if weekdaynum == None:
         weekdaynum = datetime.date.isoweekday(datetime.date.today())
     if weekdaynum >= 1 or weekdaynum <= 7:
-        cmd = "sed -e 's/^.*weekly.*$/47 6    * * " +str(weekdaynum)+ "\troot\ttest -x \/usr\/sbin\/anacron || ( cd \/ \&\& run-parts --report \/etc\/cron.weekly )/' /etc/crontab > /etc/crontab"
+        cmd = "sed -i 's/^.*weekly.*$/47 6    * * " +str(weekdaynum)+ "\troot\ttest -x \/usr\/sbin\/anacron || ( cd \/ \&\& run-parts --report \/etc\/cron.weekly )/' /etc/crontab"
         ssh = psi_ssh.SSH(
                             host.ip_address, host.ssh_port,
                             host.ssh_username, host.ssh_password,
