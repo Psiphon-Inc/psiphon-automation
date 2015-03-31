@@ -1426,7 +1426,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Here, we're assuming one server/IP address per host
         psi_ops_install.install_host(host, servers, self.get_existing_server_ids(), plugins)
         host.log('install')
-
+        psi_ops_install.change_weekly_crontab_runday(host, None)
         # Update database
 
         # Add new server (we also add a host; here, the host and server are

@@ -399,8 +399,6 @@ def install_host(host, servers, existing_server_ids, plugins):
     install_firewall_rules(host, servers, plugins)
     
     install_psi_limit_load(host, servers)
-
-    change_weekly_crontab_runday(host, None)
     
     # NOTE:
     # For partially configured hosts we need to completely reconfigure
