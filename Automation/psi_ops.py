@@ -36,6 +36,7 @@ import subprocess
 import traceback
 from pkg_resources import parse_version
 from multiprocessing.pool import ThreadPool
+from collections import defaultdict
 
 import psi_utils
 import psi_ops_cms
@@ -339,11 +340,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__automation_bucket = None
         self.__discovery_strategy_value_hmac_key = binascii.b2a_hex(os.urandom(32))
         self.__android_home_tab_url_exclusions = set()
+        self.__alternate_meek_fronting_addresses = defaultdict(set)
 
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.28'
+    class_version = '0.29'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -508,6 +510,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.28')) < 0:
             self.__android_home_tab_url_exclusions = set()
             self.version = '0.28'
+        if cmp(parse_version(self.version), parse_version('0.29')) < 0:
+            self.__alternate_meek_fronting_addresses = defaultdict(set)
+            self.version = '0.29'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1544,12 +1549,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 capabilities['VPN'] = False
                 capabilities['SSH'] = False
                 if random.random() < 0.5:
-                    ossh_port = random.choice([53, 443])
-                else:
                     capabilities['OSSH'] = False
-                    capabilities['FRONTED-MEEK'] = False
                     capabilities['UNFRONTED-MEEK'] = True
-                    self.setup_meek_parameters_for_host(host, 80)
             elif new_server_number % 2 == 1:
                 # We would like every other new propagation server created to be somewhat obfuscated
                 capabilities['handshake'] = False
@@ -1567,6 +1568,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 ossh_ports.remove(515)
                 ossh_ports.remove(593)
                 ossh_port = random.choice(ossh_ports)
+            else:
+                # Regular propagation servers also have UNFRONTED-MEEK
+                capabilities['UNFRONTED-MEEK'] = True
+                
+
+            if capabilities['UNFRONTED-MEEK']:
+                self.setup_meek_parameters_for_host(host, 80)
 
             server = Server(
                         None,
@@ -1658,7 +1666,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 server_ids_on_host.append(server.id)
         for server_id in server_ids_on_host:
             assert(server_id not in self.__deleted_servers)
-            self.__deleted_servers[server_id] = self.__servers.pop(server_id)
+            deleted_server = self.__servers.pop(server_id)
+            # Clear some unneeded data that might be contributing to a MemoryError
+            deleted_server.web_server_certificate = None
+            deleted_server.web_server_secret = None
+            deleted_server.web_server_private_key = None
+            deleted_server.ssh_password = None
+            deleted_server.ssh_host_key = None
+            deleted_server.ssh_obfuscated_key = None
+            self.__deleted_servers[server_id] = deleted_server
         # We don't assign host IDs and can't guarentee uniqueness, so not
         # archiving deleted host keyed by ID.
         deleted_host = self.__hosts.pop(host.id)
@@ -2477,6 +2493,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         extended_config['meekFrontingDomain'] = host.meek_server_fronting_domain if host.meek_server_fronting_domain else ''
         extended_config['meekFrontingHost'] = host.meek_server_fronting_host if host.meek_server_fronting_host else ''
         extended_config['meekCookieEncryptionPublicKey'] = host.meek_cookie_encryption_public_key if host.meek_cookie_encryption_public_key else ''
+
+        if host.meek_server_fronting_domain:
+            # Copy the set to avoid shuffling the original
+            alternate_meek_fronting_addresses = list(self.__alternate_meek_fronting_addresses[host.meek_server_fronting_domain])
+            if len(alternate_meek_fronting_addresses) > 0:
+                random.shuffle(alternate_meek_fronting_addresses)
+                extended_config['meekFrontingAddresses'] = alternate_meek_fronting_addresses[:3]
 
         return binascii.hexlify('%s %s %s %s %s' % (
                                     server.ip_address,
