@@ -1968,9 +1968,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         get_new_version_email,
                         faq_url,
                         privacy_policy_url,
-                        __split_tunnel_url_format(),
-                        __split_tunnel_signature_public_key(),
-                        __split_tunnel_dns_server(),
+                        self.__split_tunnel_url_format(),
+                        self.__split_tunnel_signature_public_key(),
+                        self.__split_tunnel_dns_server(),
                         self.__client_versions[platform][-1].version if self.__client_versions[platform] else 0,
                         propagation_channel.propagator_managed_upgrades,
                         test,
@@ -3036,9 +3036,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     '',         # get_new_version_email
                                     '',         # faq_url
                                     '',         # privacy_policy_url
-                                    __split_tunnel_url_format(),
-                                    __split_tunnel_signature_public_key(),
-                                    __split_tunnel_dns_server(),
+                                    self.__split_tunnel_url_format(),
+                                    self.__split_tunnel_signature_public_key(),
+                                    self.__split_tunnel_dns_server(),
                                     version,
                                     False,
                                     False)
