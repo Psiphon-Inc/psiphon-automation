@@ -290,6 +290,10 @@ UpgradePackageSigningKeyPair = psi_utils.recordtype(
 # database, so we don't require a secret key pair wrapping password
 UPGRADE_PACKAGE_SIGNING_KEY_PAIR_PASSWORD = 'none'
 
+RoutesSigningKeyPair = psi_utils.recordtype(
+    'RoutesSigningKeyPair',
+    'pem_key_pair, password')
+
 CLIENT_PLATFORM_WINDOWS = 'Windows'
 CLIENT_PLATFORM_ANDROID = 'Android'
 
@@ -341,11 +345,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__discovery_strategy_value_hmac_key = binascii.b2a_hex(os.urandom(32))
         self.__android_home_tab_url_exclusions = set()
         self.__alternate_meek_fronting_addresses = defaultdict(set)
+        self.__routes_signing_key_pair = None
 
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.29'
+    class_version = '0.30'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -513,6 +518,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.29')) < 0:
             self.__alternate_meek_fronting_addresses = defaultdict(set)
             self.version = '0.29'
+        if cmp(parse_version(self.version), parse_version('0.30')) < 0:
+            self.__routes_signing_key_pair = None
+            self.version = '0.30'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1822,6 +1830,39 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__feedback_encryption_key_pair.pem_key_pair.encode('ascii', 'ignore')
         return self.__feedback_encryption_key_pair
 
+    def create_routes_signing_key_pair(self):
+        '''
+        Generate a routes signing key pair and wrapping password.
+        Overwrites any existing values.
+        '''
+
+        assert(self.is_locked)
+
+        if self.__routes_signing_key_pair:
+            print('WARNING: You are overwriting the previous value')
+
+        password = psi_utils.generate_password()
+
+        self.__routes_signing_key_pair = \
+            RoutesSigningKeyPair(
+                psi_ops_crypto_tools.generate_key_pair(password),
+                password)
+
+    def get_routes_signing_key_pair(self):
+        '''
+        Retrieves the routes signing keypair and wrapping password.
+        Generates those values if they don't already exist.
+        '''
+
+        if not self.__routes_signing_key_pair:
+            self.create_routes_signing_key_pair()
+
+        # This may be serialized/deserialized into a unicode string, but M2Crypto won't accept that.
+        # The key pair should only contain ascii anyways, so encoding to ascii should be safe.
+        self.__routes_signing_key_pair.pem_key_pair = \
+            self.__routes_signing_key_pair.pem_key_pair.encode('ascii', 'ignore')
+        return self.__routes_signing_key_pair
+
     def get_feedback_upload_info(self):
         assert(self.__feedback_upload_info)
         return self.__feedback_upload_info
@@ -2211,6 +2252,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(self.is_locked)  # (host.log is called by deploy)
         psi_routes.make_routes()
         psi_ops_deploy.deploy_routes_to_hosts(self.__hosts.values())
+
+    def update_external_signed_routes(self):
+        assert(self.is_locked)  # (host.log is called by deploy)
+        psi_routes.make_signed_routes(
+                self.get_routes_signing_key_pair().pem_key_pair,
+                self.get_routes_signing_key_pair().password)
+        psi_ops_s3.upload_signed_routes(
+                self.__aws_account,
+                psi_routes.GEO_ROUTES_ROOT, 
+                psi_routes.GEO_ROUTES_SIGNED_EXTENSION)
 
     def push_stats_config(self):
         assert(self.is_locked)
