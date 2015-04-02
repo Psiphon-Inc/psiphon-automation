@@ -182,7 +182,8 @@ def __test_server(executable_path, transport, encoded_server_list, expected_egre
             proc.wait()
 
 
-def test_server(ip_address, capabilities, web_server_port, web_server_secret, encoded_server_list, version,
+def test_server(ip_address, capabilities, web_server_port, web_server_secret, encoded_server_list,
+                split_tunnel_url_format, split_tunnel_signature_public_key, split_tunnel_dns_server, version,
                 expected_egress_ip_addresses, test_propagation_channel_id = '0', test_cases = None, executable_path = None):
 
     local_test_cases = copy.copy(test_cases) if test_cases else ['handshake', 'VPN', 'OSSH', 'SSH']
@@ -234,9 +235,9 @@ def test_server(ip_address, capabilities, web_server_port, web_server_secret, en
                                     '',         # get_new_version_email
                                     '',         # faq_url
                                     '',         # privacy_policy_url
-                                    '',         # split_tunnel_url_format
-                                    '',         # split_tunnel_signature_public_key
-                                    '',         # split_tunnel_dns_server
+                                    split_tunnel_url_format,
+                                    split_tunnel_signature_public_key,
+                                    split_tunnel_dns_server,
                                     version,
                                     False,
                                     True)
