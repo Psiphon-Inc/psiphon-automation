@@ -34,7 +34,8 @@ import psi_feedback_templates
 
 DEFAULT_LANGS = {'ar': 'ar', 'az': 'az', 'es': 'es', 'fa': 'fa', 'kk': 'kk',
                  'ru': 'ru', 'th': 'th', 'tk': 'tk', 'vi': 'vi', 'zh': 'zh',
-                 'ug': 'ug@Latn', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr'}
+                 'ug': 'ug@Latn', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr',
+                 'fi_FI': 'fi'}
 # Transifex does not support multiple character sets for Uzbek, but
 # Psiphon supports both uz@Latn and uz@cyrillic. So we're going to
 # use "Uzbek" ("uz") for uz@Latn and "Klingon" ("tlh") for uz@cyrillic.
@@ -54,7 +55,7 @@ known_resources = \
     ['android-app-strings', 'android-app-browser-strings',
      'email-template-strings', 'feedback-template-strings',
      'android-library-strings', 'feedback-auto-responses', 'website-strings',
-     'store-assets']
+     'store-assets', 'windows-client-strings']
 
 
 def process_android_app_strings():
@@ -139,6 +140,14 @@ def process_website_strings():
                      bom=False)
 
 
+def process_windows_client_strings():
+    process_resource('windows-client-strings',
+                     lambda lang: '../Client/psiclient/webui/_locales/%s/messages.json' % lang,
+                     output_mutator_fn=None,
+                     bom=False,
+                     skip_untranslated=True)
+
+
 def process_store_assets():
     process_resource('store-assets',
                      lambda lang: '../Assets/Store/%s/text.html' % lang,
@@ -157,6 +166,8 @@ def process_resource(resource, output_path_fn, output_mutator_fn, bom,
     must return the path+filename to write to.
     `output_mutator_fn` must be callable. It will be passed the output and the
     current language code. May be None.
+    If `skip_untranslated` is True, translations that are less than 10% complete
+    will be skipped.
     '''
     if not langs:
         langs = DEFAULT_LANGS
@@ -164,7 +175,7 @@ def process_resource(resource, output_path_fn, output_mutator_fn, bom,
     for in_lang, out_lang in langs.items():
         if skip_untranslated:
             stats = request('resource/%s/stats/%s' % (resource, in_lang))
-            if stats['completed'] == '0%':
+            if int(stats['completed'].rstrip('%')) < 10:
                 continue
 
         r = request('resource/%s/translation/%s' % (resource, in_lang))
@@ -281,6 +292,10 @@ def go():
 
     process_feedback_auto_responses()
     print('process_feedback_auto_responses: DONE')
+
+    process_windows_client_strings()
+    print('process_windows_client_strings: DONE')
+    print('For Windows client changes to take effect, you must run the Grunt tasks in Client/psiclient/webui')
 
     process_store_assets()
     print('process_store_assets: DONE')
