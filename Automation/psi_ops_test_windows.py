@@ -234,6 +234,9 @@ def test_server(ip_address, capabilities, web_server_port, web_server_secret, en
                                     '',         # get_new_version_email
                                     '',         # faq_url
                                     '',         # privacy_policy_url
+                                    '',         # split_tunnel_url_format
+                                    '',         # split_tunnel_signature_public_key
+                                    '',         # split_tunnel_dns_server
                                     version,
                                     False,
                                     True)

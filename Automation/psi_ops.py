@@ -1930,6 +1930,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 self.__get_upgrade_package_signing_key_pair().pem_key_pair,
                 UPGRADE_PACKAGE_SIGNING_KEY_PAIR_PASSWORD)
 
+        split_tunnel_signature_public_key = \
+            psi_ops_crypto_tools.get_base64_der_public_key(
+                self.get_routes_signing_key_pair().pem_key_pair,
+                self.get_routes_signing_key_pair().password)
+
+        split_tunnel_dns_server = '8.8.4.4';  # TODO get it from psinet?
+
+        split_tunnel_url_format = 'https://s3.amazonaws.com/psiphon/routes/%%s.zlib.json'; # TODO get it from psi_ops_s3
+
         builders = {
             CLIENT_PLATFORM_WINDOWS: psi_ops_build_windows.build_client,
             CLIENT_PLATFORM_ANDROID: psi_ops_build_android.build_client
@@ -1957,6 +1966,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         get_new_version_email,
                         faq_url,
                         privacy_policy_url,
+                        split_tunnel_url_format, 
+                        split_tunnel_signature_public_key, 
+                        split_tunnel_dns_server,
                         self.__client_versions[platform][-1].version if self.__client_versions[platform] else 0,
                         propagation_channel.propagator_managed_upgrades,
                         test,
@@ -3023,6 +3035,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     '',         # get_new_version_email
                                     '',         # faq_url
                                     '',         # privacy_policy_url
+                                    '',         # split_tunnel_url_format
+                                    '',         # split_tunnel_signature_public_key
+                                    '',         # split_tunnel_dns_server
                                     version,
                                     False,
                                     False)
