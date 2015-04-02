@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-import requests
-from .baseapi import BaseAPI
+from .baseapi import BaseAPI, POST, DELETE, PUT
+
 
 class Image(BaseAPI):
     def __init__(self, *args, **kwargs):
@@ -8,6 +8,7 @@ class Image(BaseAPI):
         self.name = None
         self.distribution = None
         self.slug = None
+        self.min_size = None
         self.public = None
         self.regions = []
         self.created_at = None
@@ -27,9 +28,9 @@ class Image(BaseAPI):
         data = self.get_data("images/%s" % self.id)
         image_dict = data['image']
 
-        #Setting the attribute values
+        # Setting the attribute values
         for attr in image_dict.keys():
-            setattr(self,attr,image_dict[attr])
+            setattr(self, attr, image_dict[attr])
 
         return self
 
@@ -37,10 +38,7 @@ class Image(BaseAPI):
         """
             Destroy the image
         """
-        return self.get_data(
-            "images/%s/" % self.id,
-            type="DELETE",
-        )
+        return self.get_data("images/%s/" % self.id, type=DELETE)
 
     def transfer(self, new_region_slug):
         """
@@ -48,7 +46,7 @@ class Image(BaseAPI):
         """
         return self.get_data(
             "images/%s/actions/" % self.id,
-            type="POST",
+            type=POST,
             params={"type": "transfer", "region": new_region_slug}
         )
 
@@ -58,7 +56,7 @@ class Image(BaseAPI):
         """
         return self.get_data(
             "images/%s" % self.id,
-            type="PUT",
+            type=PUT,
             params={"name": new_name}
         )
 

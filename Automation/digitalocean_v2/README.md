@@ -3,7 +3,7 @@
 
 python-digitalocean is a python package that provide easy access to digitalocean.com APIs to manage droplets, images and more.
 
-[![](https://tip4commit.com/projects/897.svg)](https://tip4commit.com/github/koalalorenzo/python-digitalocean)
+[![](https://travis-ci.org/koalalorenzo/python-digitalocean.svg)](https://travis-ci.org/koalalorenzo/python-digitalocean)
 
 <div align="center">
 
@@ -64,7 +64,7 @@ droplet = digitalocean.Droplet(token="secretspecialuniquesnowflake",
                                name='Example',
                                region='nyc2', # New York 2
                                image='ubuntu-14-04-x64', # Ubuntu 14.04 x64
-                               size='512mb',  # 512MB
+                               size_slug='512mb',  # 512MB
                                backups=True)
 droplet.create()
 ```
@@ -78,21 +78,34 @@ for action in actions:
     print action.status
 ```
 
+## Testing
+
+### Test using Docker
+To test this python-digitalocean you can use [docker](https://www.docker.com) to have a **clean environment automatically**. First you have to build the container by running in your shell on the repository directory:
+
+    docker build -t "pdo-tests" .
+
+Then you can run all the tests (for both python 2 and python 3)
+
+    docker run pdo-tests
+
+**Note**: This will use Ubuntu 14.04 as base and use your repository to run tests. So every time you edit some files, please run these commands to perform tests on your changes.
+
+### Testing using pytest manually
+Use [pytest](http://pytest.org/) to perform testing. It is recommended to use a dedicated virtualenv to perform tests, using these commands:
+
+    $ virtualenv /tmp/digitalocean_env
+    $ source /tmp/digitalocean_env/bin/activate
+    $ pip install -r requirements.txt
+
+To run all the tests manually use py.test command:
+
+    $ py.test
+
+
 ## Links
 
-  * Project Site: [http://projects.setale.me/python-digitalocean](http://projects.setale.me/python-digitalocean)
   * GitHub: [https://github.com/koalalorenzo/python-digitalocean](https://github.com/koalalorenzo/python-digitalocean)
   * PyPi page: [https://pypi.python.org/pypi/python-digitalocean/](https://pypi.python.org/pypi/python-digitalocean/)
   * Author Website: [http://who.is.lorenzo.setale.me/?](http://setale.me/)
   * Author Blog: [http://blog.setale.me/](http://blog.setale.me/)
-
-<script>
-  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
-
-  ga('create', 'UA-10395528-24', 'setale.me');
-  ga('send', 'pageview');
-
-</script>
