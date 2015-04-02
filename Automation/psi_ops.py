@@ -345,11 +345,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__discovery_strategy_value_hmac_key = binascii.b2a_hex(os.urandom(32))
         self.__android_home_tab_url_exclusions = set()
         self.__alternate_meek_fronting_addresses = defaultdict(set)
+        self.__routes_signing_key_pair = None
 
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.29'
+    class_version = '0.30'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -517,6 +518,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.29')) < 0:
             self.__alternate_meek_fronting_addresses = defaultdict(set)
             self.version = '0.29'
+        if cmp(parse_version(self.version), parse_version('0.30')) < 0:
+            self.__routes_signing_key_pair = None
+            self.version = '0.30'
 
     def initialize_plugins(self):
         for plugin in plugins:
