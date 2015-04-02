@@ -27,6 +27,7 @@ import csv
 import zlib
 import tarfile
 import base64
+import psi_ops_crypto_tools
 
 
 GEO_DATA_ROOT = os.path.join(os.path.abspath('..'), 'Data', 'GeoData')
