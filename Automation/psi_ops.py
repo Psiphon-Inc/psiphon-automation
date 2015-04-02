@@ -1935,9 +1935,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 self.get_routes_signing_key_pair().pem_key_pair,
                 self.get_routes_signing_key_pair().password)
 
-        split_tunnel_dns_server = '8.8.4.4';  # TODO get it from psinet?
+        split_tunnel_dns_server = '8.8.4.4'  # TODO get it from psinet?
 
-        split_tunnel_url_format = 'https://s3.amazonaws.com/psiphon/routes/%%s.route.zlib.json'; # TODO get it from psi_ops_s3
+        split_tunnel_url_format = 'https://s3.amazonaws.com/psiphon/routes/%%s.route.zlib.json' # TODO get it from psi_ops_s3
 
         builders = {
             CLIENT_PLATFORM_WINDOWS: psi_ops_build_windows.build_client,
