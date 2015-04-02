@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2014, Psiphon Inc.
+# Copyright (c) 2015, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -27,12 +27,9 @@ import psi_utils
 
 APPLICATION_TITLE = 'Psiphon 3' # (TODO: sync this value with client source code; only used for testing)
 SOURCE_ROOT = os.path.join(os.path.abspath('..'), 'Client')
-BANNER_ROOT = os.path.join(os.path.abspath('..'), 'Data', 'Banners')
 CLIENT_SOLUTION_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient.sln')
 CODE_SIGNING_PFX_FILENAME = os.path.join(os.path.abspath('..'), 'Data', 'CodeSigning', 'test-code-signing-package.pfx')
-BANNER_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', 'banner.bmp')
-CUSTOM_EMAIL_BANNER = 'email.bmp'
-EMAIL_BANNER_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', 'email.bmp')
+BANNER_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', 'banner.png')
 EMBEDDED_VALUES_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', 'embeddedvalues.h')
 EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, 'Release', 'psiphon.exe')
 BUILDS_ROOT = os.path.join('.', 'Builds', 'Windows')
@@ -58,7 +55,6 @@ UPX_FILENAME = '.\Tools\upx.exe'
 
 if os.path.isfile('psi_data_config.py'):
     import psi_data_config
-    BANNER_ROOT = os.path.join(psi_data_config.DATA_ROOT, 'Banners')
     CODE_SIGNING_PFX_FILENAME = os.path.join(psi_data_config.DATA_ROOT, 'CodeSigning', psi_data_config.CODE_SIGNING_PACKAGE_FILENAME)
 
 
@@ -219,12 +215,7 @@ def build_client(
              PLONK_EXECUTABLE_FILENAME,
              MEEK_EXECUTABLE_FILENAME])
 
-        # Copy custom email banner from Data to source tree
-        # (there's only one custom email banner for all sponsors)
-        banner_source_path = os.path.join(BANNER_ROOT, CUSTOM_EMAIL_BANNER)
-        shutil.copyfile(banner_source_path, EMAIL_BANNER_FILENAME)
-
-        # Copy sponsor banner image file from Data to Client source tree
+        # Write banner binary to file
         if banner:
             with open(BANNER_FILENAME, 'wb') as banner_file:
                 banner_file.write(banner)

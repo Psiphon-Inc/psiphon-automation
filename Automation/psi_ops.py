@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2014, Psiphon Inc.
+# Copyright (c) 2015, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -19,6 +19,7 @@
 
 import sys
 import os
+import io
 import datetime
 import pprint
 import json
@@ -36,6 +37,7 @@ import subprocess
 import traceback
 from pkg_resources import parse_version
 from multiprocessing.pool import ThreadPool
+from PIL import Image
 
 import psi_utils
 import psi_ops_cms
@@ -343,7 +345,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.28'
+    class_version = '0.30'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -508,6 +510,17 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.28')) < 0:
             self.__android_home_tab_url_exclusions = set()
             self.version = '0.28'
+        if cmp(parse_version(self.version), parse_version('0.30')) < 0:
+            for sponsor in self.__sponsors.itervalues():
+                if sponsor.banner:
+                    try:
+                        pngdata = io.BytesIO()
+                        Image.open(io.BytesIO(base64.b64decode(sponsor.banner))).save(pngdata, 'png')
+                        sponsor.banner = base64.b64encode(pngdata.getvalue())
+                    except Exception as e:
+                        print('Corrupt banner image found for sponsor %s; unable to convert' % sponsor.id)
+            self.version = '0.30'
+
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -851,9 +864,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def set_sponsor_banner(self, name, banner_filename):
         assert(self.is_locked)
         with open(banner_filename, 'rb') as file:
-            banner = base64.b64encode(file.read())
+            banner = file.read()
+        # Ensure that the banner is a PNG
+        assert(banner[:8] == '\x89PNG\r\n\x1a\n')
         sponsor = self.get_sponsor_by_name(name)
-        sponsor.banner = banner
+        sponsor.banner = base64.b64encode(banner)
         sponsor.log('set banner')
         for campaign in sponsor.campaigns:
             for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
@@ -864,9 +879,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def set_sponsor_website_banner(self, name, website_banner_filename, website_banner_link):
         assert(self.is_locked)
         with open(website_banner_filename, 'rb') as file:
-            website_banner = base64.b64encode(file.read())
+            website_banner = file.read()
+        # Ensure that the banner is a PNG
+        assert(banner[:8] == '\x89PNG\r\n\x1a\n')
         sponsor = self.get_sponsor_by_name(name)
-        sponsor.website_banner = website_banner
+        sponsor.website_banner = base64.b64encode(website_banner)
         sponsor.website_banner_link = website_banner_link
         self.__deploy_website_required_for_sponsors.add(sponsor.id)
         sponsor.log('set website_banner, marked for publish')
