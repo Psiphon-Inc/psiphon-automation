@@ -2254,7 +2254,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         psi_ops_deploy.deploy_routes_to_hosts(self.__hosts.values())
 
     def update_external_signed_routes(self):
-        assert(self.is_locked)  # (host.log is called by deploy)
         psi_routes.make_signed_routes(
                 self.get_routes_signing_key_pair().pem_key_pair,
                 self.get_routes_signing_key_pair().password)
