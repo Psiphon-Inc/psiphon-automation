@@ -1937,7 +1937,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         split_tunnel_dns_server = '8.8.4.4';  # TODO get it from psinet?
 
-        split_tunnel_url_format = 'https://s3.amazonaws.com/psiphon/routes/%%s.zlib.json'; # TODO get it from psi_ops_s3
+        split_tunnel_url_format = 'https://s3.amazonaws.com/psiphon/routes/%%s.route.zlib.json'; # TODO get it from psi_ops_s3
 
         builders = {
             CLIENT_PLATFORM_WINDOWS: psi_ops_build_windows.build_client,
