@@ -2261,7 +2261,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         psi_ops_s3.upload_signed_routes(
                 self.__aws_account,
                 psi_routes.GEO_ROUTES_ROOT, 
-                psi_routes.GEO_ROUTES_EXTENSION)
+                psi_routes.GEO_ROUTES_SIGNED_EXTENSION)
 
     def push_stats_config(self):
         assert(self.is_locked)
