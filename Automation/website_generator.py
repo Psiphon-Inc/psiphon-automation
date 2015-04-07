@@ -23,6 +23,7 @@ import errno
 
 
 WEBSITE_DIR = '../Website'
+WEBSITE_PLUGINS_DIR = 'plugins'
 
 DOCPAD_ENV = 'production,static'
 
@@ -48,7 +49,16 @@ def generate(dest_dir):
     try:
         # using check_output to suppress output
 
+        # Install root-level dependencies
         subprocess.check_output('npm install', shell=True, stderr=subprocess.STDOUT)
+
+        # Install plugin dependencies
+        cwd = os.getcwd(os.path.join('.', WEBSITE_PLUGINS_DIR))
+        for plugin in os.listdir():
+            os.chdir(os.path.join('.', WEBSITE_PLUGINS_DIR, plugin))
+            subprocess.check_output('npm install', shell=True, stderr=subprocess.STDOUT)
+            os.chdir(cwd)
+
         subprocess.check_output('docpad clean --env %s --out "%s"' % (DOCPAD_ENV, dest_dir),
                                 shell=True, stderr=subprocess.STDOUT)
         subprocess.check_output('docpad generate --env %s --out "%s"' % (DOCPAD_ENV, dest_dir),
