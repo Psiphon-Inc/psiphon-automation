@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-import requests
-from .baseapi import BaseAPI
+from .baseapi import BaseAPI, POST, DELETE, PUT
+
 
 class Record(BaseAPI):
     def __init__(self, domain_name=None, *args, **kwargs):
@@ -29,17 +29,17 @@ class Record(BaseAPI):
             Create a record for a domain
         """
         input_params = {
-                "type": self.type,
-                "data": self.data,
-                "name": self.name,
-                "priority": self.priority,
-                "port": self.port,
-                "weight": self.weight
-            }
+            "type": self.type,
+            "data": self.data,
+            "name": self.name,
+            "priority": self.priority,
+            "port": self.port,
+            "weight": self.weight
+        }
 
         data = self.get_data(
-            "domains/%s/records/%s" % (self.domain, self.id),
-            type="POST",
+            "domains/%s/records" % (self.domain),
+            type=POST,
             params=input_params,
         )
 
@@ -52,7 +52,7 @@ class Record(BaseAPI):
         """
         return self.get_data(
             "domains/%s/records/%s" % (self.domain, self.id),
-            type="DELETE",
+            type=DELETE,
         )
 
     def save(self):
@@ -69,7 +69,7 @@ class Record(BaseAPI):
         }
         return self.get_data(
             "domains/%s/records/%s" % (self.domain, self.id),
-            type="PUT",
+            type=PUT,
             params=data
         )
 
@@ -79,9 +79,9 @@ class Record(BaseAPI):
         if record:
             record = record[u'domain_record']
 
-            #Setting the attribute values
+            # Setting the attribute values
             for attr in record.keys():
-                setattr(self,attr,record[attr])
+                setattr(self, attr, record[attr])
 
     def __str__(self):
         return "%s %s" % (self.id, self.domain)
