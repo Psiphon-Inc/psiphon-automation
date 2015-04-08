@@ -1892,6 +1892,17 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__upgrade_package_signing_key_pair.pem_key_pair.encode('ascii', 'ignore')
         return self.__upgrade_package_signing_key_pair
 
+    def __split_tunnel_url_format(self):
+        return 'https://s3.amazonaws.com/psiphon/routes/%s.route.zlib.json' # TODO get it from psi_ops_s3
+
+    def __split_tunnel_signature_public_key(self):
+        return psi_ops_crypto_tools.get_base64_der_public_key(
+                self.get_routes_signing_key_pair().pem_key_pair,
+                self.get_routes_signing_key_pair().password)
+
+    def __split_tunnel_dns_server(self):
+        return '8.8.4.4'  # TODO get it from psinet?
+
     def build(
             self,
             propagation_channel_name,
@@ -1957,6 +1968,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         get_new_version_email,
                         faq_url,
                         privacy_policy_url,
+                        self.__split_tunnel_url_format(),
+                        self.__split_tunnel_signature_public_key(),
+                        self.__split_tunnel_dns_server(),
                         self.__client_versions[platform][-1].version if self.__client_versions[platform] else 0,
                         propagation_channel.propagator_managed_upgrades,
                         test,
@@ -2979,6 +2993,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 server.web_server_port,
                                 server.web_server_secret,
                                 [self.__get_encoded_server_entry(server)],
+                                self.__split_tunnel_url_format(),
+                                self.__split_tunnel_signature_public_key(),
+                                self.__split_tunnel_dns_server(),
                                 version,
                                 [server.egress_ip_address],
                                 test_propagation_channel_id,
@@ -3022,6 +3039,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     '',         # get_new_version_email
                                     '',         # faq_url
                                     '',         # privacy_policy_url
+                                    self.__split_tunnel_url_format(),
+                                    self.__split_tunnel_signature_public_key(),
+                                    self.__split_tunnel_dns_server(),
                                     version,
                                     False,
                                     False)
