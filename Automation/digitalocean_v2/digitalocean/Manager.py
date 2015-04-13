@@ -7,6 +7,7 @@ from .Image import Image
 from .Domain import Domain
 from .SSHKey import SSHKey
 from .Action import Action
+from .Account import Account
 
 
 class Manager(BaseAPI):
@@ -15,13 +16,20 @@ class Manager(BaseAPI):
 
     def get_data(self, *args, **kwargs):
         """
-            Customized version of get_data to perform __check_actions_in_data
-        """
-        data = super(Manager, self).get_data(*args, **kwargs)
+            Customized version of get_data to perform __check_actions_in_data.
 
+            The default amount of elements per page defined is 200 as explained
+            here: https://github.com/koalalorenzo/python-digitalocean/pull/78
+        """
         params = {}
-        if kwargs.has_key("params"):
-            params = kwargs['params']
+        if "params" in kwargs:
+            params = kwargs["params"]
+
+        if "per_page" not in params:
+            params["per_page"] = 200
+
+        kwargs["params"] = params
+        data = super(Manager, self).get_data(*args, **kwargs)
         unpaged_data = self.__deal_with_pagination(args[0], data, params)
 
         return unpaged_data
@@ -39,15 +47,21 @@ class Manager(BaseAPI):
                 params.update({'page': page})
                 new_data = super(Manager, self).get_data(url, params=params)
 
-                more_values = new_data.values()[0]
+                more_values = list(new_data.values())[0]
                 for value in more_values:
                     values.append(value)
             data = {}
             data[key] = values
-        except KeyError: # No pages.
+        except KeyError:  # No pages.
             pass
 
         return data
+
+    def get_account(self):
+        """
+            Returns an Account object.
+        """
+        return Account.get_object(api_token=self.token)
 
     def get_all_regions(self):
         """
