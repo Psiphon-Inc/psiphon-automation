@@ -47,7 +47,7 @@
 <h1>Psiphon 3 Ansible Stats</h1>
 <%
 
-start_time, end_time, playbook_file, hosts_processed, hosts_dark, hosts_failed, hosts_changed, hosts_skipped, hosts_summar, hosts_output, hosts_errs, hosts_info = data
+start_time, end_time, playbook_file, hosts_processed, hosts_dark, hosts_failed, hosts_changed, hosts_skipped, hosts_summary, hosts_output, hosts_errs, hosts_info = data
 
 import datetime
 import operator
@@ -84,6 +84,7 @@ endif
 </ul>
 
 <hr>
+ 
 
 <h3>Unreachable Hosts: ${count_unreachable}</h3>
 % if count_unreachable > 0:
@@ -124,7 +125,6 @@ endif
 % endif
 <hr>
 
-
 % if len(hosts_output) > 0:
 <h3>Host STDOUT: ${len(hosts_output)}</h3>
     <table id="stdoutTable">
@@ -154,6 +154,18 @@ endif
 % endif
 
 <hr width=100%>
+
+<h3>Changed Hosts: ${count_changed}</h3>
+% if count_changed > 0:
+<p>${hosts_changed}</p>
+% endif
+<hr>
+
+<h3>Failed Hosts: ${count_failed}</h3>
+% if count_failed> 0:
+<p>${hosts_failed}</p>
+% endif
+<hr>
 
 
 <h3>Processed Hosts: ${count_processed}</h3>

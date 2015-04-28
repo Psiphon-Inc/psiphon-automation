@@ -182,17 +182,20 @@ def process_playbook_vars_cache(playbook, keywords=['response', 'cmd_result']):
     
     if len(cache) > 0:
         for host in cache:
-            keyword = [k for k in keywords if k in cache[host]]
-            
-            if len(keyword) == 0:
-                continue
-            
-            keyword = keyword[0]
-            if keyword in cache[host]:
-                if cache[host][keyword]['stderr']:
-                    host_errs[host] = cache[host]
-                elif cache[host][keyword]['stdout']:
-                    host_output[host] = cache[host]
+            for keyword in cache[host].keys():
+
+                if len(keyword) == 0:
+                    continue
+                
+                if keyword in cache[host]:
+                    for k in cache[host][keyword].keys():
+                        if k == 'stat':
+                            host_output[host] = cache[host]
+                            host_output[host][keyword]['stdout_lines'] = ['size: ' + str(cache[host][keyword][k]['size'])]
+                        if k == 'stderr':
+                            host_errs[host] = cache[host]
+                        elif k == 'stdout':
+                            host_output[host] = cache[host]
     
     return (host_output, host_errs)
 
