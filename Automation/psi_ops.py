@@ -3186,6 +3186,11 @@ def test(tests):
     psinet.test_servers(tests)
 
 
+def update_external_signed_routes():
+    psinet = PsiphonNetwork.load(lock=False)
+    psinet.update_external_signed_routes()
+
+
 def prune_all_propagation_channels():
     psinet = PsiphonNetwork.load(lock=True)
     psinet.show_status()
@@ -3216,6 +3221,8 @@ if __name__ == "__main__":
     parser.add_option("-t", "--test", dest="test", action="append",
                       choices=('handshake', 'VPN', 'OSSH', 'SSH'),
                       help="specify once for each of: handshake, VPN, OSSH, SSH")
+    parser.add_option("-u", "--update-routes", dest="updateroutes", action="store_true",
+                      help="update external signed routes files")
     parser.add_option("-p", "--prune", dest="prune", action="store_true",
                       help="prune all propagation channels")
     parser.add_option("-n", "--new-servers", dest="channel", action="store", type="string",
@@ -3225,6 +3232,8 @@ if __name__ == "__main__":
         replace_propagation_channel_servers(options.channel)
     elif options.prune:
         prune_all_propagation_channels()
+    elif options.updateroutes:
+        update_external_signed_routes()
     elif options.test:
         test(options.test)
     elif options.readonly:
