@@ -34,7 +34,9 @@ import psi_feedback_templates
 
 DEFAULT_LANGS = {'ar': 'ar', 'az': 'az', 'es': 'es', 'fa': 'fa', 'kk': 'kk',
                  'ru': 'ru', 'th': 'th', 'tk': 'tk', 'vi': 'vi', 'zh': 'zh',
-                 'ug': 'ug@Latn', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr'}
+                 'ug': 'ug@Latn', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr',
+                 'de': 'de', 'ko': 'ko', 'fi_FI': 'fi', 'el_GR': 'el',
+                 'hr': 'hr', 'pt_PT': 'pt_PT', 'pt_BR': 'pt_BR'}
 # Transifex does not support multiple character sets for Uzbek, but
 # Psiphon supports both uz@Latn and uz@cyrillic. So we're going to
 # use "Uzbek" ("uz") for uz@Latn and "Klingon" ("tlh") for uz@cyrillic.
@@ -54,7 +56,7 @@ known_resources = \
     ['android-app-strings', 'android-app-browser-strings',
      'email-template-strings', 'feedback-template-strings',
      'android-library-strings', 'feedback-auto-responses', 'website-strings',
-     'store-assets']
+     'store-assets', 'windows-client-strings']
 
 
 def process_android_app_strings():
@@ -136,7 +138,8 @@ def process_website_strings():
     process_resource('website-strings',
                      lambda lang: '../Website/_locales/%s/messages.json' % lang,
                      None,
-                     bom=False)
+                     bom=False,
+                     skip_untranslated=True)
 
 
 def process_store_assets():

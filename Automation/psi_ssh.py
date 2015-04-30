@@ -17,7 +17,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import ssh
 import base64
 import os
 import sys
@@ -25,6 +24,11 @@ import StringIO
 import socket
 import time
 
+try:
+    import paramiko as ssh
+except ImportError as error:
+    print error
+    import ssh
 
 # SSH sessions are attempted soon after linodes are started.  We don't know when the ssh service
 # will be available so we can try every few seconds for up to a minute.
