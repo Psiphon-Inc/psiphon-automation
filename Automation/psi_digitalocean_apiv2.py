@@ -58,7 +58,9 @@ def get_datacenter_region(region):
         ams3 Amsterdam 3
         fra1 Frankfurt 1
     '''
-    if 'nyc' or 'sfo' in region:
+    if 'nyc' in region:
+        return 'US'
+    if 'sfo' in region:
         return 'US'
     if 'ams' in region:
         return 'NL'
