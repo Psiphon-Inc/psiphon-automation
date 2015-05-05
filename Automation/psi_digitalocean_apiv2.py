@@ -56,8 +56,11 @@ def get_datacenter_region(region):
         lon1 London 1
         nyc3 New York 3
         ams3 Amsterdam 3
+        fra1 Frankfurt 1
     '''
-    if 'nyc' or 'sfo' in region:
+    if 'nyc' in region:
+        return 'US'
+    if 'sfo' in region:
         return 'US'
     if 'ams' in region:
         return 'NL'
@@ -65,6 +68,8 @@ def get_datacenter_region(region):
         return 'SG'
     if 'lon' in region:
         return 'GB'
+    if 'fra' in region:
+        return 'DE'
     return ''
 
 def wait_on_action(do_mgr=None, droplet=None, action_id=None, interval=10, 
@@ -118,7 +123,7 @@ def transfer_image_to_region(do_mgr = None, image_id=None, regions=list()):
         
         failed_transfers = list()
         for location in transfer_results:
-            if not wait_on_action(do_mgr, None, transfer_results[location]['action']['id'], 
+            if not wait_on_action(do_mgr, droplet, transfer_results[location]['action']['id'], 
                                   300, 'transfer', 'completed'):
                 failed_transfers.append(location)
         
@@ -126,7 +131,7 @@ def transfer_image_to_region(do_mgr = None, image_id=None, regions=list()):
     except Exception as e:
         raise
 
-def setup_new_server(digitalocean_account, droplet):
+def setup_new_server(digitalocean_account, droplet, psinet):
     try:
         new_root_password = psi_utils.generate_password()
         new_stats_password = psi_utils.generate_password()

@@ -56,7 +56,7 @@ known_resources = \
     ['android-app-strings', 'android-app-browser-strings',
      'email-template-strings', 'feedback-template-strings',
      'android-library-strings', 'feedback-auto-responses', 'website-strings',
-     'store-assets']
+     'store-assets', 'windows-client-strings']
 
 
 def process_android_app_strings():

@@ -53,8 +53,8 @@ def generate(dest_dir):
         subprocess.check_output('npm install', shell=True, stderr=subprocess.STDOUT)
 
         # Install plugin dependencies
-        cwd = os.getcwd(os.path.join('.', WEBSITE_PLUGINS_DIR))
-        for plugin in os.listdir():
+        cwd = os.getcwd()
+        for plugin in os.listdir(os.path.join('.', WEBSITE_PLUGINS_DIR)):
             os.chdir(os.path.join('.', WEBSITE_PLUGINS_DIR, plugin))
             subprocess.check_output('npm install', shell=True, stderr=subprocess.STDOUT)
             os.chdir(cwd)
