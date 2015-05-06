@@ -23,6 +23,7 @@ import subprocess
 import time
 import random
 import copy
+import shutil
 from functools import wraps
 try:
     import win32ui
@@ -55,6 +56,8 @@ if os.path.isfile('psi_data_config.py'):
 REGISTRY_PRODUCT_KEY = 'SOFTWARE\\Psiphon3'
 REGISTRY_TRANSPORT_VALUE = 'Transport'
 REGISTRY_SPLIT_TUNNEL_VALUE = 'SplitTunnel'
+APPDATA_DIR = os.path.join(os.environ['APPDATA'], 'Psiphon3')
+APPDATA_BACKUP_DIR = os.path.join(os.environ['APPDATA'], 'Psiphon3.bak')
 
 
 def retry_on_exception_decorator(function):
@@ -131,6 +134,10 @@ def __test_server(executable_path, transport, encoded_server_list, expected_egre
         _winreg.SetValueEx(reg_key, REGISTRY_SPLIT_TUNNEL_VALUE, None, _winreg.REG_DWORD, 1 if split_tunnel_mode else 0)
         servers_value, servers_type = _winreg.QueryValueEx(reg_key, servers_registry_value)
         _winreg.SetValueEx(reg_key, servers_registry_value, None, _winreg.REG_SZ, '\n'.join(encoded_server_list))
+        # Move appdata to clear it
+        if os.path.exists(APPDATA_BACKUP_DIR):
+            shutil.rmtree(APPDATA_BACKUP_DIR)
+        os.rename(APPDATA_DIR, APPDATA_BACKUP_DIR)
 
         proc = subprocess.Popen([executable_path])
 
@@ -180,9 +187,15 @@ def __test_server(executable_path, transport, encoded_server_list, expected_egre
             print e
         if proc:
             proc.wait()
+        # Restore appdata
+        if os.path.exists(APPDATA_BACKUP_DIR):
+            if os.path.exists(APPDATA_DIR):
+                shutil.rmtree(APPDATA_DIR)
+            os.rename(APPDATA_BACKUP_DIR, APPDATA_DIR)
 
 
-def test_server(ip_address, capabilities, web_server_port, web_server_secret, encoded_server_list, version,
+def test_server(ip_address, capabilities, web_server_port, web_server_secret, encoded_server_list,
+                split_tunnel_url_format, split_tunnel_signature_public_key, split_tunnel_dns_server, version,
                 expected_egress_ip_addresses, test_propagation_channel_id = '0', test_cases = None, executable_path = None):
 
     local_test_cases = copy.copy(test_cases) if test_cases else ['handshake', 'VPN', 'OSSH', 'SSH']
@@ -222,18 +235,21 @@ def test_server(ip_address, capabilities, web_server_port, web_server_secret, en
                                     None,       # banner
                                     encoded_server_list,
                                     '',         # remote_server_list_signature_public_key
-                                    ('','',''), # remote_server_list_url
+                                    ('','','','',''), # remote_server_list_url
                                     '',         # feedback_encryption_public_key
                                     '',         # feedback_upload_server
                                     '',         # feedback_upload_path
                                     '',         # feedback_upload_server_headers
                                     '',         # info_link_url
                                     '',         # upgrade_signature_public_key
-                                    ('','',''), # upgrade_url
+                                    ('','','','',''), # upgrade_url
                                     '',         # get_new_version_url
                                     '',         # get_new_version_email
                                     '',         # faq_url
                                     '',         # privacy_policy_url
+                                    split_tunnel_url_format,
+                                    split_tunnel_signature_public_key,
+                                    split_tunnel_dns_server,
                                     version,
                                     False,
                                     True)
