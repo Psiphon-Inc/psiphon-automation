@@ -142,7 +142,14 @@ endif
             % if 'response' in hosts_output[c]:
                 <td class="message">
                     % for line in hosts_output[c]['response']['stdout_lines']:
-                        ${line}
+                        <%  
+                            link = ''
+                            if '=>' in line and ',' in line:
+                                line, link = line.split(',', 1)
+                            
+                            if len(link) > 0:
+                                link = "<a href=" + link.strip() + ">link</a>"
+                        %>${line} ${link | n}
                     % endfor
                 </td>
             % endif

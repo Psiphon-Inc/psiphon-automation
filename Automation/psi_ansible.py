@@ -9,6 +9,7 @@ import datetime
 import psi_ops
 import pynliner
 import collections
+import re
 
 import psi_ops_config
 
@@ -148,7 +149,7 @@ def run_playbook(playbook_file=None, inventory=ansible.inventory.Inventory([]),
         playbook_callbacks = ansible.callbacks.PlaybookCallbacks(verbose=verbose)
         stats = ansible.callbacks.AggregateStats()
         runner_callbacks = ansible.callbacks.PlaybookRunnerCallbacks(stats, verbose=verbose)
-            
+
         playbook = ansible.playbook.PlayBook(playbook=playbook_file, 
                 callbacks=playbook_callbacks, runner_callbacks=runner_callbacks, 
                 stats=stats, inventory=inventory)
@@ -165,7 +166,7 @@ def run_playbook(playbook_file=None, inventory=ansible.inventory.Inventory([]),
             
             if 'apt_update' in playbook_file:
                 print playbook_file
-                host_output = process_playbook_apt_update_cache(host_output)
+                host_output = process_playbook_apt_update_cache(host_output, setup_cache)
             
             record = (str(start_time), str(end_time), playbook_file, stats.processed, stats.dark, stats.failures, stats.changed, stats.skipped, res, host_output, host_errs, setup_cache)
             send_mail(record)
@@ -183,7 +184,7 @@ def process_playbook_vars_cache(playbook, keywords=['response', 'cmd_result']):
     if len(cache) > 0:
         for host in cache:
             for keyword in cache[host].keys():
-
+            
                 if len(keyword) == 0:
                     continue
                 
@@ -192,7 +193,7 @@ def process_playbook_vars_cache(playbook, keywords=['response', 'cmd_result']):
                         if k == 'stat':
                             host_output[host] = cache[host]
                             host_output[host][keyword]['stdout_lines'] = ['size: ' + str(cache[host][keyword][k]['size'])]
-                        if k == 'stderr':
+                        if k == 'stderr' and len(cache[host][keyword][k]) > 0:
                             host_errs[host] = cache[host]
                         elif k == 'stdout':
                             host_output[host] = cache[host]
@@ -207,7 +208,7 @@ def process_playbook_setup_cache(playbook):
         setup_cache[host] = playbook.SETUP_CACHE[host]
     return setup_cache
 
-def process_playbook_apt_update_cache(host_output):
+def process_playbook_apt_update_cache(host_output, setup_cache):
     register_var = 'response' # This is the variable set in the ansible playbook and should be handled more gracefully:
                               # register: response
     package_upgrade_line = 'The following packages will be upgraded:'
@@ -222,23 +223,76 @@ def process_playbook_apt_update_cache(host_output):
     for host_id in host_output:
         lines_of_interest = []
         of_interest_flag = False
+        
+        # Check each output line and determine if it should be kept.
         for line in host_output[host_id][register_var]['stdout_lines']:
-            if package_upgrade_line in line:
+            if package_upgrade_line in line:    # Set a flag to denote we want to start keeping lines
                 of_interest_flag = True
+                lines_of_interest.append(line)
                 print line
+                continue
             
             if 'upgrade' and 'newly install' and 'remove' in line: # TODO: Regex probably
                 print line
-                lines_of_interest.insert(0, line)
-                of_interest_flag = False
+                lines_of_interest.insert(0, line)   # Put the summary line first
+                of_interest_flag = False    # Assume we want to discard any further lines
             
-            if of_interest_flag:
+            if of_interest_flag:    # While True, keep the line
+                if setup_cache[host_id]['ansible_distribution'].lower() == 'debian':
+                    line = add_pkg_link(line)
                 lines_of_interest.append(line)
         
         if lines_of_interest > 0:
             host_output[host_id][register_var]['stdout_lines'] = lines_of_interest
     
     return host_output
+
+def add_pkg_link(line):
+    debian_lookup_url = 'http://metadata.ftp-master.debian.org/changelogs/main'
+    pkg = None
+    
+    if '=>' in line:                            # Check for common string in package update
+        new_line = re.sub('[\(\)]', '', line)   # remove unecessary characters
+        new_line = new_line.split(' ')          # split the line into chunks
+        for s in new_line:
+            if s == '':                         # skip empty chunks
+                continue
+            if pkg == None:                     # The package name should be the first non-empty field
+                pkg = s
+            pkg_ver = new_line[-1]              # Get the new package version
+    
+    if pkg != None:
+        changelog_link = debian_lookup_url + '/' + pkg[0] + '/' + pkg + '/' + pkg + '_' + pkg_ver + '_changelog'
+        line = line + ',' + changelog_link
+    
+    return line
+    
+def add_pkg_links(lines_of_interest, host_distro):
+    debian_lookup_url = 'http://metadata.ftp-master.debian.org/changelogs/main'
+    loa = list()
+    
+    for line in lines_of_interest:
+        pkg = None
+        if '=>' in line:                            # Check for common string in package update
+            new_line = re.sub('[\(\)]', '', line)   # remove unecessary characters
+            new_line = new_line.split(' ')          # split the line into chunks
+            for s in new_line:
+                if s == '':                         # skip empty chunks
+                    continue
+                if pkg == None:                     # The package name should be the first non-empty field
+                    pkg = s
+                pkg_ver = new_line[-1]              # Get the new package version
+        
+        if pkg != None:
+            if host_distro.lower() == 'debian':
+                changelog_link = debian_lookup_url + '/' + pkg[0] + '/' + pkg + '/' + pkg + '_' + pkg_ver + '_changelog'
+                loa.append(line + ',' + changelog_link)
+    
+    if len(loa) > 0:
+        return loa
+    else:
+        return lines_of_interest
+
 
 def send_mail(record, subject='PSI Ansible Report', 
               template_filename=MAKO_TEMPLATE):
