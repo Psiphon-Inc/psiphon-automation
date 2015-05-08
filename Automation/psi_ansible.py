@@ -35,11 +35,11 @@ def prepare_linode_base_host(account):
     return base_host
 
 def create_host(host_name=None, host_vars=dict()):
-    """
+    '''
         Create a new host object and return it.
         host_name: String containing IP/name of server
         host_vars: Variables that are set against the host.
-    """
+    '''
     try:
         # Create a new host entry and set variables
         if isinstance(host_name, basestring):
@@ -55,11 +55,11 @@ def create_host(host_name=None, host_vars=dict()):
     return host
 
 def add_hosts_to_group(hosts, group):
-    """
+    '''
         Add a single or list of Ansible host objects to an Ansible group
         hosts = ansible.inventory.Host
         group = ansible.inventory.group.Group
-    """
+    '''
     try:
         if type(hosts) is ansible.inventory.Host:
             # probably means we only have one host
@@ -74,14 +74,14 @@ def add_hosts_to_group(hosts, group):
 
 def run_against_inventory(inv=ansible.inventory.Inventory([]), 
                           mod_name='ping', mod_args='', pattern='*', forks=10):
-    """
+    '''
         Run a single task against an Inventory.
         inv : Ansible Inventory object
         mod_name : module name
         mod_args : extra arguments for the module
         pattern : hosts or groups to match against
         forks : number of forks for the runner to create (default = 10)
-    """
+    '''
     try:
         # create a runnable task and execute
         runner = ansible.runner.Runner(
@@ -98,10 +98,10 @@ def run_against_inventory(inv=ansible.inventory.Inventory([]),
         raise e
 
 def organize_hosts_by_provider(hosts_list):
-    """
+    '''
         Takes a list of psinet hosts and organizes into provider dictionary objects.
         hosts_list : list of psinet hosts
-    """
+    '''
     hosts_dict = dict()
     try:
         all_hosts = hosts_list
@@ -117,10 +117,10 @@ def organize_hosts_by_provider(hosts_list):
     return hosts_dict
 
 def populate_ansible_hosts(hosts=list()):
-    """
+    '''
         Maps a list of psinet hosts into Ansible Hosts
         hosts : list of psinet hosts
-    """
+    '''
     ansible_hosts = list()
     try:
         for host in hosts:
@@ -138,12 +138,12 @@ def populate_ansible_hosts(hosts=list()):
 
 def run_playbook(playbook_file=None, inventory=ansible.inventory.Inventory([]), 
                  verbose=psi_ops_config.ANSIBLE_VERBOSE_LEVEL, email_stats=True):
-    """
+    '''
         Runs a playbook file and returns the result
         playbook_file : Playbook file to open and run (String)
         inventory : Ansible inventory to run playbook against
         verbose : Output verbosity
-    """
+    '''
     try:
         start_time = datetime.datetime.now()
         playbook_callbacks = ansible.callbacks.PlaybookCallbacks(verbose=verbose)
@@ -247,7 +247,10 @@ def process_playbook_apt_update_cache(host_output, setup_cache):
     
     return host_output
 
+# Adds a package link to the end of a package string.
 def add_pkg_link(line):
+    '''Returns a modified string that includes a URL to the package.'''
+    
     debian_lookup_url = 'http://metadata.ftp-master.debian.org/changelogs/main'
     pkg = None
     
@@ -262,38 +265,13 @@ def add_pkg_link(line):
             pkg_ver = new_line[-1]              # Get the new package version
     
     if pkg != None:
+        # Format: HTTP://url/<pkg first char>/<pkg name>/<pkg name>_<pkg version>_changelog
         changelog_link = debian_lookup_url + '/' + pkg[0] + '/' + pkg + '/' + pkg + '_' + pkg_ver + '_changelog'
         line = line + ',' + changelog_link
     
     return line
-    
-def add_pkg_links(lines_of_interest, host_distro):
-    debian_lookup_url = 'http://metadata.ftp-master.debian.org/changelogs/main'
-    loa = list()
-    
-    for line in lines_of_interest:
-        pkg = None
-        if '=>' in line:                            # Check for common string in package update
-            new_line = re.sub('[\(\)]', '', line)   # remove unecessary characters
-            new_line = new_line.split(' ')          # split the line into chunks
-            for s in new_line:
-                if s == '':                         # skip empty chunks
-                    continue
-                if pkg == None:                     # The package name should be the first non-empty field
-                    pkg = s
-                pkg_ver = new_line[-1]              # Get the new package version
-        
-        if pkg != None:
-            if host_distro.lower() == 'debian':
-                changelog_link = debian_lookup_url + '/' + pkg[0] + '/' + pkg + '/' + pkg + '_' + pkg_ver + '_changelog'
-                loa.append(line + ',' + changelog_link)
-    
-    if len(loa) > 0:
-        return loa
-    else:
-        return lines_of_interest
 
-
+# Formats record using a mako template and sends email
 def send_mail(record, subject='PSI Ansible Report', 
               template_filename=MAKO_TEMPLATE):
     
@@ -314,10 +292,10 @@ def send_mail(record, subject='PSI Ansible Report',
     sender.send(config['emailRecipients'], config['emailUsername'], subject, None, rendered)
 
 def refresh_base_images(providers=['linode']):
-    """
+    '''
         Updates providers base images
         providers : a list of providers so they can be selectively updated
-    """
+    '''
     try:
         psinet = psi_ops.PsiphonNetwork.load_from_file(PSI_OPS_DB_FILENAME)
         linode_base_host = prepare_linode_base_host(psinet._PsiphonNetwork__linode_account)
@@ -335,9 +313,9 @@ def refresh_base_images(providers=['linode']):
         raise e
 
 def update_dat():
-    """
+    '''
         Calls external script to update dat file.
-    """
+    '''
     print "Updating psi_ops.dat"
     import psi_update_dat
     psi_update_dat.main()
