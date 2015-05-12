@@ -43,17 +43,20 @@ def wait_while_condition(condition, max_wait_seconds, description):
 def get_region(datacenter_id):
     # from linode_api.avail_datacenters():
     # [{u'DATACENTERID': 2, u'LOCATION': u'Dallas, TX, USA'},
-    # {u'DATACENTERID': 3, u'LOCATION': u'Fremont, CA, USA'},
-    # {u'DATACENTERID': 4, u'LOCATION': u'Atlanta, GA, USA'},
+    #  {u'DATACENTERID': 3, u'LOCATION': u'Fremont, CA, USA'},
+    #  {u'DATACENTERID': 4, u'LOCATION': u'Atlanta, GA, USA'},
     #  {u'DATACENTERID': 6, u'LOCATION': u'Newark, NJ, USA'},
     #  {u'DATACENTERID': 7, u'LOCATION': u'London, England, UK'},
     #  {u'DATACENTERID': 8, u'LOCATION': u'Tokyo, JP'}]
+    #  {u'DATACENTERID': 9, u'LOCATION': u'Singapore, SG', u'ABBR': u'singapore'}
     if datacenter_id in [2, 3, 4, 6]:
         return 'US'
     if datacenter_id in [7]:
         return 'GB'
     if datacenter_id in [8]:
         return 'JP'
+    if datacenter_id in [9]:
+        return 'SG'
     return ''
 
 def create_linode(linode_api):
