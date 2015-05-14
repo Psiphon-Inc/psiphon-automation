@@ -82,6 +82,9 @@ DOWNLOAD_SITE_SPONSOR_BANNER_KEY_NAME = 'images/sponsor-banner.png'
 DOWNLOAD_SITE_SPONSOR_BANNER_LINK_KEY_NAME = 'images/sponsor-banner-link.json'
 DOWNLOAD_SITE_EMAIL_ADDRESS_KEY_NAME = 'images/sponsor-email.json'
 
+ROUTES_BUCKET_ID = 'psiphon'
+ROUTES_KEY_PREFIX = 'routes'
+
 _IGNORE_FILENAMES = ('Thumbs.db',)
 
 #==============================================================================
@@ -263,7 +266,7 @@ def get_s3_bucket_privacy_policy_url(bucket_id, lang='en'):
         URL (str): Absolute URL.
     """
 
-    page = '%s/faq.html#information-collected' % (lang,)
+    page = '%s/privacy.html#information-collected' % (lang,)
     url_split = get_s3_bucket_resource_url_split(bucket_id, page)
     return urlparse.urlunsplit(url_split)
 
@@ -496,6 +499,25 @@ def make_qr_code(url):
     image.save(stream, 'PNG')
     return stream.getvalue()
 
+def upload_signed_routes(aws_account, routes_dir, file_extension):
+    bucket, key_prefix = _get_s3_bucket_and_prefix(aws_account, ROUTES_BUCKET_ID)
+    try:
+        for root, dirs, files in os.walk(routes_dir):
+            for name in files:
+                if not name.endswith(file_extension):
+                    continue
+                file_path = os.path.abspath(os.path.join(root, name))
+
+                # Get key name without prefix
+                key_name = os.path.relpath(os.path.join(root, name), routes_dir)\
+                        .replace('\\', '/')
+                # Add prefix
+                key_name = _make_full_key_name(ROUTES_KEY_PREFIX, key_name)
+
+                put_file_to_key(bucket, key_name, file_path, True, _progress)
+
+    except:
+        raise
 
 #
 # TESTS ========================================================================

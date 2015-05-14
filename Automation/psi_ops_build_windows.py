@@ -38,8 +38,7 @@ EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, 'Release', 'psiphon.exe')
 BUILDS_ROOT = os.path.join('.', 'Builds', 'Windows')
 BUILD_FILENAME_TEMPLATE = 'psiphon-%s-%s.exe'
 POLIPO_EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', '3rdParty', 'polipo.exe')
-PLONK_EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', '3rdParty', 'plonk.exe')
-MEEK_EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', '3rdParty', 'meek.exe')
+CORE_EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', '3rdParty', 'psiphon-tunnel-core.exe')
 
 FEEDBACK_SOURCE_ROOT = os.path.join('.', 'FeedbackSite')
 FEEDBACK_HTML_SOURCE_PATH = os.path.join(FEEDBACK_SOURCE_ROOT, 'feedback.html')
@@ -78,9 +77,7 @@ def build_client_executable():
         '"%s" sign /t http://timestamp.digicert.com /f "%s" "%s"\n' % (
           signtool_filename, CODE_SIGNING_PFX_FILENAME, POLIPO_EXECUTABLE_FILENAME),
         '"%s" sign /t http://timestamp.digicert.com /f "%s" "%s"\n' % (
-          signtool_filename, CODE_SIGNING_PFX_FILENAME, PLONK_EXECUTABLE_FILENAME),
-        '"%s" sign /t http://timestamp.digicert.com /f "%s" "%s"\n' % (
-          signtool_filename, CODE_SIGNING_PFX_FILENAME, MEEK_EXECUTABLE_FILENAME),
+          signtool_filename, CODE_SIGNING_PFX_FILENAME, CORE_EXECUTABLE_FILENAME),
         'msbuild "%s" /v:quiet /t:Rebuild /p:Configuration=Release\n' % (
           CLIENT_SOLUTION_FILENAME,),
         '"%s" -qq "%s"\n' % (UPX_FILENAME, EXECUTABLE_FILENAME),
@@ -115,6 +112,9 @@ def write_embedded_values(propagation_channel_id,
                           get_new_version_email,
                           faq_url,
                           privacy_policy_url,
+                          split_tunnel_url_format,
+                          split_tunnel_signature_public_key,
+                          split_tunnel_dns_server,
                           ignore_system_server_list=False):
     template = textwrap.dedent('''
         #pragma once
@@ -156,6 +156,10 @@ def write_embedded_values(propagation_channel_id,
         static const char* GET_NEW_VERSION_EMAIL = "%s";
         static const char* FAQ_URL = "%s";
         static const char* DATA_COLLECTION_INFO_URL = "%s";
+
+        static const char* SPLIT_TUNNEL_ROUTES_URL_FORMAT = "%s";
+        static const char* SPLIT_TUNNEL_ROUTES_SIGNATURE_PUBLIC_KEY = "%s";
+        static const char* SPLIT_TUNNEL_DNS_SERVER = "%s";
         ''')
     with open(EMBEDDED_VALUES_FILENAME, 'w') as file:
         file.write(template % (propagation_channel_id,
@@ -183,7 +187,10 @@ def write_embedded_values(propagation_channel_id,
                                get_new_version_url,
                                get_new_version_email,
                                faq_url,
-                               privacy_policy_url))
+                               privacy_policy_url,
+                               split_tunnel_url_format,
+                               split_tunnel_signature_public_key,
+                               split_tunnel_dns_server))
 
 
 def build_client(
@@ -204,6 +211,9 @@ def build_client(
         get_new_version_email,
         faq_url,
         privacy_policy_url,
+        split_tunnel_url_format,
+        split_tunnel_signature_public_key,
+        split_tunnel_dns_server,
         version,
         propagator_managed_upgrades,
         test=False,
@@ -216,8 +226,7 @@ def build_client(
              EMAIL_BANNER_FILENAME,
              FEEDBACK_HTML_PATH,
              POLIPO_EXECUTABLE_FILENAME,
-             PLONK_EXECUTABLE_FILENAME,
-             MEEK_EXECUTABLE_FILENAME])
+             CORE_EXECUTABLE_FILENAME])
 
         # Copy custom email banner from Data to source tree
         # (there's only one custom email banner for all sponsors)
@@ -248,6 +257,9 @@ def build_client(
             get_new_version_email,
             faq_url,
             privacy_policy_url,
+            split_tunnel_url_format,
+            split_tunnel_signature_public_key,
+            split_tunnel_dns_server,
             ignore_system_server_list=test)
 
         # copy feedback.html
