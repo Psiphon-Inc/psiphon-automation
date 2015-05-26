@@ -1533,7 +1533,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
                             self.__deploy_builds_required_for_campaigns[platform].add(
                                     (campaign.propagation_channel_id, sponsor.id))
-                        campaign.log('marked for build and publish (new embedded server)')
+                        # Don't log this, too much noise
+                        #campaign.log('marked for build and publish (new embedded server)')
 
         for new_server_number in range(len(server_infos)):
             server_info = server_infos[new_server_number]
@@ -2171,7 +2172,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                          (upgrade_filename, s3_upgrade_resource_name)],
                         remote_server_list,
                         campaign.s3_bucket_name)
-                    campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
+                    # Don't log this, too much noise
+                    #campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
 
                     if campaign.propagation_mechanism_type == 'twitter':
                         message = psi_templates.get_tweet_message(campaign.s3_bucket_name)
@@ -2180,7 +2182,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     elif campaign.propagation_mechanism_type == 'email-autoresponder':
                         if not self.__deploy_email_config_required:
                             self.__deploy_email_config_required = True
-                            campaign.log('email push scheduled')
+                            # Don't log this, too much noise
+                            #campaign.log('email push scheduled')
 
                 # NOTE: before we added remote server lists, it used to be that
                 # multiple campaigns with different buckets but the same prop/sponsor IDs
@@ -2351,8 +2354,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         ],
                          'send_method': 'SMTP'
                         })
-
-                    campaign.log('configuring email')
+                    # Don't log this, too much noise
+                    #campaign.log('configuring email')
 
         psi_ops_s3.put_string_to_key_in_bucket(self.__aws_account,
                                                self.__automation_bucket,
