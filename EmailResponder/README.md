@@ -46,25 +46,25 @@ We could probably use Postfix's [virtual mailbox](http://www.postfix.org/VIRTUAL
 
     Add `/usr/sbin/nologin` to `/etc/shells`:
 
-   ```
-   sudo useradd -s /usr/sbin/nologin mail_responder
-   ```
+    ```
+    sudo useradd -s /usr/sbin/nologin mail_responder
+    ```
 
-   Also create a home directory for the user:
+    Also create a home directory for the user:
 
-   ```
-   sudo mkdir /home/mail_responder
-   sudo chown mail_responder:mail_responder /home/mail_responder
-   ```
+    ```
+    sudo mkdir /home/mail_responder
+    sudo chown mail_responder:mail_responder /home/mail_responder
+    ```
 
 4. Create a stub user that will be used for forwarding `support@` emails.
 
-   ```
-   sudo useradd -s /usr/sbin/nologin forwarder
-   sudo mkdir /home/forwarder
-   sudo chown forwarder:forwarder /home/forwarder
-   sudo -uforwarder sh -c 'echo "oursupportaddress@example.com" > /home/forwarder/.forward'
-   ```
+    ```
+    sudo useradd -s /usr/sbin/nologin forwarder
+    sudo mkdir /home/forwarder
+    sudo chown forwarder:forwarder /home/forwarder
+    sudo -uforwarder sh -c 'echo "oursupportaddress@example.com" > /home/forwarder/.forward'
+    ```
 
 5. Install NTP, otherwise it's possible for the clock to drift and SES requests
    to be rejected. (This has happened.)
