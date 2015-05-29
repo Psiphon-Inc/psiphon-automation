@@ -156,9 +156,15 @@ allowed to access the SSH port.
 
    * Reload aliases map: `sudo newaliases`
 
-3. DEFUNCT, because there's too much noise: Add `.forward` file for "normal"
-   (probably "ubuntu") user. In the file, put the email address that error mail
-   should go to.
+3. Generate a unique 2048-bit Diffie-Hellman group. This helps mitigate crypto threats such as [Logjam](https://weakdh.org/). Go get a coffee while it's generating.
+
+    ```
+    sudo su
+    mkdir -p /etc/ssl/private
+    chmod 710 /etc/ssl/private
+    openssl dhparam -out /etc/ssl/private/dhparams.pem 2048
+    chmod 600 /etc/ssl/private/dhparams.pem
+    ```
 
 4. Edit `/etc/postfix/main.cf`
 
@@ -583,6 +589,31 @@ smtp_tls_security_level=verify
 # Handy for debugging:
 #smtp_tls_loglevel=2
 
+# Avoid POODLE (etc.) vulnerabilities by forbidding SSLv2 and SSLv3
+smtpd_tls_mandatory_protocols = !SSLv2, !SSLv3
+smtpd_tls_protocols = !SSLv2, !SSLv3
+smtp_tls_mandatory_protocols = $smtpd_tls_mandatory_protocols
+smtp_tls_protocols = $smtpd_tls_protocols
+
+# Prevent weak cipher use
+smtpd_tls_mandatory_exclude_ciphers = aNULL, eNULL, EXPORT, DES, RC4, MD5, PSK, aECDH, EDH-DSS-DES-CBC3-SHA, EDH-RSA-DES-CDC3-SHA, KRB5-DE5, CBC3-SHA
+smtpd_tls_exclude_ciphers = $smtpd_tls_mandatory_exclude_ciphers
+
+# Use "high"-security cipherss, and use our preference order, rather than the client's
+tls_preempt_cipherlist = yes
+smtpd_tls_mandatory_ciphers = high
+smtp_tls_mandatory_ciphers = $smtpd_tls_mandatory_ciphers
+smtpd_tls_ciphers = $smtpd_tls_mandatory_ciphers
+smtp_tls_ciphers = $smtp_tls_mandatory_ciphers
+
+# Use a custom 2048-bit DH group (anti-Logjam-ish). 
+# The params file should be generated with:
+# mkdir -p /etc/ssl/private
+# chmod 710 /etc/ssl/private
+# openssl dhparam -out /etc/ssl/private/dhparams.pem 2048
+# chmod 600 /etc/ssl/private/dhparams.pem
+smtpd_tls_dh1024_param_file = /etc/ssl/private/dhparams.pem
+
 # /TLS
 
 myhostname = localhost
@@ -596,7 +627,8 @@ mailbox_size_limit = 0
 recipient_delimiter = +
 inet_interfaces = all
 
-# PSIPHON ADDITIONS
+# Prevent attempts to use IPv6. Avoids unnecessary failed attempts.
+inet_protocols = ipv4
 
 # Notify postmaster of all errors
 # Note that if this results in too much pointless mail, we can just remove these values.
