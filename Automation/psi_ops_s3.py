@@ -266,7 +266,7 @@ def get_s3_bucket_privacy_policy_url(bucket_id, lang='en'):
         URL (str): Absolute URL.
     """
 
-    page = '%s/faq.html#information-collected' % (lang,)
+    page = '%s/privacy.html#information-collected' % (lang,)
     url_split = get_s3_bucket_resource_url_split(bucket_id, page)
     return urlparse.urlunsplit(url_split)
 
