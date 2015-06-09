@@ -161,7 +161,7 @@ def send_mail(record, subject='Psiphon Process Stats Email',
         raise
 
     template_lookup = TemplateLookup(directories=[os.path.dirname(os.path.abspath('__file__'))])
-    template = Template(filename=template_filename, default_filters=['unicode', 'h'], lookup=template_lookup)
+    template = Template(filename=template_filename, default_filters=['decode.utf8', 'unicode', 'h'], lookup=template_lookup)
 
     try:
         rendered = template.render(data=record)
