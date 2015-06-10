@@ -63,7 +63,7 @@ class CronCreator(object):
 
     def _maintenance_jobs(self):
         command_id = 'Psiphon: put CloudWatch system metrics'
-        command = "/usr/bin/perl /home/mail_responder/mon-put-instance-data.pl --disk-path=/ --mem-util --mem-used --mem-avail --swap-util --swap-used --disk-space-util --disk-space-used --disk-space-avail --from-cron --auto-scaling --aws-access-key-id=`/bin/sed -n 's/aws_access_key_id = \\(.*\\)/\\1/p' /etc/boto.cfg` --aws-secret-key=`/bin/sed -n 's/aws_secret_access_key = \\(.*\\)/\\1/p' /etc/boto.cfg`"
+        command = "cd /home/mail_responder && /usr/bin/perl ./mon-put-instance-data.pl --disk-path=/ --mem-util --mem-used --mem-avail --swap-util --swap-used --disk-space-util --disk-space-used --disk-space-avail --from-cron --auto-scaling --aws-access-key-id=`/bin/sed -n 's/aws_access_key_id = \\(.*\\)/\\1/p' /etc/boto.cfg` --aws-secret-key=`/bin/sed -n 's/aws_secret_access_key = \\(.*\\)/\\1/p' /etc/boto.cfg`"
 
         self._delete_commands(self.normal_tab, command_id)
 

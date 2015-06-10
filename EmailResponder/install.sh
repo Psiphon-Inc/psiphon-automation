@@ -32,7 +32,7 @@ echo "Copying source files..."
 # Copy the simple files
 sudo cp blacklist.py log_processor.py mail_direct.py mail_process.py mail_stats.py \
         aws_helpers.py sendmail.py settings.py conf_pull.py postfix_queue_check.pl \
-        mon-put-instance-data.pl CloudWatchClient.pm \
+        mon-put-instance-data.pl CloudWatchClient.pm AwsSignatureV4.pm \
         ../Automation/psi_ops_s3.py \
         $MAIL_HOME
 
