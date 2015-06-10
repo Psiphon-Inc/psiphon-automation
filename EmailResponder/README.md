@@ -37,7 +37,7 @@ We could probably use Postfix's [virtual mailbox](http://www.postfix.org/VIRTUAL
     ```
     sudo apt-get update
     sudo apt-get upgrade
-    sudo apt-get install mercurial python-pip libswitch-perl
+    sudo apt-get install mercurial python-pip libwww-perl libdatetime-perl
     sudo reboot
     ```
 
