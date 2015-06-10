@@ -358,7 +358,7 @@ if __name__ == '__main__':
 
     email_body += '</pre>'
 
-    subject = '[MailResponder] Stats'
+    subject = '%s Stats' % (settings.STATS_SUBJECT_TAG,)
 
     raw_email = sendmail.create_raw_email(settings.STATS_RECIPIENT_ADDRESS,
                                           settings.STATS_SENDER_ADDRESS,
