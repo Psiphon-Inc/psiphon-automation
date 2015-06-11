@@ -56,8 +56,11 @@ def get_datacenter_region(region):
         lon1 London 1
         nyc3 New York 3
         ams3 Amsterdam 3
+        fra1 Frankfurt 1
     '''
-    if 'nyc' or 'sfo' in region:
+    if 'nyc' in region:
+        return 'US'
+    if 'sfo' in region:
         return 'US'
     if 'ams' in region:
         return 'NL'
@@ -65,6 +68,8 @@ def get_datacenter_region(region):
         return 'SG'
     if 'lon' in region:
         return 'GB'
+    if 'fra' in region:
+        return 'DE'
     return ''
 
 def wait_on_action(do_mgr=None, droplet=None, action_id=None, interval=10, 
@@ -118,7 +123,7 @@ def transfer_image_to_region(do_mgr = None, image_id=None, regions=list()):
         
         failed_transfers = list()
         for location in transfer_results:
-            if not wait_on_action(do_mgr, None, transfer_results[location]['action']['id'], 
+            if not wait_on_action(do_mgr, droplet, transfer_results[location]['action']['id'], 
                                   300, 'transfer', 'completed'):
                 failed_transfers.append(location)
         
@@ -126,7 +131,7 @@ def transfer_image_to_region(do_mgr = None, image_id=None, regions=list()):
     except Exception as e:
         raise
 
-def setup_new_server(digitalocean_account, droplet):
+def setup_new_server(digitalocean_account, droplet, psinet):
     try:
         new_root_password = psi_utils.generate_password()
         new_stats_password = psi_utils.generate_password()
@@ -222,9 +227,10 @@ def update_image(digitalocean_account=None, droplet_id=None, droplet_name=None, 
                                        region=Droplet.region,
                                        image=Droplet.image,
                                        size=Droplet.size,
+                                       ssh_keys=[int(digitalocean_account.ssh_key_template_id)],
                                        backups=False)
 
-        droplet.create(ssh_keys=str(digitalocean_account.ssh_key_template_id))
+        droplet.create()
 
         if not wait_on_action(do_mgr, droplet, action_id=None, interval=30, 
                               action_type='create', action_status='completed'):
@@ -311,7 +317,7 @@ def launch_new_server(digitalocean_account, _):
         if not unicode(digitalocean_account.base_size_slug) in [unicode(s.slug) for s in droplet_sizes]:
             raise 'Size slug not found'
 
-        Droplet.size = '4gb'
+        Droplet.size = '2gb'
 
         droplet_regions = do_mgr.get_all_regions()
         common_regions = list(set([r.slug for r in droplet_regions if r.available])
@@ -329,9 +335,10 @@ def launch_new_server(digitalocean_account, _):
                                        region=Droplet.region,
                                        image=Droplet.image,
                                        size=Droplet.size,
+                                       ssh_keys=[int(digitalocean_account.ssh_key_template_id)],
                                        backups=False)
 
-        droplet.create(ssh_keys=str(digitalocean_account.ssh_key_template_id))
+        droplet.create()
         if not wait_on_action(do_mgr, droplet, None, 30, 'create', 'completed'):
             raise Exception('Event did not complete in time')
 

@@ -102,7 +102,11 @@ def get_plaintext_attachment_email_content(
         s3_bucket_name,
         windows_attachment_filename,
         android_attachment_filename,
-        languages):
+        languages,
+        platforms):
+    # TODO: new attachment strings per platform
+    if platforms != None:
+        return get_plaintext_email_content(s3_bucket_name, languages)
     bucket_root_url = psi_ops_s3.get_s3_bucket_site_root(s3_bucket_name)
     return get_all_languages_string(
         'plaintext_email_with_attachment',
@@ -116,7 +120,11 @@ def get_html_attachment_email_content(
         s3_bucket_name,
         windows_attachment_filename,
         android_attachment_filename,
-        languages):
+        languages,
+        platforms):
+    # TODO: new attachment strings per platform
+    if platforms != None:
+        return get_html_email_content(s3_bucket_name, languages)
     bucket_root_url = psi_ops_s3.get_s3_bucket_site_root(s3_bucket_name)
     return get_all_languages_string(
         'html_email_with_attachment',

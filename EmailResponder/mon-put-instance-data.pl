@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright 2015 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"). You may not 
 # use this file except in compliance with the License. A copy of the License 
@@ -32,10 +32,11 @@ Description of available options:
   --disk-space-used   Reports allocated disk space in gigabytes.
   --disk-space-avail  Reports available disk space in gigabytes.
   
-  --aggregated[=only]    Adds aggregated metrics for instance type, AMI id, and overall.
-  --auto-scaling[=only]  Adds aggregated metrics for Auto Scaling group.
-                         If =only is specified, reports only aggregated metrics.
-
+  --aggregated[=only]    Adds aggregated metrics for instance type, AMI id, and region.
+                         If =only is specified, does not report individual instance metrics
+  --auto-scaling[=only]  Reports Auto Scaling metrics in addition to instance metrics. 	 
+                         If =only is specified, does not report individual instance metrics
+                         
   --mem-used-incl-cache-buff  Count memory that is cached and in buffers as used.
   --memory-units=UNITS        Specifies units for memory metrics.
   --disk-space-units=UNITS    Specifies units for disk space metrics.
@@ -45,7 +46,7 @@ Description of available options:
   --aws-credential-file=PATH  Specifies the location of the file with AWS credentials.
   --aws-access-key-id=VALUE   Specifies the AWS access key ID to use to identify the caller.
   --aws-secret-key=VALUE      Specifies the AWS secret key to use to sign the request.
-  --aws-iam-role=VALUE        Specifies the IAM role name to provide AWS credentials.
+  --aws-iam-role=VALUE        Specifies the IAM role used to provide AWS credentials.
 
   --from-cron  Specifies that this script is running from cron.
   --verify     Checks configuration and prepares a remote call.
@@ -70,7 +71,6 @@ USAGE
 
 use strict;
 use warnings;
-use Switch;
 use Getopt::Long;
 use File::Basename;
 use Sys::Hostname;
@@ -92,7 +92,18 @@ use constant
   GIGA => 1073741824,
 };
 
-my $version = '1.1.0';
+use constant
+{
+  INCL_AGGREGATED => 1,
+  AGGREGATED_ONLY => 2,
+};
+
+use constant
+{
+  NOW => 0,
+};
+
+my $version = '1.2.1';
 my $client_name = 'CloudWatch-PutInstanceData';
 
 my $mcount = 0;
@@ -110,7 +121,7 @@ my $mem_units;
 my $disk_units;
 my $mem_unit_div = 1;
 my $disk_unit_div = 1;
-my $aggregated; 	 
+my $aggregated;
 my $auto_scaling; 	 
 my $from_cron;
 my $verify;
@@ -154,9 +165,47 @@ my $argv_size = @ARGV;
     'aws-access-key-id:s' => \$aws_access_key_id,
     'aws-secret-key:s' => \$aws_secret_key,
     'enable-compression' => \$enable_compression,
-    'aws-iam-role:s' => \$aws_iam_role
+    'aws-iam-role:s' => \$aws_iam_role,
     );
 
+}
+
+# Prints out or logs an error and then exits.
+sub exit_with_error
+{
+  my $message = shift;
+  report_message(LOG_ERR, $message);
+ 
+  if (!$from_cron) {
+    print STDERR "\nFor more information, run 'mon-put-instance-data.pl --help'\n\n";
+  }
+
+  exit 1;
+}
+
+# Prints out or logs a message.
+sub report_message
+{
+  my $log_level = shift;
+  my $message = shift;
+  chomp $message;
+ 
+  if ($from_cron)
+  {
+    setlogsock('unix');
+    openlog($client_name, 'nofatal', LOG_USER);
+    syslog($log_level, $message);
+    closelog;
+  }
+  elsif ($log_level == LOG_ERR) {
+    print STDERR "\nERROR: $message\n";
+  }
+  elsif ($log_level == LOG_WARNING) {
+    print "\nWARNING: $message\n";
+  }
+  elsif ($log_level == LOG_INFO) {
+    print "\nINFO: $message\n";
+  }
 }
 
 if (!$parse_result) {
@@ -285,8 +334,7 @@ if (!$report_mem_util && !$report_mem_used && !$report_mem_avail
   exit_with_error("No metrics specified for collection and submission to CloudWatch.");
 }
 
-my $now = time();
-my $timestamp = CloudWatchClient::get_timestamp($now);
+my $timestamp = CloudWatchClient::get_offset_time(NOW);
 my $instance_id = CloudWatchClient::get_instance_id();
 
 if (!defined($instance_id) || length($instance_id) == 0) {
@@ -297,10 +345,10 @@ if ($aggregated && lc($aggregated) ne 'only') {
   exit_with_error("Unrecognized value '$aggregated' for --aggregated option.");
 }
 if ($aggregated && lc($aggregated) eq 'only') {
-  $aggregated = 2;
+  $aggregated = AGGREGATED_ONLY;
 }
 elsif (defined($aggregated)) {
-  $aggregated = 1;
+  $aggregated = INCL_AGGREGATED;
 }
 
 my $image_id;
@@ -314,10 +362,10 @@ if ($auto_scaling && lc($auto_scaling) ne 'only') {
   exit_with_error("Unrecognized value '$auto_scaling' for --auto-scaling option.");
 }
 if ($auto_scaling && lc($auto_scaling) eq 'only') {
-  $auto_scaling = 2;
+  $auto_scaling = AGGREGATED_ONLY;
 }
 elsif (defined($auto_scaling)) {
-  $auto_scaling = 1;
+  $auto_scaling = INCL_AGGREGATED;
 }
 
 my $as_group_name;
@@ -348,7 +396,7 @@ if ($auto_scaling)
     {
       report_message(LOG_WARNING, "The Auto Scaling metrics will not be reported this time.");
       
-      if ($auto_scaling == 2) {
+      if ($auto_scaling == AGGREGATED_ONLY) {
         print("\n") if (!$from_cron);
         exit 0;
       }
@@ -360,8 +408,87 @@ if ($auto_scaling)
 }
 
 my %params = ();
-$params{'Action'} = 'PutMetricData';
-$params{'Namespace'} = 'System/Linux';
+$params{'Input'} = {};
+my $input_ref = $params{'Input'}; 
+$input_ref->{'Namespace'} = "System/Linux";
+
+#
+# Adds a new metric to the request
+#
+sub add_single_metric
+{
+  my $name = shift;
+  my $unit = shift;
+  my $value = shift;
+  my $dims = shift;
+  
+  my $metric = {};
+
+  $metric->{"MetricName"} = $name;
+  $metric->{"Timestamp"} = $timestamp;
+  $metric->{"RawValue"} = $value;
+  $metric->{"Unit"} = $unit;
+  
+  my $dimensions = [];
+  foreach my $key (sort keys %$dims)
+  {
+    push(@$dimensions, {"Name" => $key, "Value" => $dims->{$key}});
+  }
+  
+  $metric->{"Dimensions"} = $dimensions;  
+  push(@{$input_ref->{'MetricData'}},  $metric);
+  ++$mcount;
+}
+
+#
+# Adds all metric variations for the specified metric name
+#
+sub add_metric
+{
+  my $name = shift;
+  my $unit = shift;
+  my $value = shift;
+  my $filesystem = shift;
+  my $mount = shift;
+  
+  $input_ref->{'MetricData'} = [] if !(exists $input_ref->{'MetricData'});
+  
+  my %dims = ();
+  my %xdims = ();
+  $xdims{'MountPath'} = $mount if $mount;
+  $xdims{'Filesystem'} = $filesystem if $filesystem;
+  
+  my $auto_scaling_only = defined($auto_scaling) && $auto_scaling == AGGREGATED_ONLY;
+  my $aggregated_only = defined($aggregated) && $aggregated == AGGREGATED_ONLY;
+  
+  if (!$auto_scaling_only && !$aggregated_only) {
+    %dims = (('InstanceId' => $instance_id), %xdims);
+    add_single_metric($name, $unit, $value, \%dims);
+  }
+  
+  if ($as_group_name) {
+    %dims = (('AutoScalingGroupName' => $as_group_name), %xdims);
+    add_single_metric($name, $unit, $value, \%dims);
+  }
+
+  if ($instance_type) {
+    %dims = (('InstanceType' => $instance_type), %xdims);
+    add_single_metric($name, $unit, $value, \%dims);
+  }
+
+  if ($image_id) {
+    %dims = (('ImageId' => $image_id), %xdims);
+    add_single_metric($name, $unit, $value, \%dims);
+  }
+
+  if ($aggregated) {
+    %dims = %xdims;
+    add_single_metric($name, $unit, $value, \%dims);
+  }
+
+  print "$name [$mount]: $value ($unit)\n" if ($verbose && $mount);
+  print "$name: $value ($unit)\n" if ($verbose && !$mount);
+}
 
 # avoid a storm of calls at the beginning of a minute
 if ($from_cron) {
@@ -454,7 +581,6 @@ if ($mcount > 0)
   $opts{'aws-credential-file'} = $aws_credential_file;
   $opts{'aws-access-key-id'} = $aws_access_key_id;
   $opts{'aws-secret-key'} = $aws_secret_key;
-  $opts{'short-response'} = 1;
   $opts{'retries'} = 2;
   $opts{'verbose'} = $verbose;
   $opts{'verify'} = $verify;
@@ -462,20 +588,23 @@ if ($mcount > 0)
   $opts{'enable_compression'} = 1 if ($enable_compression);
   $opts{'aws-iam-role'} = $aws_iam_role;
   
-  my ($code, $reply) = CloudWatchClient::call(\%params, \%opts);
+  my $response = CloudWatchClient::call_json('PutMetricData', \%params, \%opts);
+  my $code = $response->code;
+  my $message = $response->message;
   
   if ($code == 200 && !$from_cron) {
     if ($verify) {
       print "\nVerification completed successfully. No actual metrics sent to CloudWatch.\n\n";
     } else {
-      print "\nSuccessfully reported metrics to CloudWatch. Reference Id: $reply\n\n";
+      my $request_id = $response->headers->{'x-amzn-requestid'};
+      print "\nSuccessfully reported metrics to CloudWatch. Reference Id: $request_id\n\n";
     }
   }
   elsif ($code < 100) {
-    exit_with_error("Failed to initialize: $reply");
+    exit_with_error($message);
   }
   elsif ($code != 200) {
-    exit_with_error("Failed to call CloudWatch: HTTP $code. Message: $reply");
+    exit_with_error("Failed to call CloudWatch: HTTP $code. Message: $message");
   }
 }
 else {
@@ -483,119 +612,3 @@ else {
 }
 
 exit 0;
-
-#
-# Prints out or logs an error and then exits.
-#
-sub exit_with_error
-{
-  my $message = shift;
-  report_message(LOG_ERR, $message);
- 
-  if (!$from_cron) {
-    print STDERR "\nFor more information, run 'mon-put-instance-data.pl --help'\n\n";
-  }
-
-  exit 1;
-}
-
-#
-# Prints out or logs a message.
-#
-sub report_message
-{
-  my $log_level = shift;
-  my $message = shift;
-  chomp $message;
- 
-  if ($from_cron)
-  {
-    setlogsock('unix');
-    openlog($client_name, 'nofatal', LOG_USER);
-    syslog($log_level, $message);
-    closelog;
-  }
-  elsif ($log_level == LOG_ERR) {
-    print STDERR "\nERROR: $message\n";
-  }
-  elsif ($log_level == LOG_WARNING) {
-    print "\nWARNING: $message\n";
-  }
-  elsif ($log_level == LOG_INFO) {
-    print "\nINFO: $message\n";
-  }
-}
-
-#
-# Adds one metric to the CloudWatch request.
-#
-sub add_single_metric
-{
-  my $name = shift;
-  my $unit = shift;
-  my $value = shift;
-  my $mcount = shift;
-  my $dims = shift;
-  my $dcount = 0;
-
-  $params{"MetricData.member.$mcount.MetricName"} = $name;
-  $params{"MetricData.member.$mcount.Timestamp"} = $timestamp;
-  $params{"MetricData.member.$mcount.Value"} = $value;
-  $params{"MetricData.member.$mcount.Unit"} = $unit;
-
-  foreach my $key (sort keys %$dims)
-  {
-    ++$dcount;
-    $params{"MetricData.member.$mcount.Dimensions.member.$dcount.Name"} = $key;
-    $params{"MetricData.member.$mcount.Dimensions.member.$dcount.Value"} = $dims->{$key};
-  }
-}
-
-#
-# Adds a metric and its aggregated clones to the CloudWatch request.
-#
-sub add_metric
-{
-  my $name = shift;
-  my $unit = shift;
-  my $value = shift;
-  my $filesystem = shift;
-  my $mount = shift;
-  my $dcount = 0;
-
-  my %dims = ();
-  my %xdims = ();
-  $xdims{'MountPath'} = $mount if $mount;
-  $xdims{'Filesystem'} = $filesystem if $filesystem;
-
-  my $auto_scaling_only = defined($auto_scaling) && $auto_scaling == 2;
-  my $aggregated_only = defined($aggregated) && $aggregated == 2;
-  
-  if (!$auto_scaling_only && !$aggregated_only) {
-    %dims = (('InstanceId' => $instance_id), %xdims);
-    add_single_metric($name, $unit, $value, ++$mcount, \%dims);
-  }
-  
-  if ($as_group_name) {
-    %dims = (('AutoScalingGroupName' => $as_group_name), %xdims);
-    add_single_metric($name, $unit, $value, ++$mcount, \%dims);
-  }
-
-  if ($instance_type) {
-    %dims = (('InstanceType' => $instance_type), %xdims);
-    add_single_metric($name, $unit, $value, ++$mcount, \%dims);
-  }
-
-  if ($image_id) {
-    %dims = (('ImageId' => $image_id), %xdims);
-    add_single_metric($name, $unit, $value, ++$mcount, \%dims);
-  }
-
-  if ($aggregated) {
-    %dims = %xdims;
-    add_single_metric($name, $unit, $value, ++$mcount, \%dims);
-  }
-
-  print "$name [$mount]: $value ($unit)\n" if ($verbose && $mount);
-  print "$name: $value ($unit)\n" if ($verbose && !$mount);
-}

@@ -27,6 +27,7 @@ import psi_ssh
 import posixpath
 import time
 import M2Crypto
+import datetime
 
 sys.path.insert(0, os.path.abspath(os.path.join('..', 'Server')))
 import psi_config
@@ -652,8 +653,8 @@ def install_firewall_rules(host, servers, plugins, do_blacklist=True):
     -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 5242,4244,9339 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 5243,7985,9785 -j ACCEPT
-    -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 110,143,2560,8080,9180,25565 -j ACCEPT
-    -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 110,143,2560,8080,9180,25565 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 110,143,2560,8080,5060,5061,9180,25565 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 110,143,2560,8080,5060,5061,9180,25565 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.8.8 -p tcp --dport 53 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.8.8 -p udp --dport 53 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.4.4 -p tcp --dport 53 -j ACCEPT
@@ -685,8 +686,8 @@ def install_firewall_rules(host, servers, plugins, do_blacklist=True):
     -A OUTPUT -p udp -m multiport --dports 5222,5223,5228,5229,5230,14259 -j ACCEPT
     -A OUTPUT -p tcp -m multiport --dports 5242,4244,9339 -j ACCEPT
     -A OUTPUT -p udp -m multiport --dports 5243,7985,9785 -j ACCEPT
-    -A OUTPUT -p tcp -m multiport --dports 110,143,2560,8080,9180,25565 -j ACCEPT
-    -A OUTPUT -p udp -m multiport --dports 110,143,2560,8080,9180,25565 -j ACCEPT
+    -A OUTPUT -p tcp -m multiport --dports 110,143,2560,8080,5060,5061,9180,25565 -j ACCEPT
+    -A OUTPUT -p udp -m multiport --dports 110,143,2560,8080,5060,5061,9180,25565 -j ACCEPT
     -A OUTPUT -p udp -m udp --dport 123 -j ACCEPT
     -A OUTPUT -p tcp -m tcp --sport %s -j ACCEPT''' % (host.ssh_port,) + ''.join(
     # tunneled ossh requests on NATed servers
@@ -938,3 +939,16 @@ exit 0
                      'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
                      'echo "* * * * * root %s" >> %s' % (psi_limit_load_host_path, cron_file))
             
+# Change the crontab file so that weekly jobs are not run on the same day across all servers
+def change_weekly_crontab_runday(host, weekdaynum):
+    if weekdaynum == None:
+        weekdaynum = datetime.date.isoweekday(datetime.date.today())
+    if weekdaynum >= 1 or weekdaynum <= 7:
+        cmd = "sed -i 's/^.*weekly.*$/47 6    * * " +str(weekdaynum)+ "\troot\ttest -x \/usr\/sbin\/anacron || ( cd \/ \&\& run-parts --report \/etc\/cron.weekly )/' /etc/crontab"
+        ssh = psi_ssh.SSH(
+                            host.ip_address, host.ssh_port,
+                            host.ssh_username, host.ssh_password,
+                            host.ssh_host_key)
+        ssh.exec_command(cmd)
+        ssh.close()
+
