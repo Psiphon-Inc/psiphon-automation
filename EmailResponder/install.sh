@@ -56,6 +56,8 @@ sudo rm $MAIL_HOME/*.pyc
 echo "Copying system config files..."
 sed "s|\(.*\)%MAIL_HOME%\(.*\)|\1$MAIL_HOME\2|g" psiphon-log-rotate.conf > psiphon-log-rotate.tmp
 sudo mv psiphon-log-rotate.tmp /etc/logrotate.d/psiphon-log-rotate.conf
+sudo chown root:root /etc/logrotate.d/psiphon-log-rotate.conf
+sudo chmod 644 /etc/logrotate.d/psiphon-log-rotate.conf
 sudo cp 20-psiphon-logging.conf /etc/rsyslog.d/
 sudo reload rsyslog
 sudo service rsyslog restart
