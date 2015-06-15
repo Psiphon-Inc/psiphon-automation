@@ -91,7 +91,7 @@ class CronCreator(object):
 
     def _conf_update(self):
         command_id = 'Pull config'
-        command = 'cd /home/mail_responder && /usr/bin/env python conf_pull.py'
+        command = 'cd /home/mail_responder && /usr/bin/env python conf_pull.py --cron'
 
         self._delete_commands(self.mail_tab, command_id)
 
