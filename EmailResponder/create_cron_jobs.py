@@ -50,7 +50,7 @@ class CronCreator(object):
         '''
         Delete any pre-existing cron jobs with the given `command_id` as comment.
         '''
-        [job.delete() for job in cron.find_comment(command_id)]
+        cron.remove_all(comment=command_id)
 
     def _blacklist_jobs(self):
         command_id = 'Psiphon: blacklist clear'
