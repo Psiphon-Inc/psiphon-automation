@@ -29,6 +29,7 @@ import time
 import M2Crypto
 import datetime
 
+
 sys.path.insert(0, os.path.abspath(os.path.join('..', 'Server')))
 import psi_config
 
@@ -938,7 +939,90 @@ exit 0
     ssh.exec_command('echo "SHELL=/bin/sh" > %s;' % (cron_file,) +
                      'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
                      'echo "* * * * * root %s" >> %s' % (psi_limit_load_host_path, cron_file))
+
+def install_user_count_and_log(host, servers): 
+    server_details = {}
+    for server in servers:
+        server_details[server.id] = {"commands": {}, "fronted": server.capabilities["FRONTED-MEEK"]}
+        server_details[server.id]["commands"]["obfuscated_ssh_users_command"] = "netstat -tpn | grep \"%s:%d \" | grep sshd | grep ESTABLISHED | wc -l" % (server.ip_address, int(server.ssh_obfuscated_port))
+        server_details[server.id]["commands"]["meek_users_command"] = "netstat -tpn | grep \"%s:%d *%s\" | grep sshd | grep ESTABLISHED | wc -l" % (server.ip_address, int(server.ssh_obfuscated_port), server.ip_address)
+        server_details[server.id]["commands"]["ssh_users_command"] = "netstat -tpn | grep \"%s:%d \" | grep sshd | grep ESTABLISHED | wc -l" % (server.ip_address, int(server.ssh_port))
+        
+    vpn_users_command = "ifconfig | grep ppp | wc -l"
+    
+    script = '''
+#!/usr/bin/env python
+
+import json
+from datetime import datetime
+import subprocess
+import logging
+from logging import handlers as logginghandlers
+from collections import defaultdict
+
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+
+logHandler = logginghandlers.RotatingFileHandler(filename="/var/log/psiphonv-user-count.log", maxBytes=52428800, backupCount=3)
+
+logger.addHandler(logHandler)
+
+log_record = {
+                "timestamp": datetime.utcnow().isoformat() + "Z", 
+                "host_id": "%s", 
+                "region": "%s", 
+                "provider": "%s", 
+                "datacenter": "%s",
+                "users": {
+                    "obfuscated_ssh": {
+                        "servers": defaultdict(dict), 
+                        "total": 0
+                    }, 
+                    "ssh": {
+                        "servers": defaultdict(dict),
+                        "total": 0
+                    },
+                    "vpn": 0,
+                    "total": 0
+                }
+            }
+
+server_details = %s
+vpn_users_command = "%s"
+
+for server_id in server_details:
+    log_record["users"]["obfuscated_ssh"]["servers"][server_id]["total"] = int(subprocess.check_output(server_details[server_id]["commands"]["obfuscated_ssh_users_command"], shell=True).strip())
+    log_record["users"]["obfuscated_ssh"]["total"] += log_record["users"]["obfuscated_ssh"]["servers"][server_id]["total"]
+    
+    log_record["users"]["obfuscated_ssh"]["servers"][server_id]["meek"] = int(subprocess.check_output(server_details[server_id]["commands"]["meek_users_command"], shell=True).strip())
+    log_record["users"]["obfuscated_ssh"]["servers"][server_id]["fronted"] = server_details[server_id]["fronted"]
+    
+    log_record["users"]["ssh"]["servers"][server_id]["total"] = int(subprocess.check_output(server_details[server_id]["commands"]["ssh_users_command"], shell=True).strip())
+    log_record["users"]["ssh"]["total"] += log_record["users"]["ssh"]["servers"][server_id]["total"]
+
+log_record["users"]["vpn"] = int(subprocess.check_output(vpn_users_command, shell=True).strip())
+log_record["users"]["total"] = log_record["users"]["obfuscated_ssh"]["total"] + log_record["users"]["ssh"]["total"] + log_record["users"]["vpn"]
+
+logger.info(json.dumps(log_record))
+''' % (host.id, host.region, host.provider, host.datacenter_name, server_details, vpn_users_command)
+
+    ssh = psi_ssh.SSH(host.ip_address, host.ssh_port, host.ssh_username, host.ssh_password, host.ssh_host_key)
             
+    psi_count_users_host_path = '/usr/local/sbin/psi_count_users'
+
+    file = tempfile.NamedTemporaryFile(delete=False)
+    file.write(script)
+    file.close()
+    ssh.put_file(file.name, psi_count_users_host_path)
+    os.remove(file.name)
+
+    ssh.exec_command('chmod +x %s' % (psi_count_users_host_path,))
+
+    cron_file = '/etc/cron.d/psi-count-users'
+    ssh.exec_command('echo "SHELL=/bin/sh" > %s;' % (cron_file,) +
+                     'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
+                     'echo "* * * * * root python %s" >> %s' % (psi_count_users_host_path, cron_file))
+                     
 # Change the crontab file so that weekly jobs are not run on the same day across all servers
 def change_weekly_crontab_runday(host, weekdaynum):
     if weekdaynum == None:
