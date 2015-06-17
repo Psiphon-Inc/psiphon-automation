@@ -178,7 +178,7 @@ SponsorHomePage = psi_utils.recordtype(
 SponsorCampaign = psi_utils.recordtype(
     'SponsorCampaign',
     'propagation_channel_id, propagation_mechanism_type, account, ' +
-    's3_bucket_name, languages, custom_download_site')
+    's3_bucket_name, languages, platforms, custom_download_site')
 
 SponsorRegex = psi_utils.recordtype(
     'SponsorRegex',
@@ -352,7 +352,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.31'
+    class_version = '0.32'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -525,6 +525,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.version = '0.30'
         if cmp(parse_version(self.version), parse_version('0.31')) < 0:
             for sponsor in self.__sponsors.itervalues():
+                for campaign in sponsor.campaigns:
+                    campaign.platforms = None
+            self.version = '0.31'
+        if cmp(parse_version(self.version), parse_version('0.32')) < 0:
+            for sponsor in self.__sponsors.itervalues():
                 if sponsor.banner:
                     try:
                         pngdata = io.BytesIO()
@@ -532,7 +537,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         sponsor.banner = base64.b64encode(pngdata.getvalue())
                     except Exception as e:
                         print('Corrupt banner image found for sponsor %s; unable to convert' % sponsor.id)
-            self.version = '0.31'
+            self.version = '0.32'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -919,6 +924,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                    EmailPropagationAccount(email_account),
                                    None,
                                    None,
+                                   None,
                                    False)
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
@@ -971,6 +977,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         twitter_account_access_token_secret),
                                    None,
                                    None,
+                                   None,
                                    False)
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
@@ -988,6 +995,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(propagation_mechanism_type in propagation_channel.propagation_mechanism_types)
         campaign = SponsorCampaign(propagation_channel.id,
                                    propagation_mechanism_type,
+                                   None,
                                    None,
                                    None,
                                    None,
@@ -1277,7 +1285,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if users_on_host == 0:
                 self.remove_host(server.host_id)
                 number_removed += 1
-            elif users_on_host < 50:
+            elif users_on_host < 80:
                 self.__disable_server(server)
                 number_disabled += 1
         return number_removed, number_disabled
@@ -1549,7 +1557,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
                             self.__deploy_builds_required_for_campaigns[platform].add(
                                     (campaign.propagation_channel_id, sponsor.id))
-                        campaign.log('marked for build and publish (new embedded server)')
+                        # Don't log this, too much noise
+                        #campaign.log('marked for build and publish (new embedded server)')
 
         for new_server_number in range(len(server_infos)):
             server_info = server_infos[new_server_number]
@@ -2097,6 +2106,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
                 for campaign in filter(lambda x: x.propagation_channel_id == propagation_channel_id, sponsor.campaigns):
 
+                    if campaign.platforms != None and not platform in campaign.platforms:
+                        continue
+
                     if not campaign.s3_bucket_name:
                         campaign.s3_bucket_name = psi_ops_s3.create_s3_website_bucket_name()
                         campaign.log('created s3 bucket %s' % (campaign.s3_bucket_name,))
@@ -2187,7 +2199,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                          (upgrade_filename, s3_upgrade_resource_name)],
                         remote_server_list,
                         campaign.s3_bucket_name)
-                    campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
+                    # Don't log this, too much noise
+                    #campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
 
                     if campaign.propagation_mechanism_type == 'twitter':
                         message = psi_templates.get_tweet_message(campaign.s3_bucket_name)
@@ -2196,7 +2209,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     elif campaign.propagation_mechanism_type == 'email-autoresponder':
                         if not self.__deploy_email_config_required:
                             self.__deploy_email_config_required = True
-                            campaign.log('email push scheduled')
+                            # Don't log this, too much noise
+                            #campaign.log('email push scheduled')
 
                 # NOTE: before we added remote server lists, it used to be that
                 # multiple campaigns with different buckets but the same prop/sponsor IDs
@@ -2341,6 +2355,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         })
 
                     # Email with attachments
+                    attachments = []
+                    if campaign.platforms == None or CLIENT_PLATFORM_WINDOWS in campaign.platforms:
+                        attachments.append([campaign.s3_bucket_name,
+                                            psi_ops_s3.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME,
+                                            psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME])
+                    if campaign.platforms == None or CLIENT_PLATFORM_ANDROID in campaign.platforms:
+                        attachments.append([campaign.s3_bucket_name,
+                                            psi_ops_s3.DOWNLOAD_SITE_ANDROID_BUILD_FILENAME,
+                                            psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME])
+
                     emails.append(
                         {
                          'email_addr': campaign.account.email_address,
@@ -2350,25 +2374,20 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 campaign.s3_bucket_name,
                                                 psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME,
                                                 psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME,
-                                                campaign.languages)],
+                                                campaign.languages,
+                                                campaign.platforms)],
                                 ['html', psi_templates.get_html_attachment_email_content(
                                                 campaign.s3_bucket_name,
                                                 psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME,
                                                 psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME,
-                                                campaign.languages)]
+                                                campaign.languages,
+                                                campaign.platforms)]
                             ],
-                         'attachments': [
-                                         [campaign.s3_bucket_name,
-                                          psi_ops_s3.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME,
-                                          psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME],
-                                         [campaign.s3_bucket_name,
-                                          psi_ops_s3.DOWNLOAD_SITE_ANDROID_BUILD_FILENAME,
-                                          psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME]
-                                        ],
+                         'attachments': attachments,
                          'send_method': 'SMTP'
                         })
-
-                    campaign.log('configuring email')
+                    # Don't log this, too much noise
+                    #campaign.log('configuring email')
 
         psi_ops_s3.put_string_to_key_in_bucket(self.__aws_account,
                                                self.__automation_bucket,
