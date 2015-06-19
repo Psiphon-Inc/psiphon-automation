@@ -946,7 +946,8 @@ def install_user_count_and_log(host, servers):
         server_details[server.id] = {"commands": {}, "fronted": server.capabilities["FRONTED-MEEK"]}
         server_details[server.id]["commands"]["obfuscated_ssh_users_command"] = "netstat -tpn | grep \"%s:%d \" | grep sshd | grep ESTABLISHED | wc -l" % (server.ip_address, int(server.ssh_obfuscated_port))
         server_details[server.id]["commands"]["meek_users_command"] = "netstat -tpn | grep \"%s:%d *%s\" | grep sshd | grep ESTABLISHED | wc -l" % (server.ip_address, int(server.ssh_obfuscated_port), server.ip_address)
-        server_details[server.id]["commands"]["ssh_users_command"] = "netstat -tpn | grep \"%s:%d \" | grep sshd | grep ESTABLISHED | wc -l" % (server.ip_address, int(server.ssh_port))
+        server_details[server.id]["commands"]["ssh_users_command"] = "" if not server.capabilities["SSH"] else \
+            "netstat -tpn | grep \"%s:%d \" | grep sshd | grep ESTABLISHED | wc -l" % (server.ip_address, int(server.ssh_port))
         
     vpn_users_command = "ifconfig | grep ppp | wc -l"
     
@@ -955,9 +956,13 @@ def install_user_count_and_log(host, servers):
 
 import json
 from datetime import datetime
-import subprocess
+import os
 import syslog
+import time
+import random
 from collections import defaultdict
+
+time.sleep(random.choice(range(0,50)))
 
 log_record = {
                 "timestamp": datetime.utcnow().isoformat() + "Z", 
@@ -983,16 +988,19 @@ server_details = %s
 vpn_users_command = "%s"
 
 for server_id in server_details:
-    log_record["users"]["obfuscated_ssh"]["servers"][server_id]["total"] = int(subprocess.check_output(server_details[server_id]["commands"]["obfuscated_ssh_users_command"], shell=True).strip())
+    log_record["users"]["obfuscated_ssh"]["servers"][server_id]["total"] = int(os.popen(server_details[server_id]["commands"]["obfuscated_ssh_users_command"]).read().strip())
     log_record["users"]["obfuscated_ssh"]["total"] += log_record["users"]["obfuscated_ssh"]["servers"][server_id]["total"]
     
-    log_record["users"]["obfuscated_ssh"]["servers"][server_id]["meek"] = int(subprocess.check_output(server_details[server_id]["commands"]["meek_users_command"], shell=True).strip())
+    log_record["users"]["obfuscated_ssh"]["servers"][server_id]["meek"] = int(os.popen(server_details[server_id]["commands"]["meek_users_command"]).read().strip())
+    log_record["users"]["obfuscated_ssh"]["servers"][server_id]["direct"] = max(0,
+        log_record["users"]["obfuscated_ssh"]["servers"][server_id]["total"] - log_record["users"]["obfuscated_ssh"]["servers"][server_id]["meek"])
     log_record["users"]["obfuscated_ssh"]["servers"][server_id]["fronted"] = server_details[server_id]["fronted"]
     
-    log_record["users"]["ssh"]["servers"][server_id]["total"] = int(subprocess.check_output(server_details[server_id]["commands"]["ssh_users_command"], shell=True).strip())
+    ssh_users_command = server_details[server_id]["commands"]["ssh_users_command"]
+    log_record["users"]["ssh"]["servers"][server_id]["total"] = 0 if len(ssh_users_command) == 0 else int(os.popen(ssh_users_command).read().strip())
     log_record["users"]["ssh"]["total"] += log_record["users"]["ssh"]["servers"][server_id]["total"]
 
-log_record["users"]["vpn"] = int(subprocess.check_output(vpn_users_command, shell=True).strip())
+log_record["users"]["vpn"] = int(os.popen(vpn_users_command).read().strip())
 log_record["users"]["total"] = log_record["users"]["obfuscated_ssh"]["total"] + log_record["users"]["ssh"]["total"] + log_record["users"]["vpn"]
 
 syslog.openlog('psiphon-user-count')
