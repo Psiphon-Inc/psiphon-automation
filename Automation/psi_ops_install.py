@@ -965,6 +965,7 @@ from collections import defaultdict
 time.sleep(random.choice(range(0,50)))
 
 log_record = {
+                "event_name": "user_count",
                 "timestamp": datetime.utcnow().isoformat() + "Z", 
                 "host_id": "%s", 
                 "region": "%s", 
