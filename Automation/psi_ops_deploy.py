@@ -99,6 +99,11 @@ def deploy_implementation(host, discovery_strategy_value_hmac_key, plugins):
                     host.ssh_username, host.ssh_password,
                     host.ssh_host_key)
 
+    # Set up logging directory
+    
+    ssh.exec_command('mkdir -p /var/log/psiphonv-json')
+    ssh.exec_command('chown www-data /var/log/psiphonv-json')
+    
     # Copy server source code
 
     for (dir, filenames) in SOURCE_FILES:
