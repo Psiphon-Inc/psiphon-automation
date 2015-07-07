@@ -52,6 +52,7 @@ def check_load_on_host(host):
         #xinetd = g_psinet.run_command_on_host(host, 'pgrep xinetd')
         return (host.id, users, load, free.rstrip(), free_swap.rstrip())#, psi_web.rstrip(), udpgw.rstrip(), xinetd.rstrip())
     except Exception as e:
+        log_diagnostics('failed host: %s %s' % (host.id, str(e)))
         return (host.id, -1, -1, -1, -1)#, -1, -1, -1)
 
 # TODO: print if server is discovery or propagation etc
@@ -212,4 +213,5 @@ def _makedirs(path):
 
 if __name__ == "__main__":
     log_load()
-    dump_host_reports()
+    #dump_host_reports()
+
