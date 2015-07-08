@@ -957,18 +957,12 @@ def install_user_count_and_log(host, servers):
 import json
 from datetime import datetime
 import os
-import logging
-from logging import handlers as logginghandlers
+import syslog
 import time
 import random
 from collections import defaultdict
 
 time.sleep(random.choice(range(0,50)))
-
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-logHandler = logginghandlers.RotatingFileHandler(filename="/var/log/psiphonv-user-count.log", maxBytes=52428800, backupCount=3)
-logger.addHandler(logHandler)
 
 log_record = {
                 "event_name": "user_count",
@@ -1010,7 +1004,8 @@ for server_id in server_details:
 log_record["users"]["vpn"] = int(os.popen(vpn_users_command).read().strip())
 log_record["users"]["total"] = log_record["users"]["obfuscated_ssh"]["total"] + log_record["users"]["ssh"]["total"] + log_record["users"]["vpn"]
 
-logger.info(json.dumps(log_record))
+syslog.openlog('psiphon-user-count')
+syslog.syslog(syslog.LOG_INFO, json.dumps(log_record))
 ''' % (host.id, host.region, host.provider, host.datacenter_name, server_details, vpn_users_command)
 
     ssh = psi_ssh.SSH(host.ip_address, host.ssh_port, host.ssh_username, host.ssh_password, host.ssh_host_key)
