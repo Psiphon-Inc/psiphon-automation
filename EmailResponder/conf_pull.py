@@ -26,6 +26,7 @@ other required config files from it.
 import os
 import json
 import syslog
+import argparse
 
 import settings
 import aws_helpers
@@ -86,5 +87,11 @@ def go():
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Pull the responder configuration')
+    parser.add_argument('--cron', action='store_true', default=False, help='calling from cron; suppress output')
+    args = parser.parse_args()
+
     go()
-    print('Mail responder config pull successful')
+
+    if not args.cron:
+        print('Mail responder config pull successful')
