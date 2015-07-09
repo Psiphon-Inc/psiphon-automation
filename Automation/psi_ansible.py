@@ -1,4 +1,21 @@
 #!/usr/bin/python
+#
+# Copyright (c) 2015, Psiphon Inc.
+# All rights reserved.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
 
 import optparse
 import ansible.runner
@@ -13,26 +30,29 @@ import re
 
 import psi_ops_config
 
-PSI_OPS_DB_FILENAME = os.path.join(os.path.abspath('.'), 'psi_ops.dat')
-MAKO_TEMPLATE='psi_mail_ansible_template.mako'
-
 from mako.template import Template
 from mako.lookup import TemplateLookup
 from mako import exceptions
 
+PSI_OPS_DB_FILENAME = os.path.join(os.path.abspath('.'), 'psi_ops.dat')
+MAKO_TEMPLATE = 'psi_mail_ansible_template.mako'
+
 # Using the FeedbackDecryptor's mail capabilities
 sys.path.append(os.path.abspath(os.path.join('..', 'EmailResponder')))
 sys.path.append(os.path.abspath(os.path.join('..', 'EmailResponder', 'FeedbackDecryptor')))
+
 import sender
 from config import config
+
 
 def prepare_linode_base_host(account):
     linode_account = account
     Host = collections.namedtuple('Host', ['id', 'ip_address', 'ssh_username', 'ssh_password', 'ssh_port'])
-    base_host = Host('linode_base_image', linode_account.base_ip_address, 'root', 
+    base_host = Host('linode_base_image', linode_account.base_ip_address, 'root',
                      linode_account.base_root_password, linode_account.base_ssh_port)
     base_host = populate_ansible_hosts([base_host])
     return base_host
+
 
 def create_host(host_name=None, host_vars=dict()):
     '''
@@ -45,14 +65,15 @@ def create_host(host_name=None, host_vars=dict()):
         if isinstance(host_name, basestring):
             host = ansible.inventory.host.Host(host_name)
             
-            for k,v in host_vars.iteritems():
-                host.set_variable(k,v)
+            for k, v in host_vars.iteritems():
+                host.set_variable(k, v)
     
     except Exception as e:
         print type(e), str(e)
         raise e
     
     return host
+
 
 def add_hosts_to_group(hosts, group):
     '''
@@ -72,7 +93,8 @@ def add_hosts_to_group(hosts, group):
         print type(e), str(e)
         raise e
 
-def run_against_inventory(inv=ansible.inventory.Inventory([]), 
+
+def run_against_inventory(inv=ansible.inventory.Inventory([]),
                           mod_name='ping', mod_args='', pattern='*', forks=10):
     '''
         Run a single task against an Inventory.
@@ -97,6 +119,7 @@ def run_against_inventory(inv=ansible.inventory.Inventory([]),
     except Exception as e:
         raise e
 
+
 def organize_hosts_by_provider(hosts_list):
     '''
         Takes a list of psinet hosts and organizes into provider dictionary objects.
@@ -116,6 +139,7 @@ def organize_hosts_by_provider(hosts_list):
     
     return hosts_dict
 
+
 def populate_ansible_hosts(hosts=list()):
     '''
         Maps a list of psinet hosts into Ansible Hosts
@@ -124,17 +148,19 @@ def populate_ansible_hosts(hosts=list()):
     ansible_hosts = list()
     try:
         for host in hosts:
-            ansible_hosts.append(create_host(host_name=host.id, 
-                                       host_vars={'ansible_ssh_host': host.ip_address,
-                                                  'ansible_ssh_user': host.ssh_username, 
-                                                  'ansible_ssh_pass': host.ssh_password,
-                                                  'ansible_ssh_port': host.ssh_port,
-                                                 }))
+            ansible_hosts.append(create_host(
+                host_name=host.id,
+                host_vars={'ansible_ssh_host': host.ip_address,
+                           'ansible_ssh_user': host.ssh_username,
+                           'ansible_ssh_pass': host.ssh_password,
+                           'ansible_ssh_port': host.ssh_port,
+                           }))
             
     except Exception as e:
         raise e
     
     return ansible_hosts
+
 
 def run_playbook(playbook_file=None, inventory=ansible.inventory.Inventory([]), 
                  verbose=psi_ops_config.ANSIBLE_VERBOSE_LEVEL, email_stats=True):
@@ -150,15 +176,16 @@ def run_playbook(playbook_file=None, inventory=ansible.inventory.Inventory([]),
         stats = ansible.callbacks.AggregateStats()
         runner_callbacks = ansible.callbacks.PlaybookRunnerCallbacks(stats, verbose=verbose)
 
-        playbook = ansible.playbook.PlayBook(playbook=playbook_file, 
-                callbacks=playbook_callbacks, runner_callbacks=runner_callbacks, 
-                stats=stats, inventory=inventory)
+        playbook = ansible.playbook.PlayBook(
+            playbook=playbook_file, callbacks=playbook_callbacks,
+            runner_callbacks=runner_callbacks,
+            stats=stats, inventory=inventory)
         
         res = playbook.run()
         end_time = datetime.datetime.now()
         print "Run completed at: %s\nTotal run time: %s" % (str(end_time), str(end_time-start_time))
         
-        if email_stats == True:
+        if email_stats is True:
             # stats.dark : (dict) number of hosts that could not be contacted 
             # stats.failures : (dict) number of hosts that failed to complete the tasks
             (host_output, host_errs) = process_playbook_vars_cache(playbook)
@@ -175,6 +202,7 @@ def run_playbook(playbook_file=None, inventory=ansible.inventory.Inventory([]),
     
     except Exception as e:
         raise e
+
 
 def process_playbook_vars_cache(playbook, keywords=['response', 'cmd_result']):
     cache = playbook.VARS_CACHE
@@ -208,12 +236,13 @@ def process_playbook_setup_cache(playbook):
         setup_cache[host] = playbook.SETUP_CACHE[host]
     return setup_cache
 
+
 def process_playbook_apt_update_cache(host_output, setup_cache):
-    register_var = 'response' # This is the variable set in the ansible playbook and should be handled more gracefully:
-                              # register: response
+    register_var = 'response'  # This is the variable set in the ansible playbook and should be handled more gracefully:
+    # register: response
     package_upgrade_line = 'The following packages will be upgraded:'
-    #'26 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.' 
-    #'87 to upgrade, 0 to newly install, 0 to remove and 9 not to upgrade.
+    # '26 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.' 
+    # '87 to upgrade, 0 to newly install, 0 to remove and 9 not to upgrade.
     if len(host_output) == 0:
         print "No hosts found"
         return
@@ -232,7 +261,7 @@ def process_playbook_apt_update_cache(host_output, setup_cache):
                 print line
                 continue
             
-            if 'upgrade' and 'newly install' and 'remove' in line: # TODO: Regex probably
+            if 'upgrade' and 'newly install' and 'remove' in line:  # TODO: Regex probably
                 print line
                 lines_of_interest.insert(0, line)   # Put the summary line first
                 of_interest_flag = False    # Assume we want to discard any further lines
@@ -247,6 +276,7 @@ def process_playbook_apt_update_cache(host_output, setup_cache):
     
     return host_output
 
+
 # Adds a package link to the end of a package string.
 def add_pkg_link(line):
     '''Returns a modified string that includes a URL to the package.'''
@@ -260,16 +290,17 @@ def add_pkg_link(line):
         for s in new_line:
             if s == '':                         # skip empty chunks
                 continue
-            if pkg == None:                     # The package name should be the first non-empty field
+            if pkg is None:                     # The package name should be the first non-empty field
                 pkg = s
             pkg_ver = new_line[-1]              # Get the new package version
     
-    if pkg != None:
+    if pkg is not None:
         # Format: HTTP://url/<pkg first char>/<pkg name>/<pkg name>_<pkg version>_changelog
         changelog_link = debian_lookup_url + '/' + pkg[0] + '/' + pkg + '/' + pkg + '_' + pkg_ver + '_changelog'
         line = line + ',' + changelog_link
     
     return line
+
 
 # Formats record using a mako template and sends email
 def send_mail(record, subject='PSI Ansible Report', 
@@ -290,6 +321,7 @@ def send_mail(record, subject='PSI Ansible Report',
     rendered = pynliner.fromString(rendered)
     
     sender.send(config['emailRecipients'], config['emailUsername'], subject, None, rendered)
+
 
 def refresh_base_images(providers=['linode']):
     '''
@@ -312,6 +344,7 @@ def refresh_base_images(providers=['linode']):
     except Exception as e:
         raise e
 
+
 def update_dat():
     '''
         Calls external script to update dat file.
@@ -329,7 +362,7 @@ def main(infile=None, send_mail_stats=False):
         inv = ansible.inventory.Inventory([])
 
         # Add test group if set
-        if psi_ops_config.ANSIBLE_INCLUDE_TEST_GROUP == True:
+        if psi_ops_config.INCLUDE_TEST_GROUP is True:
             print "Creating Test Group"
             test_hosts_list = list()
             for h in psinet_hosts_list:
@@ -341,13 +374,15 @@ def main(infile=None, send_mail_stats=False):
             add_hosts_to_group(ansible_hosts_list, group)
             inv.add_group(group)
 
-        #Run against subset
-        if psi_ops_config.RUN_AGAINST_SUBSET == True:
+        # Run against subset
+        if psi_ops_config.INCLUDE_SUBSET_GROUP is True:
             print 'Running Playbook against subset'
-            subset_hosts_list = psi_ops_config.ANSIBLE_TEST_DIGITALOCEAN + psi_ops_config.ANSIBLE_TEST_LINODES + psi_ops_config.ANSIBLE_TEST_FASTHOSTS
+            subset_hosts_list = list(psi_ops_config.ANSIBLE_TEST_DIGITALOCEANS +
+                                     psi_ops_config.ANSIBLE_TEST_LINODES +
+                                     psi_ops_config.ANSIBLE_TEST_FASTHOSTS)
             psinet_hosts_list = [h for h in psinet_hosts_list if h.id in subset_hosts_list]
 
-        if psi_ops_config.ANSIBLE_INCLUDE_TEST_GROUP != True:
+        if psi_ops_config.INCLUDE_TEST_GROUP is not True:
             psinet_hosts_dict = organize_hosts_by_provider(psinet_hosts_list)
 
             for provider in psinet_hosts_dict:
@@ -357,15 +392,15 @@ def main(infile=None, send_mail_stats=False):
                 inv.add_group(group)
 
         # Add linode base image group
-        if psi_ops_config.ANSIBLE_INCLUDE_BASE_IMAGE == True:
+        if psi_ops_config.ANSIBLE_INCLUDE_BASE_IMAGE is True:
             print "Creating Linode Base Image Group"
             linode_base_host = prepare_linode_base_host(psinet._PsiphonNetwork__linode_account)
             group = ansible.inventory.Group('linode_base_image')
             add_hosts_to_group(linode_base_host, group)
             inv.add_group(group)
 
-        if not infile: 
-            raise "Must specify input file" 
+        if not infile:
+            raise "Must specify input file"
         elif os.path.isfile(infile):
             playbook_file = infile
             (stats, res) = run_playbook(playbook_file, inv, send_mail_stats)
@@ -385,36 +420,33 @@ if __name__ == "__main__":
     parser.add_option("-m", "--send_mail", action="store_true", help="Send email after playbook is run")
     parser.add_option("-T", "--template", help="Specify mail template file")
     parser.add_option("-u", "--update_dat", action="store_true", help="Update dat file")
-    
-    infile=None
+
+    infile = None
     send_mail_stats = False
-    
+
     (options, _) = parser.parse_args()
-    
+
     if options.send_mail:
-        send_mail_stats=True
+        send_mail_stats = True
     if options.template:
-        send_mail_stats=True
-        MAKO_TEMPLATE=options.template
+        send_mail_stats = True
+        MAKO_TEMPLATE = options.template
         print "Using template: %s" % (MAKO_TEMPLATE)
     if options.test_servers:
-        psi_ops_config.ANSIBLE_INCLUDE_TEST_GROUP = True
+        psi_ops_config.INCLUDE_TEST_GROUP = True
     if options.subset:
-        psi_ops_config.RUN_AGAINST_SUBSET = True
+        psi_ops_config.INCLUDE_SUBSET_GROUP = True
     if options.base_image:
         psi_ops_config.ANSIBLE_INCLUDE_BASE_IMAGE = True
-    
+
     if options.update_dat:
         update_dat()
-    
+
     if options.refresh_base_images:
         refresh_base_images()
         exit(0)
-        
+
     if options.infile:
         infile = options.infile
         print infile
         main(infile=infile, send_mail_stats=send_mail_stats)
-    
-
-
