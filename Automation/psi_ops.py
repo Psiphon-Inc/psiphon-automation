@@ -161,7 +161,8 @@ EmailPropagationAccount = psi_utils.recordtype(
 Sponsor = psi_utils.recordtype(
     'Sponsor',
     'id, name, banner, website_banner, website_banner_link, home_pages, mobile_home_pages, ' +
-    'campaigns, page_view_regexes, https_request_regexes')
+    'campaigns, page_view_regexes, https_request_regexes, use_data_from_sponsor_id',
+    default=None)
 
 SponsorHomePage = psi_utils.recordtype(
     'SponsorHomePage',
@@ -350,7 +351,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.31'
+    class_version = '0.32'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -526,6 +527,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 for campaign in sponsor.campaigns:
                     campaign.platforms = None
             self.version = '0.31'
+        if cmp(parse_version(self.version), parse_version('0.32')) < 0:
+            for sponsor in self.__sponsors.itervalues():
+                sponsor.use_data_from_sponsor_id = None
+            self.version = '0.32'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1114,6 +1119,20 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         sponsor.name = (new_sponsor_name)
         self.__deploy_stats_config_required = True
         sponsor.log('set sponsor name from \'%s\' to \'%s\'' % (sponsor_name, new_sponsor_name))
+
+    def set_sponsor_override_data_sponsor_id(self, sponsor_name, use_data_from_sponsor_name):
+        assert(self.is_locked)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
+        override_sponsor = self.get_sponsor_by_name(use_data_from_sponsor_name)
+        sponsor.use_data_from_sponsor_id = override_sponsor.id
+        for campaign in sponsor.campaigns:
+            for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
+                self.__deploy_builds_required_for_campaigns[platform].add(
+                    (campaign.propagation_channel_id, sponsor.id))
+            campaign.log('marked for build and publish (new banner override)')
+        self.__deploy_data_required_for_all = True
+        self.__deploy_website_required_for_sponsors.add(sponsor.id)
+        sponsor.log('set use data from sponsor \'%s\'' % (use_data_from_sponsor_name))
 
     def get_server_by_ip_address(self, ip_address):
         servers = filter(lambda x: x.ip_address == ip_address, self.__servers.itervalues())
@@ -1959,10 +1978,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if hasattr(plugin, 'build_android_client'):
                 builders[CLIENT_PLATFORM_ANDROID] = plugin.build_android_client
 
+        sponsor_banner = sponsor.banner
+        if sponsor.use_data_from_sponsor_id:
+            sponsor_banner = self.__sponsors[sponsor.use_data_from_sponsor_id].banner
+
         return [builders[platform](
                         propagation_channel.id,
                         sponsor.id,
-                        base64.b64decode(sponsor.banner),
+                        base64.b64decode(sponsor_banner),
                         encoded_server_list,
                         remote_server_list_signature_public_key,
                         remote_server_list_url_split,
@@ -2266,13 +2289,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if type(campaign.account) == EmailPropagationAccount:
             get_new_version_email = campaign.account.email_address
 
+        sponsor_website_banner = sponsor.website_banner
+        sponsor_website_banner_link = sponsor.website_banner_link
+        if sponsor.use_data_from_sponsor_id:
+            sponsor_website_banner = self.__sponsors[sponsor.use_data_from_sponsor_id].website_banner
+            sponsor_website_banner_link = self.__sponsors[sponsor.use_data_from_sponsor_id].website_banner_link
+        
         psi_ops_s3.update_website(
                         self.__aws_account,
                         campaign.s3_bucket_name,
                         campaign.custom_download_site,
                         WEBSITE_GENERATION_DIR,
-                        sponsor.website_banner,
-                        sponsor.website_banner_link,
+                        sponsor_website_banner,
+                        sponsor_website_banner_link,
                         get_new_version_email)
         campaign.log('updated website in S3 bucket %s' % (campaign.s3_bucket_name,))
 
@@ -2850,6 +2879,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 server.alternate_ssh_obfuscated_ports)
 
         for sponsor in self.__sponsors.itervalues():
+            sponsor_data = sponsor
+            if sponsor.use_data_from_sponsor_id:
+                sponsor_data = self.__sponsors[sponsor.use_data_from_sponsor_id]
             copy_sponsor = Sponsor(
                                 sponsor.id,
                                 '',  # Omit name
@@ -2859,11 +2891,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 {},
                                 {},
                                 [],  # Omit campaigns
-                                sponsor.page_view_regexes,
-                                sponsor.https_request_regexes)
-            for region, home_pages in sponsor.home_pages.iteritems():
+                                sponsor_data.page_view_regexes,
+                                sponsor_data.https_request_regexes)
+            for region, home_pages in sponsor_data.home_pages.iteritems():
                 copy_sponsor.home_pages[region] = home_pages
-            for region, mobile_home_pages in sponsor.mobile_home_pages.iteritems():
+            for region, mobile_home_pages in sponsor_data.mobile_home_pages.iteritems():
                 copy_sponsor.mobile_home_pages[region] = mobile_home_pages
             copy.__sponsors[copy_sponsor.id] = copy_sponsor
 
