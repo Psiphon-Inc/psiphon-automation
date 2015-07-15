@@ -2891,12 +2891,28 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 {},
                                 {},
                                 [],  # Omit campaigns
-                                sponsor_data.page_view_regexes,
-                                sponsor_data.https_request_regexes)
+                                [],
+                                [])
             for region, home_pages in sponsor_data.home_pages.iteritems():
-                copy_sponsor.home_pages[region] = home_pages
+                copy_sponsor.home_pages[region] = []
+                for home_page in home_pages:
+                    copy_sponsor.home_pages[region].append(SponsorHomePage(
+                                                             home_page.region,
+                                                             home_page.url))
             for region, mobile_home_pages in sponsor_data.mobile_home_pages.iteritems():
-                copy_sponsor.mobile_home_pages[region] = mobile_home_pages
+                copy_sponsor.mobile_home_pages[region] = []
+                for mobile_home_page in mobile_home_pages:
+                    copy_sponsor.mobile_home_pages[region].append(SponsorHomePage(
+                                                             mobile_home_page.region,
+                                                             mobile_home_page.url))
+            for page_view_regex in sponsor_data.page_view_regexes:
+                copy_sponsor.page_view_regexes.append(SponsorRegex(
+                                                             page_view_regex.regex,
+                                                             page_view_regex.replace))
+            for https_request_regex in sponsor_data.https_request_regexes:
+                copy_sponsor.https_request_regexes.append(SponsorRegex(
+                                                             https_request_regex.regex,
+                                                             https_request_regex.replace))
             copy.__sponsors[copy_sponsor.id] = copy_sponsor
 
         for platform in self.__client_versions.iterkeys():
