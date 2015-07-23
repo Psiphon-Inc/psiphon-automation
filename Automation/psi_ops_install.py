@@ -400,6 +400,8 @@ def install_host(host, servers, existing_server_ids, plugins):
     install_firewall_rules(host, servers, plugins)
     
     install_psi_limit_load(host, servers)
+
+    install_user_count_and_log(host, servers)
     
     # NOTE:
     # For partially configured hosts we need to completely reconfigure
