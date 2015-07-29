@@ -56,8 +56,12 @@ if os.path.isfile('psi_data_config.py'):
 REGISTRY_PRODUCT_KEY = 'SOFTWARE\\Psiphon3'
 REGISTRY_TRANSPORT_VALUE = 'Transport'
 REGISTRY_SPLIT_TUNNEL_VALUE = 'SplitTunnel'
-APPDATA_DIR = os.path.join(os.environ['APPDATA'], 'Psiphon3')
-APPDATA_BACKUP_DIR = os.path.join(os.environ['APPDATA'], 'Psiphon3.bak')
+
+try:
+    APPDATA_DIR = os.path.join(os.environ['APPDATA'], 'Psiphon3')
+    APPDATA_BACKUP_DIR = os.path.join(os.environ['APPDATA'], 'Psiphon3.bak')
+except:
+    print "Could not set APPDATA_DIR and/or APPDATA_BACKUP_DIR, ignoring"
 
 
 def retry_on_exception_decorator(function):

@@ -58,7 +58,9 @@ def get_datacenter_region(region):
         ams3 Amsterdam 3
         fra1 Frankfurt 1
     '''
-    if 'nyc' or 'sfo' in region:
+    if 'nyc' in region:
+        return 'US'
+    if 'sfo' in region:
         return 'US'
     if 'ams' in region:
         return 'NL'
@@ -315,7 +317,7 @@ def launch_new_server(digitalocean_account, _):
         if not unicode(digitalocean_account.base_size_slug) in [unicode(s.slug) for s in droplet_sizes]:
             raise 'Size slug not found'
 
-        Droplet.size = '4gb'
+        Droplet.size = '2gb'
 
         droplet_regions = do_mgr.get_all_regions()
         common_regions = list(set([r.slug for r in droplet_regions if r.available])
