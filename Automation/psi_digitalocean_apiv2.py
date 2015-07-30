@@ -64,7 +64,7 @@ def update_system_packages(digitalocean_account, ip_address):
     ssh.close()
 
 
-def update_kernel(digitalocean_account=None, do_mgr=None, droplet=None):
+def update_kernel(digitalocean_account, do_mgr, droplet):
     """
         This updates the kernel to use the same one as provided in the apt
         system packages.
@@ -76,7 +76,7 @@ def update_kernel(digitalocean_account=None, do_mgr=None, droplet=None):
         returns:
             droplet             :   droplet details.
     """
-    current_kernel_version = None
+    current_kernel_name = None
     ssh = psi_ssh.make_ssh_session(droplet.ip_address, digitalocean_account.base_ssh_port, 
                                    'root', None, None, digitalocean_account.base_rsa_private_key)
     droplet_kernel_pkg = ssh.exec_command('aptitude show linux-image-`uname -r`').split('\n')
@@ -86,13 +86,16 @@ def update_kernel(digitalocean_account=None, do_mgr=None, droplet=None):
                 print line
             if 'Version: ' in line:
                 print line
-                current_kernel_version = line.split(': ')[1].split('+')[0]
+                current_kernel_name = line.split(': ')[1].split('+')[0]
                 break
 
+    if not current_kernel_name:
+        raise Exception('Current Kernel version is not found')
+    
     droplet_kernels = droplet.get_kernel_available()
     new_kernel = None
     for kernel in droplet_kernels:
-        if current_kernel_version in kernel.name and droplet.kernel['version'] == kernel.version:
+        if current_kernel_name in kernel.name and droplet.kernel['version'] == kernel.version:
             print 'Kernel found.  ID: %s, Name: %s' % (kernel.id, kernel.name)
             new_kernel = kernel
             break
@@ -113,7 +116,6 @@ def update_kernel(digitalocean_account=None, do_mgr=None, droplet=None):
             if not wait_on_action(do_mgr, droplet, result['action']['id'], 30, 'power_on', 'completed'):
                 raise Exception('Event did not complete in time')
             droplet = droplet.load()
-
 
     return droplet
 
@@ -153,7 +155,7 @@ def get_datacenter_region(region):
     return ''
 
 
-def wait_on_action(do_mgr=None, droplet=None, action_id=None, interval=10, 
+def wait_on_action(do_mgr, droplet, action_id=None, interval=10, 
                    action_type='create', action_status='completed'):
     """
         Check an action periodically and wait for it to complete.
@@ -195,7 +197,7 @@ def wait_on_action(do_mgr=None, droplet=None, action_id=None, interval=10,
     return False
 
 
-def transfer_image_to_region(do_mgr=None, droplet=None, image_id=None, regions=list()):
+def transfer_image_to_region(do_mgr, droplet, image_id, regions=list()):
     """
         Copy an image to a specific region.  If no regions are specified then
         copy to all.  This is required when updating the base image.
@@ -328,8 +330,8 @@ def prep_for_image_update():
     update_image(psinet, psinet._PsiphonNetwork__digitalocean_account)
     
 
-def update_image(psinet, digitalocean_account=None, droplet_id=None, 
-                 droplet_name=None, droplet_size=None, test=True):
+def update_image(psinet, digitalocean_account, droplet_id, 
+                 droplet_name, droplet_size, test=True):
     """
         Updates the base image.  This includes installing new system packages
         via apt and setting the droplet kernel.
