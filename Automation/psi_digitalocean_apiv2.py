@@ -80,6 +80,7 @@ def update_kernel(digitalocean_account, do_mgr, droplet):
     ssh = psi_ssh.make_ssh_session(droplet.ip_address, digitalocean_account.base_ssh_port, 
                                    'root', None, None, digitalocean_account.base_rsa_private_key)
     droplet_kernel_pkg = ssh.exec_command('aptitude show linux-image-`uname -r`').split('\n')
+    droplet_uname = ssh.exec_command('uname -r').strip()
     if len(droplet_kernel_pkg) > 0:
         for line in droplet_kernel_pkg:
             if 'State: installed' in line:
@@ -94,11 +95,13 @@ def update_kernel(digitalocean_account, do_mgr, droplet):
     
     droplet_kernels = droplet.get_kernel_available()
     new_kernel = None
-    for kernel in droplet_kernels:
-        if current_kernel_name in kernel.name and droplet.kernel['version'] == kernel.version:
-            print 'Kernel found.  ID: %s, Name: %s' % (kernel.id, kernel.name)
-            new_kernel = kernel
-            break
+    
+    if current_kernel_name not in droplet.kernel['name']:
+        for kernel in droplet_kernels:
+            if current_kernel_name in kernel.name and droplet_uname == kernel.version:
+                print 'Kernel found.  ID: %s, Name: %s' % (kernel.id, kernel.name)
+                new_kernel = kernel
+                break
 
     if new_kernel:
         print 'Change to use new kernel.  ID: %s' % (new_kernel.id)
