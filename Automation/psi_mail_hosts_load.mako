@@ -87,34 +87,40 @@
     import datetime
     import operator
     elapsed_time = datetime.datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S.%f") - datetime.datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S.%f")
-    total_users, unreachable_hosts, hosts = record
+    total_users, total_hosts, unreachable_hosts, hosts = record
 %>
 
+<h4>Start Time: ${start_time}</h4>
+<h4>End Time: ${end_time}</h4>
+<h4>Elapsed: ${elapsed_time}</h4>
+
 <h3>Total Users Connected: ${total_users}</h3>
+<h3>Total Hosts Count: ${total_hosts}</h3>
 <h3>Unreachable Host Count: ${unreachable_hosts}</h3>
 <table>
   <thead>
-  <tr><th>Host</th><th>Users</th><th>Load</th><th>Free Mem</th><th>Free Swap</th></tr>
+  <tr><th>Host</th><th>Users</th><th>Load</th><th>Free Mem</th><th>Free Swap</th><th>Process Alerts</th></tr>
   </thead>
   <tbody>
     % for row_index, row in enumerate(hosts):
       <tr class="row-${'odd' if row_index%2 else 'even'}">
         <%
-          host, (users, load, free_mem, free_swap) = row
+          host, (users, load, free_mem, free_swap, process_alerts) = row
           if users == -1 and load == -1 and free_mem == -1 and free_swap ==-1:
+            status='unreachable'
+          elif process_alerts:
             status='unreachable'
           else:
             status='reachable'
         %>
         <td class=${status}>${host}</td>
-        <td>
-          ${float(users)}</td><td>${float(load)}</td><td>${float(free_mem)}</td><td>${float(free_swap)}
-        </td>
+        <td>${float(users)}</td>
+        <td>${float(load)}</td>
+        <td>${float(free_mem)}</td>
+        <td>${float(free_swap)}</td>
+        <td>${process_alerts}</td>
       </tr>
     % endfor
   </tbody>
 </table>
 
-<h4>Start Time: ${start_time}</h4>
-<h4>End Time: ${end_time}</h4>
-<h4>Elapsed: ${elapsed_time}</h4>

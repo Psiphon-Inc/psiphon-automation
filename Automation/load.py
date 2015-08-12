@@ -47,13 +47,19 @@ def check_load_on_host(host):
         load = g_psinet.run_command_on_host(host, 'uptime | cut -d , -f 4 | cut -d : -f 2 | awk -F \. \'{print $1}\'').strip()
         free = g_psinet.run_command_on_host(host, 'free | grep "buffers/cache" | awk \'{print $4/($3+$4) * 100.0}\'')
         free_swap = g_psinet.run_command_on_host(host, 'free | grep "Swap" | awk \'{print $4/$2 * 100.0}\'')
-        #psi_web = g_psinet.run_command_on_host(host, 'pgrep psi_web')
-        #udpgw = g_psinet.run_command_on_host(host, 'pgrep badvpn-udpgw')
-        #xinetd = g_psinet.run_command_on_host(host, 'pgrep xinetd')
-        return (host.id, users, load, free.rstrip(), free_swap.rstrip())#, psi_web.rstrip(), udpgw.rstrip(), xinetd.rstrip())
+        processes_to_check = ['psi_web.py', 'redis-server', 'badvpn-udpgw', 'xinetd', 'cron', 'rsyslogd']
+        if host.meek_server_port:
+            processes_to_check.append('meek-server')
+        process_counts = g_psinet.run_command_on_host(host,
+            ' && '.join(['pgrep -xc ' + process for process in processes_to_check])).split('\n')
+        process_alerts = []
+        for index, process in enumerate(processes_to_check):
+            if process_counts[index] == '0':
+                process_alerts.append(process)
+        return (host.id, users, load, free.rstrip(), free_swap.rstrip(), ', '.join(process_alerts))
     except Exception as e:
         log_diagnostics('failed host: %s %s' % (host.id, str(e)))
-        return (host.id, -1, -1, -1, -1)#, -1, -1, -1)
+        return (host.id, -1, -1, -1, -1, '')
 
 # TODO: print if server is discovery or propagation etc
 def check_load_on_hosts(psinet, hosts):
@@ -79,7 +85,7 @@ def check_load_on_hosts(psinet, hosts):
         loads[result[0]] = result[1:]
     loads = sorted(loads.iteritems(), key=operator.itemgetter(1), reverse=True)
     pprint.pprint(loads)
-    return cur_users, unreachable_hosts, loads
+    return cur_users, len(loads), unreachable_hosts, loads
 
 def check_load_on_all_hosts(psinet):
     return check_load_on_hosts(psinet, psinet.get_hosts())
