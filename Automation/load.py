@@ -51,7 +51,7 @@ def check_load_on_host(host):
         if host.meek_server_port:
             processes_to_check.append('meek-server')
         process_counts = g_psinet.run_command_on_host(host,
-            ' & '.join(['pgrep -xc ' + process for process in processes_to_check])).split('\n')
+            '; '.join(['pgrep -xc ' + process for process in processes_to_check])).split('\n')
         process_alerts = []
         for index, process in enumerate(processes_to_check):
             if process_counts[index] == '0':
