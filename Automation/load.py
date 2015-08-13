@@ -46,7 +46,8 @@ def check_load_on_host(host):
         users = g_psinet._PsiphonNetwork__count_users_on_host(host.id)
         load_metrics = g_psinet.run_command_on_host(host,
             'uptime | cut -d , -f 4 | cut -d : -f 2; grep "model name" /proc/cpuinfo | wc -l').split('\n')
-        load = str(float(load_metrics[0].strip())/float(load_metrics[1].strip()) * 100.0)
+        load_threshold = 4.0 * float(load_metrics[1].strip()) - 1
+        load = str(float(load_metrics[0].strip())/load_threshold * 100.0)
         free = g_psinet.run_command_on_host(host, 'free | grep "buffers/cache" | awk \'{print $4/($3+$4) * 100.0}\'')
         free_swap = g_psinet.run_command_on_host(host, 'free | grep "Swap" | awk \'{print $4/$2 * 100.0}\'')
         processes_to_check = ['psi_web.py', 'redis-server', 'badvpn-udpgw', 'xinetd', 'cron', 'rsyslogd']
@@ -89,7 +90,7 @@ def check_load_on_hosts(psinet, hosts):
     loads = sorted(loads.iteritems(), key=operator.itemgetter(1), reverse=True)
     unreachable = [load for load in loads if load[1][0] == -1]
     process_alerts = [load for load in loads if load[1][4]]
-    high_load = [load for load in loads if float(load[1][1]) > 200.0]
+    high_load = [load for load in loads if float(load[1][1]) >= 100.0]
     low_memory = [load for load in loads if float(load[1][2]) < 20.0 or float(load[1][3]) < 20.0]
 
     for load in low_memory + high_load + process_alerts + unreachable:
