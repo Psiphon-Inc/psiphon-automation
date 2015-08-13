@@ -72,11 +72,15 @@
     background-color: #F0F0F0;
   }
   
-  tr .unreachable {
+  tr .alert {
     color: red;
   }
   
-  tr .reachable {
+  tr .warning {
+    color: yellow;
+  }
+
+  tr .normal {
     color: black;
   }
 </style>
@@ -109,18 +113,32 @@ Elapsed: ${elapsed_time}<br>
       <tr class="row-${'odd' if row_index%2 else 'even'}">
         <%
           host, (users, load, free_mem, free_swap, process_alerts) = row
+
+          status='normal'
+          load_status='normal'
+          mem_status='normal'
+          swap_status='normal'
+
+          if float(load) > 100.0:
+            status='warning'
+            load_status='warning'
+          if float(free_mem) < 20.0:
+            status='warning'
+            mem_status='warning'
+          if float(free_swap) < 20.0:
+            status='warning'
+            swap_status='warning'
+
           if users == -1 and load == -1 and free_mem == -1 and free_swap ==-1:
-            status='unreachable'
+            status='alert'
           elif process_alerts:
-            status='unreachable'
-          else:
-            status='reachable'
+            status='alert'
         %>
         <td class=${status}>${host}</td>
         <td>${float(users)}</td>
-        <td>${float(load)}</td>
-        <td>${float(free_mem)}</td>
-        <td>${float(free_swap)}</td>
+        <td class=${load_status}>${float(load)}</td>
+        <td class=${mem_status}>${float(free_mem)}</td>
+        <td class=${swap_status}>${float(free_swap)}</td>
         <td class=${status}>${process_alerts}</td>
       </tr>
     % endfor
