@@ -44,7 +44,9 @@ def check_load_on_host(host):
     try:
         log_diagnostics('checking host: %s' % (host.id))
         users = g_psinet._PsiphonNetwork__count_users_on_host(host.id)
-        load = g_psinet.run_command_on_host(host, 'uptime | cut -d , -f 4 | cut -d : -f 2 | awk -F \. \'{print $1}\'').strip()
+        load_metrics = g_psinet.run_command_on_host(host,
+            'uptime | cut -d , -f 4 | cut -d : -f 2; grep "model name" /proc/cpuinfo | wc -l').split('\n')
+        load = str(float(load_metrics[0].strip())/float(load_metrics[1].strip()) * 100.0)
         free = g_psinet.run_command_on_host(host, 'free | grep "buffers/cache" | awk \'{print $4/($3+$4) * 100.0}\'')
         free_swap = g_psinet.run_command_on_host(host, 'free | grep "Swap" | awk \'{print $4/$2 * 100.0}\'')
         processes_to_check = ['psi_web.py', 'redis-server', 'badvpn-udpgw', 'xinetd', 'cron', 'rsyslogd']
