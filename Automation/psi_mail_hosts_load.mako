@@ -90,13 +90,14 @@
     total_users, total_hosts, unreachable_hosts, hosts = record
 %>
 
-<h4>Start Time: ${start_time}</h4>
-<h4>End Time: ${end_time}</h4>
-<h4>Elapsed: ${elapsed_time}</h4>
-
 <h3>Total Users Connected: ${total_users}</h3>
-<h3>Total Hosts Count: ${total_hosts}</h3>
 <h3>Unreachable Host Count: ${unreachable_hosts}</h3>
+<h3>Total Hosts Count: ${total_hosts}</h3>
+
+Start Time: ${start_time}
+End Time: ${end_time}
+Elapsed: ${elapsed_time}
+
 <table>
   <thead>
   <tr><th>Host</th><th>Users</th><th>Load</th><th>Free Mem</th><th>Free Swap</th><th>Process Alerts</th></tr>
@@ -118,7 +119,7 @@
         <td>${float(load)}</td>
         <td>${float(free_mem)}</td>
         <td>${float(free_swap)}</td>
-        <td>${process_alerts}</td>
+        <td class=${status}>${process_alerts}</td>
       </tr>
     % endfor
   </tbody>
