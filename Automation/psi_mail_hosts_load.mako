@@ -94,9 +94,11 @@
 <h3>Unreachable Host Count: ${unreachable_hosts}</h3>
 <h3>Total Hosts Count: ${total_hosts}</h3>
 
-Start Time: ${start_time}
-End Time: ${end_time}
-Elapsed: ${elapsed_time}
+<p>
+Start Time: ${start_time}<br>
+End Time: ${end_time}<br>
+Elapsed: ${elapsed_time}<br>
+</p>
 
 <table>
   <thead>
