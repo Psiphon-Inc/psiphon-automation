@@ -87,7 +87,7 @@ def check_load_on_hosts(psinet, hosts):
     loads = sorted(loads.iteritems(), key=operator.itemgetter(1), reverse=True)
     unreachable = [load for load in loads if load[1][0] == -1]
     process_alerts = [load for load in loads if load[1][4]]
-    high_load = [load for load in loads if load[1][1] > 100
+    high_load = [load for load in loads if load[1][1] > 100]
     low_memory = [load for load in loads if load[1][2] < 20 or load[1][3] < 20]
 
     for load in low_memory + high_load + process_alerts + unreachable:
