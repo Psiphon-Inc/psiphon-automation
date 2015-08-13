@@ -66,9 +66,7 @@ def check_load_on_host(host):
 
 # TODO: print if server is discovery or propagation etc
 def check_load_on_hosts(psinet, hosts):
-    cur_users = 0
     loads = {}
-    unreachable_hosts = 0
 
     pool = ThreadPool(25)
     global g_psinet
@@ -77,16 +75,18 @@ def check_load_on_hosts(psinet, hosts):
     results = pool.map(check_load_on_host, hosts)
     log_diagnostics('...done checking hosts')
 
-    for result in results:
-        if result[1] == -1:
-            # retry a failed host
-            print 'Retrying host ' + result[0]
-            result = check_load_on_host(psinet._PsiphonNetwork__hosts[result[0]])
-            if result[1] == -1:
-                unreachable_hosts += 1
-        cur_users += result[1]
+    # retry failed hosts
+    failed_hosts = [psinet._PsiphonNetwork__hosts[result[0]] for result in results if result[1] == -1 or result[5]]
+    if len(failed_hosts):
+        log_diagnostics('Retrying failed hosts')
+    new_results = pool.map(check_load_on_host, failed_hosts)
+
+    for result in results + new_results:
         loads[result[0]] = result[1:]
 
+    cur_users = sum([load[0] for load in loads.itervalues() if load[0] > 0])
+    unreachable_hosts = len([load for load in loads.itervalues() if load[0] == -1])
+    
     loads = sorted(loads.iteritems(), key=operator.itemgetter(1), reverse=True)
     unreachable = [load for load in loads if load[1][0] == -1]
     process_alerts = [load for load in loads if load[1][4]]
