@@ -77,7 +77,7 @@
   }
   
   tr .warning {
-    color: yellow;
+    color: #FFCC00;
   }
 
   tr .normal {
