@@ -49,6 +49,7 @@ def get_region(datacenter_id):
     #  {u'DATACENTERID': 7, u'LOCATION': u'London, England, UK'},
     #  {u'DATACENTERID': 8, u'LOCATION': u'Tokyo, JP'}]
     #  {u'DATACENTERID': 9, u'LOCATION': u'Singapore, SG', u'ABBR': u'singapore'}
+    #  {u'DATACENTERID': 10, u'LOCATION': u'Frankfurt, DE', u'ABBR': u'frankfurt'}
     if datacenter_id in [2, 3, 4, 6]:
         return 'US'
     if datacenter_id in [7]:
@@ -57,6 +58,8 @@ def get_region(datacenter_id):
         return 'JP'
     if datacenter_id in [9]:
         return 'SG'
+    if datacenter_id in [10]:
+        return 'DE'
     return ''
 
 def create_linode(linode_api):
@@ -64,8 +67,8 @@ def create_linode(linode_api):
     datacenter = random.choice(avail_datacenters)
     datacenter_id = datacenter['DATACENTERID']
     datacenter_name = make_datacenter_name(datacenter['LOCATION'])
-    # We use PlanID = 4: linode 4096
-    new_node_id = linode_api.linode_create(DatacenterID=datacenter_id, PlanID=4, PaymentTerm=1)['LinodeID']
+    # We use PlanID = 2: linode 2048
+    new_node_id = linode_api.linode_create(DatacenterID=datacenter_id, PlanID=2, PaymentTerm=1)['LinodeID']
     # Status flag values: (partial list)
     # -1: Being Created
     #  0: Brand New
