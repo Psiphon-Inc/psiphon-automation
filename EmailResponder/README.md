@@ -37,6 +37,7 @@ We could probably use Postfix's [virtual mailbox](http://www.postfix.org/VIRTUAL
     ```
     sudo apt-get update
     sudo apt-get upgrade
+    sudo apt-get install mercurial python-pip libwww-perl libdatetime-perl
     sudo reboot
     ```
 
@@ -138,23 +139,23 @@ allowed to access the SSH port.
 
    * Choose the "Internet Site option".
 
-   * Set the system mail name to the public DNS name of the instance. When
-     we're ready to go live, this will change to the real domain name.
-
-     * UPDATE: Don't change to the real domain name. Leave it as the instance
-       public DNS name.
+   * Leave the default for the "mail name".
 
 2. Change aliases.
 
    * Edit `/etc/aliases` so that it looks like this:
 
-      ```
-      postmaster: ubuntu
-      root: ubuntu
-      support: forwarder@localhost
-      ```
+       ```
+       postmaster: ubuntu
+       root: ubuntu
+       support: forwarder@localhost
+       ```
 
-   * Reload aliases map: `sudo newaliases`
+   * Reload aliases map: 
+
+       ```
+       sudo newaliases
+       ```
 
 3. Generate a unique 2048-bit Diffie-Hellman group. This helps mitigate crypto threats such as [Logjam](https://weakdh.org/). Go get a coffee while it's generating.
 
@@ -164,16 +165,17 @@ allowed to access the SSH port.
     chmod 710 /etc/ssl/private
     openssl dhparam -out /etc/ssl/private/dhparams.pem 2048
     chmod 600 /etc/ssl/private/dhparams.pem
+    exit
     ```
 
 4. Edit `/etc/postfix/main.cf`
 
-   * See the bottom of this README for a sample `main.cf` file.
+    * See the bottom of this README for a sample `main.cf` file.
 
-(Note: If too much error email is being sent to the postmaster, we can also
-add this line:
-`notify_classes =`
-)
+    (Note: If too much error email is being sent to the postmaster, we can also
+    add this line:
+    `notify_classes =`
+    )
 
 5. By default, if an uncaught error occurs (which shouldn't occur, but...),
    postfix responds to the user with a bounce email that gives a lot of internal
@@ -193,17 +195,18 @@ add this line:
    connection. So we'll run an instance of `stmpd` on `localhost` on a different
    port and use that for sending. Add these two lines to `master.cf`. NOTE: The 
    port specified must match the one in `settings.LOCAL_SMTP_SEND_PORT`.
+   (I don't think it matters where in the file you add it. I put it before the `pickup` line.)
 
-   ```
-   127.0.0.1:2525      inet  n       -       -       -       -       smtpd
+    ```
+    127.0.0.1:2525      inet  n       -       -       -       -       smtpd
      -o smtpd_tls_security_level=none
-   ```
+    ```
 
 7. Reload postfix conf and restart:
 
    ```
    sudo postfix reload
-   sudo /etc/init.d/postfix restart
+   sudo service postfix restart
    ```
 
 
@@ -228,13 +231,34 @@ Optional, but if logwatch is not present then the stats processing code will nee
      ```
 
 
+### Amazon AWS services
+
+1. Install boto
+   
+   ```
+   sudo pip install --upgrade boto
+   ```
+
+2. It's best if the AWS user being used is created through the AWS IAM
+   interface and has only the necessary privileges. See the appendix for
+   permission policies.
+
+3. Put AWS credentials into boto config file. Info here: 
+   <http://code.google.com/p/boto/wiki/BotoConfig>
+
+   We've found that using `~/.boto` doesn't work, so create `/etc/boto.cfg` and
+   put these lines into it:
+
+   ```
+   [Credentials]
+   aws_access_key_id = <your access key>
+   aws_secret_access_key = <your secret key>
+   ```
+
+   Ensure that the file is readable by the `mail_responder` user.
+
+
 ### Source files and cron jobs
-
-Install mercurial:
-
-```
-sudo apt-get install mercurial
-```
 
 In the `ubuntu` user home directory, get the Psiphon source:
 
@@ -248,7 +272,7 @@ Go into the email responder source directory:
 cd psiphon-circumvention-system/EmailResponder
 ```
 
-The `settings.py` file must first be edited. See the comment at the top of that
+The `settings.py` file must be edited. See the comment at the top of that
 file for instructions.
 
 The `install.sh` script does the following:
@@ -264,9 +288,10 @@ The `install.sh` script does the following:
 The script requires the `crontab` python package:
 
 ```
-sudo apt-get install python-pip
-sudo pip install --upgrade python-dateutil python-crontab
+sudo pip install --upgrade python-dateutil python-crontab qrcode
 ```
+
+(TODO: Mention that "Email Responder Configuration" steps below need to be taken before installing.)
 
 To run the install script:
 
@@ -318,33 +343,6 @@ sh install.sh
   ```
 
 
-### Amazon AWS services
-
-1. Install boto
-   
-   ```
-   sudo pip install --upgrade boto
-   ```
-
-2. It's best if the AWS user being used is created through the AWS IAM
-   interface and has only the necessary privileges. See the appendix for
-   permission policies.
-
-3. Put AWS credentials into boto config file. Info here: 
-   <http://code.google.com/p/boto/wiki/BotoConfig>
-
-   We've found that using `~/.boto` doesn't work, so create `/etc/boto.cfg` and
-   put these lines into it:
-
-   ```
-   [Credentials]
-   aws_access_key_id = <your access key>
-   aws_secret_access_key = <your secret key>
-   ```
-
-   Ensure that the file is readable by the `mail_responder` user.
-
-
 ## Stats
 
 * Stats will be derived from the contents of `/var/log/mail_responder.log`
@@ -378,6 +376,7 @@ mysql -uroot
 CREATE USER '<username in settings.py>'@'localhost' IDENTIFIED BY '<password in settings.py>';
 CREATE DATABASE <DB name in settings.py>;
 GRANT ALL ON <DB name in settings.py>.* TO '<username in settings.py>'@'localhost';
+\q
 ```
 
 
@@ -399,10 +398,20 @@ A handy DKIM DNS record generator can be found here:
 A couple of python packages are required:
 
 ```
-sudo pip install --upgrade dnspython pydkim
+sudo pip install --upgrade dnspython dkimpy
 ```
 
 See the DKIM section of `settings.py` for more values that must be set/changed.
+
+
+## SPF
+
+Add this DNS TXT record on the domain you will be sending from:
+
+```
+"spf2.0/pra include:amazonses.com ip4:<outbound IP address of server> ~all"
+"v=spf1 include:amazonses.com ip4:<outbound IP address of server> ~all"
+```
 
 
 ## Email Responder Configuration
