@@ -26,6 +26,8 @@ import StringIO
 import csv
 import zlib
 import tarfile
+import base64
+import psi_ops_crypto_tools
 
 
 GEO_DATA_ROOT = os.path.join(os.path.abspath('..'), 'Data', 'GeoData')
@@ -33,6 +35,7 @@ GEO_ZIP_FILENAME = 'maxmind_data.zip'
 GEO_ZIP_PATH = os.path.join(GEO_DATA_ROOT, GEO_ZIP_FILENAME)
 GEO_ROUTES_ROOT = os.path.join(GEO_DATA_ROOT, 'Routes')
 GEO_ROUTES_EXTENSION = '.zlib'
+GEO_ROUTES_SIGNED_EXTENSION = '.json'
 GEO_ROUTES_ARCHIVE_PATH = os.path.join(GEO_ROUTES_ROOT, 'routes.tar.gz')
 
 
@@ -184,6 +187,22 @@ def make_routes():
         tar.add(zlib_path, arcname=os.path.split(zlib_path)[1], recursive=False)
     tar.close()
 
+def make_signed_routes(pem_key_pair, private_key_password):
+    make_routes()
+    for root, dirs, files in os.walk(GEO_ROUTES_ROOT):
+        for name in files:
+            if(name.endswith(GEO_ROUTES_EXTENSION)):
+                path = os.path.join(root, name)
+                with open(path, 'rb') as file:
+                    data = file.read()
+                signed_routes_data  =  psi_ops_crypto_tools.make_signed_data(
+                        pem_key_pair,
+                        private_key_password,
+                        base64.b64encode(data))
+
+                signed_routes_filename = path + GEO_ROUTES_SIGNED_EXTENSION
+                with open(signed_routes_filename, 'w') as f:
+                    f.write(signed_routes_data)
 
 if __name__ == "__main__":
     make_routes()

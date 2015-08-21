@@ -30,7 +30,16 @@ import psi_ssh
 
 import digitalocean_v2.digitalocean as digitalocean
 
+
 def refresh_credentials(digitalocean_account, ip_address, new_root_password, new_stats_password):
+    """
+        Sets a new unique password on the droplet and removes the old ssh_host key.
+        
+        digitalocean_account    :   Digitalocean account details
+        ip_address              :   droplet.ip_address
+        new_root_password       :   new root password to set
+        new_stats_password      :   new stats password to set
+    """    
     # Note: using auto-add-policy for host's SSH public key here since we can't get it through the API.
     # There's a risk of man-in-the-middle.
     ssh = psi_ssh.make_ssh_session(ip_address, digitalocean_account.base_ssh_port, 'root', None, None, digitalocean_account.base_rsa_private_key)
@@ -41,11 +50,87 @@ def refresh_credentials(digitalocean_account, ip_address, new_root_password, new
     ssh.exec_command('dpkg-reconfigure openssh-server')
     return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
 
+
 def update_system_packages(digitalocean_account, ip_address):
+    """
+        Updates system packages using apt.  This should only be used when
+        updating the base image.
+        
+        digitalocean_account    :   DigitalOcean account details
+        ip_address              :   droplet.ip_address
+    """
     ssh = psi_ssh.make_ssh_session(ip_address, digitalocean_account.base_ssh_port, 'root', None, None, digitalocean_account.base_rsa_private_key)
     ssh.exec_command('export DEBIAN_FRONTEND=noninteractive && aptitude update -q && aptitude safe-upgrade -y -o Dpkg::Options::="--force-confdef"')
+    ssh.close()
+
+
+def update_kernel(digitalocean_account, do_mgr, droplet):
+    """
+        This updates the kernel to use the same one as provided in the apt
+        system packages.
+        
+        digitalocean_account    :   DigitalOcean account information
+        do_mgr                  :   digitalocean.Manager
+        droplet                 :   droplet details.  Gathered from droplet.load()
+        
+        returns:
+            droplet             :   droplet details.
+    """
+    current_kernel_name = None
+    ssh = psi_ssh.make_ssh_session(droplet.ip_address, digitalocean_account.base_ssh_port, 
+                                   'root', None, None, digitalocean_account.base_rsa_private_key)
+    droplet_kernel_pkg = ssh.exec_command('aptitude show linux-image-`uname -r`').split('\n')
+    droplet_uname = ssh.exec_command('uname -r').strip()
+    if len(droplet_kernel_pkg) > 0:
+        for line in droplet_kernel_pkg:
+            if 'State: installed' in line:
+                print line
+            if 'Version: ' in line:
+                print line
+                current_kernel_name = line.split(': ')[1].split('+')[0]
+                break
+
+    if not current_kernel_name:
+        raise Exception('Current Kernel version is not found')
+    
+    droplet_kernels = droplet.get_kernel_available()
+    new_kernel = None
+    
+    if current_kernel_name not in droplet.kernel['name']:
+        for kernel in droplet_kernels:
+            if current_kernel_name in kernel.name and droplet_uname == kernel.version:
+                print 'Kernel found.  ID: %s, Name: %s' % (kernel.id, kernel.name)
+                new_kernel = kernel
+                break
+
+    if new_kernel:
+        print 'Change to use new kernel.  ID: %s' % (new_kernel.id)
+        result = droplet.change_kernel(new_kernel)
+        if not wait_on_action(do_mgr, droplet, result['action']['id'], 30, 'change_kernel', 'completed'):
+            raise Exception('Event did not complate on time')
+        droplet = droplet.load()
+        result = droplet.power_cycle()
+        print result
+        if not wait_on_action(do_mgr, droplet, result['action']['id'], 30, 'power_cycle', 'completed'):
+            raise Exception('Event did not complete in time')
+        droplet = droplet.load()
+        if droplet.status != 'active':
+            result = droplet.power_on()
+            if not wait_on_action(do_mgr, droplet, result['action']['id'], 30, 'power_on', 'completed'):
+                raise Exception('Event did not complete in time')
+            droplet = droplet.load()
+
+    return droplet
+
 
 def get_datacenter_region(region):
+    """
+        This is used to manually identify and set the country region where
+        a droplet was created.
+        
+        return:
+            2-digit country code
+    """
     '''
         nyc1 New York 1
         ams1 Amsterdam 1
@@ -56,8 +141,11 @@ def get_datacenter_region(region):
         lon1 London 1
         nyc3 New York 3
         ams3 Amsterdam 3
+        fra1 Frankfurt 1
     '''
-    if 'nyc' or 'sfo' in region:
+    if 'nyc' in region:
+        return 'US'
+    if 'sfo' in region:
         return 'US'
     if 'ams' in region:
         return 'NL'
@@ -65,12 +153,25 @@ def get_datacenter_region(region):
         return 'SG'
     if 'lon' in region:
         return 'GB'
+    if 'fra' in region:
+        return 'DE'
     return ''
 
-def wait_on_action(do_mgr=None, droplet=None, action_id=None, interval=10, 
+
+def wait_on_action(do_mgr, droplet, action_id=None, interval=10, 
                    action_type='create', action_status='completed'):
     """
-        Check an action periodically
+        Check an action periodically and wait for it to complete.
+        
+        do_mgr          :   digitalocean.Manager
+        droplet         :   digitalocean.Droplet details
+        action_id       :   Action ID to check against
+        interval        :   Time to wait before (re-)checking an action.
+        action_type     :   Action type to watch for. i.e. 'create'
+        action_status   :   Action status to wait for i.e. 'completed'
+        
+        returns:
+            Boolean value.  True if action completed successfully.
     """
     try:        
         for attempt in range(10):
@@ -98,7 +199,17 @@ def wait_on_action(do_mgr=None, droplet=None, action_id=None, interval=10,
     
     return False
 
-def transfer_image_to_region(do_mgr = None, image_id=None, regions=list()):
+
+def transfer_image_to_region(do_mgr, droplet, image_id, regions=list()):
+    """
+        Copy an image to a specific region.  If no regions are specified then
+        copy to all.  This is required when updating the base image.
+        
+        do_mgr      :   digitalocean.Manager
+        droplet     :   digitalocean.Droplet used to check status
+        image_id    :   digitalocean.Image ID to transfer
+        regions     :   (list) regions to transfer image to.
+    """
     try:
         if not (do_mgr or image_id):
             raise
@@ -118,15 +229,27 @@ def transfer_image_to_region(do_mgr = None, image_id=None, regions=list()):
         
         failed_transfers = list()
         for location in transfer_results:
-            if not wait_on_action(do_mgr, None, transfer_results[location]['action']['id'], 
+            if not wait_on_action(do_mgr, droplet, transfer_results[location]['action']['id'], 
                                   300, 'transfer', 'completed'):
                 failed_transfers.append(location)
         
         return failed_transfers
     except Exception as e:
-        raise
+        raise e
 
-def setup_new_server(digitalocean_account, droplet):
+
+def setup_new_server(digitalocean_account, droplet, psinet):
+    """
+        Set up a new server.  This takes the newly launched droplet and prepares
+        it to be a new Psiphon server.
+        
+        digitalocean_account    :   DigitalOcean account details
+        droplet                 :   newly created digitalocean.Droplet.
+        psinet                  :   instance of psinet.
+        
+        returns:
+            Boolean value.  True if all tasks completed successfully.
+    """
     try:
         new_root_password = psi_utils.generate_password()
         new_stats_password = psi_utils.generate_password()
@@ -140,7 +263,8 @@ def setup_new_server(digitalocean_account, droplet):
 
         assert(new_droplet_public_key)
         
-        host = psinet.get_host_object(droplet.name, None, droplet.id, droplet.ip_address, 
+        host = psinet.get_host_object(
+                    droplet.name, None, droplet.id, droplet.ip_address, 
                     digitalocean_account.base_ssh_port, 'root', new_root_password, 
                     ' '.join(new_droplet_public_key.split(' ')[:2]),
                     digitalocean_account.base_stats_username, new_stats_password,
@@ -151,8 +275,9 @@ def setup_new_server(digitalocean_account, droplet):
         capabilities = {'handshake': True, 'FRONTED-MEEK': False, 'UNFRONTED-MEEK': False, 
                         'SSH': True, 'OSSH': True, 'VPN': True}
         
-        server = psinet.get_server_object(None, droplet.name, droplet.ip_address, droplet.ip_address,
-                    droplet.ip_address, psinet.get_propagation_channel_by_name('Testing').id,
+        server = psinet.get_server_object(
+                    None, droplet.name, droplet.ip_address, 
+                    droplet.ip_address, droplet.ip_address, psinet.get_propagation_channel_by_name('Testing').id,
                     False, False, None, capabilities, str(random.randrange(8000, 9000)), None, None, None,
                     ssh_port, None, None, None, ossh_port, None, None)
         psinet.setup_server(host, [server])
@@ -162,7 +287,15 @@ def setup_new_server(digitalocean_account, droplet):
     
     return False
 
+
 def remove_server(digitalocean_account, droplet_id):
+    """
+        Destroys a digitalocean droplet.
+        **NOTE** : This does not remove the droplet from psinet.
+        
+        digitalocean_account    :   DigitalOcean account information
+        droplet_id              :   ID of droplet to destroy
+    """
     try:
         do_mgr = digitalocean.Manager(token=digitalocean_account.oauth_token)
         droplet = do_mgr.get_droplet(droplet_id)
@@ -174,7 +307,11 @@ def remove_server(digitalocean_account, droplet_id):
         if "The resource you were accessing could not be found." not in str(e):
             raise e
 
+
 def prep_for_image_update():
+    """
+        Sets some specific settings for updating the base image.
+    """
     PSI_OPS_ROOT = os.path.abspath(os.path.join('..', 'Data', 'PsiOps'))
     PSI_OPS_DB_FILENAME = os.path.join(PSI_OPS_ROOT, 'psi_ops.dat')
     
@@ -193,10 +330,24 @@ def prep_for_image_update():
     
     global psinet
     psinet = psi_ops.PsiphonNetwork.load_from_file(PSI_OPS_DB_FILENAME)
-    update_image(psinet._PsiphonNetwork__digitalocean_account)
+    update_image(psinet, psinet._PsiphonNetwork__digitalocean_account)
     
 
-def update_image(digitalocean_account=None, droplet_id=None, droplet_name=None, droplet_size=None, test=True):
+def update_image(psinet, digitalocean_account, droplet_id, 
+                 droplet_name, droplet_size, test=True):
+    """
+        Updates the base image.  This includes installing new system packages
+        via apt and setting the droplet kernel.
+        
+        psinet                  :   instance of psinet
+        digitalocean_account    :   DigitalOcean account information
+        droplet_id              :   digitalocean.Droplet.id to use
+        droplet_name            :   (String) to use as droplet name.
+        droplet_size            :   (Int) code that denotes the droplet size to use.
+                                    Images created with a smaller size can scale
+                                    up, but larger sized instances cannot scale down.
+        test                    :   (Boolean) value to test the new image
+    """
     try:
         if not digitalocean_account:
             raise Exception('DigitalOcean account must be provided')
@@ -241,6 +392,8 @@ def update_image(digitalocean_account=None, droplet_id=None, droplet_name=None, 
 
         update_system_packages(digitalocean_account, droplet.ip_address)
         droplet = droplet.load()
+        
+        droplet = update_kernel(digitalocean_account, do_mgr, droplet)
 
         result = droplet.reboot()
         if not wait_on_action(do_mgr, droplet, result['action']['id'], 30, 'reboot', 'completed'):
@@ -273,7 +426,7 @@ def update_image(digitalocean_account=None, droplet_id=None, droplet_name=None, 
             raise 'Could not set up server successfully'
 
         # transfer image
-        failures = transfer_image_to_region(do_mgr, droplet.snapshot_ids[0])
+        failures = transfer_image_to_region(do_mgr, droplet, droplet.snapshot_ids[0])
         if len(failures) > 0:
             print "Failed to transfer image to regions: %s" % (failures)
 
@@ -288,7 +441,17 @@ def update_image(digitalocean_account=None, droplet_id=None, droplet_name=None, 
     except Exception as e:
         print type(e), str(e)
 
+
 def launch_new_server(digitalocean_account, _):
+    """
+        Launches a new droplet and configures it to be a Psiphon server.
+        This is called from psi_ops.py
+        
+        digitalocean_account    :   DigitalOcean account information
+        
+        returns:
+            instance of a psinet server
+    """
     try:
         Droplet = collections.namedtuple('Droplet', ['name', 'region', 'image', 
                                                      'size', 'backups'])
@@ -312,11 +475,11 @@ def launch_new_server(digitalocean_account, _):
         if not unicode(digitalocean_account.base_size_slug) in [unicode(s.slug) for s in droplet_sizes]:
             raise 'Size slug not found'
 
-        Droplet.size = '4gb'
+        Droplet.size = '2gb'
 
         droplet_regions = do_mgr.get_all_regions()
         common_regions = list(set([r.slug for r in droplet_regions if r.available])
-                                 .intersection(base_image.regions))
+                              .intersection(base_image.regions))
 
         Droplet.region = random.choice(common_regions)
 
@@ -350,7 +513,7 @@ def launch_new_server(digitalocean_account, _):
     
     except Exception as e:
         print type(e), str(e)
-        if droplet != None:
+        if droplet is not None:
             droplet.destroy()
         else:
             print type(e), "No droplet to be destroyed: ", str(droplet)
