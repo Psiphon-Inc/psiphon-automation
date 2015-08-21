@@ -161,7 +161,8 @@ EmailPropagationAccount = psi_utils.recordtype(
 Sponsor = psi_utils.recordtype(
     'Sponsor',
     'id, name, banner, website_banner, website_banner_link, home_pages, mobile_home_pages, ' +
-    'campaigns, page_view_regexes, https_request_regexes')
+    'campaigns, page_view_regexes, https_request_regexes, use_data_from_sponsor_id',
+    default=None)
 
 SponsorHomePage = psi_utils.recordtype(
     'SponsorHomePage',
@@ -176,7 +177,7 @@ SponsorHomePage = psi_utils.recordtype(
 SponsorCampaign = psi_utils.recordtype(
     'SponsorCampaign',
     'propagation_channel_id, propagation_mechanism_type, account, ' +
-    's3_bucket_name, languages, custom_download_site')
+    's3_bucket_name, languages, platforms, custom_download_site')
 
 SponsorRegex = psi_utils.recordtype(
     'SponsorRegex',
@@ -290,6 +291,10 @@ UpgradePackageSigningKeyPair = psi_utils.recordtype(
 # database, so we don't require a secret key pair wrapping password
 UPGRADE_PACKAGE_SIGNING_KEY_PAIR_PASSWORD = 'none'
 
+RoutesSigningKeyPair = psi_utils.recordtype(
+    'RoutesSigningKeyPair',
+    'pem_key_pair, password')
+
 CLIENT_PLATFORM_WINDOWS = 'Windows'
 CLIENT_PLATFORM_ANDROID = 'Android'
 
@@ -341,11 +346,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__discovery_strategy_value_hmac_key = binascii.b2a_hex(os.urandom(32))
         self.__android_home_tab_url_exclusions = set()
         self.__alternate_meek_fronting_addresses = defaultdict(set)
+        self.__routes_signing_key_pair = None
 
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.29'
+    class_version = '0.32'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -513,6 +519,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.29')) < 0:
             self.__alternate_meek_fronting_addresses = defaultdict(set)
             self.version = '0.29'
+        if cmp(parse_version(self.version), parse_version('0.30')) < 0:
+            self.__routes_signing_key_pair = None
+            self.version = '0.30'
+        if cmp(parse_version(self.version), parse_version('0.31')) < 0:
+            for sponsor in self.__sponsors.itervalues():
+                for campaign in sponsor.campaigns:
+                    campaign.platforms = None
+            self.version = '0.31'
+        if cmp(parse_version(self.version), parse_version('0.32')) < 0:
+            for sponsor in self.__sponsors.itervalues():
+                sponsor.use_data_from_sponsor_id = None
+            self.version = '0.32'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -895,6 +913,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                    EmailPropagationAccount(email_account),
                                    None,
                                    None,
+                                   None,
                                    False)
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
@@ -947,6 +966,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         twitter_account_access_token_secret),
                                    None,
                                    None,
+                                   None,
                                    False)
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
@@ -964,6 +984,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(propagation_mechanism_type in propagation_channel.propagation_mechanism_types)
         campaign = SponsorCampaign(propagation_channel.id,
                                    propagation_mechanism_type,
+                                   None,
                                    None,
                                    None,
                                    None,
@@ -1098,6 +1119,20 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         sponsor.name = (new_sponsor_name)
         self.__deploy_stats_config_required = True
         sponsor.log('set sponsor name from \'%s\' to \'%s\'' % (sponsor_name, new_sponsor_name))
+
+    def set_sponsor_override_data_sponsor_id(self, sponsor_name, use_data_from_sponsor_name):
+        assert(self.is_locked)
+        sponsor = self.get_sponsor_by_name(sponsor_name)
+        override_sponsor = self.get_sponsor_by_name(use_data_from_sponsor_name)
+        sponsor.use_data_from_sponsor_id = override_sponsor.id
+        for campaign in sponsor.campaigns:
+            for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
+                self.__deploy_builds_required_for_campaigns[platform].add(
+                    (campaign.propagation_channel_id, sponsor.id))
+            campaign.log('marked for build and publish (new banner override)')
+        self.__deploy_data_required_for_all = True
+        self.__deploy_website_required_for_sponsors.add(sponsor.id)
+        sponsor.log('set use data from sponsor \'%s\'' % (use_data_from_sponsor_name))
 
     def get_server_by_ip_address(self, ip_address):
         servers = filter(lambda x: x.ip_address == ip_address, self.__servers.itervalues())
@@ -1253,7 +1288,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if users_on_host == 0:
                 self.remove_host(server.host_id)
                 number_removed += 1
-            elif users_on_host < 30:
+            elif users_on_host < 80:
                 self.__disable_server(server)
                 number_disabled += 1
         return number_removed, number_disabled
@@ -1426,7 +1461,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Here, we're assuming one server/IP address per host
         psi_ops_install.install_host(host, servers, self.get_existing_server_ids(), plugins)
         host.log('install')
-
+        psi_ops_install.change_weekly_crontab_runday(host, None)
         # Update database
 
         # Add new server (we also add a host; here, the host and server are
@@ -1525,7 +1560,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
                             self.__deploy_builds_required_for_campaigns[platform].add(
                                     (campaign.propagation_channel_id, sponsor.id))
-                        campaign.log('marked for build and publish (new embedded server)')
+                        # Don't log this, too much noise
+                        #campaign.log('marked for build and publish (new embedded server)')
 
         for new_server_number in range(len(server_infos)):
             server_info = server_infos[new_server_number]
@@ -1822,6 +1858,39 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__feedback_encryption_key_pair.pem_key_pair.encode('ascii', 'ignore')
         return self.__feedback_encryption_key_pair
 
+    def create_routes_signing_key_pair(self):
+        '''
+        Generate a routes signing key pair and wrapping password.
+        Overwrites any existing values.
+        '''
+
+        assert(self.is_locked)
+
+        if self.__routes_signing_key_pair:
+            print('WARNING: You are overwriting the previous value')
+
+        password = psi_utils.generate_password()
+
+        self.__routes_signing_key_pair = \
+            RoutesSigningKeyPair(
+                psi_ops_crypto_tools.generate_key_pair(password),
+                password)
+
+    def get_routes_signing_key_pair(self):
+        '''
+        Retrieves the routes signing keypair and wrapping password.
+        Generates those values if they don't already exist.
+        '''
+
+        if not self.__routes_signing_key_pair:
+            self.create_routes_signing_key_pair()
+
+        # This may be serialized/deserialized into a unicode string, but M2Crypto won't accept that.
+        # The key pair should only contain ascii anyways, so encoding to ascii should be safe.
+        self.__routes_signing_key_pair.pem_key_pair = \
+            self.__routes_signing_key_pair.pem_key_pair.encode('ascii', 'ignore')
+        return self.__routes_signing_key_pair
+
     def get_feedback_upload_info(self):
         assert(self.__feedback_upload_info)
         return self.__feedback_upload_info
@@ -1850,6 +1919,17 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__upgrade_package_signing_key_pair.pem_key_pair = \
             self.__upgrade_package_signing_key_pair.pem_key_pair.encode('ascii', 'ignore')
         return self.__upgrade_package_signing_key_pair
+
+    def __split_tunnel_url_format(self):
+        return 'https://s3.amazonaws.com/psiphon/routes/%s.route.zlib.json' # TODO get it from psi_ops_s3
+
+    def __split_tunnel_signature_public_key(self):
+        return psi_ops_crypto_tools.get_base64_der_public_key(
+                self.get_routes_signing_key_pair().pem_key_pair,
+                self.get_routes_signing_key_pair().password)
+
+    def __split_tunnel_dns_server(self):
+        return '8.8.4.4'  # TODO get it from psinet?
 
     def build(
             self,
@@ -1898,10 +1978,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if hasattr(plugin, 'build_android_client'):
                 builders[CLIENT_PLATFORM_ANDROID] = plugin.build_android_client
 
+        sponsor_banner = sponsor.banner
+        if sponsor.use_data_from_sponsor_id:
+            sponsor_banner = self.__sponsors[sponsor.use_data_from_sponsor_id].banner
+
         return [builders[platform](
                         propagation_channel.id,
                         sponsor.id,
-                        base64.b64decode(sponsor.banner),
+                        base64.b64decode(sponsor_banner),
                         encoded_server_list,
                         remote_server_list_signature_public_key,
                         remote_server_list_url_split,
@@ -1916,6 +2000,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         get_new_version_email,
                         faq_url,
                         privacy_policy_url,
+                        self.__split_tunnel_url_format(),
+                        self.__split_tunnel_signature_public_key(),
+                        self.__split_tunnel_dns_server(),
                         self.__client_versions[platform][-1].version if self.__client_versions[platform] else 0,
                         propagation_channel.propagator_managed_upgrades,
                         test,
@@ -2026,6 +2113,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
                 for campaign in filter(lambda x: x.propagation_channel_id == propagation_channel_id, sponsor.campaigns):
 
+                    if campaign.platforms != None and not platform in campaign.platforms:
+                        continue
+
                     if not campaign.s3_bucket_name:
                         campaign.s3_bucket_name = psi_ops_s3.create_s3_website_bucket_name()
                         campaign.log('created s3 bucket %s' % (campaign.s3_bucket_name,))
@@ -2116,7 +2206,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                          (upgrade_filename, s3_upgrade_resource_name)],
                         remote_server_list,
                         campaign.s3_bucket_name)
-                    campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
+                    # Don't log this, too much noise
+                    #campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
 
                     if campaign.propagation_mechanism_type == 'twitter':
                         message = psi_templates.get_tweet_message(campaign.s3_bucket_name)
@@ -2125,7 +2216,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     elif campaign.propagation_mechanism_type == 'email-autoresponder':
                         if not self.__deploy_email_config_required:
                             self.__deploy_email_config_required = True
-                            campaign.log('email push scheduled')
+                            # Don't log this, too much noise
+                            #campaign.log('email push scheduled')
 
                 # NOTE: before we added remote server lists, it used to be that
                 # multiple campaigns with different buckets but the same prop/sponsor IDs
@@ -2197,13 +2289,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if type(campaign.account) == EmailPropagationAccount:
             get_new_version_email = campaign.account.email_address
 
+        sponsor_website_banner = sponsor.website_banner
+        sponsor_website_banner_link = sponsor.website_banner_link
+        if sponsor.use_data_from_sponsor_id:
+            sponsor_website_banner = self.__sponsors[sponsor.use_data_from_sponsor_id].website_banner
+            sponsor_website_banner_link = self.__sponsors[sponsor.use_data_from_sponsor_id].website_banner_link
+        
         psi_ops_s3.update_website(
                         self.__aws_account,
                         campaign.s3_bucket_name,
                         campaign.custom_download_site,
                         WEBSITE_GENERATION_DIR,
-                        sponsor.website_banner,
-                        sponsor.website_banner_link,
+                        sponsor_website_banner,
+                        sponsor_website_banner_link,
                         get_new_version_email)
         campaign.log('updated website in S3 bucket %s' % (campaign.s3_bucket_name,))
 
@@ -2211,6 +2309,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(self.is_locked)  # (host.log is called by deploy)
         psi_routes.make_routes()
         psi_ops_deploy.deploy_routes_to_hosts(self.__hosts.values())
+
+    def update_external_signed_routes(self):
+        psi_routes.make_signed_routes(
+                self.get_routes_signing_key_pair().pem_key_pair,
+                self.get_routes_signing_key_pair().password)
+        psi_ops_s3.upload_signed_routes(
+                self.__aws_account,
+                psi_routes.GEO_ROUTES_ROOT, 
+                psi_routes.GEO_ROUTES_SIGNED_EXTENSION)
 
     def push_stats_config(self):
         assert(self.is_locked)
@@ -2261,6 +2368,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         })
 
                     # Email with attachments
+                    attachments = []
+                    if campaign.platforms == None or CLIENT_PLATFORM_WINDOWS in campaign.platforms:
+                        attachments.append([campaign.s3_bucket_name,
+                                            psi_ops_s3.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME,
+                                            psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME])
+                    if campaign.platforms == None or CLIENT_PLATFORM_ANDROID in campaign.platforms:
+                        attachments.append([campaign.s3_bucket_name,
+                                            psi_ops_s3.DOWNLOAD_SITE_ANDROID_BUILD_FILENAME,
+                                            psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME])
+
                     emails.append(
                         {
                          'email_addr': campaign.account.email_address,
@@ -2270,25 +2387,20 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 campaign.s3_bucket_name,
                                                 psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME,
                                                 psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME,
-                                                campaign.languages)],
+                                                campaign.languages,
+                                                campaign.platforms)],
                                 ['html', psi_templates.get_html_attachment_email_content(
                                                 campaign.s3_bucket_name,
                                                 psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME,
                                                 psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME,
-                                                campaign.languages)]
+                                                campaign.languages,
+                                                campaign.platforms)]
                             ],
-                         'attachments': [
-                                         [campaign.s3_bucket_name,
-                                          psi_ops_s3.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME,
-                                          psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME],
-                                         [campaign.s3_bucket_name,
-                                          psi_ops_s3.DOWNLOAD_SITE_ANDROID_BUILD_FILENAME,
-                                          psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME]
-                                        ],
+                         'attachments': attachments,
                          'send_method': 'SMTP'
                         })
-
-                    campaign.log('configuring email')
+                    # Don't log this, too much noise
+                    #campaign.log('configuring email')
 
         psi_ops_s3.put_string_to_key_in_bucket(self.__aws_account,
                                                self.__automation_bucket,
@@ -2767,6 +2879,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 server.alternate_ssh_obfuscated_ports)
 
         for sponsor in self.__sponsors.itervalues():
+            sponsor_data = sponsor
+            if sponsor.use_data_from_sponsor_id:
+                sponsor_data = self.__sponsors[sponsor.use_data_from_sponsor_id]
             copy_sponsor = Sponsor(
                                 sponsor.id,
                                 '',  # Omit name
@@ -2776,12 +2891,28 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 {},
                                 {},
                                 [],  # Omit campaigns
-                                sponsor.page_view_regexes,
-                                sponsor.https_request_regexes)
-            for region, home_pages in sponsor.home_pages.iteritems():
-                copy_sponsor.home_pages[region] = home_pages
-            for region, mobile_home_pages in sponsor.mobile_home_pages.iteritems():
-                copy_sponsor.mobile_home_pages[region] = mobile_home_pages
+                                [],
+                                [])
+            for region, home_pages in sponsor_data.home_pages.iteritems():
+                copy_sponsor.home_pages[region] = []
+                for home_page in home_pages:
+                    copy_sponsor.home_pages[region].append(SponsorHomePage(
+                                                             home_page.region,
+                                                             home_page.url))
+            for region, mobile_home_pages in sponsor_data.mobile_home_pages.iteritems():
+                copy_sponsor.mobile_home_pages[region] = []
+                for mobile_home_page in mobile_home_pages:
+                    copy_sponsor.mobile_home_pages[region].append(SponsorHomePage(
+                                                             mobile_home_page.region,
+                                                             mobile_home_page.url))
+            for page_view_regex in sponsor_data.page_view_regexes:
+                copy_sponsor.page_view_regexes.append(SponsorRegex(
+                                                             page_view_regex.regex,
+                                                             page_view_regex.replace))
+            for https_request_regex in sponsor_data.https_request_regexes:
+                copy_sponsor.https_request_regexes.append(SponsorRegex(
+                                                             https_request_regex.regex,
+                                                             https_request_regex.replace))
             copy.__sponsors[copy_sponsor.id] = copy_sponsor
 
         for platform in self.__client_versions.iterkeys():
@@ -2929,6 +3060,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 server.web_server_port,
                                 server.web_server_secret,
                                 [self.__get_encoded_server_entry(server)],
+                                self.__split_tunnel_url_format(),
+                                self.__split_tunnel_signature_public_key(),
+                                self.__split_tunnel_dns_server(),
                                 version,
                                 [server.egress_ip_address],
                                 test_propagation_channel_id,
@@ -2972,6 +3106,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     '',         # get_new_version_email
                                     '',         # faq_url
                                     '',         # privacy_policy_url
+                                    self.__split_tunnel_url_format(),
+                                    self.__split_tunnel_signature_public_key(),
+                                    self.__split_tunnel_dns_server(),
                                     version,
                                     False,
                                     False)
@@ -3116,6 +3253,11 @@ def test(tests):
     psinet.test_servers(tests)
 
 
+def update_external_signed_routes():
+    psinet = PsiphonNetwork.load(lock=False)
+    psinet.update_external_signed_routes()
+
+
 def prune_all_propagation_channels():
     psinet = PsiphonNetwork.load(lock=True)
     psinet.show_status()
@@ -3146,6 +3288,8 @@ if __name__ == "__main__":
     parser.add_option("-t", "--test", dest="test", action="append",
                       choices=('handshake', 'VPN', 'OSSH', 'SSH'),
                       help="specify once for each of: handshake, VPN, OSSH, SSH")
+    parser.add_option("-u", "--update-routes", dest="updateroutes", action="store_true",
+                      help="update external signed routes files")
     parser.add_option("-p", "--prune", dest="prune", action="store_true",
                       help="prune all propagation channels")
     parser.add_option("-n", "--new-servers", dest="channel", action="store", type="string",
@@ -3155,6 +3299,8 @@ if __name__ == "__main__":
         replace_propagation_channel_servers(options.channel)
     elif options.prune:
         prune_all_propagation_channels()
+    elif options.updateroutes:
+        update_external_signed_routes()
     elif options.test:
         test(options.test)
     elif options.readonly:

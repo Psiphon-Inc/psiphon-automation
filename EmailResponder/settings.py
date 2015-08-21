@@ -67,6 +67,10 @@ COMPLAINTS_ADDRESS = 'complaints@example.com'
 # Set to empty array if no such emails should be sent.
 ADMIN_FORWARD_ADDRESSES = ['mick@example.com', 'keith@example.com']
 
+# Will appear at the start of subject of administrative email sent by this server
+ADMIN_FORWARD_SUBJECT_TAG = '[MailResponder]'
+
+
 # This must match the local send service specified in /etc/postfix/master.cf
 LOCAL_SMTP_SEND_PORT = 2525
 
@@ -90,6 +94,9 @@ BLACKLISTED_DOMAINS = ['example.com']
 # Stats stuff
 #
 
+# Will appear at the start of stats email subject
+STATS_SUBJECT_TAG = ADMIN_FORWARD_SUBJECT_TAG
+
 # The address to which the stats email should be sent.
 STATS_RECIPIENT_ADDRESS = 'mail@example.com'
 # The address from which the stats email should be sent.
@@ -111,7 +118,7 @@ CLOUDWATCH_PROCESSING_TIME_METRIC_NAME = 'processing_time'
 #
 DKIM_DOMAIN = STATS_SENDER_ADDRESS_BARE[STATS_SENDER_ADDRESS_BARE.index('@') + 1:]
 DKIM_SELECTOR = 'key1'
-DKIM_PRIVATE_KEY = './dkim.key'
+DKIM_PRIVATE_KEY = os.path.expanduser('~%s/dkim.key' % MAIL_RESPONDER_USERNAME)
 
 
 #
