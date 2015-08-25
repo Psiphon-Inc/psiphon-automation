@@ -50,7 +50,7 @@ class CronCreator(object):
         '''
         Delete any pre-existing cron jobs with the given `command_id` as comment.
         '''
-        [job.delete() for job in cron.find_comment(command_id)]
+        cron.remove_all(comment=command_id)
 
     def _blacklist_jobs(self):
         command_id = 'Psiphon: blacklist clear'
@@ -91,7 +91,7 @@ class CronCreator(object):
 
     def _conf_update(self):
         command_id = 'Pull config'
-        command = 'cd /home/mail_responder && /usr/bin/env python conf_pull.py'
+        command = 'cd /home/mail_responder && /usr/bin/env python conf_pull.py --cron'
 
         self._delete_commands(self.mail_tab, command_id)
 
