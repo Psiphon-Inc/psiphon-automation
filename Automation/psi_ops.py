@@ -348,12 +348,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__discovery_strategy_value_hmac_key = binascii.b2a_hex(os.urandom(32))
         self.__android_home_tab_url_exclusions = set()
         self.__alternate_meek_fronting_addresses = defaultdict(set)
+        self.__alternate_meek_fronting_addresses_regex = defaultdict(str)
         self.__routes_signing_key_pair = None
 
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.33'
+    class_version = '0.34'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -534,6 +535,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 sponsor.use_data_from_sponsor_id = None
             self.version = '0.32'
         if cmp(parse_version(self.version), parse_version('0.33')) < 0:
+            self.__alternate_meek_fronting_addresses_regex = defaultdict(str)
+            self.version = '0.33'
+        if cmp(parse_version(self.version), parse_version('0.34')) < 0:
             for sponsor in self.__sponsors.itervalues():
                 if sponsor.banner:
                     try:
@@ -542,7 +546,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         sponsor.banner = base64.b64encode(pngdata.getvalue())
                     except Exception as e:
                         print('Corrupt banner image found for sponsor %s; unable to convert' % sponsor.id)
-            self.version = '0.33'
+            self.version = '0.34'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -2628,6 +2632,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if len(alternate_meek_fronting_addresses) > 0:
                 random.shuffle(alternate_meek_fronting_addresses)
                 extended_config['meekFrontingAddresses'] = alternate_meek_fronting_addresses[:3]
+
+            extended_config['meekFrontingAddressesRegex'] = self.__alternate_meek_fronting_addresses_regex[host.meek_server_fronting_domain]
 
         return binascii.hexlify('%s %s %s %s %s' % (
                                     server.ip_address,
