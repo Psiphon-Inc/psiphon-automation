@@ -344,7 +344,7 @@ def forward_to_administrator(email_type, email_string):
     if settings.ADMIN_FORWARD_ADDRESSES:
         raw = sendmail.create_raw_email(settings.ADMIN_FORWARD_ADDRESSES,
                                         settings.RESPONSE_FROM_ADDR,
-                                        '[MailResponder] ' + email_type,
+                                        '%s %s' % (settings.ADMIN_FORWARD_SUBJECT_TAG, email_type),
                                         email_string)
         if not raw:
             print('create_raw_email failed')

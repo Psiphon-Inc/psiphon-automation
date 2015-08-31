@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# "python ./load.py" shouldn't run for longer than 30 minutes
-max_seconds=1800
+# "python ./load.py" shouldn't run for longer than 60 minutes
+max_seconds=3600
 process="$(pgrep -f "python ./load.py")"
 if [[ -n "$process" ]]; then
   seconds=$(echo "$(date +%s) - $(stat -c %X /proc/$process)" | bc)
@@ -21,7 +21,7 @@ touch $lockfile
 
 hg pull && hg up
 
-ulimit -n 4000
+ulimit -n 5000
 
 python ./load.py
 

@@ -44,21 +44,37 @@ def check_load_on_host(host):
     try:
         log_diagnostics('checking host: %s' % (host.id))
         users = g_psinet._PsiphonNetwork__count_users_on_host(host.id)
-        load = g_psinet.run_command_on_host(host, 'uptime | cut -d , -f 4 | cut -d : -f 2 | awk -F \. \'{print $1}\'').strip()
+        load_metrics = g_psinet.run_command_on_host(host,
+            'uptime | cut -d , -f 4 | cut -d : -f 2; grep "model name" /proc/cpuinfo | wc -l').split('\n')
+        load_threshold = 4.0 * float(load_metrics[1].strip()) - 1
+        load = str(float(load_metrics[0].strip())/load_threshold * 100.0)
         free = g_psinet.run_command_on_host(host, 'free | grep "buffers/cache" | awk \'{print $4/($3+$4) * 100.0}\'')
         free_swap = g_psinet.run_command_on_host(host, 'free | grep "Swap" | awk \'{print $4/$2 * 100.0}\'')
-        #psi_web = g_psinet.run_command_on_host(host, 'pgrep psi_web')
-        #udpgw = g_psinet.run_command_on_host(host, 'pgrep badvpn-udpgw')
-        #xinetd = g_psinet.run_command_on_host(host, 'pgrep xinetd')
-        return (host.id, users, load, free.rstrip(), free_swap.rstrip())#, psi_web.rstrip(), udpgw.rstrip(), xinetd.rstrip())
+        processes_to_check = ['psi_web.py', 'redis-server', 'badvpn-udpgw', 'xinetd', 'xl2tpd', 'cron', 'rsyslogd', 'fail2ban-server', 'ntpd']
+        if host.meek_server_port:
+            processes_to_check.append('meek-server')
+        process_counts = g_psinet.run_command_on_host(host,
+            '; '.join(['pgrep -xc ' + process for process in processes_to_check])).split('\n')
+        process_alerts = []
+        for index, process in enumerate(processes_to_check):
+            alert = False
+            instances = int(process_counts[index])
+            if process == 'cron':
+                alert = instances < 1
+            elif process == 'xl2tpd':
+                alert = instances != len([server.id for server in g_psinet.get_servers() if server.host_id == host.id])
+            else:
+                alert = instances != 1
+            if alert:
+                process_alerts.append(process)
+        return (host.id, users, load, free.rstrip(), free_swap.rstrip(), ', '.join(process_alerts))
     except Exception as e:
-        return (host.id, -1, -1, -1, -1)#, -1, -1, -1)
+        log_diagnostics('failed host: %s %s' % (host.id, str(e)))
+        return (host.id, -1, -1, -1, -1, '')
 
 # TODO: print if server is discovery or propagation etc
 def check_load_on_hosts(psinet, hosts):
-    cur_users = 0
     loads = {}
-    unreachable_hosts = 0
 
     pool = ThreadPool(25)
     global g_psinet
@@ -67,18 +83,29 @@ def check_load_on_hosts(psinet, hosts):
     results = pool.map(check_load_on_host, hosts)
     log_diagnostics('...done checking hosts')
 
-    for result in results:
-        if result[1] == -1:
-            # retry a failed host
-            print 'Retrying host ' + result[0]
-            result = check_load_on_host(psinet._PsiphonNetwork__hosts[result[0]])
-            if result[1] == -1:
-                unreachable_hosts += 1
-        cur_users += result[1]
+    # retry failed hosts
+    failed_hosts = [psinet._PsiphonNetwork__hosts[result[0]] for result in results if result[1] == -1 or result[5]]
+    if len(failed_hosts):
+        log_diagnostics('Retrying failed hosts')
+    new_results = pool.map(check_load_on_host, failed_hosts)
+
+    for result in results + new_results:
         loads[result[0]] = result[1:]
+
+    cur_users = sum([load[0] for load in loads.itervalues() if load[0] > 0])
+    unreachable_hosts = len([load for load in loads.itervalues() if load[0] == -1])
+    
     loads = sorted(loads.iteritems(), key=operator.itemgetter(1), reverse=True)
+    unreachable = [load for load in loads if load[1][0] == -1]
+    process_alerts = [load for load in loads if load[1][4]]
+    high_load = [load for load in loads if float(load[1][1]) >= 100.0]
+    low_memory = [load for load in loads if float(load[1][2]) < 20.0 or float(load[1][3]) < 20.0]
+
+    for load in low_memory + high_load + process_alerts + unreachable:
+        loads.insert(0, loads.pop(loads.index(load)))
+
     pprint.pprint(loads)
-    return cur_users, unreachable_hosts, loads
+    return cur_users, len(loads), unreachable_hosts, loads
 
 def check_load_on_all_hosts(psinet):
     return check_load_on_hosts(psinet, psinet.get_hosts())
@@ -212,4 +239,5 @@ def _makedirs(path):
 
 if __name__ == "__main__":
     log_load()
-    dump_host_reports()
+    #dump_host_reports()
+

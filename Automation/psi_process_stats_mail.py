@@ -21,6 +21,7 @@ import os
 import sys
 import re
 import pynliner
+import platform
 
 MAKO_TEMPLATE='psi_process_stats_mail.mako'
 
@@ -160,7 +161,7 @@ def send_mail(record, subject='Psiphon Process Stats Email',
         raise
 
     template_lookup = TemplateLookup(directories=[os.path.dirname(os.path.abspath('__file__'))])
-    template = Template(filename=template_filename, default_filters=['unicode', 'h'], lookup=template_lookup)
+    template = Template(filename=template_filename, default_filters=['decode.utf8', 'unicode', 'h'], lookup=template_lookup)
 
     try:
         rendered = template.render(data=record)
@@ -179,6 +180,9 @@ data = stats_processing_sets[0][2]
 '''
 def main():
     print "Process stats last run"
+
+    node_name = platform.node()
+    email_subject = 'Psiphon Process Stats Email - ' + str(node_name)
     
     # stats_processing_sets = (start_run_line, end_run_line, run_contents)
     stats_processing_sets = process_stats_job_log(LOGFILE)
@@ -189,7 +193,7 @@ def main():
          sorted_hosts_sync_times, xenos,
         ) = process_stats_run(stats_processing_sets[-1][0], stats_processing_sets[-1][1], stats_processing_sets[-1][2])
         
-        send_mail((stats_process_start_date, synced_hosts_total, synced_hosts_success, synced_hosts_failed, synced_hosts_elapsed_time, processed_count, sorted_hosts_sync_times, xenos))
+        send_mail((stats_process_start_date, synced_hosts_total, synced_hosts_success, synced_hosts_failed, synced_hosts_elapsed_time, processed_count, sorted_hosts_sync_times, xenos), email_subject)
         
     else:
         for run in stats_processing_sets:
@@ -197,7 +201,7 @@ def main():
              synced_hosts_elapsed_time, processed_count, sorted_hosts_sync_times, xenos,
              ) = process_stats_run(run[0], run[1], run[2])
             
-            send_mail((stats_process_start_date, synced_hosts_total, synced_hosts_success, synced_hosts_failed, synced_hosts_elapsed_time, processed_count, sorted_hosts_sync_times, xenos))
+            send_mail((stats_process_start_date, synced_hosts_total, synced_hosts_success, synced_hosts_failed, synced_hosts_elapsed_time, processed_count, sorted_hosts_sync_times, xenos), email_subject)
 
 if __name__ == "__main__":
     main()
