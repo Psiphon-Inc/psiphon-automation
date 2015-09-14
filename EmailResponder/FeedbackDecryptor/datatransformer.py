@@ -105,7 +105,7 @@ def _postprocess_yaml(data):
     #
     # If a hex ID happens to have all numbers, YAML will decode it as an
     # integer rather than a string. This could mess up processing later on.
-    data['Metadata']['id'] = str(data['Metadata']['id'])
+    _ensure_field_is_string(str, data, ('Metadata', 'id'))
 
     # Fix data type of other fields.
     # For example, if just a number is entered in the feedback text, it should
@@ -115,16 +115,9 @@ def _postprocess_yaml(data):
 
 
 def _ensure_field_is_string(stringtype, data, fieldpath):
-    field = data
-    for i in xrange(len(fieldpath)):
-        fieldname = fieldpath[i]
-        if fieldname not in field:
-            return
-        if i == len(fieldpath)-1:
-            break
-        field = field[fieldname]
-
-    field[fieldname] = stringtype(field[fieldname])
+    prev_val = utils.coalesce(data, fieldpath)
+    if prev_val is not None:
+        utils.assign_value_to_obj_at_path(data, fieldpath, stringtype(prev_val))
 
 
 def transform(data):
