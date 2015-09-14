@@ -61,11 +61,11 @@ def _convert_locale_info(data):
         if os_info.get('countryCode'):
             # Multiple countries can have the same dialing code (like Canada and
             # the US with 1), so CountryCodeInfo will be an array.
-            country_match = [m for m in _country_dialing_codes if m['dialing_code'] == os_info['countryCode']]
+            country_match = [m for m in _country_dialing_codes if str(m['dialing_code']) == str(os_info['countryCode'])]
             # Sometimes the countryCode as an additional digit. If we didn't get a
             # match, search again without the last digit.
             if not country_match:
-                country_match = [m for m in _country_dialing_codes if m['dialing_code'] == os_info['countryCode'] / 10]
+                country_match = [m for m in _country_dialing_codes if str(m['dialing_code']) == str(os_info['countryCode'])[:-1]]
             os_info['CountryCodeInfo'] = country_match if country_match else None
 
 
