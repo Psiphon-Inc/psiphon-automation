@@ -891,17 +891,24 @@ while true; do
     load_cpu=`uptime | cut -d , -f 4 | cut -d : -f 2 | awk -F \. '{print $1}'`
     if [ "$load_cpu" -ge "$threshold_cpu" ]; then
         loaded_cpu=1
+        logger psi_limit_load: CPU load threshold reached.
         break
     fi
 
     free=$(free | grep "buffers/cache" | awk '{print $4/($3+$4) * 100.0}')
     loaded_mem=$(echo "$free<$threshold_mem" | bc)
+    if [ $loaded_mem -eq 1 ]; then
+        logger psi_limit_load: Free memory load threshold reached.
+    fi
 
     loaded_swap=0
     total_swap=$(free | grep "Swap" | awk '{print $2}')
     if [ $total_swap -ne 0 ]; then
         free_swap=$(free | grep "Swap" | awk '{print $4/$2 * 100.0}')
         loaded_swap=$(echo "$free_swap<$threshold_swap" | bc)
+        if [ $loaded_swap -eq 1]; then
+            logger psi_limit_load: Swap threshold reached.
+        fi
     fi
     
     break

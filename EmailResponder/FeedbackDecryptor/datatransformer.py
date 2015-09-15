@@ -107,6 +107,25 @@ def _postprocess_yaml(data):
     # integer rather than a string. This could mess up processing later on.
     data['Metadata']['id'] = str(data['Metadata']['id'])
 
+    # Fix data type of other fields.
+    # For example, if just a number is entered in the feedback text, it should
+    # still be interpreted as a string.
+    _ensure_field_is_string(unicode, data, ('Feedback', 'email'))
+    _ensure_field_is_string(unicode, data, ('Feedback', 'Message', 'text'))
+
+
+def _ensure_field_is_string(stringtype, data, fieldpath):
+    field = data
+    for i in xrange(len(fieldpath)):
+        fieldname = fieldpath[i]
+        if fieldname not in field:
+            return
+        if i == len(fieldpath)-1:
+            break
+        field = field[fieldname]
+
+    field[fieldname] = stringtype(field[fieldname])
+
 
 def transform(data):
     '''
@@ -116,6 +135,8 @@ def transform(data):
     An exception may be thrown if `data` is malformed.
     '''
 
+    _postprocess_yaml(data)
+
     transform_keys = set((data['Metadata']['platform'],))
     transform_keys.add('%s_%s' % (data['Metadata']['platform'],
                                   data['Metadata']['version']))
@@ -123,5 +144,3 @@ def transform(data):
     for key in transform_keys.intersection(_transformations.keys()):
         for transformation in _transformations[key]:
             transformation(data)
-
-    _postprocess_yaml(data)
