@@ -51,7 +51,7 @@ def apply_local_lists(mal_lists, list_dir=LIST_DIR):
                     create_ipset_commands(mal_lists[item])
                     write_ipset_list_file(mal_lists[item])
                     apply_ipset_list(mal_lists[item])
-                    modify_iptables(mal_lists[item], '-D', 'INPUT 2', 'src', '')
+                    modify_iptables(mal_lists[item], '-D', 'INPUT', 'src', '-j DROP')
                     modify_iptables(mal_lists[item], '-I', 'INPUT 2', 'src', '-j DROP')
 
 
