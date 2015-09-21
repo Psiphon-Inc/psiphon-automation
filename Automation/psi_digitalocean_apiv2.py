@@ -142,6 +142,7 @@ def get_datacenter_region(region):
         nyc3 New York 3
         ams3 Amsterdam 3
         fra1 Frankfurt 1
+        tor1 Toronto 1
     '''
     if 'nyc' in region:
         return 'US'
@@ -155,6 +156,8 @@ def get_datacenter_region(region):
         return 'GB'
     if 'fra' in region:
         return 'DE'
+    if 'tor' in region:
+        return 'CA'
     return ''
 
 
