@@ -202,13 +202,20 @@ allowed to access the SSH port.
      -o smtpd_tls_security_level=none
     ```
 
-7. Reload postfix conf and restart:
+7. Add [`postgrey`](http://postgrey.schweikert.ch/) for "[greylisting](http://projects.puremagic.com/greylisting/)":
+
+   ```
+   sudo apt-get install postgrey   
+   ```
+
+   Actually using postgrey is handled in our example `main.cf` config.
+
+8. Reload postfix conf and restart:
 
    ```
    sudo postfix reload
    sudo service postfix restart
    ```
-
 
 ### Logwatch and Postfix-Logwatch
 
@@ -662,6 +669,7 @@ bounce_queue_lifetime = 0
 maximal_queue_lifetime = 1h
 
 # Reject messages that don't meet these criteria
+# The `10023` is the postgrey greylisting service.
 smtpd_recipient_restrictions =
    permit_mynetworks,
    reject_invalid_helo_hostname,
@@ -673,6 +681,7 @@ smtpd_recipient_restrictions =
    reject_unauth_destination,
    reject_rbl_client zen.spamhaus.org,
    reject_rbl_client bl.spamcop.net,
+   check_policy_service inet:127.0.0.1:10023,
    permit
 
 # Without this, some of the above reject lines can be bypassed.
