@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2014, Psiphon Inc.
+# Copyright (c) 2015, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -19,6 +19,7 @@
 
 import sys
 import os
+import io
 import datetime
 import pprint
 import json
@@ -36,6 +37,7 @@ import subprocess
 import traceback
 from pkg_resources import parse_version
 from multiprocessing.pool import ThreadPool
+from PIL import Image
 from collections import defaultdict
 
 import psi_utils
@@ -346,12 +348,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__discovery_strategy_value_hmac_key = binascii.b2a_hex(os.urandom(32))
         self.__android_home_tab_url_exclusions = set()
         self.__alternate_meek_fronting_addresses = defaultdict(set)
+        self.__alternate_meek_fronting_addresses_regex = defaultdict(str)
         self.__routes_signing_key_pair = None
 
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.32'
+    class_version = '0.34'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -531,6 +534,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for sponsor in self.__sponsors.itervalues():
                 sponsor.use_data_from_sponsor_id = None
             self.version = '0.32'
+        if cmp(parse_version(self.version), parse_version('0.33')) < 0:
+            self.__alternate_meek_fronting_addresses_regex = defaultdict(str)
+            self.version = '0.33'
+        if cmp(parse_version(self.version), parse_version('0.34')) < 0:
+            for sponsor in self.__sponsors.itervalues():
+                if sponsor.banner:
+                    try:
+                        pngdata = io.BytesIO()
+                        Image.open(io.BytesIO(base64.b64decode(sponsor.banner))).save(pngdata, 'png')
+                        sponsor.banner = base64.b64encode(pngdata.getvalue())
+                    except Exception as e:
+                        print('Corrupt banner image found for sponsor %s; unable to convert' % sponsor.id)
+            self.version = '0.34'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -874,9 +890,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def set_sponsor_banner(self, name, banner_filename):
         assert(self.is_locked)
         with open(banner_filename, 'rb') as file:
-            banner = base64.b64encode(file.read())
+            banner = file.read()
+        # Ensure that the banner is a PNG
+        assert(banner[:8] == '\x89PNG\r\n\x1a\n')
         sponsor = self.get_sponsor_by_name(name)
-        sponsor.banner = banner
+        sponsor.banner = base64.b64encode(banner)
         sponsor.log('set banner')
         for campaign in sponsor.campaigns:
             for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
@@ -887,9 +905,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def set_sponsor_website_banner(self, name, website_banner_filename, website_banner_link):
         assert(self.is_locked)
         with open(website_banner_filename, 'rb') as file:
-            website_banner = base64.b64encode(file.read())
+            website_banner = file.read()
+        # Ensure that the banner is a PNG
+        assert(banner[:8] == '\x89PNG\r\n\x1a\n')
         sponsor = self.get_sponsor_by_name(name)
-        sponsor.website_banner = website_banner
+        sponsor.website_banner = base64.b64encode(website_banner)
         sponsor.website_banner_link = website_banner_link
         self.__deploy_website_required_for_sponsors.add(sponsor.id)
         sponsor.log('set website_banner, marked for publish')
@@ -1607,7 +1627,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             else:
                 # Regular propagation servers also have UNFRONTED-MEEK
                 capabilities['UNFRONTED-MEEK'] = True
-                
+
 
             if capabilities['UNFRONTED-MEEK']:
                 self.setup_meek_parameters_for_host(host, 80)
@@ -2294,7 +2314,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if sponsor.use_data_from_sponsor_id:
             sponsor_website_banner = self.__sponsors[sponsor.use_data_from_sponsor_id].website_banner
             sponsor_website_banner_link = self.__sponsors[sponsor.use_data_from_sponsor_id].website_banner_link
-        
+
         psi_ops_s3.update_website(
                         self.__aws_account,
                         campaign.s3_bucket_name,
@@ -2316,7 +2336,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 self.get_routes_signing_key_pair().password)
         psi_ops_s3.upload_signed_routes(
                 self.__aws_account,
-                psi_routes.GEO_ROUTES_ROOT, 
+                psi_routes.GEO_ROUTES_ROOT,
                 psi_routes.GEO_ROUTES_SIGNED_EXTENSION)
 
     def push_stats_config(self):
@@ -2612,6 +2632,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if len(alternate_meek_fronting_addresses) > 0:
                 random.shuffle(alternate_meek_fronting_addresses)
                 extended_config['meekFrontingAddresses'] = alternate_meek_fronting_addresses[:3]
+
+            extended_config['meekFrontingAddressesRegex'] = self.__alternate_meek_fronting_addresses_regex[host.meek_server_fronting_domain]
 
         return binascii.hexlify('%s %s %s %s %s' % (
                                     server.ip_address,

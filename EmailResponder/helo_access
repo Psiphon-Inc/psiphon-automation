@@ -1,0 +1,18 @@
+# Add mail servers to this list that should not be talked to. For example, 
+# mailing list servers.
+# Note that this only applies to the incoming mailserver HELO line.
+
+mailgun.info              REJECT
+.mailgun.info             REJECT
+
+# MailChimp
+mcdlv.net                 REJECT
+.mcdlv.net                REJECT
+
+linkedin.com              REJECT
+.linkedin.com             REJECT
+
+facebook.com              REJECT
+.facebook.com             REJECT
+facebookmail.com          REJECT
+.facebookmail.com         REJECT

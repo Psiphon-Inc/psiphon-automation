@@ -87,7 +87,7 @@ BLACKLIST_EXEMPTION_DOMAINS = ['example.com']
 
 # Email addresses from domains in this list will always be blacklisted.
 # Leave empty if functionality is not desired.
-BLACKLISTED_DOMAINS = ['example.com']
+BLACKLISTED_DOMAINS = ['googlegroups.com', 'getresponse.com', 'linkedin.com']
 
 
 #
