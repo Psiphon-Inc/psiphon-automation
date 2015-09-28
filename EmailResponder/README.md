@@ -185,10 +185,11 @@ allowed to access the SSH port.
    sudo nano /etc/postfix/master.cf
    ```
 
-   Comment out the bounce line, so it looks like this:
+   Comment out the bounce and trace lines, so it looks like this:
 
    ```
    #bounce    unix  -       -       -       -       0       bounce
+   #trace     unix  -       -       -       -       0       bounce
    ```
 
 6. When sending mail via our local Postfix we don't want to have to make a TLS
@@ -554,12 +555,12 @@ Things to notice about the format:
 ### Sample `main.cf`
 
 ```
-# Debian specific:  Specifying a file name will cause the first
-# line of that file to be used as the name.  The Debian default
-# is /etc/mailname.
-#myorigin = /etc/mailname
+myhostname = mx.example.com
+my_ec2_publicname = ec2-11-22-33-44.compute-1.amazonaws.com
 
-smtpd_banner = ESMTP $mail_name
+smtpd_banner = ESMTP $mail_name $myhostname $my_ec2_publicname
+
+# Disable local mail notifications
 biff = no
 
 # appending .domain is the MUA's job.
@@ -632,7 +633,6 @@ smtpd_tls_dh1024_param_file = /etc/ssl/private/dhparams.pem
 
 # /TLS
 
-myhostname = localhost
 alias_maps = hash:/etc/aliases
 alias_database = hash:/etc/aliases
 
@@ -652,21 +652,16 @@ inet_protocols = ipv4
 #notify_classes = delay, policy, resource, software
 notify_classes =
 
+
+#
+# SMTPD (receiving) config
+#
+
 # Tarpit those bots/clients/spammers who send errors or scan for accounts
 smtpd_error_sleep_time = 20s
 smtpd_soft_error_limit = 1
 smtpd_hard_error_limit = 3
 smtpd_junk_command_limit = 2
-
-# Reduce the message size limit. There's no reason for large messages to be coming in.
-message_size_limit = 8192000
-
-# Setting this to 0 indicates that "mail delivery should be tried only once"
-# http://www.postfix.org/postconf.5.html#bounce_queue_lifetime
-bounce_queue_lifetime = 0
-# Consider a message undeliverable when it hits this time limit
-# http://www.postfix.org/postconf.5.html#maximal_queue_lifetime
-maximal_queue_lifetime = 1h
 
 # Reject messages that don't meet these criteria
 # The `10023` is the postgrey greylisting service.
@@ -681,12 +676,54 @@ smtpd_recipient_restrictions =
    reject_unauth_destination,
    reject_rbl_client zen.spamhaus.org,
    reject_rbl_client bl.spamcop.net,
+   reject_rbl_client cbl.abuseat.org,
+   reject_rbl_client b.barracudacentral.org,
+   reject_rbl_client dnsbl.sorbs.net,
    check_policy_service inet:127.0.0.1:10023,
    permit
 
-# Without this, some of the above reject lines can be bypassed.
+# Without this, some other rules can be bypassed.
 smtpd_helo_required = yes
 
+# Don't talk to mail systems that don't know their own hostname.
+smtpd_helo_restrictions = 
+  permit_mynetworks,
+  reject_unknown_helo_hostname,
+  check_helo_access hash:/home/mail_responder/helo_access,
+  permit
+
+# Don't accept mail from domains that don't exist.
+smtpd_sender_restrictions = reject_unknown_sender_domain
+
+# Block clients that speak too early.
+smtpd_data_restrictions = reject_unauth_pipelining
+
+
+#
+# SMTP (sending) config
+#
+
+#...
+
+
+#
+# Message and queue limits
+#
+
+# Reduce the message size limit. There's no reason for large messages to be coming in.
+message_size_limit = 8192000
+
+# Setting this to 0 indicates that "mail delivery should be tried only once"
+# http://www.postfix.org/postconf.5.html#bounce_queue_lifetime
+bounce_queue_lifetime = 0
+# Consider a message undeliverable when it hits this time limit
+# http://www.postfix.org/postconf.5.html#maximal_queue_lifetime
+maximal_queue_lifetime = 1h
+
+
+#
+# Supported addresses
+#
 
 # This file contains the domains we support. Its contents will replace this path.
 # We rely on an external command (cron job) to reload the postfix config when
