@@ -29,6 +29,7 @@ import time
 import M2Crypto
 import datetime
 
+
 sys.path.insert(0, os.path.abspath(os.path.join('..', 'Server')))
 import psi_config
 
@@ -399,6 +400,8 @@ def install_host(host, servers, existing_server_ids, plugins):
     install_firewall_rules(host, servers, plugins)
     
     install_psi_limit_load(host, servers)
+
+    install_user_count_and_log(host, servers)
     
     # NOTE:
     # For partially configured hosts we need to completely reconfigure
@@ -888,17 +891,24 @@ while true; do
     load_cpu=`uptime | cut -d , -f 4 | cut -d : -f 2 | awk -F \. '{print $1}'`
     if [ "$load_cpu" -ge "$threshold_cpu" ]; then
         loaded_cpu=1
+        logger psi_limit_load: CPU load threshold reached.
         break
     fi
 
     free=$(free | grep "buffers/cache" | awk '{print $4/($3+$4) * 100.0}')
     loaded_mem=$(echo "$free<$threshold_mem" | bc)
+    if [ $loaded_mem -eq 1 ]; then
+        logger psi_limit_load: Free memory load threshold reached.
+    fi
 
     loaded_swap=0
     total_swap=$(free | grep "Swap" | awk '{print $2}')
     if [ $total_swap -ne 0 ]; then
         free_swap=$(free | grep "Swap" | awk '{print $4/$2 * 100.0}')
         loaded_swap=$(echo "$free_swap<$threshold_swap" | bc)
+        if [ $loaded_swap -eq 1]; then
+            logger psi_limit_load: Swap threshold reached.
+        fi
     fi
     
     break
@@ -938,7 +948,92 @@ exit 0
     ssh.exec_command('echo "SHELL=/bin/sh" > %s;' % (cron_file,) +
                      'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
                      'echo "* * * * * root %s" >> %s' % (psi_limit_load_host_path, cron_file))
+
+def install_user_count_and_log(host, servers): 
+    server_details = {}
+    for server in servers:
+        server_details[server.id] = {"commands": {}, "fronted": server.capabilities["FRONTED-MEEK"]}
+        server_details[server.id]["commands"]["obfuscated_ssh_users_command"] = "netstat -tpn | grep \"%s:%d \" | grep sshd | grep ESTABLISHED | wc -l" % (server.ip_address, int(server.ssh_obfuscated_port))
+        server_details[server.id]["commands"]["meek_users_command"] = "netstat -tpn | grep \"%s:%d *%s\" | grep sshd | grep ESTABLISHED | wc -l" % (server.ip_address, int(server.ssh_obfuscated_port), server.ip_address)
+        server_details[server.id]["commands"]["ssh_users_command"] = "" if not server.capabilities["SSH"] else \
+            "netstat -tpn | grep \"%s:%d \" | grep sshd | grep ESTABLISHED | wc -l" % (server.ip_address, int(server.ssh_port))
+        
+    vpn_users_command = "ifconfig | grep ppp | wc -l"
+    
+    script = '''
+#!/usr/bin/env python
+
+import json
+from datetime import datetime
+import os
+import syslog
+import time
+import random
+from collections import defaultdict
+
+time.sleep(random.choice(range(0,50)))
+
+log_record = {
+                "event_name": "user_count",
+                "timestamp": datetime.utcnow().isoformat() + "Z", 
+                "host_id": "%s", 
+                "region": "%s", 
+                "provider": "%s", 
+                "datacenter": "%s",
+                "users": {
+                    "obfuscated_ssh": {
+                        "servers": defaultdict(dict), 
+                        "total": 0
+                    }, 
+                    "ssh": {
+                        "servers": defaultdict(dict),
+                        "total": 0
+                    },
+                    "vpn": 0,
+                    "total": 0
+                }
+            }
+
+server_details = %s
+vpn_users_command = "%s"
+
+for server_id in server_details:
+    log_record["users"]["obfuscated_ssh"]["servers"][server_id]["total"] = int(os.popen(server_details[server_id]["commands"]["obfuscated_ssh_users_command"]).read().strip())
+    log_record["users"]["obfuscated_ssh"]["total"] += log_record["users"]["obfuscated_ssh"]["servers"][server_id]["total"]
+    
+    log_record["users"]["obfuscated_ssh"]["servers"][server_id]["meek"] = int(os.popen(server_details[server_id]["commands"]["meek_users_command"]).read().strip())
+    log_record["users"]["obfuscated_ssh"]["servers"][server_id]["direct"] = max(0,
+        log_record["users"]["obfuscated_ssh"]["servers"][server_id]["total"] - log_record["users"]["obfuscated_ssh"]["servers"][server_id]["meek"])
+    log_record["users"]["obfuscated_ssh"]["servers"][server_id]["fronted"] = server_details[server_id]["fronted"]
+    
+    ssh_users_command = server_details[server_id]["commands"]["ssh_users_command"]
+    log_record["users"]["ssh"]["servers"][server_id]["total"] = 0 if len(ssh_users_command) == 0 else int(os.popen(ssh_users_command).read().strip())
+    log_record["users"]["ssh"]["total"] += log_record["users"]["ssh"]["servers"][server_id]["total"]
+
+log_record["users"]["vpn"] = int(os.popen(vpn_users_command).read().strip())
+log_record["users"]["total"] = log_record["users"]["obfuscated_ssh"]["total"] + log_record["users"]["ssh"]["total"] + log_record["users"]["vpn"]
+
+syslog.openlog('psiphon-user-count')
+syslog.syslog(syslog.LOG_INFO, json.dumps(log_record))
+''' % (host.id, host.region, host.provider, host.datacenter_name, server_details, vpn_users_command)
+
+    ssh = psi_ssh.SSH(host.ip_address, host.ssh_port, host.ssh_username, host.ssh_password, host.ssh_host_key)
             
+    psi_count_users_host_path = '/usr/local/sbin/psi_count_users'
+
+    file = tempfile.NamedTemporaryFile(delete=False)
+    file.write(script)
+    file.close()
+    ssh.put_file(file.name, psi_count_users_host_path)
+    os.remove(file.name)
+
+    ssh.exec_command('chmod +x %s' % (psi_count_users_host_path,))
+
+    cron_file = '/etc/cron.d/psi-count-users'
+    ssh.exec_command('echo "SHELL=/bin/sh" > %s;' % (cron_file,) +
+                     'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
+                     'echo "* * * * * root python %s" >> %s' % (psi_count_users_host_path, cron_file))
+                     
 # Change the crontab file so that weekly jobs are not run on the same day across all servers
 def change_weekly_crontab_runday(host, weekdaynum):
     if weekdaynum == None:

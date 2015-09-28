@@ -26,6 +26,7 @@ other required config files from it.
 import os
 import json
 import syslog
+import argparse
 
 import settings
 import aws_helpers
@@ -68,7 +69,7 @@ def go():
             with open(RESPONDER_DOMAINS_LIST_FILE, 'w') as responder_domains_file:
                 responder_domains_file.write(' '.join(email_domains))
 
-            address_maps_lines = ['%s\t\t%s' % (addr, settings.MAIL_RESPONDER_USERNAME) for addr in all_email_addrs]
+            address_maps_lines = ['%s\t\t%s@local' % (addr, settings.MAIL_RESPONDER_USERNAME) for addr in all_email_addrs]
             catchall_lines = ['@%s\t\t%s' % (domain, settings.SYSTEM_DEVNULL_USER) for domain in email_domains]
 
             with open(ADDRESS_MAPS_LIST_FILE, 'w') as address_maps_file:
@@ -86,5 +87,11 @@ def go():
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Pull the responder configuration')
+    parser.add_argument('--cron', action='store_true', default=False, help='calling from cron; suppress output')
+    args = parser.parse_args()
+
     go()
-    print('Mail responder config pull successful')
+
+    if not args.cron:
+        print('Mail responder config pull successful')

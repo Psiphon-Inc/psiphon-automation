@@ -27,44 +27,45 @@ We could probably use Postfix's [virtual mailbox](http://www.postfix.org/VIRTUAL
 ### OS
 
 1. Used Ubuntu 11.10 Server 64-bit. AMI IDs can be found via here: <https://help.ubuntu.com/community/EC2StartersGuide>
-  * Security Group must allow port 25 (SMTP) through (and SSH, so configuration
-    is possible.)
-  * Assign a static IP ("Elastic IP") to the instance. (Note that this will
-    change the public DNS name you SSH into.)
+    * Security Group must allow port 25 (SMTP) through (and SSH, so
+      configuration is possible.)
+    * Assign a static IP ("Elastic IP") to the instance. (Note that this will
+      change the public DNS name you SSH into.)
 
 2. OS updates
 
-  ```
-  sudo apt-get update
-  sudo apt-get upgrade
-  sudo reboot
-  ```
+    ```
+    sudo apt-get update
+    sudo apt-get upgrade
+    sudo apt-get install mercurial python-pip libwww-perl libdatetime-perl
+    sudo reboot
+    ```
 
 3. Create a limited-privilege user that will do most of the mail processing.
 
-   Ref: <http://www.cyberciti.biz/tips/howto-linux-shell-restricting-access.html>
+    Ref: <http://www.cyberciti.biz/tips/howto-linux-shell-restricting-access.html>
 
-   Add `/usr/sbin/nologin` to `/etc/shells`:
+    Add `/usr/sbin/nologin` to `/etc/shells`:
 
-   ```
-   sudo useradd -s /usr/sbin/nologin mail_responder
-   ```
+    ```
+    sudo useradd -s /usr/sbin/nologin mail_responder
+    ```
 
-   Also create a home directory for the user:
+    Also create a home directory for the user:
 
-   ```
-   sudo mkdir /home/mail_responder
-   sudo chown mail_responder:mail_responder /home/mail_responder
-   ```
+    ```
+    sudo mkdir /home/mail_responder
+    sudo chown mail_responder:mail_responder /home/mail_responder
+    ```
 
 4. Create a stub user that will be used for forwarding `support@` emails.
 
-   ```
-   sudo useradd -s /usr/sbin/nologin forwarder
-   sudo mkdir /home/forwarder
-   sudo chown forwarder:forwarder /home/forwarder
-   sudo -uforwarder sh -c 'echo "oursupportaddress@example.com" > /home/forwarder/.forward'
-   ```
+    ```
+    sudo useradd -s /usr/sbin/nologin forwarder
+    sudo mkdir /home/forwarder
+    sudo chown forwarder:forwarder /home/forwarder
+    sudo -uforwarder sh -c 'echo "oursupportaddress@example.com" > /home/forwarder/.forward'
+    ```
 
 5. Install NTP, otherwise it's possible for the clock to drift and SES requests
    to be rejected. (This has happened.)
@@ -115,7 +116,7 @@ allowed to access the SSH port.
    ```
 
    (We found with the Psiphon 3 servers that fail2ban wasn't detecting all the
-   relevant auth.log entries without adding this regex.)
+   relevant auth.log entries without adding this regex. It looks like a [bug in fail2ban](https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=648020) before v0.8.7.)
 
 5. Restart ssh and fail2ban:
 
@@ -138,36 +139,43 @@ allowed to access the SSH port.
 
    * Choose the "Internet Site option".
 
-   * Set the system mail name to the public DNS name of the instance. When
-     we're ready to go live, this will change to the real domain name.
-
-     * UPDATE: Don't change to the real domain name. Leave it as the instance
-       public DNS name.
+   * Leave the default for the "mail name".
 
 2. Change aliases.
 
    * Edit `/etc/aliases` so that it looks like this:
 
-      ```
-      postmaster: ubuntu
-      root: ubuntu
-      support: forwarder@localhost
-      ```
+       ```
+       postmaster: ubuntu
+       root: ubuntu
+       support: forwarder@localhost
+       ```
 
-   * Reload aliases map: `sudo newaliases`
+   * Reload aliases map: 
 
-3. DEFUNCT, because there's too much noise: Add `.forward` file for "normal"
-   (probably "ubuntu") user. In the file, put the email address that error mail
-   should go to.
+       ```
+       sudo newaliases
+       ```
+
+3. Generate a unique 2048-bit Diffie-Hellman group. This helps mitigate crypto threats such as [Logjam](https://weakdh.org/). Go get a coffee while it's generating.
+
+    ```
+    sudo su
+    mkdir -p /etc/ssl/private
+    chmod 710 /etc/ssl/private
+    openssl dhparam -out /etc/ssl/private/dhparams.pem 2048
+    chmod 600 /etc/ssl/private/dhparams.pem
+    exit
+    ```
 
 4. Edit `/etc/postfix/main.cf`
 
-   * See the bottom of this README for a sample `main.cf` file.
+    * See the bottom of this README for a sample `main.cf` file.
 
-(Note: If too much error email is being sent to the postmaster, we can also
-add this line:
-`notify_classes =`
-)
+    (Note: If too much error email is being sent to the postmaster, we can also
+    add this line:
+    `notify_classes =`
+    )
 
 5. By default, if an uncaught error occurs (which shouldn't occur, but...),
    postfix responds to the user with a bounce email that gives a lot of internal
@@ -187,21 +195,31 @@ add this line:
    connection. So we'll run an instance of `stmpd` on `localhost` on a different
    port and use that for sending. Add these two lines to `master.cf`. NOTE: The 
    port specified must match the one in `settings.LOCAL_SMTP_SEND_PORT`.
+   (I don't think it matters where in the file you add it. I put it before the `pickup` line.)
 
-   ```
-   127.0.0.1:2525      inet  n       -       -       -       -       smtpd
+    ```
+    127.0.0.1:2525      inet  n       -       -       -       -       smtpd
      -o smtpd_tls_security_level=none
+    ```
+
+7. Add [`postgrey`](http://postgrey.schweikert.ch/) for "[greylisting](http://projects.puremagic.com/greylisting/)":
+
+   ```
+   sudo apt-get install postgrey   
    ```
 
-7. Reload postfix conf and restart:
+   Actually using postgrey is handled in our example `main.cf` config.
+
+8. Reload postfix conf and restart:
 
    ```
    sudo postfix reload
-   sudo /etc/init.d/postfix restart
+   sudo service postfix restart
    ```
 
-
 ### Logwatch and Postfix-Logwatch
+
+Optional, but if logwatch is not present then the stats processing code will need to be changed.
 
 1. Install `logwatch` and `build-essential`
 
@@ -220,13 +238,34 @@ add this line:
      ```
 
 
+### Amazon AWS services
+
+1. Install boto
+   
+   ```
+   sudo pip install --upgrade boto
+   ```
+
+2. It's best if the AWS user being used is created through the AWS IAM
+   interface and has only the necessary privileges. See the appendix for
+   permission policies.
+
+3. Put AWS credentials into boto config file. Info here: 
+   <http://code.google.com/p/boto/wiki/BotoConfig>
+
+   We've found that using `~/.boto` doesn't work, so create `/etc/boto.cfg` and
+   put these lines into it:
+
+   ```
+   [Credentials]
+   aws_access_key_id = <your access key>
+   aws_secret_access_key = <your secret key>
+   ```
+
+   Ensure that the file is readable by the `mail_responder` user.
+
+
 ### Source files and cron jobs
-
-Install mercurial:
-
-```
-sudo apt-get install mercurial
-```
 
 In the `ubuntu` user home directory, get the Psiphon source:
 
@@ -240,6 +279,9 @@ Go into the email responder source directory:
 cd psiphon-circumvention-system/EmailResponder
 ```
 
+The `settings.py` file must be edited. See the comment at the top of that
+file for instructions.
+
 The `install.sh` script does the following:
 
    - copy files from the source directory to the `mail_responder` home directory
@@ -250,15 +292,13 @@ The `install.sh` script does the following:
 
    - create the cron jobs needed for the running of the system
 
-The `settings.py` file must first be edited. See the comment at the top of that
-file for instructions.
-
 The script requires the `crontab` python package:
 
 ```
-sudo apt-get install python-pip
-sudo pip install --upgrade python-dateutil python-crontab
+sudo pip install --upgrade python-dateutil python-crontab qrcode
 ```
+
+(TODO: Mention that "Email Responder Configuration" steps below need to be taken before installing.)
 
 To run the install script:
 
@@ -310,31 +350,6 @@ sh install.sh
   ```
 
 
-### Amazon AWS services
-
-1. Install boto
-   
-   ```
-   sudo pip install boto
-   ```
-
-2. It's best if the AWS user being used is created through the AWS IAM interface
-   and has only the necessary privileges.
-
-3. Put AWS credentials into boto config file. Info here: <http://code.google.com/p/boto/wiki/BotoConfig>
-
-   We've found that using `~/.boto` doesn't work, so create `/etc/boto.cfg` and put
-   these lines into it:
-
-   ```
-   [Credentials]
-   aws_access_key_id = <your access key>
-   aws_secret_access_key = <your secret key>
-   ```
-
-   Ensure that the file is readable by the `mail_responder` user.
-
-
 ## Stats
 
 * Stats will be derived from the contents of `/var/log/mail_responder.log`
@@ -368,13 +383,18 @@ mysql -uroot
 CREATE USER '<username in settings.py>'@'localhost' IDENTIFIED BY '<password in settings.py>';
 CREATE DATABASE <DB name in settings.py>;
 GRANT ALL ON <DB name in settings.py>.* TO '<username in settings.py>'@'localhost';
+\q
 ```
 
 
 ## DKIM
 
-NOTE: In the past we have occasionally turned off DKIM support. We found that it was by far the most time-
-consuming step in replying to an email, and of questionable value.
+NOTE: In the past we have occasionally turned off DKIM support. We found that
+it was by far the most time- consuming step in replying to an email, and of
+questionable value. To disable, change [this
+function](https://bitbucket.org/psiphon/psiphon-circumvention-system/src/7baa67
+1232d8164de8e7a8f0beb4ff7e38e9530c/EmailResponder/mail_process.py?at=default#cl
+-311) to just `return raw_email`.
 
 For information about DKIM (DomainKeys Identified Mail) see dkim.org, RFC-4871,
 and do some googling.
@@ -385,10 +405,20 @@ A handy DKIM DNS record generator can be found here:
 A couple of python packages are required:
 
 ```
-sudo pip install --upgrade dnspython pydkim
+sudo pip install --upgrade dnspython dkimpy
 ```
 
 See the DKIM section of `settings.py` for more values that must be set/changed.
+
+
+## SPF
+
+Add this DNS TXT record on the domain you will be sending from:
+
+```
+"spf2.0/pra include:amazonses.com ip4:<outbound IP address of server> ~all"
+"v=spf1 include:amazonses.com ip4:<outbound IP address of server> ~all"
+```
 
 
 ## Email Responder Configuration
@@ -430,7 +460,7 @@ For example:
           ["plain", "English - https://example.com/en.html\n\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html"],
           ["html", "<a href=\"https://example.com/en.html\">English - https://example.com/en.html</a><br>\u0641\u0627\u0631\u0633\u06cc - https://example.com/fa.html<br>"]
         ],
-    "attachments": [["aaaa-bbbb-cccc-dddd", "Psiphon3.exe", "Psiphon3.asc"],
+    "attachments": [["aaaa-bbbb-cccc-dddd", "Psiphon3.exe", "Psiphon3.ex_"],
                   ["aaaa-bbbb-cccc-dddd", "PsiphonAndroid.apk", "PsiphonAndroid.apk"]],
     "send_method": "SMTP"
   },
@@ -449,7 +479,7 @@ For example:
         [
           ["plain", "Here's a download link. Please expect another email with attachments. https://example2.com/en.html"]
         ],
-    "attachments": [["aaaa-bbbb-cccc-dddd", "Psiphon3.exe", "Psiphon3.asc"],
+    "attachments": [["aaaa-bbbb-cccc-dddd", "Psiphon3.exe", "Psiphon3.ex_"],
                   ["aaaa-bbbb-cccc-dddd", "PsiphonAndroid.apk", "PsiphonAndroid.apk"]]
     "send_method": "SMTP"
   },
@@ -462,7 +492,7 @@ For example:
   {
     "email_addr": "attachment@example3.com",
     "body": "I have an attachment",
-    "attachments": [["aaaa-bbbb-cccc-dddd", "Psiphon3.exe", "Psiphon3.asc"]],
+    "attachments": [["aaaa-bbbb-cccc-dddd", "Psiphon3.exe", "Psiphon3.ex_"]],
     "send_method": "SMTP"
   }
 ]
@@ -475,41 +505,44 @@ Things to notice about the format:
     that one email will not have attachments (and so will likely not be flagged
     as spam), and the second email will have attachments. NOTE: The order of
     entries is important -- responses will be sent in the order of the entries
-    (so put the non-attachment entry before the attachment entry).
+    (so put the non-attachment entry before the attachment entry, because it
+    will send faster).
 
 * The email address must be lower-case.
 
 * The email body can be a just a string, which will be interpreted as 'plain'
-    mimetype, or an array of one or more tuples which are `["mimetype", "body"]`.
-    Mimetypes can be 'plain' or 'html' (so there's really no reason to specify
-    more than two).
+    mimetype, or an array of one or more tuples which are `["mimetype",
+    "body"]`. Mimetypes can be 'plain' or 'html' (so there's really no reason
+    to specify more than two).
+
+    NOTE: The *last* mimetype will be the one that's preferred by mail clients,
+    so you should put the 'html' body last.
 
 * There can be multiple domains served by the same responder server, so the
     whole email address is important.
 
 * The attachment can be null.
 
-* The attachment file will have to exist at: `{bucketname}/{bucketfilename}`
+* The attachment file will have to exist and be accessible in S3 at:
+    `{bucketname}/{bucketfilename}`
 
 * The `attachmentfilename` value is the name of the attachment that's
-    displayed in the email. It must be a filetype that won't be rejected by most
-    mail clients (so, for example, not .exe). When using a fake file extension,
-    we don't want to use an extension that typically has a file association
-    (since we don't want anyone accidentally double-clicking and trying to open
-    it before renaming it).
+    displayed in the email. It must be a filetype that won't be rejected by
+    most mail clients (so, for example, not .exe). When using a fake file
+    extension, we don't want to use an extension that typically has a file
+    association (since we don't want anyone accidentally double-clicking and
+    trying to open it before renaming it).
 
 * Once upon a time, Amazon SES had a whitelist of attachment types that it 
-  would send, which did not include executables (even renamed ones). So our
-  responder is configured up to use SES for email without attachments, and SMTP
-  for email with attachments. It appears that SES's policy may have changed,
-  and that now it blacklists rather than whitelists 
-  [certain attachment types](http://docs.aws.amazon.com/ses/latest/DeveloperGuide/mime-types.html).
-
-NOTE: The *last* mimetype will be the one that's preferred by mail clients,
-  so you should put the 'html' body last.
+    would send, which did not include executables (even renamed ones). So our
+    responder is configured up to use SES for email without attachments, and
+    SMTP for email with attachments. It appears that SES's policy may have
+    changed, and that now it blacklists rather than whitelists [certain
+    attachment types](http://docs.aws.amazon.com/ses/latest/DeveloperGuide
+    /mime-types.html).
 
 
-## Appendix
+## Appendices
 
 * In order for our responses to not be flagged as spam, these guidelines should
   be followed:
@@ -518,15 +551,15 @@ NOTE: The *last* mimetype will be the one that's preferred by mail clients,
 * Be sure to peruse the `settings.py` file.
 
 
-## Sample `main.cf`
+### Sample `main.cf`
 
 ```
-# Debian specific:  Specifying a file name will cause the first
-# line of that file to be used as the name.  The Debian default
-# is /etc/mailname.
-#myorigin = /etc/mailname
+myhostname = mx.example.com
+my_ec2_publicname = ec2-11-22-33-44.compute-1.amazonaws.com
 
-smtpd_banner = ESMTP $mail_name
+smtpd_banner = ESMTP $mail_name $myhostname $my_ec2_publicname
+
+# Disable local mail notifications
 biff = no
 
 # appending .domain is the MUA's job.
@@ -572,9 +605,33 @@ smtp_tls_security_level=verify
 # Handy for debugging:
 #smtp_tls_loglevel=2
 
+# Avoid POODLE (etc.) vulnerabilities by forbidding SSLv2 and SSLv3
+smtpd_tls_mandatory_protocols = !SSLv2, !SSLv3
+smtpd_tls_protocols = !SSLv2, !SSLv3
+smtp_tls_mandatory_protocols = $smtpd_tls_mandatory_protocols
+smtp_tls_protocols = $smtpd_tls_protocols
+
+# Prevent weak cipher use
+smtpd_tls_mandatory_exclude_ciphers = aNULL, eNULL, EXPORT, DES, RC4, MD5, PSK, aECDH, EDH-DSS-DES-CBC3-SHA, EDH-RSA-DES-CDC3-SHA, KRB5-DE5, CBC3-SHA
+smtpd_tls_exclude_ciphers = $smtpd_tls_mandatory_exclude_ciphers
+
+# Use "high"-security cipherss, and use our preference order, rather than the client's
+tls_preempt_cipherlist = yes
+smtpd_tls_mandatory_ciphers = high
+smtp_tls_mandatory_ciphers = $smtpd_tls_mandatory_ciphers
+smtpd_tls_ciphers = $smtpd_tls_mandatory_ciphers
+smtp_tls_ciphers = $smtp_tls_mandatory_ciphers
+
+# Use a custom 2048-bit DH group (anti-Logjam-ish). 
+# The params file should be generated with:
+# mkdir -p /etc/ssl/private
+# chmod 710 /etc/ssl/private
+# openssl dhparam -out /etc/ssl/private/dhparams.pem 2048
+# chmod 600 /etc/ssl/private/dhparams.pem
+smtpd_tls_dh1024_param_file = /etc/ssl/private/dhparams.pem
+
 # /TLS
 
-myhostname = localhost
 alias_maps = hash:/etc/aliases
 alias_database = hash:/etc/aliases
 
@@ -585,7 +642,8 @@ mailbox_size_limit = 0
 recipient_delimiter = +
 inet_interfaces = all
 
-# PSIPHON ADDITIONS
+# Prevent attempts to use IPv6. Avoids unnecessary failed attempts.
+inet_protocols = ipv4
 
 # Notify postmaster of all errors
 # Note that if this results in too much pointless mail, we can just remove these values.
@@ -593,23 +651,19 @@ inet_interfaces = all
 #notify_classes = delay, policy, resource, software
 notify_classes =
 
+
+#
+# SMTPD (receiving) config
+#
+
 # Tarpit those bots/clients/spammers who send errors or scan for accounts
 smtpd_error_sleep_time = 20s
 smtpd_soft_error_limit = 1
 smtpd_hard_error_limit = 3
 smtpd_junk_command_limit = 2
 
-# Reduce the message size limit. There's no reason for large messages to be coming in.
-message_size_limit = 8192000
-
-# Setting this to 0 indicates that "mail delivery should be tried only once"
-# http://www.postfix.org/postconf.5.html#bounce_queue_lifetime
-bounce_queue_lifetime = 0
-# Consider a message undeliverable when it hits this time limit
-# http://www.postfix.org/postconf.5.html#maximal_queue_lifetime
-maximal_queue_lifetime = 1h
-
 # Reject messages that don't meet these criteria
+# The `10023` is the postgrey greylisting service.
 smtpd_recipient_restrictions =
    permit_mynetworks,
    reject_invalid_helo_hostname,
@@ -621,11 +675,54 @@ smtpd_recipient_restrictions =
    reject_unauth_destination,
    reject_rbl_client zen.spamhaus.org,
    reject_rbl_client bl.spamcop.net,
+   reject_rbl_client cbl.abuseat.org,
+   reject_rbl_client b.barracudacentral.org,
+   reject_rbl_client dnsbl.sorbs.net,
+   check_policy_service inet:127.0.0.1:10023,
    permit
 
-# Without this, some of the above reject lines can be bypassed.
+# Without this, some other rules can be bypassed.
 smtpd_helo_required = yes
 
+# Don't talk to mail systems that don't know their own hostname.
+smtpd_helo_restrictions = 
+  permit_mynetworks,
+  reject_unknown_helo_hostname,
+  check_helo_access hash:/home/mail_responder/helo_access,
+  permit
+
+# Don't accept mail from domains that don't exist.
+smtpd_sender_restrictions = reject_unknown_sender_domain
+
+# Block clients that speak too early.
+smtpd_data_restrictions = reject_unauth_pipelining
+
+
+#
+# SMTP (sending) config
+#
+
+#...
+
+
+#
+# Message and queue limits
+#
+
+# Reduce the message size limit. There's no reason for large messages to be coming in.
+message_size_limit = 8192000
+
+# Setting this to 0 indicates that "mail delivery should be tried only once"
+# http://www.postfix.org/postconf.5.html#bounce_queue_lifetime
+bounce_queue_lifetime = 0
+# Consider a message undeliverable when it hits this time limit
+# http://www.postfix.org/postconf.5.html#maximal_queue_lifetime
+maximal_queue_lifetime = 1h
+
+
+#
+# Supported addresses
+#
 
 # This file contains the domains we support. Its contents will replace this path.
 # We rely on an external command (cron job) to reload the postfix config when
@@ -636,14 +733,15 @@ virtual_alias_maps = hash:/home/mail_responder/postfix_address_maps
 ```
 
 
-## Elastic Mail Responder
+### Elastic Mail Responder
 
-### Additional CloudWatch metrics
+#### Additional CloudWatch metrics
 
-Created by `mon-put-instance-data.pl`. Run as a cron job installed by `create_cron_jobs.py`.
+Created by `mon-put-instance-data.pl`. Run as a cron job installed by 
+`create_cron_jobs.py`.
 
 
-### Setup
+#### Setup
 
 Derived from this: <http://boto.readthedocs.org/en/latest/autoscale_tut.html>
 
@@ -654,18 +752,19 @@ The overall reason/rationale for this scaling policy is something like this:
 Most of the time we have a very stable daily number of requests. It sometimes
 grows and contracts, but generally it's predictable. We would like our "normal"
 state to be sufficient but not overkill -- saving money is important. We also
-sometimes have major spikes in requests -- like, sudden increases of 10x or 20x.
-This can result from a TV program mentioning us and all the viewers hitting us
-at the same time. In the past we have choked and lost requests and/or taken a 
-very long time to respond. We would like to be able to cope with such situations
-more gracefully.
+sometimes have major spikes in requests -- like, sudden increases of 10x or
+20x. This can result from a TV program mentioning us and all the viewers
+hitting us at the same time. In the past we have choked and lost requests
+and/or taken a very long time to respond. We would like to be able to cope with
+such situations more gracefully.
 
 So our approach to scaling will be to go up very fast, and then let the pool
 shrink if the capacity isn't needed. This will probably be our best chance of
 coping with a sudden 20x request increase.
 
-NOTE: AWS has recently added the ability to manage scaling stuff (launch configs,
-scaling groups) via the EC2 web console. We now use that instead of Python+boto.
+NOTE: AWS has recently added the ability to manage scaling stuff (launch
+configs, scaling groups) via the EC2 web console. We now use that instead of
+Python+boto.
 
 
 ```python
@@ -883,4 +982,130 @@ ag.launch_config_name = lc.name
 ag.update()
 
 conn.delete_launch_configuration(old_lc.name)
+```
+
+
+### AWS user IAM policies
+
+These are the policies that you should create for the IAM user under which all
+AWS activities are run.
+
+(These can all be combined, but ours are separate right now, so...)
+
+`EmailResponderCloudWatchGet`:
+
+```
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "Stmt1393018224000",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:GetMetricStatistics",
+        "cloudwatch:ListMetrics"
+      ],
+      "Resource": [
+        "*"
+      ]
+    }
+  ]
+}
+```
+
+`EmailResponderCloudWatchPut`:
+
+```
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": [
+        "cloudwatch:PutMetricData"
+      ],
+      "Sid": "Stmt1382640894000",
+      "Resource": [
+        "*"
+      ],
+      "Effect": "Allow"
+    }
+  ]
+}
+```
+
+`EmailResponderEC2DescribeTags`:
+
+```
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": [
+        "ec2:DescribeTags"
+      ],
+      "Sid": "Stmt1382730333000",
+      "Resource": [
+        "*"
+      ],
+      "Effect": "Allow"
+    }
+  ]
+}
+```
+
+`EmailResponderS3Config`:
+
+Note:
+  * `psiphon-automation` should be replaced with whatever you configured in
+    `settings.py` for `CONFIG_S3_BUCKET`.
+  * `EmailResponder` should be replaced with whatever you configured in
+    `settings.py` for `CONFIG_S3_KEY`.
+
+```
+{
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::psiphon-automation"
+      ],
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": "EmailResponder/*"
+        }
+      }
+    },
+    {
+      "Action": [
+        "s3:GetObject", "s3:PutObject"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:s3:::psiphon-automation/EmailResponder/*"
+      ]
+    }
+  ]
+}
+```
+
+`EmailResponderSES`:
+
+```
+{
+    "Statement": [
+        {
+            "Sid": "Stmt1319220339894",
+            "Action": [
+                "ses:*"
+            ],
+            "Effect": "Allow",
+            "Resource": [
+                "*"
+            ]
+        }
+    ]
+}
 ```

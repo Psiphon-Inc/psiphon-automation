@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2014, Psiphon Inc.
+# Copyright (c) 2015, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -32,8 +32,8 @@ echo "Copying source files..."
 # Copy the simple files
 sudo cp blacklist.py log_processor.py mail_direct.py mail_process.py mail_stats.py \
         aws_helpers.py sendmail.py settings.py conf_pull.py postfix_queue_check.pl \
-        mon-put-instance-data.pl CloudWatchClient.pm \
-        ../Automation/psi_ops_s3.py \
+        mon-put-instance-data.pl CloudWatchClient.pm AwsSignatureV4.pm \
+        ../Automation/psi_ops_s3.py helo_access \
         $MAIL_HOME
 
 # forward needs to be copied to .forward
@@ -51,11 +51,15 @@ sudo chmod a+x  $MAIL_HOME/log_processor.py
 # Nuke the compiled Python files, just in case.
 sudo rm $MAIL_HOME/*.pyc
 
+# Process the map files
+cd $MAIL_HOME; sudo postmap helo_access; cd -
 
 # Copy the system/service config files.
 echo "Copying system config files..."
 sed "s|\(.*\)%MAIL_HOME%\(.*\)|\1$MAIL_HOME\2|g" psiphon-log-rotate.conf > psiphon-log-rotate.tmp
 sudo mv psiphon-log-rotate.tmp /etc/logrotate.d/psiphon-log-rotate.conf
+sudo chown root:root /etc/logrotate.d/psiphon-log-rotate.conf
+sudo chmod 644 /etc/logrotate.d/psiphon-log-rotate.conf
 sudo cp 20-psiphon-logging.conf /etc/rsyslog.d/
 sudo reload rsyslog
 sudo service rsyslog restart
