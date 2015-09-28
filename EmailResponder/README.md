@@ -185,10 +185,11 @@ allowed to access the SSH port.
    sudo nano /etc/postfix/master.cf
    ```
 
-   Comment out the bounce line, so it looks like this:
+   Comment out the bounce and trace lines, so it looks like this:
 
    ```
    #bounce    unix  -       -       -       -       0       bounce
+   #trace     unix  -       -       -       -       0       bounce
    ```
 
 6. When sending mail via our local Postfix we don't want to have to make a TLS
