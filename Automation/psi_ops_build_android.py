@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2014, Psiphon Inc.
+# Copyright (c) 2015, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -38,12 +38,11 @@ ZIRCO_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'zirco-browser')
 KALIUM_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'kalium-jni', 'src', 'main', 'java', 'org')
 PSIPHON_LIB_SOURCE_SRC_ORG = os.path.join(PSIPHON_LIB_SOURCE_ROOT, 'src', 'org')
 
-BANNER_ROOT = os.path.join(os.path.abspath('..'), 'Data', 'Banners')
 KEYSTORE_FILENAME = os.path.join(os.path.abspath('..'), 'Data', 'CodeSigning', 'test.keystore')
 KEYSTORE_ALIAS = 'psiphon'
 KEYSTORE_PASSWORD = 'password'
 
-BANNER_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'res', 'drawable', 'banner.bmp')
+BANNER_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'res', 'drawable', 'banner.png')
 EMBEDDED_VALUES_FILENAME = os.path.join(PSIPHON_LIB_SOURCE_ROOT, 'src', 'com', 'psiphon3', 'psiphonlibrary', 'EmbeddedValues.java')
 ANDROID_MANIFEST_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'AndroidManifest.xml')
 
@@ -65,7 +64,6 @@ PSIPHON_ASSETS = os.path.join(PSIPHON_SOURCE_ROOT, 'assets')
 
 if os.path.isfile('psi_data_config.py'):
     import psi_data_config
-    BANNER_ROOT = os.path.join(psi_data_config.DATA_ROOT, 'Banners')
     KEYSTORE_FILENAME = os.path.join(psi_data_config.DATA_ROOT, 'CodeSigning', psi_data_config.KEYSTORE_FILENAME)
 
 
@@ -83,7 +81,7 @@ key.alias.password=%s
 
     with open(LOCAL_PROPERTIES_FILENAME, 'w') as local_properties_file:
         local_properties_file.write(local_properties_contents)
-                
+
     commands = [
         'xcopy "%s" "%s" /e /y' % (KALIUM_SOURCE_ROOT, PSIPHON_LIB_SOURCE_SRC_ORG),
         'android update lib-project -p "%s"' % (ZIRCO_SOURCE_ROOT,),
@@ -192,7 +190,7 @@ def build_client(
         # Backup/restore original files minimize chance of checking values into source control
         backup = psi_utils.TemporaryBackup([BANNER_FILENAME, ANDROID_MANIFEST_FILENAME])
 
-        # Copy sponsor banner image file from Data to Client source tree
+        # Write banner binary to file
         if banner:
             with open(BANNER_FILENAME, 'wb') as banner_file:
                 banner_file.write(banner)
