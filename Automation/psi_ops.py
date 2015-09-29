@@ -37,7 +37,6 @@ import subprocess
 import traceback
 from pkg_resources import parse_version
 from multiprocessing.pool import ThreadPool
-from PIL import Image
 from collections import defaultdict
 
 import psi_utils
@@ -46,6 +45,11 @@ import psi_ops_discovery
 
 
 # Modules available only on the automation server
+
+try:
+    from PIL import Image
+except ImportError as error:
+    print error
 
 try:
     import website_generator
