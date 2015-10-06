@@ -20,3 +20,6 @@ facebookmail.com          REJECT
 # Goolara is a marketing service
 goolara.net               REJECT
 .goolara.net              REJECT
+
+sendgrid.net              REJECT
+.sendgrid.net             REJECT

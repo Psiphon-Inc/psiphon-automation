@@ -200,7 +200,7 @@ allowed to access the SSH port.
 
     ```
     127.0.0.1:2525      inet  n       -       -       -       -       smtpd
-     -o smtpd_tls_security_level=none
+     -o smtpd_tls_security_level=none -o smtpd_banner=localhost -o myhostname=localhost
     ```
 
 7. Add [`postgrey`](http://postgrey.schweikert.ch/) for "[greylisting](http://projects.puremagic.com/greylisting/)":
@@ -685,7 +685,7 @@ smtpd_recipient_restrictions =
 # Without this, some other rules can be bypassed.
 smtpd_helo_required = yes
 
-# Don't talk to mail systems that don't know their own hostname.
+# Reject some peers based on their HELO.
 smtpd_helo_restrictions = 
   permit_mynetworks,
   reject_unknown_helo_hostname,
@@ -703,7 +703,10 @@ smtpd_data_restrictions = reject_unauth_pipelining
 # SMTP (sending) config
 #
 
-#...
+smtp_tls_note_starttls_offer = yes
+
+# Use different sending TLS policies for different peers.
+#smtp_tls_policy_maps = hash:/home/mail_responder/client_tls_policy
 
 
 #

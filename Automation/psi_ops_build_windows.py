@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2014, Psiphon Inc.
+# Copyright (c) 2015, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -26,26 +26,19 @@ import psi_utils
 #==== Build File Locations  ===================================================
 
 APPLICATION_TITLE = 'Psiphon 3' # (TODO: sync this value with client source code; only used for testing)
-SOURCE_ROOT = os.path.join(os.path.abspath('..'), 'Client')
-BANNER_ROOT = os.path.join(os.path.abspath('..'), 'Data', 'Banners')
-CLIENT_SOLUTION_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient.sln')
+SOURCE_ROOT = os.path.join(os.path.abspath('..'), 'Client', 'psiclient')
+CLIENT_SOLUTION_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient2015.sln')
 CODE_SIGNING_PFX_FILENAME = os.path.join(os.path.abspath('..'), 'Data', 'CodeSigning', 'test-code-signing-package.pfx')
-BANNER_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', 'banner.bmp')
-CUSTOM_EMAIL_BANNER = 'email.bmp'
-EMAIL_BANNER_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', 'email.bmp')
-EMBEDDED_VALUES_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', 'embeddedvalues.h')
+BANNER_FILENAME = os.path.join(SOURCE_ROOT, 'webui', 'banner.png')
+EMBEDDED_VALUES_FILENAME = os.path.join(SOURCE_ROOT, 'embeddedvalues.h')
 EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, 'Release', 'psiphon.exe')
 BUILDS_ROOT = os.path.join('.', 'Builds', 'Windows')
 BUILD_FILENAME_TEMPLATE = 'psiphon-%s-%s.exe'
-POLIPO_EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', '3rdParty', 'polipo.exe')
-CORE_EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient', '3rdParty', 'psiphon-tunnel-core.exe')
+POLIPO_EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, '3rdParty', 'polipo.exe')
+CORE_EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, '3rdParty', 'psiphon-tunnel-core.exe')
 
-FEEDBACK_SOURCE_ROOT = os.path.join('.', 'FeedbackSite')
-FEEDBACK_HTML_SOURCE_PATH = os.path.join(FEEDBACK_SOURCE_ROOT, 'feedback.html')
-FEEDBACK_HTML_PATH = os.path.join(SOURCE_ROOT, 'psiclient', 'feedback.html')
-
-VISUAL_STUDIO_ENV_BATCH_FILENAME = 'C:\\Program Files\\Microsoft Visual Studio 10.0\\VC\\vcvarsall.bat'
-VISUAL_STUDIO_ENV_BATCH_FILENAME_x86 = 'C:\\Program Files (x86)\\Microsoft Visual Studio 10.0\\VC\\vcvarsall.bat'
+VISUAL_STUDIO_ENV_BATCH_FILENAME = 'C:\\Program Files\\Microsoft Visual Studio 14.0\\VC\\vcvarsall.bat'
+VISUAL_STUDIO_ENV_BATCH_FILENAME_x86 = 'C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\vcvarsall.bat'
 
 SIGN_TOOL_FILENAME = 'C:\\Program Files\\Microsoft SDKs\\Windows\\v7.1\\Bin\\signtool.exe'
 SIGN_TOOL_FILENAME_ALT = 'C:\\Program Files\\Microsoft SDKs\\Windows\\v7.0A\\Bin\\signtool.exe'
@@ -57,7 +50,6 @@ UPX_FILENAME = '.\Tools\upx.exe'
 
 if os.path.isfile('psi_data_config.py'):
     import psi_data_config
-    BANNER_ROOT = os.path.join(psi_data_config.DATA_ROOT, 'Banners')
     CODE_SIGNING_PFX_FILENAME = os.path.join(psi_data_config.DATA_ROOT, 'CodeSigning', psi_data_config.CODE_SIGNING_PACKAGE_FILENAME)
 
 
@@ -223,17 +215,10 @@ def build_client(
         # Backup/restore original files minimize chance of checking values into source control
         backup = psi_utils.TemporaryBackup(
             [BANNER_FILENAME,
-             EMAIL_BANNER_FILENAME,
-             FEEDBACK_HTML_PATH,
              POLIPO_EXECUTABLE_FILENAME,
              CORE_EXECUTABLE_FILENAME])
 
-        # Copy custom email banner from Data to source tree
-        # (there's only one custom email banner for all sponsors)
-        banner_source_path = os.path.join(BANNER_ROOT, CUSTOM_EMAIL_BANNER)
-        shutil.copyfile(banner_source_path, EMAIL_BANNER_FILENAME)
-
-        # Copy sponsor banner image file from Data to Client source tree
+        # Write banner binary to file
         if banner:
             with open(BANNER_FILENAME, 'wb') as banner_file:
                 banner_file.write(banner)
@@ -262,9 +247,6 @@ def build_client(
             split_tunnel_dns_server,
             ignore_system_server_list=test)
 
-        # copy feedback.html
-        shutil.copyfile(FEEDBACK_HTML_SOURCE_PATH, FEEDBACK_HTML_PATH)
-
         # build
         build_client_executable()
 
@@ -285,7 +267,8 @@ def build_client(
 
         return build_destination_path
 
-    except:
+    except Exception as e:
+        print str(e)
         print 'Build: FAILURE'
         raise
 
