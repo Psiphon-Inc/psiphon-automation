@@ -195,6 +195,7 @@ def run_playbook(playbook_file=None, inventory=ansible.inventory.Inventory([]),
                 print playbook_file
                 host_output = process_playbook_apt_update_cache(host_output, setup_cache)
             
+            host_output = massage_responses(host_output)
             record = (str(start_time), str(end_time), playbook_file, stats.processed, stats.dark, stats.failures, stats.changed, stats.skipped, res, host_output, host_errs, setup_cache)
             send_mail(record)
         
@@ -204,7 +205,7 @@ def run_playbook(playbook_file=None, inventory=ansible.inventory.Inventory([]),
         raise e
 
 
-def process_playbook_vars_cache(playbook, keywords=['response', 'cmd_result']):
+def process_playbook_vars_cache(playbook, keywords=['response0', 'cmd_result']):
     cache = playbook.VARS_CACHE
     host_errs = dict()
     host_output = dict()
@@ -238,7 +239,7 @@ def process_playbook_setup_cache(playbook):
 
 
 def process_playbook_apt_update_cache(host_output, setup_cache):
-    register_var = 'response'  # This is the variable set in the ansible playbook and should be handled more gracefully:
+    register_var = 'response0'  # This is the variable set in the ansible playbook and should be handled more gracefully:
     # register: response
     package_upgrade_line = 'The following packages will be upgraded:'
     # '26 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.' 
@@ -301,6 +302,26 @@ def add_pkg_link(line):
     
     return line
 
+
+# Massage the responses received to make the output nicer visually.
+def massage_responses(host_output):
+    keyword = 'response'
+    h_o = dict()
+    for host in host_output:
+        h_o[host] = list()
+        host_response_count = [i for i in range(len(host_output[host]))]
+        for response_num in host_response_count:
+            response_key = keyword + str(response_num)
+            if host_output[host][response_key]:
+                module_name = host_output[host][response_key]['invocation']['module_name'] if 'invocation' in host_output[host][response_key] else ''
+                module_details = host_output[host][response_key]['invocation']['module_args'] if 'invocation' in host_output[host][response_key] else ''
+                stdout_lines = host_output[host][response_key]['stdout_lines'] if 'stdout_lines' in host_output[host][response_key] else ''
+                # print host + ' -> ' + module_name + ' : ' + module_details + ' -> ' + str(stdout_lines)
+                h_o[host].append({'module_name': module_name,
+                                  'module_details': module_details,
+                                  'stdout_lines': stdout_lines}
+                                 )
+    return h_o
 
 # Formats record using a mako template and sends email
 def send_mail(record, subject='PSI Ansible Report', 

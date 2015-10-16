@@ -39,9 +39,6 @@
         font-size: smaller;
     }
     
-    table#stdoutTable tbody td.message {
-        white-space: pre-wrap
-    }
 </style>
 
 <h1>Psiphon 3 Ansible Stats</h1>
@@ -112,7 +109,7 @@ endif
             <td>${c}</td>
             % if 'response' in hosts_errs[c]:
                 <td>
-                    % for line in hosts_errs[c]['response']['stderr'].split('\n'):
+                    % for line in hosts_errs[c]['response0']['stderr'].split('\n'):
                         ${line}<br>
                     % endfor
                 </td>
@@ -126,7 +123,7 @@ endif
 <hr>
 
 % if len(hosts_output) > 0:
-<h3>Host STDOUT: ${len(hosts_output)}</h3>
+<h3>Host STDOUT_LINES: ${len(hosts_output)}</h3>
     <table id="stdoutTable">
 	<thead>
     <tr>
@@ -139,20 +136,26 @@ endif
 	% for c in hosts_output:
 		<tr>
             <td class="default">${c}</td>
-            % if 'response' in hosts_output[c]:
-                <td class="message">
-                    % for line in hosts_output[c]['response']['stdout_lines']:
-                        <%  
+            <td class="message">
+                % for details in hosts_output[c]:
+                    <p>
+                    Module: ${details['module_name']} : ${details['module_details']}<br>
+                    Result:<br>
+                    % for line in details['stdout_lines']:
+                        <%
                             link = ''
-                            if '=>' in line and ',' in line:
-                                line, link = line.split(',', 1)
-                            
-                            if len(link) > 0:
-                                link = "<a href=" + link.strip() + ">link</a>"
-                        %>${line} ${link | n}
+                            if 'apt-get' in details['module_details']:
+                                if '=>' in line and ',' in line:
+                                    line, link = line.split(',', 1)
+                                
+                                if len(link) > 0:
+                                    link = "<a href=" + link.strip() + ">link</a>"
+                        %>
+                        ${line} ${link | n}<br>
                     % endfor
-                </td>
-            % endif
+                    <hr></p>
+                % endfor
+            </td>
             <td>${hosts_info[c]['ansible_lsb']['codename']}</td>
         </tr>
 	% endfor

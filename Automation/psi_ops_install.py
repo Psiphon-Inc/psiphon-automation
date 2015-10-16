@@ -654,8 +654,8 @@ def install_firewall_rules(host, servers, plugins, do_blacklist=True):
     -A INPUT -j DROP
     -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
-    -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 5242,4244,9339 -j ACCEPT
-    -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 5243,7985,9785 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 3478,5242,4244,9339 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 3478,5243,7985,9785 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 110,143,2560,8080,5060,5061,9180,25565 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 110,143,2560,8080,5060,5061,9180,25565 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.8.8 -p tcp --dport 53 -j ACCEPT
@@ -685,10 +685,10 @@ def install_firewall_rules(host, servers, plugins, do_blacklist=True):
     -A OUTPUT -o lo -j REJECT
     -A OUTPUT -p tcp -m multiport --dports 53,80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
     -A OUTPUT -p udp -m multiport --dports 53,80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
-    -A OUTPUT -p tcp -m multiport --dports 5222,5223,5228,5229,5230,14259 -j ACCEPT
-    -A OUTPUT -p udp -m multiport --dports 5222,5223,5228,5229,5230,14259 -j ACCEPT
-    -A OUTPUT -p tcp -m multiport --dports 5242,4244,9339 -j ACCEPT
-    -A OUTPUT -p udp -m multiport --dports 5243,7985,9785 -j ACCEPT
+    -A OUTPUT -p tcp -m multiport --dports 5222,5223,5224,5228,5229,5230,5269,14259 -j ACCEPT
+    -A OUTPUT -p udp -m multiport --dports 5222,5223,5224,5228,5229,5230,5269,14259 -j ACCEPT
+    -A OUTPUT -p tcp -m multiport --dports 3478,5242,4244,9339 -j ACCEPT
+    -A OUTPUT -p udp -m multiport --dports 3478,5243,7985,9785 -j ACCEPT
     -A OUTPUT -p tcp -m multiport --dports 110,143,2560,8080,5060,5061,9180,25565 -j ACCEPT
     -A OUTPUT -p udp -m multiport --dports 110,143,2560,8080,5060,5061,9180,25565 -j ACCEPT
     -A OUTPUT -p udp -m udp --dport 123 -j ACCEPT
@@ -891,17 +891,24 @@ while true; do
     load_cpu=`uptime | cut -d , -f 4 | cut -d : -f 2 | awk -F \. '{print $1}'`
     if [ "$load_cpu" -ge "$threshold_cpu" ]; then
         loaded_cpu=1
+        logger psi_limit_load: CPU load threshold reached.
         break
     fi
 
     free=$(free | grep "buffers/cache" | awk '{print $4/($3+$4) * 100.0}')
     loaded_mem=$(echo "$free<$threshold_mem" | bc)
+    if [ $loaded_mem -eq 1 ]; then
+        logger psi_limit_load: Free memory load threshold reached.
+    fi
 
     loaded_swap=0
     total_swap=$(free | grep "Swap" | awk '{print $2}')
     if [ $total_swap -ne 0 ]; then
         free_swap=$(free | grep "Swap" | awk '{print $4/$2 * 100.0}')
         loaded_swap=$(echo "$free_swap<$threshold_swap" | bc)
+        if [ $loaded_swap -eq 1]; then
+            logger psi_limit_load: Swap threshold reached.
+        fi
     fi
     
     break
