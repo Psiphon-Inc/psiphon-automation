@@ -331,20 +331,25 @@ def remove_server(digitalocean_account, droplet_id):
             raise e
 
 
-def prep_for_image_update():
+def update_base_image(psinet):
     """
         Sets some specific settings for updating the base image.
     """
-    PSI_OPS_ROOT = os.path.abspath(os.path.join('..', 'Data', 'PsiOps'))
-    PSI_OPS_DB_FILENAME = os.path.join(PSI_OPS_ROOT, 'psi_ops.dat')
+    do_mgr = digitalocean.Manager(token=psinet._PsiphonNetwork__digitalocean_account.oauth_token)
     
-    import psi_ops
-
-    psinet = psi_ops.PsiphonNetwork.load_from_file(PSI_OPS_DB_FILENAME)
-    droplet = update_image(psinet, psinet._PsiphonNetwork__digitalocean_account)
+    droplet = make_base_droplet(psinet, psinet._PsiphonNetwork__digitalocean_account)
+    
+    update_system_packages(psinet._PsiphonNetwork__digitalocean_account, 
+                           droplet.ip_address)
+    
+    droplet = droplet.load()
+    droplet = update_kernel(psinet._PsiphonNetwork__digitalocean_account, do_mgr, droplet)    
+    
+    droplet = take_droplet_snapshot(do_mgr, droplet)
+    
     (host, server) = make_psiphon_server(psinet, psinet._PsiphonNetwork__digitalocean_account, droplet)
     if host and server:
-        failures = transfer_image_to_region(psinet._PsiphonNetwork__digitalocean_account, droplet)
+        failures = transfer_image_to_region(do_mgr, droplet, droplet.snapshot_ids[-1])
     
     if len(failures) != 0:
         print 'There were %s' % len(failures)
@@ -363,7 +368,7 @@ def set_new_base_image(psinet, digitalocean_account, droplet):
     droplet.destroy()
 
 
-def update_image(psinet, digitalocean_account):
+def make_base_droplet(psinet, digitalocean_account):
     """
         Updates the base image.  This includes installing new system packages
         via apt and setting the droplet kernel.
@@ -417,39 +422,32 @@ def update_image(psinet, digitalocean_account):
             result = droplet.power_on()
             if not wait_on_action(do_mgr, droplet, result['action']['id'], 30, 'power_on', 'completed'):
                 raise Exception('Event did not complete in time')
-            
-            droplet = droplet.load()
-
-        update_system_packages(digitalocean_account, droplet.ip_address)
-        droplet = droplet.load()
         
-        droplet = update_kernel(digitalocean_account, do_mgr, droplet)
-
-        result = droplet.reboot()
-        if not wait_on_action(do_mgr, droplet, result['action']['id'], 30, 'reboot', 'completed'):
-            raise Exception('Event did not complete in time')
-
         droplet = droplet.load()
 
-        if droplet.status == 'active':
-            result = droplet.shutdown()
-            if not wait_on_action(do_mgr, droplet, result['action']['id'], 30, 'shutdown', 'completed'):
-                raise Exception('Event did not complete in time')
-            
-            droplet = droplet.load()
-
-        if droplet.status == 'off':
-            result = droplet.take_snapshot('psiphon3-template-snapshot')
-            if not wait_on_action(do_mgr, droplet, result['action']['id'], 120, 'snapshot', 'completed'):
-                raise Exception('Snapshot took too long to create')
-            
-            droplet = droplet.load()
-
-        if len(droplet.snapshot_ids) < 1:
-            raise Exception('No snapshot found for image')
-        
     except Exception as e:
         print type(e), str(e)
+    
+    return droplet
+
+
+def take_droplet_snapshot(do_mgr, droplet):
+    if droplet.status == 'active':
+        result = droplet.shutdown()
+        if not wait_on_action(do_mgr, droplet, result['action']['id'], 30, 'shutdown', 'completed'):
+            raise Exception('Event did not complete in time')
+        
+        droplet = droplet.load()
+    
+    if droplet.status == 'off':
+        result = droplet.take_snapshot('psiphon3-template-snapshot')
+        if not wait_on_action(do_mgr, droplet, result['action']['id'], 120, 'snapshot', 'completed'):
+            raise Exception('Snapshot took too long to create')
+        
+        droplet = droplet.load()
+
+    if len(droplet.snapshot_ids) < 1:
+        raise Exception('No snapshot found for image')
     
     return droplet
 
