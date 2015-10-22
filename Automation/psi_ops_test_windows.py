@@ -108,6 +108,12 @@ def __test_server(executable_path, transport, encoded_server_list, expected_egre
     has_local_check = len(CHECK_IP_ADDRESS_URL_LOCAL) > 0
     
     servers_registry_value = 'Servers' + transport
+    
+    # Currently, tunnel-core will try to establish a connection on OSSH,SSH,MEEK
+    # ports.  The SSH registry value is overlooked.  This forces the registry
+    # value that is set SSH connections.
+    if transport == 'SSH':
+        servers_registry_value = 'ServersOSSH'
 
     # Internally we refer to "OSSH", but the display name is "SSH+", which is also used
     # in the registry setting to control which transport is used.
@@ -117,6 +123,7 @@ def __test_server(executable_path, transport, encoded_server_list, expected_egre
     # Split tunnelling is not implemented for VPN.
     # Also, if there is no remote check, don't use split tunnel mode because we always want
     # to test at least one proxied case.
+
     if transport == 'VPN' or not has_remote_check:
         split_tunnel_mode = False
     else:

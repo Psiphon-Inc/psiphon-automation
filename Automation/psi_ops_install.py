@@ -550,10 +550,12 @@ def install_host(host, servers, existing_server_ids, plugins):
     # Add required packages and Python modules
     #
     
-    ssh.exec_command('easy_install pyOpenSSL')
-    ssh.exec_command('easy_install hiredis')
-    ssh.exec_command('easy_install redis')
-    ssh.exec_command('easy_install iso8601')
+    ssh.exec_command('apt-get install -y python-pip libffi-dev')
+    ssh.exec_command('pip install pyOpenSSL')
+    ssh.exec_command('pip install hiredis')
+    ssh.exec_command('pip install redis')
+    ssh.exec_command('pip install iso8601')
+    ssh.exec_command('pip install --upgrade cffi')
     ssh.exec_command('apt-get install -y redis-server mercurial git')
 
     install_geoip_database(ssh)
