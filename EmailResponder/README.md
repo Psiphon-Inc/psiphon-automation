@@ -177,22 +177,7 @@ allowed to access the SSH port.
     `notify_classes =`
     )
 
-5. By default, if an uncaught error occurs (which shouldn't occur, but...),
-   postfix responds to the user with a bounce email that gives a lot of internal
-   details about the error. This is undesirable, so we'll disable this in postfix.
-
-   ```
-   sudo nano /etc/postfix/master.cf
-   ```
-
-   Comment out the bounce and trace lines, so it looks like this:
-
-   ```
-   #bounce    unix  -       -       -       -       0       bounce
-   #trace     unix  -       -       -       -       0       bounce
-   ```
-
-6. When sending mail via our local Postfix we don't want to have to make a TLS
+5. When sending mail via our local Postfix we don't want to have to make a TLS
    connection. So we'll run an instance of `stmpd` on `localhost` on a different
    port and use that for sending. Add these two lines to `master.cf`. NOTE: The 
    port specified must match the one in `settings.LOCAL_SMTP_SEND_PORT`.
@@ -200,10 +185,19 @@ allowed to access the SSH port.
 
     ```
     127.0.0.1:2525      inet  n       -       -       -       -       smtpd
-     -o smtpd_tls_security_level=none -o smtpd_banner=localhost -o myhostname=localhost
+      -o syslog_name=postfix2
+      -o smtpd_tls_security_level=none
+      -o smtpd_banner=localhost
+      -o myhostname=localhost
+      -o smtpd_recipient_restrictions=permit_mynetworks,reject_unauth_destination
+      -o virtual_alias_domains=
+      -o virtual_alias_maps=
+      -o smtpd_helo_restrictions=permit
+      -o smtpd_sender_restrictions=permit
+      -o smtpd_data_restrictions=permit
     ```
 
-7. Add [`postgrey`](http://postgrey.schweikert.ch/) for "[greylisting](http://projects.puremagic.com/greylisting/)":
+6. Add [`postgrey`](http://postgrey.schweikert.ch/) for "[greylisting](http://projects.puremagic.com/greylisting/)":
 
    ```
    sudo apt-get install postgrey   
@@ -211,7 +205,7 @@ allowed to access the SSH port.
 
    Actually using postgrey is handled in our example `main.cf` config.
 
-8. Reload postfix conf and restart:
+7. Reload postfix conf and restart:
 
    ```
    sudo postfix reload
