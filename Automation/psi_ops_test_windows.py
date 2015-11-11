@@ -19,6 +19,7 @@
 
 import os
 import urllib2
+import ssl
 import subprocess
 import time
 import random
@@ -44,6 +45,11 @@ import psi_ops_build_windows
 # Remote service should be in different GeoIP region; remote split tunnel will be in effect (proxied)
 CHECK_IP_ADDRESS_URL_LOCAL = 'http://automation.whatismyip.com/n09230945.asp'
 CHECK_IP_ADDRESS_URL_REMOTE = 'http://automation.whatismyip.com/n09230945.asp'
+
+# Set up an SSL context for urllib2 to use which ignores invalid (and/or self-signed) SSL certificates
+nonValidatingSslContext = ssl.create_default_context()
+nonValidatingSslContext.check_hostname = False
+nonValidatingSslContext.verify_mode = ssl.CERT_NONE
 
 # if psi_build_config.py exists, load it and use psi_build_config.DATA_ROOT as the data root dir
 
@@ -86,7 +92,8 @@ def __test_web_server(ip_address, web_server_port, propagation_channel_id, web_s
                     ip_address, web_server_port, propagation_channel_id, web_server_secret)
     # Reset the proxy settings (see comment below)
     urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler()))
-    response = urllib2.urlopen(get_request, timeout=10).read()
+    
+    response = urllib2.urlopen(get_request, timeout=10, context=nonValidatingSslContext).read()
     return ('SSHPort: ' in response and
             'SSHUsername: ' in response and
             'SSHPassword: ' in response and
@@ -103,7 +110,7 @@ def __test_server(executable_path, transport, encoded_server_list, expected_egre
     # - sleep 5 seconds, which allows time to establish connection
     # - determine egress IP address and assert it matches host IP address
     # - post WM_CLOSE to gracefully shut down the client and its connection
-
+    
     has_remote_check = len(CHECK_IP_ADDRESS_URL_REMOTE) > 0
     has_local_check = len(CHECK_IP_ADDRESS_URL_LOCAL) > 0
     
@@ -153,7 +160,7 @@ def __test_server(executable_path, transport, encoded_server_list, expected_egre
         proc = subprocess.Popen([executable_path])
 
         time.sleep(25)
-
+        
         # In VPN mode, all traffic is routed through the proxy. In SSH mode, the
         # urlib2 ProxyHandler picks up the Windows Internet Settings and uses the
         # HTTP Proxy that is set by the client.
@@ -162,7 +169,7 @@ def __test_server(executable_path, transport, encoded_server_list, expected_egre
         if has_local_check:
             # Get egress IP from web site in same GeoIP region; local split tunnel is not proxied
 
-            egress_ip_address = urllib2.urlopen(CHECK_IP_ADDRESS_URL_LOCAL, timeout=30).read().split('\n')[0]
+            egress_ip_address = urllib2.urlopen(CHECK_IP_ADDRESS_URL_LOCAL, timeout=30, context=nonValidatingSslContext).read().split('\n')[0]
 
             is_proxied = (egress_ip_address in expected_egress_ip_addresses)
 
@@ -177,7 +184,7 @@ def __test_server(executable_path, transport, encoded_server_list, expected_egre
         if has_remote_check:
             # Get egress IP from web site in different GeoIP region; remote split tunnel is proxied
 
-            egress_ip_address = urllib2.urlopen(CHECK_IP_ADDRESS_URL_REMOTE, timeout=30).read().split('\n')[0]
+            egress_ip_address = urllib2.urlopen(CHECK_IP_ADDRESS_URL_REMOTE, timeout=30, context=nonValidatingSslContext).read().split('\n')[0]
 
             is_proxied = (egress_ip_address in expected_egress_ip_addresses)
 
