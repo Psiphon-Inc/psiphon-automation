@@ -20,3 +20,10 @@ facebookmail.com          REJECT
 # Goolara is a marketing service
 goolara.net               REJECT
 .goolara.net              REJECT
+
+sendgrid.net              REJECT
+.sendgrid.net             REJECT
+
+# Mandrill is Mailchimp-for-apps
+mandrillapp.com           REJECT
+.mandrillapp.com          REJECT
