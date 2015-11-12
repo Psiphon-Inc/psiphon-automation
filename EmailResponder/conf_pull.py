@@ -63,14 +63,14 @@ def go():
             all_email_addrs.add(item['email_addr'])
 
         if new_conf:
-            # Write the supported domains  to files that will be used by
+            # Write the supported domains to files that will be used by
             # Postfix in its config.
             email_domains = set([addr[addr.find('@')+1:] for addr in all_email_addrs])
             with open(RESPONDER_DOMAINS_LIST_FILE, 'w') as responder_domains_file:
                 responder_domains_file.write(' '.join(email_domains))
 
-            address_maps_lines = ['%s\t\t%s@local' % (addr, settings.MAIL_RESPONDER_USERNAME) for addr in all_email_addrs]
-            catchall_lines = ['@%s\t\t%s' % (domain, settings.SYSTEM_DEVNULL_USER) for domain in email_domains]
+            address_maps_lines = ['%s\t\t%s@localhost' % (addr, settings.MAIL_RESPONDER_USERNAME) for addr in all_email_addrs]
+            catchall_lines = ['@%s\t\t%s@localhost' % (domain, settings.SYSTEM_DEVNULL_USER) for domain in email_domains]
 
             with open(ADDRESS_MAPS_LIST_FILE, 'w') as address_maps_file:
                 address_maps_file.write('\n'.join(address_maps_lines))

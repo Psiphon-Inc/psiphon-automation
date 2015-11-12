@@ -64,6 +64,25 @@ def update_system_packages(digitalocean_account, ip_address):
     ssh.close()
 
 
+def upgrade_debian_distro(digitalocean_account, ip_address, old_version, new_version):
+    '''upgrade_debian_distro is used to perform a distribution upgrade on a host.
+    
+    '''
+    ssh = psi_ssh.make_ssh_session(ip_address, 
+                                   digitalocean_account.base_ssh_port, 
+                                   'root', 
+                                   None, 
+                                   None, 
+                                   digitalocean_account.base_rsa_private_key)
+    ssh.exec_command("cp /etc/apt/sources.list{,.old}")
+    ssh.exec_command("sed -i 's/%s/%s/g' /etc/apt/sources.list" % (old_version, new_version))
+    ssh.exec_command("sed -i 's/%s/%s/g' /etc/apt/sources.list" % (old_version, new_version))
+    ssh.exec_command('export DEBIAN_FRONTEND=noninteractive && apt-get update -q && apt-get dist-upgrade -y -f -o Dpkg::Options::="--force-confdef"')
+    ssh.exec_command('apt-get update && apt-get autoremove -y -f')
+    ssh.exec_command('shutdown -r now')
+    ssh.close()
+
+
 def update_kernel(digitalocean_account, do_mgr, droplet):
     """
         This updates the kernel to use the same one as provided in the apt
@@ -212,6 +231,8 @@ def transfer_image_to_region(do_mgr, droplet, image_id, regions=list()):
         droplet     :   digitalocean.Droplet used to check status
         image_id    :   digitalocean.Image ID to transfer
         regions     :   (list) regions to transfer image to.
+        
+        returns failed_transfers : (list) of failed transfers
     """
     try:
         if not (do_mgr or image_id):
@@ -241,7 +262,7 @@ def transfer_image_to_region(do_mgr, droplet, image_id, regions=list()):
         raise e
 
 
-def setup_new_server(digitalocean_account, droplet, psinet):
+def prepare_new_server(digitalocean_account, droplet, psinet):
     """
         Set up a new server.  This takes the newly launched droplet and prepares
         it to be a new Psiphon server.
@@ -283,12 +304,11 @@ def setup_new_server(digitalocean_account, droplet, psinet):
                     droplet.ip_address, droplet.ip_address, psinet.get_propagation_channel_by_name('Testing').id,
                     False, False, None, capabilities, str(random.randrange(8000, 9000)), None, None, None,
                     ssh_port, None, None, None, ossh_port, None, None)
-        psinet.setup_server(host, [server])
-        return True
+        return (host, server)
     except Exception as e:
         raise e
     
-    return False
+    return (False, False)
 
 
 def remove_server(digitalocean_account, droplet_id):
@@ -311,33 +331,44 @@ def remove_server(digitalocean_account, droplet_id):
             raise e
 
 
-def prep_for_image_update():
+def update_base_image(psinet):
     """
         Sets some specific settings for updating the base image.
     """
-    PSI_OPS_ROOT = os.path.abspath(os.path.join('..', 'Data', 'PsiOps'))
-    PSI_OPS_DB_FILENAME = os.path.join(PSI_OPS_ROOT, 'psi_ops.dat')
+    do_mgr = digitalocean.Manager(token=psinet._PsiphonNetwork__digitalocean_account.oauth_token)
     
-    import psi_ops
+    droplet = make_base_droplet(psinet, psinet._PsiphonNetwork__digitalocean_account)
     
-    if os.path.isfile('psi_data_config.py'):
-        import psi_data_config
-        try:
-            sys.path.insert(0, psi_data_config.DATA_ROOT)
-            if hasattr(psi_data_config, 'CONFIG_FILE'):
-                psi_ops_config = __import__(psi_data_config.CONFIG_FILE)
-            else:
-                psi_ops_config = __import__('psi_ops_config')
-        except ImportError as error:
-            print error
+    update_system_packages(psinet._PsiphonNetwork__digitalocean_account, 
+                           droplet.ip_address)
     
-    global psinet
-    psinet = psi_ops.PsiphonNetwork.load_from_file(PSI_OPS_DB_FILENAME)
-    update_image(psinet, psinet._PsiphonNetwork__digitalocean_account)
+    droplet = droplet.load()
+    droplet = update_kernel(psinet._PsiphonNetwork__digitalocean_account, do_mgr, droplet)    
     
+    droplet = take_droplet_snapshot(do_mgr, droplet)
+    
+    (host, server) = make_psiphon_server(psinet, psinet._PsiphonNetwork__digitalocean_account, droplet)
+    if host and server:
+        failures = transfer_image_to_region(do_mgr, droplet, droplet.snapshot_ids[-1])
+    
+    if len(failures) != 0:
+        print 'There were %s' % len(failures)
+    else:
+        if psinet.is_locked:
+            set_new_base_image(psinet, psinet._PsiphonNetwork__digitalocean_account, droplet)
 
-def update_image(psinet, digitalocean_account, droplet_id, 
-                 droplet_name, droplet_size, test=True):
+
+def set_new_base_image(psinet, digitalocean_account, droplet):
+    do_mgr = digitalocean.Manager(token=digitalocean_account.oauth_token)
+    base_image = do_mgr.get_image(digitalocean_account.base_id)
+    base_image.rename(base_image.name + '_bak')
+    image = do_mgr.get_image(droplet.snapshot_ids[0])
+    digitalocean_account.base_id = image.id
+    psinet.save()
+    droplet.destroy()
+
+
+def make_base_droplet(psinet, digitalocean_account):
     """
         Updates the base image.  This includes installing new system packages
         via apt and setting the droplet kernel.
@@ -351,6 +382,7 @@ def update_image(psinet, digitalocean_account, droplet_id,
                                     up, but larger sized instances cannot scale down.
         test                    :   (Boolean) value to test the new image
     """
+    droplet = None
     try:
         if not digitalocean_account:
             raise Exception('DigitalOcean account must be provided')
@@ -361,9 +393,9 @@ def update_image(psinet, digitalocean_account, droplet_id,
         do_mgr = digitalocean.Manager(token=digitalocean_account.oauth_token)
         base_image = do_mgr.get_image(digitalocean_account.base_id)
 
-        Droplet.image = base_image.id if not droplet_id else droplet_id
-        Droplet.name = base_image.name if not droplet_name else droplet_name
-        Droplet.size = digitalocean_account.base_size_slug if not droplet_size else droplet_size
+        Droplet.image = base_image.id
+        Droplet.name = base_image.name
+        Droplet.size = digitalocean_account.base_size_slug
         Droplet.region = base_image.regions[0] if len(base_image.regions) > 0 else 'nyc1'
 
         sshkeys = do_mgr.get_all_sshkeys()
@@ -390,59 +422,59 @@ def update_image(psinet, digitalocean_account, droplet_id,
             result = droplet.power_on()
             if not wait_on_action(do_mgr, droplet, result['action']['id'], 30, 'power_on', 'completed'):
                 raise Exception('Event did not complete in time')
-            
-            droplet = droplet.load()
-
-        update_system_packages(digitalocean_account, droplet.ip_address)
-        droplet = droplet.load()
         
-        droplet = update_kernel(digitalocean_account, do_mgr, droplet)
-
-        result = droplet.reboot()
-        if not wait_on_action(do_mgr, droplet, result['action']['id'], 30, 'reboot', 'completed'):
-            raise Exception('Event did not complete in time')
-
         droplet = droplet.load()
 
-        if droplet.status == 'active':
-            result = droplet.shutdown()
-            if not wait_on_action(do_mgr, droplet, result['action']['id'], 30, 'shutdown', 'completed'):
-                raise Exception('Event did not complete in time')
-            
-            droplet = droplet.load()
-
-        if droplet.status == 'off':
-            result = droplet.take_snapshot('psiphon3-template-snapshot')
-            if not wait_on_action(do_mgr, droplet, result['action']['id'], 120, 'snapshot', 'completed'):
-                raise Exception('Snapshot took too long to create')
-            
-            droplet = droplet.load()
-
-        if len(droplet.snapshot_ids) < 1:
-            raise Exception('No snapshot found for image')
-
-        # test the server
-        if test:
-            result = setup_new_server(digitalocean_account, droplet)
-
-        if not result:
-            raise 'Could not set up server successfully'
-
-        # transfer image
-        failures = transfer_image_to_region(do_mgr, droplet, droplet.snapshot_ids[0])
-        if len(failures) > 0:
-            print "Failed to transfer image to regions: %s" % (failures)
-
-        if psinet.is_locked:
-            base_image.rename(base_image.name + '_bak')
-            image = do_mgr.get_image(droplet.snapshot_ids[0])
-            digitalocean_account.base_id = image.id
-            psinet.save()
-
-        droplet.destroy()
-    
     except Exception as e:
         print type(e), str(e)
+    
+    return droplet
+
+
+def take_droplet_snapshot(do_mgr, droplet):
+    if droplet.status == 'active':
+        result = droplet.shutdown()
+        if not wait_on_action(do_mgr, droplet, result['action']['id'], 30, 'shutdown', 'completed'):
+            raise Exception('Event did not complete in time')
+        
+        droplet = droplet.load()
+    
+    if droplet.status == 'off':
+        result = droplet.take_snapshot('psiphon3-template-snapshot')
+        if not wait_on_action(do_mgr, droplet, result['action']['id'], 120, 'snapshot', 'completed'):
+            raise Exception('Snapshot took too long to create')
+        
+        droplet = droplet.load()
+
+    if len(droplet.snapshot_ids) < 1:
+        raise Exception('No snapshot found for image')
+    
+    return droplet
+
+
+def make_psiphon_server(psinet, digitalocean_account, droplet):
+    host = None
+    server = None
+    try:
+        (host, server) = prepare_new_server(digitalocean_account, droplet, psinet)
+        if host and server:
+            psinet.setup_server(host, [server])
+        else:
+            raise Exception('Error creating server. Remove droplet: %s' % droplet.name)
+    except Exception as e:
+        print type(e), str(e)
+    
+    return (host, server)
+
+
+def transfer_server(digitalocean_account, droplet):
+    do_mgr = digitalocean.Manager(token=digitalocean_account.oauth_token)
+    # transfer image
+    failures = transfer_image_to_region(do_mgr, droplet, droplet.snapshot_ids[0])
+    if len(failures) > 0:
+        print "Failed to transfer image to regions: %s" % (failures)
+
+    return failures
 
 
 def launch_new_server(digitalocean_account, _):
