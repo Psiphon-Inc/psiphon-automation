@@ -656,8 +656,8 @@ def install_firewall_rules(host, servers, plugins, do_blacklist=True):
     -A INPUT -j DROP
     -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
-    -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 3478,5242,4244,9339 -j ACCEPT
-    -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 3478,5243,7985,9785 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 5242,4244,9339 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 5243,7985,9785 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 110,143,2560,8080,5060,5061,9180,25565 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 110,143,2560,8080,5060,5061,9180,25565 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.8.8 -p tcp --dport 53 -j ACCEPT
