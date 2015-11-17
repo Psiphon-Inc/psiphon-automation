@@ -2701,6 +2701,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # case: lookup failed or no corresponding region home page found --> use default
         if not sponsor_home_pages and 'None' in home_pages:
             sponsor_home_pages = [home_page.url for home_page in home_pages['None']]
+        # client_region query parameter substitution
+        sponsor_home_pages = [sponsor_home_page.replace('client_region=XX', 'client_region=' + region)
+                                for sponsor_home_page in sponsor_home_pages]
         return sponsor_home_pages
 
     def _get_sponsor_page_view_regexes(self, sponsor_id):

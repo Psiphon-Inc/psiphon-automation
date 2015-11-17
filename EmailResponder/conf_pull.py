@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2014, Psiphon Inc.
+# Copyright (c) 2015, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -25,9 +25,9 @@ other required config files from it.
 
 import os
 import json
-import syslog
 import argparse
 
+from logger import logger
 import settings
 import aws_helpers
 
@@ -63,14 +63,14 @@ def go():
             all_email_addrs.add(item['email_addr'])
 
         if new_conf:
-            # Write the supported domains  to files that will be used by
+            # Write the supported domains to files that will be used by
             # Postfix in its config.
             email_domains = set([addr[addr.find('@')+1:] for addr in all_email_addrs])
             with open(RESPONDER_DOMAINS_LIST_FILE, 'w') as responder_domains_file:
                 responder_domains_file.write(' '.join(email_domains))
 
             address_maps_lines = ['%s\t\t%s@localhost' % (addr, settings.MAIL_RESPONDER_USERNAME) for addr in all_email_addrs]
-            catchall_lines = ['@%s\t\t%s' % (domain, settings.SYSTEM_DEVNULL_USER) for domain in email_domains]
+            catchall_lines = ['@%s\t\t%s@localhost' % (domain, settings.SYSTEM_DEVNULL_USER) for domain in email_domains]
 
             with open(ADDRESS_MAPS_LIST_FILE, 'w') as address_maps_file:
                 address_maps_file.write('\n'.join(address_maps_lines))
@@ -80,7 +80,7 @@ def go():
 
     except Exception as ex:
         print('error: config file pull failed: %s; file: %s:%s' % (ex, settings.CONFIG_S3_BUCKET, settings.CONFIG_S3_KEY))
-        syslog.syslog(syslog.LOG_CRIT, 'error: config file pull failed: %s; file: %s:%s' % (ex, settings.CONFIG_S3_BUCKET, settings.CONFIG_S3_KEY))
+        logger.critical('error: config file pull failed: %s; file: %s:%s', ex, settings.CONFIG_S3_BUCKET, settings.CONFIG_S3_KEY)
         return False
 
     return True
