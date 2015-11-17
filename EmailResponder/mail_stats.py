@@ -119,23 +119,23 @@ def process_log_file(logfile):
 
     logtypes = {
                 'success': {
-                            'regex': re.compile('^([^ ]+) .* mail_process.py: success: (.*):'),
+                            'regex': re.compile('^([^ ]+) .* mail_process\.py.*: success: (.*):'),
                             'results': {}
                             },
                 'fail': {
-                            'regex': re.compile('^([^ ]+) .* mail_process.py: fail: (.*)'),
+                            'regex': re.compile('^([^ ]+) .* mail_process\.py.*: fail: (.*)'),
                             'results': {}
                             },
                 'exception': {
-                              'regex': re.compile('^([^ ]+) .* mail_process.py: exception: (.*)'),
+                              'regex': re.compile('^([^ ]+) .* mail_process\.py.*: exception: (.*)'),
                               'results': {}
                               },
                 'error': {
-                          'regex': re.compile('^([^ ]+) .* mail_process.py: error: (.*)'),
+                          'regex': re.compile('^([^ ]+) .* mail_process\.py.*: error: (.*)'),
                           'results': {}
                           },
                 'bad_address': {
-                          'regex': re.compile('^([^ ]+) .* log_processor.py: bad_address: (.*)'),
+                          'regex': re.compile('^([^ ]+) .* log_processor\.py.*: bad_address: (.*)'),
                           'results': {}
                           },
                 }
