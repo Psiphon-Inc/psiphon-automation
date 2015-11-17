@@ -183,8 +183,7 @@ def process_log_file(logfile):
 
     text += 'TOTAL: %d\n' % sum(results.values())
 
-    # Only itemize the entries with a reasonably large count
-    for item in filter(lambda (k,v): v >= 10,
+    for item in filter(lambda (k,v): v >= 1,
                        sorted(results.iteritems(),
                               key=lambda (k,v): (v,k),
                               reverse=True)):
