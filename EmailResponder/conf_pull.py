@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2014, Psiphon Inc.
+# Copyright (c) 2015, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -25,9 +25,9 @@ other required config files from it.
 
 import os
 import json
-import syslog
 import argparse
 
+from logger import logger
 import settings
 import aws_helpers
 
@@ -80,7 +80,7 @@ def go():
 
     except Exception as ex:
         print('error: config file pull failed: %s; file: %s:%s' % (ex, settings.CONFIG_S3_BUCKET, settings.CONFIG_S3_KEY))
-        syslog.syslog(syslog.LOG_CRIT, 'error: config file pull failed: %s; file: %s:%s' % (ex, settings.CONFIG_S3_BUCKET, settings.CONFIG_S3_KEY))
+        logger.critical('error: config file pull failed: %s; file: %s:%s', ex, settings.CONFIG_S3_BUCKET, settings.CONFIG_S3_KEY)
         return False
 
     return True
