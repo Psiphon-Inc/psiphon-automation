@@ -509,7 +509,7 @@ class LogHandlers(object):
         devnull_addr = '%s@localhost' % settings.SYSTEM_DEVNULL_USER
         if msgdict.get('local_addr') == devnull_addr and \
            msgdict.get('orig_addr'):
-            logger.info('bad_address: %s', msgdict.get('orig_addr')
+            logger.info('bad_address: %s', msgdict.get('orig_addr'))
 
         return self.SUCCESS
 
