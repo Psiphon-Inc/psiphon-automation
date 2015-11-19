@@ -262,7 +262,7 @@ def get_instance_info():
                       })
 
 
-TOP_THRESHOLD_COUNT = 10
+TOP_THRESHOLD_COUNT = 1
 START_DELTA_AGO = datetime.timedelta(1)
 
 
