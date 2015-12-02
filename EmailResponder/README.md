@@ -37,7 +37,7 @@ We could probably use Postfix's [virtual mailbox](http://www.postfix.org/VIRTUAL
     ```
     sudo apt-get update
     sudo apt-get upgrade
-    sudo apt-get install mercurial python-pip libwww-perl libdatetime-perl
+    sudo apt-get install mercurial python-pip libwww-perl libdatetime-perl rsyslog-gnutls
     sudo reboot
     ```
 
@@ -343,6 +343,8 @@ sh install.sh
   ```
   sudo service rsyslog restart
   ```
+
+**TODO**: Describe remote logstash setup. 
 
 
 ## Stats

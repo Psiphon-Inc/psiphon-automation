@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# Copyright (c) 2013, Psiphon Inc.
+# Copyright (c) 2015, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -16,10 +16,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from logger import logger
 import os
 import sys
 import re
-import syslog
 import time
 import settings
 
@@ -509,7 +509,7 @@ class LogHandlers(object):
         devnull_addr = '%s@localhost' % settings.SYSTEM_DEVNULL_USER
         if msgdict.get('local_addr') == devnull_addr and \
            msgdict.get('orig_addr'):
-            syslog.syslog(syslog.LOG_INFO, 'bad_address: %s' % msgdict.get('orig_addr'))
+            logger.info('bad_address: %s', msgdict.get('orig_addr'))
 
         return self.SUCCESS
 
@@ -608,17 +608,17 @@ def process_log(log_line):
             if ret == LogHandlers.SUCCESS:
                 dbsession.commit()
             elif ret == LogHandlers.NO_RECORD_MATCH:
-                syslog.syslog(syslog.LOG_WARNING, 'no record match for: ' + log_line)
+                logger.warning('no record match for: %s', log_line)
                 dbsession.rollback()
             else:
-                syslog.syslog(syslog.LOG_WARNING, 'handler failed for: ' + log_line)
+                logger.warning('handler failed for: %s', log_line)
                 dbsession.rollback()
 
             handler_found = True
             break
 
     if not handler_found:
-        syslog.syslog(syslog.LOG_WARNING, 'no handler match found for: ' + log_line)
+        logger.warning('no handler match found for: %s', log_line)
 
 
 if __name__ == '__main__':
@@ -632,7 +632,7 @@ if __name__ == '__main__':
         try:
             process_log(log_line)
         except:
-            syslog.syslog(syslog.LOG_ERR, 'exception for log: ' + log_line)
+            logger.error('exception for log: %s', log_line)
             raise
 
 

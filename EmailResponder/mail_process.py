@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2014, Psiphon Inc.
+# Copyright (c) 2015, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -19,7 +19,6 @@
 
 import sys
 import os
-import syslog
 import email
 import json
 import re
@@ -30,6 +29,7 @@ import dkim
 import errno
 from boto.exception import BotoServerError
 
+from logger import logger, logger_json
 import settings
 import sendmail
 import blacklist
@@ -84,7 +84,7 @@ class MailResponder(object):
                 all_email_addrs.add(item['email_addr'])
 
         except Exception as ex:
-            syslog.syslog(syslog.LOG_CRIT, 'error: config file read failed: %s; file: %s:%s' % (ex, settings.CONFIG_S3_BUCKET, settings.CONFIG_S3_KEY))
+            logger.critical('error: config file read failed: %s; file: %s:%s', ex, settings.CONFIG_S3_BUCKET, settings.CONFIG_S3_KEY)
             return False
 
         return True
@@ -105,12 +105,12 @@ class MailResponder(object):
 
         # If we didn't find anything for that address, exit.
         if not request_conf:
-            syslog.syslog(syslog.LOG_INFO, 'fail: invalid requested address: %s' % self.requested_addr)
+            logger.info('fail: invalid requested address: %s', self.requested_addr)
             return False
 
         # Check if the user is (or should be) blacklisted
         if not self._check_blacklist():
-            syslog.syslog(syslog.LOG_INFO, 'fail: blacklist')
+            logger.info('fail: blacklist')
             return False
 
         # Process each config entry found the for the requested address separately.
@@ -155,7 +155,7 @@ class MailResponder(object):
                         return False
                 except BotoServerError as ex:
                     if ex.error_message == 'Address blacklisted.':
-                        syslog.syslog(syslog.LOG_CRIT, 'fail: requester address blacklisted by SES')
+                        logger.critical('fail: requester address blacklisted by SES')
                     else:
                         exception_to_raise = ex
 
@@ -190,7 +190,7 @@ class MailResponder(object):
 
         self.requested_addr = decode_header(self._email['X-Original-To'])
         if not self.requested_addr:
-            syslog.syslog(syslog.LOG_INFO, 'fail: no requested address')
+            logger.info('fail: no requested address')
             return False
 
         # The 'To' field generally looks like this:
@@ -200,7 +200,7 @@ class MailResponder(object):
         self.requested_addr = strip_email(self.requested_addr)
         if not self.requested_addr:
             # Bad address. Fail.
-            syslog.syslog(syslog.LOG_INFO, 'fail: unparsable requested address')
+            logger.info('fail: unparsable requested address')
             #dump_to_exception_file('fail: unparsable requested address\n\n%s' % self._email_string)
             return False
 
@@ -210,7 +210,7 @@ class MailResponder(object):
 
         # Was this sent to our complaints address?
         if self.requested_addr == strip_email(settings.COMPLAINTS_ADDRESS):
-            syslog.syslog(syslog.LOG_INFO, 'fail: complaint')
+            logger.info('fail: complaint')
             forward_to_administrator('Complaint', self._email_string)
             dump_to_exception_file('fail: complaint\n\n%s' % self._email_string)
             return False
@@ -219,7 +219,7 @@ class MailResponder(object):
 
         self._requester_addr = decode_header(self._email['Return-Path'])
         if not self._requester_addr:
-            syslog.syslog(syslog.LOG_INFO, 'fail: no requester address')
+            logger.info('fail: no requester address')
             return False
 
         self._requester_addr = strip_email(self._requester_addr)
@@ -227,11 +227,11 @@ class MailResponder(object):
             # Amazon SES complaints and bounces have '<>' for Return-Path,
             # so they end up here.
             if self._email['From'] == 'MAILER-DAEMON@email-bounces.amazonses.com':
-                syslog.syslog(syslog.LOG_INFO, 'fail: bounce')
+                logger.info('fail: bounce')
             elif self._email['From'] == 'complaints@email-abuse.amazonses.com':
-                syslog.syslog(syslog.LOG_INFO, 'fail: complaint')
+                logger.info('fail: complaint')
             else:
-                syslog.syslog(syslog.LOG_INFO, 'fail: unparsable requester address')
+                logger.info('fail: unparsable requester address')
                 dump_to_exception_file('fail: unparsable requester address\n\n%s' % self._email_string)
 
             return False
@@ -394,7 +394,7 @@ if __name__ == '__main__':
         email_string = sys.stdin.read()
 
         if not email_string:
-            syslog.syslog(syslog.LOG_CRIT, 'error: no stdin')
+            logger.critical('error: no stdin')
             sys.exit(0)
 
         requested_addr = process_input(email_string)
@@ -403,10 +403,10 @@ if __name__ == '__main__':
 
     except UnicodeDecodeError as ex:
         # Bad input. Just log and exit.
-        syslog.syslog(syslog.LOG_CRIT, 'error: UnicodeDecodeError')
+        logger.critical('error: UnicodeDecodeError')
 
     except Exception as ex:
-        syslog.syslog(syslog.LOG_CRIT, 'exception: %s: %s' % (ex, traceback.format_exc()))
+        logger.critical('exception: %s: %s', ex, traceback.format_exc())
 
         # Should we write this exception-causing email to disk?
         if settings.EXCEPTION_DIR and email_string:
@@ -417,8 +417,8 @@ if __name__ == '__main__':
         try:
             processing_time = time.time()-starttime
 
-            syslog.syslog(syslog.LOG_INFO,
-                          'success: %s: %fs' % (requested_addr, processing_time))
+            logger.critical('success: %s: %fs', requested_addr, processing_time)
+            logger_json.critical('{"event_name": "success", "requested_address": "%s"}' % requested_addr)
 
             aws_helpers.put_cloudwatch_metric_data(settings.CLOUDWATCH_PROCESSING_TIME_METRIC_NAME,
                                                    processing_time,
@@ -435,7 +435,7 @@ if __name__ == '__main__':
                                                    'Count',
                                                    settings.CLOUDWATCH_NAMESPACE)
         except Exception as ex:
-            syslog.syslog(syslog.LOG_CRIT, 'exception: %s: %s' % (ex, traceback.format_exc()))
+            logger.critical('exception: %s: %s', ex, traceback.format_exc())
 
             if settings.EXCEPTION_DIR:
                 dump_to_exception_file('Exception caught: %s\n%s' % (ex,
