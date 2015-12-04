@@ -102,7 +102,7 @@ def go():
                         email_diagnostic_info.get('email_id'),  # may be None
                         None)  # no attachment
             logger.log('decrypted formatted email sent')
-        except smtplib.SMTPException as e:
+        except Exception as e:
             logger.exception()
             logger.error(str(e))
 

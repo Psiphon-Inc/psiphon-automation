@@ -550,10 +550,12 @@ def install_host(host, servers, existing_server_ids, plugins):
     # Add required packages and Python modules
     #
     
-    ssh.exec_command('easy_install pyOpenSSL')
-    ssh.exec_command('easy_install hiredis')
-    ssh.exec_command('easy_install redis')
-    ssh.exec_command('easy_install iso8601')
+    ssh.exec_command('apt-get install -y python-pip libffi-dev')
+    ssh.exec_command('pip install pyOpenSSL')
+    ssh.exec_command('pip install hiredis')
+    ssh.exec_command('pip install redis')
+    ssh.exec_command('pip install iso8601')
+    ssh.exec_command('pip install --upgrade cffi')
     ssh.exec_command('apt-get install -y redis-server mercurial git')
 
     install_geoip_database(ssh)
@@ -652,10 +654,10 @@ def install_firewall_rules(host, servers, plugins, do_blacklist=True):
                 if s.capabilities['VPN']]) + '''
     -A INPUT -p tcp -j REJECT --reject-with tcp-reset
     -A INPUT -j DROP
-    -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
-    -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
-    -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 5242,4244,9339 -j ACCEPT
-    -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 5243,7985,9785 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 80,443,465,554,587,993,995,1935,5190,7070,8000,8001 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 80,443,465,554,587,993,995,1935,5190,7070,8000,8001 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 3478,5242,4244,9339 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 3478,5243,7985,9785 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 110,143,2560,8080,5060,5061,9180,25565 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 110,143,2560,8080,5060,5061,9180,25565 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.8.8 -p tcp --dport 53 -j ACCEPT
@@ -683,12 +685,12 @@ def install_firewall_rules(host, servers, plugins, do_blacklist=True):
     -A OUTPUT -o lo -p tcp -m tcp --sport 6379 -j ACCEPT
     -A OUTPUT -o lo -p tcp -m tcp --sport 6000 -j ACCEPT
     -A OUTPUT -o lo -j REJECT
-    -A OUTPUT -p tcp -m multiport --dports 53,80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
-    -A OUTPUT -p udp -m multiport --dports 53,80,443,465,554,587,993,995,1935,5190,7070,8000,8001,6971:6999 -j ACCEPT
-    -A OUTPUT -p tcp -m multiport --dports 5222,5223,5228,5229,5230,14259 -j ACCEPT
-    -A OUTPUT -p udp -m multiport --dports 5222,5223,5228,5229,5230,14259 -j ACCEPT
-    -A OUTPUT -p tcp -m multiport --dports 5242,4244,9339 -j ACCEPT
-    -A OUTPUT -p udp -m multiport --dports 5243,7985,9785 -j ACCEPT
+    -A OUTPUT -p tcp -m multiport --dports 53,80,443,465,554,587,993,995,1935,5190,7070,8000,8001 -j ACCEPT
+    -A OUTPUT -p udp -m multiport --dports 53,80,443,465,554,587,993,995,1935,5190,7070,8000,8001 -j ACCEPT
+    -A OUTPUT -p tcp -m multiport --dports 5222,5223,5224,5228,5229,5230,5269,14259 -j ACCEPT
+    -A OUTPUT -p udp -m multiport --dports 5222,5223,5224,5228,5229,5230,5269,14259 -j ACCEPT
+    -A OUTPUT -p tcp -m multiport --dports 3478,5242,4244,9339 -j ACCEPT
+    -A OUTPUT -p udp -m multiport --dports 3478,5243,7985,9785 -j ACCEPT
     -A OUTPUT -p tcp -m multiport --dports 110,143,2560,8080,5060,5061,9180,25565 -j ACCEPT
     -A OUTPUT -p udp -m multiport --dports 110,143,2560,8080,5060,5061,9180,25565 -j ACCEPT
     -A OUTPUT -p udp -m udp --dport 123 -j ACCEPT
