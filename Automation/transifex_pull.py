@@ -32,7 +32,7 @@ from BeautifulSoup import BeautifulSoup
 import psi_feedback_templates
 
 
-DEFAULT_LANGS = {'ar': 'ar', 'az': 'az', 'es': 'es', 'fa': 'fa', 'kk': 'kk',
+DEFAULT_LANGS = {'ar': 'ar', 'es': 'es', 'fa': 'fa', 'kk': 'kk',
                  'ru': 'ru', 'th': 'th', 'tk': 'tk', 'vi': 'vi', 'zh': 'zh',
                  'ug': 'ug@Latn', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr',
                  'de': 'de', 'ko': 'ko', 'fi_FI': 'fi', 'el_GR': 'el',
