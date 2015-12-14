@@ -103,8 +103,8 @@ def create_linode_disks(linode_api, linode_id, bootstrap_password, plugins):
 def create_linode_configurations(linode_api, linode_id, disk_list, plugins):
     # KernelID = 138: Latest 64 bit
     bootstrap_kernel_id = 138
-    # KernelID = 95: pv-grub-x86_64
-    host_kernel_id = 95
+    # KernelID = 216: GRUB Legacy (KVM)
+    host_kernel_id = 216
     for plugin in plugins:
         if hasattr(plugin, 'linode_kernel_ids'):
             bootstrap_kernel_id, host_kernel_id = plugin.linode_kernel_ids()
