@@ -67,8 +67,8 @@ def create_linode(linode_api):
     datacenter = random.choice(avail_datacenters)
     datacenter_id = datacenter['DATACENTERID']
     datacenter_name = make_datacenter_name(datacenter['LOCATION'])
-    # We use PlanID = 4: linode 4096
-    new_node_id = linode_api.linode_create(DatacenterID=datacenter_id, PlanID=4, PaymentTerm=1)['LinodeID']
+    # We use PlanID = 2: linode 2048
+    new_node_id = linode_api.linode_create(DatacenterID=datacenter_id, PlanID=2, PaymentTerm=1)['LinodeID']
     # Status flag values: (partial list)
     # -1: Being Created
     #  0: Brand New
