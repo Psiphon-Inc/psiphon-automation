@@ -36,7 +36,7 @@ DEFAULT_LANGS = {'ar': 'ar', 'es': 'es', 'fa': 'fa', 'kk': 'kk',
                  'ru': 'ru', 'th': 'th', 'tk': 'tk', 'vi': 'vi', 'zh': 'zh',
                  'ug': 'ug@Latn', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr',
                  'de': 'de', 'ko': 'ko', 'fi_FI': 'fi', 'el_GR': 'el',
-                 'hr': 'hr', 'pt_PT': 'pt_PT', 'pt_BR': 'pt_BR'}
+                 'hr': 'hr', 'pt_PT': 'pt_PT', 'pt_BR': 'pt_BR', 'id': 'id'}
 # Transifex does not support multiple character sets for Uzbek, but
 # Psiphon supports both uz@Latn and uz@cyrillic. So we're going to
 # use "Uzbek" ("uz") for uz@Latn and "Klingon" ("tlh") for uz@cyrillic.
