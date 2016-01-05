@@ -50,7 +50,7 @@ def check_load_on_host(host):
         load = str(float(load_metrics[0].strip())/load_threshold * 100.0)
         free = g_psinet.run_command_on_host(host, 'free | grep "buffers/cache" | awk \'{print $4/($3+$4) * 100.0}\'')
         free_swap = g_psinet.run_command_on_host(host, 'free | grep "Swap" | awk \'{print $4/$2 * 100.0}\'')
-        processes_to_check = ['psi_web.py', 'redis-server', 'badvpn-udpgw', 'xinetd', 'xl2tpd', 'cron', 'rsyslogd', 'fail2ban-server', 'ntpd']
+        processes_to_check = ['psi_web.py', 'redis-server', 'badvpn-udpgw', 'xinetd', 'xl2tpd', 'cron', 'rsyslogd', 'fail2ban-server', 'ntpd', 'systemctl']
         if host.meek_server_port:
             processes_to_check.append('meek-server')
         process_counts = g_psinet.run_command_on_host(host,
@@ -63,6 +63,8 @@ def check_load_on_host(host):
                 alert = instances < 1
             elif process == 'xl2tpd':
                 alert = instances != len([server.id for server in g_psinet.get_servers() if server.host_id == host.id])
+            elif process == 'systemctl':
+                alert = instances > 0
             else:
                 alert = instances != 1
             if alert:
