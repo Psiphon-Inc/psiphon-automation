@@ -23,3 +23,7 @@ goolara.net               REJECT
 
 sendgrid.net              REJECT
 .sendgrid.net             REJECT
+
+# Mandrill is Mailchimp-for-apps
+mandrillapp.com           REJECT
+.mandrillapp.com          REJECT

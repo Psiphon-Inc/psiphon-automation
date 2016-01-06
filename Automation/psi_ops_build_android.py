@@ -35,8 +35,6 @@ SOURCE_ROOT = os.path.join(os.path.abspath('..'), 'Android')
 PSIPHON_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'PsiphonAndroid')
 PSIPHON_LIB_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'PsiphonAndroidLibrary')
 ZIRCO_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'zirco-browser')
-KALIUM_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'kalium-jni', 'src', 'main', 'java', 'org')
-PSIPHON_LIB_SOURCE_SRC_ORG = os.path.join(PSIPHON_LIB_SOURCE_ROOT, 'src', 'org')
 
 KEYSTORE_FILENAME = os.path.join(os.path.abspath('..'), 'Data', 'CodeSigning', 'test.keystore')
 KEYSTORE_ALIAS = 'psiphon'
@@ -83,7 +81,6 @@ key.alias.password=%s
         local_properties_file.write(local_properties_contents)
 
     commands = [
-        'xcopy "%s" "%s" /e /y' % (KALIUM_SOURCE_ROOT, PSIPHON_LIB_SOURCE_SRC_ORG),
         'android update lib-project -p "%s"' % (ZIRCO_SOURCE_ROOT,),
         'android update lib-project -p "%s"' % (PSIPHON_LIB_SOURCE_ROOT,),
         'android update project -p "%s"' % (PSIPHON_SOURCE_ROOT,),
