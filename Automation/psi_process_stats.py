@@ -30,6 +30,7 @@ import psycopg2
 import sys
 import multiprocessing
 import argparse
+import iso8601
 
 import psi_ssh
 import psi_ops
@@ -410,6 +411,15 @@ def iso8601_to_utc(timestamp):
                                 minutes = int(timestamp[-2:]))
     return (localized_datetime - timezone_delta).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
 
+def fix_timestamp(timestamp):
+    try:
+        iso8601.parse_date(timestamp.strip())
+    except:
+        try:
+            timestamp = iso8601.parse_date(timestamp.strip()[:10]).isoformat()
+        except:
+            pass
+    return timestamp
 
 def process_stats(host, servers, db_cur, psinet, minimal, error_file=None):
 
@@ -473,8 +483,8 @@ def process_stats(host, servers, db_cur, psinet, minimal, error_file=None):
 
     # Don't record entries for testing or deployment-validation logs.
     # Manual and automated testing are typically done with a propagation channel
-    # name of 'Testing' (which we're going to look up in psinet to get the ID). 
-    # All logs that use this propagation channel will be discarded to prevent 
+    # name of 'Testing' (which we're going to look up in psinet to get the ID).
+    # All logs that use this propagation channel will be discarded to prevent
     # stats confusion.
     excluded_propagation_channel_ids = []
     if TESTING_PROPAGATION_CHANNEL_NAME:
@@ -507,6 +517,10 @@ def process_stats(host, servers, db_cur, psinet, minimal, error_file=None):
                     # Update: no longer calling iso8601_to_utc(timestamp) as database can perform translation
 
                     timestamp = match.group(1)
+
+                    # If we cannot parse the matched string as an ISO8601 timestamp, zero out the time and
+                    # try to produce a valid timestamp. If this fails too, don't change the matched timestamp
+                    timestamp = fix_timestamp(timestamp)
 
                     # Last timestamp check
                     # Note: - assuming lexicographical order (ISO8601)
@@ -541,7 +555,7 @@ def process_stats(host, servers, db_cur, psinet, minimal, error_file=None):
                             continue
                         event_fields = LOG_EVENT_TYPE_SCHEMA[event_type]
 
-                    if len(event_values) != len(event_fields):                       
+                    if len(event_values) != len(event_fields):
                         err = 'invalid log line fields %s' % (line,)
                         if error_file:
                             error_file.write(err + '\n')
@@ -603,6 +617,8 @@ def process_stats(host, servers, db_cur, psinet, minimal, error_file=None):
                                     field_values[index] = None
                                 elif field_values[index] == 'None':
                                     field_values[index] = '1900-01-01T00:00:00Z'
+                                else:
+                                    field_values[index] = fix_timestamp(field_values[index])
 
                     # SQL injection note: the table name isn't parameterized
                     # and comes from log file data, but it's implicitly
@@ -647,8 +663,8 @@ def reconstruct_sessions(db):
     # Find the end time by selecting the 'disconnected' or 'status' event with
     # the same host_id and session_id soonest after the connected timestamp.
 
-    session_cursor = db.cursor()    
-    
+    session_cursor = db.cursor()
+
     print 'Reconstructing sessions...'
     sys.stdout.flush()
     start_time = time.time()
@@ -718,26 +734,26 @@ def process_stats_on_host(args):
 
     host = args[0]
     servers = args[1]
-    psinet = args[2]                                                                                 
+    psinet = args[2]
     minimal = args[3]
-                                                                                                     
+
     db_conn = build_db_connections()
     cursors = {}
-                                                
+
     try:
         for table, conn in db_conn.iteritems():
             cursors[table] = conn.cursor()
-        process_stats(host, servers, cursors, psinet, minimal)                                                 
+        process_stats(host, servers, cursors, psinet, minimal)
         for cursor in cursors.itervalues():
             cursor.close()
         for connection in db_conn.itervalues():
-            connection.commit()                                                                          
-    except Exception as e:                                                                           
-        for line in traceback.format_exc().split('\n'):                                              
-            print line                                                                               
-    finally:                                                                                         
+            connection.commit()
+    except Exception as e:
+        for line in traceback.format_exc().split('\n'):
+            print line
+    finally:
         for connection in db_conn.itervalues():
-            connection.close()                                                                            
+            connection.close()
 
     return (host.id, time.time()-start_time)
 
@@ -766,14 +782,14 @@ def build_db_connections():
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-m', '--minimal', dest='minimal', action='store_true',                                         
+    parser.add_argument('-m', '--minimal', dest='minimal', action='store_true',
                         help='minimal processing')
     args = parser.parse_args()
 
     start_time = time.time()
 
     psinet = psi_ops.PsiphonNetwork.load_from_file(PSI_OPS_DB_FILENAME)
-    
+
     db_conn = build_db_connections()
     print db_conn
 
