@@ -1632,9 +1632,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 # Regular propagation servers also have UNFRONTED-MEEK
                 capabilities['UNFRONTED-MEEK'] = True
 
-
             if capabilities['UNFRONTED-MEEK']:
-                self.setup_meek_parameters_for_host(host, 80)
+                if random.random() < 0.5:
+                    self.setup_meek_parameters_for_host(host, 80)
+                else:
+                    ossh_port = 53
+                    self.setup_meek_parameters_for_host(host, 443)
 
             server = Server(
                         None,
@@ -2619,10 +2622,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             extended_config['sshObfuscatedPort'] = int(server.alternate_ssh_obfuscated_ports[-1])
         extended_config['sshObfuscatedKey'] = server.ssh_obfuscated_key if server.ssh_obfuscated_key else ''
 
-        extended_config['capabilities'] = [capability for capability, enabled in server.capabilities.iteritems() if enabled] if server.capabilities else []
-
         host = self.__hosts[server.host_id]
         extended_config['region'] = host.region
+
+        server_capabilities = copy_server_capabilities(server.capabilities) if server.capabilities else None
+        if server_capabilities and server_capabilities['UNFRONTED-MEEK'] and int(host.meek_server_port) == 443:
+            server_capabilities['UNFRONTED-MEEK'] = False
+            server_capabilities['UNFRONTED-MEEK-HTTPS'] = True
+        extended_config['capabilities'] = [capability for capability, enabled in server_capabilities.iteritems() if enabled] if server_capabilities else []
 
         extended_config['meekServerPort'] = int(host.meek_server_port) if host.meek_server_port else 0
         extended_config['meekObfuscatedKey'] = host.meek_server_obfuscated_key if host.meek_server_obfuscated_key else ''
