@@ -1633,7 +1633,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 capabilities['UNFRONTED-MEEK'] = True
 
             if capabilities['UNFRONTED-MEEK']:
-                self.setup_meek_parameters_for_host(host, 80 if random.random() < 0.5 else 443)
+                if random.random() < 0.5:
+                    self.setup_meek_parameters_for_host(host, 80)
+                else:
+                    ossh_port = 53
+                    self.setup_meek_parameters_for_host(host, 443)
 
             server = Server(
                         None,
