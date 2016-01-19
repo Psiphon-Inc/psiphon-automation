@@ -3,6 +3,7 @@ en:
         Download Psiphon here: {{0}}/{0}/download.html#direct
     html_email_no_attachment: |
         <div style="direction: ltr;">
+        <b>ALERT: We are experiencing a disruption from within Iran and are working hard to fix what they have broken. Keep requesting the Psiphon client and send us feedback!</b><br>
         Download Psiphon here: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
         </div>
     plaintext_email_with_attachment: |+
