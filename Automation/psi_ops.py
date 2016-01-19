@@ -2752,8 +2752,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if CLIENT_PLATFORM_ANDROID.lower() in client_platform_string.lower():
             platform = CLIENT_PLATFORM_ANDROID
 
-        # Give client a set of landing pages to open when connection established
-        config['homepages'] = self.__get_sponsor_home_pages(sponsor_id, client_region, platform)
+        # Randomly choose one landing page from a set of landing pages
+        # to give the client to open when connection established
+        homepages = self.__get_sponsor_home_pages(sponsor_id, client_region, platform)
+        config['homepages'] = random.choice(homepages) if homepages else []
 
         # Tell client if an upgrade is available
         config['upgrade_client_version'] = self.__check_upgrade(platform, client_version)
