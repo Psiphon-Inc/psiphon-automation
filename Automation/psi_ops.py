@@ -2176,7 +2176,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         psi_ops_crypto_tools.make_signed_data(
                             self.__get_remote_server_list_signing_key_pair().pem_key_pair,
                             REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD,
-                            '\n'.join(self.__get_encoded_server_list(propagation_channel.id)[0]))
+                            '\n'.join(self.__get_encoded_server_list(propagation_channel.id, include_propagation_servers=False)[0]))
 
                     # Build for each client platform
 
@@ -2654,7 +2654,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     json.dumps(extended_config)))
 
     def __get_encoded_server_list(self, propagation_channel_id,
-                                  client_ip_address_strategy_value=None, event_logger=None, discovery_date=None, test=False):
+                                  client_ip_address_strategy_value=None, event_logger=None, discovery_date=None, test=False, include_propagation_servers=True):
         if not client_ip_address_strategy_value:
             # embedded (propagation) server list
             # output all servers for propagation channel ID with no discovery date
@@ -2666,7 +2666,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             servers = [server for server in self.__servers.itervalues()
                        if (server.propagation_channel_id == propagation_channel_id
-                           and server.is_embedded)
+                           and server.is_embedded and include_propagation_servers)
                        or (not test and (server.id in permanent_server_ids[0:50]))]
         else:
             # discovery case
