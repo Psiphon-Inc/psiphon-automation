@@ -1977,7 +1977,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         sponsor = self.get_sponsor_by_name(sponsor_name)
         encoded_server_list, expected_egress_ip_addresses = \
-                    self.__get_encoded_server_list(propagation_channel.id, test=test)
+                    self.__get_encoded_server_list(propagation_channel.id, test=test, include_propagation_servers=False)
 
         remote_server_list_signature_public_key = \
             psi_ops_crypto_tools.get_base64_der_public_key(
@@ -2176,7 +2176,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         psi_ops_crypto_tools.make_signed_data(
                             self.__get_remote_server_list_signing_key_pair().pem_key_pair,
                             REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD,
-                            '\n'.join(self.__get_encoded_server_list(propagation_channel.id, include_propagation_servers=False)[0]))
+                            '\n'.join(self.__get_encoded_server_list(propagation_channel.id)[0]))
 
                     # Build for each client platform
 
