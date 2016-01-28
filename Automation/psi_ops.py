@@ -1373,7 +1373,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         now = datetime.datetime.now()
         today = datetime.datetime(now.year, now.month, now.day)
 
-        # Use a default 4 day discovery date range.
+        # Use a default 1 day discovery date range.
         new_discovery_date_range = (today, today + datetime.timedelta(days=1))
 
         if new_discovery_servers_count == None:
