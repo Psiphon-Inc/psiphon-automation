@@ -141,7 +141,7 @@ def _test_select_servers():
                 for time_in_seconds in times():
                     selection = select_servers(
                                     servers,
-                                    ip_address,
+                                    calculate_ip_address_strategy_value(ip_address),
                                     time_in_seconds)
                     if selection:
                         frequency[selection[0]] += 1
