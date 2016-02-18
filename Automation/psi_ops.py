@@ -194,7 +194,8 @@ Host = psi_utils.recordtype(
     'id, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key, ' +
     'stats_ssh_username, stats_ssh_password, ' +
     'datacenter_name, region, meek_server_port, meek_server_obfuscated_key, meek_server_fronting_domain, ' +
-    'meek_server_fronting_host, meek_cookie_encryption_public_key, meek_cookie_encryption_private_key',
+    'meek_server_fronting_host, alternate_meek_server_fronting_hosts, ' +
+    'meek_cookie_encryption_public_key, meek_cookie_encryption_private_key',
     default=None)
 
 Server = psi_utils.recordtype(
@@ -551,7 +552,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     except Exception as e:
                         print('Corrupt banner image found for sponsor %s; unable to convert' % sponsor.id)
             self.version = '0.34'
-
+        if cmp(parse_version(self.version), parse_version('0.35')) < 0:
+            for host in self.__hosts.itervalues():
+                host.alternate_meek_server_fronting_hosts = None
+            for host in self.__deleted_hosts:
+                host.alternate_meek_server_fronting_hosts = None
+            for host in self.__hosts_to_remove_from_providers:
+                host.alternate_meek_server_fronting_hosts = None
+            self.version = '0.35'
+ 
     def initialize_plugins(self):
         for plugin in plugins:
             if hasattr(plugin, 'initialize'):
@@ -1179,7 +1188,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def get_host_object(self, id, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
                         stats_ssh_username, stats_ssh_password, datacenter_name, region, meek_server_port,
                         meek_server_obfuscated_key, meek_server_fronting_domain, meek_server_fronting_host,
-                        meek_cookie_encryption_public_key, meek_cookie_encryption_private_key):
+                        alternate_meek_server_fronting_hosts, meek_cookie_encryption_public_key,
+                        meek_cookie_encryption_private_key):
         return Host(id,
                     provider,
                     provider_id,
@@ -1196,6 +1206,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     meek_server_obfuscated_key,
                     meek_server_fronting_domain,
                     meek_server_fronting_host,
+                    alternate_meek_server_fronting_hosts,
                     meek_cookie_encryption_public_key,
                     meek_cookie_encryption_private_key,
                     )
@@ -1717,6 +1728,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.meek_server_obfuscated_key,
                         host.meek_server_fronting_domain,
                         host.meek_server_fronting_host,
+                        host.alternate_meek_server_fronting_hosts,
                         host.meek_cookie_encryption_public_key,
                         host.meek_cookie_encryption_private_key)
         self.__hosts_to_remove_from_providers.add(host_copy)
@@ -2630,7 +2642,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if server_capabilities and server_capabilities['UNFRONTED-MEEK'] and int(host.meek_server_port) == 443:
             server_capabilities['UNFRONTED-MEEK'] = False
             server_capabilities['UNFRONTED-MEEK-HTTPS'] = True
-        extended_config['capabilities'] = [capability for capability, enabled in server_capabilities.iteritems() if enabled] if server_capabilities else []
 
         extended_config['meekServerPort'] = int(host.meek_server_port) if host.meek_server_port else 0
         extended_config['meekObfuscatedKey'] = host.meek_server_obfuscated_key if host.meek_server_obfuscated_key else ''
@@ -2646,6 +2657,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 extended_config['meekFrontingAddresses'] = alternate_meek_fronting_addresses[:3]
 
             extended_config['meekFrontingAddressesRegex'] = self.__alternate_meek_fronting_addresses_regex[host.meek_server_fronting_domain]
+
+        if host.alternate_meek_server_fronting_hosts:
+            # Copy the set to avoid shuffling the original
+            alternate_meek_server_fronting_hosts = list(host.alternate_meek_server_fronting_hosts)
+            random.shuffle(alternate_meek_server_fronting_hosts)
+            extended_config['meekFrontingHosts'] = alternate_meek_server_fronting_hosts[:3]
+            if server_capabilities['FRONTED-MEEK']:
+                server_capabilities['FRONTED-MEEK-HTTP'] = True
+
+        extended_config['capabilities'] = [capability for capability, enabled in server_capabilities.iteritems() if enabled] if server_capabilities else []
 
         return binascii.hexlify('%s %s %s %s %s' % (
                                     server.ip_address,
@@ -2886,6 +2907,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         host.meek_server_obfuscated_key,
                                         host.meek_server_fronting_domain,
                                         host.meek_server_fronting_host,
+                                        [],  # Omit: alternate_meek_server_fronting_hosts isn't needed
                                         host.meek_cookie_encryption_public_key,
                                         '')  # Omit: meek_cookie_encryption_private_key isn't needed
 
@@ -2994,6 +3016,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.meek_server_obfuscated_key,
                                             host.meek_server_fronting_domain,
                                             host.meek_server_fronting_host,
+                                            [],  # Omit: alternate_meek_server_fronting_hosts
                                             '',  # Omit: meek_cookie_encryption_public_key
                                             '')  # Omit: meek_cookie_encryption_private_key
 
