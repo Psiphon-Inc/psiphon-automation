@@ -354,6 +354,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__android_home_tab_url_exclusions = set()
         self.__alternate_meek_fronting_addresses = defaultdict(set)
         self.__alternate_meek_fronting_addresses_regex = defaultdict(str)
+        self.__meek_fronting_disable_SNI = defaultdict(bool)
         self.__routes_signing_key_pair = None
 
         if initialize_plugins:
@@ -553,6 +554,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         print('Corrupt banner image found for sponsor %s; unable to convert' % sponsor.id)
             self.version = '0.34'
         if cmp(parse_version(self.version), parse_version('0.35')) < 0:
+            self.__meek_fronting_disable_SNI = defaultdict(bool)
             for host in self.__hosts.itervalues():
                 host.alternate_meek_server_fronting_hosts = None
             for host in self.__deleted_hosts:
@@ -2657,6 +2659,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 extended_config['meekFrontingAddresses'] = alternate_meek_fronting_addresses[:3]
 
             extended_config['meekFrontingAddressesRegex'] = self.__alternate_meek_fronting_addresses_regex[host.meek_server_fronting_domain]
+            extended_config['meekFrontingDisableSNI'] = self.__meek_fronting_disable_SNI[host.meek_server_fronting_domain]
 
         if host.alternate_meek_server_fronting_hosts:
             # Copy the set to avoid shuffling the original
