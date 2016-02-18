@@ -1372,9 +1372,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         now = datetime.datetime.now()
         today = datetime.datetime(now.year, now.month, now.day)
+        tomorrow = today + datetime.timedelta(days=1)
 
         # Use a default 1 day discovery date range.
-        new_discovery_date_range = (today, today + datetime.timedelta(days=1))
+        new_discovery_date_range = (tomorrow, tomorrow + datetime.timedelta(days=1))
 
         if new_discovery_servers_count == None:
             new_discovery_servers_count = propagation_channel.new_discovery_servers_count
