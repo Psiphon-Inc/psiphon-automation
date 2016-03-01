@@ -53,7 +53,7 @@ def urlopen(url, timeout):
         nonValidatingSslContext = ssl.create_default_context()
         nonValidatingSslContext.check_hostname = False
         nonValidatingSslContext.verify_mode = ssl.CERT_NONE
-        return urllib2.urlopen(url, timeout=timeout, context=nonValidatingSslContext).read()
+        return urllib2.urlopen(url, timeout=timeout, context=nonValidatingSslContext)
     else:
         return urllib2.urlopen(url, timeout=timeout)
 
