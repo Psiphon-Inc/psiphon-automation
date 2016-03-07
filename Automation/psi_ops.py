@@ -2242,10 +2242,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
                     # Publish to propagation mechanisms
 
+                    client_version = self.__client_versions[platform][-1].version if self.__client_versions[platform] else 0
+
                     psi_ops_s3.update_s3_download(
                         self.__aws_account,
-                        [(build_filename, client_build_filenames[platform]),
-                         (upgrade_filename, s3_upgrade_resource_name)],
+                        [(build_filename, client_version, client_build_filenames[platform]),
+                         (upgrade_filename, client_version, s3_upgrade_resource_name)],
+                        client_version,
                         remote_server_list,
                         campaign.s3_bucket_name)
                     # Don't log this, too much noise
