@@ -74,6 +74,8 @@ EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME = 'PsiphonAndroid.apk'
 
 DOWNLOAD_SITE_UPGRADE_SUFFIX = '.upgrade'
 
+DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME = 'psiphon-client-version'
+
 DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME = 'server_list'
 
 DOWNLOAD_SITE_QR_CODE_KEY_NAME = 'images/android/android-download-qr.png'
@@ -306,7 +308,7 @@ def update_s3_download(aws_account, builds, remote_server_list, bucket_id):
     """Update the client builds and server list in the given bucket.
     Args:
         aws_account (object): Must have attributes access_id and secret_key.
-        builds (iterable): List of tuples of (source_filename, target_filename).
+        builds (iterable): List of tuples of (source_filename, version, target_filename).
             May be None.
         remote_server_list (str): The contents of the server_list file.
         bucket_id (str): The bucket to write the files to. Maybe be old- or
@@ -318,19 +320,22 @@ def update_s3_download(aws_account, builds, remote_server_list, bucket_id):
     bucket, key_prefix = _get_s3_bucket_and_prefix(aws_account, bucket_id)
 
     if builds:
-        for (source_filename, target_filename) in builds:
+        for (source_filename, version, target_filename) in builds:
             target_filename = _make_full_key_name(key_prefix, target_filename)
             put_file_to_key(bucket,
                             target_filename,
+                            {DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME : str(version)},
                             str(source_filename),
                             True,
                             _progress)
+
 
     if remote_server_list:
         target_filename = _make_full_key_name(key_prefix,
                                               DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME)
         put_string_to_key(bucket,
                           target_filename,
+                          None,
                           remote_server_list,
                           True,
                           _progress)
@@ -366,6 +371,7 @@ def update_website(aws_account, bucket_id, custom_site, website_dir,
         if website_banner_base64:
             put_string_to_key(bucket,
                               banner_key_name,
+                              None,
                               base64.b64decode(website_banner_base64),
                               True,
                               _progress)
@@ -380,6 +386,7 @@ def update_website(aws_account, bucket_id, custom_site, website_dir,
         if website_banner_link:
             put_string_to_key(bucket,
                               banner_link_key_name,
+                              None,
                               json.dumps(website_banner_link),
                               True,
                               _progress)
@@ -395,6 +402,7 @@ def update_website(aws_account, bucket_id, custom_site, website_dir,
         if website_email_address:
             put_string_to_key(bucket,
                               website_email_address_key_name,
+                              None,
                               json.dumps(website_email_address),
                               True,
                               _progress)
@@ -417,6 +425,7 @@ def update_website(aws_account, bucket_id, custom_site, website_dir,
                                                DOWNLOAD_SITE_QR_CODE_KEY_NAME)
         put_string_to_key(bucket,
                           qr_code_key_name,
+                          None,
                           qr_data,
                           True,
                           _progress)
@@ -435,16 +444,18 @@ def put_string_to_key_in_bucket(aws_account, bucket_id, key_name, content, is_pu
 
     put_string_to_key(bucket,
                       _make_full_key_name(key_prefix, key_name),
+                      None,
                       content,
                       is_public)
 
 
-def put_string_to_key(bucket, key_name, content, is_public, callback=None):
+def put_string_to_key(bucket, key_name, metadata, content, is_public, callback=None):
     """Write string to key in S3 bucket. If contents of existing key are
     unchanged, there will be no modification.
     Params:
         bucket (boto.s3 object): The bucket to write to.
         key_name (str): The key to write to (must include any applicable prefix).
+        metadata (dict[str, str]): Set of metadata to set for key. Only set when key changes.
         content (str): The content to write to the key.
         is_public (bool): Whether the new object should be publicly readable.
         callback (function): An optional progress callback.
@@ -463,31 +474,35 @@ def put_string_to_key(bucket, key_name, content, is_public, callback=None):
     if mimetype:
         key.set_metadata('Content-Type', mimetype)
 
+    if metadata:
+        for name, value in metadata.iteritems():
+            key.set_metadata(name, value)
+
     policy = 'public-read' if is_public else None
 
     key.set_contents_from_string(content, policy=policy, cb=callback)
     key.close()
 
 
-def put_file_to_key(bucket, key_name, content_file, is_public, callback=None):
+def put_file_to_key(bucket, key_name, metadata, content_file, is_public, callback=None):
     """Write file contents to key in S3 bucket.
     Note that file will be read into memory before writing.
     Params:
         bucket (boto.s3 object): The bucket to write to.
         key_name (str): The key to write to (must include any applicable prefix).
+        metadata (dict[str, str]): Set of metadata to set for key. Only set when key changes.
         content_file (str): The content to write to the key; can be a filename
             or a file object.
         is_public (bool): Whether the new object should be publicly readable.
         callback (function): An optional progress callback.
     """
-    key = bucket.new_key(key_name)
     if isinstance(content_file, str):
         with open(content_file, 'rb') as f:
           content = f.read()
     else:
         content = content_file.read()
 
-    put_string_to_key(bucket, key_name, content, is_public, callback)
+    put_string_to_key(bucket, key_name, metadata, content, is_public, callback)
 
 
 def make_qr_code(url):
@@ -771,26 +786,33 @@ class Test(unittest.TestCase):
         #
         # Builds, but no server_list
         #
+        windows_client_version = 1
+        android_client_version = 1
         with self.setUpTearDown():
             update_s3_download(self.aws_creds,
-                               [(self.temp_file_path, DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME),
-                                (self.temp_file_path, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME),],
+                               [(self.temp_file_path, windows_client_version, DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME),
+                                (self.temp_file_path, android_client_version, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME),],
                                None,
                                self.old_style_bucket_id)
             self.assertEqual(
                 set([key.name for key in self.s3.get_bucket(self.old_style_bucket_id).get_all_keys()]),
                 set((DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME)))
+            self.assertEqual(self.s3.get_bucket(self.old_style_bucket_id).get_key(DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME).get_metadata(DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME), str(windows_client_version))
+            self.assertEqual(self.s3.get_bucket(self.old_style_bucket_id).get_key(DOWNLOAD_SITE_ANDROID_BUILD_FILENAME).get_metadata(DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME), str(android_client_version))
 
         with self.setUpTearDown():
             update_s3_download(self.aws_creds,
-                               [(self.temp_file_path, DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME),
-                                (self.temp_file_path, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME),],
+                               [(self.temp_file_path, windows_client_version, DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME),
+                                (self.temp_file_path, android_client_version, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME),],
                                None,
                                self.new_style_bucket_id)
+            windows_build_key = '%s/%s/%s' % (DOWNLOAD_SITE_PREFIX, self.old_style_bucket_id, DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME)
+            android_build_key = '%s/%s/%s' % (DOWNLOAD_SITE_PREFIX, self.old_style_bucket_id, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME)
             self.assertEqual(
                 set([key.name for key in self.s3.get_bucket(DOWNLOAD_SITE_BUCKET).get_all_keys()]),
-                set(('%s/%s/%s' % (DOWNLOAD_SITE_PREFIX, self.old_style_bucket_id, DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME),
-                     '%s/%s/%s' % (DOWNLOAD_SITE_PREFIX, self.old_style_bucket_id, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME))))
+                set((windows_build_key, android_build_key)))
+            self.assertEqual(self.s3.get_bucket(DOWNLOAD_SITE_BUCKET).get_key(windows_build_key).get_metadata(DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME), str(windows_client_version))
+            self.assertEqual(self.s3.get_bucket(DOWNLOAD_SITE_BUCKET).get_key(android_build_key).get_metadata(DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME), str(android_client_version))
 
         #
         # server_list, but no builds
@@ -820,25 +842,30 @@ class Test(unittest.TestCase):
         #
         with self.setUpTearDown():
             update_s3_download(self.aws_creds,
-                               [(self.temp_file_path, DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME),
-                                (self.temp_file_path, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME),],
+                               [(self.temp_file_path, windows_client_version, DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME),
+                                (self.temp_file_path, android_client_version, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME),],
                                'server list contents',
                                self.old_style_bucket_id)
             self.assertEqual(
                 {key.name for key in self.s3.get_bucket(self.old_style_bucket_id).get_all_keys()},
                 set((DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME, DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME)))
+            self.assertEqual(self.s3.get_bucket(self.old_style_bucket_id).get_key(DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME).get_metadata(DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME), str(windows_client_version))
+            self.assertEqual(self.s3.get_bucket(self.old_style_bucket_id).get_key(DOWNLOAD_SITE_ANDROID_BUILD_FILENAME).get_metadata(DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME), str(android_client_version))
 
         with self.setUpTearDown():
             update_s3_download(self.aws_creds,
-                               [(self.temp_file_path, DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME),
-                                (self.temp_file_path, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME),],
+                               [(self.temp_file_path, windows_client_version, DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME),
+                                (self.temp_file_path, android_client_version, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME),],
                                'server list contents',
                                self.new_style_bucket_id)
+            windows_build_key = '%s/%s/%s' % (DOWNLOAD_SITE_PREFIX, self.old_style_bucket_id, DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME)
+            android_build_key = '%s/%s/%s' % (DOWNLOAD_SITE_PREFIX, self.old_style_bucket_id, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME)
+            remote_server_list_key = '%s/%s/%s' % (DOWNLOAD_SITE_PREFIX, self.old_style_bucket_id, DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME)
             self.assertEqual(
                 set([key.name for key in self.s3.get_bucket(DOWNLOAD_SITE_BUCKET).get_all_keys()]),
-                set(('%s/%s/%s' % (DOWNLOAD_SITE_PREFIX, self.old_style_bucket_id, DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME),
-                     '%s/%s/%s' % (DOWNLOAD_SITE_PREFIX, self.old_style_bucket_id, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME),
-                     '%s/%s/%s' % (DOWNLOAD_SITE_PREFIX, self.old_style_bucket_id, DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME))))
+                set((windows_build_key, android_build_key, remote_server_list_key)))
+            self.assertEqual(self.s3.get_bucket(DOWNLOAD_SITE_BUCKET).get_key(windows_build_key).get_metadata(DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME), str(windows_client_version))
+            self.assertEqual(self.s3.get_bucket(DOWNLOAD_SITE_BUCKET).get_key(android_build_key).get_metadata(DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME), str(android_client_version))
 
     def test_put_string_to_key_in_bucket(self):
         with self.setUpTearDown():
@@ -879,21 +906,38 @@ class Test(unittest.TestCase):
             # moto doesn't support ACL stuff
             # self.s3.get_bucket(self.old_style_bucket_id).get_acl('testkey')
 
+    metadata = {'test-metadata-name' : 'test-metadata-value'}
+    metadata_new = {'test-metadata-name' : 'test-metadata-value-new'}
+
+    def check_metadata(self, key, metadata):
+        self.assertEqual(key.get_metadata(metadata.items()[0][0]), metadata.items()[0][1])
+
     def test_put_string_to_key(self):
         import time
 
         # TODO: Test callback
         with self.setUpTearDown():
             bucket = self.s3.get_bucket(DOWNLOAD_SITE_BUCKET)
-            put_string_to_key(bucket, 'testkey', 'testcontent', False)
+            put_string_to_key(bucket, 'testkey', Test.metadata, 'testcontent', False)
             key = bucket.get_key('testkey')
             self.assertEqual(key.get_contents_as_string(), 'testcontent')
+            self.check_metadata(key, Test.metadata)
             # moto doesn't support ACL stuff
             # bucket.get_acl('testkey')
 
         with self.setUpTearDown():
             bucket = self.s3.get_bucket(DOWNLOAD_SITE_BUCKET)
-            put_string_to_key(bucket, 'testkey', 'testcontent', True)
+            put_string_to_key(bucket, 'testkey', Test.metadata, 'testcontent', True)
+            key = bucket.get_key('testkey')
+            self.assertEqual(key.get_contents_as_string(), 'testcontent')
+            self.check_metadata(key, Test.metadata)
+            # moto doesn't support ACL stuff
+            # bucket.get_acl('testkey')
+
+        # No metadata
+        with self.setUpTearDown():
+            bucket = self.s3.get_bucket(DOWNLOAD_SITE_BUCKET)
+            put_string_to_key(bucket, 'testkey', None, 'testcontent', True)
             key = bucket.get_key('testkey')
             self.assertEqual(key.get_contents_as_string(), 'testcontent')
             # moto doesn't support ACL stuff
@@ -907,27 +951,30 @@ class Test(unittest.TestCase):
             bucket = self.s3.get_bucket(DOWNLOAD_SITE_BUCKET)
 
             # Write something
-            put_string_to_key(bucket, 'testkey', 'testcontent', True)
+            put_string_to_key(bucket, 'testkey', Test.metadata, 'testcontent', True)
             key = bucket.get_key('testkey')
             self.assertEqual(key.get_contents_as_string(), 'testcontent')
+            self.check_metadata(key, Test.metadata)
             # Record the modified time
             last_modified_1 = key.last_modified
 
             time.sleep(1)
 
             # Try to write the same thing
-            put_string_to_key(bucket, 'testkey', 'testcontent', True)
+            put_string_to_key(bucket, 'testkey', Test.metadata, 'testcontent', True)
             key = bucket.get_key('testkey')
             # Should be no change
             self.assertEqual(key.last_modified, last_modified_1)
+            self.check_metadata(key, Test.metadata)
 
             time.sleep(1)
 
             # Write a different thing
-            put_string_to_key(bucket, 'testkey', 'testcontent new', True)
+            put_string_to_key(bucket, 'testkey', Test.metadata_new, 'testcontent new', True)
             key = bucket.get_key('testkey')
             # Should be changed
             self.assertNotEqual(key.last_modified, last_modified_1)
+            self.check_metadata(key, Test.metadata_new)
 
     def test_put_file_to_key(self):
         # TODO: Test callback
@@ -938,12 +985,14 @@ class Test(unittest.TestCase):
 
         with self.setUpTearDown():
             bucket = self.s3.get_bucket(DOWNLOAD_SITE_BUCKET)
-            put_file_to_key(bucket, 'testkey1', self.temp_file_path, False)
+            put_file_to_key(bucket, 'testkey1', Test.metadata, self.temp_file_path, False)
             key = bucket.get_key('testkey1')
             self.assertEqual(key.get_contents_as_string(), 'I am a file')
-            put_file_to_key(bucket, 'testkey2', self.temp_file_path, True)
+            self.check_metadata(key, Test.metadata)
+            put_file_to_key(bucket, 'testkey2', Test.metadata, self.temp_file_path, True)
             key = bucket.get_key('testkey2')
             self.assertEqual(key.get_contents_as_string(), 'I am a file')
+            self.check_metadata(key, Test.metadata)
             # moto doesn't support ACL stuff
             # bucket.get_acl('testkey')
 
@@ -953,17 +1002,19 @@ class Test(unittest.TestCase):
 
         with self.setUpTearDown(), open(self.temp_file_path, 'r') as file:
             bucket = self.s3.get_bucket(DOWNLOAD_SITE_BUCKET)
-            put_file_to_key(bucket, 'testkey1', file, False)
+            put_file_to_key(bucket, 'testkey1', Test.metadata, file, False)
             key = bucket.get_key('testkey1')
             self.assertEqual(key.get_contents_as_string(), 'I am a file')
+            self.check_metadata(key, Test.metadata)
             # moto doesn't support ACL stuff
             # bucket.get_acl('testkey')
 
         with self.setUpTearDown(), open(self.temp_file_path, 'r') as file:
             bucket = self.s3.get_bucket(DOWNLOAD_SITE_BUCKET)
-            put_file_to_key(bucket, 'testkey2', file, True)
+            put_file_to_key(bucket, 'testkey2', Test.metadata, file, True)
             key = bucket.get_key('testkey2')
             self.assertEqual(key.get_contents_as_string(), 'I am a file')
+            self.check_metadata(key, Test.metadata)
             # moto doesn't support ACL stuff
             # bucket.get_acl('testkey')
 
