@@ -47,7 +47,12 @@ def _partition(lst, n):
 def calculate_ip_address_strategy_value(ip_address):
     # Mix bits from all octets of the client IP address to determine the
     # bucket. An HMAC is used to prevent pre-calculation of buckets for IPs.
-    return ord(hmac.new(HMAC_KEY, ip_address, hashlib.sha256).digest()[0])
+    # NEW: only consider the first 3 octets
+    try:
+        truncated_ip_address = '.'.join(ip_address.split('.')[:3]) + '.0'
+    except:
+        truncated_ip_address = '0.0.0.0'
+    return ord(hmac.new(HMAC_KEY, truncated_ip_address, hashlib.sha256).digest()[0])
 
 
 def select_servers(servers, ip_address_strategy_value, time_in_seconds=None):
