@@ -2248,7 +2248,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         self.__aws_account,
                         [(build_filename, client_version, client_build_filenames[platform]),
                          (upgrade_filename, client_version, s3_upgrade_resource_name)],
-                        client_version,
                         remote_server_list,
                         campaign.s3_bucket_name)
                     # Don't log this, too much noise
