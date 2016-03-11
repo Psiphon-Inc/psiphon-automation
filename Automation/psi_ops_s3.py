@@ -363,7 +363,7 @@ def update_website(aws_account, bucket_id, custom_site, website_dir,
                 # Add prefix
                 key_name = _make_full_key_name(key_prefix, key_name)
 
-                put_file_to_key(bucket, key_name, file_path, True, _progress)
+                put_file_to_key(bucket, key_name, None, file_path, True, _progress)
 
         # Sponsors have optional custom banner images
         banner_key_name = _make_full_key_name(key_prefix,
@@ -529,7 +529,7 @@ def upload_signed_routes(aws_account, routes_dir, file_extension):
                 # Add prefix
                 key_name = _make_full_key_name(ROUTES_KEY_PREFIX, key_name)
 
-                put_file_to_key(bucket, key_name, file_path, True, _progress)
+                put_file_to_key(bucket, key_name, None, file_path, True, _progress)
 
     except:
         raise
