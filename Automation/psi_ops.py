@@ -77,6 +77,11 @@ except ImportError as error:
     print error
 
 try:
+    import psi_vpsnet
+except ImportError as error:
+    print error
+
+try:
     import psi_elastichosts
 except ImportError as error:
     print error
@@ -256,6 +261,13 @@ DigitalOceanAccount = psi_utils.recordtype(
     'oauth_token, base_size_slug',
     default=None)
 
+VPSNetAccount = psi_utils.recordtype(
+    'VPSNetAccount',
+    'account_id, api_key, api_base_url, base_ssh_port, ' +
+    'base_root_password, base_stats_username, ' +
+    'base_cloud_id, base_system_template, base_ssd_plan, base_rsa_private_key',
+    default=None)
+
 ElasticHostsAccount = psi_utils.recordtype(
     'ElasticHostsAccount',
     'zone, uuid, api_key, base_drive_id, cpu, mem, base_host_public_key, ' +
@@ -333,6 +345,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__provider_ranks = []
         self.__linode_account = LinodeAccount()
         self.__digitalocean_account = DigitalOceanAccount()
+        self.__vpsnet_account = VPSNetAccount()
         self.__elastichosts_accounts = []
         self.__deploy_implementation_required_for_hosts = set()
         self.__deploy_data_required_for_all = False
@@ -360,7 +373,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.35'
+    class_version = '0.36'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -562,6 +575,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for host in self.__hosts_to_remove_from_providers:
                 host.alternate_meek_server_fronting_hosts = None
             self.version = '0.35'
+        if cmp(parse_version(self.version), parse_version('0.36')) < 0:
+            self.__vpsnet_account = VPSNetAccount()
+            self.version = '0.36'
  
     def initialize_plugins(self):
         for plugin in plugins:
@@ -586,6 +602,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             Provider Ranks:         %s
             Linode Account:         %s
             DigitalOcean Account:   %s
+            VPSNet Account          %s
             ElasticHosts Account:   %s
             Deploys Pending:        Host Implementations    %d
                                     Host Data               %s
@@ -615,6 +632,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 'Configured' if self.__provider_ranks else 'None',
                 'Configured' if self.__linode_account.api_key else 'None',
                 'Configured' if self.__digitalocean_account.client_id and self.__digitalocean_account.api_key else 'None',
+                'Configured' if self.__vpsnet_account.account_id and self.__vpsnet_account.api_key else 'None',
                 'Configured' if self.__elastichosts_accounts else 'None',
                 len(self.__deploy_implementation_required_for_hosts),
                 'Yes' if self.__deploy_data_required_for_all else 'No',
