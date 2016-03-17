@@ -53,15 +53,15 @@ SOURCE_ROOT = os.path.join(os.path.abspath('..'), 'Client', 'psiclient', '3rdPar
 TUNNEL_CORE = os.path.join(SOURCE_ROOT, 'psiphon-tunnel-core-i686.exe')
 CONFIG_FILE_NAME = os.path.join(SOURCE_ROOT, 'tunnel-core-config.config')
 
-# def urlopen(url, timeout):
-#     if hasattr(ssl, 'SSLContext'):
-#         # Set up an SSL context for urllib2 to use which ignores invalid (and/or self-signed) SSL certificates
-#         nonValidatingSslContext = ssl.create_default_context()
-#         nonValidatingSslContext.check_hostname = False
-#         nonValidatingSslContext.verify_mode = ssl.CERT_NONE
-#         return urllib2.urlopen(url, timeout=timeout, context=nonValidatingSslContext)
-#     else:
-#         return urllib2.urlopen(url, timeout=timeout)
+def urlopen(url, timeout):
+    if hasattr(ssl, 'SSLContext'):
+        # Set up an SSL context for urllib2 to use which ignores invalid (and/or self-signed) SSL certificates
+        nonValidatingSslContext = ssl.create_default_context()
+        nonValidatingSslContext.check_hostname = False
+        nonValidatingSslContext.verify_mode = ssl.CERT_NONE
+        return urllib2.urlopen(url, timeout=timeout, context=nonValidatingSslContext)
+    else:
+        return urllib2.urlopen(url, timeout=timeout)
 
 
 # if psi_build_config.py exists, load it and use psi_build_config.DATA_ROOT as the data root dir
@@ -300,7 +300,7 @@ def test_server(server, host, encoded_server_entry,
     web_server_port = server.web_server_port
     web_server_secret = server.web_server_secret
 
-    local_test_cases = copy.copy(test_cases) if test_cases else ['handshake', 'VPN', 'OSSH', 'SSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTP-OSSH']
+    local_test_cases = copy.copy(test_cases) if test_cases else ['handshake', 'VPN', 'OSSH', 'SSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTPS-OSSH']
 
     for test_case in copy.copy(local_test_cases):
         # if test_case == 'OSSH' and (capabilities['FRONTED-MEEK'] or capabilities['UNFRONTED-MEEK']):
