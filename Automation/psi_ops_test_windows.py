@@ -198,7 +198,8 @@ class TunnelCoreRunner:
             "UseIndistinguishableTLS": True,
             "TunnelPoolSize" : 1,
             "ConnectionWorkerPoolSize" : 1,
-            "PortForwardFailureThreshold" : 5
+            "PortForwardFailureThreshold" : 5,
+            "LogFilename": "tunnel-core-log.txt"
         }
 
         with open(CONFIG_FILE_NAME, 'w+') as config_file:
@@ -230,8 +231,10 @@ class TunnelCoreRunner:
         # Remove Config file
         try:
             os.remove(CONFIG_FILE_NAME)
+            time.sleep(1)
+            os.remove('tunnel-core-log.txt')
         except Exception as e:
-            print "Remove Config File Failed" + str(e)
+            print "Remove Config/Log File Failed" + str(e)
 
 
 @retry_on_exception_decorator
@@ -260,14 +263,39 @@ def __test_server(runner, transport, expected_egress_ip_addresses):
     try:
         runner.connect_to_server(transport, split_tunnel_mode)
 
-        time.sleep(25)
+        time.sleep(1)
+
+        # If using tunnel-core
+        # Read tunnel-core log file for connection message instead of sleep 25 second
+        if os.path.isfile('tunnel-core-log.txt'):
+            print 'Tunnel Core is connecting...'
+            start_time = time.time()
+            not_connected = True
+            while not_connected:
+                with open('tunnel-core-log.txt', 'r') as log_file:
+                    for line in log_file:
+                        line = json.loads(line)
+                        if line['data'].get('count') != None:
+                            if line['data']['count'] == 1 and line['noticeType'] == 'Tunnels':
+                                not_connected = False
+
+                        else:
+                            time.sleep(1)
+
+                if time.time() >= start_time + 25:
+                    # if the sleep time is 25 second, get out while loop and keep going
+                    print 'Not successfully connected after 25 second.'
+                    not_connected = False
+        else:
+            time.sleep(25)
+
 
         runner.setup_proxy()
 
         if has_local_check:
             # Get egress IP from web site in same GeoIP region; local split tunnel is not proxied
 
-            egress_ip_address = urlopen(CHECK_IP_ADDRESS_URL_LOCAL, 30).read().split('\n')[0]
+            egress_ip_address = urllib2.urlopen(CHECK_IP_ADDRESS_URL_LOCAL).read().split('\n')[0]
 
             is_proxied = (egress_ip_address in expected_egress_ip_addresses)
 
