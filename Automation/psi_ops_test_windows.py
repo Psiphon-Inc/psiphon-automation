@@ -295,7 +295,7 @@ def __test_server(runner, transport, expected_egress_ip_addresses):
         if has_local_check:
             # Get egress IP from web site in same GeoIP region; local split tunnel is not proxied
 
-            egress_ip_address = urllib2.urlopen(CHECK_IP_ADDRESS_URL_LOCAL).read().split('\n')[0]
+            egress_ip_address = urlopen(CHECK_IP_ADDRESS_URL_LOCAL, 30).read().split('\n')[0]
 
             is_proxied = (egress_ip_address in expected_egress_ip_addresses)
 
