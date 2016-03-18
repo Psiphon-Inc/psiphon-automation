@@ -52,6 +52,7 @@ CHECK_IP_ADDRESS_URL_REMOTE = 'http://automation.whatismyip.com/n09230945.asp'
 SOURCE_ROOT = os.path.join(os.path.abspath('..'), 'Client', 'psiclient', '3rdParty')
 TUNNEL_CORE = os.path.join(SOURCE_ROOT, 'psiphon-tunnel-core.exe')
 CONFIG_FILE_NAME = os.path.join(SOURCE_ROOT, 'tunnel-core-config.config')
+LOG_FILE_NAME = os.path.join(SOURCE_ROOT, 'tunnel-core-log.txt')
 
 def urlopen(url, timeout):
     if hasattr(ssl, 'SSLContext'):
@@ -154,6 +155,9 @@ class PsiphonRunner:
 
         self.proc = subprocess.Popen([self.executable_path])
 
+    def wait_for_connection(self):
+        time.sleep(25)
+
     def setup_proxy(self):
         # In VPN mode, all traffic is routed through the proxy. In SSH mode, the
         # urlib2 ProxyHandler picks up the Windows Internet Settings and uses the
@@ -199,7 +203,7 @@ class TunnelCoreRunner:
             "TunnelPoolSize" : 1,
             "ConnectionWorkerPoolSize" : 1,
             "PortForwardFailureThreshold" : 5,
-            "LogFilename": "tunnel-core-log.txt"
+            "LogFilename": LOG_FILE_NAME
         }
 
         with open(CONFIG_FILE_NAME, 'w+') as config_file:
@@ -218,6 +222,33 @@ class TunnelCoreRunner:
 
         self.proc = subprocess.Popen(shlex.split(cmd))
 
+    def wait_for_connection(self):
+        # If using tunnel-core
+        # Read tunnel-core log file for connection message instead of sleep 25 second
+
+        time.sleep(1)
+
+        if os.path.isfile(LOG_FILE_NAME):
+            print 'Tunnel Core is connecting...'
+            start_time = time.time()
+            not_connected = True
+            while not_connected:
+                time.sleep(1)
+                with open(LOG_FILE_NAME, 'r') as log_file:
+                    for line in log_file:
+                        line = json.loads(line)
+                        if line['data'].get('count') != None:
+                            if line['data']['count'] == 1 and line['noticeType'] == 'Tunnels':
+                                not_connected = False
+
+
+                if time.time() >= start_time + 25:
+                    # if the sleep time is 25 second, get out while loop and keep going
+                    print 'Not successfully connected after 25 second.'
+                    break
+        else:
+            time.sleep(25)
+
     def setup_proxy(self):
         urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler({'http': '127.0.0.1:8080'})))
 
@@ -232,7 +263,7 @@ class TunnelCoreRunner:
         try:
             os.remove(CONFIG_FILE_NAME)
             time.sleep(1)
-            os.remove('tunnel-core-log.txt')
+            os.remove(LOG_FILE_NAME)
         except Exception as e:
             print "Remove Config/Log File Failed" + str(e)
 
@@ -263,32 +294,7 @@ def __test_server(runner, transport, expected_egress_ip_addresses):
     try:
         runner.connect_to_server(transport, split_tunnel_mode)
 
-        time.sleep(1)
-
-        # If using tunnel-core
-        # Read tunnel-core log file for connection message instead of sleep 25 second
-        if os.path.isfile('tunnel-core-log.txt'):
-            print 'Tunnel Core is connecting...'
-            start_time = time.time()
-            not_connected = True
-            while not_connected:
-                with open('tunnel-core-log.txt', 'r') as log_file:
-                    for line in log_file:
-                        line = json.loads(line)
-                        if line['data'].get('count') != None:
-                            if line['data']['count'] == 1 and line['noticeType'] == 'Tunnels':
-                                not_connected = False
-
-                        else:
-                            time.sleep(1)
-
-                if time.time() >= start_time + 25:
-                    # if the sleep time is 25 second, get out while loop and keep going
-                    print 'Not successfully connected after 25 second.'
-                    not_connected = False
-        else:
-            time.sleep(25)
-
+        runner.wait_for_connection()
 
         runner.setup_proxy()
 
