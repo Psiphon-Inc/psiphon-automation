@@ -50,7 +50,7 @@ CHECK_IP_ADDRESS_URL_LOCAL = 'http://automation.whatismyip.com/n09230945.asp'
 CHECK_IP_ADDRESS_URL_REMOTE = 'http://automation.whatismyip.com/n09230945.asp'
 
 SOURCE_ROOT = os.path.join(os.path.abspath('..'), 'Client', 'psiclient', '3rdParty')
-TUNNEL_CORE = os.path.join(SOURCE_ROOT, 'psiphon-tunnel-core-i686.exe')
+TUNNEL_CORE = os.path.join(SOURCE_ROOT, 'psiphon-tunnel-core.exe')
 CONFIG_FILE_NAME = os.path.join(SOURCE_ROOT, 'tunnel-core-config.config')
 
 def urlopen(url, timeout):
@@ -114,6 +114,8 @@ def __test_web_server(ip_address, web_server_port, propagation_channel_id, web_s
             'SSHObfuscatedPort: ' in response and
             'SSHObfuscatedKey: ' in response and
             'PSK: ' not in response)
+
+
 class PsiphonRunner:
     def __init__(self, encoded_server_entry,  executable_path):
         self.proc = None
@@ -153,6 +155,9 @@ class PsiphonRunner:
         self.proc = subprocess.Popen([self.executable_path])
 
     def setup_proxy(self):
+        # In VPN mode, all traffic is routed through the proxy. In SSH mode, the
+        # urlib2 ProxyHandler picks up the Windows Internet Settings and uses the
+        # HTTP Proxy that is set by the client.
         urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler()))
 
     def stop_psiphon(self):
@@ -173,6 +178,7 @@ class PsiphonRunner:
             if os.path.exists(APPDATA_DIR):
                 shutil.rmtree(APPDATA_DIR)
             os.rename(APPDATA_BACKUP_DIR, APPDATA_DIR)
+
 
 class TunnelCoreRunner:
     def __init__(self, encoded_server_entry, propagation_channel_id = '0'):
@@ -227,6 +233,7 @@ class TunnelCoreRunner:
         except Exception as e:
             print "Remove Config File Failed" + str(e)
 
+
 @retry_on_exception_decorator
 def __test_server(runner, transport, expected_egress_ip_addresses):
     # test:
@@ -236,8 +243,7 @@ def __test_server(runner, transport, expected_egress_ip_addresses):
     # - post WM_CLOSE to gracefully shut down the client and its connection
 
     has_remote_check = len(CHECK_IP_ADDRESS_URL_REMOTE) > 0
-    # has_local_check = len(CHECK_IP_ADDRESS_URL_LOCAL) > 0
-    has_local_check = False
+    has_local_check = len(CHECK_IP_ADDRESS_URL_LOCAL) > 0
 
     # Split tunnelling is not implemented for VPN.
     # Also, if there is no remote check, don't use split tunnel mode because we always want
@@ -256,15 +262,12 @@ def __test_server(runner, transport, expected_egress_ip_addresses):
 
         time.sleep(25)
 
-        # In VPN mode, all traffic is routed through the proxy. In SSH mode, the
-        # urlib2 ProxyHandler picks up the Windows Internet Settings and uses the
-        # HTTP Proxy that is set by the client.
         runner.setup_proxy()
 
         if has_local_check:
             # Get egress IP from web site in same GeoIP region; local split tunnel is not proxied
 
-            egress_ip_address = urllib2.urlopen(CHECK_IP_ADDRESS_URL_LOCAL, timeout=30).read().split('\n')[0]
+            egress_ip_address = urlopen(CHECK_IP_ADDRESS_URL_LOCAL, 30).read().split('\n')[0]
 
             is_proxied = (egress_ip_address in expected_egress_ip_addresses)
 
@@ -279,7 +282,7 @@ def __test_server(runner, transport, expected_egress_ip_addresses):
         if has_remote_check:
             # Get egress IP from web site in different GeoIP region; remote split tunnel is proxied
 
-            egress_ip_address = urllib2.urlopen(CHECK_IP_ADDRESS_URL_REMOTE, timeout=30).read().split('\n')[0]
+            egress_ip_address = urlopen(CHECK_IP_ADDRESS_URL_REMOTE, 30).read().split('\n')[0]
 
             is_proxied = (egress_ip_address in expected_egress_ip_addresses)
 
@@ -303,16 +306,13 @@ def test_server(server, host, encoded_server_entry,
     local_test_cases = copy.copy(test_cases) if test_cases else ['handshake', 'VPN', 'OSSH', 'SSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTP-OSSH']
 
     for test_case in copy.copy(local_test_cases):
-        # if test_case == 'OSSH' and (capabilities['FRONTED-MEEK'] or capabilities['UNFRONTED-MEEK']):
-        #     print 'Testing OSSH through meek'
-        #     continue
         if ((test_case == 'VPN' # VPN requires handshake, SSH or SSH+
                 and not (capabilities['handshake'] or capabilities['OSSH'] or capabilities['SSH'] or capabilities['FRONTED-MEEK'] or capabilities['UNFRONTED-MEEK']))
             or (test_case == 'UNFRONTED-MEEK-OSSH' and not (capabilities['UNFRONTED-MEEK'] and int(host.meek_server_port) == 80))
             or (test_case == 'UNFRONTED-MEEK-HTTPS-OSSH' and not (capabilities['UNFRONTED-MEEK'] and int(host.meek_server_port) == 443))
             or (test_case == 'FRONTED-MEEK-OSSH' and not (capabilities['FRONTED-MEEK']))
             or (test_case == 'FRONTED-MEEK-HTTP-OSSH' and not (capabilities['FRONTED-MEEK'] and host.alternate_meek_server_fronting_hosts))
-            or ((test_case in ['handshake', 'OSSH', 'SSH', 'VPN']) and not capabilities[test_case])):
+            or (test_case in ['handshake', 'OSSH', 'SSH', 'VPN'] and not capabilities[test_case])):
             print 'Server does not support %s' % (test_case,)
             local_test_cases.remove(test_case)
 
