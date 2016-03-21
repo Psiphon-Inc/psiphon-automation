@@ -1,6 +1,8 @@
 Psiphon 3 Circumvention System README
 ================================================================================
 
+Note: source code for our cross-platform "tunnel core" client engine and libraries can now be found [here](https://github.com/Psiphon-Labs/psiphon-tunnel-core).
+
 Overview
 --------------------------------------------------------------------------------
 
