@@ -185,10 +185,13 @@ class PsiphonRunner:
 
 
 class TunnelCoreRunner:
-    def __init__(self, encoded_server_entry, propagation_channel_id = '0'):
+    def __init__(self, encoded_server_entry, propagation_channel_id = '0', split_tunnel_url_format = "", split_tunnel_signature_public_key = "", split_tunnel_dns_server = ""):
         self.proc = None
         self.encoded_server_entry = encoded_server_entry
         self.propagation_channel_id = propagation_channel_id
+        self.split_tunnel_url_format = split_tunnel_url_format
+        self.split_tunnel_signature_public_key = split_tunnel_signature_public_key
+        self.split_tunnel_dns_server = split_tunnel_dns_server
 
     # Setup and create tunnel core config file.
     def _setup_tunnel_config(self, transport):
@@ -203,7 +206,11 @@ class TunnelCoreRunner:
             "TunnelPoolSize" : 1,
             "ConnectionWorkerPoolSize" : 1,
             "PortForwardFailureThreshold" : 5,
-            "LogFilename": LOG_FILE_NAME
+            "EmitDiagnosticNotices": True,
+            "LogFilename": LOG_FILE_NAME,
+            "SplitTunnelRoutesUrlFormat" : self.split_tunnel_url_format,
+            "SplitTunnelRoutesSignaturePublicKey" : self.split_tunnel_signature_public_key,
+            "SplitTunnelDnsServer" : self.split_tunnel_dns_server
         }
 
         with open(CONFIG_FILE_NAME, 'w+') as config_file:
@@ -212,6 +219,11 @@ class TunnelCoreRunner:
     # Use the config file and tunnel core it self to connect to server
     #TODO: Split Tunnel Mode need Change config file
     def connect_to_server(self, transport, split_tunnel_mode = False):
+
+        if split_tunnel_mode == False:
+            self.split_tunnel_url_format = ""
+            self.split_tunnel_signature_public_key = ""
+            self.split_tunnel_dns_server = ""
 
         self._setup_tunnel_config(transport)
 
@@ -404,7 +416,7 @@ def test_server(server, host, encoded_server_entry,
 
         else:
 
-            tunnel_core_runner = TunnelCoreRunner(encoded_server_entry, test_propagation_channel_id)
+            tunnel_core_runner = TunnelCoreRunner(encoded_server_entry, test_propagation_channel_id,  split_tunnel_url_format, split_tunnel_signature_public_key, split_tunnel_dns_server)
 
             try:
                 __test_server(tunnel_core_runner, test_case, expected_egress_ip_addresses)
