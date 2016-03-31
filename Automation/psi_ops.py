@@ -2573,7 +2573,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             base_rsa_private_key=base_rsa_private_key, ssh_key_template_id=ssh_key_template_id)
 
     def set_vpsnet_account(self, account_id, api_key, api_base_url, base_ssh_port,
-                           base_root_password, base_stats_username, 
+                           base_root_password, base_stats_username,
                            base_cloud_id, base_system_template, base_ssd_plan):
         assert(self.is_locked)
         psi_utils.update_recordtype(
@@ -3386,8 +3386,8 @@ if __name__ == "__main__":
     parser.add_option("-r", "--read-only", dest="readonly", action="store_true",
                       help="don't lock the network object")
     parser.add_option("-t", "--test", dest="test", action="append",
-                      choices=('handshake', 'VPN', 'OSSH', 'SSH'),
-                      help="specify once for each of: handshake, VPN, OSSH, SSH")
+                      choices=('handshake', 'VPN', 'OSSH', 'SSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTP-OSSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH'),
+                      help="specify once for each of: handshake, VPN, OSSH, SSH, FRONTED-MEEK-OSSH, FRONTED-MEEK-HTTP-OSSH, UNFRONTED-MEEK-OSSH, UNFRONTED-MEEK-HTTPS-OSSH")
     parser.add_option("-u", "--update-routes", dest="updateroutes", action="store_true",
                       help="update external signed routes files")
     parser.add_option("-p", "--prune", dest="prune", action="store_true",
