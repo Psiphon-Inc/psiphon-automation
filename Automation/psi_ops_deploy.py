@@ -153,7 +153,8 @@ def deploy_implementation(host, discovery_strategy_value_hmac_key, plugins):
         
         ssh.exec_command('echo \'%s\' > /etc/meek-server.json' % (
                 json.dumps({'Port': int(host.meek_server_port),
-                            'ListenTLS': True if host.meek_server_fronting_domain or int(host.meek_server_port) == 443 else False,
+                            'ListenTLS': True if int(host.meek_server_port) == 443 else False,
+                            'Fronted': True if host.meek_server_fronting_domain else False,
                             'CookiePrivateKeyBase64': host.meek_cookie_encryption_private_key,
                             'ObfuscatedKeyword': host.meek_server_obfuscated_key,
                             'GeoIpServicePort': psi_config.GEOIP_SERVICE_PORT,
