@@ -227,12 +227,9 @@ class TunnelCoreRunner:
 
         self._setup_tunnel_config(transport)
 
-        cmd = 'cmd.exe /c start "%s" \
-        --config \
-        "%s"' \
-        % (TUNNEL_CORE, CONFIG_FILE_NAME)
+        cmd = '"%s" --config "%s"' % (TUNNEL_CORE, CONFIG_FILE_NAME)
 
-        self.proc = subprocess.Popen(shlex.split(cmd))
+        self.proc = subprocess.Popen(shlex.split(cmd), creationflags=subprocess.CREATE_NEW_CONSOLE)
 
     def wait_for_connection(self):
         # If using tunnel-core
