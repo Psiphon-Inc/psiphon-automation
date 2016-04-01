@@ -55,7 +55,7 @@ CONFIG_FILE_NAME = os.path.join(SOURCE_ROOT, 'tunnel-core-config.config')
 LOG_FILE_NAME = os.path.join(SOURCE_ROOT, 'tunnel-core-log.txt')
 
 def urlopen(url, timeout):
-    if hasattr(ssl, 'SSLContext'):
+    if url.startswith('https') and hasattr(ssl, 'SSLContext'):
         # Set up an SSL context for urllib2 to use which ignores invalid (and/or self-signed) SSL certificates
         nonValidatingSslContext = ssl.create_default_context()
         nonValidatingSslContext.check_hostname = False
@@ -87,7 +87,7 @@ except:
 def retry_on_exception_decorator(function):
     @wraps(function)
     def wrapper(*args, **kwds):
-        for i in range(4):
+        for i in range(2):
             try:
                 if i > 0:
                     time.sleep(20)
