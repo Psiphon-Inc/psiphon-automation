@@ -259,7 +259,9 @@ class TunnelCoreRunner:
             time.sleep(25)
 
     def setup_proxy(self):
-        urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler({'http': '127.0.0.1:8080'})))
+        urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler({
+            'http': '127.0.0.1:8080',
+            'https': '127.0.0.1:8080'})))
 
     def stop_psiphon(self):
         try:
