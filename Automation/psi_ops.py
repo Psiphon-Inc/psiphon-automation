@@ -3188,7 +3188,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # We will need a build if no test_cases are specified (run all tests) or if at least one of the following are requested
         if ((not build_with_embedded_servers) and
             ((True in [server.capabilities['VPN'] for server in servers])
-            or ((test_cases) and set(test_cases).intersection(set(['VPN']))))):
+            and (not test_cases or set(test_cases).intersection(set(['VPN']))))):
             executable_path = psi_ops_build_windows.build_client(
                                     test_propagation_channel_id,
                                     '0',        # sponsor_id
