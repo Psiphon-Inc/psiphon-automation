@@ -156,7 +156,7 @@ class PsiphonRunner:
         self.proc = subprocess.Popen([self.executable_path])
 
     def wait_for_connection(self):
-        time.sleep(25)
+        time.sleep(35)
 
     def setup_proxy(self):
         # In VPN mode, all traffic is routed through the proxy. In SSH mode, the
