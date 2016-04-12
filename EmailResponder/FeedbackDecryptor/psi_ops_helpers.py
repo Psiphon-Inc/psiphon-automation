@@ -29,6 +29,7 @@ from psi_ops_s3 import \
     get_s3_bucket_resource_url_split,\
     get_s3_bucket_home_page_url,\
     get_s3_bucket_download_page_url,\
+    get_s3_bucket_faq_url,\
     DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME,\
     EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME,\
     DOWNLOAD_SITE_ANDROID_BUILD_FILENAME,\

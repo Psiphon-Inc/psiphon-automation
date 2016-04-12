@@ -264,7 +264,7 @@ def make_xinetd_config_file_command(servers):
     defaults_section = textwrap.dedent('''
         defaults
         {
-            cps             = 20 30
+            cps             = 1000 30
         }
         ''')
 

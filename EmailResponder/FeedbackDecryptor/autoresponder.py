@@ -373,11 +373,18 @@ def _get_response_content(response_id, diagnostic_info):
             download_page_url = psi_ops_helpers.get_s3_bucket_download_page_url(
                 bucketname,
                 lang_id if lang_id in psi_ops_helpers.WEBSITE_LANGS else 'en')
+            faq_page_url = psi_ops_helpers.get_s3_bucket_faq_url(
+                bucketname,
+                lang_id if lang_id in psi_ops_helpers.WEBSITE_LANGS else 'en')
 
+            # We're using numbers rather than more readable names here because
+            # they're less likely to be accidentally modified by translators
+            # (we think).
             format_dict = {
                 '0': email_address,
                 '1': download_page_url,
-                '2': home_page_url
+                '2': home_page_url,
+                '3': faq_page_url
             }
             body = unicode(body) % format_dict
             bodies.append(body)

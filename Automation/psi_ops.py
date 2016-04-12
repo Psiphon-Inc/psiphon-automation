@@ -77,6 +77,11 @@ except ImportError as error:
     print error
 
 try:
+    import psi_vpsnet
+except ImportError as error:
+    print error
+
+try:
     import psi_elastichosts
 except ImportError as error:
     print error
@@ -194,7 +199,8 @@ Host = psi_utils.recordtype(
     'id, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key, ' +
     'stats_ssh_username, stats_ssh_password, ' +
     'datacenter_name, region, meek_server_port, meek_server_obfuscated_key, meek_server_fronting_domain, ' +
-    'meek_server_fronting_host, meek_cookie_encryption_public_key, meek_cookie_encryption_private_key',
+    'meek_server_fronting_host, alternate_meek_server_fronting_hosts, ' +
+    'meek_cookie_encryption_public_key, meek_cookie_encryption_private_key',
     default=None)
 
 Server = psi_utils.recordtype(
@@ -253,6 +259,13 @@ DigitalOceanAccount = psi_utils.recordtype(
     'base_ssh_port, base_stats_username, base_host_public_key, ' +
     'base_rsa_private_key, ssh_key_template_id, ' +
     'oauth_token, base_size_slug',
+    default=None)
+
+VPSNetAccount = psi_utils.recordtype(
+    'VPSNetAccount',
+    'account_id, api_key, api_base_url, base_ssh_port, ' +
+    'base_root_password, base_stats_username, ' +
+    'base_cloud_id, base_system_template, base_ssd_plan',
     default=None)
 
 ElasticHostsAccount = psi_utils.recordtype(
@@ -332,6 +345,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__provider_ranks = []
         self.__linode_account = LinodeAccount()
         self.__digitalocean_account = DigitalOceanAccount()
+        self.__vpsnet_account = VPSNetAccount()
         self.__elastichosts_accounts = []
         self.__deploy_implementation_required_for_hosts = set()
         self.__deploy_data_required_for_all = False
@@ -353,12 +367,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__android_home_tab_url_exclusions = set()
         self.__alternate_meek_fronting_addresses = defaultdict(set)
         self.__alternate_meek_fronting_addresses_regex = defaultdict(str)
+        self.__meek_fronting_disable_SNI = defaultdict(bool)
         self.__routes_signing_key_pair = None
 
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.34'
+    class_version = '0.36'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -551,7 +566,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     except Exception as e:
                         print('Corrupt banner image found for sponsor %s; unable to convert' % sponsor.id)
             self.version = '0.34'
-
+        if cmp(parse_version(self.version), parse_version('0.35')) < 0:
+            self.__meek_fronting_disable_SNI = defaultdict(bool)
+            for host in self.__hosts.itervalues():
+                host.alternate_meek_server_fronting_hosts = None
+            for host in self.__deleted_hosts:
+                host.alternate_meek_server_fronting_hosts = None
+            for host in self.__hosts_to_remove_from_providers:
+                host.alternate_meek_server_fronting_hosts = None
+            self.version = '0.35'
+        if cmp(parse_version(self.version), parse_version('0.36')) < 0:
+            self.__vpsnet_account = VPSNetAccount()
+            self.version = '0.36'
+ 
     def initialize_plugins(self):
         for plugin in plugins:
             if hasattr(plugin, 'initialize'):
@@ -575,6 +602,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             Provider Ranks:         %s
             Linode Account:         %s
             DigitalOcean Account:   %s
+            VPSNet Account          %s
             ElasticHosts Account:   %s
             Deploys Pending:        Host Implementations    %d
                                     Host Data               %s
@@ -604,6 +632,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 'Configured' if self.__provider_ranks else 'None',
                 'Configured' if self.__linode_account.api_key else 'None',
                 'Configured' if self.__digitalocean_account.client_id and self.__digitalocean_account.api_key else 'None',
+                'Configured' if self.__vpsnet_account.account_id and self.__vpsnet_account.api_key else 'None',
                 'Configured' if self.__elastichosts_accounts else 'None',
                 len(self.__deploy_implementation_required_for_hosts),
                 'Yes' if self.__deploy_data_required_for_all else 'No',
@@ -1179,7 +1208,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def get_host_object(self, id, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
                         stats_ssh_username, stats_ssh_password, datacenter_name, region, meek_server_port,
                         meek_server_obfuscated_key, meek_server_fronting_domain, meek_server_fronting_host,
-                        meek_cookie_encryption_public_key, meek_cookie_encryption_private_key):
+                        alternate_meek_server_fronting_hosts, meek_cookie_encryption_public_key,
+                        meek_cookie_encryption_private_key):
         return Host(id,
                     provider,
                     provider_id,
@@ -1196,6 +1226,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     meek_server_obfuscated_key,
                     meek_server_fronting_domain,
                     meek_server_fronting_host,
+                    alternate_meek_server_fronting_hosts,
                     meek_cookie_encryption_public_key,
                     meek_cookie_encryption_private_key,
                     )
@@ -1312,7 +1343,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if users_on_host == 0:
                 self.remove_host(server.host_id)
                 number_removed += 1
-            elif users_on_host < 80:
+            elif users_on_host < 50:
                 self.__disable_server(server)
                 number_disabled += 1
         return number_removed, number_disabled
@@ -1337,7 +1368,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 if server.propagation_channel_id == propagation_channel.id
                 and server.discovery_date_range
                 and server.discovery_date_range[1] < (today - datetime.timedelta(days=max_discovery_server_age_in_days))
-                and self.__hosts[server.host_id].provider in ['linode', 'digitalocean']]
+                and self.__hosts[server.host_id].provider in ['linode', 'digitalocean', 'vpsnet']]
             removed, disabled = self.__prune_servers(old_discovery_servers)
             number_removed += removed
             number_disabled += disabled
@@ -1372,9 +1403,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         now = datetime.datetime.now()
         today = datetime.datetime(now.year, now.month, now.day)
+        tomorrow = today + datetime.timedelta(days=1)
 
-        # Use a default 4 day discovery date range.
-        new_discovery_date_range = (today, today + datetime.timedelta(days=4))
+        # Use a default 1 day discovery date range.
+        new_discovery_date_range = (tomorrow, tomorrow + datetime.timedelta(days=1))
 
         if new_discovery_servers_count == None:
             new_discovery_servers_count = propagation_channel.new_discovery_servers_count
@@ -1525,6 +1557,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         elif provider.lower() == 'digitalocean':
             provider_launch_new_server = psi_digitalocean.launch_new_server
             provider_account = self.__digitalocean_account
+        elif provider.lower() == 'vpsnet':
+            provider_launch_new_server = psi_vpsnet.launch_new_server
+            provider_account = self.__vpsnet_account
         elif provider.lower() == 'elastichosts':
             provider_launch_new_server = psi_elastichosts.ElasticHosts().launch_new_server
             provider_account = self._weighted_random_choice(self.__elastichosts_accounts)
@@ -1632,9 +1667,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 # Regular propagation servers also have UNFRONTED-MEEK
                 capabilities['UNFRONTED-MEEK'] = True
 
-
             if capabilities['UNFRONTED-MEEK']:
-                self.setup_meek_parameters_for_host(host, 80)
+                if random.random() < 0.5:
+                    self.setup_meek_parameters_for_host(host, 80)
+                else:
+                    ossh_port = 53
+                    self.setup_meek_parameters_for_host(host, 443)
 
             server = Server(
                         None,
@@ -1682,6 +1720,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if host.provider == 'digitalocean':
                 provider_remove_host = psi_digitalocean.remove_server
                 provider_account = self.__digitalocean_account
+            if host.provider == 'vpsnet':
+                provider_remove_host = psi_vpsnet.remove_server
+                provider_account == self.__vpsnet_account
             if provider_remove_host:
                 # Remove the actual host through the provider's API
                 provider_remove_host(provider_account, host.provider_id)
@@ -1713,6 +1754,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.meek_server_obfuscated_key,
                         host.meek_server_fronting_domain,
                         host.meek_server_fronting_host,
+                        host.alternate_meek_server_fronting_hosts,
                         host.meek_cookie_encryption_public_key,
                         host.meek_cookie_encryption_private_key)
         self.__hosts_to_remove_from_providers.add(host_copy)
@@ -1974,7 +2016,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         sponsor = self.get_sponsor_by_name(sponsor_name)
         encoded_server_list, expected_egress_ip_addresses = \
-                    self.__get_encoded_server_list(propagation_channel.id, test=test)
+                    self.__get_encoded_server_list(propagation_channel.id, test=test, include_propagation_servers=False)
 
         remote_server_list_signature_public_key = \
             psi_ops_crypto_tools.get_base64_der_public_key(
@@ -2224,10 +2266,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
                     # Publish to propagation mechanisms
 
+                    client_version = self.__client_versions[platform][-1].version if self.__client_versions[platform] else 0
+
                     psi_ops_s3.update_s3_download(
                         self.__aws_account,
-                        [(build_filename, client_build_filenames[platform]),
-                         (upgrade_filename, s3_upgrade_resource_name)],
+                        [(build_filename, client_version, client_build_filenames[platform]),
+                         (upgrade_filename, client_version, s3_upgrade_resource_name)],
                         remote_server_list,
                         campaign.s3_bucket_name)
                     # Don't log this, too much noise
@@ -2528,6 +2572,17 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             base_stats_username=base_stats_username, base_host_public_key=base_host_public_key,
             base_rsa_private_key=base_rsa_private_key, ssh_key_template_id=ssh_key_template_id)
 
+    def set_vpsnet_account(self, account_id, api_key, api_base_url, base_ssh_port,
+                           base_root_password, base_stats_username, 
+                           base_cloud_id, base_system_template, base_ssd_plan):
+        assert(self.is_locked)
+        psi_utils.update_recordtype(
+            self.__vpsnet_account,
+            account_id=account_id, api_key=api_key, api_base_url=api_base_url,
+            base_ssh_port=base_ssh_port, base_root_password=base_root_password,
+            base_stats_username=base_stats_username, base_cloud_id=base_cloud_id,
+            base_system_template=base_system_template, base_ssd_plan=base_ssd_plan)
+
     def upsert_elastichosts_account(self, zone, uuid, api_key, base_drive_id,
                                     cpu, mem, base_host_public_key, root_username,
                                     base_root_password, base_ssh_port, stats_username, rank):
@@ -2619,10 +2674,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             extended_config['sshObfuscatedPort'] = int(server.alternate_ssh_obfuscated_ports[-1])
         extended_config['sshObfuscatedKey'] = server.ssh_obfuscated_key if server.ssh_obfuscated_key else ''
 
-        extended_config['capabilities'] = [capability for capability, enabled in server.capabilities.iteritems() if enabled] if server.capabilities else []
-
         host = self.__hosts[server.host_id]
         extended_config['region'] = host.region
+
+        server_capabilities = copy_server_capabilities(server.capabilities) if server.capabilities else None
+        if server_capabilities and server_capabilities['UNFRONTED-MEEK'] and int(host.meek_server_port) == 443:
+            server_capabilities['UNFRONTED-MEEK'] = False
+            server_capabilities['UNFRONTED-MEEK-HTTPS'] = True
 
         extended_config['meekServerPort'] = int(host.meek_server_port) if host.meek_server_port else 0
         extended_config['meekObfuscatedKey'] = host.meek_server_obfuscated_key if host.meek_server_obfuscated_key else ''
@@ -2638,6 +2696,17 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 extended_config['meekFrontingAddresses'] = alternate_meek_fronting_addresses[:3]
 
             extended_config['meekFrontingAddressesRegex'] = self.__alternate_meek_fronting_addresses_regex[host.meek_server_fronting_domain]
+            extended_config['meekFrontingDisableSNI'] = self.__meek_fronting_disable_SNI[host.meek_server_fronting_domain]
+
+        if host.alternate_meek_server_fronting_hosts:
+            # Copy the set to avoid shuffling the original
+            alternate_meek_server_fronting_hosts = list(host.alternate_meek_server_fronting_hosts)
+            random.shuffle(alternate_meek_server_fronting_hosts)
+            extended_config['meekFrontingHosts'] = alternate_meek_server_fronting_hosts[:3]
+            if server_capabilities['FRONTED-MEEK']:
+                server_capabilities['FRONTED-MEEK-HTTP'] = True
+
+        extended_config['capabilities'] = [capability for capability, enabled in server_capabilities.iteritems() if enabled] if server_capabilities else []
 
         return binascii.hexlify('%s %s %s %s %s' % (
                                     server.ip_address,
@@ -2647,7 +2716,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     json.dumps(extended_config)))
 
     def __get_encoded_server_list(self, propagation_channel_id,
-                                  client_ip_address_strategy_value=None, event_logger=None, discovery_date=None, test=False):
+                                  client_ip_address_strategy_value=None, event_logger=None, discovery_date=None, test=False, include_propagation_servers=True):
         if not client_ip_address_strategy_value:
             # embedded (propagation) server list
             # output all servers for propagation channel ID with no discovery date
@@ -2658,8 +2727,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             random.shuffle(permanent_server_ids)
 
             servers = [server for server in self.__servers.itervalues()
-                       if (server.propagation_channel_id == propagation_channel_id
-                           and server.is_embedded)
+                       if (server.propagation_channel_id == propagation_channel_id and
+                           (server.is_permanent or (server.is_embedded and include_propagation_servers)))
                        or (not test and (server.id in permanent_server_ids[0:50]))]
         else:
             # discovery case
@@ -2745,8 +2814,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if CLIENT_PLATFORM_ANDROID.lower() in client_platform_string.lower():
             platform = CLIENT_PLATFORM_ANDROID
 
-        # Give client a set of landing pages to open when connection established
-        config['homepages'] = self.__get_sponsor_home_pages(sponsor_id, client_region, platform)
+        # Randomly choose one landing page from a set of landing pages
+        # to give the client to open when connection established
+        homepages = self.__get_sponsor_home_pages(sponsor_id, client_region, platform)
+        config['homepages'] = [random.choice(homepages)] if homepages else []
 
         # Tell client if an upgrade is available
         config['upgrade_client_version'] = self.__check_upgrade(platform, client_version)
@@ -2876,6 +2947,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         host.meek_server_obfuscated_key,
                                         host.meek_server_fronting_domain,
                                         host.meek_server_fronting_host,
+                                        [],  # Omit: alternate_meek_server_fronting_hosts isn't needed
                                         host.meek_cookie_encryption_public_key,
                                         '')  # Omit: meek_cookie_encryption_private_key isn't needed
 
@@ -2984,6 +3056,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.meek_server_obfuscated_key,
                                             host.meek_server_fronting_domain,
                                             host.meek_server_fronting_host,
+                                            [],  # Omit: alternate_meek_server_fronting_hosts
                                             '',  # Omit: meek_cookie_encryption_public_key
                                             '')  # Omit: meek_cookie_encryption_private_key
 

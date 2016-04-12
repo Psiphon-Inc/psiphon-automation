@@ -41,39 +41,54 @@ Dependencies
 ------------
 
 - Windows XP/Vista/7
-- Microsoft Visual Studio Express 10
+- Microsoft Visual Studio Express 10 (SP1)
 - Microsoft Platform SDK
-- Python 2.6+ and modules
+- Python 2.7.x and modules
 
+TODO: Mercurial client and clone instructions?
 
 1. Python setup
 ---------------
 
-- Download and install Python 2.6+:
+- Download and install the laatest Python 2.7.x (ensure you choose x86, not x86-64):
 
-  http://www.python.org/download/releases/2.6/
+  http://www.python.org/downloads/
 
-- Download and install the corresponding version of setup tools:
+- When running the installer, in the "Customize Python" ensure that the option to install pip is also selected (this is default)
+ - Although not required, it is recommended to also ensure the option to "add python to the system path" is also selected
 
-  http://pypi.python.org/pypi/setuptools#downloads
+- Before attempting to install the additional modules:
+ - Install OpenSSL development libraries.
+  - On Windows, they can be found here: http://slproweb.com/products/Win32OpenSSL.html
+  - Be sure to install the corresponding Visual C++ Redistributable package as well (making sure to match 32 or 64 bit versions with the OpenSSL installed in the previous step)
+ - Install swig
+  - On Windows, it can be found here: http://www.swig.org/download.html
+  - Unzip the directory to a well known location
+  - Be sure to add the unzipped directory to your PATH
+ - Install the Microsoft Visual C++ Compiler for Python 2.7 from: http://aka.ms/vcpython27
 
-- Install additional modules:
 
-  easy_install paramiko pyOpenSSL pywin32 jsonpickle PyYAML qrcode PIL requests
+- Some modules cannot be installed by pip on Windows due to their correct packages not being available in pypi, and 32/64 bit incompatibilities. These include:
+ - M2Crypto: Download from http://chandlerproject.org/Projects/MeTooCrypto#Downloads
+  - Take care to install the latest version for python 2.7 and Win32 (64 bit versions will not work)
+ - pycurl: Download from http://pycurl.sourceforge.net/
+  - Take care to install the latest version for python 2.7 and Win32 (64 bit versions will not work)
+ - pywin32 - Download from http://sourceforge.net/projects/pywin32/files
+  - Take care to install the latest version for python 2.7 and Win32 (64 bit versions will not work)
 
-[NOTE: you may require Visual C++ 2008, NOT 2010, to build Python modules
- (http://mail.python.org/pipermail/python-list/2010-April/1242706.html).
- Alternatively, you may use MinGW.]
+ - Install additional modules by running the following from a command propmt:
 
-- On Windows, install PycURL from here:
-
-  http://www.lfd.uci.edu/~gohlke/pythonlibs/
-
+  pip install paramiko pyOpenSSL jsonpickle PyYAML qrcode requests apache-libcloud boto cogapp twitter
 
 2. Windows Client Build Setup
 -----------------------------
 
-- Install Microsoft Visual Studio 10
+- Install Microsoft Visual Studio 10 (+SP1)
+
+  https://visualstudio.com/en-us/products/visual-studio-express-vs.aspx
+
+ - Downloading any but the latest version requires a (free) Microsoft account
+ - SP1 can be found here: https://www.microsoft.com/en-ca/download/details.aspx?id=23691
 
 - Install Windows Platform SDK
 
@@ -145,7 +160,7 @@ Dependencies
 - Debian 6.0 (squeeze)
 - Openswan 2.6.30 source code with KLIPS kernel module
 - xl2tp 1.2.6
-- Python 2.6+ and modules
+- Python 2.7.x and modules
 
 
 1. Configure SSH, firewall and IP forwarding
@@ -158,7 +173,7 @@ Configure it so that only root may login through SSH.
 Modify /etc/ssh/sshd_config:
 
   Port 2222
-  ListenAddress x.x.x.x 
+  ListenAddress x.x.x.x
   ...
   AllowUsers root
   ...
@@ -194,7 +209,7 @@ Create /etc/iptables.rules:
   -A FORWARD -s 10.0.0.0/8 -d 8.8.4.4 -p tcp --dport 53 -j ACCEPT
   -A FORWARD -s 10.0.0.0/8 -d 8.8.4.4 -p udp --dport 53 -j ACCEPT
   -A FORWARD -s 10.0.0.0/8 -d 10.0.0.0/8 -j DROP
-  -A FORWARD -s 10.0.0.0/8 -j DROP 
+  -A FORWARD -s 10.0.0.0/8 -j DROP
   -A OUTPUT -p tcp -m multiport --dports 53,80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
   -A OUTPUT -p udp -m multiport --dports 53,80,443,554,1935,7070,8000,8001,6971:6999 -j ACCEPT
   -A OUTPUT -p udp -m udp --dport 123 -j ACCEPT
@@ -361,7 +376,7 @@ cd openswan-2.6.30
 
   (See: http://comments.gmane.org/gmane.network.openswan.user/15675)
 
-Note: The following code changes can be skipped if the server only has one 
+Note: The following code changes can be skipped if the server only has one
 host (i.e., only has one IP address).
 
 Edit linux/include/openswan/ipsec_param.h:
@@ -685,7 +700,7 @@ enumerating all IP addresses, in production this file is to be protected.
 We recommend storing it in encrypted form only and mounting it temporarily
 in a location accessible by the build/deploy host as required.
 
-To override the default location of the database spreadsheet:
+To override the default location of the database file/spreadsheet:
 
 - Create a python source file:
 

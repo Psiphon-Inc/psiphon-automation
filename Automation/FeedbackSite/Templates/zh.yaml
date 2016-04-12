@@ -1,15 +1,22 @@
 zh:
   title: 赛风的反馈
   top_content_title: 向我们提供您的反馈
+  top_para_1: |
+    请让我们知道赛风在您的设备上的工作情况以帮助我们改进！
   top_para_2: |
     您可以通过下载最新版本解决很多问题 <a class="newVersionURL" href="#">您可以单击这里下载最新版本</a>，或者发送电子邮件至 <span id="newVersionEmail"></span>。
   top_para_3: |
-    您还可以找到许多共同问题的答案，在我们的 <a class="faqURL" href="#">常见问题解答</a>。
+    您还可以在我们的<a class="faqURL" href="#">FAQ</a>找到许多常见问题的答案。
   diagnostic_check: |
-    上载诊断数据。请注意此诊断数据不会泄露你的身份，它将帮助我们保持赛风平稳运行的。
+    上载诊断数据。请注意此诊断数据不会泄露你的身份，它的目的是帮助我们保持赛风运行平稳和顺利。
     <a class="dataCollectionInfoURL" href="#">点击这里查看我们收集的数据。</a>
+  smiley_title: 总体满意度
+  smiley_happy: 赛风的连接和表现如我所愿。
+  smiley_sad: 赛风经常连接失败或表现不尽人意。
   submit_button: 提交
+  text_feedback_prompt: |
+    请在这里输入您的意见：
   text_feedback_email_prompt: |
-    如果您想我们给你回复，请输入您的电子邮件地址：
+    如果您希望我们回复，请输入您的电子邮件地址：
   text_feedback_bottom_para: |
-    如果上面的表格无法使用，或者你想发送截图，请给我们发电子邮件至 <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>
+    如果以上的表格无法使用，或者你想发送截图，请发电邮给我们至 <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>
