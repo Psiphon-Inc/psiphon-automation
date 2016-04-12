@@ -114,7 +114,7 @@ def upload_ipset_list(aws_account, key_name, content_file):
             aws_account.secret_key)
     
     bucket = s3_conn.get_bucket(BLOCKLISTS_BUCKET)
-    psi_ops_s3.put_file_to_key(bucket, key_name, content_file, is_public=True)
+    psi_ops_s3.put_file_to_key(bucket, key_name, None, content_file, is_public=True)
 
 
 def main():
