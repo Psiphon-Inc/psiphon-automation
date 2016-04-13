@@ -2050,58 +2050,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         test,
                         list(self.__android_home_tab_url_exclusions)) for platform in platforms]
 
-    '''
-    # DEFUNCT: Should we wish to use this function in the future, it will need
-    # to be heavily updated to work with the current data structures, etc.
-    def build_android_library(
-            self,
-            propagation_channel_name,
-            sponsor_name):
-
-        propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
-        sponsor = self.get_sponsor_by_name(sponsor_name)
-
-        campaigns = filter(lambda x: x.propagation_channel_id == propagation_channel.id, sponsor.campaigns)
-        assert campaigns
-
-        encoded_server_list, _ = \
-                    self.__get_encoded_server_list(propagation_channel.id)
-
-        remote_server_list_signature_public_key = \
-            psi_ops_crypto_tools.get_base64_der_public_key(
-                self.__get_remote_server_list_signing_key_pair().pem_key_pair,
-                REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD)
-
-        feedback_encryption_public_key = \
-            psi_ops_crypto_tools.get_base64_der_public_key(
-                self.get_feedback_encryption_key_pair().pem_key_pair,
-                self.get_feedback_encryption_key_pair().password)
-
-        feedback_upload_info = self.get_feedback_upload_info()
-
-        remote_server_list_url_split = psi_ops_s3.get_s3_bucket_resource_url_split(
-                                    campaign.s3_bucket_name,
-                                    psi_ops_s3.DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME)
-
-        info_link_url = psi_ops_s3.get_s3_bucket_home_page_url(campaigns[0].s3_bucket_name)
-        for plugin in plugins:
-            if hasattr(plugin, 'info_link_url'):
-                info_link_url = plugin.info_link_url(CLIENT_PLATFORM_ANDROID)
-
-        return psi_ops_build_android.build_library(
-                        propagation_channel.id,
-                        sponsor.id,
-                        encoded_server_list,
-                        remote_server_list_signature_public_key,
-                        remote_server_list_url_split,
-                        feedback_encryption_public_key,
-                        feedback_upload_info.upload_server,
-                        feedback_upload_info.upload_path,
-                        feedback_upload_info.upload_server_headers,
-                        info_link_url,
-                        self.__client_versions[CLIENT_PLATFORM_ANDROID][-1].version if self.__client_versions[CLIENT_PLATFORM_ANDROID] else 0)
-    '''
-
     def __make_upgrade_package_from_build(self, build_filename):
         with open(build_filename, 'rb') as f:
             data = f.read()
