@@ -77,6 +77,11 @@ except ImportError as error:
     print error
 
 try:
+    import psi_vpsnet
+except ImportError as error:
+    print error
+
+try:
     import psi_elastichosts
 except ImportError as error:
     print error
@@ -256,6 +261,13 @@ DigitalOceanAccount = psi_utils.recordtype(
     'oauth_token, base_size_slug',
     default=None)
 
+VPSNetAccount = psi_utils.recordtype(
+    'VPSNetAccount',
+    'account_id, api_key, api_base_url, base_ssh_port, ' +
+    'base_root_password, base_stats_username, ' +
+    'base_cloud_id, base_system_template, base_ssd_plan',
+    default=None)
+
 ElasticHostsAccount = psi_utils.recordtype(
     'ElasticHostsAccount',
     'zone, uuid, api_key, base_drive_id, cpu, mem, base_host_public_key, ' +
@@ -333,6 +345,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__provider_ranks = []
         self.__linode_account = LinodeAccount()
         self.__digitalocean_account = DigitalOceanAccount()
+        self.__vpsnet_account = VPSNetAccount()
         self.__elastichosts_accounts = []
         self.__deploy_implementation_required_for_hosts = set()
         self.__deploy_data_required_for_all = False
@@ -360,7 +373,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.35'
+    class_version = '0.36'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -562,6 +575,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for host in self.__hosts_to_remove_from_providers:
                 host.alternate_meek_server_fronting_hosts = None
             self.version = '0.35'
+        if cmp(parse_version(self.version), parse_version('0.36')) < 0:
+            self.__vpsnet_account = VPSNetAccount()
+            self.version = '0.36'
  
     def initialize_plugins(self):
         for plugin in plugins:
@@ -586,6 +602,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             Provider Ranks:         %s
             Linode Account:         %s
             DigitalOcean Account:   %s
+            VPSNet Account          %s
             ElasticHosts Account:   %s
             Deploys Pending:        Host Implementations    %d
                                     Host Data               %s
@@ -615,6 +632,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 'Configured' if self.__provider_ranks else 'None',
                 'Configured' if self.__linode_account.api_key else 'None',
                 'Configured' if self.__digitalocean_account.client_id and self.__digitalocean_account.api_key else 'None',
+                'Configured' if self.__vpsnet_account.account_id and self.__vpsnet_account.api_key else 'None',
                 'Configured' if self.__elastichosts_accounts else 'None',
                 len(self.__deploy_implementation_required_for_hosts),
                 'Yes' if self.__deploy_data_required_for_all else 'No',
@@ -1350,7 +1368,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 if server.propagation_channel_id == propagation_channel.id
                 and server.discovery_date_range
                 and server.discovery_date_range[1] < (today - datetime.timedelta(days=max_discovery_server_age_in_days))
-                and self.__hosts[server.host_id].provider in ['linode', 'digitalocean']]
+                and self.__hosts[server.host_id].provider in ['linode', 'digitalocean', 'vpsnet']]
             removed, disabled = self.__prune_servers(old_discovery_servers)
             number_removed += removed
             number_disabled += disabled
@@ -1539,6 +1557,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         elif provider.lower() == 'digitalocean':
             provider_launch_new_server = psi_digitalocean.launch_new_server
             provider_account = self.__digitalocean_account
+        elif provider.lower() == 'vpsnet':
+            provider_launch_new_server = psi_vpsnet.launch_new_server
+            provider_account = self.__vpsnet_account
         elif provider.lower() == 'elastichosts':
             provider_launch_new_server = psi_elastichosts.ElasticHosts().launch_new_server
             provider_account = self._weighted_random_choice(self.__elastichosts_accounts)
@@ -1699,6 +1720,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if host.provider == 'digitalocean':
                 provider_remove_host = psi_digitalocean.remove_server
                 provider_account = self.__digitalocean_account
+            if host.provider == 'vpsnet':
+                provider_remove_host = psi_vpsnet.remove_server
+                provider_account == self.__vpsnet_account
             if provider_remove_host:
                 # Remove the actual host through the provider's API
                 provider_remove_host(provider_account, host.provider_id)
@@ -2495,6 +2519,17 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             base_size_id=base_size_id, base_region_id=base_region_id, base_ssh_port=base_ssh_port,
             base_stats_username=base_stats_username, base_host_public_key=base_host_public_key,
             base_rsa_private_key=base_rsa_private_key, ssh_key_template_id=ssh_key_template_id)
+
+    def set_vpsnet_account(self, account_id, api_key, api_base_url, base_ssh_port,
+                           base_root_password, base_stats_username, 
+                           base_cloud_id, base_system_template, base_ssd_plan):
+        assert(self.is_locked)
+        psi_utils.update_recordtype(
+            self.__vpsnet_account,
+            account_id=account_id, api_key=api_key, api_base_url=api_base_url,
+            base_ssh_port=base_ssh_port, base_root_password=base_root_password,
+            base_stats_username=base_stats_username, base_cloud_id=base_cloud_id,
+            base_system_template=base_system_template, base_ssd_plan=base_ssd_plan)
 
     def upsert_elastichosts_account(self, zone, uuid, api_key, base_drive_id,
                                     cpu, mem, base_host_public_key, root_username,
