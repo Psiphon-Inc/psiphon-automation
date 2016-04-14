@@ -66,13 +66,15 @@ if os.path.isfile('psi_data_config.py'):
 
 
 def build_apk():
-
+# Properties.load in the build script will drop single backslashes,
+# See http://docs.oracle.com/javase/6/docs/api/java/util/Properties.html#load(java.io.Reader)
+# Change them to forward slashes, see http://www.groovy-tutorial.org/basic-files/ "Paths" 
     signing_properties_contents = '''
 STORE_FILE=%s
 STORE_PASSWORD=%s
 KEY_ALIAS=%s
 KEY_PASSWORD=%s
-''' % (KEYSTORE_FILENAME, KEYSTORE_PASSWORD, KEYSTORE_ALIAS, KEYSTORE_PASSWORD)
+''' % (KEYSTORE_FILENAME.replace('\\', '/'), KEYSTORE_PASSWORD, KEYSTORE_ALIAS, KEYSTORE_PASSWORD)
 
     with open(SIGNING_PROPERTIES_FILENAME, 'w') as signing_properties_file:
         signing_properties_file.write(signing_properties_contents)
