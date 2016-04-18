@@ -104,6 +104,7 @@ def __test_web_server(ip_address, web_server_port, propagation_channel_id, web_s
     print 'Testing web server at %s...' % (ip_address,)
     get_request = 'https://%s:%s/handshake?propagation_channel_id=%s&sponsor_id=0&client_version=1&server_secret=%s&relay_protocol=SSH' % (
                     ip_address, web_server_port, propagation_channel_id, web_server_secret)
+
     # Reset the proxy settings (see comment below)
     urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler()))
 
@@ -156,7 +157,7 @@ class PsiphonRunner:
         self.proc = subprocess.Popen([self.executable_path])
 
     def wait_for_connection(self):
-        time.sleep(35)
+        time.sleep(50)
 
     def setup_proxy(self):
         # In VPN mode, all traffic is routed through the proxy. In SSH mode, the
@@ -207,7 +208,6 @@ class TunnelCoreRunner:
             "ConnectionWorkerPoolSize" : 1,
             "PortForwardFailureThreshold" : 5,
             "EmitDiagnosticNotices": True,
-            "LogFilename": LOG_FILE_NAME,
             "SplitTunnelRoutesUrlFormat" : self.split_tunnel_url_format,
             "SplitTunnelRoutesSignaturePublicKey" : self.split_tunnel_signature_public_key,
             "SplitTunnelDnsServer" : self.split_tunnel_dns_server
@@ -229,34 +229,32 @@ class TunnelCoreRunner:
 
         cmd = '"%s" --config "%s"' % (TUNNEL_CORE, CONFIG_FILE_NAME)
 
-        self.proc = subprocess.Popen(shlex.split(cmd), creationflags=subprocess.CREATE_NEW_CONSOLE)
+        self.proc = subprocess.Popen(shlex.split(cmd), creationflags=subprocess.CREATE_NEW_CONSOLE, stderr=subprocess.PIPE)
 
     def wait_for_connection(self):
         # If using tunnel-core
         # Read tunnel-core log file for connection message instead of sleep 25 second
 
         time.sleep(1)
+        print 'Tunnel Core is connecting...'
+        start_time = time.time()
 
-        if os.path.isfile(LOG_FILE_NAME):
-            print 'Tunnel Core is connecting...'
-            start_time = time.time()
-            not_connected = True
-            while not_connected:
-                time.sleep(1)
-                with open(LOG_FILE_NAME, 'r') as log_file:
-                    for line in log_file:
-                        line = json.loads(line)
-                        if line['data'].get('count') != None:
-                            if line['data']['count'] == 1 and line['noticeType'] == 'Tunnels':
-                                not_connected = False
+        # Breaking this loop means the process sent EOF to stderr, or 'tunnels' tunnels were established
+        while True:
+            line = self.proc.stderr.readline()
+            if not line:
+                time.sleep(25)
+                break
 
-
-                if time.time() >= start_time + 25:
-                    # if the sleep time is 25 second, get out while loop and keep going
-                    print 'Not successfully connected after 25 second.'
+            line = json.loads(line)
+            if line["data"].get("count") != None:
+                if line["noticeType"] == "Tunnels" and line["data"]["count"] == 1:
                     break
-        else:
-            time.sleep(25)
+
+            if time.time() >= start_time + 25:
+                # if the sleep time is 25 second, get out while loop and keep going
+                print 'Not successfully connected after 25 second.'
+                break
 
     def setup_proxy(self):
         urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler({
@@ -274,7 +272,6 @@ class TunnelCoreRunner:
         try:
             os.remove(CONFIG_FILE_NAME)
             time.sleep(1)
-            os.remove(LOG_FILE_NAME)
         except Exception as e:
             print "Remove Config/Log File Failed" + str(e)
 
