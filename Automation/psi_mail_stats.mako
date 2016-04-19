@@ -133,9 +133,9 @@
             </td>
           </tr>
         % endfor
+
         <tr class="row-${'odd' if row_index%2 else 'even'}">
           <th>Total</th>
-
           <%
             yesterday_total = 0
             week_ago_total = 0
@@ -205,6 +205,7 @@
             </td>
           </tr>
         % endfor
+
         <tr class="row-${'odd' if row_index%2 else 'even'}">
           <th>Total</th>
 
@@ -212,6 +213,7 @@
             yesterday_total = 0
             week_ago_total = 0
             past_week_total = 0
+            
             for row_index, row_data in enumerate(platform_data['region']['buckets']):
               yesterday_total += int(row_data['time_range']['buckets'][2]['unique_daily']['value'])
               week_ago_total += int(row_data['time_range']['buckets'][0]['unique_daily']['value'])

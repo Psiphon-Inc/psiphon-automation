@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2013, Psiphon Inc.
+# Copyright (c) 2013 - 2016, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -19,8 +19,6 @@
 
 
 from collections import defaultdict
-import psycopg2
-import psi_ops_stats_credentials
 
 from mako.template import Template
 from mako.lookup import TemplateLookup
@@ -137,8 +135,6 @@ if __name__ == "__main__":
         print("Could not initialize. The Elasticsearch cluster at '%s' is unavailable" % (e.passedHost))
 
     html_body = render_mail(tables_data)
-
-    print(html_body)
 
     sender.send(config['statsEmailRecipients'],
                 config['emailUsername'],
