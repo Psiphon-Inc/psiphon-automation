@@ -35,6 +35,10 @@ import datetime
 from time import time, mktime
 from elasticsearch import ConflictError, NotFoundError, ConnectionTimeout, Elasticsearch, helpers as esHelpers
 
+if os.path.isfile('./Query/psi_es_server_config.py'):
+    sys.path.append(os.path.abspath(os.path.join('.', 'Query')))
+    import psi_es_server_config as server_config
+    server_entry = server_config.ELASTICSEARCH_SERVER_IP_ADDRESS + ':' + server_config.ELASTICSEARCH_SERVER_PORT
 
 # Using the FeedbackDecryptor's mail capabilities
 sys.path.append(os.path.abspath(os.path.join('..', 'EmailResponder')))
@@ -108,7 +112,7 @@ if __name__ == "__main__":
     ]
 
     try:
-        es = Elasticsearch(hosts=['192.168.1.165:12251'], retry_on_timeout=True, max_retries=3)
+        es = Elasticsearch(hosts=[server_entry], retry_on_timeout=True, max_retries=3)
         if not es.ping():
             raise ElasticsearchUnreachableException(elasticsearch)
 
