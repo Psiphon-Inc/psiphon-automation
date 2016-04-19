@@ -19,8 +19,8 @@
 
 
 from collections import defaultdict
-# import psycopg2
-# import psi_ops_stats_credentials
+import psycopg2
+import psi_ops_stats_credentials
 
 from mako.template import Template
 from mako.lookup import TemplateLookup
@@ -43,8 +43,8 @@ if os.path.isfile('./Query/psi_es_server_config.py'):
 # Using the FeedbackDecryptor's mail capabilities
 sys.path.append(os.path.abspath(os.path.join('..', 'EmailResponder')))
 sys.path.append(os.path.abspath(os.path.join('..', 'EmailResponder', 'FeedbackDecryptor')))
-# import sender
-# from config import config
+import sender
+from config import config
 
 es = None
 
