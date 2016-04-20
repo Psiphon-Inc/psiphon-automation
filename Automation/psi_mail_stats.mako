@@ -135,16 +135,11 @@
         % endfor
 
         <tr class="row-${'odd' if row_index%2 else 'even'}">
-          <th>Total</th>
+          <th style="font-size: 1em; border: 1px solid #CCC; margin: 0; padding: 0.5em 1em; font-weight: bold; background-color: #F0F0F0">Total</th>
           <%
-            yesterday_total = 0
-            week_ago_total = 0
-            past_week_total = 0
-
-            for row_index, row_data in enumerate(platform_data['region']['buckets']):
-              yesterday_total += row_data['time_range']['buckets'][2]['doc_count']
-              week_ago_total += row_data['time_range']['buckets'][0]['doc_count']
-              past_week_total += row_data['time_range']['buckets'][1]['doc_count']
+            yesterday_total = data['connections_total']['platform']['buckets'][platform_key]['time_range']['buckets'][2]['doc_count']
+            week_ago_total = data['connections_total']['platform']['buckets'][platform_key]['time_range']['buckets'][0]['doc_count']
+            past_week_total = data['connections_total']['platform']['buckets'][platform_key]['time_range']['buckets'][1]['doc_count']
           %>
           <%
             change = ''
@@ -207,17 +202,11 @@
         % endfor
 
         <tr class="row-${'odd' if row_index%2 else 'even'}">
-          <th>Total</th>
-
+          <th style="font-size: 1em; border: 1px solid #CCC; margin: 0; padding: 0.5em 1em; font-weight: bold; background-color: #F0F0F0">Total</th>
           <%
-            yesterday_total = 0
-            week_ago_total = 0
-            past_week_total = 0
-
-            for row_index, row_data in enumerate(platform_data['region']['buckets']):
-              yesterday_total += int(row_data['time_range']['buckets'][2]['unique_daily']['value'])
-              week_ago_total += int(row_data['time_range']['buckets'][0]['unique_daily']['value'])
-              past_week_total += int(row_data['time_range']['buckets'][1]['unique_daily']['value'])
+          yesterday_total = data['unique_users_total']['platform']['buckets'][platform_key]['time_range']['buckets'][2]['unique_daily']['value']
+          week_ago_total = data['unique_users_total']['platform']['buckets'][platform_key]['time_range']['buckets'][0]['unique_daily']['value']
+          past_week_total = data['unique_users_total']['platform']['buckets'][platform_key]['time_range']['buckets'][1]['unique_weekly']['value']
           %>
           <%
             change = ''
@@ -226,13 +215,13 @@
             change = 'better' if target_value > compartor else 'worse'
           %>
           <td class="numcompare ${change}">
-            ${'{:,}'.format(yesterday_total)}
+            ${'{:,}'.format(int(yesterday_total))}
           </td>
           <td>
-            ${'{:,}'.format(week_ago_total)}
+            ${'{:,}'.format(int(week_ago_total))}
           </td>
           <td>
-            ${'{:,}'.format(past_week_total)}
+            ${'{:,}'.format(int(past_week_total))}
           </td>
         </tr>
       </tbody>

@@ -125,8 +125,14 @@ if __name__ == "__main__":
         connections_result = _get_connected('./Query/query_connections.json', index_connections)
         unique_users_result = _get_connected('./Query/query_unique_users.json', index_unique_users)
 
+        # Getting total number in all region
+        connections_total_result = _get_connected('./Query/query_connections_total.json', index_connections)
+        unique_users_total_result = _get_connected('./Query/query_unique_users_total.json', index_unique_users)
+
         tables_data['connections'] = connections_result
         tables_data['unique_users'] = unique_users_result
+        tables_data['connections_total'] = connections_total_result
+        tables_data['unique_users_total'] = unique_users_total_result
 
         # page_views_result = _get_connected('query_page_views.json', index_page_views)
         # print page_views_result
