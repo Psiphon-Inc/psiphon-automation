@@ -123,13 +123,13 @@
             %>
             ## Data
             <td class="numcompare ${change}">
-              ${row_data['time_range']['buckets'][2]['doc_count']}
+              ${'{:,}'.format(row_data['time_range']['buckets'][2]['doc_count'])}
             </td>
             <td>
-              ${row_data['time_range']['buckets'][0]['doc_count']}
+              ${'{:,}'.format(row_data['time_range']['buckets'][0]['doc_count'])}
             </td>
             <td>
-              ${row_data['time_range']['buckets'][1]['doc_count']}
+              ${'{:,}'.format(row_data['time_range']['buckets'][1]['doc_count'])}
             </td>
           </tr>
         % endfor
@@ -153,13 +153,13 @@
             change = 'better' if target_value > compartor else 'worse'
           %>
           <td class="numcompare ${change}">
-            ${yesterday_total}
+            ${'{:,}'.format(yesterday_total)}
           </td>
           <td>
-            ${week_ago_total}
+            ${'{:,}'.format(week_ago_total)}
           </td>
           <td>
-            ${past_week_total}
+            ${'{:,}'.format(past_week_total)}
           </td>
         </tr>
       </tbody>
@@ -195,13 +195,13 @@
             %>
             ## Data
             <td class="numcompare ${change}">
-              ${int(row_data['time_range']['buckets'][2]['unique_daily']['value'])}
+              ${'{:,}'.format(int(row_data['time_range']['buckets'][2]['unique_daily']['value']))}
             </td>
             <td>
-              ${int(row_data['time_range']['buckets'][0]['unique_daily']['value'])}
+              ${'{:,}'.format(int(row_data['time_range']['buckets'][0]['unique_daily']['value']))}
             </td>
             <td>
-              ${int(row_data['time_range']['buckets'][1]['unique_weekly']['value'])}
+              ${'{:,}'.format(int(row_data['time_range']['buckets'][1]['unique_weekly']['value']))}
             </td>
           </tr>
         % endfor
@@ -226,13 +226,13 @@
             change = 'better' if target_value > compartor else 'worse'
           %>
           <td class="numcompare ${change}">
-            ${yesterday_total}
+            ${'{:,}'.format(yesterday_total)}
           </td>
           <td>
-            ${week_ago_total}
+            ${'{:,}'.format(week_ago_total)}
           </td>
           <td>
-            ${past_week_total}
+            ${'{:,}'.format(past_week_total)}
           </td>
         </tr>
       </tbody>
