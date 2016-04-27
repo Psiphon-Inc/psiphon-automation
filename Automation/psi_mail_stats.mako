@@ -95,49 +95,136 @@
 
 <h1>Psiphon 3 Stats</h1>
 
+<h2> Connections Stats </h2>
 ## Iterate through the tables
-% for tablename, tableinfo in data.iteritems():
-  <h2>${tablename}</h2>
+% for key, connections_data in data['connections']['platform'].iteritems():
+  % for platform_key, platform_data in connections_data.iteritems():
+    <h3>${platform_key}</h3>
+    <table>
+      <thead>
+        <tr>
+          <th style="font-size: 1em; border: 1px solid #CCC; margin: 0; padding: 0.5em 1em; font-weight: bold; background-color: #F0F0F0">Region</th>
+          <th style="font-size: 1em; border: 1px solid #CCC; margin: 0; padding: 0.5em 1em; font-weight: bold; background-color: #F0F0F0">Yesterday</th>
+          <th style="font-size: 1em; border: 1px solid #CCC; margin: 0; padding: 0.5em 1em; font-weight: bold; background-color: #F0F0F0">One Week Ago</th>
+          <th style="font-size: 1em; border: 1px solid #CCC; margin: 0; padding: 0.5em 1em; font-weight: bold; background-color: #F0F0F0">Past Week</th>
+        </tr>
+      </thead>
+      <tbody>
+        % for row_index, row_data in enumerate(platform_data['region']['buckets']):
+          <tr class="row-${'odd' if row_index%2 else 'even'}">
+            ## First column is the region
+            <th style="font-size: 1em; border: 1px solid #CCC; margin: 0; padding: 0.5em 1em; font-weight: bold; background-color: #F0F0F0">${row_data['key']}</th>
 
-  <table>
-
-    <thead>
-      <tr>
-        % for header in tableinfo['headers']:
-          <th>${header}</th>
-        % endfor
-      </tr>
-    </thead>
-
-    <tbody>
-      % for row_index, row in enumerate(tableinfo['data']):
-        <tr class="row-${'odd' if row_index%2 else 'even'}">
-          <%
-            # A row is of the form: ('Total', defaultdict(int, {'Past Week': 46400L, 'Yesterday': 0L, '1 week ago': 6406L}))
-            row_head, row_vals = row
-          %>
-
-
-          ## First column is the region (or Total)
-          <th>${row_head}</th>
-
-          ## The headers indicate the order we need to output the data
-          % for col_index, col_name in enumerate(tableinfo['headers'][1:]):
             <%
               change = ''
-              # Note that this loop starts at tableinfo['headers'][1], so col_index == 0 is tableinfo['headers'][1]
-              if col_index == 0:
-                target_value = row_vals[tableinfo['headers'][1]]
-                compartor = row_vals[tableinfo['headers'][2]]
-                change = 'better' if target_value > compartor else 'worse'
+              target_value = row_data['time_range']['buckets'][2]['doc_count']
+              compartor = row_data['time_range']['buckets'][0]['doc_count']
+              change = 'better' if target_value > compartor else 'worse'
             %>
+            ## Data
             <td class="numcompare ${change}">
-              ${'{:,}'.format(row_vals[col_name] or 0)}
+              ${'{:,}'.format(row_data['time_range']['buckets'][2]['doc_count'])}
             </td>
-          % endfor
-        </tr>
-      % endfor
-    </tbody>
+            <td>
+              ${'{:,}'.format(row_data['time_range']['buckets'][0]['doc_count'])}
+            </td>
+            <td>
+              ${'{:,}'.format(row_data['time_range']['buckets'][1]['doc_count'])}
+            </td>
+          </tr>
+        % endfor
 
-  </table>
+        <tr class="row-${'odd' if row_index%2 else 'even'}">
+          <th style="font-size: 1em; border: 1px solid #CCC; margin: 0; padding: 0.5em 1em; font-weight: bold; background-color: #F0F0F0">Total</th>
+          <%
+            yesterday_total = data['connections_total']['platform']['buckets'][platform_key]['time_range']['buckets'][2]['doc_count']
+            week_ago_total = data['connections_total']['platform']['buckets'][platform_key]['time_range']['buckets'][0]['doc_count']
+            past_week_total = data['connections_total']['platform']['buckets'][platform_key]['time_range']['buckets'][1]['doc_count']
+          %>
+          <%
+            change = ''
+            target_value = yesterday_total
+            compartor = week_ago_total
+            change = 'better' if target_value > compartor else 'worse'
+          %>
+          <td class="numcompare ${change}">
+            ${'{:,}'.format(yesterday_total)}
+          </td>
+          <td>
+            ${'{:,}'.format(week_ago_total)}
+          </td>
+          <td>
+            ${'{:,}'.format(past_week_total)}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  %endfor
+% endfor
+
+<h2> Unique Users Stats </h2>
+## Iterate through the tables
+% for key, connections_data in data['unique_users']['platform'].iteritems():
+  % for platform_key, platform_data in connections_data.iteritems():
+    <h3>${platform_key}</h3>
+    <table>
+      <thead>
+        <tr>
+          <th style="font-size: 1em; border: 1px solid #CCC; margin: 0; padding: 0.5em 1em; font-weight: bold; background-color: #F0F0F0">Region</th>
+          <th style="font-size: 1em; border: 1px solid #CCC; margin: 0; padding: 0.5em 1em; font-weight: bold; background-color: #F0F0F0">Yesterday</th>
+          <th style="font-size: 1em; border: 1px solid #CCC; margin: 0; padding: 0.5em 1em; font-weight: bold; background-color: #F0F0F0">One Week Ago</th>
+          <th style="font-size: 1em; border: 1px solid #CCC; margin: 0; padding: 0.5em 1em; font-weight: bold; background-color: #F0F0F0">Past Week</th>
+        </tr>
+      </thead>
+      <tbody>
+        % for row_index, row_data in enumerate(platform_data['region']['buckets']):
+          <tr class="row-${'odd' if row_index%2 else 'even'}">
+            ## First column is the region
+            <th style="font-size: 1em; border: 1px solid #CCC; margin: 0; padding: 0.5em 1em; font-weight: bold; background-color: #F0F0F0">${row_data['key']}</th>
+
+            <%
+              change = ''
+              target_value = row_data['time_range']['buckets'][2]['unique_daily']['value']
+              compartor = row_data['time_range']['buckets'][0]['unique_daily']['value']
+              change = 'better' if target_value > compartor else 'worse'
+            %>
+            ## Data
+            <td class="numcompare ${change}">
+              ${'{:,}'.format(int(row_data['time_range']['buckets'][2]['unique_daily']['value']))}
+            </td>
+            <td>
+              ${'{:,}'.format(int(row_data['time_range']['buckets'][0]['unique_daily']['value']))}
+            </td>
+            <td>
+              ${'{:,}'.format(int(row_data['time_range']['buckets'][1]['unique_weekly']['value']))}
+            </td>
+          </tr>
+        % endfor
+
+        <tr class="row-${'odd' if row_index%2 else 'even'}">
+          <th style="font-size: 1em; border: 1px solid #CCC; margin: 0; padding: 0.5em 1em; font-weight: bold; background-color: #F0F0F0">Total</th>
+          <%
+          yesterday_total = data['unique_users_total']['platform']['buckets'][platform_key]['time_range']['buckets'][2]['unique_daily']['value']
+          week_ago_total = data['unique_users_total']['platform']['buckets'][platform_key]['time_range']['buckets'][0]['unique_daily']['value']
+          past_week_total = data['unique_users_total']['platform']['buckets'][platform_key]['time_range']['buckets'][1]['unique_weekly']['value']
+          %>
+          <%
+            change = ''
+            target_value = yesterday_total
+            compartor = week_ago_total
+            change = 'better' if target_value > compartor else 'worse'
+          %>
+          <td class="numcompare ${change}">
+            ${'{:,}'.format(int(yesterday_total))}
+          </td>
+          <td>
+            ${'{:,}'.format(int(week_ago_total))}
+          </td>
+          <td>
+            ${'{:,}'.format(int(past_week_total))}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  %endfor
 % endfor
