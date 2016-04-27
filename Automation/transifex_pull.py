@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2013, Psiphon Inc.
+# Copyright (c) 2016, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -63,7 +63,7 @@ def process_android_app_strings():
     langs = {'ar': 'ar', 'es': 'es', 'fa': 'fa', 'ru': 'ru', 'tk': 'tk',
              'vi': 'vi', 'zh': 'zh', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr'}
     process_resource('android-app-strings',
-                     lambda lang: '../Android/PsiphonAndroid/res/values-%s/strings.xml' % lang,
+                     lambda lang: '../Android/app/src/main/res/values-%s/strings.xml' % lang,
                      None,
                      bom=False,
                      langs=langs)
@@ -73,7 +73,7 @@ def process_android_library_strings():
     langs = {'ar': 'ar', 'es': 'es', 'fa': 'fa', 'ru': 'ru', 'tk': 'tk',
              'vi': 'vi', 'zh': 'zh', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr'}
     process_resource('android-library-strings',
-                     lambda lang: '../Android/PsiphonAndroidLibrary/res/values-%s/strings.xml' % lang,
+                     lambda lang: '../Android/app/src/main/res/values-%s/psiphon_android_library_strings.xml' % lang,
                      None,
                      bom=False,
                      langs=langs)
@@ -83,7 +83,7 @@ def process_android_app_browser_strings():
     langs = {'ar': 'ar', 'es': 'es', 'fa': 'fa', 'ru': 'ru', 'tk': 'tk',
              'vi': 'vi', 'zh': 'zh', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr'}
     process_resource('android-app-browser-strings',
-                     lambda lang: '../Android/zirco-browser/res/values-%s/strings.xml' % lang,
+                     lambda lang: '../Android/app/src/main/res/values-%s/zirco_browser_strings.xml' % lang,
                      None,
                      bom=False,
                      langs=langs)
