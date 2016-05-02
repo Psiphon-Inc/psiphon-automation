@@ -343,7 +343,7 @@ def update_s3_download(aws_account, builds, remote_server_list, remote_server_li
 
     if remote_server_list_compressed:
         target_filename = _make_full_key_name(key_prefix,
-                                              DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME_COMPRESSECOMPRESSED)
+                                              DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME_COMPRESSED)
         put_string_to_key(bucket,
                           target_filename,
                           None,
