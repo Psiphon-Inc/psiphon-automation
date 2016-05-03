@@ -1,0 +1,21 @@
+pt_BR:
+  title: Comentários Psiphon
+  top_content_title: Deixe Seus Comentários
+  top_para_1: |
+    Por favor nos conte como o Psiphon está funcionando para você, assim poderemos fazer um sistema melhor!
+  top_para_2: |
+    Muitos problemas podem ser corrigidos se você baixar a última versão.. Você pode baixar a última versão clicando <a class="NewVersionURL" href="#">aqui</a>, ou enviando um e-mail para <span id="NewVersionEmail"></span>.
+  top_para_3: |
+    Você também pode encontrar soluções para os problemas mais comuns na nossa seção de perguntas frequentes (FAQ): <a class="FaqURL" href="#">Frequently Asked Questions</a>.
+  diagnostic_check: |
+    Enviar dados para diagnósticos. Estes dados não te identificam e nos ajudará a fazer o Psiphon funcionar mais suavemente. <a class="DataCollectionInfoURL" href="#">Clique aqui para ver quais dados coletamos.</a>
+  smiley_title: Satisfação geral
+  smiley_happy: Psiphon se conecta da maneira que eu quero.
+  smiley_sad: Psiphon frequentemente falha para conectar ou a performance não é das melhores.
+  submit_button: Enviar
+  text_feedback_prompt: |
+    Por favor insira seus comentários aqui:
+  text_feedback_email_prompt: |
+    Se você desejar uma resposta nossa, por favor deixe seu endereço de e-mail:
+  text_feedback_bottom_para: |
+    Se o formulário acima não estiver funcionando, ou se você gostaria de enviar print de telas, por favor escreva para <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>.
