@@ -32,6 +32,7 @@ import random
 import optparse
 import operator
 import gzip
+import zlib
 import copy
 import subprocess
 import traceback
@@ -2165,6 +2166,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD,
                             '\n'.join(self.__get_encoded_server_list(propagation_channel.id)[0]))
 
+                    # compressed server_list
+                    # the entire file is compressed instead of just the payload
+                    # because the compressed payload would need to be base64 encoded
+                    # in the json contents of the file, losing compression
+                    remote_server_list_compressed = zlib.compress(remote_server_list)
+
                     # Build for each client platform
 
                     client_build_filenames = {
@@ -2221,6 +2228,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         [(build_filename, client_version, client_build_filenames[platform]),
                          (upgrade_filename, client_version, s3_upgrade_resource_name)],
                         remote_server_list,
+                        remote_server_list_compressed,
                         campaign.s3_bucket_name)
                     # Don't log this, too much noise
                     #campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))

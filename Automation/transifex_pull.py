@@ -61,7 +61,8 @@ known_resources = \
 
 def process_android_app_strings():
     langs = {'ar': 'ar', 'es': 'es', 'fa': 'fa', 'ru': 'ru', 'tk': 'tk',
-             'vi': 'vi', 'zh': 'zh', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr'}
+             'vi': 'vi', 'zh': 'zh', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr',
+             'pt_BR': 'pt-rBR'}
     process_resource('android-app-strings',
                      lambda lang: '../Android/app/src/main/res/values-%s/strings.xml' % lang,
                      None,
@@ -71,7 +72,8 @@ def process_android_app_strings():
 
 def process_android_library_strings():
     langs = {'ar': 'ar', 'es': 'es', 'fa': 'fa', 'ru': 'ru', 'tk': 'tk',
-             'vi': 'vi', 'zh': 'zh', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr'}
+             'vi': 'vi', 'zh': 'zh', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr',
+             'pt_BR': 'pt-rBR'}
     process_resource('android-library-strings',
                      lambda lang: '../Android/app/src/main/res/values-%s/psiphon_android_library_strings.xml' % lang,
                      None,
@@ -81,7 +83,8 @@ def process_android_library_strings():
 
 def process_android_app_browser_strings():
     langs = {'ar': 'ar', 'es': 'es', 'fa': 'fa', 'ru': 'ru', 'tk': 'tk',
-             'vi': 'vi', 'zh': 'zh', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr'}
+             'vi': 'vi', 'zh': 'zh', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr',
+             'pt_BR': 'pt-rBR'}
     process_resource('android-app-browser-strings',
                      lambda lang: '../Android/app/src/main/res/values-%s/zirco_browser_strings.xml' % lang,
                      None,
