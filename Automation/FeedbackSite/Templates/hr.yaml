@@ -1,0 +1,25 @@
+hr:
+  title: Povratne informacije o Psiphon-u
+  top_content_title: Dajte nam povratnu informaciju
+  top_para_1: |
+    Recite nam kako Vam Psiphon radi tako da možemo poboljšati sustav!
+  top_para_2: |
+    Mnogi problemi mogu biti otklonjeni preuzimanjem posljednje verzije. Možete
+    <a class="newVersionURL" href="#">preuzeti posljednju verziju ovdje</a>,
+    ili možete poslati email na <span id="newVersionEmail"></span>.
+  top_para_3: |
+    Također, možete pronaći riješenja za mnoge probleme među našim
+    <a class="faqURL" href="#"> Često postavljenim pitanjima</a>.
+  diagnostic_check: |
+    Postavite dijagnostičke podatke. Ovi dijagnostički podatci Vas ne identificiraju, i pomoći će nam da Psiphon nastvi raditi glatko.
+    <a class="dataCollectionInfoURL" href="#">Kliknite ovdje da vidite koje podatke skupljamo.</a>
+  smiley_title: Ukupno zadovoljstvo
+  smiley_happy: Psiphon se spaja i radi onako kako to i želim.
+  smiley_sad: Psiphon se često ne uspijeva spojiti ili ne radi dovoljno dobro.
+  submit_button: Podnesi
+  text_feedback_prompt: |
+    Unesite svoje komentare ovdje:
+  text_feedback_email_prompt: |
+    Ako želite da Vam odgovorimo, unesite svoju email adresu:
+  text_feedback_bottom_para: |
+    Ako gornji obrazac ne radi, ili bi htjeli poslati slike zaslona, pošaljite nam email na <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>

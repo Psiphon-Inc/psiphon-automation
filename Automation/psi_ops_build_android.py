@@ -51,7 +51,7 @@ FEEDBACK_SOURCE_ROOT = os.path.join('.', 'FeedbackSite')
 FEEDBACK_HTML_PATH = os.path.join(FEEDBACK_SOURCE_ROOT, 'feedback.html')
 PSIPHON_ASSETS = os.path.join(PSIPHON_SOURCE_ROOT, 'assets')
 
-ZIPALIGNED_APK_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'build', 'outputs', 'apk', 'PsiphonAndroid-release.apk')
+ZIPALIGNED_APK_FILENAME = os.path.join(SOURCE_ROOT, 'app', 'build', 'outputs', 'apk', 'PsiphonAndroid-release.apk')
 
 SIGNING_PROPERTIES_FILENAME =os.path.join(SOURCE_ROOT, 'signing.properties')
 VERSION_PROPERTIES_FILENAME =os.path.join(SOURCE_ROOT, 'version.properties')

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2013, Psiphon Inc.
+# Copyright (c) 2013 - 2016, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -19,8 +19,6 @@
 
 
 from collections import defaultdict
-import psycopg2
-import psi_ops_stats_credentials
 
 from mako.template import Template
 from mako.lookup import TemplateLookup
@@ -30,112 +28,47 @@ import pynliner
 import os
 import sys
 
+import json
+import datetime
+from time import time, mktime
+from elasticsearch import ConflictError, NotFoundError, ConnectionTimeout, Elasticsearch, helpers as esHelpers
+
+# Using the elasticsearch server enrty from a file
+sys.path.append(os.path.abspath(os.path.join('.', 'Query')))
+import psi_es_server_config as server_config
+
 # Using the FeedbackDecryptor's mail capabilities
 sys.path.append(os.path.abspath(os.path.join('..', 'EmailResponder')))
 sys.path.append(os.path.abspath(os.path.join('..', 'EmailResponder', 'FeedbackDecryptor')))
 import sender
 from config import config
 
+es = None
 
-windows_connections_by_region_template = '''
-select client_region, count(*) as connections
-from connected
-where timestamp between current_timestamp - interval '{0}' and current_timestamp - interval '{1}'
-and lower(client_platform) like 'windows%'
-group by client_region
-order by 2 desc
-;'''
+class ElasticsearchUnreachableException(Exception):
+    def __init__(self, passedHost):
+        self.passedHost = passedHost
 
+    def __unicode__(self):
+        return "The Elasticsearch cluster at '%s' is not reachable" % (self.passedHost)
 
-android_connections_by_region_template = '''
-select client_region, count(*) as connections
-from connected
-where timestamp between current_timestamp - interval '{0}' and current_timestamp - interval '{1}'
-and lower(client_platform) like 'android%'
-group by client_region
-order by 2 desc
-;'''
+    def __str__(self):
+        return unicode(self).encode("utf-8")
 
+# Main function to do the search based on query and time
+def _get_connected(query_files, index_param):
+    res = None
 
-windows_unique_users_by_region_template = '''
-select client_region, count(*) as uniques
-from connected
-where timestamp between
-  date_trunc('hour', current_timestamp) - interval '{0}' and
-  date_trunc('hour', current_timestamp) - interval '{1}'
-and last_connected < date_trunc('hour', current_timestamp) - interval '{0}'
-and lower(client_platform) like 'windows%'
-group by client_region
-order by 2 desc
-;'''
+    startTime = time()
+    print("[%s] Starting query - 30 minute timeout" % datetime.datetime.now())
 
 
-android_unique_users_by_region_template = '''
-select client_region, count(*) as uniques
-from connected
-where timestamp between
- date_trunc('hour', current_timestamp) - interval '{0}' and
- date_trunc('hour', current_timestamp) - interval '{1}'
-and last_connected < date_trunc('hour', current_timestamp) - interval '{0}'
-and lower(client_platform) like 'android%'
-group by client_region
-order by 2 desc
-;'''
-
-
-windows_page_views_by_region_template = '''
-select client_region, sum(viewcount) as page_views
-from page_views
-where timestamp between current_timestamp - interval '{0}' and current_timestamp - interval '{1}'
-and lower(client_platform) like 'windows%'
-group by client_region
-order by 2 desc
-;'''
-
-
-android_page_views_by_region_template = '''
-select client_region, sum(viewcount) as page_views
-from page_views
-where timestamp between current_timestamp - interval '{0}' and current_timestamp - interval '{1}'
-and lower(client_platform) like 'android%'
-group by client_region
-order by 2 desc
-;'''
-
-
-tables = [
-    (
-        'Windows Connections',
-        windows_connections_by_region_template,
-    ),
-    (
-        'Android Connections',
-        android_connections_by_region_template,
-    ),
-    (
-        'Windows Unique Users',
-        windows_unique_users_by_region_template,
-    ),
-    (
-        'Android Unique Users',
-        android_unique_users_by_region_template,
-    ),
-    (
-        'Windows Page Views',
-        windows_page_views_by_region_template,
-    ),
-    (
-        'Android Page Views',
-        android_page_views_by_region_template,
-    )
-]
-
-
-table_columns = [
-    ('Yesterday', '36 hours', '12 hours'),
-    ('1 week ago', '204 hours', '180 hours'),
-    ('Past Week', '180 hours', '12 hours'),
-]
+    # "query.json" is JSON object in a file that is a valid elasticsearch query
+    with open(query_files, 'r') as f:
+        query = json.load(f)
+        res = es.search(index=index_param, body=query, request_timeout=1800)
+        print("[%s] Finished in %.2fs" % (datetime.datetime.now(), round((time()-startTime), 2)))
+        return res['aggregations']
 
 
 def render_mail(data):
@@ -168,46 +101,44 @@ def render_mail(data):
 
 if __name__ == "__main__":
 
-    db_conn = psycopg2.connect(
-        'dbname=%s user=%s password=%s host=%s port=%d' % (
-            psi_ops_stats_credentials.POSTGRES_DBNAME,
-            psi_ops_stats_credentials.POSTGRES_USER,
-            psi_ops_stats_credentials.POSTGRES_PASSWORD,
-            psi_ops_stats_credentials.POSTGRES_HOST,
-            psi_ops_stats_credentials.POSTGRES_PORT))
-
     tables_data = {}
+    tables_data['table_columns'] = [
+        ('Yesterday', '36 hours', '12 hours'),
+        ('1 week ago', '204 hours', '180 hours'),
+        ('Past Week', '180 hours', '12 hours'),
+    ]
 
-    for table in tables:
+    server_entry = server_config.ELASTICSEARCH_SERVER_IP_ADDRESS + ':' + server_config.ELASTICSEARCH_SERVER_PORT
 
-        tables_data[table[0]] = {}
+    try:
+        es = Elasticsearch(hosts=[server_entry], retry_on_timeout=True, max_retries=3)
+        if not es.ping():
+            raise ElasticsearchUnreachableException(elasticsearch)
 
-        table_dict = {}
-        columns = []
-        for column in table_columns:
-            columns.append(column[0])
-            # Regions
-            cursor = db_conn.cursor()
-            cursor.execute(table[1].format(column[1], column[2]))
-            rows = cursor.fetchall()
-            cursor.close()
-            # Total
-            total = 0
-            for row in rows:
-                total += row[1]
-            rows.append(('Total', total))
-            for row in rows:
-                region = str(row[0])
-                if not region in table_dict:
-                    table_dict[region] = defaultdict(int)
-                table_dict[region][column[0]] = row[1]
+        # index_param = "psiphon-connected-{:%Y.%m.%d}".format(today)
+        # More eff way to query, only use 8 days index
+        index_connections = "psiphon-connected-*"
+        index_unique_users = "aggregated-connected-*"
+        index_page_views = "psiphon-page_views-*"
 
-        tables_data[table[0]]['headers'] = ['Region'] + columns
+        # Different query for Unique users and Connections
+        connections_result = _get_connected('./Query/query_connections.json', index_connections)
+        unique_users_result = _get_connected('./Query/query_unique_users.json', index_unique_users)
 
-        # Sorted by the last column, top 10 (+1 for the total row)
-        tables_data[table[0]]['data'] = sorted(table_dict.items(), key=lambda x: x[1][columns[-1]], reverse=True)[:11]
+        # Getting total number in all region
+        connections_total_result = _get_connected('./Query/query_connections_total.json', index_connections)
+        unique_users_total_result = _get_connected('./Query/query_unique_users_total.json', index_unique_users)
 
-    db_conn.close()
+        tables_data['connections'] = connections_result
+        tables_data['unique_users'] = unique_users_result
+        tables_data['connections_total'] = connections_total_result
+        tables_data['unique_users_total'] = unique_users_total_result
+
+        # page_views_result = _get_connected('query_page_views.json', index_page_views)
+        # print page_views_result
+
+    except ElasticsearchUnreachableException as e:
+        print("Could not initialize. The Elasticsearch cluster at '%s' is unavailable" % (e.passedHost))
 
     html_body = render_mail(tables_data)
 

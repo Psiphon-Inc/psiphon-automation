@@ -1,0 +1,21 @@
+ko:
+  title: Psiphon 피드백
+  top_content_title: 우리에게 피드백을 제공하세요
+  top_para_1: |
+    Psiphon Team 에게 당신의 디바이스에서 Psiphon이 작동하는 상태 정보를 보내면 Psiphon 을 더 좋은 시스템으로 발전 시킬 수 있습니다!
+  top_para_2: "많은 문제들이 새로운 버전에 고쳐져서 나옵니다. \n<a class=\"newVersionURL\" href=\"#\">여기를 눌러 최신 버전 다운로드</a>\n하거나 <span id=\"newVersionEmail\"></span> 주소로 요청하여 받을 수 있습니다.\n"
+  top_para_3: "흔히 일어나는 문제가 발생했다면 \n<a class=\"faqURL\" href=\"#\">자주 묻는 질문</a>에서 해결법을 찾아 볼 수 있습니다.\n"
+  diagnostic_check: |
+    진단 정보를 업로드하세요. 참고로 이 진단 정보는 어떠한 개인 식별 정보도 포함하지 않으며,
+    이 소중한 정보는 Psiphon이 부드럽게 작동할 수 있도록 도움을 줄 것입니다.
+    <a class="dataCollectionInfoURL" href="#">이곳</a>을 클릭하여 어떤 정보가 수집되는지 확인하세요.
+  smiley_title: 전반적으로 만족
+  smiley_happy: Psiphon이 잘 연결되며 원하는 대로 잘 작동하고 있습니다.
+  smiley_sad: Psiphon은 가끔 연결에 실패하거나 잘 작동하지 않을 때가 있습니다.
+  submit_button: 확인
+  text_feedback_prompt: |
+    여기에 코멘트 입력:
+  text_feedback_email_prompt: |
+    만약 회신을 받길 원한다면 이메일을 남겨주세요:
+  text_feedback_bottom_para: |
+    만약 위 폼이 작동하지 않을 경우, 또는 스크린샷을 첨부하고 싶은 경우, <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>로 이메일을 보내주세요.

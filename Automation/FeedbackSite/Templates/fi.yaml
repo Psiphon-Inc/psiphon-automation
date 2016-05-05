@@ -1,0 +1,11 @@
+fi:
+  title: Psiphon-palaute
+  top_content_title: Anna meille palautettasi
+  top_para_1: |
+    Kerro meille, kuinka Psiphon toimii, jotta voimme tehdä järjestelmä paremmaksi!
+  smiley_title: Kokonaistyytyväisyys
+  smiley_happy: Psiphon yhdistää ja suorittaa sillä kuin haluan.
+  smiley_sad: Psiphon usein epäonnisttuu yhdistämään tai ei suoriudu kyllin hyvin.
+  submit_button: Lähetä
+  text_feedback_prompt: |
+    Kirjoita kommenttisi tähän:
