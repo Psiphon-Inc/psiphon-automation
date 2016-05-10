@@ -112,7 +112,7 @@ def process_feedback_template_strings():
     shutil.copy2('./FeedbackSite/feedback.html',
                  '../Client/psiclient/feedback.html')
     shutil.copy2('./FeedbackSite/feedback.html',
-                 '../Android/PsiphonAndroid/assets/feedback.html')
+                 '../Android/app/src/main/assets/feedback.html')
 
 
 def process_feedback_auto_responses():
