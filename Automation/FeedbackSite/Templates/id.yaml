@@ -1,0 +1,25 @@
+id:
+  title: Kritik dan Saran Psiphon
+  top_content_title: Beri Kami Kritik dan Saran
+  top_para_1: |
+    Beritahu kami seperti apa kinerja Psiphon bagi Anda sehingga kami bisa menyempurnakannya!
+  top_para_2: |
+    Ada banyak masalah yang terselesaikan dengan mengunduh versi terbaru. Silakan
+    <a class="newVersionURL" href="#">klik di sini untuk mengunduh versi terbaru</a>,
+    kirim email ke <span id="newVersionEmail"></span>.
+  top_para_3: |
+    Temukan juga solusi masalah-masalah umum di daftar
+    <a class="faqURL" href="#">Tanya-Jawab</a> kami.
+  diagnostic_check: |
+    Unggah data diagnostik. Perlu dicatat bahwa data diagnostik ini tidak bersifat mengenali pribadi Anda dan akan membantu kami melancarkan kinerja Psiphon.
+    <a class="dataCollectionInfoURL" href="#">Klik di sini untuk mengetahui data yang kami kumpulkan</a>.
+  smiley_title: Tingkat kepuasan keseluruhan
+  smiley_happy: Psiphon tersambung dan berfungsi sesuai keinginan saya.
+  smiley_sad: Psiphon seringkali gagal menyambung atau tidak berfungsi sebagaimana mestinya.
+  submit_button: Kirim
+  text_feedback_prompt: |
+    Silakan berikan komentar Anda di sini:
+  text_feedback_email_prompt: |
+    Jika Anda ingin kami membalasnya, silakan masukkan alamat email Anda:
+  text_feedback_bottom_para: |
+    Jika formulir tidak berfungsi atau Anda ingin mengirim cuplikan layar, silakan kirim lewat email ke <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>

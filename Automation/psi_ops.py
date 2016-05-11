@@ -32,6 +32,7 @@ import random
 import optparse
 import operator
 import gzip
+import zlib
 import copy
 import subprocess
 import traceback
@@ -2074,58 +2075,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         test,
                         list(self.__android_home_tab_url_exclusions)) for platform in platforms]
 
-    '''
-    # DEFUNCT: Should we wish to use this function in the future, it will need
-    # to be heavily updated to work with the current data structures, etc.
-    def build_android_library(
-            self,
-            propagation_channel_name,
-            sponsor_name):
-
-        propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
-        sponsor = self.get_sponsor_by_name(sponsor_name)
-
-        campaigns = filter(lambda x: x.propagation_channel_id == propagation_channel.id, sponsor.campaigns)
-        assert campaigns
-
-        encoded_server_list, _ = \
-                    self.__get_encoded_server_list(propagation_channel.id)
-
-        remote_server_list_signature_public_key = \
-            psi_ops_crypto_tools.get_base64_der_public_key(
-                self.__get_remote_server_list_signing_key_pair().pem_key_pair,
-                REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD)
-
-        feedback_encryption_public_key = \
-            psi_ops_crypto_tools.get_base64_der_public_key(
-                self.get_feedback_encryption_key_pair().pem_key_pair,
-                self.get_feedback_encryption_key_pair().password)
-
-        feedback_upload_info = self.get_feedback_upload_info()
-
-        remote_server_list_url_split = psi_ops_s3.get_s3_bucket_resource_url_split(
-                                    campaign.s3_bucket_name,
-                                    psi_ops_s3.DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME)
-
-        info_link_url = psi_ops_s3.get_s3_bucket_home_page_url(campaigns[0].s3_bucket_name)
-        for plugin in plugins:
-            if hasattr(plugin, 'info_link_url'):
-                info_link_url = plugin.info_link_url(CLIENT_PLATFORM_ANDROID)
-
-        return psi_ops_build_android.build_library(
-                        propagation_channel.id,
-                        sponsor.id,
-                        encoded_server_list,
-                        remote_server_list_signature_public_key,
-                        remote_server_list_url_split,
-                        feedback_encryption_public_key,
-                        feedback_upload_info.upload_server,
-                        feedback_upload_info.upload_path,
-                        feedback_upload_info.upload_server_headers,
-                        info_link_url,
-                        self.__client_versions[CLIENT_PLATFORM_ANDROID][-1].version if self.__client_versions[CLIENT_PLATFORM_ANDROID] else 0)
-    '''
-
     def __make_upgrade_package_from_build(self, build_filename):
         with open(build_filename, 'rb') as f:
             data = f.read()
@@ -2202,9 +2151,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     # we embed the bucket URL in the build. The remote server
                     # list is placed in the S3 bucket.
 
-                    remote_server_list_url_split = psi_ops_s3.get_s3_bucket_resource_url_split(
+                    if platform == CLIENT_PLATFORM_WINDOWS:
+                        remote_server_list_url_split = psi_ops_s3.get_s3_bucket_resource_url_split(
                                                 campaign.s3_bucket_name,
                                                 psi_ops_s3.DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME)
+                    else:
+                        remote_server_list_url_split = psi_ops_s3.get_s3_bucket_resource_url_split(
+                                                campaign.s3_bucket_name,
+                                                psi_ops_s3.DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME_COMPRESSED)
 
                     info_link_url = psi_ops_s3.get_s3_bucket_home_page_url(campaign.s3_bucket_name)
                     for plugin in plugins:
@@ -2216,6 +2170,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             self.__get_remote_server_list_signing_key_pair().pem_key_pair,
                             REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD,
                             '\n'.join(self.__get_encoded_server_list(propagation_channel.id)[0]))
+
+                    # compressed server_list
+                    # the entire file is compressed instead of just the payload
+                    # because the compressed payload would need to be base64 encoded
+                    # in the json contents of the file, losing compression
+                    remote_server_list_compressed = zlib.compress(remote_server_list)
 
                     # Build for each client platform
 
@@ -2273,6 +2233,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         [(build_filename, client_version, client_build_filenames[platform]),
                          (upgrade_filename, client_version, s3_upgrade_resource_name)],
                         remote_server_list,
+                        remote_server_list_compressed,
                         campaign.s3_bucket_name)
                     # Don't log this, too much noise
                     #campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
