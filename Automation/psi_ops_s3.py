@@ -77,6 +77,7 @@ DOWNLOAD_SITE_UPGRADE_SUFFIX = '.upgrade'
 DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME = 'psiphon-client-version'
 
 DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME = 'server_list'
+DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME_COMPRESSED = 'server_list_compressed'
 
 DOWNLOAD_SITE_QR_CODE_KEY_NAME = 'images/android/android-download-qr.png'
 
@@ -304,7 +305,7 @@ def create_s3_website_bucket_name():
     return bucket_and_prefix
 
 
-def update_s3_download(aws_account, builds, remote_server_list, bucket_id):
+def update_s3_download(aws_account, builds, remote_server_list, remote_server_list_compressed, bucket_id):
     """Update the client builds and server list in the given bucket.
     Args:
         aws_account (object): Must have attributes access_id and secret_key.
@@ -340,6 +341,15 @@ def update_s3_download(aws_account, builds, remote_server_list, bucket_id):
                           True,
                           _progress)
 
+    if remote_server_list_compressed:
+        target_filename = _make_full_key_name(key_prefix,
+                                              DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME_COMPRESSED)
+        put_string_to_key(bucket,
+                          target_filename,
+                          None,
+                          remote_server_list_compressed,
+                          True,
+                          _progress)
 
 def update_website(aws_account, bucket_id, custom_site, website_dir,
                    website_banner_base64, website_banner_link,
