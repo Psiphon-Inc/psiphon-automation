@@ -2151,12 +2151,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     # we embed the bucket URL in the build. The remote server
                     # list is placed in the S3 bucket.
 
-                    if platform == CLIENT_PLATFORM_WINDOWS:
-                        remote_server_list_url_split = psi_ops_s3.get_s3_bucket_resource_url_split(
-                                                campaign.s3_bucket_name,
-                                                psi_ops_s3.DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME)
-                    else:
-                        remote_server_list_url_split = psi_ops_s3.get_s3_bucket_resource_url_split(
+                    remote_server_list_url_split = psi_ops_s3.get_s3_bucket_resource_url_split(
                                                 campaign.s3_bucket_name,
                                                 psi_ops_s3.DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME_COMPRESSED)
 
