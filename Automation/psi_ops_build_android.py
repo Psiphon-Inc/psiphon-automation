@@ -80,8 +80,8 @@ KEY_PASSWORD=%s
         signing_properties_file.write(signing_properties_contents)
 
     commands = [
-        '%s clean' %  GRADLE_WRAPPER,
-        '%s assembleRelease' %  GRADLE_WRAPPER,
+        '"%s" clean' %  GRADLE_WRAPPER,
+        '"%s" assembleRelease' %  GRADLE_WRAPPER,
         ]
 
     prev_dir = os.getcwd()
