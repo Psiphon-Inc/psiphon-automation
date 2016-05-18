@@ -1,1 +1,21 @@
-fr: {}
+fr:
+  plaintext_email_no_attachment: |
+    Téléchargez Psiphon ici : {{0}}/{0}/download.html#direct
+  html_email_no_attachment: |
+    <div style="direction: ltr;">
+    Télécharger Psiphon ici : <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
+  plaintext_email_with_attachment: |+
+    Pour utiliser Psiphon 3 pour Windows, enregistrez le fichier joint {{1}} avec une extension « .exe ».
+    Pour utiliser Psiphon 3 pour Android, installez le fichier joint {{2}}.
+    Pour plus d'informations ou pour télécharger le fichier de nouveau, cliquez sur le lien ci-dessous.
+    {{0}}/{0}/download.html#direct
+
+  html_email_with_attachment: |
+    <div style="direction: ltr;">
+    Pour utiliser Psiphon 3 pour Windows, enregistrez le fichier joint {{1}} avec une extension « .exe ».<br>
+    Pour utiliser Psiphon 3 pour Android, installez le fichier joint {{2}}.<br>
+    Pour plus d'informations ou pour télécharger le fichier de nouveau, cliquez sur le lien ci-dessous.<br>
+    <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
+    <br>

@@ -124,9 +124,9 @@ coalesce.test = coalesce_test
 # Very rudimentary, but sufficient
 ipv4_regex = re.compile(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})')
 
-# The min length of 26 is arbitrary, but must be longer than any other hex
+# The min length of 33 is arbitrary, but must be longer than any other hex
 # values that we want to leave intact (like the ID values).
-server_entry_regex = re.compile(r'([0-9A-Fa-f]{26,})')
+server_entry_regex = re.compile(r'([0-9A-Fa-f]{33,})')
 
 
 def convert_psinet_values(config, obj):

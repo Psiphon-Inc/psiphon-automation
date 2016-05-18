@@ -3,7 +3,7 @@ es:
     Descargar Psiphon desde: {{0}}/{0}/download.html#direct
   html_email_no_attachment: |
     <div style="direction: ltr;">
-    Descargar Psiphon aquí: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    Descargue Psiphon aquí: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
     </div>
   plaintext_email_with_attachment: |+
     Para usar Psiphon 3 para Windows, guarde el fichero adjunto {{1}} con una extensión ".exe".
