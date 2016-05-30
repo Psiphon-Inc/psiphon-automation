@@ -1,18 +1,18 @@
 ar:
   plaintext_email_no_attachment: |
-    العربي - {{0}}/{0}/index.html
+    نزّل سايفون بالضغط هنا:   {{0}}/{0}/download.html#direct
   html_email_no_attachment: |
     <div style="direction: rtl;">
-    العربي - <a href="{{0}}/{0}/index.html">{{0}}/{0}/index.html</a><br>
+    حمل سايفون هنا:<a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
     </div>
-  plaintext_email_with_attachment: |
-    لاستخدام برنامج Psiphon 3 لنظام التشغيل Windows، قم بحفظ الملف المرفق {{1}} ذو الامتداد ".exe".
-    لمزيد من المعلومات أو لإعادة تنزيل الملفات، انقر الرابط أدناه.
-    {{0}}/{0}/index.html
+  plaintext_email_with_attachment: "لإستعمال Psiphon 3 في ويندوز، إحفظ الملف المرفق بصيغة   {{1}}  \".exe\" extension.\nلإستعمال\
+    \  Psiphon 3 مع أندرويد، قم بتنزيل الملف المرفق   {{2}}.\nإذا كنت تريد المزيد من ألمعلومات أو لتنزيل الملفات من جديد إضغط على\
+    \ الرابط أدناه.  \n{{0}}/{0}/download.html#direct\n"
   html_email_with_attachment: |
     <div style="direction: rtl;">
-    لاستخدام برنامج Psiphon 3 لنظام التشغيل Windows، قم بحفظ الملف المرفق {{1}} ذو اللاحقه".exe".<br>
-    لمزيد من المعلومات أو لإعادة تنزيل الملفات، انقر الرابط أدناه.<br>
-    <a href="{{0}}/{0}/index.html">{{0}}/{0}/index.html</a><br>
+    لإستعمال Psiphon 3 في ويندوز، إحفظ الملف المرفق {{1}}  ".exe" بصيغة .<br>
+    لإستعمال  Psiphon 3 مع أندرويد، قم بتنزيل الملف المرفق  {{2}}.<br>
+    ذا كنت تريد المزيد من ألمعلومات أو لتنزيل الملفات من جديد إضغط على الرابط أدناه. <br>
+    <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
     </div>
     <br>

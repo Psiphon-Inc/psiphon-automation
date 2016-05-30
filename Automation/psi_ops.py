@@ -579,7 +579,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.36')) < 0:
             self.__vpsnet_account = VPSNetAccount()
             self.version = '0.36'
- 
+
     def initialize_plugins(self):
         for plugin in plugins:
             if hasattr(plugin, 'initialize'):
@@ -2151,12 +2151,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     # we embed the bucket URL in the build. The remote server
                     # list is placed in the S3 bucket.
 
-                    if platform == CLIENT_PLATFORM_WINDOWS:
-                        remote_server_list_url_split = psi_ops_s3.get_s3_bucket_resource_url_split(
-                                                campaign.s3_bucket_name,
-                                                psi_ops_s3.DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME)
-                    else:
-                        remote_server_list_url_split = psi_ops_s3.get_s3_bucket_resource_url_split(
+                    remote_server_list_url_split = psi_ops_s3.get_s3_bucket_resource_url_split(
                                                 campaign.s3_bucket_name,
                                                 psi_ops_s3.DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME_COMPRESSED)
 
@@ -2534,7 +2529,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             base_rsa_private_key=base_rsa_private_key, ssh_key_template_id=ssh_key_template_id)
 
     def set_vpsnet_account(self, account_id, api_key, api_base_url, base_ssh_port,
-                           base_root_password, base_stats_username, 
+                           base_root_password, base_stats_username,
                            base_cloud_id, base_system_template, base_ssd_plan):
         assert(self.is_locked)
         psi_utils.update_recordtype(
@@ -3118,11 +3113,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def __test_server(self, server, test_cases, version, test_propagation_channel_id, executable_path):
 
         return psi_ops_test_windows.test_server(
-                                server.ip_address,
-                                server.capabilities,
-                                server.web_server_port,
-                                server.web_server_secret,
-                                [self.__get_encoded_server_entry(server)],
+                                server,
+                                self.__hosts[server.host_id],
+                                self.__get_encoded_server_entry(server),
                                 self.__split_tunnel_url_format(),
                                 self.__split_tunnel_signature_public_key(),
                                 self.__split_tunnel_dns_server(),
@@ -3150,7 +3143,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         executable_path = None
         # We will need a build if no test_cases are specified (run all tests) or if at least one of the following are requested
         if ((not build_with_embedded_servers) and
-            (not test_cases or set(test_cases).intersection(set(['VPN', 'OSSH', 'SSH'])))):
+            ((True in [server.capabilities['VPN'] for server in servers])
+            and (not test_cases or set(test_cases).intersection(set(['VPN']))))):
             executable_path = psi_ops_build_windows.build_client(
                                     test_propagation_channel_id,
                                     '0',        # sponsor_id
@@ -3349,8 +3343,8 @@ if __name__ == "__main__":
     parser.add_option("-r", "--read-only", dest="readonly", action="store_true",
                       help="don't lock the network object")
     parser.add_option("-t", "--test", dest="test", action="append",
-                      choices=('handshake', 'VPN', 'OSSH', 'SSH'),
-                      help="specify once for each of: handshake, VPN, OSSH, SSH")
+                      choices=('handshake', 'VPN', 'OSSH', 'SSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTP-OSSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH'),
+                      help="specify once for each of: handshake, VPN, OSSH, SSH, FRONTED-MEEK-OSSH, FRONTED-MEEK-HTTP-OSSH, UNFRONTED-MEEK-OSSH, UNFRONTED-MEEK-HTTPS-OSSH")
     parser.add_option("-u", "--update-routes", dest="updateroutes", action="store_true",
                       help="update external signed routes files")
     parser.add_option("-p", "--prune", dest="prune", action="store_true",

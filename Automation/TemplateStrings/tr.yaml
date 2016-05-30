@@ -3,7 +3,7 @@ tr:
     Psiphon'u buradan indirin: {{0}}/{0}/download.html#direct
   html_email_no_attachment: |
     <div style="direction: ltr;">
-    Psiphon'u buradan indirin: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    Psiphon'ı buradan indirin: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
     </div>
   plaintext_email_with_attachment: |+
     Windows için Psiphon 3 kullanmak için, ekteki dosyayı {{1}} bir ".exe" uzantısı ile kaydedin.
