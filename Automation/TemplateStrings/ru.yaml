@@ -1,19 +1,20 @@
 ru:
   plaintext_email_no_attachment: |
-    Русский - {{0}}/{0}/index.html
+    Скачать Psiphon здесь: {{0}}/{0}/download.html#direct
   html_email_no_attachment: |
-    <div style="direction: ltr;"> Русский - <a href="{{0}}/{0}/index.html">{{0}}/{0}/index.html</a><br> </div>
-  plaintext_email_with_attachment: |+
-    Psiphon 3 для Windows - сохраните прикрепленный файл {{1}} с расширением ".exe".
-    Psiphon 3 для Windows - установите прикрепленный файл {{2}}.
-    Для получения дополнительной информации или скачивания файлов, кликните на ссылку:
-    {{0}}/{0}/index.html
-
+    <div style="direction: ltr;">
+    Скачать Psiphon здесь: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
+  plaintext_email_with_attachment: |
+    Чтобы использовать Psiphon 3 на Windows, сохраните прикрепленный файл {{1}} с расширением ".exe".
+    Чтобы использовать Psiphon 3 на Android, установите прикрепленный файл {{2}}.
+    Для получения подробной информации или для повторной загрузки файла нажмите ссылку ниже.
+    {{0}}/{0}/download.html#direct
   html_email_with_attachment: |
     <div style="direction: ltr;">
-    Psiphon 3 для Windows - сохраните прикрепленный файл {{1}} с расширением ".exe".<br>
-    Psiphon 3 для Windows - установите прикрепленный файл {{2}}.<br>
-    Для получения дополнительной информации или скачивания файлов, кликните на ссылку:<br>
-    <a href="{{0}}/{0}/index.html">{{0}}/{0}/index.html</a><br>
+    Чтобы использовать Psiphon 3 на Windows, сохраните прикрепленный файл {{1}} с расширением ".exe".<br>
+    Чтобы использовать Psiphon 3 на Android, установите прикрепленный файл {{2}}.<br>
+    Для получения подробной информации или для повторной загрузки файла нажмите ссылку ниже.<br>
+    <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
     </div>
     <br>
