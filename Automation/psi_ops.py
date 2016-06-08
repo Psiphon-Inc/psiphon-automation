@@ -32,6 +32,7 @@ import random
 import optparse
 import operator
 import gzip
+import zlib
 import copy
 import subprocess
 import traceback
@@ -578,7 +579,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.36')) < 0:
             self.__vpsnet_account = VPSNetAccount()
             self.version = '0.36'
- 
+
     def initialize_plugins(self):
         for plugin in plugins:
             if hasattr(plugin, 'initialize'):
@@ -2074,58 +2075,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         test,
                         list(self.__android_home_tab_url_exclusions)) for platform in platforms]
 
-    '''
-    # DEFUNCT: Should we wish to use this function in the future, it will need
-    # to be heavily updated to work with the current data structures, etc.
-    def build_android_library(
-            self,
-            propagation_channel_name,
-            sponsor_name):
-
-        propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
-        sponsor = self.get_sponsor_by_name(sponsor_name)
-
-        campaigns = filter(lambda x: x.propagation_channel_id == propagation_channel.id, sponsor.campaigns)
-        assert campaigns
-
-        encoded_server_list, _ = \
-                    self.__get_encoded_server_list(propagation_channel.id)
-
-        remote_server_list_signature_public_key = \
-            psi_ops_crypto_tools.get_base64_der_public_key(
-                self.__get_remote_server_list_signing_key_pair().pem_key_pair,
-                REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD)
-
-        feedback_encryption_public_key = \
-            psi_ops_crypto_tools.get_base64_der_public_key(
-                self.get_feedback_encryption_key_pair().pem_key_pair,
-                self.get_feedback_encryption_key_pair().password)
-
-        feedback_upload_info = self.get_feedback_upload_info()
-
-        remote_server_list_url_split = psi_ops_s3.get_s3_bucket_resource_url_split(
-                                    campaign.s3_bucket_name,
-                                    psi_ops_s3.DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME)
-
-        info_link_url = psi_ops_s3.get_s3_bucket_home_page_url(campaigns[0].s3_bucket_name)
-        for plugin in plugins:
-            if hasattr(plugin, 'info_link_url'):
-                info_link_url = plugin.info_link_url(CLIENT_PLATFORM_ANDROID)
-
-        return psi_ops_build_android.build_library(
-                        propagation_channel.id,
-                        sponsor.id,
-                        encoded_server_list,
-                        remote_server_list_signature_public_key,
-                        remote_server_list_url_split,
-                        feedback_encryption_public_key,
-                        feedback_upload_info.upload_server,
-                        feedback_upload_info.upload_path,
-                        feedback_upload_info.upload_server_headers,
-                        info_link_url,
-                        self.__client_versions[CLIENT_PLATFORM_ANDROID][-1].version if self.__client_versions[CLIENT_PLATFORM_ANDROID] else 0)
-    '''
-
     def __make_upgrade_package_from_build(self, build_filename):
         with open(build_filename, 'rb') as f:
             data = f.read()
@@ -2204,7 +2153,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
                     remote_server_list_url_split = psi_ops_s3.get_s3_bucket_resource_url_split(
                                                 campaign.s3_bucket_name,
-                                                psi_ops_s3.DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME)
+                                                psi_ops_s3.DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME_COMPRESSED)
 
                     info_link_url = psi_ops_s3.get_s3_bucket_home_page_url(campaign.s3_bucket_name)
                     for plugin in plugins:
@@ -2216,6 +2165,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             self.__get_remote_server_list_signing_key_pair().pem_key_pair,
                             REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD,
                             '\n'.join(self.__get_encoded_server_list(propagation_channel.id)[0]))
+
+                    # compressed server_list
+                    # the entire file is compressed instead of just the payload
+                    # because the compressed payload would need to be base64 encoded
+                    # in the json contents of the file, losing compression
+                    remote_server_list_compressed = zlib.compress(remote_server_list)
 
                     # Build for each client platform
 
@@ -2273,6 +2228,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         [(build_filename, client_version, client_build_filenames[platform]),
                          (upgrade_filename, client_version, s3_upgrade_resource_name)],
                         remote_server_list,
+                        remote_server_list_compressed,
                         campaign.s3_bucket_name)
                     # Don't log this, too much noise
                     #campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
@@ -2573,7 +2529,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             base_rsa_private_key=base_rsa_private_key, ssh_key_template_id=ssh_key_template_id)
 
     def set_vpsnet_account(self, account_id, api_key, api_base_url, base_ssh_port,
-                           base_root_password, base_stats_username, 
+                           base_root_password, base_stats_username,
                            base_cloud_id, base_system_template, base_ssd_plan):
         assert(self.is_locked)
         psi_utils.update_recordtype(
@@ -3157,11 +3113,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def __test_server(self, server, test_cases, version, test_propagation_channel_id, executable_path):
 
         return psi_ops_test_windows.test_server(
-                                server.ip_address,
-                                server.capabilities,
-                                server.web_server_port,
-                                server.web_server_secret,
-                                [self.__get_encoded_server_entry(server)],
+                                server,
+                                self.__hosts[server.host_id],
+                                self.__get_encoded_server_entry(server),
                                 self.__split_tunnel_url_format(),
                                 self.__split_tunnel_signature_public_key(),
                                 self.__split_tunnel_dns_server(),
@@ -3189,7 +3143,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         executable_path = None
         # We will need a build if no test_cases are specified (run all tests) or if at least one of the following are requested
         if ((not build_with_embedded_servers) and
-            (not test_cases or set(test_cases).intersection(set(['VPN', 'OSSH', 'SSH'])))):
+            ((True in [server.capabilities['VPN'] for server in servers])
+            and (not test_cases or set(test_cases).intersection(set(['VPN']))))):
             executable_path = psi_ops_build_windows.build_client(
                                     test_propagation_channel_id,
                                     '0',        # sponsor_id
@@ -3388,8 +3343,8 @@ if __name__ == "__main__":
     parser.add_option("-r", "--read-only", dest="readonly", action="store_true",
                       help="don't lock the network object")
     parser.add_option("-t", "--test", dest="test", action="append",
-                      choices=('handshake', 'VPN', 'OSSH', 'SSH'),
-                      help="specify once for each of: handshake, VPN, OSSH, SSH")
+                      choices=('handshake', 'VPN', 'OSSH', 'SSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTP-OSSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH'),
+                      help="specify once for each of: handshake, VPN, OSSH, SSH, FRONTED-MEEK-OSSH, FRONTED-MEEK-HTTP-OSSH, UNFRONTED-MEEK-OSSH, UNFRONTED-MEEK-HTTPS-OSSH")
     parser.add_option("-u", "--update-routes", dest="updateroutes", action="store_true",
                       help="update external signed routes files")
     parser.add_option("-p", "--prune", dest="prune", action="store_true",

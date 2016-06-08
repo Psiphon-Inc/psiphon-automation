@@ -32,34 +32,31 @@ from cogapp import Cog
 
 SOURCE_ROOT = os.path.join(os.path.abspath('..'), 'Android')
 
-PSIPHON_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'PsiphonAndroid')
-PSIPHON_LIB_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'PsiphonAndroidLibrary')
-ZIRCO_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'zirco-browser')
+GRADLE_WRAPPER = os.path.join(SOURCE_ROOT, 'gradlew')
 
-KEYSTORE_FILENAME = os.path.join(os.path.abspath('..'), 'Data', 'CodeSigning', 'test.keystore')
+PSIPHON_SOURCE_ROOT = os.path.join(SOURCE_ROOT, 'app', 'src', 'main')
+
+KEYSTORE_FILENAME = os.path.join(os.path.abspath('..'), 'Data', 'CodeSigning', 'android.test.keystore')
 KEYSTORE_ALIAS = 'psiphon'
 KEYSTORE_PASSWORD = 'password'
 
 BANNER_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'res', 'drawable', 'banner.png')
-EMBEDDED_VALUES_FILENAME = os.path.join(PSIPHON_LIB_SOURCE_ROOT, 'src', 'com', 'psiphon3', 'psiphonlibrary', 'EmbeddedValues.java')
-ANDROID_MANIFEST_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'AndroidManifest.xml')
+EMBEDDED_VALUES_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'java', 'com', 'psiphon3', 'psiphonlibrary', 'EmbeddedValues.java')
 
-LOCAL_PROPERTIES_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'local.properties')
-ZIPALIGNED_APK_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'bin', 'PsiphonAndroid-release.apk')
-
-LIB_FILENAME = 'PsiphonAndroidLibrary.jar'
 
 BUILDS_ROOT = os.path.join('.', 'Builds', 'Android')
 APK_FILENAME_TEMPLATE = 'PsiphonAndroid-%s-%s.apk'
-LIBS_ROOT = os.path.join('.', 'Builds', 'AndroidLibrary')
-LIB_FILENAME_TEMPLATE = 'PsiphonAndroidLibrary-%s-%s.jar'
 
 FEEDBACK_SOURCE_ROOT = os.path.join('.', 'FeedbackSite')
 FEEDBACK_HTML_PATH = os.path.join(FEEDBACK_SOURCE_ROOT, 'feedback.html')
 PSIPHON_ASSETS = os.path.join(PSIPHON_SOURCE_ROOT, 'assets')
 
-# if psi_build_config.py exists, load it and use psi_build_config.DATA_ROOT as the data root dir
+ZIPALIGNED_APK_FILENAME = os.path.join(SOURCE_ROOT, 'app', 'build', 'outputs', 'apk', 'PsiphonAndroid-release.apk')
 
+SIGNING_PROPERTIES_FILENAME =os.path.join(SOURCE_ROOT, 'signing.properties')
+VERSION_PROPERTIES_FILENAME =os.path.join(SOURCE_ROOT, 'version.properties')
+
+# if psi_build_config.py exists, load it and use psi_build_config.DATA_ROOT as the data root dir
 if os.path.isfile('psi_data_config.py'):
     import psi_data_config
     KEYSTORE_FILENAME = os.path.join(psi_data_config.DATA_ROOT, 'CodeSigning', psi_data_config.KEYSTORE_FILENAME)
@@ -69,30 +66,32 @@ if os.path.isfile('psi_data_config.py'):
 
 
 def build_apk():
+# Properties.load in the build script will drop single backslashes,
+# See http://docs.oracle.com/javase/6/docs/api/java/util/Properties.html#load(java.io.Reader)
+# Change them to forward slashes, see http://www.groovy-tutorial.org/basic-files/ "Paths" 
+    signing_properties_contents = '''
+STORE_FILE=%s
+STORE_PASSWORD=%s
+KEY_ALIAS=%s
+KEY_PASSWORD=%s
+''' % (KEYSTORE_FILENAME.replace('\\', '/'), KEYSTORE_PASSWORD, KEYSTORE_ALIAS, KEYSTORE_PASSWORD)
 
-    local_properties_contents = '''
-key.store=%s
-key.store.password=%s
-key.alias=%s
-key.alias.password=%s
-''' % (KEYSTORE_FILENAME, KEYSTORE_PASSWORD, KEYSTORE_ALIAS, KEYSTORE_PASSWORD)
-
-    with open(LOCAL_PROPERTIES_FILENAME, 'w') as local_properties_file:
-        local_properties_file.write(local_properties_contents)
+    with open(SIGNING_PROPERTIES_FILENAME, 'w') as signing_properties_file:
+        signing_properties_file.write(signing_properties_contents)
 
     commands = [
-        'android update lib-project -p "%s"' % (ZIRCO_SOURCE_ROOT,),
-        'android update lib-project -p "%s"' % (PSIPHON_LIB_SOURCE_ROOT,),
-        'android update project -p "%s"' % (PSIPHON_SOURCE_ROOT,),
-        'ant -q -f "%s" clean' % (os.path.join(ZIRCO_SOURCE_ROOT, 'build.xml'),),
-        'ant -q -f "%s" clean' % (os.path.join(PSIPHON_LIB_SOURCE_ROOT, 'build.xml'),),
-        'ant -q -f "%s" clean' % (os.path.join(PSIPHON_SOURCE_ROOT, 'build.xml'),),
-        'ant -q -f "%s" release' % (os.path.join(PSIPHON_SOURCE_ROOT, 'build.xml'),),
+        '"%s" clean' %  GRADLE_WRAPPER,
+        '"%s" assembleRelease' %  GRADLE_WRAPPER,
         ]
+
+    prev_dir = os.getcwd()
+    os.chdir(SOURCE_ROOT)
 
     for command in commands:
         if 0 != os.system(command):
+            os.chdir(prev_dir)
             raise Exception('build failed')
+    os.chdir(prev_dir)
 
 
 def write_embedded_values(propagation_channel_id,
@@ -145,16 +144,14 @@ def write_embedded_values(propagation_channel_id,
         print 'Cog failed with error: %d' % ret_error
         raise
 
+def write_version_properties(client_version):
+    version_properties_contents = '''
+VERSION_CODE=%s
+''' % client_version
 
-def write_android_manifest_version(client_version):
-    for line in fileinput.input(ANDROID_MANIFEST_FILENAME, inplace=1):
-        sys.stdout.write(
-            line.replace(
-                'android:versionCode=\"0\"',
-                'android:versionCode=\"%s\"' % (client_version,)).
-                    replace(
-                        'android:versionName=\"0.0\"',
-                        'android:versionName=\"%s\"' % (client_version,)))
+    with open(VERSION_PROPERTIES_FILENAME, 'w') as version_properties_file:
+        version_properties_file.write(version_properties_contents)
+
 
 
 def build_client(
@@ -185,15 +182,16 @@ def build_client(
 
     try:
         # Backup/restore original files minimize chance of checking values into source control
-        backup = psi_utils.TemporaryBackup([BANNER_FILENAME, ANDROID_MANIFEST_FILENAME])
+        backup = psi_utils.TemporaryBackup([BANNER_FILENAME, SIGNING_PROPERTIES_FILENAME, VERSION_PROPERTIES_FILENAME])
 
         # Write banner binary to file
         if banner:
             with open(BANNER_FILENAME, 'wb') as banner_file:
                 banner_file.write(banner)
 
-        # Overwrite version in Android manifest file
-        write_android_manifest_version(version)
+
+        # create version file for gradle to consume
+        write_version_properties(version)
 
         # overwrite embedded values source file
         write_embedded_values(
@@ -247,64 +245,4 @@ def build_client(
 
     finally:
         backup.restore_all()
-
-
-def build_library(
-        propagation_channel_id,
-        sponsor_id,
-        encoded_server_list,
-        remote_server_list_signature_public_key,
-        remote_server_list_url_split,
-        feedback_encryption_public_key,
-        feedback_upload_server,
-        feedback_upload_path,
-        feedback_upload_server_headers,
-        info_link_url,
-        version):
-
-    # NOTE: intentionally left broken until we actually use this again.
-
-    try:
-        # overwrite embedded values source file
-        write_embedded_values(
-            propagation_channel_id,
-            sponsor_id,
-            version,
-            encoded_server_list,
-            remote_server_list_signature_public_key,
-            remote_server_list_url_split,
-            feedback_encryption_public_key,
-            feedback_upload_server,
-            feedback_upload_path,
-            feedback_upload_server_headers,
-            info_link_url,
-            upgrade_signature_public_key,
-            upgrade_url,
-            get_new_version_url,
-            get_new_version_email,
-            faq_url,
-            privacy_policy_url,
-            propagator_managed_upgrades)
-
-        # TODO: clean the PSIPHON_LIB_SOURCE_ROOT directory of files that are not from source control
-
-        # create the jar
-        os.system('jar -cf %s -C %s .' % (LIB_FILENAME, PSIPHON_LIB_SOURCE_ROOT))
-
-        # rename and copy the jar file to Builds folder
-        if not os.path.exists(LIBS_ROOT):
-            os.makedirs(LIBS_ROOT)
-        build_destination_path = os.path.join(
-                                    LIBS_ROOT,
-                                    LIB_FILENAME_TEMPLATE % (propagation_channel_id,
-                                                             sponsor_id))
-        shutil.copyfile(LIB_FILENAME, build_destination_path)
-
-        print 'Build: SUCCESS'
-
-        return build_destination_path
-
-    except:
-        print 'Build: FAILURE'
-        raise
 
