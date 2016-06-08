@@ -491,7 +491,6 @@ def launch_new_server(digitalocean_account, _):
             instance of a psinet server
     """
     digitalocean_account.base_id = '17784624'
-    print(digitalocean_account)
     try:
         Droplet = collections.namedtuple('Droplet', ['name', 'region', 'image',
                                                      'size', 'backups'])
