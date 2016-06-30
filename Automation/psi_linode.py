@@ -170,7 +170,10 @@ def get_host_name(linode_account, ip_address):
     return ssh.exec_command('hostname').strip()
 
     
-def launch_new_server(linode_account, plugins):
+def launch_new_server(linode_account, is_TCS, plugins):
+
+    # TODO-TCS: select base image based on is_TCS flag
+
     linode_id = None
     linode_api = linode.api.Api(key=linode_account.api_key)
     
@@ -208,7 +211,7 @@ def launch_new_server(linode_account, plugins):
         # New: we'll leave this on now due to parallelization
         pass
 
-    return (hostname, None, str(linode_id), linode_ip_address,
+    return (hostname, is_TCS, None, str(linode_id), linode_ip_address,
             linode_account.base_ssh_port, 'root', new_root_password,
             ' '.join(new_host_public_key.split(' ')[:2]),
             linode_account.base_stats_username, new_stats_password,

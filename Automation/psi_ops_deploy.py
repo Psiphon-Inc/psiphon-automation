@@ -90,14 +90,24 @@ def run_in_parallel(thread_pool_size, function, arguments):
             raise result
 
 
-def deploy_implementation(host, discovery_strategy_value_hmac_key, plugins):
+def deploy_implementation(host, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
 
-    print 'deploy implementation to host %s...' % (host.id,)
+    print 'deploy implementation to host %s%s...' % (host.id, " (TCS) " if host.is_TCS else "", )
 
     ssh = psi_ssh.SSH(
                     host.ip_address, host.ssh_port,
                     host.ssh_username, host.ssh_password,
                     host.ssh_host_key)
+
+    if host.is_TCS:
+        deploy_TCS_implementation(ssh, host, TCS_psiphond_config_values)
+    else:
+        deploy_legacy_implementation(ssh, host, discovery_strategy_value_hmac_key, plugins)
+            
+    ssh.close()
+
+
+def deploy_legacy_implementation(ssh, host, discovery_strategy_value_hmac_key, plugins):
 
     # Copy server source code
 
@@ -184,16 +194,24 @@ def deploy_implementation(host, discovery_strategy_value_hmac_key, plugins):
     for plugin in plugins:
         if hasattr(plugin, 'deploy_implementation'):
             plugin.deploy_implementation(ssh)
-            
-    ssh.close()
-    
 
-def deploy_implementation_to_hosts(hosts, discovery_strategy_value_hmac_key, plugins):
+
+def deploy_TCS_implementation(ssh, host, TCS_psiphond_config_values):
+
+    # TODO-TCS: implement
+    # - pave psiphond.config
+    # - pave systemd unit environment file(s)
+    # - etc.
+
+    pass
+
+
+def deploy_implementation_to_hosts(hosts, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
     
     @retry_decorator_returning_exception
     def do_deploy_implementation(host):
         try:
-            deploy_implementation(host, discovery_strategy_value_hmac_key, plugins)
+            deploy_implementation(host, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values)
         except:
             print 'Error deploying implementation to host %s' % (host.id,)
             raise
@@ -202,14 +220,24 @@ def deploy_implementation_to_hosts(hosts, discovery_strategy_value_hmac_key, plu
     run_in_parallel(20, do_deploy_implementation, hosts)
 
 
-def deploy_data(host, host_data):
+def deploy_data(host, host_data, TCS_traffic_rules_set):
 
-    print 'deploy data to host %s...' % (host.id,)
+    print 'deploy data to host %s%s...' % (host.id, " (TCS) " if host.is_TCS else "", )
 
     ssh = psi_ssh.SSH(
                     host.ip_address, host.ssh_port,
                     host.ssh_username, host.ssh_password,
                     host.ssh_host_key)
+
+    if host.is_TCS:
+        deploy_legacy_data(ssh, host, host_data)
+    else:
+        deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set)
+
+    ssh.close()
+
+
+def deploy_legacy_data(ssh, host, host_data):
 
     # Stop server, if running, before replacing data file (command may fail)
     # Disable restarting the server through psi-check-services first
@@ -245,17 +273,26 @@ def deploy_data(host, host_data):
     
     ssh.exec_command('rm %s' % (psi_config.HOST_SERVER_STOPPED_LOCK_FILE,))
 
-    ssh.close()
-    
 
-def deploy_data_to_hosts(hosts, data_generator):
+def deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set):
+
+    # TODO-TCS: implement
+    # - pave psinet file
+    #   - write to temp file first and then rename after put_file succeeds?
+    # - pave traffic rules set file
+    # - send SIGUSR1 to Docker container
+
+    pass
+
+
+def deploy_data_to_hosts(hosts, data_generator, TCS_traffic_rules_set):
 
     @retry_decorator_returning_exception
     def do_deploy_data(host_and_data_generator):
         host = host_and_data_generator[0]
         host_data = host_and_data_generator[1](host.id)
         try:
-            deploy_data(host, host_data)
+            deploy_data(host, host_data, TCS_traffic_rules_set)
         except:
             print 'Error deploying data to host %s' % (host.id,)
             raise
@@ -264,6 +301,10 @@ def deploy_data_to_hosts(hosts, data_generator):
 
             
 def deploy_build(host, build_filename):
+
+    if host.is_TCS:
+        # This is obsolete
+        return
 
     print 'deploy %s build to host %s...' % (build_filename, host.id,)
 
@@ -296,6 +337,10 @@ def deploy_build_to_hosts(hosts, build_filename):
 
 
 def deploy_routes(host):
+
+    if host.is_TCS:
+        # This is obsolete
+        return
 
     print 'deploy routes to host %s...' % (host.id,)
 
@@ -330,6 +375,11 @@ def deploy_routes_to_hosts(hosts):
 
 
 def deploy_geoip_database_autoupdates(host):
+
+    # TODO-TCS: special TCS case
+    # - GeoIP v2
+    # - SIGUSR1 instead of restart
+    # - or, is this going in the base image?
 
     geo_ip_config_file = 'GeoIP.conf'
     if os.path.isfile(geo_ip_config_file):

@@ -197,7 +197,7 @@ SponsorRegex = psi_utils.recordtype(
 
 Host = psi_utils.recordtype(
     'Host',
-    'id, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key, ' +
+    'id, is_TCS, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key, ' +
     'stats_ssh_username, stats_ssh_password, ' +
     'datacenter_name, region, meek_server_port, meek_server_obfuscated_key, meek_server_fronting_domain, ' +
     'meek_server_fronting_host, alternate_meek_server_fronting_hosts, ' +
@@ -219,14 +219,14 @@ def ServerCapabilities():
     for capability in ('handshake', 'VPN', 'SSH', 'OSSH'):
         capabilities[capability] = True
     # These are disabled by default
-    for capability in ('FRONTED-MEEK', 'UNFRONTED-MEEK'):
+    for capability in ('ssh-api-requests', 'FRONTED-MEEK', 'UNFRONTED-MEEK'):
         capabilities[capability] = False
     return capabilities
 
 
 def copy_server_capabilities(caps):
     capabilities = {}
-    for capability in ('handshake', 'VPN', 'SSH', 'OSSH', 'FRONTED-MEEK', 'UNFRONTED-MEEK'):
+    for capability in ('handshake', 'ssh-api-requests', 'VPN', 'SSH', 'OSSH', 'FRONTED-MEEK', 'UNFRONTED-MEEK'):
         capabilities[capability] = caps[capability]
     return capabilities
 
@@ -315,6 +315,24 @@ RoutesSigningKeyPair = psi_utils.recordtype(
     'RoutesSigningKeyPair',
     'pem_key_pair, password')
 
+# The traffic rules set is a string containing a JSON representation of a TCS
+# TrafficRuleSet. This value is deployed to all TCS servers.
+# https://godoc.org/github.com/Psiphon-Labs/psiphon-tunnel-core/psiphon/server#TrafficRulesSet
+# https://godoc.org/github.com/Psiphon-Labs/psiphon-tunnel-core/psiphon/server#TrafficRules
+# https://godoc.org/github.com/Psiphon-Labs/psiphon-tunnel-core/psiphon/server#RateLimits
+TCSTrafficRulesSet = psi_utils.recordtype(
+    'TCSTrafficRulesSet',
+    'traffic_rules_set')
+
+# The psiphond config values is a list of string names and values that is used
+# when paving a psiphond config file for a TCS server. Any config value may be
+# included here, but deploy will override server-specific values; this is intended
+# to be used for network-wide operational values including DiscoveryValueHMACKey,
+# MeekProhibitedHeaders, and MeekProxyForwardedForHeaders.
+TCSPsiphondConfigValues = psi_utils.recordtype(
+    'TCSPsiphondConfigValues',
+    'psiphond_config_values')
+
 CLIENT_PLATFORM_WINDOWS = 'Windows'
 CLIENT_PLATFORM_ANDROID = 'Android'
 
@@ -371,10 +389,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__meek_fronting_disable_SNI = defaultdict(bool)
         self.__routes_signing_key_pair = None
 
+        self.__TCS_traffic_rules_set = None
+        self.__TCS_psiphond_config_values = None
+
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.36'
+    class_version = '0.37'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -579,6 +600,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.36')) < 0:
             self.__vpsnet_account = VPSNetAccount()
             self.version = '0.36'
+        if cmp(parse_version(self.version), parse_version('0.37')) < 0:
+
+            # This version adds TCS compatibility
+
+            # No existing hosts use the TCS stack
+            for host in self.__hosts.itervalues():
+                host.is_TCS = False
+
+            # Stub in valid, empty defaults
+            self.__TCS_traffic_rules_set = "{}"
+            self.__TCS_psiphond_config_values = {}
+
+            self.version = '0.37'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -788,7 +822,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         s = self.__servers[server_id]
         print textwrap.dedent('''
             Server:                  %s
-            Host:                    %s %s %s/%s
+            Host:                    %s%s %s %s/%s
             IP Address:              %s
             Region:                  %s
             Propagation Channel:     %s
@@ -799,6 +833,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             ''') % (
                 s.id,
                 s.host_id,
+                " (TCS)" if s.is_TCS else "",
                 self.__hosts[s.host_id].ip_address,
                 self.__hosts[s.host_id].ssh_username,
                 self.__hosts[s.host_id].ssh_password,
@@ -819,7 +854,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                    if self.__servers[s].host_id == host_id]
 
         print textwrap.dedent('''
-            Host ID:                 %(id)s
+            Host ID:                 %(id)s%(is_TCS)s
             Provider:                %(provider)s (%(provider_id)s)
             Datacenter:              %(datacenter_name)s
             IP Address:              %(ip_address)s
@@ -829,6 +864,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             Servers:                 %(servers)s
             ''') % {
                     'id': host.id,
+                    'is_TCS' : " (TCS)" if host.is_TCS else "",
                     'provider': host.provider,
                     'provider_id': host.provider_id,
                     'datacenter_name': host.datacenter_name,
@@ -1259,11 +1295,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     alternate_ssh_obfuscated_ports,
                     )
 
-    def import_host(self, id, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
+    def import_host(self, id, use_TCS, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
                     stats_ssh_username, stats_ssh_password):
         assert(self.is_locked)
         host = Host(
                 id,
+                use_TCS,
                 provider,
                 provider_id,
                 ip_address,
@@ -1416,7 +1453,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         def _launch_new_server(_):
             try:
-                return self.launch_new_server()
+                # TODO-TCS: select the TCS stack using some criteria such as a weighted random coin flip.
+                is_TCS = False
+                return self.launch_new_server(is_TCS)
             except:
                 return None
 
@@ -1461,6 +1500,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for server in new_servers:
             assert(server.id not in self.__servers)
             self.__servers[server.id] = server
+            # If the Host is TCS, the Server should have this capability
+            if host.is_TCS:
+                server.capabilities['ssh-api-requests'] = True
 
         psi_ops_deploy.deploy_data(
                             host,
@@ -1532,6 +1574,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for server in servers:
             assert(server.id not in self.__servers)
             self.__servers[server.id] = server
+            # If the Host is TCS, the Server should have this capability
+            if host.is_TCS:
+                server.capabilities['ssh-api-requests'] = True
 
         # Deploy will upload web server source database data and client builds
         # (Only deploying for the new host, not broadcasting info yet...)
@@ -1546,7 +1591,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for server in servers:
             self.test_server(server.id, ['handshake'])
 
-    def launch_new_server(self):
+    def launch_new_server(self, is_TCS):
         provider = self._weighted_random_choice(self.__provider_ranks).provider
 
         # This is pretty dirty. We should use some proper OO technique.
@@ -1570,19 +1615,20 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         print 'starting %s process (up to 20 minutes)...' % provider
 
         # Create a new cloud VPS
-        def provider_launch_new_server_with_retries():
+        def provider_launch_new_server_with_retries(is_TCS):
             for _ in range(3):
                 try:
-                    return provider_launch_new_server(provider_account, plugins)
+                    return provider_launch_new_server(provider_account, is_TCS, plugins)
                 except Exception as ex:
                     print str(ex)
             raise ex
 
-        server_info = provider_launch_new_server_with_retries()
+        server_info = provider_launch_new_server_with_retries(is_TCS)
         return server_info[0:1] + (provider.lower(),) + server_info[2:]
 
     def add_servers(self, server_infos, propagation_channel_name, discovery_date_range, replace_others=True, server_capabilities=None):
         assert(self.is_locked)
+
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
 
         # Embedded servers (aka "propagation servers") are embedded in client
@@ -1629,6 +1675,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 continue
             host = Host(*server_info)
 
+            host.is_TCS = server_info.is_TCS
+
             # NOTE: jsonpickle will serialize references to discovery_date_range, which can't be
             # resolved when unpickling, if discovery_date_range is used directly.
             # So create a copy instead.
@@ -1637,6 +1685,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             ssh_port = '22'
             ossh_port = random.choice([53, 443])
             capabilities = ServerCapabilities()
+
+            # All and only TCS servers support SSH API requests
+            capabilities['ssh-api-requests'] = is_TCS
+
             if server_capabilities:
                 capabilities = copy_server_capabilities(server_capabilities)
             elif discovery:
@@ -2432,13 +2484,42 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                json.dumps(emails, indent=2),
                                                False)  # not public
 
-    def add_server_version(self):
+    def add_legacy_server_version(self):
         assert(self.is_locked)
         # Marks all hosts for re-deployment of server implementation
         for host in self.__hosts.itervalues():
+            if host.is_TCS:
+                continue
             self.__deploy_implementation_required_for_hosts.add(host.id)
             host.log('marked for implementation deployment')
 
+    def set_TCS_traffic_rules_set(self, traffic_rules_set):
+        assert(self.is_locked)
+
+        # Check that the input is valid JSON
+        json.loads(traffic_rules_set)
+
+        self.__TCS_traffic_rules_set = traffic_rules_set
+
+        self.__deploy_data_required_for_all = True
+
+    def set_TCS_psiphond_config_values(self, psiphond_config_values):
+        assert(self.is_locked)
+        assert(isinstance(psiphond_config_values, dict))
+
+        self.__TCS_psiphond_config_values = psiphond_config_values
+
+        # TODO-TCS: stagger psiphond restarts
+        for host in self.__hosts.itervalues():
+            if host.is_TCS:
+                self.__deploy_implementation_required_for_hosts.add(host.id)
+
+    def add_TCS_server_version(self):
+        # TODO-TCS: implement
+        # - reboot all hosts; systemd pre-exec should pull latest psiphond Docker image
+        # - stagger psiphond restarts
+        pass
+    
     def add_client_version(self, platform, description):
         assert(self.is_locked)
         assert(platform in [CLIENT_PLATFORM_WINDOWS, CLIENT_PLATFORM_ANDROID])

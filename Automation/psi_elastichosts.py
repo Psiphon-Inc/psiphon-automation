@@ -61,7 +61,10 @@ class ElasticHosts(object):
         Driver = get_driver(getattr(Provider, self._account.zone))
         self._driver = Driver(self._account.uuid, self._account.api_key)
 
-    def launch_new_server(self, account, plugins):
+    def launch_new_server(self, account, is_TCS, plugins):
+
+        # TODO-TCS: select base image based on is_TCS flag
+
         # Note that we're using the libcloud API in a fairly bastardized way.
         # We're not using the real API at all (we've found that it doesn't work),
         # but we're using the connection object, because it makes our code a lot
@@ -174,7 +177,7 @@ class ElasticHosts(object):
         
         self._print('Complete')
         
-        return (random_name, None, str(server_id), ip_address,
+        return (random_name, is_TCS, None, str(server_id), ip_address,
                 ssh_info.port, ssh_info.username, new_root_password,
                 ' '.join(new_pub_key.split(' ')[:2]),
                 self._account.stats_username, new_stats_password,

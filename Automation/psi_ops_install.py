@@ -397,6 +397,14 @@ def generate_self_signed_certificate():
 
 def install_host(host, servers, existing_server_ids, plugins):
 
+    if host.is_TCS:
+        install_legacy_host(host, servers, existing_server_ids, plugins)
+    else:
+        install_TCS_host(host, servers, existing_server_ids)
+
+
+def install_legacy_host(host, servers, existing_server_ids, plugins):
+
     install_firewall_rules(host, servers, plugins)
     
     install_psi_limit_load(host, servers)
@@ -596,8 +604,63 @@ def install_host(host, servers, existing_server_ids, plugins):
     #psi_deploy.deploy(host)
     # NOTE: call psi_ops_deploy.deploy_host() to complete the install process
 
+
+def install_TCS_host(host, servers, existing_server_ids, plugins):
+
+    install_TCS_firewall_rules(host, servers, True)
+    
+    install_TCS_psi_limit_load(host, servers)
+
+    ssh = psi_ssh.SSH(
+            host.ip_address, host.ssh_port,
+            host.ssh_username, host.ssh_password,
+            host.ssh_host_key)
+
+    install_geoip_database(ssh)
+    
+    ssh.close()
+
+    # Generate server ID, web server key material, SSH key material
+    # See comments in install_legacy_host describing key formats.
+
+    for server in servers:
+
+        if server.id is None:
+            server.id = generate_unique_server_id(existing_server_ids)
+
+        if server.web_server_secret is None:
+            server.web_server_secret = generate_web_server_secret()
+
+        if (server.web_server_certificate is None
+            or server.web_server_private_key is None):
+            cert_pem, key_pem = generate_self_signed_certificate()
+            server.web_server_private_key = ''.join(key_pem.split('\n')[1:-2])
+            server.web_server_certificate = ''.join(cert_pem.split('\n')[1:-2])
+
+        if (server.ssh_username is None
+            or server.ssh_password is None):
+            server.ssh_username = 'psiphon_ssh_%s' % (
+                binascii.hexlify(os.urandom(SSH_RANDOM_USERNAME_SUFFIX_BYTE_LENGTH)),)
+            server.ssh_password = binascii.hexlify(os.urandom(SSH_PASSWORD_BYTE_LENGTH))
+
+        if server.ssh_host_key is None:
+            # TODO-TCS: generate SSH keys using directly using M2Crypto
+            pass
+
+        if server.ssh_obfuscated_port is not None:
+            if server.ssh_obfuscated_key is None:
+                server.ssh_obfuscated_key = binascii.hexlify(os.urandom(SSH_OBFUSCATED_KEY_BYTE_LENGTH))
+
     
 def install_firewall_rules(host, servers, plugins, do_blacklist=True):
+
+    if host.is_TCS:
+        install_legacy_firewall_rules(host, servers, plugins, do_blacklist)
+    else:
+        install_TCS_firewall_rules(host, servers, do_blacklist)
+
+
+def install_legacy_firewall_rules(host, servers, plugins, do_blacklist):
 
     iptables_rules_path = '/etc/iptables.rules'
     iptables_rules_contents = '''
@@ -815,8 +878,15 @@ iptables-restore < %s
     
     if do_blacklist:
         install_malware_blacklist(host)
-    
-    
+
+
+def install_TCS_firewall_rules(host, servers, do_blacklist):
+    # TODO-TCS: implement
+    # - mostly same as install_legacy_firewall_rules, except no VPN rules, no egress port rules,
+    #   and fewer internal routes (no redis, no tunneled web requests, no meek-to-ssh, etc.)
+    pass
+
+
 def install_malware_blacklist(host):
 
     psi_ip_blacklist = 'psi_ipblacklist.py'
@@ -843,6 +913,9 @@ def install_malware_blacklist(host):
     
 def install_geoip_database(ssh):
 
+    # TODO-TCS: special TCS case
+    # - GeoIP v2
+
     #
     # Upload the local GeoIP databases (if they exist)
     #
@@ -855,6 +928,14 @@ def install_geoip_database(ssh):
 
                          
 def install_psi_limit_load(host, servers):
+
+    if host.is_TCS:
+        install_legacy_psi_limit_load(host, servers)
+    else:
+        install_TCS_psi_limit_load(host, servers)
+
+
+def install_legacy_psi_limit_load(host, servers):
 
     # NOTE: only disabling SSH/OSSH/IKE since disabling the web server from external access
     #       would also prevent current VPN users from accessing the web server.
@@ -951,7 +1032,19 @@ exit 0
                      'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
                      'echo "* * * * * root %s" >> %s' % (psi_limit_load_host_path, cron_file))
 
-def install_user_count_and_log(host, servers): 
+
+def install_TCS_psi_limit_load(host, servers):
+    # TODO-TCS: implement
+    # - mostly same as install_legacy_psi_limit_load, except no VPN case and must block meek ports; and no xinet stop
+    pass
+
+
+def install_user_count_and_log(host, servers):
+
+    if host.is_TCS:
+        # This is obsolete
+        return
+
     server_details = {}
     for server in servers:
         server_details[server.id] = {"commands": {}, "fronted": server.capabilities["FRONTED-MEEK"]}
