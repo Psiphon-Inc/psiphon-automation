@@ -288,7 +288,7 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
         ('FRONTED-MEEK', TCS_FRONTED_MEEK_DOCKER_PORT),
         ('UNFRONTED-MEEK', TCS_UNFRONTED_MEEK_DOCKER_PORT),
         ('FRONTED-MEEK-HTTP', TCS_FRONTED_MEEK_HTTP_DOCKER_PORT),
-        ('UNFRONTED-MEEK-HTTPS' TCS_UNFRONTED_MEEK_HTTPS_DOCKER_PORT)
+        ('UNFRONTED-MEEK-HTTPS', TCS_UNFRONTED_MEEK_HTTPS_DOCKER_PORT)
     ]
 
     for (protocol, port) in protocols:
