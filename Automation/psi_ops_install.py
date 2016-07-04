@@ -607,6 +607,9 @@ def install_legacy_host(host, servers, existing_server_ids, plugins):
 
 def install_TCS_host(host, servers, existing_server_ids, plugins):
 
+    # Limitation: only one server per host currently implemented
+    assert(len(servers) == 1)
+
     install_TCS_firewall_rules(host, servers, True)
     
     install_TCS_psi_limit_load(host, servers)
@@ -881,10 +884,232 @@ iptables-restore < %s
 
 
 def install_TCS_firewall_rules(host, servers, do_blacklist):
+
+    # The TCS firewall rules are mostly the same as legacy except:
+    # - fewer internal rules (e.g., no badvpn-udpgw, redis, or CherryPy)
+    # - no VPN rules
+    # - no egress port rules (these are enforced in psiphond)
+
     # TODO-TCS: implement
-    # - mostly same as install_legacy_firewall_rules, except no VPN rules, no egress port rules,
-    #   and fewer internal routes (no redis, no tunneled web requests, no meek-to-ssh, etc.)
-    pass
+    # TODO-TCS: support multiple meek listeners
+
+
+    iptables_rules_path = '/etc/iptables.rules'
+    iptables_rules_contents = '''
+*filter
+    -A INPUT -i lo -p tcp -m tcp --dport 7300 -j ACCEPT
+    -A INPUT -i lo -p tcp -m tcp --dport 6379 -j ACCEPT
+    -A INPUT -i lo -p tcp -m tcp --dport 6000 -j ACCEPT''' + ''.join(
+    # tunneled OSSH
+    ['''
+    -A INPUT -i lo -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -j ACCEPT'''.format(
+            str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
+                if (s.capabilities['FRONTED-MEEK'] or s.capabilities['UNFRONTED-MEEK']) and s.ssh_obfuscated_port]) + ''.join(                
+    # tunneled web requests
+    ['''
+    -A INPUT -i lo -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers]) + '''
+    -A INPUT -d 127.0.0.0/8 ! -i lo -j DROP
+    -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+    -A INPUT -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT''' % (host.ssh_port,) + ''.join(
+    # meek server
+    ['''
+    -A INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -m limit --limit 1000/sec -j ACCEPT'''
+            % (str(s.internal_ip_address), str(host.meek_server_port)) for s in servers
+                if (s.capabilities['FRONTED-MEEK'] or s.capabilities['UNFRONTED-MEEK']) and host.meek_server_port]) + ''.join(
+    # web servers
+    ['''
+    -A INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers
+                if s.capabilities['handshake']]) + ''.join(
+    # SSH
+    ['''
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --set --name {2}
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --update --name {2} --seconds 60 --hitcount 3 -j DROP
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -j ACCEPT'''.format(
+            str(s.internal_ip_address), str(s.ssh_port),
+            'LIMIT-' + str(s.internal_ip_address).replace('.', '-') + '-' + str(s.ssh_port)) for s in servers
+                if s.capabilities['SSH']]) + ''.join(
+    # OSSH
+    ['''
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --set --name {2}
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -m recent --update --name {2} --seconds 60 --hitcount 3 -j DROP
+    -A INPUT -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -j ACCEPT'''.format(
+            str(s.internal_ip_address), str(s.ssh_obfuscated_port),
+            'LIMIT-' + str(s.internal_ip_address).replace('.', '-') + '-' + str(s.ssh_obfuscated_port)) for s in servers
+                if s.capabilities['OSSH']]) + ''.join(
+    # VPN
+    ['''
+    -A INPUT -d {0} -p esp -j ACCEPT
+    -A INPUT -d {0} -p ah -j ACCEPT
+    -A INPUT -d {0} -p udp --dport 500 -j ACCEPT
+    -A INPUT -d {0} -p udp --dport 4500 -j ACCEPT
+    -A INPUT -d {0} -i ipsec+ -p udp -m udp --dport l2tp -j ACCEPT'''.format(
+            str(s.internal_ip_address)) for s in servers
+                if s.capabilities['VPN']]) + '''
+    -A INPUT -p tcp -j REJECT --reject-with tcp-reset
+    -A INPUT -j DROP
+    -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 80,443,465,554,587,993,995,1935,5190,7070,8000,8001 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 80,443,465,554,587,993,995,1935,5190,7070,8000,8001 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 3478,5242,4244,9339 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 3478,5243,7985,9785 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 110,143,2560,8080,5060,5061,9180,25565 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 110,143,2560,8080,5060,5061,9180,25565 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 8.8.8.8 -p tcp --dport 53 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 8.8.8.8 -p udp --dport 53 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 8.8.4.4 -p tcp --dport 53 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 8.8.4.4 -p udp --dport 53 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 10.0.0.0/8 -j DROP
+    -A FORWARD -s 10.0.0.0/8 -j REJECT''' + ''.join(
+    # tunneled ossh requests
+    ['''
+    -A OUTPUT -d {0} -o lo -p tcp -m tcp --dport {1} -j ACCEPT
+    -A OUTPUT -s {0} -o lo -p tcp -m tcp --sport {1} -j ACCEPT'''.format(
+            str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
+                if s.ssh_obfuscated_port]) + ''.join(
+    # tunneled web requests (always provided, regardless of capabilities)
+    ['''
+    -A OUTPUT -d {0} -o lo -p tcp -m tcp --dport {1} -j ACCEPT
+    -A OUTPUT -s {0} -o lo -p tcp -m tcp --sport {1} -j ACCEPT'''.format(
+            str(s.internal_ip_address), str(s.web_server_port)) for s in servers]) + '''
+    -A OUTPUT -o lo -p tcp -m tcp --dport 7300 -j ACCEPT
+    -A OUTPUT -o lo -p tcp -m tcp --dport 6379 -m owner --uid-owner root -j ACCEPT
+    -A OUTPUT -o lo -p tcp -m tcp --dport 6000 -m owner --uid-owner root -j ACCEPT
+    -A OUTPUT -o lo -p tcp -m tcp --dport 6379 -m owner --uid-owner www-data -j ACCEPT
+    -A OUTPUT -o lo -p tcp -m tcp --sport 7300 -j ACCEPT
+    -A OUTPUT -o lo -p tcp -m tcp --sport 6379 -j ACCEPT
+    -A OUTPUT -o lo -p tcp -m tcp --sport 6000 -j ACCEPT
+    -A OUTPUT -o lo -j REJECT
+    -A OUTPUT -p tcp -m multiport --dports 53,80,443,465,554,587,993,995,1935,5190,7070,8000,8001 -j ACCEPT
+    -A OUTPUT -p udp -m multiport --dports 53,80,443,465,554,587,993,995,1935,5190,7070,8000,8001 -j ACCEPT
+    -A OUTPUT -p tcp -m multiport --dports 5222,5223,5224,5228,5229,5230,5269,14259 -j ACCEPT
+    -A OUTPUT -p udp -m multiport --dports 5222,5223,5224,5228,5229,5230,5269,14259 -j ACCEPT
+    -A OUTPUT -p tcp -m multiport --dports 3478,5242,4244,9339 -j ACCEPT
+    -A OUTPUT -p udp -m multiport --dports 3478,5243,7985,9785 -j ACCEPT
+    -A OUTPUT -p tcp -m multiport --dports 110,143,2560,8080,5060,5061,9180,25565 -j ACCEPT
+    -A OUTPUT -p udp -m multiport --dports 110,143,2560,8080,5060,5061,9180,25565 -j ACCEPT
+    -A OUTPUT -p udp -m udp --dport 123 -j ACCEPT
+    -A OUTPUT -p tcp -m tcp --sport %s -j ACCEPT''' % (host.ssh_port,) + ''.join(
+    # tunneled ossh requests on NATed servers
+    ['''
+    -A OUTPUT -d %s -p tcp -m tcp --dport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
+                if s.ssh_obfuscated_port and (s.ip_address != s.internal_ip_address)]) + ''.join(
+    # tunneled web requests on NATed servers don't go out lo
+    ['''
+    -A OUTPUT -d %s -p tcp -m tcp --dport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers
+                if s.ip_address != s.internal_ip_address]) + ''.join(
+    # meek server
+    ['''
+    -A OUTPUT -s %s -p tcp -m tcp --sport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(host.meek_server_port)) for s in servers
+                if host.meek_server_port]) + ''.join(
+    # web servers
+    ['''
+    -A OUTPUT -s %s -p tcp -m tcp --sport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers
+                if s.web_server_port]) + ''.join(
+    # SSH
+    ['''
+    -A OUTPUT -s %s -p tcp -m tcp --sport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.ssh_port)) for s in servers
+                if s.ssh_port]) + ''.join(
+    # OSSH
+    ['''
+    -A OUTPUT -s %s -p tcp -m tcp --sport %s -j ACCEPT'''
+            % (str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
+                if s.ssh_obfuscated_port]) + ''.join(
+    # VPN
+    ['''
+    -A OUTPUT -s {0} -p esp -j ACCEPT
+    -A OUTPUT -s {0} -p ah -j ACCEPT
+    -A OUTPUT -s {0} -p udp --sport 500 -j ACCEPT
+    -A OUTPUT -s {0} -p udp --sport 4500 -j ACCEPT
+    -A OUTPUT -s {0} -o ipsec+ -p udp -m udp --dport l2tp -j ACCEPT'''.format(
+            str(s.internal_ip_address)) for s in servers
+                if s.capabilities['VPN']]) + ''.join(
+    ['''
+    -A OUTPUT -s %s -p tcp -m tcp --tcp-flags ALL ACK,RST -j ACCEPT'''
+            % (str(s.internal_ip_address), ) for s in servers]) + '''
+    -A OUTPUT -j REJECT
+COMMIT
+
+*nat''' + ''.join(
+    # Port forward from 443 to web servers
+    # NOTE: exclude for servers with meek capability (or is fronted) and meek_server_port is 443
+    #       or OSSH is running on 443
+    ['''
+    -A PREROUTING -i eth+ -p tcp -d %s --dport 443 -j DNAT --to-destination :%s'''
+            % (str(s.internal_ip_address), str(s.web_server_port)) for s in servers
+                if s.capabilities['handshake']
+                and not (
+                    ((s.capabilities['FRONTED-MEEK'] or s.capabilities['UNFRONTED-MEEK']) and int(host.meek_server_port) == 443) or
+                    (s.capabilities['OSSH'] and int(s.ssh_obfuscated_port) == 443))]) + ''.join(
+    # Port forward alternate ports
+    ['''
+    -A PREROUTING -i eth+ -p tcp -d %s --dport %s -j DNAT --to-destination :%s'''
+            % (str(s.internal_ip_address), str(alternate), str(s.ssh_obfuscated_port))
+                for s in servers if s.alternate_ssh_obfuscated_ports
+                for alternate in s.alternate_ssh_obfuscated_ports]) + '''
+    -A POSTROUTING -s 10.0.0.0/8 -o eth+ -j MASQUERADE''' + ''.join(
+    # tunneled web requests on NATed servers need to be redirected to the servers' internal ip addresses
+    ['''
+    -A OUTPUT -p tcp -m tcp -d %s --dport %s -j DNAT --to-destination %s'''
+            % (str(s.ip_address), str(s.web_server_port), str(s.internal_ip_address)) for s in servers
+                if s.ip_address != s.internal_ip_address]) + '''
+COMMIT
+'''
+
+    for plugin in plugins:
+        if hasattr(plugin, 'iptables_rules_contents'):
+            iptables_rules_contents = plugin.iptables_rules_contents(host, servers)
+
+    # NOTE that we restart fail2ban after applying firewall rules because iptables-restore
+    # flushes iptables which will remove any chains and rules that fail2ban creates on starting up
+    if_up_script_path = '/etc/network/if-up.d/firewall'
+    if_up_script_contents = '''#!/bin/sh
+
+iptables-restore < %s
+/etc/init.d/fail2ban restart
+''' % (iptables_rules_path,)
+
+    ssh_ports = set([str(host.ssh_port)])
+    for server in servers:
+        ssh_ports.add(str(server.ssh_port)) if server.capabilities['SSH'] else None
+        ssh_ports.add(str(server.ssh_obfuscated_port)) if server.capabilities['OSSH'] else None
+    
+    fail2ban_local_path = '/etc/fail2ban/jail.local'
+    fail2ban_local_contents = textwrap.dedent('''
+        [ssh]
+        port    = {0}
+
+        [ssh-ddos]
+        port    = {0}
+        '''.format(','.join(ssh_ports)))
+        
+    meek_server_egress_ips = set([(str(s.egress_ip_address)) for s in servers
+            if (s.capabilities['FRONTED-MEEK'] or s.capabilities['UNFRONTED-MEEK'])])
+    if meek_server_egress_ips:
+        fail2ban_local_contents = textwrap.dedent('''
+        [DEFAULT]
+        ignoreip = 127.0.0.1/8 {0}
+        '''.format(' '.join(meek_server_egress_ips))) + fail2ban_local_contents
+        
+    ssh = psi_ssh.SSH(
+            host.ip_address, host.ssh_port,
+            host.ssh_username, host.ssh_password,
+            host.ssh_host_key)
+
+    ssh.exec_command('echo "%s" > %s' % (iptables_rules_contents, iptables_rules_path))
+    ssh.exec_command('echo "%s" > %s' % (if_up_script_contents, if_up_script_path))
+    ssh.exec_command('chmod +x %s' % (if_up_script_path,))
+    ssh.exec_command('echo "%s" > %s' % (fail2ban_local_contents, fail2ban_local_path))
+    ssh.exec_command(if_up_script_path)
+    ssh.close()
+    
+    if do_blacklist:
+        install_malware_blacklist(host)
 
 
 def install_malware_blacklist(host):
@@ -1034,9 +1259,101 @@ exit 0
 
 
 def install_TCS_psi_limit_load(host, servers):
-    # TODO-TCS: implement
-    # - mostly same as install_legacy_psi_limit_load, except no VPN case and must block meek ports; and no xinet stop
-    pass
+
+    # The TCS psi_limit_load is mostly the same as legacy except:
+    # - no VPN case
+    # - must block meek ports as meek doesn't connect through to SSH/OSSH ports
+    # - no equivilent to xinetd
+
+    # TODO-TCS: log to ELK
+    # TODO-TCS: support multiple meek listeners
+
+    rules = (
+    # SSH
+    [' INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j REJECT --reject-with tcp-reset'
+            % (str(s.internal_ip_address), str(s.ssh_port)) for s in servers
+                if s.capabilities['SSH']] +
+    # OSSH
+    [' INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j REJECT --reject-with tcp-reset'
+            % (str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
+                if s.ssh_obfuscated_port] +
+                
+    # meek
+    [' INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j REJECT --reject-with tcp-reset'
+            % (str(s.internal_ip_address), host.meek_server_port) for s in servers
+                if (s.capabilities['FRONTED-MEEK'] or s.capabilities['UNFRONTED-MEEK'])] )
+                
+    disable_services = '\n    '.join(['iptables -I' + rule for rule in rules])
+    
+    enable_services = '\n    '.join(['iptables -D' + rule for rule in rules])
+    
+    script = '''
+#!/bin/bash
+
+threshold_load_per_cpu=4
+threshold_mem=20
+threshold_swap=20
+
+while true; do
+    loaded_cpu=0
+    num_cpu=`grep 'model name' /proc/cpuinfo | wc -l`
+    threshold_cpu=$(($threshold_load_per_cpu * $num_cpu - 1))
+    load_cpu=`uptime | cut -d , -f 4 | cut -d : -f 2 | awk -F \. '{print $1}'`
+    if [ "$load_cpu" -ge "$threshold_cpu" ]; then
+        loaded_cpu=1
+        logger psi_limit_load: CPU load threshold reached.
+        break
+    fi
+
+    free=$(free | grep "buffers/cache" | awk '{print $4/($3+$4) * 100.0}')
+    loaded_mem=$(echo "$free<$threshold_mem" | bc)
+    if [ $loaded_mem -eq 1 ]; then
+        logger psi_limit_load: Free memory load threshold reached.
+    fi
+
+    loaded_swap=0
+    total_swap=$(free | grep "Swap" | awk '{print $2}')
+    if [ $total_swap -ne 0 ]; then
+        free_swap=$(free | grep "Swap" | awk '{print $4/$2 * 100.0}')
+        loaded_swap=$(echo "$free_swap<$threshold_swap" | bc)
+        if [ $loaded_swap -eq 1]; then
+            logger psi_limit_load: Swap threshold reached.
+        fi
+    fi
+    
+    break
+done
+
+if [ $loaded_cpu -eq 1 ] || [ $loaded_mem -eq 1 ] || [ $loaded_swap -eq 1 ]; then
+    %s
+    %s
+else
+    %s
+fi
+exit 0
+''' % (enable_services, disable_services, enable_services)
+
+    ssh = psi_ssh.SSH(
+            host.ip_address, host.ssh_port,
+            host.ssh_username, host.ssh_password,
+            host.ssh_host_key)
+
+    ssh.exec_command('apt-get install -y bc')
+            
+    psi_limit_load_host_path = '/usr/local/sbin/psi_limit_load'
+
+    file = tempfile.NamedTemporaryFile(delete=False)
+    file.write(script)
+    file.close()
+    ssh.put_file(file.name, psi_limit_load_host_path)
+    os.remove(file.name)
+
+    ssh.exec_command('chmod +x %s' % (psi_limit_load_host_path,))
+    
+    cron_file = '/etc/cron.d/psi-limit-load'
+    ssh.exec_command('echo "SHELL=/bin/sh" > %s;' % (cron_file,) +
+                     'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
+                     'echo "* * * * * root %s" >> %s' % (psi_limit_load_host_path, cron_file))
 
 
 def install_user_count_and_log(host, servers):

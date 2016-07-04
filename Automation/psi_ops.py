@@ -325,8 +325,8 @@ TCSTrafficRulesSet = psi_utils.recordtype(
     'traffic_rules_set')
 
 # The psiphond config values is a list of string names and values that is used
-# when paving a psiphond config file for a TCS server. Any config value may be
-# included here, but deploy will override server-specific values; this is intended
+# when paving a psiphond config file for a TCS server. Any config item may be
+# included here, but deploy will override server-specific items; this is intended
 # to be used for network-wide operational values including DiscoveryValueHMACKey,
 # MeekProhibitedHeaders, and MeekProxyForwardedForHeaders.
 TCSPsiphondConfigValues = psi_utils.recordtype(
@@ -1555,7 +1555,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         servers = [s for s in self.__servers.itervalues() if s.host_id == host.id]
         psi_ops_install.install_firewall_rules(host, servers, plugins, False) # No need to update the malware blacklist
         psi_ops_install.install_psi_limit_load(host, servers)
-        psi_ops_deploy.deploy_implementation(host, self.__discovery_strategy_value_hmac_key, plugins)
+        psi_ops_deploy.deploy_implementation(host, servers, self.__discovery_strategy_value_hmac_key, plugins)
         if host.is_TCS:
             psi_ops_deploy.deploy_data(
                                 host,
@@ -1590,7 +1590,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # Deploy will upload web server source database data and client builds
         # (Only deploying for the new host, not broadcasting info yet...)
-        psi_ops_deploy.deploy_implementation(host, self.__discovery_strategy_value_hmac_key, plugins)
+        psi_ops_deploy.deploy_implementation(host, servers, self.__discovery_strategy_value_hmac_key, plugins)
         # If the Host is TCS, deploy data for tunnel-core-server
         if host.is_TCS:
             psi_ops_deploy.deploy_data(
@@ -1872,7 +1872,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         host = self.__hosts[host_id]
         servers = [server for server in self.__servers.itervalues() if server.host_id == host_id]
         psi_ops_install.install_host(host, servers, self.get_existing_server_ids(), plugins)
-        psi_ops_deploy.deploy_implementation(host, self.__discovery_strategy_value_hmac_key, plugins)
+        psi_ops_deploy.deploy_implementation(host, servers, self.__discovery_strategy_value_hmac_key, plugins)
         # New data might have been generated
         # NOTE that if the client version has been incremented but a full deploy has not yet been run,
         # this following psi_ops_deploy.deploy_data call is not safe.  Data will specify a new version
@@ -2566,7 +2566,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def deploy_implementation_and_data_for_host_with_server(self, server_id):
         server = filter(lambda x: x.id == server_id, self.__servers.itervalues())[0]
         host = filter(lambda x: x.id == server.host_id, self.__hosts.itervalues())[0]
-        psi_ops_deploy.deploy_implementation(host, self.__discovery_strategy_value_hmac_key, plugins)
+        servers = [server for server in self.__servers.itervalues() if server.host_id == host_id]
+        psi_ops_deploy.deploy_implementation(host, servers, self.__discovery_strategy_value_hmac_key, plugins)
         psi_ops_deploy.deploy_data(host, self.__compartmentalize_data_for_host(host.id))
 
     def deploy_implementation_and_data_for_propagation_channel(self, propagation_channel_name):

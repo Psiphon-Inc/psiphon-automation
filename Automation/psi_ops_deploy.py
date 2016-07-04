@@ -34,7 +34,7 @@ sys.path.insert(0, os.path.abspath(os.path.join('..', 'Server')))
 import psi_config
 
 
-#==== Deploy File Locations  ==================================================
+#==== Legacy Deploy File Locations  ===========================================
 
 BUILDS_ROOT = os.path.join('.', 'Builds')
 
@@ -66,6 +66,24 @@ SOURCE_FILES = [
      ])
 ]
 
+#==== TCS Configuration =======================================================
+
+TCS_PSIPHOND_CONFIG_FILE_NAME = '/opt/psiphond/psiphond.config'
+TCS_PSIPHOND_LOG_FILE_NAME = '/opt/psiphond/psiphond.config'
+TCS_TRAFFIC_RULES_FILE_NAME = '/opt/psiphond/traffic-rules.config'
+TCS_PSINET_FILE_NAME = '/opt/psiphond/psinet.json'
+# TODO-TCS: finalize GeoIP filename
+TCS_GEOIP_DATABASE_FILE_NAME = '/usr/local/share/GeoIP/...'
+
+TCS_DOCKER_WEB_SERVER_PORT = 3000
+TCS_SSH_DOCKER_PORT = 3001
+TCS_OSSH_DOCKER_PORT = 3002
+TCS_FRONTED_MEEK_DOCKER_PORT = 3003
+TCS_UNFRONTED_MEEK_DOCKER_PORT = 3004
+TCS_FRONTED_MEEK_HTTP_DOCKER_PORT = 3005
+TCS_UNFRONTED_MEEK_HTTPS_DOCKER_PORT = 3006
+
+
 #==============================================================================
 
 
@@ -90,7 +108,7 @@ def run_in_parallel(thread_pool_size, function, arguments):
             raise result
 
 
-def deploy_implementation(host, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
+def deploy_implementation(host, servers, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
 
     print 'deploy implementation to host %s%s...' % (host.id, " (TCS) " if host.is_TCS else "", )
 
@@ -100,7 +118,7 @@ def deploy_implementation(host, discovery_strategy_value_hmac_key, plugins, TCS_
                     host.ssh_host_key)
 
     if host.is_TCS:
-        deploy_TCS_implementation(ssh, host, TCS_psiphond_config_values)
+        deploy_TCS_implementation(ssh, host, servers, TCS_psiphond_config_values)
     else:
         deploy_legacy_implementation(ssh, host, discovery_strategy_value_hmac_key, plugins)
 
@@ -196,14 +214,110 @@ def deploy_legacy_implementation(ssh, host, discovery_strategy_value_hmac_key, p
             plugin.deploy_implementation(ssh)
 
 
-def deploy_TCS_implementation(ssh, host, TCS_psiphond_config_values):
+def deploy_TCS_implementation(ssh, host, servers, TCS_psiphond_config_values):
 
-    # TODO-TCS: implement
-    # - pave psiphond.config
-    # - pave systemd unit environment file(s)
-    # - etc.
+    # Limitation: only one server per host currently implemented
+    assert(len(servers) == 1)
+    server = servers[0]
 
-    pass
+    # Upload psiphond.config
+
+    put_file_with_content(
+        ssh,
+        make_psiphond_config(host, server, TCS_psiphond_config_values),
+        psi_config.TCS_PSIPHOND_CONFIG_FILE_NAME)
+
+    # TODO-TCS: pave systemd unit environment file(s), enable unit
+
+
+def make_psiphond_config(host, server, TCS_psiphond_config_values):
+
+    # TODO-TCS: support multiple meek listeners
+
+    config = {}
+
+    config['LogLevel'] = 'warning'
+
+    config['LogFilename'] = TCS_PSIPHOND_LOG_FILE_NAME
+
+    config['Fail2BanFormat'] = 'Authentication failure for psiphon-client from %s'
+
+    config['DiscoveryValueHMACKey'] = TCS_psiphond_config_values['DiscoveryValueHMACKey']
+
+    config['GeoIPDatabaseFilename'] = ...
+
+    config['PsinetDatabaseFilename'] = TCS_PSINET_FILE_NAME
+
+    config["TrafficRulesFilename"] = TCS_TRAFFIC_RULES_FILE_NAME
+
+    config["LoadMonitorPeriodSeconds"] = 300
+
+    config["UDPInterceptUdpgwServerAddress"] = '127.0.0.1:7300'
+    # TODO-TCS: remove this item once psiphond uses local host DNS server
+    config["UDPForwardDNSServerAddress"] = '8.8.8.8:53'
+
+    config['HostID'] = host.id
+
+    config['ServerIPAddress'] = server.ip_address
+
+    config['WebServerPort'] = TCS_DOCKER_WEB_SERVER_PORT
+    config['WebServerSecret'] = server.web_server_secret
+    config['WebServerCertificate'] = server.web_server_certificate
+    config['WebServerPrivateKey'] = server.web_server_private_key
+
+    config['SSHPrivateKey'] = server.ssh_host_key
+    config['SSHServerVersion'] = TCS_psiphond_config_values['SSHServerVersion']
+    config['SSHUserName'] = server.ssh_username
+    config['SSHPassword'] = server.ssh_password
+
+    if server.capabilities['OSSH'] or server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK']:
+        config['ObfuscatedSSHKey'] = server.ssh_obfuscated_key
+
+    if server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK']:
+        config['MeekCookieEncryptionPrivateKey'] = host.meek_cookie_encryption_private_key
+        config['MeekObfuscatedKey'] = host.meek_server_obfuscated_key
+        config['MeekCertificateCommonName'] = TCS_psiphond_config_values['MeekCertificateCommonName']
+        config['MeekProhibitedHeaders'] = TCS_psiphond_config_values['MeekProhibitedHeaders']
+        config['MeekProxyForwardedForHeaders'] = TCS_psiphond_config_values['MeekProxyForwardedForHeaders']
+
+    config['TunnelProtocolPorts'] = {}
+
+    TCS_protocols = [
+        ('SSH', TCS_SSH_DOCKER_PORT),
+        ('OSSH', TCS_OSSH_DOCKER_PORT),
+        ('FRONTED-MEEK', TCS_FRONTED_MEEK_DOCKER_PORT),
+        ('UNFRONTED-MEEK', TCS_UNFRONTED_MEEK_DOCKER_PORT),
+        ('FRONTED-MEEK-HTTP', TCS_FRONTED_MEEK_HTTP_DOCKER_PORT),
+        ('UNFRONTED-MEEK-HTTPS' TCS_UNFRONTED_MEEK_HTTPS_DOCKER_PORT)
+    ]
+
+    for (protocol, port) in protocols:
+        if supports_protocol(host, server, protocol):
+            config['TunnelProtocolPorts'][protocol] = port
+
+    return json.dumps(config)
+
+
+def supports_protocol(host, server, protocol):
+    if protocol == 'SSH':
+        return server.capabilities['SSH']
+
+    if protocol == 'OSSH':
+        return server.capabilities['OSSH']
+
+    if protocol == 'FRONTED-MEEK':
+        return server.capabilities['FRONTED-MEEK']
+
+    if protocol == 'UNFRONTED-MEEK':
+        return server.capabilities['UNFRONTED-MEEK'] and not int(host.meek_server_port) == 443
+
+    if protocol == 'FRONTED-MEEK-HTTP':
+        return server.capabilities['FRONTED-MEEK'] and host.alternate_meek_server_fronting_hosts
+
+    if protocol == 'UNFRONTED-MEEK-HTTPS':
+        return server.capabilities['UNFRONTED-MEEK'] and int(host.meek_server_port) == 443
+
+    assert(False)
 
 
 def deploy_implementation_to_hosts(hosts, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
@@ -276,21 +390,28 @@ def deploy_legacy_data(ssh, host, host_data):
 
 def deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set):
 
-    # TODO-TCS: implement
-    # - pave traffic rules set file
-    # - send SIGUSR1 to Docker container
-    # - trigger hot-reload
-
-    # Write data file
+    # Upload psinet file
     # We upload a compartmentalized version of the master file
+
+    put_file_with_content(ssh, host_data, TCS_PSINET_FILE_NAME)
+
+    # Upload traffic rules file 
+
+    put_file_with_content(ssh, TCS_traffic_rules_set, TCS_TRAFFIC_RULES_FILE_NAME)
+
+    # TODO-TCS: send SIGUSR1 to Docker container to trigger hot-reload
+
+
+def put_file_with_content(ssh, content, destination_path):
+
+    # TODO-TCS: more robust to write to remote temp file and
+    # rename only after successfully uploaded?
 
     file = tempfile.NamedTemporaryFile(delete=False)
     try:
-        file.write(host_data)
+        file.write(content)
         file.close()
-        ssh.exec_command('mkdir -p %s' % (
-                posixpath.split(psi_config.TCS_DATA_FILE_NAME)[0],))
-        ssh.put_file(file.name, psi_config.TCS_DATA_FILE_NAME)
+        ssh.put_file(file.name, destination_path)
     finally:
         try:
             os.remove(file.name)
