@@ -1504,9 +1504,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if host.is_TCS:
                 server.capabilities['ssh-api-requests'] = True
 
-        psi_ops_deploy.deploy_data(
-                            host,
-                            self.__compartmentalize_data_for_host(host.id))
+        if host.is_TCS:
+            psi_ops_deploy.deploy_data(
+                                host,
+                                self.__compartmentalize_data_for_tcs(host.id))
+        else:
+            psi_ops_deploy.deploy_data(
+                                host,
+                                self.__compartmentalize_data_for_host(host.id))
 
         for server in servers_on_host:
             self.test_server(server.id, ['handshake'])
@@ -1551,9 +1556,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         psi_ops_install.install_firewall_rules(host, servers, plugins, False) # No need to update the malware blacklist
         psi_ops_install.install_psi_limit_load(host, servers)
         psi_ops_deploy.deploy_implementation(host, self.__discovery_strategy_value_hmac_key, plugins)
-        psi_ops_deploy.deploy_data(
-                            host,
-                            self.__compartmentalize_data_for_host(host.id))
+        if host.is_TCS:
+            psi_ops_deploy.deploy_data(
+                                host,
+                                self.__compartmentalize_data_for_tcs(host.id))
+        else:
+            psi_ops_deploy.deploy_data(
+                                host,
+                                self.__compartmentalize_data_for_host(host.id))
 
     def setup_server(self, host, servers):
         # Install Psiphon 3 and generate configuration values
@@ -1581,9 +1591,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Deploy will upload web server source database data and client builds
         # (Only deploying for the new host, not broadcasting info yet...)
         psi_ops_deploy.deploy_implementation(host, self.__discovery_strategy_value_hmac_key, plugins)
-        psi_ops_deploy.deploy_data(
-                            host,
-                            self.__compartmentalize_data_for_host(host.id))
+        # If the Host is TCS, deploy data for tunnel-core-server
+        if host.is_TCS:
+            psi_ops_deploy.deploy_data(
+                                host,
+                                self.__compartmentalize_data_for_tcs(host.id))
+        else:
+            psi_ops_deploy.deploy_data(
+                                host,
+                                self.__compartmentalize_data_for_host(host.id))
         psi_ops_deploy.deploy_geoip_database_autoupdates(host)
         psi_ops_deploy.deploy_routes(host)
         host.log('initial deployment')
@@ -1861,7 +1877,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # NOTE that if the client version has been incremented but a full deploy has not yet been run,
         # this following psi_ops_deploy.deploy_data call is not safe.  Data will specify a new version
         # that is not yet available on servers (infinite download loop).
-        psi_ops_deploy.deploy_data(
+        if host.is_TCS:
+            psi_ops_deploy.deploy_data(
+                                host,
+                                self.__compartmentalize_data_for_tcs(host.id))
+        else:
+            psi_ops_deploy.deploy_data(
                                 host,
                                 self.__compartmentalize_data_for_host(host.id))
         host.log('reinstall')
@@ -2519,7 +2540,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # - reboot all hosts; systemd pre-exec should pull latest psiphond Docker image
         # - stagger psiphond restarts
         pass
-    
+
     def add_client_version(self, platform, description):
         assert(self.is_locked)
         assert(platform in [CLIENT_PLATFORM_WINDOWS, CLIENT_PLATFORM_ANDROID])
@@ -3067,6 +3088,155 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     speed_test_url.request_path))
 
         return jsonpickle.encode(copy)
+
+    def __json_serializer(self, obj):
+        # JSON serializer for datetime objects
+        if isinstance(obj, datetime.datetime):
+            return obj.isoformat()
+        if isinstance(obj, set):
+            return list(obj)
+        else:
+            # Handle psi_utils.recordtype() object
+            # Host, Server, SponsorHomePage, ...
+            return obj.todict()
+
+    def __compartmentalize_data_for_tcs(self, host_id, discovery_date=datetime.datetime.now()):
+        # Create a compartmentalized database for tunnel-core-server with only the information needed by a particular host
+        # - all propagation channels because any client may connect to servers on this host
+        # - host data
+        #   only region info is required for discovery
+        # - servers data
+        #   omit discovery servers not on this host whose discovery time period has elapsed
+        #   also, omit propagation servers not on this host
+        #   (not on this host --> because servers on this host still need to run, even if not discoverable)
+        # - send home pages for all sponsors, but omit names, banners, campaigns
+        # - send versions info for upgrades
+
+        copy = PsiphonNetwork(initialize_plugins=False)
+
+        for propagation_channel in self.__propagation_channels.itervalues():
+            copy.__propagation_channels[propagation_channel.id] = PropagationChannel(
+                                                                    propagation_channel.id,
+                                                                    '',  # Omit name
+                                                                    '',  # Omit mechanism type
+                                                                    '',  # Omit propagator_managed_upgrades
+                                                                    '',  # Omit new server counts
+                                                                    '',  # Omit new server counts
+                                                                    '',  # Omit server ages
+                                                                    '')  # Omit server ages
+
+        for host in self.__hosts.itervalues():
+            copy.__hosts[host.id] = Host(
+                                        host.id,
+                                        '',  # Omit: provider isn't needed
+                                        '',  # Omit: provider_id isn't needed
+                                        '',  # Omit: ip_address isn't needed
+                                        '',  # Omit: ssh_port isn't needed
+                                        '',  # Omit: root ssh_username isn't needed
+                                        '',  # Omit: root ssh_password isn't needed
+                                        '',  # Omit: ssh_host_key isn't needed
+                                        '',  # Omit: stats_ssh_username isn't needed
+                                        '',  # Omit: stats_ssh_password isn't needed
+                                        '',  # Omit: datacenter_name isn't needed
+                                        host.region,
+                                        host.meek_server_port,
+                                        host.meek_server_obfuscated_key,
+                                        host.meek_server_fronting_domain,
+                                        host.meek_server_fronting_host,
+                                        [],  # Omit: alternate_meek_server_fronting_hosts isn't needed
+                                        host.meek_cookie_encryption_public_key,
+                                        '').todict()  # Omit: meek_cookie_encryption_private_key isn't needed
+
+        # Store servers as array instead of map as a method of preprocessing for
+        # tunnel-core-server
+        server_list = []
+        for server in self.__servers.itervalues():
+            if ((server.discovery_date_range and server.host_id != host_id and server.discovery_date_range[1] <= discovery_date) or
+                (not server.discovery_date_range and server.host_id != host_id)):
+                continue
+
+            s = Server(
+                                                server.id,
+                                                server.host_id,
+                                                server.ip_address,
+                                                server.egress_ip_address,
+                                                server.internal_ip_address,
+                                                server.propagation_channel_id,
+                                                server.is_embedded,
+                                                server.is_permanent,
+                                                server.discovery_date_range,
+                                                server.capabilities,
+                                                server.web_server_port,
+                                                server.web_server_secret,
+                                                server.web_server_certificate,
+                                                server.web_server_private_key,
+                                                str(server.ssh_port), # Some ports are stored as ints, catch this for tunnel-core-server
+                                                server.ssh_username,
+                                                server.ssh_password,
+                                                server.ssh_host_key,
+                                                int(server.ssh_obfuscated_port), # Some ports are stored as strings, catch this for tunnel-core-server
+                                                server.ssh_obfuscated_key,
+                                                server.alternate_ssh_obfuscated_ports).todict()
+            server_list.append(s)
+
+        for sponsor in self.__sponsors.itervalues():
+            sponsor_data = sponsor
+            if sponsor.use_data_from_sponsor_id:
+                sponsor_data = self.__sponsors[sponsor.use_data_from_sponsor_id]
+            copy_sponsor = Sponsor(
+                                sponsor.id,
+                                '',  # Omit name
+                                '',  # Omit banner
+                                None,  # Omit website_banner
+                                None,  # Omit website_banner_link
+                                {},
+                                {},
+                                [],  # Omit campaigns
+                                [],
+                                [])
+            for region, home_pages in sponsor_data.home_pages.iteritems():
+                copy_sponsor.home_pages[region] = []
+                for home_page in home_pages:
+                    copy_sponsor.home_pages[region].append(SponsorHomePage(
+                                                             home_page.region,
+                                                             home_page.url))
+            for region, mobile_home_pages in sponsor_data.mobile_home_pages.iteritems():
+                copy_sponsor.mobile_home_pages[region] = []
+                for mobile_home_page in mobile_home_pages:
+                    copy_sponsor.mobile_home_pages[region].append(SponsorHomePage(
+                                                             mobile_home_page.region,
+                                                             mobile_home_page.url))
+            for page_view_regex in sponsor_data.page_view_regexes:
+                copy_sponsor.page_view_regexes.append(SponsorRegex(
+                                                             page_view_regex.regex,
+                                                             page_view_regex.replace))
+            for https_request_regex in sponsor_data.https_request_regexes:
+                copy_sponsor.https_request_regexes.append(SponsorRegex(
+                                                             https_request_regex.regex,
+                                                             https_request_regex.replace))
+            copy.__sponsors[copy_sponsor.id] = copy_sponsor.todict()
+
+        for platform in self.__client_versions.iterkeys():
+            for client_version in self.__client_versions[platform]:
+                copy.__client_versions[platform].append(ClientVersion(
+                                                client_version.version,
+                                                ''))  # Omit description
+
+        # Alphabetize by host_id
+        server_list.sort(key=lambda k: k['host_id'])
+
+        print copy.__alternate_meek_fronting_addresses
+
+        return json.dumps({
+            "alternate_meek_fronting_addresses": self.__alternate_meek_fronting_addresses,
+            "alternate_meek_fronting_addresses_regex": self.__alternate_meek_fronting_addresses_regex,
+            "client_versions": copy.__client_versions,
+            "hosts": copy.__hosts,
+            "servers": server_list,
+            "sponsors": copy.__sponsors,
+            "meek_fronting_disable_SNI": self.__meek_fronting_disable_SNI
+        }, default=self.__json_serializer)
+
 
     def __compartmentalize_data_for_stats_server(self):
         # The stats server needs to be able to connect to all hosts and needs
