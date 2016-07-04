@@ -56,11 +56,11 @@ SOURCE_FILES = [
       'psi-check-services',
       'psi_web_patch.py'
      ]),
-      
+
     (('go',  'meek-server'),
      ['meek-server.go'
      ]),
-     
+
     (('go', 'utils', 'crypto'),
      ['crypto.go'
      ])
@@ -80,7 +80,7 @@ def retry_decorator_returning_exception(function):
                 print str(e)
         return e
     return wrapper
-    
+
 
 def run_in_parallel(thread_pool_size, function, arguments):
     pool = ThreadPool(thread_pool_size)
@@ -103,7 +103,7 @@ def deploy_implementation(host, discovery_strategy_value_hmac_key, plugins, TCS_
         deploy_TCS_implementation(ssh, host, TCS_psiphond_config_values)
     else:
         deploy_legacy_implementation(ssh, host, discovery_strategy_value_hmac_key, plugins)
-            
+
     ssh.close()
 
 
@@ -147,20 +147,20 @@ def deploy_legacy_implementation(ssh, host, discovery_strategy_value_hmac_key, p
     ssh.exec_command('%s restart' % (remote_init_file_path,))
 
     # Set up meek-server if enabled for this host
-    
+
     if host.meek_server_port:
         ssh.exec_command('mkdir -p /opt/gocode/src/bitbucket.org/psiphon/psiphon-circumvention-system/')
         ssh.exec_command('ln -s %s /opt/gocode/src/bitbucket.org/psiphon/psiphon-circumvention-system/' % (
                 posixpath.join(psi_config.HOST_SOURCE_ROOT, 'go'),))
         ssh.exec_command('cd %s && GOBIN=. GOPATH=/opt/gocode/ go get' % (
                 posixpath.join(psi_config.HOST_SOURCE_ROOT, 'go', 'meek-server'),))
-                
+
         meek_remote_init_file_path = posixpath.join(psi_config.HOST_INIT_DIR, 'meek-server')
         ssh.put_file(os.path.join(os.path.abspath('..'), 'go', 'meek-server', 'meek-server-init'),
                 meek_remote_init_file_path)
         ssh.exec_command('chmod +x %s' % (meek_remote_init_file_path,))
         ssh.exec_command('update-rc.d %s defaults' % ('meek-server',))
-        
+
         ssh.exec_command('echo \'%s\' > /etc/meek-server.json' % (
                 json.dumps({'Port': int(host.meek_server_port),
                             'ListenTLS': True if int(host.meek_server_port) == 443 else False,
@@ -171,7 +171,7 @@ def deploy_legacy_implementation(ssh, host, discovery_strategy_value_hmac_key, p
                             'ClientIpAddressStrategyValueHmacKey': discovery_strategy_value_hmac_key}),))
 
         ssh.exec_command('%s restart' % (meek_remote_init_file_path,))
-    
+
     # Install the cron job that calls psi-check-services
 
     cron_file = '/etc/cron.d/psi-check-services'
@@ -179,7 +179,7 @@ def deploy_legacy_implementation(ssh, host, discovery_strategy_value_hmac_key, p
                      'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
                      'echo "*/5 * * * * root %s" >> %s' % (
             posixpath.join(psi_config.HOST_SOURCE_ROOT, 'Server', 'psi-check-services'), cron_file))
-    
+
     # Copy the rate-limiting scripts
 
     remote_rate_limit_start_file_path = posixpath.join(psi_config.HOST_IP_UP_DIR, 'rate-limit')
@@ -207,7 +207,7 @@ def deploy_TCS_implementation(ssh, host, TCS_psiphond_config_values):
 
 
 def deploy_implementation_to_hosts(hosts, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
-    
+
     @retry_decorator_returning_exception
     def do_deploy_implementation(host):
         try:
@@ -241,7 +241,7 @@ def deploy_legacy_data(ssh, host, host_data):
 
     # Stop server, if running, before replacing data file (command may fail)
     # Disable restarting the server through psi-check-services first
-    
+
     ssh.exec_command('touch %s' % (psi_config.HOST_SERVER_STOPPED_LOCK_FILE,))
     remote_init_file_path = posixpath.join(psi_config.HOST_INIT_DIR, 'psiphonv')
     ssh.exec_command('%s stop' % (remote_init_file_path,))
@@ -267,22 +267,35 @@ def deploy_legacy_data(ssh, host, host_data):
     # Restart server after data file updated
 
     ssh.exec_command('%s restart' % (remote_init_file_path,))
-    
+
     # Allow psi-check-services to restart the server now that data has been successfully copied
     # and the server is running again
-    
+
     ssh.exec_command('rm %s' % (psi_config.HOST_SERVER_STOPPED_LOCK_FILE,))
 
 
 def deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set):
 
     # TODO-TCS: implement
-    # - pave psinet file
-    #   - write to temp file first and then rename after put_file succeeds?
     # - pave traffic rules set file
     # - send SIGUSR1 to Docker container
+    # - trigger hot-reload
 
-    pass
+    # Write data file
+    # We upload a compartmentalized version of the master file
+
+    file = tempfile.NamedTemporaryFile(delete=False)
+    try:
+        file.write(host_data)
+        file.close()
+        ssh.exec_command('mkdir -p %s' % (
+                posixpath.split(psi_config.TCS_DATA_FILE_NAME)[0],))
+        ssh.put_file(file.name, psi_config.TCS_DATA_FILE_NAME)
+    finally:
+        try:
+            os.remove(file.name)
+        except:
+            pass
 
 
 def deploy_data_to_hosts(hosts, data_generator, TCS_traffic_rules_set):
@@ -296,10 +309,10 @@ def deploy_data_to_hosts(hosts, data_generator, TCS_traffic_rules_set):
         except:
             print 'Error deploying data to host %s' % (host.id,)
             raise
-       
+
     run_in_parallel(40, do_deploy_data, [(host, data_generator) for host in hosts])
 
-            
+
 def deploy_build(host, build_filename):
 
     if host.is_TCS:
@@ -321,7 +334,7 @@ def deploy_build(host, build_filename):
                        os.path.split(build_filename)[1]))
 
     ssh.close()
-    
+
 
 def deploy_build_to_hosts(hosts, build_filename):
 
@@ -332,7 +345,7 @@ def deploy_build_to_hosts(hosts, build_filename):
         except:
             print 'Error deploying build to host %s' % (host.id,)
             raise
-            
+
     run_in_parallel(10, do_deploy_build, hosts)
 
 
@@ -370,7 +383,7 @@ def deploy_routes_to_hosts(hosts):
         except:
             print 'Error deploying routes to host %s' % (host.id,)
             raise
-            
+
     run_in_parallel(10, do_deploy_routes, hosts)
 
 
@@ -397,7 +410,7 @@ def deploy_geoip_database_autoupdates(host):
         # Set up weekly updates
         cron_filename = '/etc/cron.weekly/update-geoip-db'
         cron_file_contents = '''#!/bin/sh
-            
+
 /usr/local/bin/geoipupdate
 %s restart''' % (posixpath.join(psi_config.HOST_INIT_DIR, 'psiphonv'),)
         ssh.exec_command('echo "%s" > %s' % (cron_file_contents, cron_filename))
