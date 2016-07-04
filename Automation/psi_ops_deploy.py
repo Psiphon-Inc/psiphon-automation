@@ -230,9 +230,9 @@ def deploy_data(host, host_data, TCS_traffic_rules_set):
                     host.ssh_host_key)
 
     if host.is_TCS:
-        deploy_legacy_data(ssh, host, host_data)
-    else:
         deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set)
+    else:
+        deploy_legacy_data(ssh, host, host_data)
 
     ssh.close()
 

@@ -398,9 +398,9 @@ def generate_self_signed_certificate():
 def install_host(host, servers, existing_server_ids, plugins):
 
     if host.is_TCS:
-        install_legacy_host(host, servers, existing_server_ids, plugins)
-    else:
         install_TCS_host(host, servers, existing_server_ids)
+    else:
+        install_legacy_host(host, servers, existing_server_ids, plugins)
 
 
 def install_legacy_host(host, servers, existing_server_ids, plugins):
@@ -655,9 +655,9 @@ def install_TCS_host(host, servers, existing_server_ids, plugins):
 def install_firewall_rules(host, servers, plugins, do_blacklist=True):
 
     if host.is_TCS:
-        install_legacy_firewall_rules(host, servers, plugins, do_blacklist)
-    else:
         install_TCS_firewall_rules(host, servers, do_blacklist)
+    else:
+        install_legacy_firewall_rules(host, servers, plugins, do_blacklist)
 
 
 def install_legacy_firewall_rules(host, servers, plugins, do_blacklist):
@@ -930,9 +930,9 @@ def install_geoip_database(ssh):
 def install_psi_limit_load(host, servers):
 
     if host.is_TCS:
-        install_legacy_psi_limit_load(host, servers)
-    else:
         install_TCS_psi_limit_load(host, servers)
+    else:
+        install_legacy_psi_limit_load(host, servers)
 
 
 def install_legacy_psi_limit_load(host, servers):
