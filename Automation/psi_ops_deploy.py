@@ -318,24 +318,24 @@ def get_supported_protocol_ports(host, server, external_ports=True):
     # don't have corresponding server record capabilities or ports,
     # for example.
 
-    for (protocol, port) in TCS_protocols:
+    for (protocol, docker_port) in TCS_protocols:
         if protocol == 'SSH' and server.capabilities[protocol]:
-                supported_protocol_ports[protocol] = int(server.ssh_port)
+                supported_protocol_ports[protocol] = int(server.ssh_port) if external_ports else docker_port
 
         if protocol == 'OSSH' and server.capabilities[protocol]:
-                supported_protocol_ports[protocol] = int(server.ssh_obfuscated_port)
+                supported_protocol_ports[protocol] = int(server.ssh_obfuscated_port) if external_ports else docker_port
 
         if protocol == 'FRONTED-MEEK' and server.capabilities[protocol]:
-                supported_protocol_ports[protocol] = 443
+                supported_protocol_ports[protocol] = 443 if external_ports else docker_port
 
         if protocol == 'UNFRONTED-MEEK' and server.capabilities[protocol] and not int(host.meek_server_port) == 443:
-                supported_protocol_ports[protocol] = int(host.meek_server_port)
+                supported_protocol_ports[protocol] = int(host.meek_server_port) if external_ports else docker_port
 
         if protocol == 'FRONTED-MEEK-HTTP' and server.capabilities['FRONTED-MEEK'] and host.alternate_meek_server_fronting_hosts:
-                supported_protocol_ports[protocol] = 80
+                supported_protocol_ports[protocol] = 80 if external_ports else docker_port
 
         if protocol == 'UNFRONTED-MEEK-HTTPS' and server.capabilities['UNFRONTED-MEEK'] and int(host.meek_server_port) == 443:
-                supported_protocol_ports[protocol] = int(host.meek_server_port)
+                supported_protocol_ports[protocol] = int(host.meek_server_port) if external_ports else docker_port
 
     return supported_protocol_ports
 
