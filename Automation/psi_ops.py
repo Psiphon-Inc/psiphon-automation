@@ -209,7 +209,7 @@ Server = psi_utils.recordtype(
     'id, host_id, ip_address, egress_ip_address, internal_ip_address, ' +
     'propagation_channel_id, is_embedded, is_permanent, discovery_date_range, capabilities, ' +
     'web_server_port, web_server_secret, web_server_certificate, web_server_private_key, ' +
-    'ssh_port, ssh_username, ssh_password, ssh_host_key, ssh_obfuscated_port, ssh_obfuscated_key, ' +
+    'ssh_port, ssh_username, ssh_password, ssh_host_key, TCS_ssh_private_key, ssh_obfuscated_port, ssh_obfuscated_key, ' +
     'alternate_ssh_obfuscated_ports',
     default=None)
 
@@ -607,6 +607,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # No existing hosts use the TCS stack
             for host in self.__hosts.itervalues():
                 host.is_TCS = False
+
+            # No existing servers have TCS keys
+            for server in self.__servers.itervalues():
+                server.TCS_ssh_private_key = None
 
             # Stub in valid, empty defaults
             self.__TCS_traffic_rules_set = "{}"

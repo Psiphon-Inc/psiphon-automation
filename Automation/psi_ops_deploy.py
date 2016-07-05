@@ -265,7 +265,7 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
     config['WebServerCertificate'] = server.web_server_certificate
     config['WebServerPrivateKey'] = server.web_server_private_key
 
-    config['SSHPrivateKey'] = server.ssh_host_key
+    config['SSHPrivateKey'] = server.TCS_ssh_private_key
     config['SSHServerVersion'] = TCS_psiphond_config_values['SSHServerVersion']
     config['SSHUserName'] = server.ssh_username
     config['SSHPassword'] = server.ssh_password
