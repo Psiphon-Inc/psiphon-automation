@@ -291,33 +291,53 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
         ('UNFRONTED-MEEK-HTTPS', TCS_UNFRONTED_MEEK_HTTPS_DOCKER_PORT)
     ]
 
-    for (protocol, port) in protocols:
-        if supports_protocol(host, server, protocol):
-            config['TunnelProtocolPorts'][protocol] = port
+    # gets the Docker ports
+    config['TunnelProtocolPorts'] = get_supported_protocol_ports(host, server, False)
 
     return json.dumps(config)
 
 
-def supports_protocol(host, server, protocol):
-    if protocol == 'SSH':
-        return server.capabilities['SSH']
+# get_supported_protocol_ports returns a map of protocol name to protocol
+# port with entries for each protocol supported on the host/server.
+# Specify external_ports=True to get public ports, or external_ports=False
+# to get Docker ports.
+def get_supported_protocol_ports(host, server, external_ports=True):
 
-    if protocol == 'OSSH':
-        return server.capabilities['OSSH']
+    TCS_protocols = [
+        ('SSH', TCS_SSH_DOCKER_PORT),
+        ('OSSH', TCS_OSSH_DOCKER_PORT),
+        ('FRONTED-MEEK', TCS_FRONTED_MEEK_DOCKER_PORT),
+        ('UNFRONTED-MEEK', TCS_UNFRONTED_MEEK_DOCKER_PORT),
+        ('FRONTED-MEEK-HTTP', TCS_FRONTED_MEEK_HTTP_DOCKER_PORT),
+        ('UNFRONTED-MEEK-HTTPS', TCS_UNFRONTED_MEEK_HTTPS_DOCKER_PORT)
+    ]
 
-    if protocol == 'FRONTED-MEEK':
-        return server.capabilities['FRONTED-MEEK']
+    supported_protocol_ports = {}
 
-    if protocol == 'UNFRONTED-MEEK':
-        return server.capabilities['UNFRONTED-MEEK'] and not int(host.meek_server_port) == 443
+    # The support logic encodes special case rules. Some protocols
+    # don't have corresponding server record capabilities or ports,
+    # for example.
 
-    if protocol == 'FRONTED-MEEK-HTTP':
-        return server.capabilities['FRONTED-MEEK'] and host.alternate_meek_server_fronting_hosts
+    for (protocol, port) in TCS_protocols:
+        if protocol == 'SSH' and server.capabilities[protocol]:
+                supported_protocol_ports[protocol] = int(server.ssh_port)
 
-    if protocol == 'UNFRONTED-MEEK-HTTPS':
-        return server.capabilities['UNFRONTED-MEEK'] and int(host.meek_server_port) == 443
+        if protocol == 'OSSH' and server.capabilities[protocol]:
+                supported_protocol_ports[protocol] = int(server.ssh_obfuscated_port)
 
-    assert(False)
+        if protocol == 'FRONTED-MEEK' and server.capabilities[protocol]:
+                supported_protocol_ports[protocol] = 443
+
+        if protocol == 'UNFRONTED-MEEK' and server.capabilities[protocol] and not int(host.meek_server_port) == 443:
+                supported_protocol_ports[protocol] = int(host.meek_server_port)
+
+        if protocol == 'FRONTED-MEEK-HTTP' and server.capabilities['FRONTED-MEEK'] and host.alternate_meek_server_fronting_hosts:
+                supported_protocol_ports[protocol] = 80
+
+        if protocol == 'UNFRONTED-MEEK-HTTPS' and server.capabilities['UNFRONTED-MEEK'] and int(host.meek_server_port) == 443:
+                supported_protocol_ports[protocol] = int(host.meek_server_port)
+
+    return supported_protocol_ports
 
 
 def deploy_implementation_to_hosts(hosts, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
