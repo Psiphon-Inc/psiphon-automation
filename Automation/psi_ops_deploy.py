@@ -415,11 +415,11 @@ def deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set):
 
     put_file_with_content(ssh, host_data, TCS_PSINET_FILE_NAME)
 
-    # Upload traffic rules file 
+    # Upload traffic rules file
 
     put_file_with_content(ssh, TCS_traffic_rules_set, TCS_TRAFFIC_RULES_FILE_NAME)
 
-    # TODO-TCS: send SIGUSR1 to Docker container to trigger hot-reload
+    ssh.exec_command('systemctl kill --signal=USR1 psiphond')
 
 
 def put_file_with_content(ssh, content, destination_path):
