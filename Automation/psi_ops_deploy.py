@@ -86,6 +86,7 @@ TCS_FRONTED_MEEK_HTTP_DOCKER_PORT = 3005
 TCS_UNFRONTED_MEEK_HTTPS_DOCKER_PORT = 3006
 
 TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND = 'systemctl kill --signal=USR1 psiphond'
+TCS_PSIPHOND_ENABLE_COMMAND = 'systemctl enable psiphond.service'
 
 
 #==============================================================================
@@ -252,7 +253,9 @@ CONTAINER_VOLUME_STRING="-v /opt/psiphon/psiphond/config:/opt/psiphon/psiphond/c
         psiphond_env_content,
         TCS_PSIPHOND_DOCKER_ENVIRONMENT_FILE_NAME)
 
-    # TODO-TCS: enable unit (now, or only once psinet and traffic rules are paved?)
+    # Note: not invoking TCS_PSIPHOND_ENABLE_COMMAND here as psiphond expects
+    # the psinet and traffic rules data to exist when it starts. The enable
+    # is delayed until deploy_TCS_data.
 
 
 def make_psiphond_config(host, server, TCS_psiphond_config_values):
@@ -444,6 +447,14 @@ def deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set):
     put_file_with_content(ssh, TCS_traffic_rules_set, TCS_TRAFFIC_RULES_FILE_NAME)
 
     ssh.exec_command(TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND)
+
+    # Enable psiphond service. It's disabled in the base image.
+    # This is a one-time operation and otherwise has no effect on
+    # subsequent invocations. Enable is done here and not
+    # deploy_TCS_implementation since psiphond expects the psinet
+    # and traffic rules to exist when it starts.
+
+    ssh.exec_command(TCS_PSIPHOND_ENABLE_COMMAND)
 
 
 def put_file_with_content(ssh, content, destination_path):
