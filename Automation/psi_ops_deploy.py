@@ -548,22 +548,22 @@ def deploy_geoip_database_autoupdates(host):
         # Set up weekly updates
         cron_filename = '/etc/cron.weekly/update-geoip-db'
 
-        cron_file_contents = ''
+        cron_file_contents = None
 
         # For TCS, use hot reload and don't restart service
         if host.is_TCS:
 
-            cron_file_contents = '''#!/bin/sh
+            cron_file_contents = textwrap.dedent('''#!/bin/sh
 
-/usr/local/bin/geoipupdate
-systemctl kill --signal=USR1 psiphond'''
+                /usr/local/bin/geoipupdate
+                systemctl kill --signal=USR1 psiphond''')
 
         else:
 
-        cron_file_contents = '''#!/bin/sh
+            cron_file_contents = textwrap.dedent('''#!/bin/sh
 
-/usr/local/bin/geoipupdate
-%s restart''' % (posixpath.join(psi_config.HOST_INIT_DIR, 'psiphonv'),)
+                    /usr/local/bin/geoipupdate
+                    %s restart''' % (posixpath.join(psi_config.HOST_INIT_DIR, 'psiphonv'),)
 
         ssh.exec_command('echo "%s" > %s' % (cron_file_contents, cron_filename))
         ssh.exec_command('chmod +x %s' % (cron_filename,))
