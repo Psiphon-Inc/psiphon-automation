@@ -1283,24 +1283,16 @@ def install_TCS_psi_limit_load(host, servers):
     # - no equivilent to xinetd
 
     # TODO-TCS: log to ELK
-    # TODO-TCS: support multiple meek listeners
-    # TODO-TCS: meek case needs additional logic for implicit port 80 and port 443
 
-    rules = (
-    # SSH
-    [' INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j REJECT --reject-with tcp-reset'
-            % (str(s.internal_ip_address), str(s.ssh_port)) for s in servers
-                if s.capabilities['SSH']] +
-    # OSSH
-    [' INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j REJECT --reject-with tcp-reset'
-            % (str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
-                if s.ssh_obfuscated_port] +
-                
-    # meek
-    [' INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j REJECT --reject-with tcp-reset'
-            % (str(s.internal_ip_address), host.meek_server_port) for s in servers
-                if (s.capabilities['FRONTED-MEEK'] or s.capabilities['UNFRONTED-MEEK'])] )
-                
+    # Limitation: only one server per host currently implemented
+    assert(len(servers) == 1)
+    server = servers[0]
+
+    protocol_ports = psi_ops_deploy.get_supported_protocol_ports(host, server, True)
+
+    rules = [' INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j REJECT --reject-with tcp-reset'
+        % (str(s.internal_ip_address), str(port),) for (protocol, port) in protocol_ports]
+
     disable_services = '\n    '.join(['iptables -I' + rule for rule in rules])
     
     enable_services = '\n    '.join(['iptables -D' + rule for rule in rules])
