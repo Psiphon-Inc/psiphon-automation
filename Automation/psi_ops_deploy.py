@@ -68,6 +68,7 @@ SOURCE_FILES = [
 
 #==== TCS Configuration =======================================================
 
+TCS_PSIPHOND_DOCKER_ENVIRONMENT_FILE_NAME = '/opt/psiphon/psiphond/psiphond.env'
 TCS_PSIPHOND_CONFIG_FILE_NAME = '/opt/psiphon/psiphond/psiphond.config'
 TCS_PSIPHOND_LOG_FILE_NAME = '/var/log/psiphond/psiphond.log'
 TCS_FAIL2BAN_LOG_FILE_NAME = '/var/log/psiphond/fail2ban.log'
@@ -228,9 +229,30 @@ def deploy_TCS_implementation(ssh, host, servers, TCS_psiphond_config_values):
     put_file_with_content(
         ssh,
         make_psiphond_config(host, server, TCS_psiphond_config_values),
-        psi_config.TCS_PSIPHOND_CONFIG_FILE_NAME)
+        TCS_PSIPHOND_CONFIG_FILE_NAME)
 
-    # TODO-TCS: pave systemd unit environment file(s), enable unit
+    # Upload psiphond.env
+
+    external_protocol_ports = get_supported_protocol_ports(host, server, False)
+    docker_protocol_ports = get_supported_protocol_ports(host, server, True)
+
+    port_mappings = ','.join(
+        ["-p %s:%s" % (external_port,docker_protocol_ports[protocol],) for (external_port, protocol) in external_protocol_ports])
+
+    psiphond_env_content = '''
+DOCKER_CONTENT_TRUST=1
+
+CONTAINER_TAG=production
+CONTAINER_PORT_STRING="%s"
+CONTAINER_VOLUME_STRING="-v /opt/psiphon/psiphond/config:/opt/psiphon/psiphond/config -v /var/log/psiphond:/var/log/psiphond"
+''' % (port_mappings,)
+
+    put_file_with_content(
+        ssh,
+        psiphond_env_content,
+        TCS_PSIPHOND_DOCKER_ENVIRONMENT_FILE_NAME)
+
+    # TODO-TCS: enable unit (now, or only once psinet and traffic rules are paved?)
 
 
 def make_psiphond_config(host, server, TCS_psiphond_config_values):
