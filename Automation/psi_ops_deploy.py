@@ -84,6 +84,8 @@ TCS_UNFRONTED_MEEK_DOCKER_PORT = 3004
 TCS_FRONTED_MEEK_HTTP_DOCKER_PORT = 3005
 TCS_UNFRONTED_MEEK_HTTPS_DOCKER_PORT = 3006
 
+TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND = 'systemctl kill --signal=USR1 psiphond'
+
 
 #==============================================================================
 
@@ -421,7 +423,7 @@ def deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set):
 
     put_file_with_content(ssh, TCS_traffic_rules_set, TCS_TRAFFIC_RULES_FILE_NAME)
 
-    ssh.exec_command('systemctl kill --signal=USR1 psiphond')
+    ssh.exec_command(TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND)
 
 
 def put_file_with_content(ssh, content, destination_path):
@@ -556,7 +558,7 @@ def deploy_geoip_database_autoupdates(host):
             cron_file_contents = textwrap.dedent('''#!/bin/sh
 
                 /usr/local/bin/geoipupdate
-                systemctl kill --signal=USR1 psiphond''')
+                %s''' % (TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND,))
 
         else:
 
