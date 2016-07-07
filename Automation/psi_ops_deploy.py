@@ -236,7 +236,7 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
 
     config = {}
 
-    config['LogLevel'] = 'warning'
+    config['LogLevel'] = 'info'
 
     config['LogFilename'] = TCS_PSIPHOND_LOG_FILE_NAME
 
@@ -248,13 +248,13 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
 
     config['PsinetDatabaseFilename'] = TCS_PSINET_FILE_NAME
 
-    config["TrafficRulesFilename"] = TCS_TRAFFIC_RULES_FILE_NAME
+    config['TrafficRulesFilename'] = TCS_TRAFFIC_RULES_FILE_NAME
 
-    config["LoadMonitorPeriodSeconds"] = 300
+    config['LoadMonitorPeriodSeconds'] = 300
 
-    config["UDPInterceptUdpgwServerAddress"] = '127.0.0.1:7300'
+    config['UDPInterceptUdpgwServerAddress'] = '127.0.0.1:7300'
     # TODO-TCS: remove this item once psiphond uses local host DNS server
-    config["UDPForwardDNSServerAddress"] = '8.8.8.8:53'
+    config['UDPForwardDNSServerAddress'] = '8.8.8.8:53'
 
     config['HostID'] = host.id
 
