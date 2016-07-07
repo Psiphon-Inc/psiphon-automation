@@ -257,8 +257,6 @@ CONTAINER_VOLUME_STRING="-v /opt/psiphon/psiphond/config:/opt/psiphon/psiphond/c
 
 def make_psiphond_config(host, server, TCS_psiphond_config_values):
 
-    # TODO-TCS: support multiple meek listeners
-
     config = {}
 
     config['LogLevel'] = 'info'
