@@ -1155,15 +1155,14 @@ def install_malware_blacklist(host):
     
 def install_geoip_database(ssh):
 
-    # TODO-TCS: special TCS case
-    # - GeoIP v2
-
     #
     # Upload the local GeoIP databases (if they exist)
     #
 
+    # legacy uses the v1 files; TCS uses the v2 files
+
     REMOTE_GEOIP_DIRECTORY = '/usr/local/share/GeoIP/'
-    for geo_ip_file in ['GeoIPCity.dat', 'GeoIPISP.dat']:
+    for geo_ip_file in ['GeoIPCity.dat', 'GeoIPISP.dat', 'GeoIP2-City.mmdb', 'GeoIP2-ISP.mmdb']:
         if os.path.isfile(geo_ip_file):
             ssh.put_file(os.path.join(os.path.abspath('.'), geo_ip_file),
                          posixpath.join(REMOTE_GEOIP_DIRECTORY, geo_ip_file))

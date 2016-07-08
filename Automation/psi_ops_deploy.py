@@ -74,8 +74,8 @@ TCS_PSIPHOND_LOG_FILE_NAME = '/var/log/psiphond/psiphond.log'
 TCS_FAIL2BAN_LOG_FILE_NAME = '/var/log/psiphond/fail2ban.log'
 TCS_TRAFFIC_RULES_FILE_NAME = '/opt/psiphon/psiphond/traffic-rules.config'
 TCS_PSINET_FILE_NAME = '/opt/psiphon/psiphond/psinet.json'
-# TODO-TCS: finalize GeoIP filename
-TCS_GEOIP_DATABASE_FILE_NAME = '/usr/local/share/GeoIP/...'
+TCS_GEOIP_CITY_DATABASE_FILE_NAME = '/opt/geoip/GeoIP2-City.mmdb'
+TCS_GEOIP_ISP_DATABASE_FILE_NAME = '/opt/geoip/GeoIP2-ISP.mmdb'
 
 TCS_DOCKER_WEB_SERVER_PORT = 3000
 TCS_SSH_DOCKER_PORT = 3001
@@ -271,7 +271,8 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
 
     config['DiscoveryValueHMACKey'] = TCS_psiphond_config_values['DiscoveryValueHMACKey']
 
-    config['GeoIPDatabaseFilename'] = TCS_GEOIP_DATABASE_FILE_NAME
+    config['GeoIPCityDatabaseFilename'] = TCS_GEOIP_CITY_DATABASE_FILE_NAME
+    config['GeoIPISPDatabaseFilename'] = TCS_GEOIP_ISP_DATABASE_FILE_NAME
 
     config['PsinetDatabaseFilename'] = TCS_PSINET_FILE_NAME
 
