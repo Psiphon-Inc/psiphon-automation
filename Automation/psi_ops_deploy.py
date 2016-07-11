@@ -86,7 +86,7 @@ TCS_FRONTED_MEEK_HTTP_DOCKER_PORT = 3005
 TCS_UNFRONTED_MEEK_HTTPS_DOCKER_PORT = 3006
 
 TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND = 'systemctl kill --signal=USR1 psiphond'
-TCS_PSIPHOND_ENABLE_COMMAND = 'systemctl enable psiphond.service'
+TCS_PSIPHOND_START_COMMAND = '/opt/psiphon/psiphond/start.sh'
 
 
 #==============================================================================
@@ -237,7 +237,7 @@ def deploy_TCS_implementation(ssh, host, servers, TCS_psiphond_config_values):
     external_protocol_ports = get_supported_protocol_ports(host, server, False)
     docker_protocol_ports = get_supported_protocol_ports(host, server, True)
 
-    port_mappings = ','.join(
+    port_mappings = ' '.join(
         ["-p %s:%s" % (external_port,docker_protocol_ports[protocol],) for (external_port, protocol) in external_protocol_ports])
 
     psiphond_env_content = '''
@@ -449,13 +449,13 @@ def deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set):
 
     ssh.exec_command(TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND)
 
-    # Enable psiphond service. It's disabled in the base image.
+    # Enable and start psiphond service. It's disabled in the base image.
     # This is a one-time operation and otherwise has no effect on
-    # subsequent invocations. Enable is done here and not
+    # subsequent invocations. Enable and start is done here and not
     # deploy_TCS_implementation since psiphond expects the psinet
-    # and traffic rules to exist when it starts.
+    # and traffic rules to exist when it starts up.
 
-    ssh.exec_command(TCS_PSIPHOND_ENABLE_COMMAND)
+    ssh.exec_command(TCS_PSIPHOND_START_COMMAND)
 
 
 def put_file_with_content(ssh, content, destination_path):
