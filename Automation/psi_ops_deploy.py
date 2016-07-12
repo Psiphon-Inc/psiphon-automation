@@ -271,8 +271,7 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
 
     config['DiscoveryValueHMACKey'] = TCS_psiphond_config_values['DiscoveryValueHMACKey']
 
-    config['GeoIPCityDatabaseFilename'] = TCS_GEOIP_CITY_DATABASE_FILE_NAME
-    config['GeoIPISPDatabaseFilename'] = TCS_GEOIP_ISP_DATABASE_FILE_NAME
+    config['GeoIPDatabaseFilenames'] = [TCS_GEOIP_CITY_DATABASE_FILE_NAME, TCS_GEOIP_ISP_DATABASE_FILE_NAME]
 
     config['PsinetDatabaseFilename'] = TCS_PSINET_FILE_NAME
 
