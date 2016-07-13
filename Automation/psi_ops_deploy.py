@@ -71,7 +71,6 @@ SOURCE_FILES = [
 TCS_PSIPHOND_DOCKER_ENVIRONMENT_FILE_NAME = '/opt/psiphon/psiphond/psiphond.env'
 TCS_PSIPHOND_CONFIG_FILE_NAME = '/opt/psiphon/psiphond/psiphond.config'
 TCS_PSIPHOND_LOG_FILE_NAME = '/var/log/psiphond/psiphond.log'
-TCS_FAIL2BAN_LOG_FILE_NAME = '/var/log/psiphond/fail2ban.log'
 TCS_TRAFFIC_RULES_FILE_NAME = '/opt/psiphon/psiphond/traffic-rules.config'
 TCS_PSINET_FILE_NAME = '/opt/psiphon/psiphond/psinet.json'
 TCS_GEOIP_CITY_DATABASE_FILE_NAME = '/opt/geoip/GeoIP2-City.mmdb'
@@ -265,9 +264,6 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
     config['LogLevel'] = 'info'
 
     config['LogFilename'] = TCS_PSIPHOND_LOG_FILE_NAME
-
-    config['Fail2BanFormat'] = 'Authentication failure for psiphon-client from %s'
-    config['Fail2BanLogFilename'] = TCS_FAIL2BAN_LOG_FILE_NAME
 
     config['DiscoveryValueHMACKey'] = TCS_psiphond_config_values['DiscoveryValueHMACKey']
 
