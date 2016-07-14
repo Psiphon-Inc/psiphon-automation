@@ -259,6 +259,8 @@ CONTAINER_VOLUME_STRING="-v /opt/psiphon/psiphond/config:/opt/psiphon/psiphond/c
 
 def make_psiphond_config(host, server, TCS_psiphond_config_values):
 
+    # Missing TCS_psiphond_config_values items throw KeyError. This is intended. Don't forget to configure these values.
+
     config = {}
 
     config['LogLevel'] = 'info'
