@@ -324,7 +324,7 @@ TCSTrafficRulesSet = psi_utils.recordtype(
     'TCSTrafficRulesSet',
     'traffic_rules_set')
 
-# The psiphond config values is a list of string names and values that is used
+# The psiphond config values is a dict of string names and values that is used
 # when paving a psiphond config file for a TCS server. Any config item may be
 # included here, but deploy will override server-specific items; this is intended
 # to be used for network-wide operational values including DiscoveryValueHMACKey,
