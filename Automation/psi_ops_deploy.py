@@ -477,7 +477,7 @@ def deploy_data_to_hosts(hosts, data_generator, TCS_traffic_rules_set):
     @retry_decorator_returning_exception
     def do_deploy_data(host_and_data_generator):
         host = host_and_data_generator[0]
-        host_data = host_and_data_generator[1](host.id)
+        host_data = host_and_data_generator[1](host.id, host.is_TCS)
         try:
             deploy_data(host, host_data, TCS_traffic_rules_set)
         except:

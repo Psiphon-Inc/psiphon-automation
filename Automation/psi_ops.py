@@ -1508,14 +1508,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if host.is_TCS:
                 server.capabilities['ssh-api-requests'] = True
 
-        if host.is_TCS:
-            psi_ops_deploy.deploy_data(
-                                host,
-                                self.__compartmentalize_data_for_tcs(host.id))
-        else:
-            psi_ops_deploy.deploy_data(
-                                host,
-                                self.__compartmentalize_data_for_host(host.id))
+        psi_ops_deploy.deploy_data(
+                            host,
+                            self.__compartmentalize_data_for_host(host.id, host.is_TCS),
+                            self.__TCS_traffic_rules_set)
 
         for server in servers_on_host:
             self.test_server(server.id, ['handshake'])
@@ -1560,14 +1556,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         psi_ops_install.install_firewall_rules(host, servers, plugins, False) # No need to update the malware blacklist
         psi_ops_install.install_psi_limit_load(host, servers)
         psi_ops_deploy.deploy_implementation(host, servers, self.__discovery_strategy_value_hmac_key, plugins, self.__TCS_psiphond_config_values)
-        if host.is_TCS:
-            psi_ops_deploy.deploy_data(
-                                host,
-                                self.__compartmentalize_data_for_tcs(host.id))
-        else:
-            psi_ops_deploy.deploy_data(
-                                host,
-                                self.__compartmentalize_data_for_host(host.id))
+        psi_ops_deploy.deploy_data(
+                            host,
+                            self.__compartmentalize_data_for_host(host.id, host.is_TCS),
+                            self.__TCS_traffic_rules_set)
 
     def setup_server(self, host, servers):
         # Install Psiphon 3 and generate configuration values
@@ -1596,14 +1588,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # (Only deploying for the new host, not broadcasting info yet...)
         psi_ops_deploy.deploy_implementation(host, servers, self.__discovery_strategy_value_hmac_key, plugins, self.__TCS_psiphond_config_values)
         # If the Host is TCS, deploy data for tunnel-core-server
-        if host.is_TCS:
-            psi_ops_deploy.deploy_data(
-                                host,
-                                self.__compartmentalize_data_for_tcs(host.id))
-        else:
-            psi_ops_deploy.deploy_data(
-                                host,
-                                self.__compartmentalize_data_for_host(host.id))
+        psi_ops_deploy.deploy_data(
+                            host,
+                            self.__compartmentalize_data_for_host(host.id, host.is_TCS),
+                            self.__TCS_traffic_rules_set)
         psi_ops_deploy.deploy_geoip_database_autoupdates(host)
         psi_ops_deploy.deploy_routes(host)
         host.log('initial deployment')
@@ -1881,14 +1869,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # NOTE that if the client version has been incremented but a full deploy has not yet been run,
         # this following psi_ops_deploy.deploy_data call is not safe.  Data will specify a new version
         # that is not yet available on servers (infinite download loop).
-        if host.is_TCS:
-            psi_ops_deploy.deploy_data(
-                                host,
-                                self.__compartmentalize_data_for_tcs(host.id))
-        else:
-            psi_ops_deploy.deploy_data(
-                                host,
-                                self.__compartmentalize_data_for_host(host.id))
+        psi_ops_deploy.deploy_data(
+                            host,
+                            self.__compartmentalize_data_for_host(host.id, host.is_TCS),
+                            self.__TCS_traffic_rules_set)
         host.log('reinstall')
 
     def reinstall_hosts(self):
@@ -2337,7 +2321,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Host data
 
         if self.__deploy_data_required_for_all:
-            psi_ops_deploy.deploy_data_to_hosts(self.get_hosts(), self.__compartmentalize_data_for_host)
+            psi_ops_deploy.deploy_data_to_hosts(
+                self.get_hosts(),
+                self.__compartmentalize_data_for_host,
+                self.__TCS_traffic_rules_set)
             self.__deploy_data_required_for_all = False
             self.save()
 
@@ -2572,7 +2559,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         host = filter(lambda x: x.id == server.host_id, self.__hosts.itervalues())[0]
         servers = [server for server in self.__servers.itervalues() if server.host_id == host_id]
         psi_ops_deploy.deploy_implementation(host, servers, self.__discovery_strategy_value_hmac_key, plugins, self.__TCS_psiphond_config_values)
-        psi_ops_deploy.deploy_data(host, self.__compartmentalize_data_for_host(host.id))
+        psi_ops_deploy.deploy_data(
+            host,
+            self.__compartmentalize_data_for_host(host.id, host.is_TCS),
+            self.__TCS_traffic_rules_set)
 
     def deploy_implementation_and_data_for_propagation_channel(self, propagation_channel_name):
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
@@ -2967,7 +2957,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def get_sponsors(self):
         return list(self.__sponsors.itervalues())
 
-    def __compartmentalize_data_for_host(self, host_id, discovery_date=datetime.datetime.now()):
+    def __compartmentalize_data_for_host(self, host_id, is_TCS, discovery_date=datetime.datetime.now()):
         # Create a compartmentalized database with only the information needed by a particular host
         # - all propagation channels because any client may connect to servers on this host
         # - host data
@@ -2978,6 +2968,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         #   (not on this host --> because servers on this host still need to run, even if not discoverable)
         # - send home pages for all sponsors, but omit names, banners, campaigns
         # - send versions info for upgrades
+
+        if is_TCS:
+            return __compartmentalize_data_for_tcs(host_id, discovery_date)
 
         copy = PsiphonNetwork(initialize_plugins=False)
 
