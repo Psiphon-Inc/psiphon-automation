@@ -992,10 +992,10 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
     # NOTE: exclude for servers with meek capability (or is fronted) and meek_server_port is 443 or OSSH is running on 443
     if server.capabilities['handshake'] and not (
             ((server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK']) and int(host.meek_server_port) == 443) or
-            (server.capabilities['OSSH'] and int(server.ssh_obfuscated_port) == 443):
+            (server.capabilities['OSSH'] and int(server.ssh_obfuscated_port) == 443)):
         web_server_port_forward = textwrap.dedent('''
 
-        -A PREROUTING -i eth+ -p tcp -d {server_ip_address} --dport 443 -j DNAT --to-destination :{web_server_port}'''.format(
+        -A PREROUTING -i eth+ -p tcp -d {server_ip_address} --dport 443 -j DNAT --to-destination :{web_server_port}''').format(
 
             server_ip_address=str(server.internal_ip_address), web_server_port=str(server.web_server_port))
         nat_prerouting_rules += [web_server_port_forward]
@@ -1003,9 +1003,9 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
     for alternate in server.alternate_ssh_obfuscated_ports:
         protocol_port_forward = textwrap.dedent('''
 
-        -A PREROUTING -i eth+ -p tcp -d {server_ip_address} --dport {alternate_port} -j DNAT --to-destination :{protocol_port}'''.format(
+        -A PREROUTING -i eth+ -p tcp -d {server_ip_address} --dport {alternate_port} -j DNAT --to-destination :{protocol_port}''').format(
 
-            server_ip_address=str(server.internal_ip_address), alternate_port=str(alternate), protocol_port=str(server.ssh_obfuscated_port)
+            server_ip_address=str(server.internal_ip_address), alternate_port=str(alternate), protocol_port=str(server.ssh_obfuscated_port))
         nat_prerouting_rules += [protocol_port_forward]
 
 

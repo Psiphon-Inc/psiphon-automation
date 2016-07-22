@@ -594,7 +594,7 @@ def deploy_geoip_database_autoupdates(host):
             cron_file_contents = textwrap.dedent('''#!/bin/sh
 
                     /usr/local/bin/geoipupdate
-                    %s restart''' % (posixpath.join(psi_config.HOST_INIT_DIR, 'psiphonv'),)
+                    %s restart''' % (posixpath.join(psi_config.HOST_INIT_DIR, 'psiphonv'),))
 
         ssh.exec_command('echo "%s" > %s' % (cron_file_contents, cron_filename))
         ssh.exec_command('chmod +x %s' % (cron_filename,))
