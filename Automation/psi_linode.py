@@ -79,13 +79,25 @@ def create_linode(linode_api):
     return new_node_id, datacenter_name, get_region(datacenter_id)
 
 
-def create_linode_disks(linode_api, linode_id, bootstrap_password, plugins):
-    # DistributionID = 130: 'Debian 7.6'
-    distribution_id = 130
-    for plugin in plugins:
-        if hasattr(plugin, 'linode_distribution_id'):
-            distribution_id = plugin.linode_distribution_id()
-    create_disk_job = linode_api.linode_disk_createfromdistribution(LinodeID=linode_id, DistributionID=distribution_id, rootPass=bootstrap_password, Label='Psiphon 3 Disk Image', Size=40000)
+def create_linode_disks(linode_api, linode_id, bootstrap_password, is_TCS, plugins):
+    
+    if is_TCS:
+        image_id = 1065877
+        create_disk_job = linode_api.linode_disk_createfromimage(ImageID=image_id, LinodeID=linode_id)
+        # Image creation keys are in upper case
+        if create_disk_job.has_key(str.upper('jobid')):
+            create_disk_job['JobID'] = create_disk_job['JOBID']
+        if create_disk_job.has_key(str.upper('diskid')):
+            create_disk_job['DiskID'] = create_disk_job['DISKID']
+
+    else:
+        # DistributionID = 130: 'Debian 7.6'
+        distribution_id = 130
+        for plugin in plugins:
+            if hasattr(plugin, 'linode_distribution_id'):
+                distribution_id = plugin.linode_distribution_id()
+        create_disk_job = linode_api.linode_disk_createfromdistribution(LinodeID=linode_id, DistributionID=distribution_id, rootPass=bootstrap_password, Label='Psiphon 3 Disk Image', Size=40000)
+    
     wait_while_condition(lambda: linode_api.linode_job_list(LinodeID=linode_id, JobID=create_disk_job['JobID'])[0]['HOST_SUCCESS'] == '',
                          120,
                          'create a disk from distribution')
@@ -100,11 +112,16 @@ def create_linode_disks(linode_api, linode_id, bootstrap_password, plugins):
     return str(create_disk_job['DiskID']), str(create_swap_job['DiskID'])
 
     
-def create_linode_configurations(linode_api, linode_id, disk_list, plugins):
+def create_linode_configurations(linode_api, linode_id, disk_list, is_TCS, plugins):
     # KernelID = 138: Latest 64 bit
     bootstrap_kernel_id = 138
-    # KernelID = 216: GRUB Legacy (KVM)
-    host_kernel_id = 216
+    
+    if is_TCS:
+        host_kernel_id = bootstrap_kernel_id
+    else:
+        # KernelID = 216: GRUB Legacy (KVM)
+        host_kernel_id = 216
+    
     for plugin in plugins:
         if hasattr(plugin, 'linode_kernel_ids'):
             bootstrap_kernel_id, host_kernel_id = plugin.linode_kernel_ids()
@@ -177,22 +194,27 @@ def launch_new_server(linode_account, is_TCS, plugins):
     linode_id = None
     linode_api = linode.api.Api(key=linode_account.api_key)
     
-    # Power on the base image linode if it is not already running
-    if linode_api.linode_list(LinodeID=linode_account.base_id)[0]['STATUS'] != 1:
-        start_linode(linode_api, linode_account.base_id, None)
+    if not is_TCS:
+        # Power on the base image linode if it is not already running
+        if linode_api.linode_list(LinodeID=linode_account.base_id)[0]['STATUS'] != 1:
+            start_linode(linode_api, linode_account.base_id, None)
     
     try:
         # Create a new linode
         new_root_password = psi_utils.generate_password()
         linode_id, datacenter_name, region = create_linode(linode_api)
-        disk_ids = create_linode_disks(linode_api, linode_id, new_root_password, plugins)
-        bootstrap_config_id, psiphon3_host_config_id = create_linode_configurations(linode_api, linode_id, ','.join(disk_ids), plugins)
-        start_linode(linode_api, linode_id, bootstrap_config_id)
+        
+        disk_ids = create_linode_disks(linode_api, linode_id, new_root_password, is_TCS, plugins)
+        bootstrap_config_id, psiphon3_host_config_id = create_linode_configurations(linode_api, linode_id, ','.join(disk_ids), is_TCS, plugins)
         
         # Clone the base linode
         linode_ip_address = linode_api.linode_ip_list(LinodeID=linode_id)[0]['IPADDRESS']
-        pave_linode(linode_account, linode_ip_address, new_root_password)
-        stop_linode(linode_api, linode_id)
+        
+        if not is_TCS:
+            start_linode(linode_api, linode_id, bootstrap_config_id)
+            pave_linode(linode_account, linode_ip_address, new_root_password)
+            stop_linode(linode_api, linode_id)
+        
         start_linode(linode_api, linode_id, psiphon3_host_config_id)
         
         # Query hostname

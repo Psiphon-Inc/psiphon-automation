@@ -492,6 +492,21 @@ class Api:
     """
     pass
   
+  @__api_request(returns=[{u'CREATE_DT': u'YYYY-MM-DD hh:mm:ss.0',
+                           u'CREATOR': 'Image creator',
+                           u'DESCRIPTION': 'Image description',
+                           u'FS_TYPE': "in ['ext4', 'swap', 'raw']",
+                           u'IMAGEID': 'Image ID',
+                           u'ISPUBLIC': '0 or 1',
+                           u'LABEL': 'Image label',
+                           u'LAST_USED_DT': u'YYYY-MM-DD hh:mm:ss.0',
+                           u'MINSIZE': 0000,
+                           u'STATUS': 'Image availability',
+                           u'TYPE': 'automatic or manual Image'}])
+  def image_list(self, request):
+    """Lists all images associated with a Linode account"""
+    pass
+  
   @__api_request(required=['LinodeID'],
                  returns=[{u'CREATE_DT': u'YYYY-MM-DD hh:mm:ss.0',
                            u'DISKID': 'Disk ID',
@@ -572,6 +587,18 @@ class Api:
                            'DistributionID', 'rootPass', 'Label', 'Size'],
                  returns={u'DiskID': 'New Disk ID', u'JobID': 'Job ID'})
   def linode_disk_createfromstackscript(self, request):
+    """Submits a job to create a disk image from a Linode template.
+
+    On job submission, returns the disk ID and job ID.  Does not
+    wait for job completion (see linode_job_list). Note: the
+    'StackScriptUDFResponses' must be a valid JSON string.
+    """
+    pass
+  
+  @__api_request(required=['ImageID', 'LinodeID'],
+                 optional=['Label', 'size', 'rootPass', 'rootSSHKey'],
+                 returns={u'DiskID': 'New Disk ID', u'JobID': 'Job ID'})
+  def linode_disk_createfromimage(self, request):
     """Submits a job to create a disk image from a Linode template.
 
     On job submission, returns the disk ID and job ID.  Does not
