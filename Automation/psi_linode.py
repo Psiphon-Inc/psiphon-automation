@@ -85,9 +85,9 @@ def create_linode_disks(linode_api, linode_id, bootstrap_password, is_TCS, plugi
         image_id = 1065877
         create_disk_job = linode_api.linode_disk_createfromimage(ImageID=image_id, LinodeID=linode_id)
         # Image creation keys are in upper case
-        if create_disk_job.has_key(str.upper('jobid')):
+        if str.upper('jobid') in create_disk_job:
             create_disk_job['JobID'] = create_disk_job['JOBID']
-        if create_disk_job.has_key(str.upper('diskid')):
+        if str.upper('diskid') in create_disk_job:
             create_disk_job['DiskID'] = create_disk_job['DISKID']
 
     else:
@@ -167,10 +167,9 @@ def pave_linode(linode_account, ip_address, password):
     ssh.exec_command('tar xvpfj %s -C / > /dev/null' % (linode_account.base_tarball_path,))
     
     
-def refresh_credentials(linode_account, ip_address, new_root_password, new_stats_password):
+def refresh_credentials(linode_account, ip_address, password, host_public_key, new_root_password, new_stats_password):
     ssh = psi_ssh.make_ssh_session(ip_address, linode_account.base_ssh_port,
-                               'root', linode_account.base_root_password,
-                               linode_account.base_host_public_key)
+                                   'root', password, host_public_key)
     ssh.exec_command('echo "root:%s" | chpasswd' % (new_root_password,))
     ssh.exec_command('echo "%s:%s" | chpasswd' % (linode_account.base_stats_username, new_stats_password))
     ssh.exec_command('rm /etc/ssh/ssh_host_*')
@@ -179,14 +178,20 @@ def refresh_credentials(linode_account, ip_address, new_root_password, new_stats
     return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
 
 
-def get_host_name(linode_account, ip_address):
+def get_host_name(linode_account, ip_address, password, host_public_key):
     # Note: using base image credentials; call before changing credentials
     ssh = psi_ssh.make_ssh_session(ip_address, linode_account.base_ssh_port,
-                               'root', linode_account.base_root_password,
-                               linode_account.base_host_public_key)
+                                   'root', password, host_public_key)
     return ssh.exec_command('hostname').strip()
 
-    
+
+def set_host_name(linode_account, ip_address, password, host_public_key, new_hostname):
+    # Note: hostnamectl is for systemd servers
+    ssh = psi_ssh.make_ssh_session(ip_address, linode_account.base_ssh_port,
+                                   'root', password, host_public_key)
+    ssh.exec_command('hostnamectl set-hostname %s' % new_hostname)
+
+
 def launch_new_server(linode_account, is_TCS, plugins):
 
     # TODO-TCS: select base image based on is_TCS flag
@@ -194,10 +199,16 @@ def launch_new_server(linode_account, is_TCS, plugins):
     linode_id = None
     linode_api = linode.api.Api(key=linode_account.api_key)
     
-    if not is_TCS:
+    if is_TCS:
+        root_password = linode_account.tcs_base_root_password
+        host_public_key = linode_account.tcs_base_host_public_key
+    else:
         # Power on the base image linode if it is not already running
         if linode_api.linode_list(LinodeID=linode_account.base_id)[0]['STATUS'] != 1:
             start_linode(linode_api, linode_account.base_id, None)
+        
+        root_password = linode_account.base_root_password
+        host_public_key = linode_account.base_host_public_key
     
     try:
         # Create a new linode
@@ -208,7 +219,9 @@ def launch_new_server(linode_account, is_TCS, plugins):
         bootstrap_config_id, psiphon3_host_config_id = create_linode_configurations(linode_api, linode_id, ','.join(disk_ids), is_TCS, plugins)
         
         # Clone the base linode
-        linode_ip_address = linode_api.linode_ip_list(LinodeID=linode_id)[0]['IPADDRESS']
+        linode_ip_details = linode_api.linode_ip_list(LinodeID=linode_id)
+        linode_ip_address = linode_ip_details[0]['IPADDRESS']
+        linode_rdns_name = linode_ip_details[0]['RDNS_NAME'].split('.', 1)[0]
         
         if not is_TCS:
             start_linode(linode_api, linode_id, bootstrap_config_id)
@@ -217,12 +230,19 @@ def launch_new_server(linode_account, is_TCS, plugins):
         
         start_linode(linode_api, linode_id, psiphon3_host_config_id)
         
+        if is_TCS:
+            # Linodes created by an image keep the image's hostname.  Override this
+            set_host_name(linode_account, linode_ip_address, root_password, 
+                          host_public_key, linode_rdns_name)
+        
         # Query hostname
-        hostname = get_host_name(linode_account, linode_ip_address)
+        hostname = get_host_name(linode_account, linode_ip_address, root_password, host_public_key)
 
         # Change the new linode's credentials
         new_stats_password = psi_utils.generate_password()
-        new_host_public_key = refresh_credentials(linode_account, linode_ip_address, new_root_password, new_stats_password)
+        new_host_public_key = refresh_credentials(linode_account, linode_ip_address, 
+                                                  root_password, host_public_key, 
+                                                  new_root_password, new_stats_password)
     except Exception as ex:
         if linode_id:
             remove_server(linode_account, linode_id)

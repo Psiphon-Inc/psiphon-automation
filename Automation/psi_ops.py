@@ -251,7 +251,7 @@ LinodeAccount = psi_utils.recordtype(
     'api_key, base_id, base_ip_address, base_ssh_port, ' +
     'base_root_password, base_stats_username, base_host_public_key, ' +
     'base_known_hosts_entry, base_rsa_private_key, base_rsa_public_key, ' +
-    'base_tarball_path',
+    'base_tarball_path, tcs_base_root_password, tcs_base_host_public_key',
     default=None)
 
 DigitalOceanAccount = psi_utils.recordtype(
