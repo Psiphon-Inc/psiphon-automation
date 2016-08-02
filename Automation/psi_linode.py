@@ -76,6 +76,7 @@ def create_linode(linode_api):
                          60,
                          'create a linode')
     assert(linode_api.linode_list(LinodeID=new_node_id)[0]['STATUS'] == 0)
+    linode_api.linode_update(LinodeID=new_node_id, Alert_bwquota_enabled=0, Alert_bwout_enabled=0, Alert_bwin_enabled=0)
     return new_node_id, datacenter_name, get_region(datacenter_id)
 
 
@@ -102,7 +103,7 @@ def create_linode_disks(linode_api, linode_id, bootstrap_password, is_TCS, plugi
                          120,
                          'create a disk from distribution')
     assert(linode_api.linode_job_list(LinodeID=linode_id, JobID=create_disk_job['JobID'])[0]['HOST_SUCCESS'] == 1)
-    
+
     create_swap_job = linode_api.linode_disk_create(LinodeID=linode_id, Type='swap', Label='Psiphon 3 Swap', Size=1024)
     wait_while_condition(lambda: linode_api.linode_job_list(LinodeID=linode_id, JobID=create_swap_job['JobID'])[0]['HOST_SUCCESS'] == '',
                          30,
@@ -111,7 +112,7 @@ def create_linode_disks(linode_api, linode_id, bootstrap_password, is_TCS, plugi
 
     return str(create_disk_job['DiskID']), str(create_swap_job['DiskID'])
 
-    
+
 def create_linode_configurations(linode_api, linode_id, disk_list, is_TCS, plugins):
     # KernelID = 138: Latest 64 bit
     bootstrap_kernel_id = 138
@@ -128,7 +129,7 @@ def create_linode_configurations(linode_api, linode_id, disk_list, is_TCS, plugi
     bootstrap_config_id = linode_api.linode_config_create(LinodeID=linode_id, KernelID=bootstrap_kernel_id, Label='BootStrap', DiskList=disk_list)
     psiphon3_host_config_id = linode_api.linode_config_create(LinodeID=linode_id, KernelID=host_kernel_id, Label='Psiphon 3 Host', DiskList=disk_list)
     return bootstrap_config_id['ConfigID'], psiphon3_host_config_id['ConfigID']
-    
+
 
 def start_linode(linode_api, linode_id, config_id):
     if config_id:
@@ -139,15 +140,15 @@ def start_linode(linode_api, linode_id, config_id):
                          60,
                          'boot the linode')
     assert(linode_api.linode_job_list(LinodeID=linode_id, JobID=boot_job_id)[0]['HOST_SUCCESS'] == 1)
-    
-    
+
+
 def stop_linode(linode_api, linode_id):
     shutdown_job_id = linode_api.linode_shutdown(LinodeID=linode_id)['JobID']
     wait_while_condition(lambda: linode_api.linode_job_list(LinodeID=linode_id, JobID=shutdown_job_id)[0]['HOST_SUCCESS'] == '',
                          150,
                          'shutdown the linode')
     assert(linode_api.linode_job_list(LinodeID=linode_id, JobID=shutdown_job_id)[0]['HOST_SUCCESS'] == 1)
-    
+
 
 def pave_linode(linode_account, ip_address, password):
     # Note: using auto-add-policy for host's SSH public key here since we can't get it through the Linode API.
@@ -165,8 +166,8 @@ def pave_linode(linode_account, ip_address, password):
     ssh.exec_command('apt-get update > /dev/null')
     ssh.exec_command('apt-get install -y bzip2 > /dev/null')
     ssh.exec_command('tar xvpfj %s -C / > /dev/null' % (linode_account.base_tarball_path,))
-    
-    
+
+
 def refresh_credentials(linode_account, ip_address, password, host_public_key, new_root_password, new_stats_password):
     ssh = psi_ssh.make_ssh_session(ip_address, linode_account.base_ssh_port,
                                    'root', password, host_public_key)
@@ -198,7 +199,7 @@ def launch_new_server(linode_account, is_TCS, plugins):
 
     linode_id = None
     linode_api = linode.api.Api(key=linode_account.api_key)
-    
+
     if is_TCS:
         root_password = linode_account.tcs_base_root_password
         host_public_key = linode_account.tcs_base_host_public_key
@@ -217,7 +218,7 @@ def launch_new_server(linode_account, is_TCS, plugins):
         
         disk_ids = create_linode_disks(linode_api, linode_id, new_root_password, is_TCS, plugins)
         bootstrap_config_id, psiphon3_host_config_id = create_linode_configurations(linode_api, linode_id, ','.join(disk_ids), is_TCS, plugins)
-        
+
         # Clone the base linode
         linode_ip_details = linode_api.linode_ip_list(LinodeID=linode_id)
         linode_ip_address = linode_ip_details[0]['IPADDRESS']
@@ -229,7 +230,7 @@ def launch_new_server(linode_account, is_TCS, plugins):
             stop_linode(linode_api, linode_id)
         
         start_linode(linode_api, linode_id, psiphon3_host_config_id)
-        
+
         if is_TCS:
             # Linodes created by an image keep the image's hostname.  Override this
             set_host_name(linode_account, linode_ip_address, root_password, 
