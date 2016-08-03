@@ -30,6 +30,7 @@ import M2Crypto
 import datetime
 import base64
 
+import psi_ops_deploy
 
 sys.path.insert(0, os.path.abspath(os.path.join('..', 'Server')))
 import psi_config
@@ -402,7 +403,7 @@ def generate_self_signed_certificate():
 def install_host(host, servers, existing_server_ids, plugins):
 
     if host.is_TCS:
-        install_TCS_host(host, servers, existing_server_ids)
+        install_TCS_host(host, servers, existing_server_ids, plugins)
     else:
         install_legacy_host(host, servers, existing_server_ids, plugins)
 
@@ -570,7 +571,7 @@ def install_legacy_host(host, servers, existing_server_ids, plugins):
     ssh.exec_command('pip install --upgrade cffi')
     ssh.exec_command('apt-get install -y redis-server mercurial git')
 
-    install_geoip_database(ssh)
+    install_geoip_database(ssh, False)
     
     for plugin in plugins:
         if hasattr(plugin, 'install_host'):
@@ -623,7 +624,7 @@ def install_TCS_host(host, servers, existing_server_ids, plugins):
             host.ssh_username, host.ssh_password,
             host.ssh_host_key)
 
-    install_geoip_database(ssh)
+    install_geoip_database(ssh, True)
     
     ssh.close()
 
@@ -897,7 +898,7 @@ iptables-restore < %s
     ssh.close()
     
     if do_blacklist:
-        install_malware_blacklist(host)
+        install_malware_blacklist(host, False)
 
 
 def install_TCS_firewall_rules(host, servers, do_blacklist):
@@ -935,10 +936,10 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
         web_server_port_rule =  accept_with_recent_rate_template.format(
                 server_ip_address=str(server.internal_ip_address),
                 port=str(server.web_server_port),
-                recent_name='LIMIT-' + str(s.internal_ip_address).replace('.', '-') + '-' + str(server.web_server_port))
+                recent_name='LIMIT-' + str(server.internal_ip_address).replace('.', '-') + '-' + str(server.web_server_port))
         port_rules += [web_server_port_rule]
 
-    for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, True):
+    for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, True).iteritems():
         protocol_port_rule = ''
         if 'MEEK' in protocol:
             protocol_port_rule = accept_with_limit_rate_template.format(
@@ -948,7 +949,7 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
             protocol_port_rule = accept_with_recent_rate_template.format(
                     server_ip_address=str(server.internal_ip_address),
                     port=str(port),
-                    recent_name='LIMIT-' + str(s.internal_ip_address).replace('.', '-') + '-' + str(port))
+                    recent_name='LIMIT-' + str(server.internal_ip_address).replace('.', '-') + '-' + str(port))
         port_rules += [protocol_port_rule]
 
     # Common INPUT rules
@@ -1000,13 +1001,14 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
             server_ip_address=str(server.internal_ip_address), web_server_port=str(server.web_server_port))
         nat_prerouting_rules += [web_server_port_forward]
 
-    for alternate in server.alternate_ssh_obfuscated_ports:
-        protocol_port_forward = textwrap.dedent('''
+    if server.alternate_ssh_obfuscated_ports:
+        for alternate in server.alternate_ssh_obfuscated_ports:
+            protocol_port_forward = textwrap.dedent('''
 
-        -A PREROUTING -i eth+ -p tcp -d {server_ip_address} --dport {alternate_port} -j DNAT --to-destination :{protocol_port}''').format(
+            -A PREROUTING -i eth+ -p tcp -d {server_ip_address} --dport {alternate_port} -j DNAT --to-destination :{protocol_port}''').format(
 
-            server_ip_address=str(server.internal_ip_address), alternate_port=str(alternate), protocol_port=str(server.ssh_obfuscated_port))
-        nat_prerouting_rules += [protocol_port_forward]
+                server_ip_address=str(server.internal_ip_address), alternate_port=str(alternate), protocol_port=str(server.ssh_obfuscated_port))
+            nat_prerouting_rules += [protocol_port_forward]
 
 
     iptables_rules_path = '/etc/iptables.rules'
@@ -1051,10 +1053,10 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
     ssh.close()
     
     if do_blacklist:
-        install_malware_blacklist(host)
+        install_malware_blacklist(host, True)
 
 
-def install_malware_blacklist(host):
+def install_malware_blacklist(host, is_TCS):
 
     psi_ip_blacklist = 'psi_ipblacklist.py'
     psi_ip_blacklist_host_path = posixpath.join('/usr/local/bin', psi_ip_blacklist)
@@ -1066,8 +1068,11 @@ def install_malware_blacklist(host):
             host.ssh_username, host.ssh_password,
             host.ssh_host_key)
 
-    ssh.exec_command('apt-get install -y module-assistant xtables-addons-source')
-    ssh.exec_command('module-assistant -i auto-install xtables-addons')
+    if is_TCS:
+        ssh.exec_command('apt-get install -y ipset')
+    else:
+        ssh.exec_command('apt-get install -y module-assistant xtables-addons-source')
+        ssh.exec_command('module-assistant -i auto-install xtables-addons')
     
     ssh.put_file(os.path.join(os.path.abspath('.'), psi_ip_blacklist),
                  psi_ip_blacklist_host_path)
@@ -1078,7 +1083,7 @@ def install_malware_blacklist(host):
     ssh.close()
     
     
-def install_geoip_database(ssh):
+def install_geoip_database(ssh, is_TCS):
 
     #
     # Upload the local GeoIP databases (if they exist)
@@ -1087,7 +1092,11 @@ def install_geoip_database(ssh):
     # legacy uses the v1 files; TCS uses the v2 files
 
     REMOTE_GEOIP_DIRECTORY = '/usr/local/share/GeoIP/'
-    for geo_ip_file in ['GeoIPCity.dat', 'GeoIPISP.dat', 'GeoIP2-City.mmdb', 'GeoIP2-ISP.mmdb']:
+    geo_ip_files = ['GeoIPCity.dat', 'GeoIPISP.dat']
+    if is_TCS:
+        geo_ip_files = ['GeoIP2-City.mmdb', 'GeoIP2-ISP.mmdb']
+    
+    for geo_ip_file in geo_ip_files:
         if os.path.isfile(geo_ip_file):
             ssh.put_file(os.path.join(os.path.abspath('.'), geo_ip_file),
                          posixpath.join(REMOTE_GEOIP_DIRECTORY, geo_ip_file))
@@ -1215,7 +1224,7 @@ def install_TCS_psi_limit_load(host, servers):
     protocol_ports = psi_ops_deploy.get_supported_protocol_ports(host, server, True)
 
     rules = [' INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j REJECT --reject-with tcp-reset'
-        % (str(s.internal_ip_address), str(port),) for (protocol, port) in protocol_ports]
+        % (str(server.internal_ip_address), str(port),) for (protocol, port) in protocol_ports.iteritems()]
 
     disable_services = '\n    '.join(['iptables -I' + rule for rule in rules])
     

@@ -1294,6 +1294,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     ssh_username,
                     ssh_password,
                     ssh_host_key,
+                    None,
                     ssh_obfuscated_port,
                     ssh_obfuscated_key,
                     alternate_ssh_obfuscated_ports,
@@ -1341,7 +1342,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     ssh_port,
                     ssh_username,
                     ssh_password,
-                    ssh_host_key)
+                    ssh_host_key,
+                    None)
 
         assert(server.id not in self.__servers)
         self.__servers[server.id] = server
@@ -1632,7 +1634,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             raise ex
 
         server_info = provider_launch_new_server_with_retries(is_TCS)
-        return server_info[0:1] + (provider.lower(),) + server_info[2:]
+        return server_info[0:2] + (provider.lower(),) + server_info[3:]
 
     def add_servers(self, server_infos, propagation_channel_name, discovery_date_range, replace_others=True, server_capabilities=None):
         assert(self.is_locked)
@@ -1751,6 +1753,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         None,
                         None,
                         ssh_port,
+                        None,
                         None,
                         None,
                         None,
@@ -3031,6 +3034,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 server.ssh_username,
                                                 server.ssh_password,
                                                 server.ssh_host_key,
+                                                None,
                                                 server.ssh_obfuscated_port,
                                                 server.ssh_obfuscated_key,
                                                 server.alternate_ssh_obfuscated_ports)
@@ -3172,6 +3176,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 server.ssh_username,
                                                 server.ssh_password,
                                                 server.ssh_host_key,
+                                                None,
                                                 int(server.ssh_obfuscated_port), # Some ports are stored as strings, catch this for tunnel-core-server
                                                 server.ssh_obfuscated_key,
                                                 server.alternate_ssh_obfuscated_ports).todict()

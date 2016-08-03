@@ -237,7 +237,7 @@ def deploy_TCS_implementation(ssh, host, servers, TCS_psiphond_config_values):
     docker_protocol_ports = get_supported_protocol_ports(host, server, True)
 
     port_mappings = ' '.join(
-        ["-p %s:%s" % (external_port,docker_protocol_ports[protocol],) for (external_port, protocol) in external_protocol_ports])
+        ["-p %s:%s" % (external_port,docker_protocol_ports[protocol],) for (external_port, protocol) in external_protocol_ports.iteritems()])
 
     psiphond_env_content = '''
 DOCKER_CONTENT_TRUST=1
