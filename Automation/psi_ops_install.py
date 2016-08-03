@@ -658,12 +658,12 @@ def install_TCS_host(host, servers, existing_server_ids, plugins):
             
             # output format for the public key, which is saved in
             # psinet and included in server entries:
-            # 'ssh-rsa <base64>'
-            server.ssh_host_key = 'ssh-rsa ' + base64.b64encode(rsa_key.pub())
+            # 'ssh-rsa <base64>', where the base64 portion is the public key encoded according to RFC 4253 section 6.6
+            server.ssh_host_key = 'ssh-rsa ' + base64.b64encode('\x00\x00\x00\x07\x73\x73\x68\x2d\x72\x73\x61' + rsa_key.pub()[0] + rsa_key.pub()[1])
 
             # store private key in psinet (legacy doesn't do this).
             # Stored in psiphond.config format.
-            buf = M2Crypto.MemoryBuffer()
+            buf = M2Crypto.BIO.MemoryBuffer()
             rsa_key.save_key_bio(buf, cipher=None)
             server.TCS_ssh_private_key = buf.read()
 
