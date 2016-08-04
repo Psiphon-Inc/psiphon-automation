@@ -959,10 +959,10 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
         '-A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT',
 
         # Standard anti-spoofing rules: block external packets with loopback address
-        '-A INPUT -s 127.0.0.0/8 -i ! lo -j DROP',
-        '-A INPUT -d 127.0.0.0/8 -i ! lo -j DROP',
-        '-A OUTPUT -s 127.0.0.0/8 -o ! lo -j DROP',
-        '-A OUTPUT -d 127.0.0.0/8 -o ! lo -j DROP'
+        '-A INPUT -s 127.0.0.0/8 ! -i lo -j DROP',
+        '-A INPUT -d 127.0.0.0/8 ! -i lo -j DROP',
+        '-A OUTPUT -s 127.0.0.0/8 ! -o lo -j DROP',
+        '-A OUTPUT -d 127.0.0.0/8 ! -o lo -j DROP'
 
     ] + port_rules + [
 
@@ -981,7 +981,7 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
 
     filter_output_rules = [
 
-        '-A OUTPUT -j ALLOW'
+        '-A OUTPUT -j ACCEPT'
 
     ]
 

@@ -68,13 +68,13 @@ SOURCE_FILES = [
 
 #==== TCS Configuration =======================================================
 
-TCS_PSIPHOND_DOCKER_ENVIRONMENT_FILE_NAME = '/opt/psiphon/psiphond/psiphond.env'
-TCS_PSIPHOND_CONFIG_FILE_NAME = '/opt/psiphon/psiphond/psiphond.config'
+TCS_PSIPHOND_DOCKER_ENVIRONMENT_FILE_NAME = '/opt/psiphon/psiphond/config/psiphond.env'
+TCS_PSIPHOND_CONFIG_FILE_NAME = '/opt/psiphon/psiphond/config/psiphond.config'
 TCS_PSIPHOND_LOG_FILE_NAME = '/var/log/psiphond/psiphond.log'
-TCS_TRAFFIC_RULES_FILE_NAME = '/opt/psiphon/psiphond/traffic-rules.config'
-TCS_PSINET_FILE_NAME = '/opt/psiphon/psiphond/psinet.json'
-TCS_GEOIP_CITY_DATABASE_FILE_NAME = '/opt/geoip/GeoIP2-City.mmdb'
-TCS_GEOIP_ISP_DATABASE_FILE_NAME = '/opt/geoip/GeoIP2-ISP.mmdb'
+TCS_TRAFFIC_RULES_FILE_NAME = '/opt/psiphon/psiphond/config/traffic-rules.config'
+TCS_PSINET_FILE_NAME = '/opt/psiphon/psiphond/data/psinet.json'
+TCS_GEOIP_CITY_DATABASE_FILE_NAME = '/usr/local/share/GeoIP/GeoIP2-City.mmdb'
+TCS_GEOIP_ISP_DATABASE_FILE_NAME = '/usr/local/share/GeoIP/GeoIP2-ISP.mmdb'
 
 TCS_DOCKER_WEB_SERVER_PORT = 3000
 TCS_SSH_DOCKER_PORT = 3001
@@ -85,7 +85,7 @@ TCS_FRONTED_MEEK_HTTP_DOCKER_PORT = 3005
 TCS_UNFRONTED_MEEK_HTTPS_DOCKER_PORT = 3006
 
 TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND = 'systemctl kill --signal=USR1 psiphond'
-TCS_PSIPHOND_START_COMMAND = '/opt/psiphon/psiphond/start.sh'
+TCS_PSIPHOND_START_COMMAND = '/opt/psiphon/psiphond_safe_start.sh'
 
 
 #==============================================================================
@@ -233,18 +233,18 @@ def deploy_TCS_implementation(ssh, host, servers, TCS_psiphond_config_values):
 
     # Upload psiphond.env
 
-    external_protocol_ports = get_supported_protocol_ports(host, server, False)
-    docker_protocol_ports = get_supported_protocol_ports(host, server, True)
+    external_protocol_ports = get_supported_protocol_ports(host, server, True)
+    docker_protocol_ports = get_supported_protocol_ports(host, server, False)
 
     port_mappings = ' '.join(
-        ["-p %s:%s" % (external_port,docker_protocol_ports[protocol],) for (external_port, protocol) in external_protocol_ports.iteritems()])
+        ["-p %s:%s" % (external_port,docker_protocol_ports[protocol],) for (protocol, external_port) in external_protocol_ports.iteritems()])
 
     psiphond_env_content = '''
 DOCKER_CONTENT_TRUST=1
 
 CONTAINER_TAG=production
 CONTAINER_PORT_STRING="%s"
-CONTAINER_VOLUME_STRING="-v /opt/psiphon/psiphond/config:/opt/psiphon/psiphond/config -v /var/log/psiphond:/var/log/psiphond"
+CONTAINER_VOLUME_STRING="-v /opt/psiphon/psiphond/config:/opt/psiphon/psiphond/config -v /opt/psiphon/psiphond/data:/opt/psiphon/psiphond/data -v /var/log/psiphond:/var/log/psiphond -v /usr/local/share/GeoIP:/usr/local/share/GeoIP"
 ''' % (port_mappings,)
 
     put_file_with_content(
