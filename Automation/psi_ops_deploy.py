@@ -278,12 +278,10 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
     config['LoadMonitorPeriodSeconds'] = 300
 
     config['UDPInterceptUdpgwServerAddress'] = '127.0.0.1:7300'
-    # TODO-TCS: remove this item once psiphond uses local host DNS server
-    config['UDPForwardDNSServerAddress'] = '8.8.8.8:53'
 
     config['HostID'] = host.id
 
-    config['ServerIPAddress'] = server.ip_address
+    config['ServerIPAddress'] = '0.0.0.0'
 
     config['WebServerPort'] = TCS_DOCKER_WEB_SERVER_PORT
     config['WebServerSecret'] = server.web_server_secret
