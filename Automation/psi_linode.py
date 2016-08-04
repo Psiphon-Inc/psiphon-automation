@@ -195,8 +195,6 @@ def set_host_name(linode_account, ip_address, password, host_public_key, new_hos
 
 def launch_new_server(linode_account, is_TCS, plugins):
 
-    # TODO-TCS: select base image based on is_TCS flag
-
     linode_id = None
     linode_api = linode.api.Api(key=linode_account.api_key)
 
