@@ -365,6 +365,8 @@ def get_supported_protocol_ports(host, server, external_ports=True):
 
 def deploy_implementation_to_hosts(hosts, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
 
+    # TODO-TCS: stagger psiphond restarts. 15s delay in each batch has been OK for legacy meek updates.
+
     @retry_decorator_returning_exception
     def do_deploy_implementation(host):
         try:

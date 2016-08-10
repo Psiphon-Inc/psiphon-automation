@@ -607,12 +607,20 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # No existing hosts use the TCS stack
             for host in self.__hosts.itervalues():
                 host.is_TCS = False
+            for host in self.__deleted_hosts.itervalues():
+                host.is_TCS = False
+            for host in self.__hosts_to_remove_from_providers.itervalues():
+                host.is_TCS = False
 
             # No existing servers have TCS keys
             for server in self.__servers.itervalues():
                 server.TCS_ssh_private_key = None
+            for server in self.__deleted_servers.itervalues():
+                server.TCS_ssh_private_key = None
 
             # Stub in valid, empty defaults
+            self.__linode_account.tcs_base_root_password = ''
+            self.__linode_account.tcs_base_host_public_key = ''
             self.__TCS_traffic_rules_set = "{}"
             self.__TCS_psiphond_config_values = {}
 
@@ -837,7 +845,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             ''') % (
                 s.id,
                 s.host_id,
-                " (TCS)" if s.is_TCS else "",
+                " (TCS)" if self.__hosts[s.host_id].is_TCS else "",
                 self.__hosts[s.host_id].ip_address,
                 self.__hosts[s.host_id].ssh_username,
                 self.__hosts[s.host_id].ssh_password,
@@ -1589,7 +1597,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Deploy will upload web server source database data and client builds
         # (Only deploying for the new host, not broadcasting info yet...)
         psi_ops_deploy.deploy_implementation(host, servers, self.__discovery_strategy_value_hmac_key, plugins, self.__TCS_psiphond_config_values)
-        # If the Host is TCS, deploy data for tunnel-core-server
         psi_ops_deploy.deploy_data(
                             host,
                             self.__compartmentalize_data_for_host(host.id, host.is_TCS),
@@ -1685,8 +1692,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 continue
             host = Host(*server_info)
 
-            host.is_TCS = server_info.is_TCS
-
             # NOTE: jsonpickle will serialize references to discovery_date_range, which can't be
             # resolved when unpickling, if discovery_date_range is used directly.
             # So create a copy instead.
@@ -1697,7 +1702,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             capabilities = ServerCapabilities()
 
             # All and only TCS servers support SSH API requests
-            capabilities['ssh-api-requests'] = is_TCS
+            capabilities['ssh-api-requests'] = host.is_TCS
 
             if server_capabilities:
                 capabilities = copy_server_capabilities(server_capabilities)
@@ -2524,16 +2529,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         self.__TCS_psiphond_config_values = psiphond_config_values
 
-        # TODO-TCS: stagger psiphond restarts
         for host in self.__hosts.itervalues():
             if host.is_TCS:
                 self.__deploy_implementation_required_for_hosts.add(host.id)
 
     def add_TCS_server_version(self):
-        # TODO-TCS: implement
-        # - reboot all hosts; systemd pre-exec should pull latest psiphond Docker image
-        # - stagger psiphond restarts
-        pass
+        assert(self.is_locked)
+        # Marks all hosts for re-deployment of server implementation
+        for host in self.__hosts.itervalues():
+            if not host.is_TCS:
+                continue
+            self.__deploy_implementation_required_for_hosts.add(host.id)
+            host.log('marked for implementation deployment')
 
     def add_client_version(self, platform, description):
         assert(self.is_locked)
@@ -2560,7 +2567,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def deploy_implementation_and_data_for_host_with_server(self, server_id):
         server = filter(lambda x: x.id == server_id, self.__servers.itervalues())[0]
         host = filter(lambda x: x.id == server.host_id, self.__hosts.itervalues())[0]
-        servers = [server for server in self.__servers.itervalues() if server.host_id == host_id]
+        servers = [server for server in self.__servers.itervalues() if server.host_id == host.id]
         psi_ops_deploy.deploy_implementation(host, servers, self.__discovery_strategy_value_hmac_key, plugins, self.__TCS_psiphond_config_values)
         psi_ops_deploy.deploy_data(
             host,
