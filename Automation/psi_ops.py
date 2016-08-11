@@ -607,9 +607,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # No existing hosts use the TCS stack
             for host in self.__hosts.itervalues():
                 host.is_TCS = False
-            for host in self.__deleted_hosts.itervalues():
+            for host in self.__deleted_hosts:
                 host.is_TCS = False
-            for host in self.__hosts_to_remove_from_providers.itervalues():
+            for host in self.__hosts_to_remove_from_providers:
                 host.is_TCS = False
 
             # No existing servers have TCS keys
