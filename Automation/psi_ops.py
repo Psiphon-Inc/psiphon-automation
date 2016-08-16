@@ -3008,7 +3008,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for host in self.__hosts.itervalues():
             copy.__hosts[host.id] = Host(
                                         host.id,
-                                        host.is_TCS,
+                                        '',  # Omit: is_TCS isn't needed
                                         '',  # Omit: provider isn't needed
                                         '',  # Omit: provider_id isn't needed
                                         '',  # Omit: ip_address isn't needed
@@ -3148,7 +3148,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for host in self.__hosts.itervalues():
             copy.__hosts[host.id] = Host(
                                         host.id,
-                                        host.is_TCS,
+                                        '',  # Omit: is_TCS isn't needed
                                         '',  # Omit: provider isn't needed
                                         '',  # Omit: provider_id isn't needed
                                         '',  # Omit: ip_address isn't needed
