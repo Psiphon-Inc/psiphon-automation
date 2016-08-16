@@ -618,6 +618,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for server in self.__deleted_servers.itervalues():
                 server.TCS_ssh_private_key = None
 
+            # No existing servers have TCS capabilities
+            for server in self.__servers.itervalues():
+                if server.capabilities:
+                    server.capabilities['ssh-api-requests'] = False
+            for server in self.__deleted_servers.itervalues():
+                if server.capabilities:
+                    server.capabilities['ssh-api-requests'] = False
+
             # Stub in valid, empty defaults
             self.__linode_account.tcs_base_root_password = ''
             self.__linode_account.tcs_base_host_public_key = ''
