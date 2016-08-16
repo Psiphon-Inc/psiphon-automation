@@ -1262,12 +1262,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             return servers[0]
         return None
 
-    def get_host_object(self, id, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
+    def get_host_object(self, id, is_TCS, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
                         stats_ssh_username, stats_ssh_password, datacenter_name, region, meek_server_port,
                         meek_server_obfuscated_key, meek_server_fronting_domain, meek_server_fronting_host,
                         alternate_meek_server_fronting_hosts, meek_cookie_encryption_public_key,
                         meek_cookie_encryption_private_key):
         return Host(id,
+                    is_TCS,
                     provider,
                     provider_id,
                     ip_address,
@@ -1291,7 +1292,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def get_server_object(self, id, host_id, ip_address, egress_ip_address, internal_ip_address, propagation_channel_id,
                         is_embedded, is_permanent, discovery_date_range, capabilities, web_server_port, web_server_secret,
                         web_server_certificate, web_server_private_key, ssh_port, ssh_username, ssh_password,
-                        ssh_host_key, ssh_obfuscated_port, ssh_obfuscated_key, alternate_ssh_obfuscated_ports):
+                        ssh_host_key, TCS_ssh_private_key, ssh_obfuscated_port, ssh_obfuscated_key, alternate_ssh_obfuscated_ports):
         return Server(id,
                     host_id,
                     ip_address,
@@ -1310,7 +1311,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     ssh_username,
                     ssh_password,
                     ssh_host_key,
-                    None,
+                    TCS_ssh_private_key,
                     ssh_obfuscated_port,
                     ssh_obfuscated_key,
                     alternate_ssh_obfuscated_ports,
@@ -1816,6 +1817,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         host = self.__hosts[host_id]
         host_copy = Host(
                         host.id,
+                        host.is_TCS,
                         host.provider,
                         host.provider_id,
                         host.ip_address,
@@ -3006,6 +3008,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for host in self.__hosts.itervalues():
             copy.__hosts[host.id] = Host(
                                         host.id,
+                                        host.is_TCS,
                                         '',  # Omit: provider isn't needed
                                         '',  # Omit: provider_id isn't needed
                                         '',  # Omit: ip_address isn't needed
@@ -3145,6 +3148,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for host in self.__hosts.itervalues():
             copy.__hosts[host.id] = Host(
                                         host.id,
+                                        host.is_TCS,
                                         '',  # Omit: provider isn't needed
                                         '',  # Omit: provider_id isn't needed
                                         '',  # Omit: ip_address isn't needed
@@ -3266,6 +3270,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for host in self.__hosts.itervalues():
             copy.__hosts[host.id] = Host(
                                             host.id,
+                                            host.is_TCS,
                                             host.provider,
                                             '',  # Omit: provider id isn't needed
                                             host.ip_address,
