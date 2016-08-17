@@ -275,7 +275,7 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
 
     config['TrafficRulesFilename'] = TCS_TRAFFIC_RULES_FILE_NAME
 
-    config['LoadMonitorPeriodSeconds'] = 300
+    config['LoadMonitorPeriodSeconds'] = 60
 
     config['UDPInterceptUdpgwServerAddress'] = '127.0.0.1:7300'
 
