@@ -169,8 +169,10 @@ def refresh_credentials(digitalocean_account, ip_address, new_root_password, new
     return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
 
 
-def launch_new_server(digitalocean_account, _):
+def launch_new_server(digitalocean_account, is_TCS, _):
     
+    # TODO-TCS: select base image based on is_TCS flag
+
     image = {}
     droplet = None
     try:
@@ -239,7 +241,7 @@ def launch_new_server(digitalocean_account, _):
         raise
 
     
-    return (image['name'], None, provider_id, droplet['ip_address'],
+    return (image['name'], is_TCS, None, provider_id, droplet['ip_address'],
             digitalocean_account.base_ssh_port, 'root', 
             new_root_password, ' '.join(new_host_public_key.split(' ')[:2]),
             digitalocean_account.base_stats_username, new_stats_password, 

@@ -146,10 +146,13 @@ def remove_server(vpsnet_account, node_id):
         raise e
 
 
-def launch_new_server(vpsnet_account, _):
+def launch_new_server(vpsnet_account, is_TCS, _):
     """
         launch_new_server is called from psi_ops.py to create a new server.
     """
+
+    # TODO-TCS: select base image based on is_TCS flag
+
     try:
         VPSNetHost = collections.namedtuple('VPSNetHost',
                                             ['ssd_vps_plan', 'fqdn', 
@@ -233,6 +236,7 @@ def launch_new_server(vpsnet_account, _):
         
     return (
         VPSNetHost.fqdn, 
+        is_TCS,
         None, 
         node.id, 
         public_ip_address,
