@@ -642,8 +642,8 @@ def install_TCS_host(host, servers, existing_server_ids, plugins):
         if (server.web_server_certificate is None
             or server.web_server_private_key is None):
             cert_pem, key_pem = generate_self_signed_certificate()
-            server.web_server_private_key = ''.join(key_pem.split('\n')[1:-2])
-            server.web_server_certificate = ''.join(cert_pem.split('\n')[1:-2])
+            server.web_server_private_key = key_pem
+            server.web_server_certificate = cert_pem
 
         if (server.ssh_username is None
             or server.ssh_password is None):

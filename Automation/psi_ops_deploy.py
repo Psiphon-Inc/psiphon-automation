@@ -275,7 +275,7 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
 
     config['TrafficRulesFilename'] = TCS_TRAFFIC_RULES_FILE_NAME
 
-    config['LoadMonitorPeriodSeconds'] = 300
+    config['LoadMonitorPeriodSeconds'] = 60
 
     config['UDPInterceptUdpgwServerAddress'] = '127.0.0.1:7300'
 
@@ -287,6 +287,11 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
     config['WebServerSecret'] = server.web_server_secret
     config['WebServerCertificate'] = server.web_server_certificate
     config['WebServerPrivateKey'] = server.web_server_private_key
+
+    # Redirect tunneled web server requests to the containerized web server address
+    config['TCPPortForwardRedirects'] = {
+        "%s:%d" % (server.ip_address, server.web_server_port) : "%s:%d" % ('127.0.0.1', TCS_DOCKER_WEB_SERVER_PORT)
+    }
 
     config['SSHPrivateKey'] = server.TCS_ssh_private_key
     config['SSHServerVersion'] = TCS_psiphond_config_values['SSHServerVersion']
