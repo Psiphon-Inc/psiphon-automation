@@ -245,6 +245,8 @@ DOCKER_CONTENT_TRUST=1
 CONTAINER_TAG=production
 CONTAINER_PORT_STRING="%s"
 CONTAINER_VOLUME_STRING="-v /opt/psiphon/psiphond/config:/opt/psiphon/psiphond/config -v /opt/psiphon/psiphond/data:/opt/psiphon/psiphond/data -v /var/log/psiphond:/var/log/psiphond -v /usr/local/share/GeoIP:/usr/local/share/GeoIP"
+CONTAINER_ULIMIT_STRING="--ulimit nofile=1000000:1000000"
+CONTAINER_SYSCTL_STRING="--sysctl 'net.ipv4.ip_local_port_range=1024 65535'"
 ''' % (port_mappings,)
 
     put_file_with_content(
