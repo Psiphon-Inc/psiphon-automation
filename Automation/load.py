@@ -73,8 +73,8 @@ def check_load_on_host(host):
         return (host.id, users, load, free.rstrip(), free_swap.rstrip(), ', '.join(process_alerts), disk_load.rstrip())
     except Exception as e:
         log_diagnostics('failed host: %s %s' % (host.id, str(e)))
-        return (host.id, -1, -1, -1, -1, '')
-
+        return (host.id, -1, -1, -1, -1, '', -1)
+      
 # TODO: print if server is discovery or propagation etc
 def check_load_on_hosts(psinet, hosts):
     loads = {}
@@ -157,7 +157,7 @@ def send_mail(record):
     # CSS in email HTML must be inline
     rendered = pynliner.fromString(rendered)
     log_diagnostics('Sending email...')
-    sender.send(config['statsEmailRecipients'], config['emailUsername'], 'Psiphon 3 Host Load Stats Testing', repr(record), rendered)
+    sender.send(config['statsEmailRecipients'], config['emailUsername'], 'Psiphon 3 Host Load Stats', repr(record), rendered)
     log_diagnostics('Email sent.')
 
 
