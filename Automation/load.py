@@ -105,7 +105,7 @@ def check_load_on_hosts(psinet, hosts):
     low_memory = [load for load in loads if float(load[1][2]) < 20.0 or float(load[1][3]) < 20.0]
     high_disks_usage = [load for load in loads if float(load[1][5]) > 80.0]
 
-    for load in low_memory + high_load + process_alerts + unreachable:
+    for load in low_memory + high_load + high_disks_usage + process_alerts + unreachable:
         loads.insert(0, loads.pop(loads.index(load)))
 
     pprint.pprint(loads)
