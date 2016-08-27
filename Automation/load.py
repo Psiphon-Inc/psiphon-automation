@@ -50,7 +50,7 @@ def check_load_on_host(host):
         load = str(float(load_metrics[0].strip())/load_threshold * 100.0)
         free = g_psinet.run_command_on_host(host, 'free | grep "buffers/cache" | awk \'{print $4/($3+$4) * 100.0}\'')
         free_swap = g_psinet.run_command_on_host(host, 'free | grep "Swap" | awk \'{if ($2 == 0) {print 0} else {print $4/$2 * 100.0}}\'')
-        disk_load = g_psinet.run_command_on_host(host, 'df | grep "rootfs" | awk \'{if ($3 == 0) {print 0} else {print $3/$2 * 100.0}}\'')
+        disk_load = g_psinet.run_command_on_host(host, 'df -hT / | grep "/" | awk \'{if ($4 == 0) {print 0} else {print $4/$3 * 100.0}}\'')
         processes_to_check = ['psi_web.py', 'redis-server', 'badvpn-udpgw', 'xinetd', 'xl2tpd', 'cron', 'rsyslogd', 'fail2ban-server', 'ntpd', 'systemctl']
         if host.meek_server_port:
             processes_to_check.append('meek-server')
