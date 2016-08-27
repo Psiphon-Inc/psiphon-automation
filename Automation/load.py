@@ -135,7 +135,7 @@ def log_load():
     with open('psi_host_load_results.log', 'a') as outfile:
         outfile.write(str(results))
         outfile.write('\n')
-    send_mail(results)
+    # send_mail(results)
 
 def log_diagnostics(line):
     with open('psi_host_load_diagnostics.log', 'a') as log_file:

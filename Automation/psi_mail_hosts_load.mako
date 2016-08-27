@@ -112,7 +112,7 @@ Elapsed: ${elapsed_time}<br>
     % for row_index, row in enumerate(hosts):
       <tr class="row-${'odd' if row_index%2 else 'even'}">
         <%
-          host, (users, load, free_mem, free_swap, process_alerts, disk_load) = row
+          host, (users, load, free_mem, free_swap, disk_load, process_alerts) = row
 
           status='normal'
           load_status='normal'
