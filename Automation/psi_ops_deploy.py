@@ -292,7 +292,7 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
 
     # Redirect tunneled web server requests to the containerized web server address
     config['TCPPortForwardRedirects'] = {
-        "%s:%d" % (server.ip_address, server.web_server_port) : "%s:%d" % ('127.0.0.1', TCS_DOCKER_WEB_SERVER_PORT)
+        "%s:%d" % (server.ip_address, int(server.web_server_port)) : "%s:%d" % ('127.0.0.1', TCS_DOCKER_WEB_SERVER_PORT)
     }
 
     config['SSHPrivateKey'] = server.TCS_ssh_private_key
