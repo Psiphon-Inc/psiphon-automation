@@ -71,11 +71,11 @@
    font-weight: bold;
     background-color: #F0F0F0;
   }
-  
+
   tr .alert {
     color: red;
   }
-  
+
   tr .warning {
     color: #FFCC00;
   }
@@ -106,18 +106,19 @@ Elapsed: ${elapsed_time}<br>
 
 <table>
   <thead>
-  <tr><th>Host</th><th>Users</th><th>Load</th><th>Free Mem</th><th>Free Swap</th><th>Process Alerts</th></tr>
+  <tr><th>Host</th><th>Users</th><th>Load</th><th>Free Mem</th><th>Free Swap</th><th>Disk Load</th><th>Process Alerts</th></tr>
   </thead>
   <tbody>
     % for row_index, row in enumerate(hosts):
       <tr class="row-${'odd' if row_index%2 else 'even'}">
         <%
-          host, (users, load, free_mem, free_swap, process_alerts) = row
+          host, (users, load, free_mem, free_swap, disk_load, process_alerts) = row
 
           status='normal'
           load_status='normal'
           mem_status='normal'
           swap_status='normal'
+          disk_status='normal'
 
           if float(load) >= 100.0:
             status='warning'
@@ -128,6 +129,9 @@ Elapsed: ${elapsed_time}<br>
           if float(free_swap) < 20.0:
             status='warning'
             swap_status='warning'
+          if float(disk_load) > 80.0:
+            status='warning'
+            disk_status='warning'
 
           if users == -1 and load == -1 and free_mem == -1 and free_swap ==-1:
             status='alert'
@@ -139,9 +143,9 @@ Elapsed: ${elapsed_time}<br>
         <td class=${load_status}>${float(load)}</td>
         <td class=${mem_status}>${float(free_mem)}</td>
         <td class=${swap_status}>${float(free_swap)}</td>
+        <td class=${disk_status}>${float(disk_load)}</td>
         <td class=${status}>${process_alerts}</td>
       </tr>
     % endfor
   </tbody>
 </table>
-
