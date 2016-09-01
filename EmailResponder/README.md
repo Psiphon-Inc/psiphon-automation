@@ -132,7 +132,7 @@ allowed to access the SSH port.
 1. Install postfix:
 
    ```
-   sudo apt-get install postfix
+   sudo apt-get install postfix opendkim opendkim-tools libmail-dkim-perl
    ```
 
    During installation:
@@ -205,7 +205,26 @@ allowed to access the SSH port.
 
    Actually using postgrey is handled in our example `main.cf` config.
 
-7. Reload postfix conf and restart:
+7. Install SpamAssassin.
+
+   Follow [these instructions](https://www.digitalocean.com/community/tutorials/how-to-install-and-setup-spamassassin-on-ubuntu-12-04).
+   Also add a `receive_override_options` option to the `smtpd` command in `master.cf`:
+
+   ```
+   smtp      inet  n       -       -       -       -       smtpd
+       -o content_filter=spamassassin
+       -o receive_override_options=no_address_mappings
+   ```
+
+   Our non-default values in `/etc/spamassassin/local.cf` are as follows:
+   ```
+   report_safe 0
+   required_score 3.0
+   ```
+
+   Note that `install.sh` also copies our custom score values in `50_scores.cf` to `/etc/spamassassin/`.
+
+8. Reload postfix conf and restart:
 
    ```
    sudo postfix reload
@@ -402,7 +421,7 @@ A handy DKIM DNS record generator can be found here:
 A couple of python packages are required:
 
 ```
-sudo pip install --upgrade dnspython dkimpy
+sudo pip install --upgrade dnspython dkimpy authres
 ```
 
 See the DKIM section of `settings.py` for more values that must be set/changed.
@@ -659,40 +678,76 @@ smtpd_soft_error_limit = 1
 smtpd_hard_error_limit = 3
 smtpd_junk_command_limit = 2
 
+#
+# Anti-spam rules
+# See, e.g., http://www.normyee.net/blog/2012/12/28/postfix-anti-spam-configuration-december-2012/
+#
+
+smtpd_helo_restrictions =
+        reject_non_fqdn_helo_hostname,
+        reject_invalid_helo_hostname,
+        reject_rhsbl_helo zen.spamhaus.org
+
+# Block clients that speak too early.
+smtpd_data_restrictions = reject_unauth_pipelining
+
+smtpd_client_restrictions =
+        reject_rbl_client b.barracudacentral.org
+# Can't use reject_unknown_client_hostname because our load balancer hides incoming IP.
+
+smtpd_sender_restrictions =
+        reject_unknown_sender_domain,
+        reject_unknown_address,
+        reject_rhsbl_reverse_client dbl.spamhaus.org,
+        reject_rbl_client b.barracudacentral.org
+
 # Reject messages that don't meet these criteria
 # The `10023` is the postgrey greylisting service.
 smtpd_recipient_restrictions =
    permit_mynetworks,
-   reject_invalid_helo_hostname,
-   reject_non_fqdn_helo_hostname,
+   reject_invalid_hostname,
    reject_non_fqdn_sender,
    reject_non_fqdn_recipient,
    reject_unknown_sender_domain,
    reject_unknown_recipient_domain,
    reject_unauth_destination,
-   reject_rbl_client zen.spamhaus.org,
-   reject_rbl_client bl.spamcop.net,
-   reject_rbl_client cbl.abuseat.org,
-   reject_rbl_client b.barracudacentral.org,
-   reject_rbl_client dnsbl.sorbs.net,
+   reject_unauth_pipelining,
+   reject_invalid_helo_hostname,
+   reject_unknown_helo_hostname,
+   reject_non_fqdn_helo_hostname,
+# Maybe include this...? It forces a request to the incoming server to validate $
+#   reject_unverified_sender,
+
+   check_helo_access hash:/home/mail_responder/helo_access,
+   check_sender_access hash:/home/mail_responder/sender_access,
+
+   permit_dnswl_client list.dnswl.org,
+
    check_policy_service inet:127.0.0.1:10023,
+
+   reject_rhsbl_reverse_client dbl.spamhaus.org,
+   reject_rhsbl_sender dbl.spamhaus.org,
+   reject_rhsbl_client dbl.spamhaus.org,
+
+   reject_rbl_client b.barracudacentral.org,
+   reject_rbl_client zen.spamhaus.org,
+   reject_rbl_client dnsbl.sorbs.net
+   reject_rbl_client cbl.abuseat.org,
+   reject_rbl_client bl.spamcop.net,
+
    permit
+
+# Only used in Postfix 2.10+
+smtpd_relay_restrictions =
+   permit_mynetworks
+   reject_unauth_destination
+
+# Note: It would be nice to do a SPF check above, but because we're behind a loa$
+# we can't actually see the remote IP (and we're doing TCP forwarding, so there'$
+# fancy added header or anything).
 
 # Without this, some other rules can be bypassed.
 smtpd_helo_required = yes
-
-# Reject some peers based on their HELO.
-smtpd_helo_restrictions = 
-  permit_mynetworks,
-  reject_unknown_helo_hostname,
-  check_helo_access hash:/home/mail_responder/helo_access,
-  permit
-
-# Don't accept mail from domains that don't exist.
-smtpd_sender_restrictions = reject_unknown_sender_domain
-
-# Block clients that speak too early.
-smtpd_data_restrictions = reject_unauth_pipelining
 
 
 #
@@ -718,6 +773,21 @@ bounce_queue_lifetime = 0
 # Consider a message undeliverable when it hits this time limit
 # http://www.postfix.org/postconf.5.html#maximal_queue_lifetime
 maximal_queue_lifetime = 1h
+
+#
+# Remove sensitive headers
+#
+mime_header_checks = regexp:/home/mail_responder/header_checks
+header_checks = regexp:/home/mail_responder/header_checks
+
+#
+# DKIM verification
+#
+# https://www.digitalocean.com/community/tutorials/how-to-install-and-configure-$
+milter_protocol = 2
+milter_default_action = accept
+smtpd_milters = inet:localhost:12301
+non_smtpd_milters = inet:localhost:12301
 
 
 #
