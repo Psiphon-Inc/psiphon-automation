@@ -26,6 +26,7 @@ import traceback
 import time
 import tempfile
 import dkim
+import authres
 import errno
 from boto.exception import BotoServerError
 
