@@ -288,7 +288,7 @@ class MailResponder(object):
 
         # Check the DKIM verify results.
         # For now we're just collecting info about what the results look like in practice.
-        dkim_header = decode_header(self._email['X-DKIM'])
+        dkim_header = decode_header(self._email['X-DKIM']) or decode_header(self._email['DKIM-Filter'])
         dkim_verify_result = decode_header(self._email['Authentication-Results'])
         if dkim_header:
             if dkim_verify_result:

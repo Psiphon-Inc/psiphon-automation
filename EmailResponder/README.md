@@ -132,7 +132,7 @@ allowed to access the SSH port.
 1. Install postfix:
 
    ```
-   sudo apt-get install postfix opendkim opendkim-tools libmail-dkim-perl
+   sudo apt-get install postfix
    ```
 
    During installation:
@@ -184,6 +184,7 @@ allowed to access the SSH port.
    (I don't think it matters where in the file you add it. I put it before the `pickup` line.)
 
     ```
+    # Local-only STMPD used for sending processed email
     127.0.0.1:2525      inet  n       -       -       -       -       smtpd
       -o syslog_name=postfix2
       -o smtpd_tls_security_level=none
@@ -193,8 +194,15 @@ allowed to access the SSH port.
       -o virtual_alias_domains=
       -o virtual_alias_maps=
       -o smtpd_helo_restrictions=permit
-      -o smtpd_sender_restrictions=permit
       -o smtpd_data_restrictions=permit
+      -o smtpd_client_restrictions=permit
+      -o smtpd_sender_restrictions=permit
+      -o smtpd_milters=
+      -o non_smtpd_milters=
+      -o content_filter=
+      -o receive_override_options=no_unknown_recipient_checks,no_header_body_checks,no_milters
+      -o mynetworks=127.0.0.0/8
+      -o smtpd_authorized_xforward_hosts=127.0.0.0/8
     ```
 
 6. Add [`postgrey`](http://postgrey.schweikert.ch/) for "[greylisting](http://projects.puremagic.com/greylisting/)":
@@ -208,6 +216,12 @@ allowed to access the SSH port.
 7. Install SpamAssassin.
 
    Follow [these instructions](https://www.digitalocean.com/community/tutorials/how-to-install-and-setup-spamassassin-on-ubuntu-12-04).
+
+   Also install this package:
+   ```
+   sudo apt-get install libmail-dkim-perl
+   ```
+
    Also add a `receive_override_options` option to the `smtpd` command in `master.cf`:
 
    ```
@@ -224,7 +238,58 @@ allowed to access the SSH port.
 
    Note that `install.sh` also copies our custom score values in `50_scores.cf` to `/etc/spamassassin/`.
 
-8. Reload postfix conf and restart:
+8. DKIM verification:
+
+   Install OpenDKIM, using [these instructions](https://www.digitalocean.com/community/tutorials/how-to-install-and-configure-dkim-with-postfix-on-debian-wheezy), but skipping the signing stuff.
+
+   When editing `/etc/opendkim.conf`, just paste this at the bottom:
+   ```
+   ### PSIPHON
+   AutoRestart             Yes
+   AutoRestartRate         10/1h
+   UMask                   002
+   Syslog                  yes
+   SyslogSuccess           Yes
+   LogWhy                  Yes
+
+   Canonicalization        relaxed/simple
+
+   ExternalIgnoreList      refile:/etc/opendkim/TrustedHosts
+   InternalHosts           refile:/etc/opendkim/TrustedHosts
+   KeyTable                refile:/etc/opendkim/KeyTable
+   SigningTable            refile:/etc/opendkim/SigningTable
+
+   # Verify only
+   Mode                    v
+   PidFile                 /var/run/opendkim/opendkim.pid
+   SignatureAlgorithm      rsa-sha256
+
+   UserID                  opendkim:opendkim
+
+   Socket                  inet:12301@localhost
+
+   X-Header                yes
+   AlwaysAddARHeader       yes
+
+   MinimumKeyBits          1024
+   ```
+
+   `/etc/opendkim/TrustedHosts` should contain this:
+   ```
+   127.0.0.1
+   localhost
+   192.168.11.0/24
+
+   # TODO: Derive from settings.py (or something)
+   mx.psiphon3.com
+   *.psiphon3.com
+   mx.respondbot.net
+   *.respondbot.net
+   ```
+
+   Note: With the configuration described here, DKIM will be verified twice -- once before SpamAssassin and once after SA delivers it back to Postfix. I think we either need to use dovecot instead of sendmail for re-delivery from SA, or (better) switch from SA to Amavis.
+
+9. Reload postfix conf and restart:
 
    ```
    sudo postfix reload
@@ -403,7 +468,7 @@ GRANT ALL ON <DB name in settings.py>.* TO '<username in settings.py>'@'localhos
 ```
 
 
-## DKIM
+## DKIM signing
 
 NOTE: In the past we have occasionally turned off DKIM support. We found that
 it was by far the most time- consuming step in replying to an email, and of
