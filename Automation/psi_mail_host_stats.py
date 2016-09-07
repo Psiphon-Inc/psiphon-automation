@@ -195,6 +195,6 @@ if __name__ == "__main__":
 
     sender.send(config['statsEmailRecipients'],
                 config['emailUsername'],
-                '[Testing] Psiphon 3 Host Stats',
+                'Psiphon 3 Host Stats',
                 repr(tables_data),
                 html_body)
