@@ -1,0 +1,12 @@
+# Reject email from no-reply address
+noreply@					REJECT
+no-reply@					REJECT
+bounces@					REJECT
+complaints@					REJECT
+
+# Reject email from senders who purport to be on our domain.
+# TODO: This should be dynamic based on configuration.
+.psiphon3.com				REJECT
+psiphon3.com				REJECT
+.respondbot.net				REJECT
+respondbot.net				REJECT
