@@ -245,6 +245,8 @@ DOCKER_CONTENT_TRUST=1
 CONTAINER_TAG=production
 CONTAINER_PORT_STRING="%s"
 CONTAINER_VOLUME_STRING="-v /opt/psiphon/psiphond/config:/opt/psiphon/psiphond/config -v /opt/psiphon/psiphond/data:/opt/psiphon/psiphond/data -v /var/log/psiphond:/var/log/psiphond -v /usr/local/share/GeoIP:/usr/local/share/GeoIP"
+CONTAINER_ULIMIT_STRING="--ulimit nofile=1000000:1000000"
+CONTAINER_SYSCTL_STRING="--sysctl 'net.ipv4.ip_local_port_range=1024 65535'"
 ''' % (port_mappings,)
 
     put_file_with_content(
@@ -290,7 +292,7 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
 
     # Redirect tunneled web server requests to the containerized web server address
     config['TCPPortForwardRedirects'] = {
-        "%s:%d" % (server.ip_address, server.web_server_port) : "%s:%d" % ('127.0.0.1', TCS_DOCKER_WEB_SERVER_PORT)
+        "%s:%d" % (server.ip_address, int(server.web_server_port)) : "%s:%d" % ('127.0.0.1', TCS_DOCKER_WEB_SERVER_PORT)
     }
 
     config['SSHPrivateKey'] = server.TCS_ssh_private_key
