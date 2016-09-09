@@ -70,9 +70,11 @@ def _convert_locale_info(data):
 
 
 _transformations = {
-                    'windows': (_translate_feedback, _parse_survey_results,
-                                _convert_locale_info),
                     'android_4': (_translate_feedback, _parse_survey_results,
+                                _convert_locale_info),
+                    'ios': (_translate_feedback, _parse_survey_results,
+                                _convert_locale_info),
+                    'windows': (_translate_feedback, _parse_survey_results,
                                 _convert_locale_info),
                     }
 
