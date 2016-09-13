@@ -76,13 +76,13 @@ TCS_PSINET_FILE_NAME = '/opt/psiphon/psiphond/data/psinet.json'
 TCS_GEOIP_CITY_DATABASE_FILE_NAME = '/usr/local/share/GeoIP/GeoIP2-City.mmdb'
 TCS_GEOIP_ISP_DATABASE_FILE_NAME = '/usr/local/share/GeoIP/GeoIP2-ISP.mmdb'
 
-TCS_DOCKER_WEB_SERVER_PORT = 3000
-TCS_SSH_DOCKER_PORT = 3001
-TCS_OSSH_DOCKER_PORT = 3002
-TCS_FRONTED_MEEK_OSSH_DOCKER_PORT = 3003
-TCS_UNFRONTED_MEEK_OSSH_DOCKER_PORT = 3004
-TCS_FRONTED_MEEK_HTTP_OSSH_DOCKER_PORT = 3005
-TCS_UNFRONTED_MEEK_HTTPS_OSSH_DOCKER_PORT = 3006
+TCS_DOCKER_WEB_SERVER_PORT = 1025
+TCS_SSH_DOCKER_PORT = 1026
+TCS_OSSH_DOCKER_PORT = 1027
+TCS_FRONTED_MEEK_OSSH_DOCKER_PORT = 1028
+TCS_UNFRONTED_MEEK_OSSH_DOCKER_PORT = 1029
+TCS_FRONTED_MEEK_HTTP_OSSH_DOCKER_PORT = 1030
+TCS_UNFRONTED_MEEK_HTTPS_OSSH_DOCKER_PORT = 1031
 
 TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND = 'systemctl kill --signal=USR1 psiphond'
 TCS_PSIPHOND_START_COMMAND = '/opt/psiphon/psiphond_safe_start.sh'
@@ -246,7 +246,7 @@ CONTAINER_TAG=production
 CONTAINER_PORT_STRING="%s"
 CONTAINER_VOLUME_STRING="-v /opt/psiphon/psiphond/config:/opt/psiphon/psiphond/config -v /opt/psiphon/psiphond/data:/opt/psiphon/psiphond/data -v /var/log/psiphond:/var/log/psiphond -v /usr/local/share/GeoIP:/usr/local/share/GeoIP"
 CONTAINER_ULIMIT_STRING="--ulimit nofile=1000000:1000000"
-CONTAINER_SYSCTL_STRING="--sysctl 'net.ipv4.ip_local_port_range=1024 65535'"
+CONTAINER_SYSCTL_STRING="--sysctl 'net.ipv4.ip_local_port_range=1100 65535'"
 ''' % (port_mappings,)
 
     put_file_with_content(
