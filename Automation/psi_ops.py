@@ -2998,7 +2998,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # - send versions info for upgrades
 
         if is_TCS:
-            return __compartmentalize_data_for_tcs(host_id, discovery_date)
+            return self.__compartmentalize_data_for_tcs(host_id, discovery_date)
 
         copy = PsiphonNetwork(initialize_plugins=False)
 
