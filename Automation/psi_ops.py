@@ -1710,9 +1710,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             ossh_port = random.choice([53, 443])
             capabilities = ServerCapabilities()
 
-            # All and only TCS servers support SSH API requests
-            capabilities['ssh-api-requests'] = host.is_TCS
-
             if server_capabilities:
                 capabilities = copy_server_capabilities(server_capabilities)
             elif discovery:
@@ -1750,6 +1747,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 else:
                     ossh_port = 53
                     self.setup_meek_parameters_for_host(host, 443)
+            
+            # All and only TCS servers support SSH API requests
+            capabilities['ssh-api-requests'] = host.is_TCS
 
             server = Server(
                         None,
