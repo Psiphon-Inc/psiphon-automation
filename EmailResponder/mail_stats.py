@@ -31,6 +31,7 @@ import subprocess
 import shlex
 import textwrap
 import datetime
+import collections
 import httplib
 from boto.ses.connection import SESConnection
 from boto.ec2.cloudwatch import CloudWatchConnection
@@ -49,11 +50,53 @@ def get_ses_quota():
 
     quota = conn.get_send_quota()
 
-    # Getting an error when we try to call this. See:
-    # http://code.google.com/p/boto/issues/detail?id=518
-    #conn.close()
+    conn.close()
 
     return json.dumps(quota, indent=2)
+
+
+def get_ses_send_stats():
+    """
+    Fetches the Amazon SES, which includes info about bounces and complaints.
+    Processes that data, returns some text suitable for the email.
+    """
+
+    # Open the connection. Uses creds from boto conf or env vars.
+    conn = SESConnection()
+
+    stats = conn.get_send_statistics()
+
+    conn.close()
+
+    one_day_ago = datetime.datetime.now() - datetime.timedelta(1)
+    one_week_ago = datetime.datetime.now() - datetime.timedelta(7)
+
+    one_day_ago_counter = collections.Counter()
+    one_week_ago_counter = collections.Counter()
+    two_weeks_ago_counter = collections.Counter()
+
+    for dp in stats['GetSendStatisticsResponse']['GetSendStatisticsResult']['SendDataPoints']:
+        dt = datetime.datetime.strptime(str(dp['Timestamp']).translate(None, ':-'), "%Y%m%dT%H%M%SZ")
+
+        dp_count = {k: int(v) for k, v in dp.items() if v.isdigit()}
+
+        if dt > one_day_ago:
+            one_day_ago_counter.update(dp_count)
+
+        if dt > one_week_ago:
+            one_week_ago_counter.update(dp_count)
+        else:
+            two_weeks_ago_counter.update(dp_count)
+
+    res = 'SES Send Stats\n====================================='
+    for title, data in (('Last Day', one_day_ago_counter), ('Last Week', one_week_ago_counter), ('Two Weeks Ago', two_weeks_ago_counter)):
+        res += '\n%s\n---------------------------------' % (title)
+        for i, k in enumerate(('DeliveryAttempts', 'Bounces', 'Complaints', 'Rejects')):
+            res += '\n%16s: %5s' % (k, data[k])
+            if i != 0:
+                res += ' (%d%%)' % (100 * data[k] / data['DeliveryAttempts'])
+
+    return res
 
 
 def get_send_info():
@@ -338,11 +381,9 @@ if __name__ == '__main__':
 
     email_body += '\n======================\n\n'
 
-    email_body += 'Instance-specific stats'
-
     email_body += '\n\n'
-    email_body += loginfo
-
+    email_body += get_ses_send_stats()
+    email_body += '\n\n'
     email_body += 'Postfix queue counts\n----------------------\n' + queue_check
     email_body += '\n\n'
     email_body += get_send_info()
@@ -354,6 +395,10 @@ if __name__ == '__main__':
     email_body += 'Instance info\n----------------------\n' + get_instance_info()
     email_body += '\n\n'
     email_body += 'Logwatch Basic\n----------------------\n' + logwatch_basic
+
+    email_body += 'Instance-specific stats'
+    email_body += '\n\n'
+    email_body += loginfo
 
     email_body += '</pre>'
 

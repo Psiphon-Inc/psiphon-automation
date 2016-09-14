@@ -1710,9 +1710,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             ossh_port = random.choice([53, 443])
             capabilities = ServerCapabilities()
 
-            # All and only TCS servers support SSH API requests
-            capabilities['ssh-api-requests'] = host.is_TCS
-
             if server_capabilities:
                 capabilities = copy_server_capabilities(server_capabilities)
             elif discovery:
@@ -1750,6 +1747,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 else:
                     ossh_port = 53
                     self.setup_meek_parameters_for_host(host, 443)
+            
+            # All and only TCS servers support SSH API requests
+            capabilities['ssh-api-requests'] = host.is_TCS
 
             server = Server(
                         None,
@@ -2716,12 +2716,20 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__deploy_data_required_for_all = True
 
     def __get_encoded_server_entry(self, server):
+
+        # TCS web server certificate has PEM headers and newlines, so strip those now
+        # for legacy format compatibility
+        web_server_certificate = server.web_server_certificate
+        host = self.get_host_for_server(server)
+        if host and host.is_TCS:
+            web_server_certificate = ''.join(server.web_server_certificate.split('\n')[1:-2])
+
         # Double-check that we're not giving our blank server credentials
         # ...this has happened in the past when following manual build steps
         assert(len(server.ip_address) > 1)
         assert(len(server.web_server_port) > 1)
         assert(len(server.web_server_secret) > 1)
-        assert(len(server.web_server_certificate) > 1)
+        assert(len(web_server_certificate) > 1)
 
         # Extended (i.e., new) entry fields are in a JSON string
         extended_config = {}
@@ -2730,7 +2738,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         extended_config['ipAddress'] = server.ip_address
         extended_config['webServerPort'] = server.web_server_port
         extended_config['webServerSecret'] = server.web_server_secret
-        extended_config['webServerCertificate'] = server.web_server_certificate
+        extended_config['webServerCertificate'] = web_server_certificate
 
         extended_config['sshPort'] = int(server.ssh_port) if server.ssh_port else 0
         extended_config['sshUsername'] = server.ssh_username if server.ssh_username else ''
@@ -2785,7 +2793,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     server.ip_address,
                                     server.web_server_port,
                                     server.web_server_secret,
-                                    server.web_server_certificate,
+                                    web_server_certificate,
                                     json.dumps(extended_config)))
 
     def __get_encoded_server_list(self, propagation_channel_id,
@@ -2990,7 +2998,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # - send versions info for upgrades
 
         if is_TCS:
-            return __compartmentalize_data_for_tcs(host_id, discovery_date)
+            return self.__compartmentalize_data_for_tcs(host_id, discovery_date)
 
         copy = PsiphonNetwork(initialize_plugins=False)
 

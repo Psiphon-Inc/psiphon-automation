@@ -144,14 +144,17 @@ def send_raw_email_smtp(raw_email,
     `smtp_server` should be None, or a logged-in instance of smtplib.SMTP or smtplib.SMTP_SSL.
     `smtp_server.quit()` is called when done.
     `recipients` may be an array of address or a single address string.
-    Raises exception on error. Returns true otherwise.
+    Returns True on success, False otherwise.
     '''
 
     if smtp_server is None:
         # Only import this file as needed, as it may not have been set up for
         # services other than the mailresponder.
         import settings
-        smtp_server = smtplib.SMTP('localhost', settings.LOCAL_SMTP_SEND_PORT)
+        try:
+            smtp_server = smtplib.SMTP('localhost', settings.LOCAL_SMTP_SEND_PORT)
+        except:
+            return False
 
     smtp_server.sendmail(from_address, recipients, raw_email)
     smtp_server.quit()

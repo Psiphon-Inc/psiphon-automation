@@ -76,13 +76,13 @@ TCS_PSINET_FILE_NAME = '/opt/psiphon/psiphond/data/psinet.json'
 TCS_GEOIP_CITY_DATABASE_FILE_NAME = '/usr/local/share/GeoIP/GeoIP2-City.mmdb'
 TCS_GEOIP_ISP_DATABASE_FILE_NAME = '/usr/local/share/GeoIP/GeoIP2-ISP.mmdb'
 
-TCS_DOCKER_WEB_SERVER_PORT = 3000
-TCS_SSH_DOCKER_PORT = 3001
-TCS_OSSH_DOCKER_PORT = 3002
-TCS_FRONTED_MEEK_DOCKER_PORT = 3003
-TCS_UNFRONTED_MEEK_DOCKER_PORT = 3004
-TCS_FRONTED_MEEK_HTTP_DOCKER_PORT = 3005
-TCS_UNFRONTED_MEEK_HTTPS_DOCKER_PORT = 3006
+TCS_DOCKER_WEB_SERVER_PORT = 1025
+TCS_SSH_DOCKER_PORT = 1026
+TCS_OSSH_DOCKER_PORT = 1027
+TCS_FRONTED_MEEK_OSSH_DOCKER_PORT = 1028
+TCS_UNFRONTED_MEEK_OSSH_DOCKER_PORT = 1029
+TCS_FRONTED_MEEK_HTTP_OSSH_DOCKER_PORT = 1030
+TCS_UNFRONTED_MEEK_HTTPS_OSSH_DOCKER_PORT = 1031
 
 TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND = 'systemctl kill --signal=USR1 psiphond'
 TCS_PSIPHOND_START_COMMAND = '/opt/psiphon/psiphond_safe_start.sh'
@@ -245,6 +245,8 @@ DOCKER_CONTENT_TRUST=1
 CONTAINER_TAG=production
 CONTAINER_PORT_STRING="%s"
 CONTAINER_VOLUME_STRING="-v /opt/psiphon/psiphond/config:/opt/psiphon/psiphond/config -v /opt/psiphon/psiphond/data:/opt/psiphon/psiphond/data -v /var/log/psiphond:/var/log/psiphond -v /usr/local/share/GeoIP:/usr/local/share/GeoIP"
+CONTAINER_ULIMIT_STRING="--ulimit nofile=1000000:1000000"
+CONTAINER_SYSCTL_STRING="--sysctl 'net.ipv4.ip_local_port_range=1100 65535'"
 ''' % (port_mappings,)
 
     put_file_with_content(
@@ -275,7 +277,7 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
 
     config['TrafficRulesFilename'] = TCS_TRAFFIC_RULES_FILE_NAME
 
-    config['LoadMonitorPeriodSeconds'] = 300
+    config['LoadMonitorPeriodSeconds'] = 60
 
     config['UDPInterceptUdpgwServerAddress'] = '127.0.0.1:7300'
 
@@ -287,6 +289,11 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
     config['WebServerSecret'] = server.web_server_secret
     config['WebServerCertificate'] = server.web_server_certificate
     config['WebServerPrivateKey'] = server.web_server_private_key
+
+    # Redirect tunneled web server requests to the containerized web server address
+    config['TCPPortForwardRedirects'] = {
+        "%s:%d" % (server.ip_address, int(server.web_server_port)) : "%s:%d" % ('127.0.0.1', TCS_DOCKER_WEB_SERVER_PORT)
+    }
 
     config['SSHPrivateKey'] = server.TCS_ssh_private_key
     config['SSHServerVersion'] = TCS_psiphond_config_values['SSHServerVersion']
@@ -303,17 +310,6 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
         config['MeekProhibitedHeaders'] = TCS_psiphond_config_values['MeekProhibitedHeaders']
         config['MeekProxyForwardedForHeaders'] = TCS_psiphond_config_values['MeekProxyForwardedForHeaders']
 
-    config['TunnelProtocolPorts'] = {}
-
-    TCS_protocols = [
-        ('SSH', TCS_SSH_DOCKER_PORT),
-        ('OSSH', TCS_OSSH_DOCKER_PORT),
-        ('FRONTED-MEEK', TCS_FRONTED_MEEK_DOCKER_PORT),
-        ('UNFRONTED-MEEK', TCS_UNFRONTED_MEEK_DOCKER_PORT),
-        ('FRONTED-MEEK-HTTP', TCS_FRONTED_MEEK_HTTP_DOCKER_PORT),
-        ('UNFRONTED-MEEK-HTTPS', TCS_UNFRONTED_MEEK_HTTPS_DOCKER_PORT)
-    ]
-
     # gets the Docker ports
     config['TunnelProtocolPorts'] = get_supported_protocol_ports(host, server, False)
 
@@ -329,10 +325,10 @@ def get_supported_protocol_ports(host, server, external_ports=True):
     TCS_protocols = [
         ('SSH', TCS_SSH_DOCKER_PORT),
         ('OSSH', TCS_OSSH_DOCKER_PORT),
-        ('FRONTED-MEEK', TCS_FRONTED_MEEK_DOCKER_PORT),
-        ('UNFRONTED-MEEK', TCS_UNFRONTED_MEEK_DOCKER_PORT),
-        ('FRONTED-MEEK-HTTP', TCS_FRONTED_MEEK_HTTP_DOCKER_PORT),
-        ('UNFRONTED-MEEK-HTTPS', TCS_UNFRONTED_MEEK_HTTPS_DOCKER_PORT)
+        ('FRONTED-MEEK-OSSH', TCS_FRONTED_MEEK_OSSH_DOCKER_PORT),
+        ('UNFRONTED-MEEK-OSSH', TCS_UNFRONTED_MEEK_OSSH_DOCKER_PORT),
+        ('FRONTED-MEEK-HTTP-OSSH', TCS_FRONTED_MEEK_HTTP_OSSH_DOCKER_PORT),
+        ('UNFRONTED-MEEK-HTTPS-OSSH', TCS_UNFRONTED_MEEK_HTTPS_OSSH_DOCKER_PORT)
     ]
 
     supported_protocol_ports = {}
@@ -342,22 +338,22 @@ def get_supported_protocol_ports(host, server, external_ports=True):
     # for example.
 
     for (protocol, docker_port) in TCS_protocols:
-        if protocol == 'SSH' and server.capabilities[protocol]:
+        if protocol == 'SSH' and server.capabilities['SSH']:
                 supported_protocol_ports[protocol] = int(server.ssh_port) if external_ports else docker_port
 
-        if protocol == 'OSSH' and server.capabilities[protocol]:
+        if protocol == 'OSSH' and server.capabilities['OSSH']:
                 supported_protocol_ports[protocol] = int(server.ssh_obfuscated_port) if external_ports else docker_port
 
-        if protocol == 'FRONTED-MEEK' and server.capabilities[protocol]:
+        if protocol == 'FRONTED-MEEK-OSSH' and server.capabilities['FRONTED-MEEK']:
                 supported_protocol_ports[protocol] = 443 if external_ports else docker_port
 
-        if protocol == 'UNFRONTED-MEEK' and server.capabilities[protocol] and not int(host.meek_server_port) == 443:
+        if protocol == 'UNFRONTED-MEEK-OSSH' and server.capabilities['UNFRONTED-MEEK'] and not int(host.meek_server_port) == 443:
                 supported_protocol_ports[protocol] = int(host.meek_server_port) if external_ports else docker_port
 
-        if protocol == 'FRONTED-MEEK-HTTP' and server.capabilities['FRONTED-MEEK'] and host.alternate_meek_server_fronting_hosts:
+        if protocol == 'FRONTED-MEEK-HTTP-OSSH' and server.capabilities['FRONTED-MEEK'] and host.alternate_meek_server_fronting_hosts:
                 supported_protocol_ports[protocol] = 80 if external_ports else docker_port
 
-        if protocol == 'UNFRONTED-MEEK-HTTPS' and server.capabilities['UNFRONTED-MEEK'] and int(host.meek_server_port) == 443:
+        if protocol == 'UNFRONTED-MEEK-HTTPS-OSSH' and server.capabilities['UNFRONTED-MEEK'] and int(host.meek_server_port) == 443:
                 supported_protocol_ports[protocol] = int(host.meek_server_port) if external_ports else docker_port
 
     return supported_protocol_ports
