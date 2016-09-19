@@ -54,11 +54,12 @@ def check_load_on_host(host):
         processes_to_check = ['cron', 'rsyslogd', 'fail2ban-server', 'ntpd', 'systemctl']
         legacy_process = ['psi_web.py', 'redis-server', 'badvpn-udpgw', 'xinetd', 'xl2tpd']
         if host.is_TCS:
-            processes_to_check.append(legacy_process)
-        else:
             processes_to_check.append('docker')
-        if host.meek_server_port and not host.is_TCS:
-            processes_to_check.append('meek-server')
+        else:
+            processes_to_check.append(legacy_process)
+
+            if host.meek_server_port:
+                processes_to_check.append('meek-server')
 
         process_counts = g_psinet.run_command_on_host(host,
             '; '.join(['pgrep -xc ' + process for process in processes_to_check])).split('\n')
