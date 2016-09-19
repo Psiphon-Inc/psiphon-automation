@@ -1,0 +1,6 @@
+# Remove potentially sensitive headers
+
+/^Received:.*with ESMTPSA/		IGNORE
+/^Received:.*with ESMTP/		IGNORE
+/^X-Originating-IP:/			IGNORE
+/^X-Mailer:/					IGNORE
