@@ -37,7 +37,7 @@ We could probably use Postfix's [virtual mailbox](http://www.postfix.org/VIRTUAL
     ```
     sudo apt-get update
     sudo apt-get upgrade
-    sudo apt-get install mercurial python-pip libwww-perl libdatetime-perl
+    sudo apt-get install mercurial python-pip libwww-perl libdatetime-perl rsyslog-gnutls
     sudo reboot
     ```
 
@@ -177,32 +177,35 @@ allowed to access the SSH port.
     `notify_classes =`
     )
 
-5. By default, if an uncaught error occurs (which shouldn't occur, but...),
-   postfix responds to the user with a bounce email that gives a lot of internal
-   details about the error. This is undesirable, so we'll disable this in postfix.
-
-   ```
-   sudo nano /etc/postfix/master.cf
-   ```
-
-   Comment out the bounce line, so it looks like this:
-
-   ```
-   #bounce    unix  -       -       -       -       0       bounce
-   ```
-
-6. When sending mail via our local Postfix we don't want to have to make a TLS
+5. When sending mail via our local Postfix we don't want to have to make a TLS
    connection. So we'll run an instance of `stmpd` on `localhost` on a different
    port and use that for sending. Add these two lines to `master.cf`. NOTE: The 
    port specified must match the one in `settings.LOCAL_SMTP_SEND_PORT`.
    (I don't think it matters where in the file you add it. I put it before the `pickup` line.)
 
     ```
+    # Local-only STMPD used for sending processed email
     127.0.0.1:2525      inet  n       -       -       -       -       smtpd
-     -o smtpd_tls_security_level=none
+      -o syslog_name=postfix2
+      -o smtpd_tls_security_level=none
+      -o smtpd_banner=localhost
+      -o myhostname=localhost
+      -o smtpd_recipient_restrictions=permit_mynetworks,reject_unauth_destination
+      -o virtual_alias_domains=
+      -o virtual_alias_maps=
+      -o smtpd_helo_restrictions=permit
+      -o smtpd_data_restrictions=permit
+      -o smtpd_client_restrictions=permit
+      -o smtpd_sender_restrictions=permit
+      -o smtpd_milters=
+      -o non_smtpd_milters=
+      -o content_filter=
+      -o receive_override_options=no_unknown_recipient_checks,no_header_body_checks,no_milters
+      -o mynetworks=127.0.0.0/8
+      -o smtpd_authorized_xforward_hosts=127.0.0.0/8
     ```
 
-7. Add [`postgrey`](http://postgrey.schweikert.ch/) for "[greylisting](http://projects.puremagic.com/greylisting/)":
+6. Add [`postgrey`](http://postgrey.schweikert.ch/) for "[greylisting](http://projects.puremagic.com/greylisting/)":
 
    ```
    sudo apt-get install postgrey   
@@ -210,7 +213,83 @@ allowed to access the SSH port.
 
    Actually using postgrey is handled in our example `main.cf` config.
 
-8. Reload postfix conf and restart:
+7. Install SpamAssassin.
+
+   Follow [these instructions](https://www.digitalocean.com/community/tutorials/how-to-install-and-setup-spamassassin-on-ubuntu-12-04).
+
+   Also install this package:
+   ```
+   sudo apt-get install libmail-dkim-perl
+   ```
+
+   Also add a `receive_override_options` option to the `smtpd` command in `master.cf`:
+
+   ```
+   smtp      inet  n       -       -       -       -       smtpd
+       -o content_filter=spamassassin
+       -o receive_override_options=no_address_mappings
+   ```
+
+   Our non-default values in `/etc/spamassassin/local.cf` are as follows:
+   ```
+   report_safe 0
+   required_score 3.0
+   ```
+
+   Note that `install.sh` also copies our custom score values in `50_scores.cf` to `/etc/spamassassin/`.
+
+8. DKIM verification:
+
+   Install OpenDKIM, using [these instructions](https://www.digitalocean.com/community/tutorials/how-to-install-and-configure-dkim-with-postfix-on-debian-wheezy), but skipping the signing stuff.
+
+   When editing `/etc/opendkim.conf`, just paste this at the bottom:
+   ```
+   ### PSIPHON
+   AutoRestart             Yes
+   AutoRestartRate         10/1h
+   UMask                   002
+   Syslog                  yes
+   SyslogSuccess           Yes
+   LogWhy                  Yes
+
+   Canonicalization        relaxed/simple
+
+   ExternalIgnoreList      refile:/etc/opendkim/TrustedHosts
+   InternalHosts           refile:/etc/opendkim/TrustedHosts
+   KeyTable                refile:/etc/opendkim/KeyTable
+   SigningTable            refile:/etc/opendkim/SigningTable
+
+   # Verify only
+   Mode                    v
+   PidFile                 /var/run/opendkim/opendkim.pid
+   SignatureAlgorithm      rsa-sha256
+
+   UserID                  opendkim:opendkim
+
+   Socket                  inet:12301@localhost
+
+   X-Header                yes
+   AlwaysAddARHeader       yes
+
+   MinimumKeyBits          1024
+   ```
+
+   `/etc/opendkim/TrustedHosts` should contain this:
+   ```
+   127.0.0.1
+   localhost
+   192.168.11.0/24
+
+   # TODO: Derive from settings.py (or something)
+   mx.psiphon3.com
+   *.psiphon3.com
+   mx.respondbot.net
+   *.respondbot.net
+   ```
+
+   Note: With the configuration described here, DKIM will be verified twice -- once before SpamAssassin and once after SA delivers it back to Postfix. I think we either need to use dovecot instead of sendmail for re-delivery from SA, or (better) switch from SA to Amavis.
+
+9. Reload postfix conf and restart:
 
    ```
    sudo postfix reload
@@ -349,6 +428,8 @@ sh install.sh
   sudo service rsyslog restart
   ```
 
+**TODO**: Describe remote logstash setup. 
+
 
 ## Stats
 
@@ -387,7 +468,7 @@ GRANT ALL ON <DB name in settings.py>.* TO '<username in settings.py>'@'localhos
 ```
 
 
-## DKIM
+## DKIM signing
 
 NOTE: In the past we have occasionally turned off DKIM support. We found that
 it was by far the most time- consuming step in replying to an email, and of
@@ -405,7 +486,7 @@ A handy DKIM DNS record generator can be found here:
 A couple of python packages are required:
 
 ```
-sudo pip install --upgrade dnspython dkimpy
+sudo pip install --upgrade dnspython dkimpy authres
 ```
 
 See the DKIM section of `settings.py` for more values that must be set/changed.
@@ -662,47 +743,86 @@ smtpd_soft_error_limit = 1
 smtpd_hard_error_limit = 3
 smtpd_junk_command_limit = 2
 
+#
+# Anti-spam rules
+# See, e.g., http://www.normyee.net/blog/2012/12/28/postfix-anti-spam-configuration-december-2012/
+#
+
+smtpd_helo_restrictions =
+        reject_non_fqdn_helo_hostname,
+        reject_invalid_helo_hostname,
+        reject_rhsbl_helo zen.spamhaus.org
+
+# Block clients that speak too early.
+smtpd_data_restrictions = reject_unauth_pipelining
+
+smtpd_client_restrictions =
+        reject_rbl_client b.barracudacentral.org
+# Can't use reject_unknown_client_hostname because our load balancer hides incoming IP.
+
+smtpd_sender_restrictions =
+        reject_unknown_sender_domain,
+        reject_unknown_address,
+        reject_rhsbl_reverse_client dbl.spamhaus.org,
+        reject_rbl_client b.barracudacentral.org
+
 # Reject messages that don't meet these criteria
 # The `10023` is the postgrey greylisting service.
 smtpd_recipient_restrictions =
    permit_mynetworks,
-   reject_invalid_helo_hostname,
-   reject_non_fqdn_helo_hostname,
+   reject_invalid_hostname,
    reject_non_fqdn_sender,
    reject_non_fqdn_recipient,
    reject_unknown_sender_domain,
    reject_unknown_recipient_domain,
    reject_unauth_destination,
-   reject_rbl_client zen.spamhaus.org,
-   reject_rbl_client bl.spamcop.net,
-   reject_rbl_client cbl.abuseat.org,
-   reject_rbl_client b.barracudacentral.org,
-   reject_rbl_client dnsbl.sorbs.net,
+   reject_unauth_pipelining,
+   reject_invalid_helo_hostname,
+   reject_unknown_helo_hostname,
+   reject_non_fqdn_helo_hostname,
+# Maybe include this...? It forces a request to the incoming server to validate $
+#   reject_unverified_sender,
+
+   check_helo_access hash:/home/mail_responder/helo_access,
+   check_sender_access hash:/home/mail_responder/sender_access,
+
+   permit_dnswl_client list.dnswl.org,
+
    check_policy_service inet:127.0.0.1:10023,
+
+   reject_rhsbl_reverse_client dbl.spamhaus.org,
+   reject_rhsbl_sender dbl.spamhaus.org,
+   reject_rhsbl_client dbl.spamhaus.org,
+
+   reject_rbl_client b.barracudacentral.org,
+   reject_rbl_client zen.spamhaus.org,
+   reject_rbl_client dnsbl.sorbs.net
+   reject_rbl_client cbl.abuseat.org,
+   reject_rbl_client bl.spamcop.net,
+
    permit
+
+# Only used in Postfix 2.10+
+smtpd_relay_restrictions =
+   permit_mynetworks
+   reject_unauth_destination
+
+# Note: It would be nice to do a SPF check above, but because we're behind a loa$
+# we can't actually see the remote IP (and we're doing TCP forwarding, so there'$
+# fancy added header or anything).
 
 # Without this, some other rules can be bypassed.
 smtpd_helo_required = yes
-
-# Don't talk to mail systems that don't know their own hostname.
-smtpd_helo_restrictions = 
-  permit_mynetworks,
-  reject_unknown_helo_hostname,
-  check_helo_access hash:/home/mail_responder/helo_access,
-  permit
-
-# Don't accept mail from domains that don't exist.
-smtpd_sender_restrictions = reject_unknown_sender_domain
-
-# Block clients that speak too early.
-smtpd_data_restrictions = reject_unauth_pipelining
 
 
 #
 # SMTP (sending) config
 #
 
-#...
+smtp_tls_note_starttls_offer = yes
+
+# Use different sending TLS policies for different peers.
+#smtp_tls_policy_maps = hash:/home/mail_responder/client_tls_policy
 
 
 #
@@ -718,6 +838,21 @@ bounce_queue_lifetime = 0
 # Consider a message undeliverable when it hits this time limit
 # http://www.postfix.org/postconf.5.html#maximal_queue_lifetime
 maximal_queue_lifetime = 1h
+
+#
+# Remove sensitive headers
+#
+mime_header_checks = regexp:/home/mail_responder/header_checks
+header_checks = regexp:/home/mail_responder/header_checks
+
+#
+# DKIM verification
+#
+# https://www.digitalocean.com/community/tutorials/how-to-install-and-configure-$
+milter_protocol = 2
+milter_default_action = accept
+smtpd_milters = inet:localhost:12301
+non_smtpd_milters = inet:localhost:12301
 
 
 #

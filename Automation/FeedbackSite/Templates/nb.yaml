@@ -13,7 +13,7 @@ nb:
     Du kan finne svar på mange vanlige problemer i vår oversikt over
     <a class="faqURL" href="#">Ofte Stilte Spørsmål</a>.
   diagnostic_check: |+
-    Last opp diagnostisk data. Vennligst merk at denne diagnostikk-dataen ikke
+    Last opp diagnostisk data. Bit deg merke i at denne diagnostikk-dataen ikke
     identifiserer deg, og at du kan hjelpe oss å holde Psiphon-hjulene med å fungere knirkefritt.
     <a class="dataCollectionInfoURL" href="#">Trykk her for å se hva vi samler inn.</a>
 
@@ -24,6 +24,6 @@ nb:
   text_feedback_prompt: |
     Kommenter her:
   text_feedback_email_prompt: |
-    Hvis du ønsker at vi svarer deg, vennligst legg ved din epost-adresse:
+    Hvis du ønsker at vi svarer deg, legg ved din epost-adresse:
   text_feedback_bottom_para: |
     Hvis overstående skjema ikke virker, eller du vil sende oss skjermbilder, vennligst send epost til <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>

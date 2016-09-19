@@ -33,7 +33,7 @@ echo "Copying source files..."
 sudo cp blacklist.py log_processor.py mail_direct.py mail_process.py mail_stats.py \
         aws_helpers.py sendmail.py settings.py conf_pull.py postfix_queue_check.pl \
         mon-put-instance-data.pl CloudWatchClient.pm AwsSignatureV4.pm \
-        ../Automation/psi_ops_s3.py helo_access \
+        ../Automation/psi_ops_s3.py helo_access sender_access header_checks logger.py \
         $MAIL_HOME
 
 # forward needs to be copied to .forward
@@ -52,7 +52,7 @@ sudo chmod a+x  $MAIL_HOME/log_processor.py
 sudo rm $MAIL_HOME/*.pyc
 
 # Process the map files
-cd $MAIL_HOME; sudo postmap helo_access; cd -
+cd $MAIL_HOME; sudo postmap helo_access sender_access; cd -
 
 # Copy the system/service config files.
 echo "Copying system config files..."
@@ -63,6 +63,8 @@ sudo chmod 644 /etc/logrotate.d/psiphon-log-rotate.conf
 sudo cp 20-psiphon-logging.conf /etc/rsyslog.d/
 sudo reload rsyslog
 sudo service rsyslog restart
+sudo cp 50_scores.cf /etc/spamassassin/
+sudo service spamassassin restart
 
 
 # Create the cron jobs.

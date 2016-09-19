@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2014, Psiphon Inc.
+# Copyright (c) 2016, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -19,7 +19,6 @@
 
 import sys
 import os
-import syslog
 import email
 import json
 import re
@@ -27,9 +26,11 @@ import traceback
 import time
 import tempfile
 import dkim
+import authres
 import errno
 from boto.exception import BotoServerError
 
+from logger import logger, logger_json
 import settings
 import sendmail
 import blacklist
@@ -84,7 +85,7 @@ class MailResponder(object):
                 all_email_addrs.add(item['email_addr'])
 
         except Exception as ex:
-            syslog.syslog(syslog.LOG_CRIT, 'error: config file read failed: %s; file: %s:%s' % (ex, settings.CONFIG_S3_BUCKET, settings.CONFIG_S3_KEY))
+            logger.critical('error: config file read failed: %s; file: %s:%s', ex, settings.CONFIG_S3_BUCKET, settings.CONFIG_S3_KEY)
             return False
 
         return True
@@ -105,12 +106,12 @@ class MailResponder(object):
 
         # If we didn't find anything for that address, exit.
         if not request_conf:
-            syslog.syslog(syslog.LOG_INFO, 'fail: invalid requested address: %s' % self.requested_addr)
+            logger.info('fail: invalid requested address: %s', self.requested_addr)
             return False
 
         # Check if the user is (or should be) blacklisted
         if not self._check_blacklist():
-            syslog.syslog(syslog.LOG_INFO, 'fail: blacklist')
+            logger.info('fail: blacklist')
             return False
 
         # Process each config entry found the for the requested address separately.
@@ -130,7 +131,9 @@ class MailResponder(object):
                                                                       bucket_filename),
                                         attachment_filename))
 
-            extra_headers = {'Reply-To': self.requested_addr}
+            extra_headers = {
+                'Reply-To': self.requested_addr,
+                'Auto-Submitted': 'auto-replied' }
 
             if self._requester_msgid:
                 extra_headers['In-Reply-To'] = self._requester_msgid
@@ -155,7 +158,7 @@ class MailResponder(object):
                         return False
                 except BotoServerError as ex:
                     if ex.error_message == 'Address blacklisted.':
-                        syslog.syslog(syslog.LOG_CRIT, 'fail: requester address blacklisted by SES')
+                        logger.critical('fail: requester address blacklisted by SES')
                     else:
                         exception_to_raise = ex
 
@@ -190,7 +193,7 @@ class MailResponder(object):
 
         self.requested_addr = decode_header(self._email['X-Original-To'])
         if not self.requested_addr:
-            syslog.syslog(syslog.LOG_INFO, 'fail: no requested address')
+            logger.info('[fail] no requested address')
             return False
 
         # The 'To' field generally looks like this:
@@ -200,8 +203,8 @@ class MailResponder(object):
         self.requested_addr = strip_email(self.requested_addr)
         if not self.requested_addr:
             # Bad address. Fail.
-            syslog.syslog(syslog.LOG_INFO, 'fail: unparsable requested address')
-            #dump_to_exception_file('fail: unparsable requested address\n\n%s' % self._email_string)
+            logger.info('[fail] unparsable requested address')
+            #dump_to_exception_file('[fail] unparsable requested address\n\n%s' % self._email_string)
             return False
 
         # Convert to lowercase, since that's what's in the _conf and we want to
@@ -210,31 +213,130 @@ class MailResponder(object):
 
         # Was this sent to our complaints address?
         if self.requested_addr == strip_email(settings.COMPLAINTS_ADDRESS):
-            syslog.syslog(syslog.LOG_INFO, 'fail: complaint')
-            forward_to_administrator('Complaint', self._email_string)
-            dump_to_exception_file('fail: complaint\n\n%s' % self._email_string)
+            logger.info('[fail] complaint')
+            forward_to_administrator('[fail] complaint', self._email_string)
+            dump_to_exception_file('[fail] complaint\n\n%s' % self._email_string)
             return False
 
         # Extract and parse the sender's (requester's) address
+        # `From` is the correct header to inspect: https://tools.ietf.org/html/rfc4021#section-2.1.2
 
-        self._requester_addr = decode_header(self._email['Return-Path'])
+        self._requester_addr = strip_email(decode_header(self._email['From']))
         if not self._requester_addr:
-            syslog.syslog(syslog.LOG_INFO, 'fail: no requester address')
+            logger.info('[fail] bad requester address')
+            dump_to_exception_file('[fail] bad requester address\n\n%s' % self._email_string)
+            forward_to_administrator('[fail] bad requester address', self._email_string)
             return False
 
-        self._requester_addr = strip_email(self._requester_addr)
-        if not self._requester_addr:
-            # Amazon SES complaints and bounces have '<>' for Return-Path,
-            # so they end up here.
-            if self._email['From'] == 'MAILER-DAEMON@email-bounces.amazonses.com':
-                syslog.syslog(syslog.LOG_INFO, 'fail: bounce')
-            elif self._email['From'] == 'complaints@email-abuse.amazonses.com':
-                syslog.syslog(syslog.LOG_INFO, 'fail: complaint')
+        # Check for bounces, complaints, and errors
+        if self._requester_addr == 'MAILER-DAEMON@email-bounces.amazonses.com' or \
+           self._requester_addr == 'MAILER-DAEMON@amazonses.com' or \
+           self._requester_addr == 'complaints@email-abuse.amazonses.com':
+            # ...from SES
+            logger.info('[fail] SES error')
+            dump_to_exception_file('[fail] SES bounce\n\n%s' % self._email_string)
+            forward_to_administrator('[fail] SES Bounce', self._email_string)
+            return False
+        elif self._requester_addr.lower().startswith('MAILER-DAEMON'):
+            # ...from Postfix
+            logger.info('[fail] Postfix error')
+            dump_to_exception_file('[fail] Postfix error\n\n%s' % self._email_string)
+            forward_to_administrator('[fail] Postfix error', self._email_string)
+            return False
+
+        # Check for other address types that we don't want to reply to.
+        # TODO: Move these into settings.py? Copy (programmatically) into sender_access?
+        if self._requester_addr.lower().startswith('no-reply') or \
+           self._requester_addr.lower().startswith('noreply') or \
+           self._requester_addr.lower().startswith('complaints') or \
+           self._requester_addr.lower().startswith('bounces'):
+                logger.info('[fail] no-reply')
+                dump_to_exception_file('[fail] no-reply\n\n%s' % self._email_string)
+                forward_to_administrator('[fail] no-reply', self._email_string)
+                return False
+
+        # Check for headers that should cause us to reject the request, especially
+        # ones that indicate the request is itself an auto-reply.
+        # For more info see:
+        #   https://blog.returnpath.com/precedence/
+        #   https://github.com/jpmckinney/multi_mail/wiki/Detecting-autoresponders
+        if decode_header(self._email['List-ID']) or \
+           decode_header(self._email['List-Unsubscribe']) or \
+           decode_header(self._email['Precedence']) in ('junk', 'list', 'bulk') or \
+           decode_header(self._email.get('Auto-Submitted', 'no')) != 'no' or \
+           decode_header(self._email['Preference']) == 'auto_reply' or \
+           decode_header(self._email['X-Autorespond']) is not None or \
+           decode_header(self._email['X-Autogenerated']) is not None or \
+           decode_header(self._email['X-AutoReply-From']) is not None or \
+           decode_header(self._email['X-Mail-Autoreply']) is not None or \
+           decode_header(self._email['X-FC-MachineGenerated']) == 'true' or \
+           decode_header(self._email['X-Autoreply']) is not None or \
+           decode_header(self._email.get('X-POST-MessageClass', '')).lower().find('auto') > 0 or \
+           decode_header(self._email.get('Delivered-To', '')).lower().find('auto') > 0 or \
+           decode_header(self._email['X-Auto-Response-Suppress']) == 'All':
+            logger.info('[fail] auto/bulk')
+            #dump_to_exception_file('[fail] auto/bulk\n\n%s' % self._email_string)
+            #forward_to_administrator('[fail] auto/bulk', self._email_string)
+            return False
+
+        # SpamAssassin result check
+        if decode_header(self._email['X-Spam-Flag']):
+            logger.info('[fail] spam')
+            dump_to_exception_file('[fail] spam\n\n%s' % self._email_string)
+            forward_to_administrator('[fail] spam', self._email_string)
+            return False
+
+        # Check the DKIM verify results.
+        # For now we're just collecting info about what the results look like in practice.
+        dkim_header = decode_header(self._email['X-DKIM']) or decode_header(self._email['DKIM-Filter'])
+        dkim_verify_result = decode_header(self._email['Authentication-Results'])
+        if dkim_header:
+            if dkim_verify_result:
+                try:
+                    auth_result = authres.parse_value(dkim_verify_result)
+                except Exception as e:
+                    # This shouldn't happen. Something is wrong.
+                    logger.info('[fail] Authentication-Results parse error: %s', e)
+                    dump_to_exception_file('[fail] Authentication-Results parse error\n\n%s\n\n%s' % (e, self._email_string))
+                    forward_to_administrator('[fail] Authentication-Results parse error', '%s\n\n%s' % (e, self._email_string))
+                    return False
+                if not auth_result or len(auth_result.results) < 1:
+                    # Parse succeeded, but no results. Shouldn't happen.
+                    logger.info('[warn] Authentication-Results empty error')
+                    dump_to_exception_file('[warn] Authentication-Results empty error\n\n%s' % self._email_string)
+                    forward_to_administrator('[warn] Authentication-Results empty error', self._email_string)
+                elif auth_result.results[0].result == 'none':
+                    # DKIM missing. Unfortunately, this can be due to encoding issues (e.g., with Yahoo emails).
+                    # So we're going to re-check the signature here.
+                    if not dkim.verify(email_string):
+                        # Experience has shown that most email lacking a DKIM sig is garbage.
+                        logger.info('[fail] DKIM absent')
+                        dump_to_exception_file('[fail] DKIM absent\n\n%s' % self._email_string)
+                        forward_to_administrator('[fail] DKIM absent', self._email_string)
+                        return False
+                    else:
+                        logger.info('[warn] DKIM re-check okay')
+                        #dump_to_exception_file('[warn] DKIM re-check okay\n\n%s' % self._email_string)
+                        #forward_to_administrator('[warn] DKIM re-check okay', self._email_string)
+                elif auth_result.results[0].result != 'pass':
+                    # DKIM verification failed.
+                    # Experience has shown that most email with an invalid DKIM is garbage.
+                    logger.info('[fail] DKIM verify failed')
+                    dump_to_exception_file('[fail] DKIM verify failed\n\n%s' % self._email_string)
+                    forward_to_administrator('[fail] DKIM verify failed', self._email_string)
+                    return False
             else:
-                syslog.syslog(syslog.LOG_INFO, 'fail: unparsable requester address')
-                dump_to_exception_file('fail: unparsable requester address\n\n%s' % self._email_string)
+                # OpenDKIM failure?
+                # TODO: Probably reject these emails.
+                logger.info('[warn] Authentication-Results Missing')
+                dump_to_exception_file('[warn] Authentication-Results Missing\n\n%s' % self._email_string)
+                forward_to_administrator('[warn] Authentication-Results Missing', self._email_string)
 
-            return False
+        else:
+            # No X-DKIM header. Why?
+            logger.info('[warn] X-DKIM Missing')
+            dump_to_exception_file('[warn] X-DKIM Missing\n\n%s' % self._email_string)
+            forward_to_administrator('[warn] X-DKIM Missing', self._email_string)
 
         self._subject = decode_header(self._email['Subject'])
         if not self._subject:
@@ -278,12 +380,16 @@ def strip_email(email_address):
     Strips something that looks like:
         Fname Lname <mail@example.com>
     Down to just mail@example.com and returns it. If passed a plain email
-    address, will return that email. Returns False if bad email address.
+    address, will return that email. Returns False if bad email address,
+    or if email_address is falsey.
     '''
+
+    if not email_address:
+        return False
 
     # This regex is adapted from:
     # https://gitweb.torproject.org/gettor.git/blob/HEAD:/lib/gettor/requests.py
-    to_regex = '.*?(<)?([a-zA-Z0-9_\+\.\-]+@[a-zA-Z0-9\+\.\-]+\.[a-zA-Z0-9\+\.\-]+)(?(1)>).*'
+    to_regex = '.*?(<)?([a-zA-Z0-9_\+\.\-]+@[a-zA-Z0-9\+\.\-]+\.[a-zA-Z0-9\+\.\-]+)(?(1)>)[^>]*$'
     match = re.match(to_regex, email_address)
     if match and match.group(2):
         return match.group(2)
@@ -294,15 +400,26 @@ def decode_header(header_val):
     '''
     Returns None if decoding fails. Otherwise returns the decoded value.
     '''
+
+    # Some encodings we'll encounter have different names than are used by Python. We'll map them.
+    # From: https://pythonhosted.org/webencodings/_modules/webencodings.html
+    PYTHON_ENCODING_NAMES = {
+        'iso-8859-8-i': 'iso-8859-8',
+        'x-mac-cyrillic': 'mac-cyrillic',
+        'macintosh': 'mac-roman',
+        'windows-874': 'cp874' }
+
     try:
         if not header_val:
-            return None
+            # May be None or ''
+            return header_val
 
         hdr = email.header.decode_header(header_val)
         if not hdr:
             return None
 
-        return ' '.join([text.decode(encoding) if encoding else text
+        return ' '.join([text.decode(PYTHON_ENCODING_NAMES.get(encoding, encoding))
+                         if encoding else text
                          for text, encoding in hdr])
     except:
         return None
@@ -320,6 +437,9 @@ def _dkim_sign_email(raw_email):
 
 
 def dump_to_exception_file(string):
+    # Debug only. Disabling.
+    return
+
     if settings.EXCEPTION_DIR:
         # Make sure the exceptions directory exists
         try:
@@ -394,7 +514,7 @@ if __name__ == '__main__':
         email_string = sys.stdin.read()
 
         if not email_string:
-            syslog.syslog(syslog.LOG_CRIT, 'error: no stdin')
+            logger.critical('error: no stdin')
             sys.exit(0)
 
         requested_addr = process_input(email_string)
@@ -403,10 +523,10 @@ if __name__ == '__main__':
 
     except UnicodeDecodeError as ex:
         # Bad input. Just log and exit.
-        syslog.syslog(syslog.LOG_CRIT, 'error: UnicodeDecodeError')
+        logger.critical('error: UnicodeDecodeError')
 
     except Exception as ex:
-        syslog.syslog(syslog.LOG_CRIT, 'exception: %s: %s' % (ex, traceback.format_exc()))
+        logger.critical('exception: %s: %s', ex, traceback.format_exc())
 
         # Should we write this exception-causing email to disk?
         if settings.EXCEPTION_DIR and email_string:
@@ -417,8 +537,8 @@ if __name__ == '__main__':
         try:
             processing_time = time.time()-starttime
 
-            syslog.syslog(syslog.LOG_INFO,
-                          'success: %s: %fs' % (requested_addr, processing_time))
+            logger.critical('success: %s: %fs', requested_addr, processing_time)
+            logger_json.critical('{"event_name": "success", "requested_address": "%s"}' % requested_addr)
 
             aws_helpers.put_cloudwatch_metric_data(settings.CLOUDWATCH_PROCESSING_TIME_METRIC_NAME,
                                                    processing_time,
@@ -435,7 +555,7 @@ if __name__ == '__main__':
                                                    'Count',
                                                    settings.CLOUDWATCH_NAMESPACE)
         except Exception as ex:
-            syslog.syslog(syslog.LOG_CRIT, 'exception: %s: %s' % (ex, traceback.format_exc()))
+            logger.critical('exception: %s: %s', ex, traceback.format_exc())
 
             if settings.EXCEPTION_DIR:
                 dump_to_exception_file('Exception caught: %s\n%s' % (ex,
