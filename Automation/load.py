@@ -56,7 +56,7 @@ def check_load_on_host(host):
         if host.is_TCS:
             processes_to_check.append('docker')
         else:
-            processes_to_check.append(legacy_process)
+            processes_to_check = processes_to_check + legacy_process
 
             if host.meek_server_port:
                 processes_to_check.append('meek-server')
