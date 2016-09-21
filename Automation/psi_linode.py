@@ -168,15 +168,25 @@ def pave_linode(linode_account, ip_address, password):
     ssh.exec_command('tar xvpfj %s -C / > /dev/null' % (linode_account.base_tarball_path,))
 
 
-def refresh_credentials(linode_account, ip_address, password, host_public_key, new_root_password, new_stats_password):
+def refresh_credentials(linode_account, ip_address, password, host_public_key, new_root_password, new_stats_password, stats_username):
     ssh = psi_ssh.make_ssh_session(ip_address, linode_account.base_ssh_port,
                                    'root', password, host_public_key)
     ssh.exec_command('echo "root:%s" | chpasswd' % (new_root_password,))
-    ssh.exec_command('echo "%s:%s" | chpasswd' % (linode_account.base_stats_username, new_stats_password))
+    ssh.exec_command('useradd -M -d /var/log -s /bin/sh -g adm %s' % (stats_username))
+    ssh.exec_command('echo "%s:%s" | chpasswd' % (stats_username, new_stats_password))
     ssh.exec_command('rm /etc/ssh/ssh_host_*')
     ssh.exec_command('rm -rf /root/.ssh')
     ssh.exec_command('dpkg-reconfigure openssh-server')
     return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
+
+
+def set_allowed_users(linode_account, ip_address, password, host_public_key, stats_username):
+    ssh = psi_ssh.make_ssh_session(ip_address, linode_account.base_ssh_port,
+                                   'root', password, host_public_key)
+    user_exists = ssh.exec_command('grep %s /etc/ssh/sshd_config' % stats_username)
+    if not user_exists:
+        ssh.exec_command('sed -i "s/^AllowUsers.*/& %s/" /etc/ssh/sshd_config' % stats_username)
+        ssh.exec_command('service ssh restart')
 
 
 def get_host_name(linode_account, ip_address, password, host_public_key):
@@ -229,10 +239,15 @@ def launch_new_server(linode_account, is_TCS, plugins):
         
         start_linode(linode_api, linode_id, psiphon3_host_config_id)
 
+        stats_username = linode_account.base_stats_username
+        
         if is_TCS:
             # Linodes created by an image keep the image's hostname.  Override this
             set_host_name(linode_account, linode_ip_address, root_password, 
                           host_public_key, linode_rdns_name)
+            stats_username = psi_utils.generate_stats_username()    
+            set_allowed_users(linode_account, linode_ip_address, root_password,
+                              host_public_key, stats_username)
         
         # Query hostname
         hostname = get_host_name(linode_account, linode_ip_address, root_password, host_public_key)
@@ -241,7 +256,8 @@ def launch_new_server(linode_account, is_TCS, plugins):
         new_stats_password = psi_utils.generate_password()
         new_host_public_key = refresh_credentials(linode_account, linode_ip_address, 
                                                   root_password, host_public_key, 
-                                                  new_root_password, new_stats_password)
+                                                  new_root_password, new_stats_password, 
+                                                  stats_username)
     except Exception as ex:
         if linode_id:
             remove_server(linode_account, linode_id)
@@ -255,7 +271,7 @@ def launch_new_server(linode_account, is_TCS, plugins):
     return (hostname, is_TCS, None, str(linode_id), linode_ip_address,
             linode_account.base_ssh_port, 'root', new_root_password,
             ' '.join(new_host_public_key.split(' ')[:2]),
-            linode_account.base_stats_username, new_stats_password,
+            stats_username, new_stats_password,
             datacenter_name, region, None, None, None, None)
 
 
