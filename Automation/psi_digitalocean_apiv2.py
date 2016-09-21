@@ -56,12 +56,12 @@ def refresh_credentials(digitalocean_account, ip_address, new_root_password, new
 def set_allowed_users(digitalocean_account, ip_address, password, stats_username):
     """
         Adds user account to AllowUsers config in /etc/ssh/sshd_config
-        
+
         digitalocean_account    :   Digitalocean account details
         ip_address              :   droplet IP address
         password                :   password to connect to server
         host_public_key         :   droplet ssh public key
-        stats_username          :   user account to add to AllowUsers        
+        stats_username          :   user account to add to AllowUsers
     """
     ssh = psi_ssh.make_ssh_session(ip_address, digitalocean_account.base_ssh_port,
                                    'root', password, host_public_key)
@@ -511,20 +511,18 @@ def launch_new_server(digitalocean_account, is_TCS, _):
             instance of a psinet server
     """
 
-    # TODO-TCS: select base image based on is_TCS flag
-
-    digitalocean_account.base_id = '17784624'
+    digitalocean_account.base_id = '17784624' if not is_TCS else digitalocean_account.base_id = '19801318'
     try:
         Droplet = collections.namedtuple('Droplet', ['name', 'region', 'image',
                                                      'size', 'backups'])
 
         new_root_password = psi_utils.generate_password()
         new_stats_password = psi_utils.generate_password()
-        
+
         stats_username = digitalocean_account.base_stats_username
 
         do_mgr = digitalocean.Manager(token=digitalocean_account.oauth_token)
-        
+
         # Get the base image
         base_image = do_mgr.get_image(digitalocean_account.base_id)
         if not base_image:
@@ -568,7 +566,7 @@ def launch_new_server(digitalocean_account, is_TCS, _):
 
         region = get_datacenter_region(droplet.region['slug'])
         datacenter_name = 'Digital Ocean ' + droplet.region['name']
-        
+
         if is_TCS:
             stats_username = psi_utils.generate_stats_username()
             set_allowed_users(digitalocean_account, droplet.ip_address,
@@ -577,7 +575,7 @@ def launch_new_server(digitalocean_account, is_TCS, _):
         new_droplet_public_key = refresh_credentials(digitalocean_account,
                                                      droplet.ip_address,
                                                      new_root_password,
-                                                     new_stats_password, 
+                                                     new_stats_password,
                                                      stats_username)
         assert(new_droplet_public_key)
 
