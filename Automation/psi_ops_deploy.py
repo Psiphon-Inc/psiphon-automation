@@ -71,6 +71,7 @@ SOURCE_FILES = [
 TCS_PSIPHOND_DOCKER_ENVIRONMENT_FILE_NAME = '/opt/psiphon/psiphond/config/psiphond.env'
 TCS_PSIPHOND_CONFIG_FILE_NAME = '/opt/psiphon/psiphond/config/psiphond.config'
 TCS_PSIPHOND_LOG_FILE_NAME = '/var/log/psiphond/psiphond.log'
+TCS_PSIPHOND_PROCESS_PROFILE_OUTPUT_DIRECTORY_NAME = '/var/log/psiphond'
 TCS_TRAFFIC_RULES_FILE_NAME = '/opt/psiphon/psiphond/config/traffic-rules.config'
 TCS_PSINET_FILE_NAME = '/opt/psiphon/psiphond/data/psinet.json'
 TCS_GEOIP_CITY_DATABASE_FILE_NAME = '/usr/local/share/GeoIP/GeoIP2-City.mmdb'
@@ -268,6 +269,8 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
     config['LogLevel'] = 'info'
 
     config['LogFilename'] = TCS_PSIPHOND_LOG_FILE_NAME
+
+    config['ProcessProfileOutputDirectory'] = TCS_PSIPHOND_PROCESS_PROFILE_OUTPUT_DIRECTORY_NAME
 
     config['DiscoveryValueHMACKey'] = TCS_psiphond_config_values['DiscoveryValueHMACKey']
 
