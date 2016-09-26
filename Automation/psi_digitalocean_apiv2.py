@@ -63,8 +63,8 @@ def set_allowed_users(digitalocean_account, ip_address, password, stats_username
         host_public_key         :   droplet ssh public key
         stats_username          :   user account to add to AllowUsers
     """
-    ssh = psi_ssh.make_ssh_session(ip_address, digitalocean_account.base_ssh_port,
-                                   'root', password, host_public_key)
+    ssh = psi_ssh.make_ssh_session(ip_address, digitalocean_account.base_ssh_port, 
+                                   'root', None, None, digitalocean_account.base_rsa_private_key)
     user_exists = ssh.exec_command('grep %s /etc/ssh/sshd_config' % stats_username)
     if not user_exists:
         ssh.exec_command('sed -i "s/^AllowUsers.*/& %s/" /etc/ssh/sshd_config' % stats_username)
@@ -511,7 +511,7 @@ def launch_new_server(digitalocean_account, is_TCS, _):
             instance of a psinet server
     """
 
-    digitalocean_account.base_id = '17784624' if not is_TCS else digitalocean_account.base_id = '19801318'
+    digitalocean_account.base_id = '17784624' if not is_TCS else '19801318'
     try:
         Droplet = collections.namedtuple('Droplet', ['name', 'region', 'image',
                                                      'size', 'backups'])
