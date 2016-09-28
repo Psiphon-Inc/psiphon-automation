@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2014, Psiphon Inc.
+# Copyright (c) 2016, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -79,7 +79,7 @@ LOCAL_SMTP_SEND_PORT = 2525
 # Blacklist stuff
 #
 
-BLACKLIST_DAILY_LIMIT = 3
+BLACKLIST_DAILY_LIMIT = 2
 
 # Email addresses from domains in this list will never be blacklisted.
 # Leave empty if functionality is not desired.

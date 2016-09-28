@@ -480,7 +480,7 @@ def transfer_server(digitalocean_account, droplet):
     return failures
 
 
-def launch_new_server(digitalocean_account, _):
+def launch_new_server(digitalocean_account, is_TCS, _):
     """
         Launches a new droplet and configures it to be a Psiphon server.
         This is called from psi_ops.py
@@ -490,6 +490,10 @@ def launch_new_server(digitalocean_account, _):
         returns:
             instance of a psinet server
     """
+
+    # TODO-TCS: select base image based on is_TCS flag
+
+    digitalocean_account.base_id = '17784624'
     try:
         Droplet = collections.namedtuple('Droplet', ['name', 'region', 'image',
                                                      'size', 'backups'])
@@ -557,7 +561,7 @@ def launch_new_server(digitalocean_account, _):
             print type(e), "No droplet to be destroyed: ", str(droplet)
         raise
 
-    return (droplet.name, None, droplet.id, droplet.ip_address,
+    return (droplet.name, is_TCS, None, droplet.id, droplet.ip_address,
             digitalocean_account.base_ssh_port, 'root', new_root_password,
             ' '.join(new_droplet_public_key.split(' ')[:2]),
             digitalocean_account.base_stats_username, new_stats_password,
