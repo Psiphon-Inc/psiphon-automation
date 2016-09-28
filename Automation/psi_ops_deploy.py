@@ -272,6 +272,10 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
 
     config['ProcessProfileOutputDirectory'] = TCS_PSIPHOND_PROCESS_PROFILE_OUTPUT_DIRECTORY_NAME
 
+    config['ProcessBlockProfileDurationSeconds'] = 30
+
+    config['ProcessCPUProfileDurationSeconds'] = 30
+
     config['DiscoveryValueHMACKey'] = TCS_psiphond_config_values['DiscoveryValueHMACKey']
 
     config['GeoIPDatabaseFilenames'] = [TCS_GEOIP_CITY_DATABASE_FILE_NAME, TCS_GEOIP_ISP_DATABASE_FILE_NAME]
