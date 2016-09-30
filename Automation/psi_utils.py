@@ -214,6 +214,13 @@ def generate_password():
     return ''.join([_sysrand.choice(string.letters + string.digits) for i in range(_PASSWORD_LENGTH)])
 
 
+_STATSUSER_LENGTH = 10
+def generate_stats_username():
+    '''
+    Generatees a new stats user
+    '''
+    return 'stats-' + ''.join([_sysrand.choice(string.letters + string.digits) for i in range(_STATSUSER_LENGTH)])
+
 class TemporaryBackup:
     
     def __init__(self, files=None):
