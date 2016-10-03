@@ -55,7 +55,7 @@ def _upgrade_old_object(yaml_docs):
 
     # Our old YAML had '.' in some key names, which is illegal.
     for path, val in utils.objwalk(yaml_docs):
-        if type(path[-1]) == str and path[-1].find('.') >= 0:
+        if isinstance(path[-1], utils.string_types) and path[-1].find('.') >= 0:
             utils.rename_key_in_obj_at_path(yaml_docs,
                                             path,
                                             path[-1].replace('.', '__'))

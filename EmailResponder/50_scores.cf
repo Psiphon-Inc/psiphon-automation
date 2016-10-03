@@ -1,0 +1,33 @@
+# SpamAssassin score customization
+
+# It's not uncommon for requests to be empty.
+score EMPTY_MESSAGE 0.5
+score BODY_EMPTY 0.5
+# If the user doesn't type a Subject, then often that header is missing. (default: 1.8)
+score MISSING_SUBJECT 0.3
+
+# DKIM-related rules
+# If DKIM sig is present but invalid, that's bad.
+score T_DKIM_INVALID 2.0
+# There's no valid DKIM, but we know the server supports it.
+score DKIM_ADSP_CUSTOM_MED 1.0
+# If there's a valid DKIM, improve the score. (default: -0.1)
+score DKIM_VALID -1.0
+# Same if the valid DKIM is from the author's domain (default: -0.1)
+score DKIM_VALID_AU -1.0
+
+# This seems to happen even for valid email. (default: 1.0)
+score FORGED_YAHOO_RCVD 0.3
+
+# This seems to happen even for valid email. (default: 1.3)
+score RDNS_NONE 0.5
+
+# There shouldn't be multiple recipients on requests to us.
+# See: https://mail-archives.apache.org/mod_mbox/spamassassin-users/200908.mbox/%3c1249518490.5073.51.camel@localhost.localdomain%3e
+describe TO_TOO_MANY To: too many TO recipients
+header   TO_TOO_MANY To =~ /(?:,[^,]{1,80}){1}/
+score    TO_TOO_MANY 3.0
+# There should be no CC
+describe CC_TOO_MANY CC: too many CC recipients
+header   CC_TOO_MANY CC =~ /./
+score    CC_TOO_MANY 3.0
