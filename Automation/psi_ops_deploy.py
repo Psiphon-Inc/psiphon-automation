@@ -71,6 +71,7 @@ SOURCE_FILES = [
 TCS_PSIPHOND_DOCKER_ENVIRONMENT_FILE_NAME = '/opt/psiphon/psiphond/config/psiphond.env'
 TCS_PSIPHOND_CONFIG_FILE_NAME = '/opt/psiphon/psiphond/config/psiphond.config'
 TCS_PSIPHOND_LOG_FILE_NAME = '/var/log/psiphond/psiphond.log'
+TCS_PSIPHOND_PROCESS_PROFILE_OUTPUT_DIRECTORY_NAME = '/var/log/psiphond'
 TCS_TRAFFIC_RULES_FILE_NAME = '/opt/psiphon/psiphond/config/traffic-rules.config'
 TCS_PSINET_FILE_NAME = '/opt/psiphon/psiphond/data/psinet.json'
 TCS_GEOIP_CITY_DATABASE_FILE_NAME = '/usr/local/share/GeoIP/GeoIP2-City.mmdb'
@@ -269,6 +270,12 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
 
     config['LogFilename'] = TCS_PSIPHOND_LOG_FILE_NAME
 
+    config['ProcessProfileOutputDirectory'] = TCS_PSIPHOND_PROCESS_PROFILE_OUTPUT_DIRECTORY_NAME
+
+    config['ProcessBlockProfileDurationSeconds'] = 30
+
+    config['ProcessCPUProfileDurationSeconds'] = 30
+
     config['DiscoveryValueHMACKey'] = TCS_psiphond_config_values['DiscoveryValueHMACKey']
 
     config['GeoIPDatabaseFilenames'] = [TCS_GEOIP_CITY_DATABASE_FILE_NAME, TCS_GEOIP_ISP_DATABASE_FILE_NAME]
@@ -291,9 +298,8 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
     config['WebServerPrivateKey'] = server.web_server_private_key
 
     # Redirect tunneled web server requests to the containerized web server address
-    config['TCPPortForwardRedirects'] = {
-        "%s:%d" % (server.ip_address, int(server.web_server_port)) : "%s:%d" % ('127.0.0.1', TCS_DOCKER_WEB_SERVER_PORT)
-    }
+    config['WebServerPortForwardAddress'] = "%s:%d" % (server.ip_address, int(server.web_server_port))
+    config['WebServerPortForwardRedirectAddress'] = "%s:%d" % ('127.0.0.1', TCS_DOCKER_WEB_SERVER_PORT)
 
     config['SSHPrivateKey'] = server.TCS_ssh_private_key
     config['SSHServerVersion'] = TCS_psiphond_config_values['SSHServerVersion']

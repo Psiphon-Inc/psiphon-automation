@@ -1566,7 +1566,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if not host.meek_server_obfuscated_key:
             host.meek_server_obfuscated_key = binascii.hexlify(os.urandom(psi_ops_install.SSH_OBFUSCATED_KEY_BYTE_LENGTH))
         if not host.meek_cookie_encryption_public_key or not host.meek_cookie_encryption_private_key:
-            keypair = json.loads(subprocess.Popen([os.path.join('.', 'keygenerator.exe')], stdout=subprocess.PIPE).communicate()[0])
+            keygenerator_binary = 'keygenerator.exe'
+            if os.name == 'posix':
+                keygenerator_binary = 'keygenerator'
+            keypair = json.loads(subprocess.Popen([os.path.join('.', keygenerator_binary)], stdout=subprocess.PIPE).communicate()[0])
             host.meek_cookie_encryption_public_key = keypair['publicKey']
             host.meek_cookie_encryption_private_key = keypair['privateKey']
 
