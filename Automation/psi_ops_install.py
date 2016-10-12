@@ -918,44 +918,69 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
     assert(len(servers) == 1)
     server = servers[0]
 
-    # Default posture for INPUT is reject. Allow connections to management and web/protocol ports.
+    # Default posture for INPUT is reject. Allow connections to management ports
+    # on INPUT.
+    # Web/protocol ports are handled by psiphond inside a container.  Rate limiting 
+    # rules are applied to the FORWARD chain instead of INPUT since the system
+    # forwards packets to the container. 
     # Web ports are rate limited with "limit", which is appropriate when the remote address is
     # shared (CDN) and the protocol may feature many TCP connections (HTTPS) per session.
     # Other protocols are rate limited with "recent", which is more appropriate for individual
     # remote addresses.
-
+    
+    # Create a new chain for rate limiting.
+    new_rate_limit_chain = textwrap.dedent('''
+        -N PSI_RATE_LIMITING''')
+    
     accept_with_limit_rate_template = textwrap.dedent('''
-        -A INPUT -d {server_ip_address} -p tcp -m state --state NEW -m tcp --dport {port} -m limit --limit 1000/sec -j ACCEPT''')
-
+        -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m limit --limit 1000/sec -j ACCEPT''')
+    
     accept_with_recent_rate_template = textwrap.dedent('''
-        -A INPUT -d {server_ip_address} -p tcp -m state --state NEW -m tcp --dport {port} -m recent --set --name {recent_name}
-        -A INPUT -d {server_ip_address} -p tcp -m state --state NEW -m tcp --dport {port} -m recent --update --name {recent_name} --seconds 60 --hitcount 3 -j DROP
-        -A INPUT -d {server_ip_address} -p tcp -m state --state NEW -m tcp --dport {port} -j ACCEPT''')
+        -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m recent --set --name {recent_name}
+        -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m recent --update --name {recent_name} --seconds 60 --hitcount 3 -j DROP
+        -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -j ACCEPT''')
+
+    return_from_rate_limit_chain = textwrap.dedent('''
+        -A PSI_RATE_LIMITING -j RETURN''')
+    
+    rate_limit_rules = [new_rate_limit_chain]
+    
+    if server.capabilities['handshake']:
+        web_server_port_rule =  accept_with_recent_rate_template.format(
+                port=str(psi_ops_deploy.TCS_DOCKER_WEB_SERVER_PORT),
+                recent_name='LIMIT-' + str(psi_ops_deploy.TCS_DOCKER_WEB_SERVER_PORT))
+        rate_limit_rules += [web_server_port_rule]
+
+    for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, False).iteritems():
+        protocol_port_rule = ''
+        if 'MEEK' in protocol:
+            protocol_port_rule = accept_with_limit_rate_template.format(
+                port=str(port))
+        else:
+            protocol_port_rule = accept_with_recent_rate_template.format(
+                    port=str(port),
+                    recent_name='LIMIT-' + str(port))
+        rate_limit_rules += [protocol_port_rule]
+    
+    rate_limit_rules += [return_from_rate_limit_chain]
+    
+    limit_rate_forward_rules = ['-I FORWARD -o docker0 -j PSI_RATE_LIMITING']
+    
+    iptables_rate_limit_rules_path = '/etc/iptables.rules.psi_rate_limit'
+    iptables_rate_limit_rules_contents = textwrap.dedent('''
+        *filter
+        {filter_limit_rate}
+        {filter_forward}
+        COMMIT
+        ''').format(
+            filter_limit_rate='\n'.join(rate_limit_rules),
+            filter_forward='\n'.join(limit_rate_forward_rules))
+
 
     management_port_rule = textwrap.dedent('''
         -A INPUT -p tcp -m state --state NEW -m tcp --dport {management_port} -j ACCEPT''').format(management_port=host.ssh_port)
     port_rules = [management_port_rule]
-
-    if server.capabilities['handshake']:
-        web_server_port_rule =  accept_with_recent_rate_template.format(
-                server_ip_address=str(server.internal_ip_address),
-                port=str(server.web_server_port),
-                recent_name='LIMIT-' + str(server.internal_ip_address).replace('.', '-') + '-' + str(server.web_server_port))
-        port_rules += [web_server_port_rule]
-
-    for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, True).iteritems():
-        protocol_port_rule = ''
-        if 'MEEK' in protocol:
-            protocol_port_rule = accept_with_limit_rate_template.format(
-                server_ip_address=str(server.internal_ip_address),
-                port=str(port))
-        else:
-            protocol_port_rule = accept_with_recent_rate_template.format(
-                    server_ip_address=str(server.internal_ip_address),
-                    port=str(port),
-                    recent_name='LIMIT-' + str(server.internal_ip_address).replace('.', '-') + '-' + str(port))
-        port_rules += [protocol_port_rule]
-
+    
     # Common INPUT rules
 
     filter_input_rules = [
@@ -1040,7 +1065,10 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
         iptables-restore < {iptables_rules_path}
         systemctl restart fail2ban.service
         systemctl restart docker.service
-        ''').format(iptables_rules_path=iptables_rules_path)
+        iptables-restore --noflush < {iptables_rate_limit_rules_path}
+        ''').format(
+            iptables_rules_path=iptables_rules_path,
+            iptables_rate_limit_rules_path=iptables_rate_limit_rules_path)
 
     ssh = psi_ssh.SSH(
             host.ip_address, host.ssh_port,
@@ -1049,6 +1077,9 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
 
     ssh.exec_command('echo "{iptables_rules_contents}" > {iptables_rules_path}'.format(
         iptables_rules_contents=iptables_rules_contents, iptables_rules_path=iptables_rules_path))
+    ssh.exec_command('echo "{iptables_rate_limit_rules_contents}" > {iptables_rate_limit_rules_path}'.format(
+        iptables_rate_limit_rules_contents=iptables_rate_limit_rules_contents,
+        iptables_rate_limit_rules_path=iptables_rate_limit_rules_path))
     ssh.exec_command('echo "{if_up_script_contents}" > {if_up_script_path}'.format(
         if_up_script_contents=if_up_script_contents, if_up_script_path=if_up_script_path))
     ssh.exec_command('chmod +x {if_up_script_path}'.format(
