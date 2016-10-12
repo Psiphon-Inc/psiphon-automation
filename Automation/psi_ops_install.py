@@ -1237,7 +1237,7 @@ def install_TCS_psi_limit_load(host, servers):
     script = '''
 #!/bin/bash
 
-threshold_load_per_cpu=4
+threshold_load_per_cpu=2
 threshold_mem=20
 threshold_swap=20
 

@@ -1,7 +1,7 @@
 package main
 
 import "crypto/rand"
-import "code.google.com/p/go.crypto/nacl/box"
+import "github.com/Psiphon-Inc/crypto/nacl/box"
 import "fmt"
 import "encoding/base64"
 import "encoding/json"
