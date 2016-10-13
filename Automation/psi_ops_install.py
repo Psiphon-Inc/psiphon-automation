@@ -1268,20 +1268,10 @@ def install_TCS_psi_limit_load(host, servers):
     script = '''
 #!/bin/bash
 
-threshold_load_per_cpu=2
-threshold_mem=20
+threshold_mem=10
 threshold_swap=20
 
 while true; do
-    loaded_cpu=0
-    num_cpu=`grep 'model name' /proc/cpuinfo | wc -l`
-    threshold_cpu=$(($threshold_load_per_cpu * $num_cpu - 1))
-    load_cpu=`uptime | cut -d , -f 4 | cut -d : -f 2 | awk -F \. '{print $1}'`
-    if [ "$load_cpu" -ge "$threshold_cpu" ]; then
-        loaded_cpu=1
-        logger psi_limit_load: CPU load threshold reached.
-        break
-    fi
 
     free=$(free | grep "buffers/cache" | awk '{print $4/($3+$4) * 100.0}')
     loaded_mem=$(echo "$free<$threshold_mem" | bc)
@@ -1302,7 +1292,7 @@ while true; do
     break
 done
 
-if [ $loaded_cpu -eq 1 ] || [ $loaded_mem -eq 1 ] || [ $loaded_swap -eq 1 ]; then
+if [ $loaded_mem -eq 1 ] || [ $loaded_swap -eq 1 ]; then
     %s
     %s
 else
