@@ -236,6 +236,10 @@ def deploy_TCS_implementation(ssh, host, servers, TCS_psiphond_config_values):
 
     external_protocol_ports = get_supported_protocol_ports(host, server, True)
     docker_protocol_ports = get_supported_protocol_ports(host, server, False)
+    
+    if server.capabilities['handshake']:
+        external_protocol_ports['handshake'] = server.web_server_port
+        docker_protocol_ports['handshake'] = TCS_DOCKER_WEB_SERVER_PORT
 
     port_mappings = ' '.join(
         ["-p %s:%s" % (external_port,docker_protocol_ports[protocol],) for (protocol, external_port) in external_protocol_ports.iteritems()])
