@@ -964,7 +964,7 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
     
     rate_limit_rules += [return_from_rate_limit_chain]
     
-    limit_rate_forward_rules = ['-I FORWARD -o docker0 -j PSI_RATE_LIMITING']
+    limit_rate_forward_rules = []
     
     iptables_rate_limit_rules_path = '/etc/iptables.rules.psi_rate_limit'
     iptables_rate_limit_rules_contents = textwrap.dedent('''
