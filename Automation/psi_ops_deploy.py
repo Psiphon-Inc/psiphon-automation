@@ -86,6 +86,8 @@ TCS_FRONTED_MEEK_HTTP_OSSH_DOCKER_PORT = 1030
 TCS_UNFRONTED_MEEK_HTTPS_OSSH_DOCKER_PORT = 1031
 
 TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND = 'systemctl kill --signal=USR1 psiphond'
+TCS_PSIPHOND_STOP_ESTABLISHING_TUNNELS_SIGNAL_COMMAND = 'systemctl kill --signal=TSTP psiphond'
+TCS_PSIPHOND_RESUME_ESTABLISHING_TUNNELS_SIGNAL_COMMAND = 'systemctl kill --signal=CONT psiphond'
 TCS_PSIPHOND_START_COMMAND = '/opt/psiphon/psiphond_safe_start.sh'
 
 
@@ -234,8 +236,8 @@ def deploy_TCS_implementation(ssh, host, servers, TCS_psiphond_config_values):
 
     # Upload psiphond.env
 
-    external_protocol_ports = get_supported_protocol_ports(host, server, True)
-    docker_protocol_ports = get_supported_protocol_ports(host, server, False)
+    external_protocol_ports = get_supported_protocol_ports(host, server)
+    docker_protocol_ports = get_supported_protocol_ports(host, server, external_ports=False)
     
     if server.capabilities['handshake']:
         external_protocol_ports['handshake'] = server.web_server_port
@@ -321,25 +323,35 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
         config['MeekProxyForwardedForHeaders'] = TCS_psiphond_config_values['MeekProxyForwardedForHeaders']
 
     # gets the Docker ports
-    config['TunnelProtocolPorts'] = get_supported_protocol_ports(host, server, False)
+    config['TunnelProtocolPorts'] = get_supported_protocol_ports(host, server, external_ports=False)
 
     return json.dumps(config)
 
 
 # get_supported_protocol_ports returns a map of protocol name to protocol
 # port with entries for each protocol supported on the host/server.
-# Specify external_ports=True to get public ports, or external_ports=False
-# to get Docker ports.
-def get_supported_protocol_ports(host, server, external_ports=True):
+# Optional keyword args:
+# - external_ports=True (the default) to get public ports,
+#   or external_ports=False to get Docker ports.
+# - meek_ports=True (the default) to include meek protocols,
+#   or meek_ports=False to exclude meek protocols.
+def get_supported_protocol_ports(host, server, **kwargs):
+
+    external_ports = kwargs['external_ports'] if 'external_ports' in kwargs else True
+    meek_ports = kwargs['meek_ports'] if 'meek_ports' in kwargs else True
 
     TCS_protocols = [
         ('SSH', TCS_SSH_DOCKER_PORT),
-        ('OSSH', TCS_OSSH_DOCKER_PORT),
-        ('FRONTED-MEEK-OSSH', TCS_FRONTED_MEEK_OSSH_DOCKER_PORT),
-        ('UNFRONTED-MEEK-OSSH', TCS_UNFRONTED_MEEK_OSSH_DOCKER_PORT),
-        ('FRONTED-MEEK-HTTP-OSSH', TCS_FRONTED_MEEK_HTTP_OSSH_DOCKER_PORT),
-        ('UNFRONTED-MEEK-HTTPS-OSSH', TCS_UNFRONTED_MEEK_HTTPS_OSSH_DOCKER_PORT)
+        ('OSSH', TCS_OSSH_DOCKER_PORT)
     ]
+
+    if meek_ports:
+        TCS_protocols += [
+            ('FRONTED-MEEK-OSSH', TCS_FRONTED_MEEK_OSSH_DOCKER_PORT),
+            ('UNFRONTED-MEEK-OSSH', TCS_UNFRONTED_MEEK_OSSH_DOCKER_PORT),
+            ('FRONTED-MEEK-HTTP-OSSH', TCS_FRONTED_MEEK_HTTP_OSSH_DOCKER_PORT),
+            ('UNFRONTED-MEEK-HTTPS-OSSH', TCS_UNFRONTED_MEEK_HTTPS_OSSH_DOCKER_PORT)
+        ]
 
     supported_protocol_ports = {}
 

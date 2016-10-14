@@ -951,7 +951,7 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
                 recent_name='LIMIT-' + str(psi_ops_deploy.TCS_DOCKER_WEB_SERVER_PORT))
         rate_limit_rules += [web_server_port_rule]
 
-    for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, False).iteritems():
+    for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, external_ports=False).iteritems():
         protocol_port_rule = ''
         if 'MEEK' in protocol:
             protocol_port_rule = accept_with_limit_rate_template.format(
@@ -1247,7 +1247,8 @@ def install_TCS_psi_limit_load(host, servers):
 
     # The TCS psi_limit_load is mostly the same as legacy except:
     # - no VPN case
-    # - must block meek ports as meek doesn't connect through to SSH/OSSH ports
+    # - signals psihpond to stop/resume establishing new tunnels instead of using
+    #   iptables to reject connections from meek to OSS (which is no longer possible)
     # - no equivilent to xinetd
 
     # TODO-TCS: log to ELK
@@ -1256,14 +1257,16 @@ def install_TCS_psi_limit_load(host, servers):
     assert(len(servers) == 1)
     server = servers[0]
 
-    protocol_ports = psi_ops_deploy.get_supported_protocol_ports(host, server, True)
+    protocol_ports = psi_ops_deploy.get_supported_protocol_ports(host, server, meek_ports=False)
 
     rules = [' INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j REJECT --reject-with tcp-reset'
         % (str(server.internal_ip_address), str(port),) for (protocol, port) in protocol_ports.iteritems()]
 
-    disable_services = '\n    '.join(['iptables -I' + rule for rule in rules])
+    disable_services = '\n    '.join(
+        ['iptables -I' + rule for rule in rules] + psi_ops_deploy.TCS_PSIPHOND_STOP_ESTABLISHING_TUNNELS_SIGNAL_COMMAND)
     
-    enable_services = '\n    '.join(['iptables -D' + rule for rule in rules])
+    enable_services = '\n    '.join(
+        ['iptables -D' + rule for rule in rules] + psi_ops_deploy.TCS_PSIPHOND_RESUME_ESTABLISHING_TUNNELS_SIGNAL_COMMAND)
     
     script = '''
 #!/bin/bash
