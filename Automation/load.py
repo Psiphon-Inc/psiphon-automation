@@ -70,7 +70,7 @@ def check_load_on_host(host):
             if process == 'cron':
                 alert = instances < 1
             elif process == 'xl2tpd':
-                alert = instances != len([server.id for server in g_psinet.get_servers() if server.host_id == host.id and server.capabilities['VPN'] == True])
+                alert = instances != len([server.id for server in g_psinet.get_servers() if server.host_id == host.id])
             elif process == 'systemctl':
                 alert = instances > 0
             else:
