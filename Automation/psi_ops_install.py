@@ -975,8 +975,7 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
         ''').format(
             filter_limit_rate='\n'.join(rate_limit_rules),
             filter_forward='\n'.join(limit_rate_forward_rules))
-
-
+    
     management_port_rule = textwrap.dedent('''
         -A INPUT -p tcp -m state --state NEW -m tcp --dport {management_port} -j ACCEPT''').format(management_port=host.ssh_port)
     port_rules = [management_port_rule]
@@ -1057,6 +1056,8 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
             nat_prerouting='\n'.join(nat_prerouting_rules))
 
 
+    (iptables_limit_load_rules_contents, iptables_limit_load_rules_path) = install_TCS_psi_limit_load_chain(host, server)
+    
     # Note: restart fail2ban and docker after applying firewall rules because iptables-restore
     # flushes iptables which will remove any chains and rules that fail2ban creates on starting up
     if_up_script_path = '/etc/network/if-up.d/firewall'
@@ -1066,9 +1067,11 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
         systemctl restart fail2ban.service
         systemctl restart docker.service
         iptables-restore --noflush < {iptables_rate_limit_rules_path}
+        iptables-restore --noflush < {iptables_limit_load_rules_path}
         ''').format(
             iptables_rules_path=iptables_rules_path,
-            iptables_rate_limit_rules_path=iptables_rate_limit_rules_path)
+            iptables_rate_limit_rules_path=iptables_rate_limit_rules_path,
+            iptables_limit_load_rules_path=iptables_limit_load_rules_path)
 
     ssh = psi_ssh.SSH(
             host.ip_address, host.ssh_port,
@@ -1080,6 +1083,9 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
     ssh.exec_command('echo "{iptables_rate_limit_rules_contents}" > {iptables_rate_limit_rules_path}'.format(
         iptables_rate_limit_rules_contents=iptables_rate_limit_rules_contents,
         iptables_rate_limit_rules_path=iptables_rate_limit_rules_path))
+    ssh.exec_command('echo "{iptables_limit_load_rules_contents}" > {iptables_limit_load_rules_path}'.format(
+        iptables_limit_load_rules_contents=iptables_limit_load_rules_contents,
+        iptables_limit_load_rules_path=iptables_limit_load_rules_path))
     ssh.exec_command('echo "{if_up_script_contents}" > {if_up_script_path}'.format(
         if_up_script_contents=if_up_script_contents, if_up_script_path=if_up_script_path))
     ssh.exec_command('chmod +x {if_up_script_path}'.format(
@@ -1199,7 +1205,7 @@ while true; do
     if [ $total_swap -ne 0 ]; then
         free_swap=$(free | grep "Swap" | awk '{print $4/$2 * 100.0}')
         loaded_swap=$(echo "$free_swap<$threshold_swap" | bc)
-        if [ $loaded_swap -eq 1]; then
+        if [ $loaded_swap -eq 1 ]; then
             logger psi_limit_load: Swap threshold reached.
         fi
     fi
@@ -1243,7 +1249,7 @@ exit 0
                      'echo "* * * * * root %s" >> %s' % (psi_limit_load_host_path, cron_file))
 
 
-def install_TCS_psi_limit_load(host, servers):
+def install_TCS_psi_limit_load(host):
 
     # The TCS psi_limit_load is mostly the same as legacy except:
     # - no VPN case
@@ -1253,20 +1259,9 @@ def install_TCS_psi_limit_load(host, servers):
 
     # TODO-TCS: log to ELK
 
-    # Limitation: only one server per host currently implemented
-    assert(len(servers) == 1)
-    server = servers[0]
-
-    protocol_ports = psi_ops_deploy.get_supported_protocol_ports(host, server, meek_ports=False)
-
-    rules = [' INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j REJECT --reject-with tcp-reset'
-        % (str(server.internal_ip_address), str(port),) for (protocol, port) in protocol_ports.iteritems()]
-
-    disable_services = '\n    '.join(
-        ['iptables -I' + rule for rule in rules] + psi_ops_deploy.TCS_PSIPHOND_STOP_ESTABLISHING_TUNNELS_SIGNAL_COMMAND)
+    disable_services = 'iptables -I FORWARD -o docker0 -j PSI_LIMIT_LOAD\n    ' + psi_ops_deploy.TCS_PSIPHOND_STOP_ESTABLISHING_TUNNELS_SIGNAL_COMMAND
     
-    enable_services = '\n    '.join(
-        ['iptables -D' + rule for rule in rules] + psi_ops_deploy.TCS_PSIPHOND_RESUME_ESTABLISHING_TUNNELS_SIGNAL_COMMAND)
+    enable_services = 'iptables -D FORWARD -o docker0 -j PSI_LIMIT_LOAD\n    ' + psi_ops_deploy.TCS_PSIPHOND_RESUME_ESTABLISHING_TUNNELS_SIGNAL_COMMAND
     
     script = '''
 #!/bin/bash
@@ -1287,7 +1282,7 @@ while true; do
     if [ $total_swap -ne 0 ]; then
         free_swap=$(free | grep "Swap" | awk '{print $4/$2 * 100.0}')
         loaded_swap=$(echo "$free_swap<$threshold_swap" | bc)
-        if [ $loaded_swap -eq 1]; then
+        if [ $loaded_swap -eq 1 ]; then
             logger psi_limit_load: Swap threshold reached.
         fi
     fi
@@ -1325,6 +1320,31 @@ exit 0
     ssh.exec_command('echo "SHELL=/bin/sh" > %s;' % (cron_file,) +
                      'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
                      'echo "* * * * * root %s" >> %s' % (psi_limit_load_host_path, cron_file))
+
+
+def install_TCS_psi_limit_load_chain(host, server):
+    
+    limit_load_new_chain = textwrap.dedent('''-N PSI_LIMIT_LOAD''')
+    
+    limit_load_template = textwrap.dedent('''-A PSI_LIMIT_LOAD -p tcp -m state --state NEW -m tcp --dport {port} -j REJECT --reject-with tcp-reset''')
+    
+    limit_load_return = textwrap.dedent('''-A PSI_LIMIT_LOAD -j RETURN''')
+    
+    limit_load_rules = [limit_load_new_chain]
+    
+    for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, external_ports=False, meek_ports=False).iteritems():
+        limit_load_rules += [limit_load_template.format(port=str(port))]
+    
+    limit_load_rules += [limit_load_return]
+    
+    iptables_limit_load_rules_path = '/etc/iptables.rules.psi_limit_load'
+    iptables_limit_load_rules_contents = textwrap.dedent('''
+        *filter
+        {filter_limit_load}
+        COMMIT
+        ''').format(filter_limit_load='\n'.join(limit_load_rules))
+    
+    return (iptables_limit_load_rules_contents, iptables_limit_load_rules_path)
 
 
 def install_user_count_and_log(host, servers):
