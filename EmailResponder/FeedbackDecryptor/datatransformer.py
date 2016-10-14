@@ -69,13 +69,26 @@ def _convert_locale_info(data):
             os_info['CountryCodeInfo'] = country_match if country_match else None
 
 
+def _sanitize_keys(data):
+    """
+    MongoDB does not allow dots ('.') in keys, but we do (or may) use dots in
+    the diagnostic data. So we'll replace dots with an allowable character.
+    """
+
+    for path, val in utils.objwalk(data):
+        if isinstance(path[-1], utils.string_types) and path[-1].find('.') >= 0:
+            utils.rename_key_in_obj_at_path(data,
+                                            path,
+                                            path[-1].replace('.', '_'))
+
+
 _transformations = {
                     'android_4': (_translate_feedback, _parse_survey_results,
-                                _convert_locale_info),
+                                  _convert_locale_info, _sanitize_keys),
                     'ios': (_translate_feedback, _parse_survey_results,
-                                _convert_locale_info),
+                            _convert_locale_info, _sanitize_keys),
                     'windows': (_translate_feedback, _parse_survey_results,
-                                _convert_locale_info),
+                                _convert_locale_info, _sanitize_keys),
                     }
 
 
