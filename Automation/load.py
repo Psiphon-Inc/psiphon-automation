@@ -53,7 +53,7 @@ def check_load_on_host(host):
         disk_load = g_psinet.run_command_on_host(host, 'df -hT / | grep "/" | awk \'{if ($4 == 0) {print 0} else {print $4/$3 * 100.0}}\'')
         processes_to_check = ['cron', 'rsyslogd', 'fail2ban-server', 'ntpd', 'systemctl']
         legacy_process = ['psi_web.py', 'redis-server', 'badvpn-udpgw', 'xinetd']
-        vpn_servers = [server.host_id for server in g_psinet.get_servers() if server.host_id == host.id and server.capabilities['VPN' == True]]
+        vpn_servers = [server.host_id for server in g_psinet.get_servers() if server.host_id == host.id and server.capabilities['VPN'] == True]
         if host.is_TCS:
             processes_to_check.append('docker')
         else:
