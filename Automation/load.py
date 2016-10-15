@@ -52,7 +52,8 @@ def check_load_on_host(host):
         free_swap = g_psinet.run_command_on_host(host, 'free | grep "Swap" | awk \'{if ($2 == 0) {print 0} else {print $4/$2 * 100.0}}\'')
         disk_load = g_psinet.run_command_on_host(host, 'df -hT / | grep "/" | awk \'{if ($4 == 0) {print 0} else {print $4/$3 * 100.0}}\'')
         processes_to_check = ['cron', 'rsyslogd', 'fail2ban-server', 'ntpd', 'systemctl']
-        legacy_process = ['psi_web.py', 'redis-server', 'badvpn-udpgw', 'xinetd', 'xl2tpd']
+        legacy_process = ['psi_web.py', 'redis-server', 'badvpn-udpgw', 'xinetd']
+        vpn_servers = [server.host_id for server in g_psinet.get_servers() if server.host_id == host.id and server.capabilities['VPN' == True]]
         if host.is_TCS:
             processes_to_check.append('docker')
         else:
@@ -60,6 +61,8 @@ def check_load_on_host(host):
 
             if host.meek_server_port:
                 processes_to_check.append('meek-server')
+            if len(vpn_servers) > 0:
+                processes_to_check.append('xl2tpd')
 
         process_counts = g_psinet.run_command_on_host(host,
             '; '.join(['pgrep -xc ' + process for process in processes_to_check])).split('\n')
