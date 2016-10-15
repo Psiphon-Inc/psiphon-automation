@@ -3309,12 +3309,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             server.id,
                                             server.host_id,
                                             server.ip_address,
-                                            None,
+                                            None, # Omit: egress_ip_address 
                                             server.internal_ip_address,
-                                            None,
+                                            None, # Omit: propagation_channel_id 
                                             server.is_embedded,
                                             server.is_permanent,
-                                            server.discovery_date_range)
+                                            server.discovery_date_range,
+                                            server.capabilities)
                                             # Omit: propagation, web server, ssh info
 
         for deleted_server in self.__deleted_servers.itervalues():
