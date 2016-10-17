@@ -1259,10 +1259,6 @@ def install_TCS_psi_limit_load(host):
 
     # TODO-TCS: log to ELK
 
-    disable_services = 'iptables -I FORWARD -o docker0 -j PSI_LIMIT_LOAD\n    ' + psi_ops_deploy.TCS_PSIPHOND_STOP_ESTABLISHING_TUNNELS_SIGNAL_COMMAND
-    
-    enable_services = 'iptables -D FORWARD -o docker0 -j PSI_LIMIT_LOAD\n    ' + psi_ops_deploy.TCS_PSIPHOND_RESUME_ESTABLISHING_TUNNELS_SIGNAL_COMMAND
-    
     script = '''
 #!/bin/bash
 
@@ -1291,13 +1287,16 @@ while true; do
 done
 
 if [ $loaded_mem -eq 1 ] || [ $loaded_swap -eq 1 ]; then
-    %s
+    iptables -D FORWARD -o docker0 -j PSI_LIMIT_LOAD
+    iptables -I FORWARD -o docker0 -j PSI_LIMIT_LOAD
     %s
 else
     %s
+    iptables -D FORWARD -o docker0 -j PSI_LIMIT_LOAD
 fi
 exit 0
-''' % (enable_services, disable_services, enable_services)
+''' % (psi_ops_deploy.TCS_PSIPHOND_STOP_ESTABLISHING_TUNNELS_SIGNAL_COMMAND,
+       psi_ops_deploy.TCS_PSIPHOND_RESUME_ESTABLISHING_TUNNELS_SIGNAL_COMMAND)
 
     ssh = psi_ssh.SSH(
             host.ip_address, host.ssh_port,
@@ -1324,11 +1323,11 @@ exit 0
 
 def install_TCS_psi_limit_load_chain(host, server):
     
-    limit_load_new_chain = textwrap.dedent('''-N PSI_LIMIT_LOAD''')
+    limit_load_new_chain = '-N PSI_LIMIT_LOAD'
     
-    limit_load_template = textwrap.dedent('''-A PSI_LIMIT_LOAD -p tcp -m state --state NEW -m tcp --dport {port} -j REJECT --reject-with tcp-reset''')
+    limit_load_template = '-A PSI_LIMIT_LOAD -p tcp -m state --state NEW -m tcp --dport {port} -j REJECT --reject-with tcp-reset'
     
-    limit_load_return = textwrap.dedent('''-A PSI_LIMIT_LOAD -j RETURN''')
+    limit_load_return = '-A PSI_LIMIT_LOAD -j RETURN'
     
     limit_load_rules = [limit_load_new_chain]
     
