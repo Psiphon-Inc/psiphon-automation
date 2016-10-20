@@ -1753,7 +1753,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 else:
                     ossh_port = 53
                     self.setup_meek_parameters_for_host(host, 443)
-            
+
             # All and only TCS servers support SSH API requests
             capabilities['ssh-api-requests'] = host.is_TCS
 
@@ -2519,6 +2519,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                EMAIL_RESPONDER_CONFIG_BUCKET_KEY,
                                                json.dumps(emails, indent=2),
                                                False)  # not public
+
+    def upgrade_all_tcs_hosts(self):
+      psi_ops_deploy.restart_psiphond_service_on_hosts([host for host in self.__hosts.itervalues() if host.is_TCS])
 
     def add_legacy_server_version(self):
         assert(self.is_locked)
@@ -3309,13 +3312,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             server.id,
                                             server.host_id,
                                             server.ip_address,
-                                            None, # Omit: egress_ip_address 
+                                            None,
                                             server.internal_ip_address,
-                                            None, # Omit: propagation_channel_id 
+                                            None,
                                             server.is_embedded,
                                             server.is_permanent,
-                                            server.discovery_date_range,
-                                            server.capabilities)
+                                            server.discovery_date_range)
                                             # Omit: propagation, web server, ssh info
 
         for deleted_server in self.__deleted_servers.itervalues():

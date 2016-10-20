@@ -29,6 +29,7 @@ import psi_routes
 import psi_ops_install
 from multiprocessing.pool import ThreadPool
 from functools import wraps
+from time import sleep
 
 sys.path.insert(0, os.path.abspath(os.path.join('..', 'Server')))
 import psi_config
@@ -238,7 +239,7 @@ def deploy_TCS_implementation(ssh, host, servers, TCS_psiphond_config_values):
 
     external_protocol_ports = get_supported_protocol_ports(host, server)
     docker_protocol_ports = get_supported_protocol_ports(host, server, external_ports=False)
-    
+
     if server.capabilities['handshake']:
         external_protocol_ports['handshake'] = server.web_server_port
         docker_protocol_ports['handshake'] = TCS_DOCKER_WEB_SERVER_PORT
@@ -539,6 +540,31 @@ def deploy_build_to_hosts(hosts, build_filename):
             raise
 
     run_in_parallel(10, do_deploy_build, hosts)
+
+
+def restart_psiphond_service_on_hosts(hosts):
+
+  @retry_decorator_returning_exception
+  def do_service_restart(host):
+    sleep(2)
+    try:
+      print("restarting 'psiphond.service' on host: %s" % host.id)
+
+      ssh = psi_ssh.SSH(
+                      host.ip_address, host.ssh_port,
+                      host.ssh_username, host.ssh_password,
+                      host.ssh_host_key)
+      ssh.exec_command("systemctl restart psiphond.service")
+
+    except Exception as e:
+      print("Error restarting 'psiphond.service' on host %s: %r" % (host.id, e))
+      raise
+    host.log("restarted psiphond.service")
+
+  run_in_parallel(
+      min(int(round(len(hosts)/10)), 30),
+      do_service_restart,
+      hosts)
 
 
 def deploy_routes(host):
