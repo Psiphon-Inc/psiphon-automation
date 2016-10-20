@@ -562,7 +562,7 @@ def restart_psiphond_service_on_hosts(hosts):
     host.log("restarted psiphond.service")
 
   run_in_parallel(
-      min(int(round(len(hosts)/10)), 30),
+      min(len(hosts)/10, 30) if len(hosts) > 10 else 1,
       do_service_restart,
       hosts)
 

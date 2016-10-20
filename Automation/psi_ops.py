@@ -2520,7 +2520,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                json.dumps(emails, indent=2),
                                                False)  # not public
 
-    def upgrade_all_tcs_hosts(self):
+    def upgrade_all_TCS_hosts(self):
       psi_ops_deploy.restart_psiphond_service_on_hosts([host for host in self.__hosts.itervalues() if host.is_TCS])
 
     def add_legacy_server_version(self):
@@ -3312,12 +3312,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             server.id,
                                             server.host_id,
                                             server.ip_address,
-                                            None,
+                                            None, # Omit: egress_ip_address
                                             server.internal_ip_address,
-                                            None,
+                                            None, # Omit: propagation_channel_id
                                             server.is_embedded,
                                             server.is_permanent,
-                                            server.discovery_date_range)
+                                            server.discovery_date_range,
+                                            server.capabilities)
                                             # Omit: propagation, web server, ssh info
 
         for deleted_server in self.__deleted_servers.itervalues():
