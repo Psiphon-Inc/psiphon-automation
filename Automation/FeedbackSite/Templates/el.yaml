@@ -14,4 +14,5 @@ el:
   smiley_sad: Το Psiphon συχνά αδυνατεί να συνδεθεί ή δεν αποδίδει αρκετά καλά.
   text_feedback_prompt: |
     Εισάγετε τα σχόλιά σας εδώ:
-  text_feedback_email_prompt: "Αν θέλετε να σας απαντήσουμε, εισάγετε το email σας: \n"
+  text_feedback_email_prompt: |
+    Αν θέλετε να σας απαντήσουμε, εισάγετε το email σας:
