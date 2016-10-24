@@ -288,7 +288,7 @@ def make_xinetd_config_file_command(servers):
             server_args     = -i -4 -f /etc/ssh/sshd_config.psiphon_ssh_%s
         }
         ''')
-        
+
     obfuscated_ssh_service_section_template = textwrap.dedent('''
         service psiphon_ssh.obfuscated.%s
         {
@@ -313,7 +313,7 @@ def make_xinetd_config_file_command(servers):
         if server.ssh_obfuscated_port is not None:
             service_sections.append(obfuscated_ssh_service_section_template %
                                 (server.internal_ip_address, server.internal_ip_address, server.ssh_obfuscated_port, server.internal_ip_address))
-            
+
     file_contents = defaults_section + '\n'.join(service_sections)
     return 'echo "%s" > /etc/xinetd.conf' % (file_contents,)
 
@@ -357,9 +357,9 @@ morer              applory            pyte               mareshat
 
 
 def generate_self_signed_certificate():
-    
+
     # Based on http://svn.osafoundation.org/m2crypto/trunk/tests/test_x509.py
-    
+
     private_key = M2Crypto.EVP.PKey()
     request = M2Crypto.X509.Request()
     rsa = M2Crypto.RSA.gen_key(
@@ -396,7 +396,7 @@ def generate_self_signed_certificate():
     assert certificate.verify()
     assert certificate.verify(private_key)
     assert certificate.verify(public_key)
-    
+
     return certificate.as_pem(), rsa.as_pem(cipher=None) # Use rsa for PKCS#1
 
 
@@ -411,11 +411,11 @@ def install_host(host, servers, existing_server_ids, plugins):
 def install_legacy_host(host, servers, existing_server_ids, plugins):
 
     install_firewall_rules(host, servers, plugins)
-    
+
     install_psi_limit_load(host, servers)
 
     install_user_count_and_log(host, servers)
-    
+
     # NOTE:
     # For partially configured hosts we need to completely reconfigure
     # all files because we use a counter in the xl2tpd config files that is not
@@ -471,14 +471,14 @@ def install_legacy_host(host, servers, existing_server_ids, plugins):
     ssh.exec_command('/etc/init.d/xl2tpd restart')
 
     #
-    # Upload and install patched Open SSH 
+    # Upload and install patched Open SSH
     #
 
     ssh.exec_command('rm -rf %(key)s; mkdir -p %(key)s' % {"key": psi_config.HOST_OSSH_SRC_DIR})
     remote_ossh_file_path = posixpath.join(psi_config.HOST_OSSH_SRC_DIR, 'ossh.tar.gz')
     ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', '3rdParty', 'ossh.tar.gz'),
                  remote_ossh_file_path)
-    ssh.exec_command('cd %s; tar xfz ossh.tar.gz; ./configure --with-pam > /dev/null; make > /dev/null && make install > /dev/null' 
+    ssh.exec_command('cd %s; tar xfz ossh.tar.gz; ./configure --with-pam > /dev/null; make > /dev/null && make install > /dev/null'
             %(psi_config.HOST_OSSH_SRC_DIR,))
 
     #
@@ -490,7 +490,7 @@ def install_legacy_host(host, servers, existing_server_ids, plugins):
     remote_badvpn_file_path = posixpath.join(psi_config.HOST_BADVPN_SRC_DIR, 'badvpn.tar.gz')
     ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', '3rdParty', 'badvpn.tar.gz'),
                  remote_badvpn_file_path)
-    ssh.exec_command('cd %s; tar xfz badvpn.tar.gz; mkdir build; cd build; cmake ../badvpn -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_NOTHING_BY_DEFAULT=1 -DBUILD_UDPGW=1 > /dev/null; make > /dev/null && make install > /dev/null' 
+    ssh.exec_command('cd %s; tar xfz badvpn.tar.gz; mkdir build; cd build; cmake ../badvpn -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_NOTHING_BY_DEFAULT=1 -DBUILD_UDPGW=1 > /dev/null; make > /dev/null && make install > /dev/null'
             %(psi_config.HOST_BADVPN_SRC_DIR,))
 
     remote_init_file_path = posixpath.join(psi_config.HOST_INIT_DIR, 'badvpn-udpgw')
@@ -499,7 +499,7 @@ def install_legacy_host(host, servers, existing_server_ids, plugins):
     ssh.exec_command('chmod +x %s' % (remote_init_file_path,))
     ssh.exec_command('update-rc.d %s defaults' % ('badvpn-udpgw',))
     ssh.exec_command('%s restart' % (remote_init_file_path,))
-    
+
     #
     # Generate and upload sshd_config files and xinetd.conf
     #
@@ -562,7 +562,7 @@ def install_legacy_host(host, servers, existing_server_ids, plugins):
     #
     # Add required packages and Python modules
     #
-    
+
     ssh.exec_command('apt-get install -y python-pip libffi-dev')
     ssh.exec_command('pip install pyOpenSSL')
     ssh.exec_command('pip install hiredis')
@@ -572,11 +572,11 @@ def install_legacy_host(host, servers, existing_server_ids, plugins):
     ssh.exec_command('apt-get install -y redis-server mercurial git')
 
     install_geoip_database(ssh, False)
-    
+
     for plugin in plugins:
         if hasattr(plugin, 'install_host'):
             plugin.install_host(ssh)
-            
+
     ssh.close()
 
     #
@@ -616,8 +616,8 @@ def install_TCS_host(host, servers, existing_server_ids, plugins):
     assert(len(servers) == 1)
 
     install_TCS_firewall_rules(host, servers, True)
-    
-    install_TCS_psi_limit_load(host, servers)
+
+    install_TCS_psi_limit_load(host)
 
     ssh = psi_ssh.SSH(
             host.ip_address, host.ssh_port,
@@ -625,7 +625,7 @@ def install_TCS_host(host, servers, existing_server_ids, plugins):
             host.ssh_host_key)
 
     install_geoip_database(ssh, True)
-    
+
     ssh.close()
 
     # Generate server ID, web server key material, SSH key material
@@ -656,7 +656,7 @@ def install_TCS_host(host, servers, existing_server_ids, plugins):
             # Legacy servers use the host key generated by OpenSSH.
             # We attempt to generate keys with similar parameters.
             rsa_key = M2Crypto.RSA.gen_key(TCS_SSH_RSA_KEY_LENGTH_BITS, TCS_SSH_RSA_KEY_EXPONENT)
-            
+
             # output format for the public key, which is saved in
             # psinet and included in server entries:
             # 'ssh-rsa <base64>', where the base64 portion is the public key encoded according to RFC 4253 section 6.6
@@ -672,7 +672,7 @@ def install_TCS_host(host, servers, existing_server_ids, plugins):
             if server.ssh_obfuscated_key is None:
                 server.ssh_obfuscated_key = binascii.hexlify(os.urandom(SSH_OBFUSCATED_KEY_BYTE_LENGTH))
 
-    
+
 def install_firewall_rules(host, servers, plugins, do_blacklist=True):
 
     if host.is_TCS:
@@ -693,7 +693,7 @@ def install_legacy_firewall_rules(host, servers, plugins, do_blacklist):
     ['''
     -A INPUT -i lo -d {0} -p tcp -m state --state NEW -m tcp --dport {1} -j ACCEPT'''.format(
             str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
-                if (s.capabilities['FRONTED-MEEK'] or s.capabilities['UNFRONTED-MEEK']) and s.ssh_obfuscated_port]) + ''.join(                
+                if (s.capabilities['FRONTED-MEEK'] or s.capabilities['UNFRONTED-MEEK']) and s.ssh_obfuscated_port]) + ''.join(
     # tunneled web requests
     ['''
     -A INPUT -i lo -d %s -p tcp -m state --state NEW -m tcp --dport %s -j ACCEPT'''
@@ -871,7 +871,7 @@ iptables-restore < %s
     for server in servers:
         ssh_ports.add(str(server.ssh_port)) if server.capabilities['SSH'] else None
         ssh_ports.add(str(server.ssh_obfuscated_port)) if server.capabilities['OSSH'] else None
-    
+
     fail2ban_local_path = '/etc/fail2ban/jail.local'
     fail2ban_local_contents = textwrap.dedent('''
         [ssh]
@@ -880,7 +880,7 @@ iptables-restore < %s
         [ssh-ddos]
         port    = {0}
         '''.format(','.join(ssh_ports)))
-        
+
     meek_server_egress_ips = set([(str(s.egress_ip_address)) for s in servers
             if (s.capabilities['FRONTED-MEEK'] or s.capabilities['UNFRONTED-MEEK'])])
     if meek_server_egress_ips:
@@ -888,7 +888,7 @@ iptables-restore < %s
         [DEFAULT]
         ignoreip = 127.0.0.1/8 {0}
         '''.format(' '.join(meek_server_egress_ips))) + fail2ban_local_contents
-        
+
     ssh = psi_ssh.SSH(
             host.ip_address, host.ssh_port,
             host.ssh_username, host.ssh_password,
@@ -900,7 +900,7 @@ iptables-restore < %s
     ssh.exec_command('echo "%s" > %s' % (fail2ban_local_contents, fail2ban_local_path))
     ssh.exec_command(if_up_script_path)
     ssh.close()
-    
+
     if do_blacklist:
         install_malware_blacklist(host, False)
 
@@ -920,21 +920,21 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
 
     # Default posture for INPUT is reject. Allow connections to management ports
     # on INPUT.
-    # Web/protocol ports are handled by psiphond inside a container.  Rate limiting 
+    # Web/protocol ports are handled by psiphond inside a container.  Rate limiting
     # rules are applied to the FORWARD chain instead of INPUT since the system
-    # forwards packets to the container. 
+    # forwards packets to the container.
     # Web ports are rate limited with "limit", which is appropriate when the remote address is
     # shared (CDN) and the protocol may feature many TCP connections (HTTPS) per session.
     # Other protocols are rate limited with "recent", which is more appropriate for individual
     # remote addresses.
-    
+
     # Create a new chain for rate limiting.
     new_rate_limit_chain = textwrap.dedent('''
         -N PSI_RATE_LIMITING''')
-    
+
     accept_with_limit_rate_template = textwrap.dedent('''
         -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m limit --limit 1000/sec -j ACCEPT''')
-    
+
     accept_with_recent_rate_template = textwrap.dedent('''
         -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m recent --set --name {recent_name}
         -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m recent --update --name {recent_name} --seconds 60 --hitcount 3 -j DROP
@@ -942,9 +942,9 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
 
     return_from_rate_limit_chain = textwrap.dedent('''
         -A PSI_RATE_LIMITING -j RETURN''')
-    
+
     rate_limit_rules = [new_rate_limit_chain]
-    
+
     if server.capabilities['handshake']:
         web_server_port_rule =  accept_with_recent_rate_template.format(
                 port=str(psi_ops_deploy.TCS_DOCKER_WEB_SERVER_PORT),
@@ -961,11 +961,11 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
                     port=str(port),
                     recent_name='LIMIT-' + str(port))
         rate_limit_rules += [protocol_port_rule]
-    
+
     rate_limit_rules += [return_from_rate_limit_chain]
-    
+
     limit_rate_forward_rules = []
-    
+
     iptables_rate_limit_rules_path = '/etc/iptables.rules.psi_rate_limit'
     iptables_rate_limit_rules_contents = textwrap.dedent('''
         *filter
@@ -975,11 +975,11 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
         ''').format(
             filter_limit_rate='\n'.join(rate_limit_rules),
             filter_forward='\n'.join(limit_rate_forward_rules))
-    
+
     management_port_rule = textwrap.dedent('''
         -A INPUT -p tcp -m state --state NEW -m tcp --dport {management_port} -j ACCEPT''').format(management_port=host.ssh_port)
     port_rules = [management_port_rule]
-    
+
     # Common INPUT rules
 
     filter_input_rules = [
@@ -1057,7 +1057,7 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
 
 
     (iptables_limit_load_rules_contents, iptables_limit_load_rules_path) = install_TCS_psi_limit_load_chain(host, server)
-    
+
     # Note: restart fail2ban and docker after applying firewall rules because iptables-restore
     # flushes iptables which will remove any chains and rules that fail2ban creates on starting up
     if_up_script_path = '/etc/network/if-up.d/firewall'
@@ -1092,7 +1092,7 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
         if_up_script_path=if_up_script_path))
     ssh.exec_command(if_up_script_path)
     ssh.close()
-    
+
     if do_blacklist:
         install_malware_blacklist(host, True)
 
@@ -1114,7 +1114,7 @@ def install_malware_blacklist(host, is_TCS):
     else:
         ssh.exec_command('apt-get install -y module-assistant xtables-addons-source')
         ssh.exec_command('module-assistant -i auto-install xtables-addons')
-    
+
     ssh.put_file(os.path.join(os.path.abspath('.'), psi_ip_blacklist),
                  psi_ip_blacklist_host_path)
     ssh.exec_command('chmod +x %s' % (psi_ip_blacklist_host_path,))
@@ -1122,8 +1122,8 @@ def install_malware_blacklist(host, is_TCS):
     ssh.exec_command('ln -s %s %s' % (psi_ip_blacklist_host_path, cron_script_path))
     ssh.exec_command(psi_ip_blacklist_host_path)
     ssh.close()
-    
-    
+
+
 def install_geoip_database(ssh, is_TCS):
 
     #
@@ -1136,13 +1136,13 @@ def install_geoip_database(ssh, is_TCS):
     geo_ip_files = ['GeoIPCity.dat', 'GeoIPISP.dat']
     if is_TCS:
         geo_ip_files = ['GeoIP2-City.mmdb', 'GeoIP2-ISP.mmdb']
-    
+
     for geo_ip_file in geo_ip_files:
         if os.path.isfile(geo_ip_file):
             ssh.put_file(os.path.join(os.path.abspath('.'), geo_ip_file),
                          posixpath.join(REMOTE_GEOIP_DIRECTORY, geo_ip_file))
 
-                         
+
 def install_psi_limit_load(host, servers):
 
     if host.is_TCS:
@@ -1166,16 +1166,16 @@ def install_legacy_psi_limit_load(host, servers):
     [' INPUT -d %s -p tcp -m state --state NEW -m tcp --dport %s -j REJECT --reject-with tcp-reset'
             % (str(s.internal_ip_address), str(s.ssh_obfuscated_port)) for s in servers
                 if s.ssh_obfuscated_port] +
-                
+
     # VPN
     [' INPUT -d %s -p udp --dport 500 -j DROP'
             % (str(s.internal_ip_address), ) for s in servers
                 if s.capabilities['VPN']] )
-                
+
     disable_services = '\n    '.join(['iptables -I' + rule for rule in rules])
-    
+
     enable_services = '\n    '.join(['iptables -D' + rule for rule in rules])
-    
+
     script = '''
 #!/bin/bash
 
@@ -1209,7 +1209,7 @@ while true; do
             logger psi_limit_load: Swap threshold reached.
         fi
     fi
-    
+
     break
 done
 
@@ -1232,7 +1232,7 @@ exit 0
             host.ssh_host_key)
 
     ssh.exec_command('apt-get install -y bc')
-            
+
     psi_limit_load_host_path = '/usr/local/sbin/psi_limit_load'
 
     file = tempfile.NamedTemporaryFile(delete=False)
@@ -1242,7 +1242,7 @@ exit 0
     os.remove(file.name)
 
     ssh.exec_command('chmod +x %s' % (psi_limit_load_host_path,))
-    
+
     cron_file = '/etc/cron.d/psi-limit-load'
     ssh.exec_command('echo "SHELL=/bin/sh" > %s;' % (cron_file,) +
                      'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
@@ -1293,7 +1293,7 @@ while true; do
             logger psi_limit_load: Swap threshold reached.
         fi
     fi
-    
+
     break
 done
 
@@ -1315,7 +1315,7 @@ exit 0
             host.ssh_host_key)
 
     ssh.exec_command('apt-get install -y bc')
-            
+
     psi_limit_load_host_path = '/usr/local/sbin/psi_limit_load'
 
     file = tempfile.NamedTemporaryFile(delete=False)
@@ -1325,7 +1325,7 @@ exit 0
     os.remove(file.name)
 
     ssh.exec_command('chmod +x %s' % (psi_limit_load_host_path,))
-    
+
     cron_file = '/etc/cron.d/psi-limit-load'
     ssh.exec_command('echo "SHELL=/bin/sh" > %s;' % (cron_file,) +
                      'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
@@ -1333,27 +1333,27 @@ exit 0
 
 
 def install_TCS_psi_limit_load_chain(host, server):
-    
+
     limit_load_new_chain = '-N PSI_LIMIT_LOAD'
-    
+
     limit_load_template = '-A PSI_LIMIT_LOAD -p tcp -m state --state NEW -m tcp --dport {port} -j REJECT --reject-with tcp-reset'
-    
+
     limit_load_return = '-A PSI_LIMIT_LOAD -j RETURN'
-    
+
     limit_load_rules = [limit_load_new_chain]
-    
+
     for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, external_ports=False, meek_ports=False).iteritems():
         limit_load_rules += [limit_load_template.format(port=str(port))]
-    
+
     limit_load_rules += [limit_load_return]
-    
+
     iptables_limit_load_rules_path = '/etc/iptables.rules.psi_limit_load'
     iptables_limit_load_rules_contents = textwrap.dedent('''
         *filter
         {filter_limit_load}
         COMMIT
         ''').format(filter_limit_load='\n'.join(limit_load_rules))
-    
+
     return (iptables_limit_load_rules_contents, iptables_limit_load_rules_path)
 
 
@@ -1370,9 +1370,9 @@ def install_user_count_and_log(host, servers):
         server_details[server.id]["commands"]["meek_users_command"] = "netstat -tpn | grep \"%s:%d *%s\" | grep sshd | grep ESTABLISHED | wc -l" % (server.ip_address, int(server.ssh_obfuscated_port), server.ip_address)
         server_details[server.id]["commands"]["ssh_users_command"] = "" if not server.capabilities["SSH"] else \
             "netstat -tpn | grep \"%s:%d \" | grep sshd | grep ESTABLISHED | wc -l" % (server.ip_address, int(server.ssh_port))
-        
+
     vpn_users_command = "ifconfig | grep ppp | wc -l"
-    
+
     script = '''
 #!/usr/bin/env python
 
@@ -1388,16 +1388,16 @@ time.sleep(random.choice(range(0,50)))
 
 log_record = {
                 "event_name": "user_count",
-                "timestamp": datetime.utcnow().isoformat() + "Z", 
-                "host_id": "%s", 
-                "region": "%s", 
-                "provider": "%s", 
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "host_id": "%s",
+                "region": "%s",
+                "provider": "%s",
                 "datacenter": "%s",
                 "users": {
                     "obfuscated_ssh": {
-                        "servers": defaultdict(dict), 
+                        "servers": defaultdict(dict),
                         "total": 0
-                    }, 
+                    },
                     "ssh": {
                         "servers": defaultdict(dict),
                         "total": 0
@@ -1413,12 +1413,12 @@ vpn_users_command = "%s"
 for server_id in server_details:
     log_record["users"]["obfuscated_ssh"]["servers"][server_id]["total"] = int(os.popen(server_details[server_id]["commands"]["obfuscated_ssh_users_command"]).read().strip())
     log_record["users"]["obfuscated_ssh"]["total"] += log_record["users"]["obfuscated_ssh"]["servers"][server_id]["total"]
-    
+
     log_record["users"]["obfuscated_ssh"]["servers"][server_id]["meek"] = int(os.popen(server_details[server_id]["commands"]["meek_users_command"]).read().strip())
     log_record["users"]["obfuscated_ssh"]["servers"][server_id]["direct"] = max(0,
         log_record["users"]["obfuscated_ssh"]["servers"][server_id]["total"] - log_record["users"]["obfuscated_ssh"]["servers"][server_id]["meek"])
     log_record["users"]["obfuscated_ssh"]["servers"][server_id]["fronted"] = server_details[server_id]["fronted"]
-    
+
     ssh_users_command = server_details[server_id]["commands"]["ssh_users_command"]
     log_record["users"]["ssh"]["servers"][server_id]["total"] = 0 if len(ssh_users_command) == 0 else int(os.popen(ssh_users_command).read().strip())
     log_record["users"]["ssh"]["total"] += log_record["users"]["ssh"]["servers"][server_id]["total"]
@@ -1431,7 +1431,7 @@ syslog.syslog(syslog.LOG_INFO, json.dumps(log_record))
 ''' % (host.id, host.region, host.provider, host.datacenter_name, server_details, vpn_users_command)
 
     ssh = psi_ssh.SSH(host.ip_address, host.ssh_port, host.ssh_username, host.ssh_password, host.ssh_host_key)
-            
+
     psi_count_users_host_path = '/usr/local/sbin/psi_count_users'
 
     file = tempfile.NamedTemporaryFile(delete=False)
@@ -1446,7 +1446,7 @@ syslog.syslog(syslog.LOG_INFO, json.dumps(log_record))
     ssh.exec_command('echo "SHELL=/bin/sh" > %s;' % (cron_file,) +
                      'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
                      'echo "* * * * * root python %s" >> %s' % (psi_count_users_host_path, cron_file))
-                     
+
 # Change the crontab file so that weekly jobs are not run on the same day across all servers
 def change_weekly_crontab_runday(host, weekdaynum):
     if weekdaynum == None:
@@ -1459,4 +1459,3 @@ def change_weekly_crontab_runday(host, weekdaynum):
                             host.ssh_host_key)
         ssh.exec_command(cmd)
         ssh.close()
-
