@@ -511,7 +511,7 @@ def launch_new_server(digitalocean_account, is_TCS, _):
             instance of a psinet server
     """
 
-    digitalocean_account.base_id = '17784624' if not is_TCS else '20432611'
+    digitalocean_account.base_id = '17784624' if not is_TCS else '20484114'
     try:
         Droplet = collections.namedtuple('Droplet', ['name', 'region', 'image',
                                                      'size', 'backups'])
