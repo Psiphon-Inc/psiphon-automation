@@ -1146,7 +1146,7 @@ def install_geoip_database(ssh, is_TCS):
 def install_psi_limit_load(host, servers):
 
     if host.is_TCS:
-        install_TCS_psi_limit_load(host, servers)
+        install_TCS_psi_limit_load(host)
     else:
         install_legacy_psi_limit_load(host, servers)
 
