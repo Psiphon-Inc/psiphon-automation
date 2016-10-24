@@ -7,6 +7,8 @@ Copyright (c) 2010 Timothy J Fontaine <tjfontaine@gmail.com>
 Copyright (c) 2010 Josh Wright <jshwright@gmail.com>
 Copyright (c) 2010 Ryan Tucker <rtucker@gmail.com>
 Copyright (c) 2008 James C Sinclair <james@irgeek.com>
+Copyright (c) 2013 Tim Heckman <tim@timheckman.net>
+Copyright (c) 2014 Magnus Appelquist <magnus.appelquist@cloudnet.se>
 
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
@@ -30,49 +32,73 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 """
 
+from decimal import Decimal
 import logging
 import urllib
 import urllib2
+import copy
 
 try:
   import json
+  FULL_BODIED_JSON = True
 except:
   import simplejson as json
+  FULL_BODIED_JSON = False
 
 try:
-  import VEpycurl
-  def vepycurl_request(url, fields, headers):
-    return (url, fields, headers)
+  import requests
+  from types import MethodType
 
-  def vepycurl_open(request):
-    c = VEpycurl.VEpycurl(verifySSL=2)
-    url, fields, headers = request
-    nh = [ '%s: %s' % (k, v) for k,v in headers.items()]
-    c.perform(url, fields, nh)
-    return c.results()
+  def requests_request(url, fields, headers):
+    return requests.Request(method="POST", url=url, headers=headers, data=fields)
 
-  URLOPEN = vepycurl_open
-  URLREQUEST = vepycurl_request
+  def requests_open(request):
+    r = request.prepare()
+    s = requests.Session()
+    s.verify = True
+    response = s.send(r)
+    response.read = MethodType(lambda x: x.text, response)
+    return response
+
+  URLOPEN = requests_open
+  URLREQUEST = requests_request
 except:
-  import warnings
-  ssl_message = 'using urllib instead of pycurl, urllib does not verify SSL remote certificates, there is a risk of compromised communication'
-  warnings.warn(ssl_message, RuntimeWarning)
+  try:
+    import VEpycurl
+    def vepycurl_request(url, fields, headers):
+      return (url, fields, headers)
 
-  def urllib_request(url, fields, headers):
-    fields = urllib.urlencode(fields)
-    return urllib2.Request(url, fields, headers)
+    def vepycurl_open(request):
+      c = VEpycurl.VEpycurl(verifySSL=2)
+      url, fields, headers = request
+      nh = [ '%s: %s' % (k, v) for k,v in headers.items()]
+      c.perform(url, fields, nh)
+      return c.results()
 
-  URLOPEN = urllib2.urlopen
-  URLREQUEST = urllib_request
+    URLOPEN = vepycurl_open
+    URLREQUEST = vepycurl_request
+  except:
+    import warnings
+    ssl_message = 'using urllib instead of pycurl, urllib does not verify SSL remote certificates, there is a risk of compromised communication'
+    warnings.warn(ssl_message, RuntimeWarning)
+
+    def urllib_request(url, fields, headers):
+      fields = urllib.urlencode(fields)
+      return urllib2.Request(url, fields, headers)
+
+    URLOPEN = urllib2.urlopen
+    URLREQUEST = urllib_request
 
 
 class MissingRequiredArgument(Exception):
   """Raised when a required parameter is missing."""
-  
+
   def __init__(self, value):
     self.value = value
   def __str__(self):
     return repr(self.value)
+  def __reduce__(self):
+    return (self.__class__, (self.value, ))
 
 class ApiError(Exception):
   """Raised when a Linode API call returns an error.
@@ -100,11 +126,13 @@ class ApiError(Exception):
     40: Limit of Linodes added per hour reached
     41: Linode must have no disks before delete
   """
-  
+
   def __init__(self, value):
     self.value = value
   def __str__(self):
     return repr(self.value)
+  def __reduce__(self):
+    return (self.__class__, (self.value, ))
 
 class ApiInfo:
   valid_commands = {}
@@ -206,6 +234,9 @@ class Api:
 
   def __getattr__(self, name):
     """Return a callable for any undefined attribute and assume it's an API call"""
+    if name.startswith('__'):
+      raise AttributeError()
+
     def generic_request(*args, **kw):
       request = LowerCaseDict(kw)
       request['api_action'] = name.replace('_', '.')
@@ -215,6 +246,7 @@ class Api:
         logging.debug('Batched: %s', json.dumps(request))
       else:
         return self.__send_request(request)
+
     generic_request.__name__ = name
     return generic_request
 
@@ -226,7 +258,13 @@ class Api:
 
     request['api_responseFormat'] = 'json'
 
-    logging.debug('Parmaters '+str(request))
+    request_log = copy.deepcopy(request)
+    redact = ['api_key','rootsshkey','rootpass']
+    for r in redact:
+        if r in request_log:
+            request_log[r] = '{0}: xxxx REDACTED xxxx'.format(r)
+
+    logging.debug('Parameters '+str(request_log))
     #request = urllib.urlencode(request)
 
     headers = {
@@ -239,11 +277,15 @@ class Api:
 
     logging.debug('Raw Response: '+response)
 
-    try:
+    if FULL_BODIED_JSON:
+      try:
+        s = json.loads(response, parse_float=Decimal)
+      except Exception as ex:
+        print(response)
+        raise ex
+    else:
+      # Stuck with simplejson, which won't let us parse_float
       s = json.loads(response)
-    except Exception, ex:
-      print(response)
-      raise ex
 
     if isinstance(s, dict):
       s = LowerCaseDict(s)
@@ -258,7 +300,7 @@ class Api:
       return s
 
   def __api_request(required=[], optional=[], returns=[]):
-    """Decorator to define required and optional paramters"""
+    """Decorator to define required and optional parameters"""
     for k in required:
       k = k.lower()
       if k not in ApiInfo.valid_params:
@@ -287,6 +329,7 @@ class Api:
           request[k] = params[k]
 
         result = func(self, request)
+
         if result is not None:
           request = result
 
@@ -311,7 +354,7 @@ class Api:
       if returns and wrapper.__doc__:
         # we either have a list of dicts or a just plain dict
         if len(wrapper.__doc__.split('\n')) is 1:  # one-liners need whitespace
-          wrapper.__doc__ += '\n' 
+          wrapper.__doc__ += '\n'
         if isinstance(returns, list):
           width = max(len(q) for q in returns[0].keys())
           wrapper.__doc__ += '\n    Returns list of dictionaries:\n\t[{\n'
@@ -346,6 +389,7 @@ class Api:
                            u'LABEL': 'linode label',
                            u'LINODEID': 'Linode ID',
                            u'LPM_DISPLAYGROUP': 'group label',
+                           u'PLANID': 'plan id',
                            u'STATUS': 'Status flag',
                            u'TOTALHD': 'available disk (GB)',
                            u'TOTALRAM': 'available RAM (MB)',
@@ -381,7 +425,20 @@ class Api:
     """
     pass
 
-  @__api_request(required=['DatacenterID', 'PlanID', 'PaymentTerm'],
+  @__api_request(required=['LinodeID', 'DatacenterID', 'PlanID'],
+                 optional=['PaymentTerm'],
+                 returns={u'LinodeID': 'New Linode ID'})
+  def linode_clone(self, request):
+    """Create a new Linode, then clone the specified LinodeID to the
+    new Linode.  It is recommended that the source Linode be powered
+    down during the clone.
+
+    This will create a billing event.
+    """
+    pass
+
+  @__api_request(required=['DatacenterID', 'PlanID'],
+                 optional=['PaymentTerm'],
                  returns={u'LinodeID': 'New Linode ID'})
   def linode_create(self, request):
     """Create a new Linode.
@@ -427,7 +484,7 @@ class Api:
                  returns={u'JobID': 'Job ID'})
   def linode_reboot(self, request):
     """Submit a reboot job for a Linode.
-    
+
     On job submission, returns the job ID.  Does not wait for job
     completion (see linode_job_list).
     """
@@ -491,22 +548,7 @@ class Api:
     linode_delete).
     """
     pass
-  
-  @__api_request(returns=[{u'CREATE_DT': u'YYYY-MM-DD hh:mm:ss.0',
-                           u'CREATOR': 'Image creator',
-                           u'DESCRIPTION': 'Image description',
-                           u'FS_TYPE': "in ['ext4', 'swap', 'raw']",
-                           u'IMAGEID': 'Image ID',
-                           u'ISPUBLIC': '0 or 1',
-                           u'LABEL': 'Image label',
-                           u'LAST_USED_DT': u'YYYY-MM-DD hh:mm:ss.0',
-                           u'MINSIZE': 0000,
-                           u'STATUS': 'Image availability',
-                           u'TYPE': 'automatic or manual Image'}])
-  def image_list(self, request):
-    """Lists all images associated with a Linode account"""
-    pass
-  
+
   @__api_request(required=['LinodeID'],
                  returns=[{u'CREATE_DT': u'YYYY-MM-DD hh:mm:ss.0',
                            u'DISKID': 'Disk ID',
@@ -515,7 +557,7 @@ class Api:
                            u'LINODEID': 'Linode ID',
                            u'SIZE': 'Size of disk (MB)',
                            u'STATUS': 'Status flag',
-                           u'TYPE': "in ['ext3', 'swap', 'raw']",
+                           u'TYPE': "in ['ext4', 'ext3', 'swap', 'raw']",
                            u'UPDATE_DT': u'YYYY-MM-DD hh:mm:ss.0'}])
   def linode_disk_list(self, request):
     """Lists all disk images associated with a Linode."""
@@ -594,18 +636,6 @@ class Api:
     'StackScriptUDFResponses' must be a valid JSON string.
     """
     pass
-  
-  @__api_request(required=['ImageID', 'LinodeID'],
-                 optional=['Label', 'size', 'rootPass', 'rootSSHKey'],
-                 returns={u'DiskID': 'New Disk ID', u'JobID': 'Job ID'})
-  def linode_disk_createfromimage(self, request):
-    """Submits a job to create a disk image from a Linode template.
-
-    On job submission, returns the disk ID and job ID.  Does not
-    wait for job completion (see linode_job_list). Note: the
-    'StackScriptUDFResponses' must be a valid JSON string.
-    """
-    pass
 
   @__api_request(required=['LinodeID'],
                  returns={u'IPAddressID': 'New IP Address ID'})
@@ -614,7 +644,15 @@ class Api:
     that was added."""
     pass
 
-  @__api_request(required=['LinodeID'], optional=['IPAddressID'],
+  @__api_request(required=['LinodeID'],
+                 returns={u'IPADDRESSID': 'New IP Address ID',
+                          u'IPADDRESS': '192.168.100.1'})
+  def linode_ip_addpublic(self, request):
+    """Assigns a Public IP to a Linode.  Returns the IPAddressID
+    that was added."""
+    pass
+
+  @__api_request(optional=['IPAddressID', 'LinodeID'],
                  returns=[{u'ISPUBLIC': '0 or 1',
                            u'IPADDRESS': '192.168.100.1',
                            u'IPADDRESSID': 'IP address ID',
@@ -622,6 +660,23 @@ class Api:
                            u'RDNS_NAME': 'reverse.dns.name.here'}])
   def linode_ip_list(self, request):
     """Lists a Linode's IP addresses."""
+    pass
+
+  @__api_request(required=['IPAddressID','Hostname'],
+                 returns=[{u'HOSTNAME': 'reverse.dns.name.here',
+                           u'IPADDRESS': '192.168.100.1',
+                           u'IPADDRESSID': 'IP address ID'}])
+  def linode_ip_setrdns(self, request):
+    """Sets the reverse DNS name of a public Linode IP."""
+    pass
+
+  @__api_request(required=['IPAddressID'],
+                 optional=['withIPAddressID', 'toLinodeID'],
+                 returns=[{u'LINODEID': 'The ID of the Linode',
+                           u'IPADDRESS': '192.168.100.1',
+                           u'IPADDRESSID': 'IP address ID'}])
+  def linode_ip_swap(self, request):
+    """Exchanges Public IP addresses between two Linodes within a Datacenter"""
     pass
 
   @__api_request(required=['LinodeID'], optional=['pendingOnly', 'JobID'],
@@ -663,14 +718,18 @@ class Api:
     pass
 
   @__api_request(returns=[{u'DISK': 'Maximum disk allocation (GB)',
-                           u'LABEL': 'Name of plan', u'PLANID': 'Plan ID',
-                           u'PRICE': 'Price (US dollars)',
+                           u'LABEL': 'Name of plan',
+                           u'PLANID': 'Plan ID',
+                           u'PRICE': 'Monthly price (US dollars)',
+                           u'HOURLY': 'Hourly price (US dollars)',
                            u'RAM': 'Maximum memory (MB)',
                            u'XFER': 'Allowed transfer (GB/mo)',
                            u'AVAIL': {u'Datacenter ID': 'Quantity'}}])
   def avail_linodeplans(self, request):
     """Returns a structure of Linode PlanIDs containing PlanIDs, and
     their availability in each datacenter.
+
+    This plan is deprecated and will be removed in the future.
     """
     pass
 
@@ -812,6 +871,131 @@ class Api:
     use the source IP address of the request as the target, e.g.
     for updating pointers to dynamic IP addresses.
     """
+    pass
+
+  @__api_request(optional=['NodeBalancerID'],
+                 returns=[{u'ADDRESS4': 'IPv4 IP address of the NodeBalancer',
+                           u'ADDRESS6': 'IPv6 IP address of the NodeBalancer',
+                           u'CLIENTCONNTHROTTLE': 'Allowed connections per second, per client IP',
+                           u'HOSTNAME': 'NodeBalancer hostname',
+                           u'LABEL': 'NodeBalancer label',
+                           u'NODEBALANCERID': 'NodeBalancer ID',
+                           u'STATUS': 'NodeBalancer status, as a string'}])
+  def nodebalancer_list(self, request):
+    """List information about your NodeBalancers."""
+    pass
+
+  @__api_request(required=['NodeBalancerID'],
+                 optional=['Label',
+                           'ClientConnThrottle'],
+                 returns={u'NodeBalancerID': 'NodeBalancerID'})
+  def nodebalancer_update(self, request):
+    """Update information about, or settings for, a Nodebalancer.
+
+    See nodebalancer_list.__doc__ for information on parameters.
+    """
+    pass
+
+  @__api_request(required=['DatacenterID', 'PaymentTerm'],
+                 returns={u'NodeBalancerID' : 'ID of the created NodeBalancer'})
+  def nodebalancer_create(self, request):
+    """Creates a NodeBalancer."""
+    pass
+
+  @__api_request(required=['NodeBalancerID'],
+                 returns={u'NodeBalancerID': 'Destroyed NodeBalancer ID'})
+  def nodebalancer_delete(self, request):
+    """Immediately removes a NodeBalancer from your account and issues
+       a pro-rated credit back to your account, if applicable."""
+    pass
+
+  @__api_request(required=['NodeBalancerID'],
+                 optional=['ConfigID'],
+                 returns=[{
+                           u'ALGORITHM': 'Balancing algorithm.',
+                           u'CHECK': 'Type of health check to perform.',
+                           u'CHECK_ATTEMPTS': 'Number of failed probes allowed.',
+                           u'CHECK_BODY': 'A regex against the expected result body.',
+                           u'CHECK_INTERVAL': 'Seconds between health check probes.',
+                           u'CHECK_PATH': 'The path of the health check request.',
+                           u'CHECK_TIMEOUT': 'Seconds to wait before calling a failure.',
+                           u'CONFIGID': 'ID of this config',
+                           u'NODEBALANCERID': 'NodeBalancer ID.',
+                           u'PORT': 'Port to bind to on public interface.',
+                           u'PROTOCOL': 'The protocol to be used (tcp or http).',
+                           u'STICKINESS': 'Session persistence.'}])
+  def nodebalancer_config_list(self, request):
+    """List information about your NodeBalancer Configs."""
+    pass
+
+  @__api_request(required=['ConfigID'],
+                 optional=['Algorithm', 'check', 'check_attempts', 'check_body',
+                           'check_interval', 'check_path', 'check_timeout',
+                           'Port', 'Protocol', 'Stickiness'],
+                 returns={u'ConfigID': 'The ConfigID you passed in the first place.'})
+  def nodebalancer_config_update(self, request):
+    """Update information about, or settings for, a Nodebalancer Config.
+
+    See nodebalancer_config_list.__doc__ for information on parameters.
+    """
+    pass
+
+  @__api_request(required=['NodeBalancerID'],
+                 optional=['Algorithm', 'check', 'check_attempts', 'check_body',
+                           'check_interval', 'check_path', 'check_timeout',
+                           'Port', 'Protocol', 'Stickiness'],
+                 returns={u'ConfigID': 'The ConfigID of the new Config.'})
+  def nodebalancer_config_create(self, request):
+    """Create a Nodebalancer Config.
+
+    See nodebalancer_config_list.__doc__ for information on parameters.
+    """
+    pass
+
+  @__api_request(required=['ConfigID'],
+                 returns={u'ConfigID': 'Destroyed Config ID'})
+  def nodebalancer_config_delete(self, request):
+    """Deletes a NodeBalancer's Config."""
+    pass
+
+  @__api_request(required=['ConfigID'],
+                 optional=['NodeID'],
+                 returns=[{u'ADDRESS': 'Address:port combination for the node.',
+                           u'CONFIGID': 'ConfigID of this node\'s config.',
+                           u'LABEL': 'The backend node\'s label.',
+                           u'MODE': 'Connection mode for this node.',
+                           u'NODEBALANCERID': 'ID of this node\'s nodebalancer.',
+                           u'NODEID': 'NodeID.',
+                           u'STATUS': 'Node\'s status in the nodebalancer.',
+                           u'WEIGHT': 'Load balancing weight.'}])
+  def nodebalancer_node_list(self, request):
+    """List information about your NodeBalancer Nodes."""
+    pass
+
+  @__api_request(required=['NodeID'],
+                 optional=['Label', 'Address', 'Weight', 'Mode'],
+                 returns={u'NodeID': 'The NodeID you passed in the first place.'})
+  def nodebalancer_node_update(self, request):
+    """Update information about, or settings for, a Nodebalancer Node.
+
+    See nodebalancer_node_list.__doc__ for information on parameters.
+    """
+    pass
+
+  @__api_request(required=['ConfigID', 'Label', 'Address'],
+                 optional=['Weight', 'Mode'],
+                 returns={u'NodeID': 'The NodeID of the new Node.'})
+  def nodebalancer_node_create(self, request):
+    """Create a Nodebalancer Node.
+
+    See nodebalancer_node_list.__doc__ for information on parameters.
+    """
+    pass
+
+  @__api_request(required=['NodeID'],
+                 returns={u'NodeID': 'Destroyed Node ID'})
+  def nodebalancer_node_delete(self, request):
+    """Deletes a NodeBalancer Node."""
     pass
 
   @__api_request(optional=['StackScriptID'],
