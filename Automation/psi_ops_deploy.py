@@ -396,6 +396,7 @@ def deploy_implementation_to_hosts(hosts, discovery_strategy_value_hmac_key, plu
         host.log('deploy implementation')
 
     run_in_parallel(20, do_deploy_implementation, hosts)
+    restart_psiphond_service_on_hosts([host for host in hosts if host.is_TCS])
 
 
 def deploy_data(host, host_data, TCS_traffic_rules_set):
@@ -547,6 +548,10 @@ def restart_psiphond_service_on_hosts(hosts):
   @retry_decorator_returning_exception
   def do_service_restart(host):
     sleep(2)
+
+    if not host.is_TCS:
+      return
+
     try:
       print("restarting 'psiphond.service' on host: %s" % host.id)
 
