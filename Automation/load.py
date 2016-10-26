@@ -55,7 +55,7 @@ def check_load_on_host(host):
         legacy_process = ['psi_web.py', 'redis-server', 'badvpn-udpgw', 'xinetd']
         vpn_servers = [server.host_id for server in g_psinet.get_servers() if server.host_id == host.id and server.capabilities['VPN'] == True]
         if host.is_TCS:
-            processes_to_check.append('docker')
+            processes_to_check.append('psiphond')
         else:
             processes_to_check = processes_to_check + legacy_process
 
