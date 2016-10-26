@@ -1479,8 +1479,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         def _launch_new_server(_):
             try:
-                # TODO-TCS: select the TCS stack using some criteria such as a weighted random coin flip.
-                is_TCS = False
+                is_TCS = random.choice([True, False])
                 return self.launch_new_server(is_TCS)
             except:
                 return None
@@ -1756,6 +1755,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             # All and only TCS servers support SSH API requests
             capabilities['ssh-api-requests'] = host.is_TCS
+
+            # TCS servers do not support VPN
+            if host.is_TCS:
+                capabilities['VPN'] = False
 
             server = Server(
                         None,
