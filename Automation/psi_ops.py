@@ -1886,6 +1886,22 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # NOTE: caller is responsible for saving now
         #self.save()
 
+    # Migrating Legacy host to TCS host
+    def migrate_to_TCS_entry(self, host_id):
+        host = psinet._PsiphonNetwork__hosts[host_id]
+        server = psinet.get_server_by_ip_address(host.ip_address)
+
+        if host.is_TCS == False:
+            server.web_server_certificate = '-----BEGIN CERTIFICATE-----\n' + server.web_server_certificate + '\n-----END CERTIFICATE-----\n'
+            server.web_server_private_key = '-----BEGIN RSA PRIVATE KEY-----\n' + server.web_server_private_key + '\n-----END RSA PRIVATE KEY-----\n'
+            server.TCS_ssh_private_key = psinet.run_command_on_host(host.id, 'cat /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (host.ip_address))
+
+            host.is_TCS = True
+
+        # We don't need this in psinet.
+        # Manually run reinstall_host after entry is migrated.
+        # psinet.reinstall_host(host.id)
+
     def reinstall_host(self, host_id):
         assert(self.is_locked)
         host = self.__hosts[host_id]
