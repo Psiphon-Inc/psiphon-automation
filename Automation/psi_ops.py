@@ -1758,6 +1758,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             # TCS servers do not support VPN
             if host.is_TCS:
+                capabilities['handshake'] = False
                 capabilities['VPN'] = False
 
             server = Server(
