@@ -3267,16 +3267,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Alphabetize by host_id
         server_list.sort(key=lambda k: k['host_id'])
 
-        print copy.__alternate_meek_fronting_addresses
-
         return json.dumps({
-            "alternate_meek_fronting_addresses": self.__alternate_meek_fronting_addresses,
-            "alternate_meek_fronting_addresses_regex": self.__alternate_meek_fronting_addresses_regex,
             "client_versions": copy.__client_versions,
             "hosts": copy.__hosts,
             "servers": server_list,
-            "sponsors": copy.__sponsors,
-            "meek_fronting_disable_SNI": self.__meek_fronting_disable_SNI
+            "sponsors": copy.__sponsors
         }, default=self.__json_serializer)
 
 
