@@ -1894,10 +1894,17 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if host.is_TCS == False:
             server.web_server_certificate = '-----BEGIN CERTIFICATE-----\n' + server.web_server_certificate + '\n-----END CERTIFICATE-----\n'
             server.web_server_private_key = '-----BEGIN RSA PRIVATE KEY-----\n' + server.web_server_private_key + '\n-----END RSA PRIVATE KEY-----\n'
-            server.TCS_ssh_private_key = psinet.run_command_on_host(host.id, 'cat /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (host.ip_address))
+            server.TCS_ssh_private_key = psinet.run_command_on_host(str(host.id), 'cat /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (host.ip_address))
 
             host.is_TCS = True
-
+        else:
+            if server.TCS_ssh_private_key == None or server.TCS_ssh_private_key == '':
+                server.TCS_ssh_private_key = psinet.run_command_on_host(str(host.id), 'cat /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (host.ip_address))
+            elif server.web_server_certificate.split('\n')[0] != '-----BEGIN CERTIFICATE-----':
+                server.web_server_certificate = '-----BEGIN CERTIFICATE-----\n' + server.web_server_certificate + '\n-----END CERTIFICATE-----\n'
+            elif server.web_server_private_key.split('\n')[0] != '-----BEGIN RSA PRIVATE KEY-----':
+                server.web_server_private_key = '-----BEGIN RSA PRIVATE KEY-----\n' + server.web_server_private_key + '\n-----END RSA PRIVATE KEY-----\n'
+                
         # We don't need this in psinet.
         # Manually run reinstall_host after entry is migrated.
         # psinet.reinstall_host(host.id)
