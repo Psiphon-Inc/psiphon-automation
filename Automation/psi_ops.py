@@ -1786,14 +1786,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             self.setup_server(host, [server])
 
-            self.save()
+            # self.save()
 
         # The save() above ensures new server configuration is saved to CMS before deploying new
         # server info to the network
 
         # This deploy will broadcast server info, propagate builds, and update
         # the stats and email server
-        self.deploy()
+        # self.deploy()
 
     def remove_hosts_from_providers(self):
         assert(self.is_locked)
@@ -1889,9 +1889,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         #self.save()
 
     # Migrating Legacy host to TCS host
-    def migrate_to_TCS_entry(self, host_id):
-        host = psinet._PsiphonNetwork__hosts[host_id]
-        server = psinet.get_server_by_ip_address(host.ip_address)
+    def migrate_to_TCS_entry(self, host):
+        if type(host) == str:
+            host = self.__hosts[host]
+
+        server = self.get_server_by_ip_address(host.ip_address)
 
         server.web_server_certificate = re.sub("(.{64})", "\\1\n", server.web_server_certificate, 0, re.DOTALL)
         server.web_server_private_key = re.sub("(.{64})", "\\1\n", server.web_server_private_key, 0, re.DOTALL)
@@ -1900,30 +1902,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server.capabilities['VPN'] = False
         server.capabilities['handshake'] = False
 
+        server.web_server_certificate = '-----BEGIN CERTIFICATE-----\n' + server.web_server_certificate + '\n-----END CERTIFICATE-----\n'
+        server.web_server_private_key = '-----BEGIN RSA PRIVATE KEY-----\n' + server.web_server_private_key + '\n-----END RSA PRIVATE KEY-----\n'
+        server.TCS_ssh_private_key = self.run_command_on_host(host, 'cat /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (host.ip_address))
 
-        if host.is_TCS == False:
-            server.web_server_certificate = '-----BEGIN CERTIFICATE-----\n' + server.web_server_certificate + '\n-----END CERTIFICATE-----\n'
-            server.web_server_private_key = '-----BEGIN RSA PRIVATE KEY-----\n' + server.web_server_private_key + '\n-----END RSA PRIVATE KEY-----\n'
-            server.TCS_ssh_private_key = psinet.run_command_on_host(str(host.id), 'cat /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (host.ip_address))
+        host.is_TCS = True
 
-            host.is_TCS = True
-        else:
-            if server.TCS_ssh_private_key == None or server.TCS_ssh_private_key == '':
-                server.TCS_ssh_private_key = psinet.run_command_on_host(str(host.id), 'cat /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (host.ip_address))
-            elif server.web_server_certificate.split('\n')[0] != '-----BEGIN CERTIFICATE-----':
-                server.web_server_certificate = '-----BEGIN CERTIFICATE-----\n' + server.web_server_certificate + '\n-----END CERTIFICATE-----\n'
-            elif server.web_server_private_key.split('\n')[0] != '-----BEGIN RSA PRIVATE KEY-----':
-                server.web_server_private_key = '-----BEGIN RSA PRIVATE KEY-----\n' + server.web_server_private_key + '\n-----END RSA PRIVATE KEY-----\n'
-
-        # We don't need this in psinet.
-        # Manually run reinstall_host after entry is migrated.
-        # psinet.reinstall_host(host.id)
+        return (host, server)
 
     # Change hostname and stats users information
-    def migrate_hostname_and_users(host):
-    	psinet.run_command_on_host(host.id, 'useradd -M -d /var/log -s /bin/sh -g adm %s' % (host.stats_ssh_username))
-    	psinet.run_command_on_host(host.id, 'echo "%s:%s" | chpasswd' % (host.stats_ssh_username, host.stats_ssh_password))
-    	psinet.run_command_on_host(host.id, 'hostnamectl set-hostname %s' % (host.id))
+    def migrate_hostname_and_users(self, host):
+    	self.run_command_on_host(host, 'useradd -M -d /var/log -s /bin/sh -g adm %s' % (host.stats_ssh_username))
+    	self.run_command_on_host(host, 'echo "%s:%s" | chpasswd' % (host.stats_ssh_username, host.stats_ssh_password))
+    	self.run_command_on_host(host, 'hostnamectl set-hostname %s' % (host.id))
 
     def reinstall_host(self, host_id):
         assert(self.is_locked)
