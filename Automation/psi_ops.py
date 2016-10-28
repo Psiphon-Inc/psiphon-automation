@@ -17,6 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import re
 import sys
 import os
 import io
@@ -1892,6 +1893,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         host = psinet._PsiphonNetwork__hosts[host_id]
         server = psinet.get_server_by_ip_address(host.ip_address)
 
+        server.web_server_certificate = re.sub("(.{64})", "\\1\n", server.web_server_certificate, 0, re.DOTALL)
+        server.web_server_private_key = re.sub("(.{64})", "\\1\n", server.web_server_private_key, 0, re.DOTALL)
+
         if host.is_TCS == False:
             server.web_server_certificate = '-----BEGIN CERTIFICATE-----\n' + server.web_server_certificate + '\n-----END CERTIFICATE-----\n'
             server.web_server_private_key = '-----BEGIN RSA PRIVATE KEY-----\n' + server.web_server_private_key + '\n-----END RSA PRIVATE KEY-----\n'
@@ -1905,7 +1909,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 server.web_server_certificate = '-----BEGIN CERTIFICATE-----\n' + server.web_server_certificate + '\n-----END CERTIFICATE-----\n'
             elif server.web_server_private_key.split('\n')[0] != '-----BEGIN RSA PRIVATE KEY-----':
                 server.web_server_private_key = '-----BEGIN RSA PRIVATE KEY-----\n' + server.web_server_private_key + '\n-----END RSA PRIVATE KEY-----\n'
-                
+
         # We don't need this in psinet.
         # Manually run reinstall_host after entry is migrated.
         # psinet.reinstall_host(host.id)
