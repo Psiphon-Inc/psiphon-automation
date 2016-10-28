@@ -17,6 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import re
 import sys
 import os
 import io
@@ -1887,6 +1888,37 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # NOTE: caller is responsible for saving now
         #self.save()
 
+    # Migrating Legacy host to TCS host
+    def migrate_to_TCS_entry(self, host_id):
+        host = psinet._PsiphonNetwork__hosts[host_id]
+        server = psinet.get_server_by_ip_address(host.ip_address)
+
+        server.web_server_certificate = re.sub("(.{64})", "\\1\n", server.web_server_certificate, 0, re.DOTALL)
+        server.web_server_private_key = re.sub("(.{64})", "\\1\n", server.web_server_private_key, 0, re.DOTALL)
+
+        server.capabilities['ssh-api-requests'] = True
+        server.capabilities['VPN'] = False
+        server.capabilities['handshake'] = False
+
+
+        if host.is_TCS == False:
+            server.web_server_certificate = '-----BEGIN CERTIFICATE-----\n' + server.web_server_certificate + '\n-----END CERTIFICATE-----\n'
+            server.web_server_private_key = '-----BEGIN RSA PRIVATE KEY-----\n' + server.web_server_private_key + '\n-----END RSA PRIVATE KEY-----\n'
+            server.TCS_ssh_private_key = psinet.run_command_on_host(str(host.id), 'cat /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (host.ip_address))
+
+            host.is_TCS = True
+        else:
+            if server.TCS_ssh_private_key == None or server.TCS_ssh_private_key == '':
+                server.TCS_ssh_private_key = psinet.run_command_on_host(str(host.id), 'cat /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (host.ip_address))
+            elif server.web_server_certificate.split('\n')[0] != '-----BEGIN CERTIFICATE-----':
+                server.web_server_certificate = '-----BEGIN CERTIFICATE-----\n' + server.web_server_certificate + '\n-----END CERTIFICATE-----\n'
+            elif server.web_server_private_key.split('\n')[0] != '-----BEGIN RSA PRIVATE KEY-----':
+                server.web_server_private_key = '-----BEGIN RSA PRIVATE KEY-----\n' + server.web_server_private_key + '\n-----END RSA PRIVATE KEY-----\n'
+
+        # We don't need this in psinet.
+        # Manually run reinstall_host after entry is migrated.
+        # psinet.reinstall_host(host.id)
+
     def reinstall_host(self, host_id):
         assert(self.is_locked)
         host = self.__hosts[host_id]
@@ -3029,7 +3061,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for host in self.__hosts.itervalues():
             copy.__hosts[host.id] = Host(
                                         host.id,
-                                        '',  # Omit: is_TCS isn't needed
+                                        host.is_TCS,
                                         '',  # Omit: provider isn't needed
                                         '',  # Omit: provider_id isn't needed
                                         '',  # Omit: ip_address isn't needed
@@ -3169,7 +3201,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for host in self.__hosts.itervalues():
             copy.__hosts[host.id] = Host(
                                         host.id,
-                                        '',  # Omit: is_TCS isn't needed
+                                        host.is_TCS,
                                         '',  # Omit: provider isn't needed
                                         '',  # Omit: provider_id isn't needed
                                         '',  # Omit: ip_address isn't needed
@@ -3268,16 +3300,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Alphabetize by host_id
         server_list.sort(key=lambda k: k['host_id'])
 
-        print copy.__alternate_meek_fronting_addresses
-
         return json.dumps({
-            "alternate_meek_fronting_addresses": self.__alternate_meek_fronting_addresses,
-            "alternate_meek_fronting_addresses_regex": self.__alternate_meek_fronting_addresses_regex,
             "client_versions": copy.__client_versions,
             "hosts": copy.__hosts,
             "servers": server_list,
-            "sponsors": copy.__sponsors,
-            "meek_fronting_disable_SNI": self.__meek_fronting_disable_SNI
+            "sponsors": copy.__sponsors
         }, default=self.__json_serializer)
 
 
