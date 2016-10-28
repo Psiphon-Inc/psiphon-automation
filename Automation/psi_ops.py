@@ -1896,6 +1896,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server.web_server_certificate = re.sub("(.{64})", "\\1\n", server.web_server_certificate, 0, re.DOTALL)
         server.web_server_private_key = re.sub("(.{64})", "\\1\n", server.web_server_private_key, 0, re.DOTALL)
 
+        server.capabilities['ssh-api-requests'] = True
+        server.capabilities['VPN'] = False
+        server.capabilities['handshake'] = False
+
+
         if host.is_TCS == False:
             server.web_server_certificate = '-----BEGIN CERTIFICATE-----\n' + server.web_server_certificate + '\n-----END CERTIFICATE-----\n'
             server.web_server_private_key = '-----BEGIN RSA PRIVATE KEY-----\n' + server.web_server_private_key + '\n-----END RSA PRIVATE KEY-----\n'
