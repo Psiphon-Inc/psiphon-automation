@@ -1786,14 +1786,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             self.setup_server(host, [server])
 
-            # self.save()
+            self.save()
 
         # The save() above ensures new server configuration is saved to CMS before deploying new
         # server info to the network
 
         # This deploy will broadcast server info, propagate builds, and update
         # the stats and email server
-        # self.deploy()
+        self.deploy()
 
     def remove_hosts_from_providers(self):
         assert(self.is_locked)
