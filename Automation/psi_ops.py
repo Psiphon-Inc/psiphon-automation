@@ -1919,6 +1919,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Manually run reinstall_host after entry is migrated.
         # psinet.reinstall_host(host.id)
 
+    # Change hostname and stats users information
+    def migrate_hostname_and_users(host):
+    	psinet.run_command_on_host(host.id, 'useradd -M -d /var/log -s /bin/sh -g adm %s' % (host.stats_ssh_username))
+    	psinet.run_command_on_host(host.id, 'echo "%s:%s" | chpasswd' % (host.stats_ssh_username, host.stats_ssh_password))
+    	psinet.run_command_on_host(host.id, 'hostnamectl set-hostname %s' % (host.id))
+
     def reinstall_host(self, host_id):
         assert(self.is_locked)
         host = self.__hosts[host_id]
