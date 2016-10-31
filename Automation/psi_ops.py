@@ -3040,7 +3040,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # - send versions info for upgrades
 
         if is_TCS:
-            return self.__compartmentalize_data_for_tcs(host_id, discovery_date)
+            return self.__compartmentalize_data_for_tcs(discovery_date)
 
         copy = PsiphonNetwork(initialize_plugins=False)
 
@@ -3170,15 +3170,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # Host, Server, SponsorHomePage, ...
             return obj.todict()
 
-    def __compartmentalize_data_for_tcs(self, host_id, discovery_date=datetime.datetime.now()):
+    def __compartmentalize_data_for_tcs(self, discovery_date=datetime.datetime.now()):
         # Create a compartmentalized database for tunnel-core-server with only the information needed by a particular host
         # - all propagation channels because any client may connect to servers on this host
         # - host data
         #   only region info is required for discovery
         # - servers data
-        #   omit discovery servers not on this host whose discovery time period has elapsed
-        #   also, omit propagation servers not on this host
-        #   (not on this host --> because servers on this host still need to run, even if not discoverable)
+        #   only include discovery servers whose discovery time period has not elapsed
+        #   NOTE that TCS only uses psinet for discovery. Unlike legacy servers,
+        #   TCS does not require its own server records in psinet.
         # - send home pages for all sponsors, but omit names, banners, campaigns
         # - send versions info for upgrades
 
@@ -3222,11 +3222,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # tunnel-core-server
         server_list = []
         for server in self.__servers.itervalues():
-            if ((server.discovery_date_range and server.host_id != host_id and server.discovery_date_range[1] <= discovery_date) or
-                (not server.discovery_date_range and server.host_id != host_id)):
-                continue
-
-            s = Server(
+            if server.discovery_date_range and server.discovery_date_range[1] > discovery_date:
+                s = Server(
                                                 server.id,
                                                 server.host_id,
                                                 server.ip_address,
@@ -3249,7 +3246,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 int(server.ssh_obfuscated_port), # Some ports are stored as strings, catch this for tunnel-core-server
                                                 server.ssh_obfuscated_key,
                                                 server.alternate_ssh_obfuscated_ports).todict()
-            server_list.append(s)
+                server_list.append(s)
 
         for sponsor in self.__sponsors.itervalues():
             sponsor_data = sponsor

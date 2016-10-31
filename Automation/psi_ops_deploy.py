@@ -494,10 +494,16 @@ def put_file_with_content(ssh, content, destination_path):
 
 def deploy_data_to_hosts(hosts, data_generator, TCS_traffic_rules_set):
 
+    # TCS data is not unique per host, so only generate it once
+    TCS_data = None
+    TCS_hosts = [host for host in hosts if host.is_TCS]
+    if TCS_hosts:
+        TCS_data = data_generator(TCS_hosts[0].id, True)
+
     @retry_decorator_returning_exception
     def do_deploy_data(host_and_data_generator):
         host = host_and_data_generator[0]
-        host_data = host_and_data_generator[1](host.id, host.is_TCS)
+        host_data = TCS_data if host.is_TCS and TCS_data else host_and_data_generator[1](host.id, host.is_TCS)
         try:
             deploy_data(host, host_data, TCS_traffic_rules_set)
         except:
