@@ -1916,6 +1916,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     	self.run_command_on_host(host, 'echo "%s:%s" | chpasswd' % (host.stats_ssh_username, host.stats_ssh_password))
     	self.run_command_on_host(host, 'hostnamectl set-hostname %s' % (host.id))
 
+        self.run_command_on_host(host, 'service ssh restart')
+
     def reinstall_host(self, host_id):
         assert(self.is_locked)
         host = self.__hosts[host_id]
