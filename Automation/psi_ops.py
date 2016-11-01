@@ -1388,7 +1388,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         host = self.__hosts[host_id]
         if host.is_TCS:
             return int(self.run_command_on_host(host,
-                'grep ALL.*established_clients /var/log/psiphond/psiphond.log | tail -1 | python -c \'import sys, json; print json.loads(sys.stdin.read())["ALL"]["established_clients"]\''))
+                'tac /var/log/psiphond/psiphond.log | grep -m1 ALL.*established_clients | python -c \'import sys, json; print json.loads(sys.stdin.read())["ALL"]["established_clients"]\''))
         else:
             vpn_users = int(self.run_command_on_host(host,
                                                  'ifconfig | grep ppp | wc -l'))
