@@ -1382,11 +1382,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         #self.save()
 
     def __count_users_on_host(self, host_id):
-        vpn_users = int(self.run_command_on_host(self.__hosts[host_id],
+        host = self.__hosts[host_id]
+        if host.is_TCS:
+            return int(self.run_command_on_host(host,
+                'grep ALL.*established_clients /var/log/psiphond/psiphond.log | tail -1 | python -c \'import sys, json; print json.loads(sys.stdin.read())["ALL"]["established_clients"]\''))
+        else:
+            vpn_users = int(self.run_command_on_host(host,
                                                  'ifconfig | grep ppp | wc -l'))
-        ssh_users = int(self.run_command_on_host(self.__hosts[host_id],
+            ssh_users = int(self.run_command_on_host(host,
                                                  'ps ax | grep ssh | grep psiphon | wc -l')) / 2
-        return vpn_users + ssh_users
+            return vpn_users + ssh_users
 
     def __upgrade_host_datacenter_names(self):
         if self.__linode_account.api_key:
