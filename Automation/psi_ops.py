@@ -1377,7 +1377,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server.capabilities['UNFRONTED-MEEK'] = False
         host = self.__hosts[server.host_id]
         servers = [s for s in self.__servers.itervalues() if s.host_id == server.host_id]
-        psi_ops_install.install_firewall_rules(host, servers, plugins, False) # No need to update the malware blacklist
+        if host.is_TCS:
+            psi_ops_install.install_TCS_psi_limit_load(host, disable_permanently=True)
+        else:
+            psi_ops_install.install_firewall_rules(host, servers, plugins, False) # No need to update the malware blacklist
         # NOTE: caller is responsible for saving now
         #self.save()
 

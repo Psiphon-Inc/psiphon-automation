@@ -1249,7 +1249,7 @@ exit 0
                      'echo "* * * * * root %s" >> %s' % (psi_limit_load_host_path, cron_file))
 
 
-def install_TCS_psi_limit_load(host):
+def install_TCS_psi_limit_load(host, disable_permanently=False):
 
     # The TCS psi_limit_load is mostly the same as legacy except:
     # - no VPN case
@@ -1259,7 +1259,17 @@ def install_TCS_psi_limit_load(host):
 
     # TODO-TCS: log to ELK
 
-    script = '''
+    if disable_permanently:
+        script = '''
+#!/bin/bash
+
+iptables -D FORWARD -o docker0 -j PSI_LIMIT_LOAD
+iptables -I FORWARD -o docker0 -j PSI_LIMIT_LOAD
+%s
+exit 0
+'''  % (psi_ops_deploy.TCS_PSIPHOND_STOP_ESTABLISHING_TUNNELS_SIGNAL_COMMAND,)
+    else:
+        script = '''
 #!/bin/bash
 
 threshold_load_per_cpu=1
