@@ -80,9 +80,10 @@ def check_load_on_host(host):
                 process_alerts.append(process)
 
         if host.is_TCS:
-            fresh_geoip_db = g_psinet.run_command_on_host(host, 'find /usr/local/share/GeoIP/GeoIP2-City.mmdb -mtime -7'
+            geoip_freshness_check = 'find /usr/local/share/GeoIP/GeoIP2-City.mmdb -mtime -7'
         else:
-            fresh_geoip_db = g_psinet.run_command_on_host(host, 'find /usr/local/share/GeoIP/GeoIPCity.dat -mtime -7'
+            geoip_freshness_check = 'find /usr/local/share/GeoIP/GeoIPCity.dat -mtime -7'
+        fresh_geoip_db = g_psinet.run_command_on_host(host, geoip_freshness_check)
         if fresh_geoip_db == '':
             process_alerts.append('geoip_db')
 
