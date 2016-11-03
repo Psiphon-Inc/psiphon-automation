@@ -113,7 +113,7 @@ def check_load_on_hosts(psinet, hosts):
     log_diagnostics('...done checking hosts')
 
     # retry failed hosts
-    failed_hosts = [psinet._PsiphonNetwork__hosts[result[0]] for result in results if result[1] == -1 or result[5]]
+    failed_hosts = [psinet._PsiphonNetwork__hosts[result[0]] for result in results if result[1] == -1 or result[6]]
     if len(failed_hosts):
         log_diagnostics('Retrying failed hosts')
     new_results = pool.map(check_load_on_host, failed_hosts)
