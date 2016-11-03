@@ -70,9 +70,7 @@ def check_load_on_host(host):
         for index, process in enumerate(processes_to_check):
             alert = False
             instances = int(process_counts[index])
-            if process == 'cron':
-                alert = instances < 1
-            elif process == 'xl2tpd':
+            if process == 'xl2tpd':
                 alert = instances != len([server.id for server in g_psinet.get_servers() if server.host_id == host.id])
             elif process == 'systemctl':
                 alert = instances > 0
@@ -80,6 +78,14 @@ def check_load_on_host(host):
                 alert = instances != 1
             if alert:
                 process_alerts.append(process)
+
+        if host.is_TCS:
+            fresh_geoip_db = g_psinet.run_command_on_host(host, 'find /usr/local/share/GeoIP/GeoIP2-City.mmdb -mtime -7'
+        else:
+            fresh_geoip_db = g_psinet.run_command_on_host(host, 'find /usr/local/share/GeoIP/GeoIPCity.dat -mtime -7'
+        if fresh_geoip_db == '':
+            process_alerts.append('geoip_db')
+
         return (host.id, users, load, free.rstrip(), free_swap.rstrip(), disk_load.rstrip(), ', '.join(process_alerts))
     except Exception as e:
         log_diagnostics('failed host: %s %s' % (host.id, str(e)))
