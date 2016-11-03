@@ -44,13 +44,19 @@ def check_load_on_host(host):
     try:
         log_diagnostics('checking host: %s' % (host.id))
         users = g_psinet._PsiphonNetwork__count_users_on_host(host.id)
-        load_metrics = g_psinet.run_command_on_host(host,
-            'uptime | cut -d , -f 4 | cut -d : -f 2; grep "model name" /proc/cpuinfo | wc -l').split('\n')
+
+        load_commands = ['uptime | cut -d , -f 4 | cut -d : -f 2',
+                         'grep "model name" /proc/cpuinfo | wc -l',
+                         'free | grep "buffers/cache" | awk \'{print $4/($3+$4) * 100.0}\'',
+                         'free | grep "Swap" | awk \'{if ($2 == 0) {print 0} else {print $4/$2 * 100.0}}\'',
+                         'df -hT / | grep "/" | awk \'{if ($4 == 0) {print 0} else {print $4/$3 * 100.0}}\'']
+        load_metrics = g_psinet.run_command_on_host(host, '; '.join(load_commands)).split('\n')
         load_threshold = 4.0 * float(load_metrics[1].strip()) - 1
         load = str(float(load_metrics[0].strip())/load_threshold * 100.0)
-        free = g_psinet.run_command_on_host(host, 'free | grep "buffers/cache" | awk \'{print $4/($3+$4) * 100.0}\'')
-        free_swap = g_psinet.run_command_on_host(host, 'free | grep "Swap" | awk \'{if ($2 == 0) {print 0} else {print $4/$2 * 100.0}}\'')
-        disk_load = g_psinet.run_command_on_host(host, 'df -hT / | grep "/" | awk \'{if ($4 == 0) {print 0} else {print $4/$3 * 100.0}}\'')
+        free = load_metrics[2]
+        free_swap = load_metrics[3]
+        disk_load = load_metrics[4]
+
         processes_to_check = ['cron', 'rsyslogd', 'fail2ban-server', 'ntpd', 'systemctl']
         legacy_process = ['psi_web.py', 'redis-server', 'badvpn-udpgw', 'xinetd']
         vpn_servers = [server.host_id for server in g_psinet.get_servers() if server.host_id == host.id and server.capabilities['VPN'] == True]
