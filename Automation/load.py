@@ -51,7 +51,10 @@ def check_load_on_host(host):
                          'free | grep "Swap" | awk \'{if ($2 == 0) {print 0} else {print $4/$2 * 100.0}}\'',
                          'df -hT / | grep "/" | awk \'{if ($4 == 0) {print 0} else {print $4/$3 * 100.0}}\'']
         load_metrics = g_psinet.run_command_on_host(host, '; '.join(load_commands)).split('\n')
-        load_threshold = 4.0 * float(load_metrics[1].strip()) - 1
+        if host.is_TCS:
+            load_threshold = float(load_metrics[1].strip())
+        else:
+            load_threshold = 4.0 * float(load_metrics[1].strip()) - 1
         load = str(float(load_metrics[0].strip())/load_threshold * 100.0)
         free = load_metrics[2]
         free_swap = load_metrics[3]
