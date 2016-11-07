@@ -553,7 +553,7 @@ def restart_psiphond_service_on_hosts(hosts):
 
   @retry_decorator_returning_exception
   def do_service_restart(host):
-    sleep(10)
+    sleep(30)
 
     if not host.is_TCS:
       return
