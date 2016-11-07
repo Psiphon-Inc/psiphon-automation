@@ -1896,6 +1896,35 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # NOTE: caller is responsible for saving now
         #self.save()
 
+    def backup_and_restore_for_migrate(self, action, host):
+        if type(host) == str:
+            host = self.__hosts[host]
+
+        ssh = psi_ssh.SSH(
+                host.ip_address, host.ssh_port,
+                host.ssh_username, host.ssh_password,
+                host.ssh_host_key)
+
+        if action == 'backup':
+            ssh.exec_command('tar czvf /root/etc.tar.gz /etc/*')
+            ssh.get_file('/root/etc.tar.gz', './Migration/' + host.ip_address + '-etc.tar.gz')
+        elif action == 'restore':
+            import shlex
+            subprocess.Popen(shlex.split('mkdir ./Migration/' + host.ip_address))
+            subprocess.Popen(shlex.split('tar xzvf ./Migration/' + host.ip_address + '-etc.tar.gz -C ./Migration/' + host.ip_address))
+
+            for dirpath, dirnames, filenames in os.walk('./Migration/' + host.ip_address + '/etc/ssh/'):
+                remote_path = '/etc/ssh/'
+                # make remote directory ...
+                for filename in filenames:
+                    local_path = os.path.join(dirpath, filename)
+                    remote_fliepath = os.path.join(remote_path, filename)
+                    # put file
+                    ssh.put_file(local_path, remote_fliepath)
+        else:
+            print('Action is not supported, please use "backup" or "restore"')
+            return
+
     # Migrating Legacy host to TCS host
     def migrate_to_TCS_entry(self, host):
         if type(host) == str:
