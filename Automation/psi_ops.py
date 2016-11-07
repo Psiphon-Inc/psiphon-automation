@@ -1377,16 +1377,24 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server.capabilities['UNFRONTED-MEEK'] = False
         host = self.__hosts[server.host_id]
         servers = [s for s in self.__servers.itervalues() if s.host_id == server.host_id]
-        psi_ops_install.install_firewall_rules(host, servers, plugins, False) # No need to update the malware blacklist
+        if host.is_TCS:
+            psi_ops_install.install_TCS_psi_limit_load(host, disable_permanently=True)
+        else:
+            psi_ops_install.install_firewall_rules(host, servers, plugins, False) # No need to update the malware blacklist
         # NOTE: caller is responsible for saving now
         #self.save()
 
     def __count_users_on_host(self, host_id):
-        vpn_users = int(self.run_command_on_host(self.__hosts[host_id],
+        host = self.__hosts[host_id]
+        if host.is_TCS:
+            return int(self.run_command_on_host(host,
+                'tac /var/log/psiphond/psiphond.log | grep -m1 ALL.*established_clients | python -c \'import sys, json; print json.loads(sys.stdin.read())["ALL"]["established_clients"]\''))
+        else:
+            vpn_users = int(self.run_command_on_host(host,
                                                  'ifconfig | grep ppp | wc -l'))
-        ssh_users = int(self.run_command_on_host(self.__hosts[host_id],
+            ssh_users = int(self.run_command_on_host(host,
                                                  'ps ax | grep ssh | grep psiphon | wc -l')) / 2
-        return vpn_users + ssh_users
+            return vpn_users + ssh_users
 
     def __upgrade_host_datacenter_names(self):
         if self.__linode_account.api_key:
@@ -1888,10 +1896,41 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # NOTE: caller is responsible for saving now
         #self.save()
 
+    def backup_and_restore_for_migrate(self, action, host):
+        if type(host) == str:
+            host = self.__hosts[host]
+
+        ssh = psi_ssh.SSH(
+                host.ip_address, host.ssh_port,
+                host.ssh_username, host.ssh_password,
+                host.ssh_host_key)
+
+        if action == 'backup':
+            ssh.exec_command('tar czvf /root/etc.tar.gz /etc/*')
+            ssh.get_file('/root/etc.tar.gz', './Migration/' + host.ip_address + '-etc.tar.gz')
+        elif action == 'restore':
+            import shlex
+            subprocess.Popen(shlex.split('mkdir ./Migration/' + host.ip_address))
+            subprocess.Popen(shlex.split('tar xzvf ./Migration/' + host.ip_address + '-etc.tar.gz -C ./Migration/' + host.ip_address))
+
+            for dirpath, dirnames, filenames in os.walk('./Migration/' + host.ip_address + '/etc/ssh/'):
+                remote_path = '/etc/ssh/'
+                # make remote directory ...
+                for filename in filenames:
+                    local_path = os.path.join(dirpath, filename)
+                    remote_fliepath = os.path.join(remote_path, filename)
+                    # put file
+                    ssh.put_file(local_path, remote_fliepath)
+        else:
+            print('Action is not supported, please use "backup" or "restore"')
+            return
+
     # Migrating Legacy host to TCS host
-    def migrate_to_TCS_entry(self, host_id):
-        host = psinet._PsiphonNetwork__hosts[host_id]
-        server = psinet.get_server_by_ip_address(host.ip_address)
+    def migrate_to_TCS_entry(self, host):
+        if type(host) == str:
+            host = self.__hosts[host]
+
+        server = self.get_server_by_ip_address(host.ip_address)
 
         server.web_server_certificate = re.sub("(.{64})", "\\1\n", server.web_server_certificate, 0, re.DOTALL)
         server.web_server_private_key = re.sub("(.{64})", "\\1\n", server.web_server_private_key, 0, re.DOTALL)
@@ -1900,30 +1939,28 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server.capabilities['VPN'] = False
         server.capabilities['handshake'] = False
 
+        server.web_server_certificate = '-----BEGIN CERTIFICATE-----\n' + server.web_server_certificate + '\n-----END CERTIFICATE-----\n'
+        server.web_server_private_key = '-----BEGIN RSA PRIVATE KEY-----\n' + server.web_server_private_key + '\n-----END RSA PRIVATE KEY-----\n'
+        server.TCS_ssh_private_key = self.run_command_on_host(host, 'cat /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (host.ip_address))
 
-        if host.is_TCS == False:
-            server.web_server_certificate = '-----BEGIN CERTIFICATE-----\n' + server.web_server_certificate + '\n-----END CERTIFICATE-----\n'
-            server.web_server_private_key = '-----BEGIN RSA PRIVATE KEY-----\n' + server.web_server_private_key + '\n-----END RSA PRIVATE KEY-----\n'
-            server.TCS_ssh_private_key = psinet.run_command_on_host(str(host.id), 'cat /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (host.ip_address))
+        host.is_TCS = True
 
-            host.is_TCS = True
-        else:
-            if server.TCS_ssh_private_key == None or server.TCS_ssh_private_key == '':
-                server.TCS_ssh_private_key = psinet.run_command_on_host(str(host.id), 'cat /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (host.ip_address))
-            elif server.web_server_certificate.split('\n')[0] != '-----BEGIN CERTIFICATE-----':
-                server.web_server_certificate = '-----BEGIN CERTIFICATE-----\n' + server.web_server_certificate + '\n-----END CERTIFICATE-----\n'
-            elif server.web_server_private_key.split('\n')[0] != '-----BEGIN RSA PRIVATE KEY-----':
-                server.web_server_private_key = '-----BEGIN RSA PRIVATE KEY-----\n' + server.web_server_private_key + '\n-----END RSA PRIVATE KEY-----\n'
+        return (host, server)
 
-        # We don't need this in psinet.
-        # Manually run reinstall_host after entry is migrated.
-        # psinet.reinstall_host(host.id)
+    # Change hostname and stats users information
+    def migrate_hostname_and_users(self, host):
+    	self.run_command_on_host(host, 'useradd -M -d /var/log -s /bin/sh -g adm %s' % (host.stats_ssh_username))
+    	self.run_command_on_host(host, 'echo "%s:%s" | chpasswd' % (host.stats_ssh_username, host.stats_ssh_password))
+    	self.run_command_on_host(host, 'hostnamectl set-hostname %s' % (host.id))
+
+        self.run_command_on_host(host, 'service ssh restart')
 
     def reinstall_host(self, host_id):
         assert(self.is_locked)
         host = self.__hosts[host_id]
         servers = [server for server in self.__servers.itervalues() if server.host_id == host_id]
         psi_ops_install.install_host(host, servers, self.get_existing_server_ids(), plugins)
+        psi_ops_install.change_weekly_crontab_runday(host, None)
         psi_ops_deploy.deploy_implementation(host, servers, self.__discovery_strategy_value_hmac_key, plugins, self.__TCS_psiphond_config_values)
         # New data might have been generated
         # NOTE that if the client version has been incremented but a full deploy has not yet been run,
@@ -1933,6 +1970,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             host,
                             self.__compartmentalize_data_for_host(host.id, host.is_TCS),
                             self.__TCS_traffic_rules_set)
+        # Check if the geoip autoupdate cron is exist
+        exist_geoip_database_cron = self.run_command_on_host(host, '[ -f /etc/cron.weekly/update-geoip-db ] && echo "Yes" || echo "No"').split('\n')[0]
+        if exist_geoip_database_cron == 'No':
+            psi_ops_deploy.deploy_geoip_database_autoupdates(host)
+
         host.log('reinstall')
 
     def reinstall_hosts(self):
@@ -3043,7 +3085,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # - send versions info for upgrades
 
         if is_TCS:
-            return self.__compartmentalize_data_for_tcs(host_id, discovery_date)
+            return self.__compartmentalize_data_for_tcs(discovery_date)
 
         copy = PsiphonNetwork(initialize_plugins=False)
 
@@ -3173,15 +3215,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # Host, Server, SponsorHomePage, ...
             return obj.todict()
 
-    def __compartmentalize_data_for_tcs(self, host_id, discovery_date=datetime.datetime.now()):
+    def __compartmentalize_data_for_tcs(self, discovery_date=datetime.datetime.now()):
         # Create a compartmentalized database for tunnel-core-server with only the information needed by a particular host
         # - all propagation channels because any client may connect to servers on this host
         # - host data
         #   only region info is required for discovery
         # - servers data
-        #   omit discovery servers not on this host whose discovery time period has elapsed
-        #   also, omit propagation servers not on this host
-        #   (not on this host --> because servers on this host still need to run, even if not discoverable)
+        #   only include discovery servers whose discovery time period has not elapsed
+        #   NOTE that TCS only uses psinet for discovery. Unlike legacy servers,
+        #   TCS does not require its own server records in psinet.
         # - send home pages for all sponsors, but omit names, banners, campaigns
         # - send versions info for upgrades
 
@@ -3225,11 +3267,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # tunnel-core-server
         server_list = []
         for server in self.__servers.itervalues():
-            if ((server.discovery_date_range and server.host_id != host_id and server.discovery_date_range[1] <= discovery_date) or
-                (not server.discovery_date_range and server.host_id != host_id)):
-                continue
-
-            s = Server(
+            if server.discovery_date_range and server.discovery_date_range[1] > discovery_date:
+                s = Server(
                                                 server.id,
                                                 server.host_id,
                                                 server.ip_address,
@@ -3252,7 +3291,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 int(server.ssh_obfuscated_port), # Some ports are stored as strings, catch this for tunnel-core-server
                                                 server.ssh_obfuscated_key,
                                                 server.alternate_ssh_obfuscated_ports).todict()
-            server_list.append(s)
+                server_list.append(s)
 
         for sponsor in self.__sponsors.itervalues():
             sponsor_data = sponsor
