@@ -1903,7 +1903,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         ssh = psi_ssh.SSH(
                 host.ip_address, host.ssh_port,
                 host.ssh_username, host.ssh_password,
-                host.ssh_host_key)
+                None)
 
         if action == 'backup':
             ssh.exec_command('tar czvf /root/etc.tar.gz /etc/*')
@@ -1951,7 +1951,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def migrate_hostname_and_users(self, host):
         if type(host) == str:
             host = self.__hosts[host]
-            
+
     	self.run_command_on_host(host, 'useradd -M -d /var/log -s /bin/sh -g adm %s' % (host.stats_ssh_username))
     	self.run_command_on_host(host, 'echo "%s:%s" | chpasswd' % (host.stats_ssh_username, host.stats_ssh_password))
     	self.run_command_on_host(host, 'hostnamectl set-hostname %s' % (host.id))
