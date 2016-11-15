@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2014, Psiphon Inc.
+# Copyright (c) 2016, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -31,7 +31,7 @@ import psi_ssh
 import digitalocean_v2.digitalocean as digitalocean
 
 
-def refresh_credentials(digitalocean_account, ip_address, new_root_password, new_stats_password):
+def refresh_credentials(digitalocean_account, ip_address, new_root_password, new_stats_password, stats_username):
     """
         Sets a new unique password on the droplet and removes the old ssh_host key.
 
@@ -39,16 +39,36 @@ def refresh_credentials(digitalocean_account, ip_address, new_root_password, new
         ip_address              :   droplet.ip_address
         new_root_password       :   new root password to set
         new_stats_password      :   new stats password to set
+        stats_username          :   stats username to change password for
     """
     # Note: using auto-add-policy for host's SSH public key here since we can't get it through the API.
     # There's a risk of man-in-the-middle.
     ssh = psi_ssh.make_ssh_session(ip_address, digitalocean_account.base_ssh_port, 'root', None, None, digitalocean_account.base_rsa_private_key)
     ssh.exec_command('echo "root:%s" | chpasswd' % (new_root_password,))
-    ssh.exec_command('echo "%s:%s" | chpasswd' % (digitalocean_account.base_stats_username, new_stats_password))
+    ssh.exec_command('useradd -M -d /var/log -s /bin/sh -g adm %s' % (stats_username))
+    ssh.exec_command('echo "%s:%s" | chpasswd' % (stats_username, new_stats_password))
     ssh.exec_command('rm /etc/ssh/ssh_host_*')
     ssh.exec_command('rm -rf /root/.ssh')
     ssh.exec_command('dpkg-reconfigure openssh-server')
     return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
+
+
+def set_allowed_users(digitalocean_account, ip_address, password, stats_username):
+    """
+        Adds user account to AllowUsers config in /etc/ssh/sshd_config
+
+        digitalocean_account    :   Digitalocean account details
+        ip_address              :   droplet IP address
+        password                :   password to connect to server
+        host_public_key         :   droplet ssh public key
+        stats_username          :   user account to add to AllowUsers
+    """
+    ssh = psi_ssh.make_ssh_session(ip_address, digitalocean_account.base_ssh_port,
+                                   'root', None, None, digitalocean_account.base_rsa_private_key)
+    user_exists = ssh.exec_command('grep %s /etc/ssh/sshd_config' % stats_username)
+    if not user_exists:
+        ssh.exec_command('sed -i "s/^AllowUsers.*/& %s/" /etc/ssh/sshd_config' % stats_username)
+        ssh.exec_command('service ssh restart')
 
 
 def update_system_packages(digitalocean_account, ip_address):
@@ -491,9 +511,7 @@ def launch_new_server(digitalocean_account, is_TCS, _):
             instance of a psinet server
     """
 
-    # TODO-TCS: select base image based on is_TCS flag
-
-    digitalocean_account.base_id = '17784624'
+    base_id = '17784624' if not is_TCS else '20668187'
     try:
         Droplet = collections.namedtuple('Droplet', ['name', 'region', 'image',
                                                      'size', 'backups'])
@@ -501,12 +519,14 @@ def launch_new_server(digitalocean_account, is_TCS, _):
         new_root_password = psi_utils.generate_password()
         new_stats_password = psi_utils.generate_password()
 
+        stats_username = digitalocean_account.base_stats_username
+
         do_mgr = digitalocean.Manager(token=digitalocean_account.oauth_token)
 
         # Get the base image
-        base_image = do_mgr.get_image(digitalocean_account.base_id)
+        base_image = do_mgr.get_image(base_id)
         if not base_image:
-            raise Exception("Base image with ID: %s is not found" % (digitalocean_account.base_id))
+            raise Exception("Base image with ID: %s is not found" % (base_id))
         Droplet.image = base_image.id
 
         Droplet.name = str('do-' +
@@ -547,10 +567,16 @@ def launch_new_server(digitalocean_account, is_TCS, _):
         region = get_datacenter_region(droplet.region['slug'])
         datacenter_name = 'Digital Ocean ' + droplet.region['name']
 
+        if is_TCS:
+            stats_username = psi_utils.generate_stats_username()
+            set_allowed_users(digitalocean_account, droplet.ip_address,
+                              new_root_password, stats_username)
+
         new_droplet_public_key = refresh_credentials(digitalocean_account,
                                                      droplet.ip_address,
                                                      new_root_password,
-                                                     new_stats_password)
+                                                     new_stats_password,
+                                                     stats_username)
         assert(new_droplet_public_key)
 
     except Exception as e:
@@ -564,7 +590,7 @@ def launch_new_server(digitalocean_account, is_TCS, _):
     return (droplet.name, is_TCS, None, droplet.id, droplet.ip_address,
             digitalocean_account.base_ssh_port, 'root', new_root_password,
             ' '.join(new_droplet_public_key.split(' ')[:2]),
-            digitalocean_account.base_stats_username, new_stats_password,
+            stats_username, new_stats_password,
             datacenter_name, region, None, None, None, None, None, None, None)
 
 if __name__ == "__main__":
