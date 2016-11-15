@@ -44,22 +44,34 @@ def check_load_on_host(host):
     try:
         log_diagnostics('checking host: %s' % (host.id))
         users = g_psinet._PsiphonNetwork__count_users_on_host(host.id)
-        load_metrics = g_psinet.run_command_on_host(host,
-            'uptime | cut -d , -f 4 | cut -d : -f 2; grep "model name" /proc/cpuinfo | wc -l').split('\n')
-        load_threshold = 4.0 * float(load_metrics[1].strip()) - 1
-        load = str(float(load_metrics[0].strip())/load_threshold * 100.0)
-        free = g_psinet.run_command_on_host(host, 'free | grep "buffers/cache" | awk \'{print $4/($3+$4) * 100.0}\'')
-        free_swap = g_psinet.run_command_on_host(host, 'free | grep "Swap" | awk \'{if ($2 == 0) {print 0} else {print $4/$2 * 100.0}}\'')
-        disk_load = g_psinet.run_command_on_host(host, 'df -hT / | grep "/" | awk \'{if ($4 == 0) {print 0} else {print $4/$3 * 100.0}}\'')
-        processes_to_check = ['cron', 'rsyslogd', 'fail2ban-server', 'ntpd', 'systemctl']
-        legacy_process = ['psi_web.py', 'redis-server', 'badvpn-udpgw', 'xinetd', 'xl2tpd']
+
+        load_commands = ['uptime | cut -d , -f 4 | cut -d : -f 2',
+                         'grep "model name" /proc/cpuinfo | wc -l',
+                         'free | grep "buffers/cache" | awk \'{print $4/($3+$4) * 100.0}\'',
+                         'free | grep "Swap" | awk \'{if ($2 == 0) {print 0} else {print $4/$2 * 100.0}}\'',
+                         'df -T / | grep "/" | awk \'{if ($4 == 0) {print 0} else {print $4/$3 * 100.0}}\'']
+        load_metrics = g_psinet.run_command_on_host(host, '; '.join(load_commands)).split('\n')
         if host.is_TCS:
-            processes_to_check.append('docker')
+            load_threshold = float(load_metrics[1].strip())
+        else:
+            load_threshold = 4.0 * float(load_metrics[1].strip()) - 1
+        load = str(float(load_metrics[0].strip())/load_threshold * 100.0)
+        free = load_metrics[2]
+        free_swap = load_metrics[3]
+        disk_load = load_metrics[4]
+
+        processes_to_check = ['cron', 'rsyslogd', 'fail2ban-server', 'ntpd', 'systemctl']
+        legacy_process = ['psi_web.py', 'redis-server', 'badvpn-udpgw', 'xinetd']
+        vpn_servers = [server.host_id for server in g_psinet.get_servers() if server.host_id == host.id and server.capabilities['VPN'] == True]
+        if host.is_TCS:
+            processes_to_check.append('psiphond')
         else:
             processes_to_check = processes_to_check + legacy_process
 
             if host.meek_server_port:
                 processes_to_check.append('meek-server')
+            if len(vpn_servers) > 0:
+                processes_to_check.append('xl2tpd')
 
         process_counts = g_psinet.run_command_on_host(host,
             '; '.join(['pgrep -xc ' + process for process in processes_to_check])).split('\n')
@@ -77,6 +89,15 @@ def check_load_on_host(host):
                 alert = instances != 1
             if alert:
                 process_alerts.append(process)
+
+        if host.is_TCS:
+            geoip_freshness_check = 'find /usr/local/share/GeoIP/GeoIP2-City.mmdb -mtime -14'
+        else:
+            geoip_freshness_check = 'find /usr/local/share/GeoIP/GeoIPCity.dat -mtime -14'
+        fresh_geoip_db = g_psinet.run_command_on_host(host, geoip_freshness_check)
+        if fresh_geoip_db == '':
+            process_alerts.append('geoip_db')
+
         return (host.id, users, load, free.rstrip(), free_swap.rstrip(), disk_load.rstrip(), ', '.join(process_alerts))
     except Exception as e:
         log_diagnostics('failed host: %s %s' % (host.id, str(e)))
@@ -94,7 +115,7 @@ def check_load_on_hosts(psinet, hosts):
     log_diagnostics('...done checking hosts')
 
     # retry failed hosts
-    failed_hosts = [psinet._PsiphonNetwork__hosts[result[0]] for result in results if result[1] == -1 or result[5]]
+    failed_hosts = [psinet._PsiphonNetwork__hosts[result[0]] for result in results if result[1] == -1 or result[6]]
     if len(failed_hosts):
         log_diagnostics('Retrying failed hosts')
     new_results = pool.map(check_load_on_host, failed_hosts)
