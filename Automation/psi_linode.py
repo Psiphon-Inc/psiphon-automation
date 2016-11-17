@@ -47,14 +47,15 @@ def get_region(datacenter_id):
     #  {u'DATACENTERID': 4, u'LOCATION': u'Atlanta, GA, USA'},
     #  {u'DATACENTERID': 6, u'LOCATION': u'Newark, NJ, USA'},
     #  {u'DATACENTERID': 7, u'LOCATION': u'London, England, UK'},
-    #  {u'DATACENTERID': 8, u'LOCATION': u'Tokyo, JP'}]
+    #  {u'DATACENTERID': 8, u'LOCATION': u'Tokyo, JP'}
     #  {u'DATACENTERID': 9, u'LOCATION': u'Singapore, SG', u'ABBR': u'singapore'}
     #  {u'DATACENTERID': 10, u'LOCATION': u'Frankfurt, DE', u'ABBR': u'frankfurt'}
+    #  {u'DATACENTERID': 11, u'LOCATION': u'Tokyo 2, JP'}]
     if datacenter_id in [2, 3, 4, 6]:
         return 'US'
     if datacenter_id in [7]:
         return 'GB'
-    if datacenter_id in [8]:
+    if datacenter_id in [8, 11]:
         return 'JP'
     if datacenter_id in [9]:
         return 'SG'
@@ -81,9 +82,9 @@ def create_linode(linode_api):
 
 
 def create_linode_disks(linode_api, linode_id, bootstrap_password, is_TCS, plugins):
-    
+
     if is_TCS:
-        image_id = 1172370
+        image_id = 1307520
         create_disk_job = linode_api.linode_disk_createfromimage(ImageID=image_id, LinodeID=linode_id, Size=40000)
         # Image creation keys are in upper case
         if str.upper('jobid') in create_disk_job:
@@ -98,7 +99,7 @@ def create_linode_disks(linode_api, linode_id, bootstrap_password, is_TCS, plugi
             if hasattr(plugin, 'linode_distribution_id'):
                 distribution_id = plugin.linode_distribution_id()
         create_disk_job = linode_api.linode_disk_createfromdistribution(LinodeID=linode_id, DistributionID=distribution_id, rootPass=bootstrap_password, Label='Psiphon 3 Disk Image', Size=40000)
-    
+
     wait_while_condition(lambda: linode_api.linode_job_list(LinodeID=linode_id, JobID=create_disk_job['JobID'])[0]['HOST_SUCCESS'] == '',
                          120,
                          'create a disk from distribution')
@@ -116,13 +117,13 @@ def create_linode_disks(linode_api, linode_id, bootstrap_password, is_TCS, plugi
 def create_linode_configurations(linode_api, linode_id, disk_list, is_TCS, plugins):
     # KernelID = 138: Latest 64 bit
     bootstrap_kernel_id = 138
-    
+
     if is_TCS:
         host_kernel_id = bootstrap_kernel_id
     else:
         # KernelID = 216: GRUB Legacy (KVM)
         host_kernel_id = 216
-    
+
     for plugin in plugins:
         if hasattr(plugin, 'linode_kernel_ids'):
             bootstrap_kernel_id, host_kernel_id = plugin.linode_kernel_ids()
@@ -215,15 +216,15 @@ def launch_new_server(linode_account, is_TCS, plugins):
         # Power on the base image linode if it is not already running
         if linode_api.linode_list(LinodeID=linode_account.base_id)[0]['STATUS'] != 1:
             start_linode(linode_api, linode_account.base_id, None)
-        
+
         root_password = linode_account.base_root_password
         host_public_key = linode_account.base_host_public_key
-    
+
     try:
         # Create a new linode
         new_root_password = psi_utils.generate_password()
         linode_id, datacenter_name, region = create_linode(linode_api)
-        
+
         disk_ids = create_linode_disks(linode_api, linode_id, new_root_password, is_TCS, plugins)
         bootstrap_config_id, psiphon3_host_config_id = create_linode_configurations(linode_api, linode_id, ','.join(disk_ids), is_TCS, plugins)
 
@@ -231,32 +232,32 @@ def launch_new_server(linode_account, is_TCS, plugins):
         linode_ip_details = linode_api.linode_ip_list(LinodeID=linode_id)
         linode_ip_address = linode_ip_details[0]['IPADDRESS']
         linode_rdns_name = linode_ip_details[0]['RDNS_NAME'].split('.', 1)[0]
-        
+
         if not is_TCS:
             start_linode(linode_api, linode_id, bootstrap_config_id)
             pave_linode(linode_account, linode_ip_address, new_root_password)
             stop_linode(linode_api, linode_id)
-        
+
         start_linode(linode_api, linode_id, psiphon3_host_config_id)
 
         stats_username = linode_account.base_stats_username
-        
+
         if is_TCS:
             # Linodes created by an image keep the image's hostname.  Override this
-            set_host_name(linode_account, linode_ip_address, root_password, 
+            set_host_name(linode_account, linode_ip_address, root_password,
                           host_public_key, linode_rdns_name)
-            stats_username = psi_utils.generate_stats_username()    
+            stats_username = psi_utils.generate_stats_username()
             set_allowed_users(linode_account, linode_ip_address, root_password,
                               host_public_key, stats_username)
-        
+
         # Query hostname
         hostname = get_host_name(linode_account, linode_ip_address, root_password, host_public_key)
 
         # Change the new linode's credentials
         new_stats_password = psi_utils.generate_password()
-        new_host_public_key = refresh_credentials(linode_account, linode_ip_address, 
-                                                  root_password, host_public_key, 
-                                                  new_root_password, new_stats_password, 
+        new_host_public_key = refresh_credentials(linode_account, linode_ip_address,
+                                                  root_password, host_public_key,
+                                                  new_root_password, new_stats_password,
                                                   stats_username)
     except Exception as ex:
         if linode_id:

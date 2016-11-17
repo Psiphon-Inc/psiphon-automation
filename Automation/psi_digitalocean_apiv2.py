@@ -63,7 +63,7 @@ def set_allowed_users(digitalocean_account, ip_address, password, stats_username
         host_public_key         :   droplet ssh public key
         stats_username          :   user account to add to AllowUsers
     """
-    ssh = psi_ssh.make_ssh_session(ip_address, digitalocean_account.base_ssh_port, 
+    ssh = psi_ssh.make_ssh_session(ip_address, digitalocean_account.base_ssh_port,
                                    'root', None, None, digitalocean_account.base_rsa_private_key)
     user_exists = ssh.exec_command('grep %s /etc/ssh/sshd_config' % stats_username)
     if not user_exists:
@@ -511,7 +511,7 @@ def launch_new_server(digitalocean_account, is_TCS, _):
             instance of a psinet server
     """
 
-    digitalocean_account.base_id = '17784624' if not is_TCS else '19980623'
+    base_id = '17784624' if not is_TCS else '20668187'
     try:
         Droplet = collections.namedtuple('Droplet', ['name', 'region', 'image',
                                                      'size', 'backups'])
@@ -524,9 +524,9 @@ def launch_new_server(digitalocean_account, is_TCS, _):
         do_mgr = digitalocean.Manager(token=digitalocean_account.oauth_token)
 
         # Get the base image
-        base_image = do_mgr.get_image(digitalocean_account.base_id)
+        base_image = do_mgr.get_image(base_id)
         if not base_image:
-            raise Exception("Base image with ID: %s is not found" % (digitalocean_account.base_id))
+            raise Exception("Base image with ID: %s is not found" % (base_id))
         Droplet.image = base_image.id
 
         Droplet.name = str('do-' +
