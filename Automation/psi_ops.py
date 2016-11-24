@@ -1900,15 +1900,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if type(host) == str:
             host = self.__hosts[host]
 
-        ssh = psi_ssh.SSH(
-                host.ip_address, host.ssh_port,
-                host.ssh_username, host.ssh_password,
-                host.ssh_host_key)
-
         if action == 'backup':
+            ssh = psi_ssh.SSH(
+                    host.ip_address, host.ssh_port,
+                    host.ssh_username, host.ssh_password,
+                    host.ssh_host_key)
             ssh.exec_command('tar czvf /root/etc.tar.gz /etc/*')
             ssh.get_file('/root/etc.tar.gz', './Migration/' + host.ip_address + '-etc.tar.gz')
         elif action == 'restore':
+            ssh = psi_ssh.SSH(
+                    host.ip_address, host.ssh_port,
+                    host.ssh_username, host.ssh_password,
+                    self.__linode_account.tcs_base_host_public_key)
             import shlex
             subprocess.Popen(shlex.split('mkdir ./Migration/' + host.ip_address))
             subprocess.Popen(shlex.split('tar xzvf ./Migration/' + host.ip_address + '-etc.tar.gz -C ./Migration/' + host.ip_address))
@@ -1949,6 +1952,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     # Change hostname and stats users information
     def migrate_hostname_and_users(self, host):
+        if type(host) == str:
+            host = self.__hosts[host]
+
     	self.run_command_on_host(host, 'useradd -M -d /var/log -s /bin/sh -g adm %s' % (host.stats_ssh_username))
     	self.run_command_on_host(host, 'echo "%s:%s" | chpasswd' % (host.stats_ssh_username, host.stats_ssh_password))
     	self.run_command_on_host(host, 'hostnamectl set-hostname %s' % (host.id))

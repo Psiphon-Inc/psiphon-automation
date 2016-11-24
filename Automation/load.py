@@ -49,7 +49,7 @@ def check_load_on_host(host):
                          'grep "model name" /proc/cpuinfo | wc -l',
                          'free | grep "buffers/cache" | awk \'{print $4/($3+$4) * 100.0}\'',
                          'free | grep "Swap" | awk \'{if ($2 == 0) {print 0} else {print $4/$2 * 100.0}}\'',
-                         'df -hT / | grep "/" | awk \'{if ($4 == 0) {print 0} else {print $4/$3 * 100.0}}\'']
+                         'df -T / | grep "/" | awk \'{if ($4 == 0) {print 0} else {print $4/$3 * 100.0}}\'']
         load_metrics = g_psinet.run_command_on_host(host, '; '.join(load_commands)).split('\n')
         if host.is_TCS:
             load_threshold = float(load_metrics[1].strip())
@@ -91,9 +91,9 @@ def check_load_on_host(host):
                 process_alerts.append(process)
 
         if host.is_TCS:
-            geoip_freshness_check = 'find /usr/local/share/GeoIP/GeoIP2-City.mmdb -mtime -7'
+            geoip_freshness_check = 'find /usr/local/share/GeoIP/GeoIP2-City.mmdb -mtime -14'
         else:
-            geoip_freshness_check = 'find /usr/local/share/GeoIP/GeoIPCity.dat -mtime -7'
+            geoip_freshness_check = 'find /usr/local/share/GeoIP/GeoIPCity.dat -mtime -14'
         fresh_geoip_db = g_psinet.run_command_on_host(host, geoip_freshness_check)
         if fresh_geoip_db == '':
             process_alerts.append('geoip_db')
