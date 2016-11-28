@@ -134,6 +134,7 @@ def write_embedded_values(propagation_channel_id,
                               propagation_channel_id,
                               sponsor_id,
                               urlparse.urlunsplit(remote_server_list_url_split),
+                              urlparse.urlunsplit(OSL_root_url_split),
                               remote_server_list_signature_public_key,
                               '","'.join(home_tab_url_exclusions))
 
@@ -161,6 +162,7 @@ def build_client(
         encoded_server_list,
         remote_server_list_signature_public_key,
         remote_server_list_url_split,
+        OSL_root_url_split,
         feedback_encryption_public_key,
         feedback_upload_server,
         feedback_upload_path,
@@ -201,6 +203,7 @@ def build_client(
             encoded_server_list,
             remote_server_list_signature_public_key,
             remote_server_list_url_split,
+            OSL_root_url_split,
             feedback_encryption_public_key,
             feedback_upload_server,
             feedback_upload_path,
