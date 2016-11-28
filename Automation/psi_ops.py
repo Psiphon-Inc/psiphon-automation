@@ -3529,6 +3529,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     [],
                                     '',         # remote_server_list_signature_public_key
                                     ('','','','',''), # remote_server_list_url
+                                    '',         # OSL_root_url_split
                                     '',         # feedback_encryption_public_key
                                     '',         # feedback_upload_server
                                     '',         # feedback_upload_path
