@@ -380,7 +380,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.37'
+    class_version = '0.38'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -616,9 +616,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__linode_account.tcs_base_host_public_key = ''
             self.__TCS_traffic_rules_set = "{}"
             self.__TCS_psiphond_config_values = {}
-
             self.version = '0.37'
-
         if cmp(parse_version(self.version), parse_version('0.38')) < 0:
             self.__TCS_OSL_config = "{}"
             self.version = '0.38'
