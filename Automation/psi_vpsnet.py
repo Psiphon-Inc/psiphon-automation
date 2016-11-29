@@ -195,10 +195,11 @@ def launch_new_server(vpsnet_account, is_TCS, _):
             package/plan for the new SSD server.
             (VPS 1GB - 1, VPS 2GB - 2, VPS 4GB - 3, VPS 8GB - 4, VPS 16GB - 5)
         '''
+
+        host_id = 'vn-' + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
+
         VPSNetHost.ssd_vps_plan = vpsnet_account.base_ssd_plan
-        VPSNetHost.fqdn = str('vn-' +
-                              ''.join(random.choice(string.ascii_lowercase) for x in range(8)) +
-                              '.vps.net')
+        VPSNetHost.fqdn = str(host_id + '.vps.net')
         VPSNetHost.backups_enabled = False
         VPSNetHost.rsync_backups_enabled = False
         VPSNetHost.licenses = None
@@ -239,7 +240,7 @@ def launch_new_server(vpsnet_account, is_TCS, _):
         raise
 
     return (
-        VPSNetHost.fqdn,
+        host_id,
         is_TCS,
         None,
         node.id,
