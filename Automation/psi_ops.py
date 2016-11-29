@@ -380,7 +380,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.37'
+    class_version = '0.38'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -616,9 +616,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__linode_account.tcs_base_host_public_key = ''
             self.__TCS_traffic_rules_set = "{}"
             self.__TCS_psiphond_config_values = {}
-
             self.version = '0.37'
-
         if cmp(parse_version(self.version), parse_version('0.38')) < 0:
             self.__TCS_OSL_config = "{}"
             self.version = '0.38'
@@ -2164,6 +2162,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             propagation_channel_name,
             sponsor_name,
             remote_server_list_url_split,
+            OSL_root_url_split,
             info_link_url,
             upgrade_url_split,
             get_new_version_url,
@@ -2217,6 +2216,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         encoded_server_list,
                         remote_server_list_signature_public_key,
                         remote_server_list_url_split,
+                        OSL_root_url_split,
                         feedback_encryption_public_key,
                         feedback_upload_info.upload_server,
                         feedback_upload_info.upload_path,
@@ -3529,6 +3529,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     [],
                                     '',         # remote_server_list_signature_public_key
                                     ('','','','',''), # remote_server_list_url
+                                    '',         # OSL_root_url_split
                                     '',         # feedback_encryption_public_key
                                     '',         # feedback_upload_server
                                     '',         # feedback_upload_path
