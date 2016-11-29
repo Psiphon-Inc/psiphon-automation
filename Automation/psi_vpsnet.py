@@ -197,8 +197,7 @@ def launch_new_server(vpsnet_account, is_TCS, _):
         '''
         VPSNetHost.ssd_vps_plan = vpsnet_account.base_ssd_plan
         VPSNetHost.fqdn = str('vn-' +
-                              ''.join(random.choice(string.ascii_lowercase) for x in range(8)) +
-                              '.vps.net')
+                              ''.join(random.choice(string.ascii_lowercase) for x in range(8)))
         VPSNetHost.backups_enabled = False
         VPSNetHost.rsync_backups_enabled = False
         VPSNetHost.licenses = None
