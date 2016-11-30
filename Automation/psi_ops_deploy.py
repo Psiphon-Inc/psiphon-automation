@@ -74,6 +74,7 @@ TCS_PSIPHOND_CONFIG_FILE_NAME = '/opt/psiphon/psiphond/config/psiphond.config'
 TCS_PSIPHOND_LOG_FILE_NAME = '/var/log/psiphond/psiphond.log'
 TCS_PSIPHOND_PROCESS_PROFILE_OUTPUT_DIRECTORY_NAME = '/var/log/psiphond'
 TCS_TRAFFIC_RULES_FILE_NAME = '/opt/psiphon/psiphond/config/traffic-rules.config'
+TCS_OSL_CONFIG_FILE_NAME = '/opt/psiphon/psiphond/config/osl.config'
 TCS_PSINET_FILE_NAME = '/opt/psiphon/psiphond/data/psinet.json'
 TCS_GEOIP_CITY_DATABASE_FILE_NAME = '/usr/local/share/GeoIP/GeoIP2-City.mmdb'
 TCS_GEOIP_ISP_DATABASE_FILE_NAME = '/usr/local/share/GeoIP/GeoIP2-ISP.mmdb'
@@ -291,6 +292,8 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
 
     config['TrafficRulesFilename'] = TCS_TRAFFIC_RULES_FILE_NAME
 
+    config['OSLConfigFilename'] = TCS_OSL_CONFIG_FILE_NAME
+
     config['LoadMonitorPeriodSeconds'] = 60
 
     config['UDPInterceptUdpgwServerAddress'] = '127.0.0.1:7300'
@@ -399,7 +402,7 @@ def deploy_implementation_to_hosts(hosts, discovery_strategy_value_hmac_key, plu
     restart_psiphond_service_on_hosts([host for host in hosts if host.is_TCS])
 
 
-def deploy_data(host, host_data, TCS_traffic_rules_set):
+def deploy_data(host, host_data, TCS_traffic_rules_set, TCS_OSL_config):
 
     print 'deploy data to host %s%s...' % (host.id, " (TCS) " if host.is_TCS else "", )
 
@@ -409,7 +412,7 @@ def deploy_data(host, host_data, TCS_traffic_rules_set):
                     host.ssh_host_key)
 
     if host.is_TCS:
-        deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set)
+        deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set, TCS_OSL_config)
     else:
         deploy_legacy_data(ssh, host, host_data)
 
@@ -453,16 +456,18 @@ def deploy_legacy_data(ssh, host, host_data):
     ssh.exec_command('rm %s' % (psi_config.HOST_SERVER_STOPPED_LOCK_FILE,))
 
 
-def deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set):
+def deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set, TCS_OSL_config):
 
     # Upload psinet file
     # We upload a compartmentalized version of the master file
 
     put_file_with_content(ssh, host_data, TCS_PSINET_FILE_NAME)
 
-    # Upload traffic rules file
+    # Upload auxillary config files
 
     put_file_with_content(ssh, TCS_traffic_rules_set, TCS_TRAFFIC_RULES_FILE_NAME)
+
+    put_file_with_content(ssh, TCS_OSL_config, TCS_OSL_CONFIG_FILE_NAME)
 
     ssh.exec_command(TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND)
 
@@ -492,7 +497,7 @@ def put_file_with_content(ssh, content, destination_path):
             pass
 
 
-def deploy_data_to_hosts(hosts, data_generator, TCS_traffic_rules_set):
+def deploy_data_to_hosts(hosts, data_generator, TCS_traffic_rules_set, TCS_OSL_config):
 
     # TCS data is not unique per host, so only generate it once
     TCS_data = None
@@ -505,7 +510,7 @@ def deploy_data_to_hosts(hosts, data_generator, TCS_traffic_rules_set):
         host = host_and_data_generator[0]
         host_data = TCS_data if host.is_TCS and TCS_data else host_and_data_generator[1](host.id, host.is_TCS)
         try:
-            deploy_data(host, host_data, TCS_traffic_rules_set)
+            deploy_data(host, host_data, TCS_traffic_rules_set, TCS_OSL_config)
         except:
             print 'Error deploying data to host %s' % (host.id,)
             raise

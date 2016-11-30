@@ -40,6 +40,7 @@ def set_embedded_values(client_version,
                         propagation_channel_id,
                         sponsor_id,
                         remote_server_list_url,
+                        OSL_root_url,
                         remote_server_list_signature_public_key,
                         home_tab_url_exclusions):
     global embedded_values
@@ -63,6 +64,7 @@ def set_embedded_values(client_version,
     embedded_values['PROPAGATION_CHANNEL_ID'] = propagation_channel_id
     embedded_values['SPONSOR_ID'] = sponsor_id
     embedded_values['REMOTE_SERVER_LIST_URL'] = remote_server_list_url
+    embedded_values['OBFUSCATED_SERVER_LIST_ROOT_URL'] = OSL_root_url
     embedded_values['REMOTE_SERVER_LIST_SIGNATURE_PUBLIC_KEY'] = remote_server_list_signature_public_key
     embedded_values['HOME_TAB_URL_EXCLUSIONS'] = home_tab_url_exclusions
 

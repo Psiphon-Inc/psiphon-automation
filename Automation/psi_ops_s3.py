@@ -79,6 +79,8 @@ DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME = 'psiphon-client-version'
 DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME = 'server_list'
 DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME_COMPRESSED = 'server_list_compressed'
 
+DOWNLOAD_SITE_OSL_ROOT_PATH = 'osl'
+
 DOWNLOAD_SITE_QR_CODE_KEY_NAME = 'images/android/android-download-qr.png'
 
 DOWNLOAD_SITE_SPONSOR_BANNER_KEY_NAME = 'images/sponsor-banner.png'
