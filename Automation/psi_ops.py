@@ -1555,7 +1555,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         def _launch_new_server(_):
             try:
-                is_TCS = random.choice([True, False])
+                is_TCS = True
                 return self.launch_new_server(is_TCS)
             except:
                 return None
