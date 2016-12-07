@@ -316,23 +316,6 @@ RoutesSigningKeyPair = psi_utils.recordtype(
     'RoutesSigningKeyPair',
     'pem_key_pair, password')
 
-# The traffic rules set is a string containing a JSON representation of a TCS
-# TrafficRuleSet. This value is deployed to all TCS servers.
-# https://godoc.org/github.com/Psiphon-Labs/psiphon-tunnel-core/psiphon/server#TrafficRulesSet
-# https://godoc.org/github.com/Psiphon-Labs/psiphon-tunnel-core/psiphon/server#TrafficRules
-# https://godoc.org/github.com/Psiphon-Labs/psiphon-tunnel-core/psiphon/server#RateLimits
-TCSTrafficRulesSet = psi_utils.recordtype(
-    'TCSTrafficRulesSet',
-    'traffic_rules_set')
-
-# The psiphond config values is a dict of string names and values that is used
-# when paving a psiphond config file for a TCS server. Any config item may be
-# included here, but deploy will override server-specific items; this is intended
-# to be used for network-wide operational values including DiscoveryValueHMACKey,
-# MeekProhibitedHeaders, and MeekProxyForwardedForHeaders.
-TCSPsiphondConfigValues = psi_utils.recordtype(
-    'TCSPsiphondConfigValues',
-    'psiphond_config_values')
 
 CLIENT_PLATFORM_WINDOWS = 'Windows'
 CLIENT_PLATFORM_ANDROID = 'Android'
@@ -391,12 +374,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__routes_signing_key_pair = None
 
         self.__TCS_traffic_rules_set = None
+        self.__TCS_OSL_config = None
         self.__TCS_psiphond_config_values = None
 
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.37'
+    class_version = '0.38'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -632,8 +616,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__linode_account.tcs_base_host_public_key = ''
             self.__TCS_traffic_rules_set = "{}"
             self.__TCS_psiphond_config_values = {}
-
             self.version = '0.37'
+        if cmp(parse_version(self.version), parse_version('0.38')) < 0:
+            self.__TCS_OSL_config = "{}"
+            self.version = '0.38'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1541,7 +1527,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         psi_ops_deploy.deploy_data(
                             host,
                             self.__compartmentalize_data_for_host(host.id, host.is_TCS),
-                            self.__TCS_traffic_rules_set)
+                            self.__TCS_traffic_rules_set,
+                            self.__TCS_OSL_config)
 
         for server in servers_on_host:
             self.test_server(server.id, ['handshake'])
@@ -1592,7 +1579,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         psi_ops_deploy.deploy_data(
                             host,
                             self.__compartmentalize_data_for_host(host.id, host.is_TCS),
-                            self.__TCS_traffic_rules_set)
+                            self.__TCS_traffic_rules_set,
+                            self.__TCS_OSL_config)
 
     def setup_server(self, host, servers):
         # Install Psiphon 3 and generate configuration values
@@ -1623,7 +1611,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         psi_ops_deploy.deploy_data(
                             host,
                             self.__compartmentalize_data_for_host(host.id, host.is_TCS),
-                            self.__TCS_traffic_rules_set)
+                            self.__TCS_traffic_rules_set,
+                            self.__TCS_OSL_config)
         psi_ops_deploy.deploy_geoip_database_autoupdates(host)
         psi_ops_deploy.deploy_routes(host)
         host.log('initial deployment')
@@ -1975,7 +1964,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         psi_ops_deploy.deploy_data(
                             host,
                             self.__compartmentalize_data_for_host(host.id, host.is_TCS),
-                            self.__TCS_traffic_rules_set)
+                            self.__TCS_traffic_rules_set,
+                            self.__TCS_OSL_config)
         # Check if the geoip autoupdate cron is exist
         exist_geoip_database_cron = self.run_command_on_host(host, '[ -f /etc/cron.weekly/update-geoip-db ] && echo "Yes" || echo "No"').split('\n')[0]
         if exist_geoip_database_cron == 'No':
@@ -2172,6 +2162,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             propagation_channel_name,
             sponsor_name,
             remote_server_list_url_split,
+            OSL_root_url_split,
             info_link_url,
             upgrade_url_split,
             get_new_version_url,
@@ -2225,6 +2216,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         encoded_server_list,
                         remote_server_list_signature_public_key,
                         remote_server_list_url_split,
+                        OSL_root_url_split,
                         feedback_encryption_public_key,
                         feedback_upload_info.upload_server,
                         feedback_upload_info.upload_path,
@@ -2324,6 +2316,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 campaign.s3_bucket_name,
                                                 psi_ops_s3.DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME_COMPRESSED)
 
+                    OSL_root_url_split = psi_ops_s3.get_s3_bucket_resource_url_split(
+                                                campaign.s3_bucket_name,
+                                                psi_ops_s3.DOWNLOAD_SITE_OSL_ROOT_PATH)
+
                     info_link_url = psi_ops_s3.get_s3_bucket_home_page_url(campaign.s3_bucket_name)
                     for plugin in plugins:
                         if hasattr(plugin, 'info_link_url'):
@@ -2368,6 +2364,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         propagation_channel.name,
                                         sponsor.name,
                                         remote_server_list_url_split,
+                                        OSL_root_url_split,
                                         info_link_url,
                                         upgrade_url_split,
                                         get_new_version_url,
@@ -2432,7 +2429,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             psi_ops_deploy.deploy_data_to_hosts(
                 self.get_hosts(),
                 self.__compartmentalize_data_for_host,
-                self.__TCS_traffic_rules_set)
+                self.__TCS_traffic_rules_set,
+                self.__TCS_OSL_config)
             self.__deploy_data_required_for_all = False
             self.save()
 
@@ -2626,6 +2624,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         self.__deploy_data_required_for_all = True
 
+    def set_TCS_OSL_config(self, OSL_config):
+        assert(self.is_locked)
+
+        # Check that the input is valid JSON
+        json.loads(OSL_config)
+
+        self.__TCS_OSL_config = OSL_config
+
+        self.__deploy_data_required_for_all = True
+
     def set_TCS_psiphond_config_values(self, psiphond_config_values):
         assert(self.is_locked)
         assert(isinstance(psiphond_config_values, dict))
@@ -2675,7 +2683,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         psi_ops_deploy.deploy_data(
             host,
             self.__compartmentalize_data_for_host(host.id, host.is_TCS),
-            self.__TCS_traffic_rules_set)
+            self.__TCS_traffic_rules_set,
+            self.__TCS_OSL_config)
 
     def deploy_implementation_and_data_for_propagation_channel(self, propagation_channel_name):
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
@@ -3520,6 +3529,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     [],
                                     '',         # remote_server_list_signature_public_key
                                     ('','','','',''), # remote_server_list_url
+                                    '',         # OSL_root_url_split
                                     '',         # feedback_encryption_public_key
                                     '',         # feedback_upload_server
                                     '',         # feedback_upload_path
