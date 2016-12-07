@@ -1304,6 +1304,87 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     alternate_ssh_obfuscated_ports,
                     )
 
+    def export_host_and_server(self, host_id_list):
+
+        import pickle
+        exp_entry = list()
+
+        for host_id in host_id_list:
+            host = self.__hosts[host_id]
+            server = [s for s in self.get_servers() if s.host_id == host.id][0]
+
+            exp_host = (host.id,
+                        host.is_TCS,
+                        host.provider,
+                        host.provider_id,
+                        host.ip_address,
+                        host.ssh_port,
+                        host.ssh_username,
+                        host.ssh_password,
+                        host.ssh_host_key,
+                        host.stats_ssh_username,
+                        host.stats_ssh_password,
+                        host.datacenter_name,
+                        host.region,
+                        host.meek_server_port,
+                        host.meek_server_obfuscated_key,
+                        host.meek_server_fronting_domain,
+                        host.meek_server_fronting_host,
+                        host.alternate_meek_server_fronting_hosts,
+                        host.meek_cookie_encryption_public_key,
+                        host.meek_cookie_encryption_private_key)
+
+            exp_server = (server.id,
+                            server.host_id,
+                            server.ip_address,
+                            server.egress_ip_address,
+                            server.internal_ip_address,
+                            server.propagation_channel_id,
+                            server.is_embedded,
+                            server.is_permanent,
+                            server.discovery_date_range,
+                            server.capabilities,
+                            server.web_server_port,
+                            server.web_server_secret,
+                            server.web_server_certificate,
+                            server.web_server_private_key,
+                            server.ssh_port,
+                            server.ssh_username,
+                            server.ssh_password,
+                            server.ssh_host_key,
+                            server.TCS_ssh_private_key,
+                            server.ssh_obfuscated_port,
+                            server.ssh_obfuscated_key,
+                            server.alternate_ssh_obfuscated_ports)
+
+            exp_entry.append([exp_host, exp_server])
+
+        with open("entries.txt", 'ab') as export_file:
+            pickle.dump(exp_entry, export_file)
+
+
+    def import_host_and_server(self):
+
+        import pickle
+
+        assert(self.is_locked)
+
+        with open("entries.txt", "rb") as import_file:
+            entries_list = pickle.load(import_file)
+
+            for imp_entry in entries_list:
+
+                host = Host(*imp_entry[0])
+                server = Server(*imp_entry[1])
+
+                assert(host.id not in self.__hosts)
+                assert(server.id not in self.__servers)
+
+                self.__hosts[host.id] = host
+                self.__servers[server.id] = server
+
+
+
     def import_host(self, id, use_TCS, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
                     stats_ssh_username, stats_ssh_password):
         assert(self.is_locked)
