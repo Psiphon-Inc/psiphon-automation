@@ -37,6 +37,7 @@ import zlib
 import copy
 import subprocess
 import traceback
+import shutil
 from pkg_resources import parse_version
 from multiprocessing.pool import ThreadPool
 from collections import defaultdict
@@ -2551,6 +2552,61 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
                 self.__deploy_website_required_for_sponsors.remove(sponsor_id)
                 self.save()
+
+    def pave_OSLs(self, offset, count):
+
+        # Note: currently paves only empty OSLs
+
+        osl_config_filename = './osl_config.json'
+        signing_key_filename = './signing_key.pem'
+        output_dir = tempfile.mkdtemp(prefix='osl')
+
+        try:
+            osl_config_file = open(osl_config_filename, 'w')
+            osl_config_file.write(self.__TCS_OSL_config)
+            osl_config_file.close()
+
+            signing_key_file = open(signing_key_filename, 'w')
+            signing_key_file.write(self.__get_remote_server_list_signing_key_pair().pem_key_pair)
+            signing_key_file.close()
+
+            config = json.loads(self.__TCS_OSL_config)
+
+            for scheme_index, scheme in enumerate(config['Schemes']):
+
+                # Source: https://github.com/Psiphon-Labs/psiphon-tunnel-core/tree/master/psiphon/common/osl/paver
+                paver_binary = 'paver.exe'
+                if os.name == 'posix':
+                    paver_binary = 'paver'
+
+                retcode = subprocess.call(
+                    [os.path.join('.', paver_binary),
+                     "-config", osl_config_filename,
+                     "-scheme", str(scheme_index),
+                     "-key", signing_key_filename,
+                     "-offset", str(offset),
+                     "-count", str(count),
+                     "-output", output_dir])
+
+                if retcode != 0:
+                    raise "paver failed"
+
+                upload_filenames = os.listdir(output_dir)
+
+                for propagation_channel_id in scheme['PropagationChannelIDs']:
+                    for s3_bucket_name in [campaign.s3_bucket_name for campaign in sponsor.campaigns for sponsor in self.__sponsors.itervalues() if campaign.propagation_channel_id == str(propagation_channel_id)]:
+                        psi_ops_s3.update_s3_osl(
+                            self.__aws_account,
+                            campaign.s3_bucket_name,
+                            upload_filenames)
+
+        finally:
+            try:
+                os.remove(osl_config_filename)
+                os.remove(signing_key_filename)
+                shutil.rmtree(output_dir, ignore_errors=True)
+            except:
+                pass
 
     def update_static_site_content(self, sponsor, campaign, do_generate=False):
         assert(self.is_locked)
