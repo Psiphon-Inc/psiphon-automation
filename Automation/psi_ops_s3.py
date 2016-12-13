@@ -364,7 +364,7 @@ def update_s3_osl(aws_account, bucket_id, osl_filenames):
         put_file_to_key(bucket,
                         target_key,
                         None,
-                        osl_filename,
+                        str(osl_filename),
                         True,
                         _progress)
 

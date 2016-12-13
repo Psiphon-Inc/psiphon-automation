@@ -2557,8 +2557,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # Note: currently paves only empty OSLs
 
-        osl_config_filename = './osl_config.json'
-        signing_key_filename = './signing_key.pem'
+        osl_config_filename = os.path.join('.', 'osl_config.json')
+        signing_key_filename = os.path.join('.', 'signing_key.pem')
         output_dir = tempfile.mkdtemp(prefix='osl')
 
         try:
@@ -2591,14 +2591,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 if retcode != 0:
                     raise "paver failed"
 
-                upload_filenames = os.listdir(output_dir)
-
                 for propagation_channel_id in scheme['PropagationChannelIDs']:
-                    for s3_bucket_name in [campaign.s3_bucket_name for campaign in sponsor.campaigns for sponsor in self.__sponsors.itervalues() if campaign.propagation_channel_id == str(propagation_channel_id)]:
-                        psi_ops_s3.update_s3_osl(
-                            self.__aws_account,
-                            campaign.s3_bucket_name,
-                            upload_filenames)
+
+                    prop_dir = os.path.join(output_dir, propagation_channel_id)
+                    upload_filenames = [os.path.join(prop_dir, filename) for filename in os.listdir(prop_dir)]
+
+                    for sponsor in self.__sponsors.itervalues():
+                        for campaign in sponsor.campaigns:
+                            if campaign.propagation_channel_id == str(propagation_channel_id):
+                                psi_ops_s3.update_s3_osl(
+                                    self.__aws_account,
+                                    campaign.s3_bucket_name,
+                                    upload_filenames)
 
         finally:
             try:
