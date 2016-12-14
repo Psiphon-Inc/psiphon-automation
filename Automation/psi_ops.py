@@ -2555,6 +2555,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def pave_OSLs(self, offset, count):
 
+        # Now pave full OSL file sets for all propagation channels in the OSL config.
         # Note: currently paves only empty OSLs
 
         osl_config_filename = os.path.join('.', 'osl_config.json')
@@ -2562,6 +2563,30 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         output_dir = tempfile.mkdtemp(prefix='osl')
 
         try:
+            # First, ensure all buckets have a valid, empty osl-registry. Clients will
+            # expect this to exist regardless of whether a propagation channel is part
+            # of the OSL config.
+
+            empty_osl_registry = zlib.compress(psi_ops_crypto_tools.make_signed_data(
+                    self.__get_remote_server_list_signing_key_pair().pem_key_pair,
+                    REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD,
+                    '{}'))
+
+            empty_osl_registry_filename = os.path.join(output_dir, 'osl-registry')
+            empty_osl_registry_file = open(empty_osl_registry_filename, 'w')
+            empty_osl_registry_file.write(empty_osl_registry)
+            empty_osl_registry_file.close()
+
+            for sponsor in self.__sponsors.itervalues():
+                for campaign in sponsor.campaigns:
+                    psi_ops_s3.update_s3_osl(
+                        self.__aws_account,
+                        campaign.s3_bucket_name,
+                        [empty_osl_registry_filename])
+
+            # Next, pave full OSL file sets for all propagation channels in the OSL config.
+            # Note: currently paves only empty OSLs
+
             osl_config_file = open(osl_config_filename, 'w')
             osl_config_file.write(self.__TCS_OSL_config)
             osl_config_file.close()

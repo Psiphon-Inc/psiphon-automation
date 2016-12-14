@@ -361,12 +361,13 @@ def update_s3_osl(aws_account, bucket_id, osl_filenames):
     for osl_filename in osl_filenames:
         target_key = _make_full_key_name(key_prefix, DOWNLOAD_SITE_OSL_ROOT_PATH)
         target_key = _make_full_key_name(target_key, os.path.basename(osl_filename))
-        put_file_to_key(bucket,
-                        target_key,
-                        None,
-                        str(osl_filename),
-                        True,
-                        _progress)
+        print target_key
+        #put_file_to_key(bucket,
+        #                target_key,
+        #                None,
+        #                str(osl_filename),
+        #                True,
+        #                _progress)
 
 
 def update_website(aws_account, bucket_id, custom_site, website_dir,
