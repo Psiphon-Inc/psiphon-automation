@@ -2563,28 +2563,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         output_dir = tempfile.mkdtemp(prefix='osl')
 
         try:
-            # First, ensure all buckets have a valid, empty osl-registry. Clients will
-            # expect this to exist regardless of whether a propagation channel is part
-            # of the OSL config.
-
-            empty_osl_registry = zlib.compress(psi_ops_crypto_tools.make_signed_data(
-                    self.__get_remote_server_list_signing_key_pair().pem_key_pair,
-                    REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD,
-                    base64.b64encode('{}')))
-
-            empty_osl_registry_filename = os.path.join(output_dir, 'osl-registry')
-            empty_osl_registry_file = open(empty_osl_registry_filename, 'w')
-            empty_osl_registry_file.write(empty_osl_registry)
-            empty_osl_registry_file.close()
-
-            for sponsor in self.__sponsors.itervalues():
-                for campaign in sponsor.campaigns:
-                    psi_ops_s3.update_s3_osl(
-                        self.__aws_account,
-                        campaign.s3_bucket_name,
-                        [empty_osl_registry_filename])
-
-            # Next, pave full OSL file sets for all propagation channels in the OSL config.
+            # Pave full OSL file sets for all propagation channels in the OSL config.
             # Note: currently paves only empty OSLs
 
             osl_config_file = open(osl_config_filename, 'w')
@@ -2596,6 +2575,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             signing_key_file.close()
 
             config = json.loads(self.__TCS_OSL_config)
+
+            paved_propagation_channel_ids = set()
 
             for scheme_index, scheme in enumerate(config['Schemes']):
 
@@ -2624,10 +2605,30 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     for sponsor in self.__sponsors.itervalues():
                         for campaign in sponsor.campaigns:
                             if campaign.propagation_channel_id == str(propagation_channel_id):
-                                psi_ops_s3.update_s3_osl(
+                                psi_ops_s3.update_s3_osl_with_files(
                                     self.__aws_account,
                                     campaign.s3_bucket_name,
                                     upload_filenames)
+
+                    paved_propagation_channel_ids.add(propagation_channel_id)
+
+            # Ensure all other buckets have a valid, empty osl-registry. Clients will
+            # expect this to exist regardless of whether a propagation channel is part
+            # of the OSL config.
+
+            empty_osl_registry = zlib.compress(psi_ops_crypto_tools.make_signed_data(
+                    self.__get_remote_server_list_signing_key_pair().pem_key_pair,
+                    REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD,
+                    base64.b64encode('{}')))
+
+            for sponsor in self.__sponsors.itervalues():
+                for campaign in sponsor.campaigns:
+                    if not campaign.propagation_channel_id in paved_propagation_channel_ids:
+                        psi_ops_s3.update_s3_osl_key(
+                            self.__aws_account,
+                            campaign.s3_bucket_name,
+                            'osl-registry',
+                            empty_osl_registry)
 
         finally:
             try:

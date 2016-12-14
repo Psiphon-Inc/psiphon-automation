@@ -354,7 +354,7 @@ def update_s3_download(aws_account, builds, remote_server_list, remote_server_li
                           _progress)
 
 
-def update_s3_osl(aws_account, bucket_id, osl_filenames):
+def update_s3_osl_with_files(aws_account, bucket_id, osl_filenames):
 
     bucket, key_prefix = _get_s3_bucket_and_prefix(aws_account, bucket_id)
 
@@ -367,6 +367,19 @@ def update_s3_osl(aws_account, bucket_id, osl_filenames):
                         str(osl_filename),
                         True,
                         _progress)
+
+def update_s3_osl_key(aws_account, bucket_id, key_name, data):
+
+    bucket, key_prefix = _get_s3_bucket_and_prefix(aws_account, bucket_id)
+
+    target_key = _make_full_key_name(key_prefix, DOWNLOAD_SITE_OSL_ROOT_PATH)
+    target_key = _make_full_key_name(target_key, key_name)
+    put_string_to_key(bucket,
+                      target_key,
+                      None,
+                      data,
+                      True,
+                      _progress)
 
 
 def update_website(aws_account, bucket_id, custom_site, website_dir,
