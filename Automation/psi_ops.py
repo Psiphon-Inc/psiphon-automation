@@ -990,7 +990,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         with open(website_banner_filename, 'rb') as file:
             website_banner = file.read()
         # Ensure that the banner is a PNG
-        assert(banner[:8] == '\x89PNG\r\n\x1a\n')
+        assert(website_banner[:8] == '\x89PNG\r\n\x1a\n')
         sponsor = self.get_sponsor_by_name(name)
         sponsor.website_banner = base64.b64encode(website_banner)
         sponsor.website_banner_link = website_banner_link
