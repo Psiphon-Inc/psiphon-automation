@@ -378,10 +378,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__TCS_OSL_config = None
         self.__TCS_psiphond_config_values = None
 
+        self.__default_sponsor_id = None
+
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.38'
+    class_version = '0.39'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -621,6 +623,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.38')) < 0:
             self.__TCS_OSL_config = "{}"
             self.version = '0.38'
+        if cmp(parse_version(self.version), parse_version('0.39')) < 0:
+            self.__default_sponsor_id = None
+            self.version = '0.39'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -3164,6 +3169,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if CLIENT_PLATFORM_ANDROID.lower() in client_platform_string.lower():
             platform = CLIENT_PLATFORM_ANDROID
 
+        if sponsor_id not in self.__sponsors and self.__default_sponsor_id and self.__default_sponsor_id in self.__sponsors:
+            sponsor_id = self.__default_sponsor_id
+
         # Randomly choose one landing page from a set of landing pages
         # to give the client to open when connection established
         homepages = self.__get_sponsor_home_pages(sponsor_id, client_region, platform)
@@ -3384,6 +3392,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     speed_test_url.server_port,
                     speed_test_url.request_path))
 
+        copy.__default_sponsor_id = self.__default_sponsor_id
+
         return jsonpickle.encode(copy)
 
     def __json_serializer(self, obj):
@@ -3525,7 +3535,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             "client_versions": copy.__client_versions,
             "hosts": copy.__hosts,
             "servers": server_list,
-            "sponsors": copy.__sponsors
+            "sponsors": copy.__sponsors,
+            "default_sponsor_id": self.__default_sponsor_id
         }, default=self.__json_serializer)
 
 
