@@ -742,6 +742,8 @@ def install_legacy_firewall_rules(host, servers, plugins, do_blacklist):
     -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 80,443,465,554,587,993,995,1935,5190,7070,8000,8001 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 3478,5242,4244,9339 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 3478,5243,7985,9785 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 8443,4433,31337 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 8443,4433,31337 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 110,143,2560,8080,5060,5061,5062,9180,11000,12000,25565 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 110,143,2560,8080,5060,5061,5062,9180,11000,12000,25565 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -p tcp -m multiport --dports 6695:6699,27015:27037 -j ACCEPT
@@ -779,6 +781,8 @@ def install_legacy_firewall_rules(host, servers, plugins, do_blacklist):
     -A OUTPUT -p udp -m multiport --dports 5222,5223,5224,5228,5229,5230,5269,14259 -j ACCEPT
     -A OUTPUT -p tcp -m multiport --dports 3478,5242,4244,9339 -j ACCEPT
     -A OUTPUT -p udp -m multiport --dports 3478,5243,7985,9785 -j ACCEPT
+    -A OUTPUT -p tcp -m multiport --dports 8443,4433,31337 -j ACCEPT
+    -A OUTPUT -p udp -m multiport --dports 8443,4433,31337 -j ACCEPT
     -A OUTPUT -p tcp -m multiport --dports 110,143,2560,8080,5060,5061,5062,9180,11000,12000,25565 -j ACCEPT
     -A OUTPUT -p udp -m multiport --dports 110,143,2560,8080,5060,5061,5062,9180,11000,12000,25565 -j ACCEPT
     -A OUTPUT -p tcp -m multiport --dports 6695:6699,27015:27037 -j ACCEPT
