@@ -79,6 +79,8 @@ DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME = 'psiphon-client-version'
 DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME = 'server_list'
 DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME_COMPRESSED = 'server_list_compressed'
 
+DOWNLOAD_SITE_OSL_ROOT_PATH = 'osl'
+
 DOWNLOAD_SITE_QR_CODE_KEY_NAME = 'images/android/android-download-qr.png'
 
 DOWNLOAD_SITE_SPONSOR_BANNER_KEY_NAME = 'images/sponsor-banner.png'
@@ -350,6 +352,35 @@ def update_s3_download(aws_account, builds, remote_server_list, remote_server_li
                           remote_server_list_compressed,
                           True,
                           _progress)
+
+
+def update_s3_osl_with_files(aws_account, bucket_id, osl_filenames):
+
+    bucket, key_prefix = _get_s3_bucket_and_prefix(aws_account, bucket_id)
+
+    for osl_filename in osl_filenames:
+        target_key = _make_full_key_name(key_prefix, DOWNLOAD_SITE_OSL_ROOT_PATH)
+        target_key = _make_full_key_name(target_key, os.path.basename(osl_filename))
+        put_file_to_key(bucket,
+                        target_key,
+                        None,
+                        str(osl_filename),
+                        True,
+                        _progress)
+
+def update_s3_osl_key(aws_account, bucket_id, key_name, data):
+
+    bucket, key_prefix = _get_s3_bucket_and_prefix(aws_account, bucket_id)
+
+    target_key = _make_full_key_name(key_prefix, DOWNLOAD_SITE_OSL_ROOT_PATH)
+    target_key = _make_full_key_name(target_key, key_name)
+    put_string_to_key(bucket,
+                      target_key,
+                      None,
+                      data,
+                      True,
+                      _progress)
+
 
 def update_website(aws_account, bucket_id, custom_site, website_dir,
                    website_banner_base64, website_banner_link,

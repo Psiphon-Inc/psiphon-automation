@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# vim:ts=2:sw=2:expandtab
 """
 A Python shell to interact with the Linode API
 
@@ -28,10 +29,25 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 import api
 import code
+import decimal
 import rlcompleter
 import readline
 import atexit
 import os
+try:
+  import json
+except:
+  import simplejson as json
+
+class DecimalEncoder(json.JSONEncoder):
+  """Handle Decimal types when producing JSON.
+
+  Hat tip: http://stackoverflow.com/questions/4019856/decimal-to-json
+  """
+  def default(self, o):
+    if isinstance(o, decimal.Decimal):
+      return float(o)
+    return json.JSONEncoder.default(self, o)
 
 class LinodeConsole(code.InteractiveConsole):
   def __init__(self, locals=None, filename="<console>",
@@ -62,11 +78,6 @@ if __name__ == "__main__":
   from getpass import getpass
   from os import environ
   import getopt, sys
-  try:
-    import json
-  except:
-    import simplejson as json
-
   if 'LINODE_API_KEY' in environ:
     key = environ['LINODE_API_KEY']
   else:
@@ -98,7 +109,7 @@ if __name__ == "__main__":
   if len(sys.argv[1:]) > 0:
     try:
       optlist, args = getopt.getopt(sys.argv[1:], '', options)
-    except getopt.GetoptError, err:
+    except getopt.GetoptError as err:
       print(str(err))
       usage()
       sys.exit(2)
@@ -116,8 +127,8 @@ if __name__ == "__main__":
     if hasattr(linode, command):
       func = getattr(linode, command)
       try:
-        print(json.dumps(func(**params), indent=2))
-      except api.MissingRequiredArgument, mra:
+        print(json.dumps(func(**params), indent=2, cls=DecimalEncoder))
+      except api.MissingRequiredArgument as mra:
         print('Missing option --%s' % mra.value.lower())
         print('')
         usage()
@@ -134,6 +145,6 @@ if __name__ == "__main__":
     console.runcode('import readline,rlcompleter,api,shell,json')
     console.runcode('readline.parse_and_bind("tab: complete")')
     console.runcode('readline.set_completer(shell.LinodeComplete().complete)')
-    console.runcode('def pp(text=None): print(json.dumps(text, indent=2))')
+    console.runcode('def pp(text=None): print(json.dumps(text, indent=2, cls=shell.DecimalEncoder))')
     console.locals.update({'linode':linode})
     console.interact()

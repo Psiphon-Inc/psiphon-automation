@@ -47,14 +47,15 @@ def get_region(datacenter_id):
     #  {u'DATACENTERID': 4, u'LOCATION': u'Atlanta, GA, USA'},
     #  {u'DATACENTERID': 6, u'LOCATION': u'Newark, NJ, USA'},
     #  {u'DATACENTERID': 7, u'LOCATION': u'London, England, UK'},
-    #  {u'DATACENTERID': 8, u'LOCATION': u'Tokyo, JP'}]
+    #  {u'DATACENTERID': 8, u'LOCATION': u'Tokyo, JP'}
     #  {u'DATACENTERID': 9, u'LOCATION': u'Singapore, SG', u'ABBR': u'singapore'}
     #  {u'DATACENTERID': 10, u'LOCATION': u'Frankfurt, DE', u'ABBR': u'frankfurt'}
+    #  {u'DATACENTERID': 11, u'LOCATION': u'Tokyo 2, JP'}]
     if datacenter_id in [2, 3, 4, 6]:
         return 'US'
     if datacenter_id in [7]:
         return 'GB'
-    if datacenter_id in [8]:
+    if datacenter_id in [8, 11]:
         return 'JP'
     if datacenter_id in [9]:
         return 'SG'
