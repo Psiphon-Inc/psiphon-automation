@@ -2031,9 +2031,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if type(host) == str:
             host = self.__hosts[host]
 
-    	self.run_command_on_host(host, 'useradd -M -d /var/log -s /bin/sh -g adm %s' % (host.stats_ssh_username))
-    	self.run_command_on_host(host, 'echo "%s:%s" | chpasswd' % (host.stats_ssh_username, host.stats_ssh_password))
-    	self.run_command_on_host(host, 'hostnamectl set-hostname %s' % (host.id))
+        self.run_command_on_host(host, 'useradd -M -d /var/log -s /bin/sh -g adm %s' % (host.stats_ssh_username))
+        self.run_command_on_host(host, 'echo "%s:%s" | chpasswd' % (host.stats_ssh_username, host.stats_ssh_password))
+        self.run_command_on_host(host, 'hostnamectl set-hostname %s' % (host.id))
 
         self.run_command_on_host(host, 'service ssh restart')
 
@@ -2558,7 +2558,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 self.__deploy_website_required_for_sponsors.remove(sponsor_id)
                 self.save()
 
-    def pave_OSLs(self, offset, count):
+    def pave_OSLs(self, offset, period):
 
         # Now pave full OSL file sets for all propagation channels in the OSL config.
         # Note: currently paves only empty OSLs
@@ -2581,41 +2581,39 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             config = json.loads(self.__TCS_OSL_config)
 
+            # Source: https://github.com/Psiphon-Labs/psiphon-tunnel-core/tree/master/psiphon/common/osl/paver
+            paver_binary = 'paver.exe'
+            if os.name == 'posix':
+                paver_binary = 'paver'
+
+            # Note: raises CalledProcessError when paver fails
+            output = subprocess.check_output(
+                [os.path.join('.', paver_binary),
+                 "-config", osl_config_filename,
+                 "-key", signing_key_filename,
+                 "-offset", str(offset),
+                 "-period", str(period),
+                 "-output", output_dir],
+                 stderr=subprocess.STDOUT)
+            print output
+
             paved_propagation_channel_ids = set()
-
             for scheme_index, scheme in enumerate(config['Schemes']):
-
-                # Source: https://github.com/Psiphon-Labs/psiphon-tunnel-core/tree/master/psiphon/common/osl/paver
-                paver_binary = 'paver.exe'
-                if os.name == 'posix':
-                    paver_binary = 'paver'
-
-                retcode = subprocess.call(
-                    [os.path.join('.', paver_binary),
-                     "-config", osl_config_filename,
-                     "-scheme", str(scheme_index),
-                     "-key", signing_key_filename,
-                     "-offset", str(offset),
-                     "-count", str(count),
-                     "-output", output_dir])
-
-                if retcode != 0:
-                    raise "paver failed"
-
                 for propagation_channel_id in scheme['PropagationChannelIDs']:
-
-                    prop_dir = os.path.join(output_dir, propagation_channel_id)
-                    upload_filenames = [os.path.join(prop_dir, filename) for filename in os.listdir(prop_dir)]
-
-                    for sponsor in self.__sponsors.itervalues():
-                        for campaign in sponsor.campaigns:
-                            if campaign.propagation_channel_id == str(propagation_channel_id):
-                                psi_ops_s3.update_s3_osl_with_files(
-                                    self.__aws_account,
-                                    campaign.s3_bucket_name,
-                                    upload_filenames)
-
                     paved_propagation_channel_ids.add(propagation_channel_id)
+
+            for propagation_channel_id in paved_propagation_channel_ids:
+
+                prop_dir = os.path.join(output_dir, propagation_channel_id)
+                upload_filenames = [os.path.join(prop_dir, filename) for filename in os.listdir(prop_dir)]
+
+                for sponsor in self.__sponsors.itervalues():
+                    for campaign in sponsor.campaigns:
+                        if campaign.propagation_channel_id == str(propagation_channel_id):
+                            psi_ops_s3.update_s3_osl_with_files(
+                                self.__aws_account,
+                                campaign.s3_bucket_name,
+                                upload_filenames)
 
             # Ensure all other buckets have a valid, empty osl-registry. Clients will
             # expect this to exist regardless of whether a propagation channel is part
