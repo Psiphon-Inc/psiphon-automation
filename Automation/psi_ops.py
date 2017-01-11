@@ -383,7 +383,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.39'
+    class_version = '0.40'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
