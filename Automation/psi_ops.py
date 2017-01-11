@@ -627,13 +627,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__default_sponsor_id = None
             self.version = '0.39'
         if cmp(parse_version(self.version), parse_version('0.40')) < 0:
-            self.version = '0.40'
             for server in self.__servers.itervalues():
                 if server.capabilities:
                     server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] = False
             for server in self.__deleted_servers.itervalues():
                 if server.capabilities:
                     server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] = False
+            self.version = '0.40'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1644,7 +1644,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server = self.__servers[server_id]
         host = self.__hosts[server.host_id]
         assert(host.meek_server_port == None)
-        assert(host.is_TCS)
 
         server.capabilities['handshake'] = False
         server.capabilities['VPN'] = False
@@ -1659,6 +1658,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server = self.__servers[server_id]
         host = self.__hosts[server.host_id]
         assert(host.meek_server_port == None)
+        assert(host.is_TCS)
 
         server.capabilities['handshake'] = False
         server.capabilities['VPN'] = False
