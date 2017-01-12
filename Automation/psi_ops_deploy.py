@@ -86,6 +86,7 @@ TCS_FRONTED_MEEK_OSSH_DOCKER_PORT = 1028
 TCS_UNFRONTED_MEEK_OSSH_DOCKER_PORT = 1029
 TCS_FRONTED_MEEK_HTTP_OSSH_DOCKER_PORT = 1030
 TCS_UNFRONTED_MEEK_HTTPS_OSSH_DOCKER_PORT = 1031
+TCS_UNFRONTED_MEEK_SESSION_TICKET_OSSH_DOCKER_PORT = 1032
 
 TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND = 'systemctl kill --signal=USR1 psiphond'
 TCS_PSIPHOND_STOP_ESTABLISHING_TUNNELS_SIGNAL_COMMAND = 'systemctl kill --signal=TSTP psiphond'
@@ -316,10 +317,10 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
     config['SSHUserName'] = server.ssh_username
     config['SSHPassword'] = server.ssh_password
 
-    if server.capabilities['OSSH'] or server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK']:
+    if server.capabilities['OSSH'] or server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET']:
         config['ObfuscatedSSHKey'] = server.ssh_obfuscated_key
 
-    if server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK']:
+    if server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET']:
         config['MeekCookieEncryptionPrivateKey'] = host.meek_cookie_encryption_private_key
         config['MeekObfuscatedKey'] = host.meek_server_obfuscated_key
         config['MeekCertificateCommonName'] = TCS_psiphond_config_values['MeekCertificateCommonName']
@@ -354,7 +355,8 @@ def get_supported_protocol_ports(host, server, **kwargs):
             ('FRONTED-MEEK-OSSH', TCS_FRONTED_MEEK_OSSH_DOCKER_PORT),
             ('UNFRONTED-MEEK-OSSH', TCS_UNFRONTED_MEEK_OSSH_DOCKER_PORT),
             ('FRONTED-MEEK-HTTP-OSSH', TCS_FRONTED_MEEK_HTTP_OSSH_DOCKER_PORT),
-            ('UNFRONTED-MEEK-HTTPS-OSSH', TCS_UNFRONTED_MEEK_HTTPS_OSSH_DOCKER_PORT)
+            ('UNFRONTED-MEEK-HTTPS-OSSH', TCS_UNFRONTED_MEEK_HTTPS_OSSH_DOCKER_PORT),
+            ('UNFRONTED-MEEK-SESSION-TICKET-OSSH', TCS_UNFRONTED_MEEK_SESSION_TICKET_OSSH_DOCKER_PORT)
         ]
 
     supported_protocol_ports = {}
@@ -380,6 +382,9 @@ def get_supported_protocol_ports(host, server, **kwargs):
                 supported_protocol_ports[protocol] = 80 if external_ports else docker_port
 
         if protocol == 'UNFRONTED-MEEK-HTTPS-OSSH' and server.capabilities['UNFRONTED-MEEK'] and int(host.meek_server_port) == 443:
+                supported_protocol_ports[protocol] = int(host.meek_server_port) if external_ports else docker_port
+
+        if protocol == 'UNFRONTED-MEEK-SESSION-TICKET-OSSH' and server.capabilities['UNFRONTED-MEEK-SESSION-TICKET']:
                 supported_protocol_ports[protocol] = int(host.meek_server_port) if external_ports else docker_port
 
     return supported_protocol_ports
