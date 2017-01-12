@@ -30,6 +30,7 @@ import urlparse
 
 import boto.s3.connection
 import boto.s3.key
+from boto.s3.connection import OrdinaryCallingFormat
 
 try:
     import qrcode
@@ -122,7 +123,8 @@ def _get_s3_bucket_and_prefix(aws_account, bucket_id):
 
     s3 = boto.connect_s3(
                 aws_account.access_id,
-                aws_account.secret_key)
+                aws_account.secret_key,
+                calling_format=OrdinaryCallingFormat())
 
     bucket_name, key_prefix = split_bucket_id(bucket_id)
 
@@ -643,7 +645,8 @@ class Test(unittest.TestCase):
 
         # Make our fake bucket
         self.s3 = boto.connect_s3(self.aws_creds.access_id,
-                                  self.aws_creds.secret_key)
+                                  self.aws_creds.secret_key,
+                                  calling_format=OrdinaryCallingFormat())
         self.s3.create_bucket(self.old_style_bucket_id)
         self.s3.create_bucket(DOWNLOAD_SITE_BUCKET)
 
