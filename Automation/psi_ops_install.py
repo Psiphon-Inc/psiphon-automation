@@ -1028,7 +1028,7 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
     # Port forward from 443 to web servers
     # NOTE: exclude for servers with meek capability (or is fronted) and meek_server_port is 443 or OSSH is running on 443
     if server.capabilities['handshake'] and not (
-            ((server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK']) and int(host.meek_server_port) == 443) or
+            ((server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET']) and int(host.meek_server_port) == 443) or
             (server.capabilities['OSSH'] and int(server.ssh_obfuscated_port) == 443)):
         web_server_port_forward = textwrap.dedent('''
 
