@@ -221,14 +221,14 @@ def ServerCapabilities():
     for capability in ('handshake', 'VPN', 'SSH', 'OSSH'):
         capabilities[capability] = True
     # These are disabled by default
-    for capability in ('ssh-api-requests', 'FRONTED-MEEK', 'UNFRONTED-MEEK'):
+    for capability in ('ssh-api-requests', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET'):
         capabilities[capability] = False
     return capabilities
 
 
 def copy_server_capabilities(caps):
     capabilities = {}
-    for capability in ('handshake', 'ssh-api-requests', 'VPN', 'SSH', 'OSSH', 'FRONTED-MEEK', 'UNFRONTED-MEEK'):
+    for capability in ('handshake', 'ssh-api-requests', 'VPN', 'SSH', 'OSSH', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET'):
         capabilities[capability] = caps[capability]
     return capabilities
 
@@ -383,7 +383,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.39'
+    class_version = '0.40'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -626,6 +626,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.39')) < 0:
             self.__default_sponsor_id = None
             self.version = '0.39'
+        if cmp(parse_version(self.version), parse_version('0.40')) < 0:
+            for server in self.__servers.itervalues():
+                if server.capabilities:
+                    server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] = False
+            for server in self.__deleted_servers.itervalues():
+                if server.capabilities:
+                    server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] = False
+            self.version = '0.40'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1448,6 +1456,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server.capabilities['OSSH'] = False
         server.capabilities['FRONTED-MEEK'] = False
         server.capabilities['UNFRONTED-MEEK'] = False
+        server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] = False
         host = self.__hosts[server.host_id]
         servers = [s for s in self.__servers.itervalues() if s.host_id == server.host_id]
         if host.is_TCS:
@@ -1643,6 +1652,22 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server.capabilities['FRONTED-MEEK'] = False
         server.capabilities['UNFRONTED-MEEK'] = True
         self.setup_meek_parameters_for_host(host, 80)
+        self.install_meek_for_host(host)
+
+    def setup_unfronted_meek_session_ticket_for_server(self, server_id):
+        server = self.__servers[server_id]
+        host = self.__hosts[server.host_id]
+        assert(host.meek_server_port == None)
+        assert(host.is_TCS)
+
+        server.capabilities['handshake'] = False
+        server.capabilities['VPN'] = False
+        server.capabilities['SSH'] = False
+        server.capabilities['OSSH'] = False
+        server.capabilities['FRONTED-MEEK'] = False
+        server.capabilities['UNFRONTED-MEEK'] = False
+        server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] = True
+        self.setup_meek_parameters_for_host(host, 443)
         self.install_meek_for_host(host)
 
     def setup_meek_parameters_for_host(self, host, meek_server_port):
@@ -2031,9 +2056,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if type(host) == str:
             host = self.__hosts[host]
 
-    	self.run_command_on_host(host, 'useradd -M -d /var/log -s /bin/sh -g adm %s' % (host.stats_ssh_username))
-    	self.run_command_on_host(host, 'echo "%s:%s" | chpasswd' % (host.stats_ssh_username, host.stats_ssh_password))
-    	self.run_command_on_host(host, 'hostnamectl set-hostname %s' % (host.id))
+        self.run_command_on_host(host, 'useradd -M -d /var/log -s /bin/sh -g adm %s' % (host.stats_ssh_username))
+        self.run_command_on_host(host, 'echo "%s:%s" | chpasswd' % (host.stats_ssh_username, host.stats_ssh_password))
+        self.run_command_on_host(host, 'hostnamectl set-hostname %s' % (host.id))
 
         self.run_command_on_host(host, 'service ssh restart')
 
@@ -2264,7 +2289,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         sponsor = self.get_sponsor_by_name(sponsor_name)
         encoded_server_list, expected_egress_ip_addresses = \
-                    self.__get_encoded_server_list(propagation_channel.id, test=test, include_propagation_servers=False)
+                    self.__get_encoded_server_list(propagation_channel.id, test=test, include_propagation_servers=test)
 
         remote_server_list_signature_public_key = \
             psi_ops_crypto_tools.get_base64_der_public_key(
@@ -2558,7 +2583,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 self.__deploy_website_required_for_sponsors.remove(sponsor_id)
                 self.save()
 
-    def pave_OSLs(self, offset, count):
+    def pave_OSLs(self, offset, period):
 
         # Now pave full OSL file sets for all propagation channels in the OSL config.
         # Note: currently paves only empty OSLs
@@ -2581,41 +2606,39 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             config = json.loads(self.__TCS_OSL_config)
 
+            # Source: https://github.com/Psiphon-Labs/psiphon-tunnel-core/tree/master/psiphon/common/osl/paver
+            paver_binary = 'paver.exe'
+            if os.name == 'posix':
+                paver_binary = 'paver'
+
+            # Note: raises CalledProcessError when paver fails
+            output = subprocess.check_output(
+                [os.path.join('.', paver_binary),
+                 "-config", osl_config_filename,
+                 "-key", signing_key_filename,
+                 "-offset", str(offset),
+                 "-period", str(period),
+                 "-output", output_dir],
+                 stderr=subprocess.STDOUT)
+            print output
+
             paved_propagation_channel_ids = set()
-
             for scheme_index, scheme in enumerate(config['Schemes']):
-
-                # Source: https://github.com/Psiphon-Labs/psiphon-tunnel-core/tree/master/psiphon/common/osl/paver
-                paver_binary = 'paver.exe'
-                if os.name == 'posix':
-                    paver_binary = 'paver'
-
-                retcode = subprocess.call(
-                    [os.path.join('.', paver_binary),
-                     "-config", osl_config_filename,
-                     "-scheme", str(scheme_index),
-                     "-key", signing_key_filename,
-                     "-offset", str(offset),
-                     "-count", str(count),
-                     "-output", output_dir])
-
-                if retcode != 0:
-                    raise "paver failed"
-
                 for propagation_channel_id in scheme['PropagationChannelIDs']:
-
-                    prop_dir = os.path.join(output_dir, propagation_channel_id)
-                    upload_filenames = [os.path.join(prop_dir, filename) for filename in os.listdir(prop_dir)]
-
-                    for sponsor in self.__sponsors.itervalues():
-                        for campaign in sponsor.campaigns:
-                            if campaign.propagation_channel_id == str(propagation_channel_id):
-                                psi_ops_s3.update_s3_osl_with_files(
-                                    self.__aws_account,
-                                    campaign.s3_bucket_name,
-                                    upload_filenames)
-
                     paved_propagation_channel_ids.add(propagation_channel_id)
+
+            for propagation_channel_id in paved_propagation_channel_ids:
+
+                prop_dir = os.path.join(output_dir, propagation_channel_id)
+                upload_filenames = [os.path.join(prop_dir, filename) for filename in os.listdir(prop_dir)]
+
+                for sponsor in self.__sponsors.itervalues():
+                    for campaign in sponsor.campaigns:
+                        if campaign.propagation_channel_id == str(propagation_channel_id):
+                            psi_ops_s3.update_s3_osl_with_files(
+                                self.__aws_account,
+                                campaign.s3_bucket_name,
+                                upload_filenames)
 
             # Ensure all other buckets have a valid, empty osl-registry. Clients will
             # expect this to exist regardless of whether a propagation channel is part
@@ -3025,7 +3048,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         extended_config['sshObfuscatedPort'] = int(server.ssh_obfuscated_port) if server.ssh_obfuscated_port else 0
         # Use the latest alternate port unless tunneling through meek
-        if server.alternate_ssh_obfuscated_ports and not (server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK']):
+        if server.alternate_ssh_obfuscated_ports and not (server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET']):
             extended_config['sshObfuscatedPort'] = int(server.alternate_ssh_obfuscated_ports[-1])
         extended_config['sshObfuscatedKey'] = server.ssh_obfuscated_key if server.ssh_obfuscated_key else ''
 
@@ -3901,8 +3924,8 @@ if __name__ == "__main__":
     parser.add_option("-r", "--read-only", dest="readonly", action="store_true",
                       help="don't lock the network object")
     parser.add_option("-t", "--test", dest="test", action="append",
-                      choices=('handshake', 'VPN', 'OSSH', 'SSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTP-OSSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH'),
-                      help="specify once for each of: handshake, VPN, OSSH, SSH, FRONTED-MEEK-OSSH, FRONTED-MEEK-HTTP-OSSH, UNFRONTED-MEEK-OSSH, UNFRONTED-MEEK-HTTPS-OSSH")
+                      choices=('handshake', 'VPN', 'OSSH', 'SSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTP-OSSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH', 'UNFRONTED-MEEK-SESSION-TICKET-OSSH'),
+                      help="specify once for each of: handshake, VPN, OSSH, SSH, FRONTED-MEEK-OSSH, FRONTED-MEEK-HTTP-OSSH, UNFRONTED-MEEK-OSSH, UNFRONTED-MEEK-HTTPS-OSSH, UNFRONTED-MEEK-SESSION-TICKET-OSSH")
     parser.add_option("-u", "--update-routes", dest="updateroutes", action="store_true",
                       help="update external signed routes files")
     parser.add_option("-p", "--prune", dest="prune", action="store_true",
