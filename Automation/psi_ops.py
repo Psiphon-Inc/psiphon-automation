@@ -191,7 +191,7 @@ SponsorHomePage = psi_utils.recordtype(
 SponsorCampaign = psi_utils.recordtype(
     'SponsorCampaign',
     'propagation_channel_id, propagation_mechanism_type, account, ' +
-    's3_bucket_name, languages, platforms, custom_download_site')
+    's3_bucket_name, alternate_s3_bucket_name, languages, platforms, custom_download_site')
 
 SponsorRegex = psi_utils.recordtype(
     'SponsorRegex',
@@ -383,7 +383,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.40'
+    class_version = '0.41'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -634,6 +634,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 if server.capabilities:
                     server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] = False
             self.version = '0.40'
+        if cmp(parse_version(self.version), parse_version('0.41')) < 0:
+            for sponsor in self.__sponsors.itervalues():
+                for campaign in sponsor.campaigns:
+                    campaign.alternate_s3_bucket_name = None
+            self.version = '0.41'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -2501,13 +2506,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
                     client_version = self.__client_versions[platform][-1].version if self.__client_versions[platform] else 0
 
-                    psi_ops_s3.update_s3_download(
+                    psi_ops_s3.update_s3_download_in_buckets(
                         self.__aws_account,
                         [(build_filename, client_version, client_build_filenames[platform]),
                          (upgrade_filename, client_version, s3_upgrade_resource_name)],
                         remote_server_list,
                         remote_server_list_compressed,
-                        campaign.s3_bucket_name)
+                        [campaign.s3_bucket_name, campaign.alternate_s3_bucket_name])
                     # Don't log this, too much noise
                     #campaign.log('updated s3 bucket %s' % (campaign.s3_bucket_name,))
 
@@ -2635,9 +2640,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 for sponsor in self.__sponsors.itervalues():
                     for campaign in sponsor.campaigns:
                         if campaign.propagation_channel_id == str(propagation_channel_id):
-                            psi_ops_s3.update_s3_osl_with_files(
+                            psi_ops_s3.update_s3_osl_with_files_in_buckets(
                                 self.__aws_account,
-                                campaign.s3_bucket_name,
+                                [campaign.s3_bucket_name, campaign.alternate_s3_bucket_name],
                                 upload_filenames)
 
             # Ensure all other buckets have a valid, empty osl-registry. Clients will
@@ -2652,9 +2657,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for sponsor in self.__sponsors.itervalues():
                 for campaign in sponsor.campaigns:
                     if not campaign.propagation_channel_id in paved_propagation_channel_ids:
-                        psi_ops_s3.update_s3_osl_key(
+                        psi_ops_s3.update_s3_osl_key_in_buckets(
                             self.__aws_account,
-                            campaign.s3_bucket_name,
+                            [campaign.s3_bucket_name, campaign.alternate_s3_bucket_name],
                             'osl-registry',
                             empty_osl_registry)
 
@@ -2684,9 +2689,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             sponsor_website_banner = self.__sponsors[sponsor.use_data_from_sponsor_id].website_banner
             sponsor_website_banner_link = self.__sponsors[sponsor.use_data_from_sponsor_id].website_banner_link
 
-        psi_ops_s3.update_website(
+        psi_ops_s3.update_website_in_buckets(
                         self.__aws_account,
-                        campaign.s3_bucket_name,
+                        [campaign.s3_bucket_name, campaign.alternate_s3_bucket_name],
                         campaign.custom_download_site,
                         WEBSITE_GENERATION_DIR,
                         sponsor_website_banner,
