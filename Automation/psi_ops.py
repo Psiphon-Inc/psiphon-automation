@@ -2083,10 +2083,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             self.__compartmentalize_data_for_host(host.id, host.is_TCS),
                             self.__TCS_traffic_rules_set,
                             self.__TCS_OSL_config)
-        # Check if the geoip autoupdate cron is exist
-        exist_geoip_database_cron = self.run_command_on_host(host, '[ -f /etc/cron.weekly/update-geoip-db ] && echo "Yes" || echo "No"').split('\n')[0]
-        if exist_geoip_database_cron == 'No':
-            psi_ops_deploy.deploy_geoip_database_autoupdates(host)
+        psi_ops_deploy.deploy_geoip_database_autoupdates(host)
 
         host.log('reinstall')
 
