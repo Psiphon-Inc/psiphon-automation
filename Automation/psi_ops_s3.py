@@ -30,6 +30,7 @@ import urlparse
 
 import boto.s3.connection
 import boto.s3.key
+from boto.s3.connection import OrdinaryCallingFormat
 
 try:
     import qrcode
@@ -122,7 +123,8 @@ def _get_s3_bucket_and_prefix(aws_account, bucket_id):
 
     s3 = boto.connect_s3(
                 aws_account.access_id,
-                aws_account.secret_key)
+                aws_account.secret_key,
+                calling_format=OrdinaryCallingFormat())
 
     bucket_name, key_prefix = split_bucket_id(bucket_id)
 
@@ -307,6 +309,12 @@ def create_s3_website_bucket_name():
     return bucket_and_prefix
 
 
+def update_s3_download_in_buckets(aws_account, builds, remote_server_list, remote_server_list_compressed, bucket_ids):
+    for bucket_id in bucket_ids:
+        if bucket_id:
+            update_s3_download(aws_account, builds, remote_server_list, remote_server_list_compressed, bucket_id)
+
+
 def update_s3_download(aws_account, builds, remote_server_list, remote_server_list_compressed, bucket_id):
     """Update the client builds and server list in the given bucket.
     Args:
@@ -354,6 +362,12 @@ def update_s3_download(aws_account, builds, remote_server_list, remote_server_li
                           _progress)
 
 
+def update_s3_osl_with_files_in_buckets(aws_account, bucket_ids, osl_filenames):
+    for bucket_id in bucket_ids:
+        if bucket_id:
+            update_s3_osl_with_files(aws_account, bucket_id, osl_filenames)
+
+
 def update_s3_osl_with_files(aws_account, bucket_id, osl_filenames):
 
     bucket, key_prefix = _get_s3_bucket_and_prefix(aws_account, bucket_id)
@@ -368,6 +382,12 @@ def update_s3_osl_with_files(aws_account, bucket_id, osl_filenames):
                         True,
                         _progress)
 
+def update_s3_osl_key_in_buckets(aws_account, bucket_ids, key_name, data):
+    for bucket_id in bucket_ids:
+        if bucket_id:
+            update_s3_osl_key(aws_account, bucket_id, key_name, data)
+
+
 def update_s3_osl_key(aws_account, bucket_id, key_name, data):
 
     bucket, key_prefix = _get_s3_bucket_and_prefix(aws_account, bucket_id)
@@ -380,6 +400,16 @@ def update_s3_osl_key(aws_account, bucket_id, key_name, data):
                       data,
                       True,
                       _progress)
+
+
+def update_website_in_buckets(aws_account, bucket_ids, custom_site, website_dir,
+                              website_banner_base64, website_banner_link,
+                              website_email_address):
+    for bucket_id in bucket_ids:
+        if bucket_id:
+            update_website(aws_account, bucket_id, custom_site, website_dir,
+                   website_banner_base64, website_banner_link,
+                   website_email_address)
 
 
 def update_website(aws_account, bucket_id, custom_site, website_dir,
@@ -643,7 +673,8 @@ class Test(unittest.TestCase):
 
         # Make our fake bucket
         self.s3 = boto.connect_s3(self.aws_creds.access_id,
-                                  self.aws_creds.secret_key)
+                                  self.aws_creds.secret_key,
+                                  calling_format=OrdinaryCallingFormat())
         self.s3.create_bucket(self.old_style_bucket_id)
         self.s3.create_bucket(DOWNLOAD_SITE_BUCKET)
 
