@@ -94,7 +94,8 @@ def write_embedded_values(propagation_channel_id,
                           embedded_server_list,
                           remote_server_list_signature_public_key,
                           remote_server_list_url_split,
-                          OSL_root_url_split,
+                          remote_server_list_urls_json,
+                          OSL_root_urls_json,
                           feedback_encryption_public_key,
                           feedback_upload_server,
                           feedback_upload_path,
@@ -102,6 +103,7 @@ def write_embedded_values(propagation_channel_id,
                           info_link_url,
                           upgrade_signature_public_key,
                           upgrade_url_split,
+                          upgrade_urls_json,
                           get_new_version_url,
                           get_new_version_email,
                           faq_url,
@@ -131,7 +133,8 @@ def write_embedded_values(propagation_channel_id,
         static const char* REMOTE_SERVER_LIST_SIGNATURE_PUBLIC_KEY = "%s";
         static const char* REMOTE_SERVER_LIST_ADDRESS = "%s";
         static const char* REMOTE_SERVER_LIST_REQUEST_PATH = "%s";
-        static const char* OBFUSCATED_SERVER_LIST_ROOT_URL = "%s";
+        static const char* REMOTE_SERVER_LIST_ROOT_URLS_JSON = "%s";
+        static const char* OBFUSCATED_SERVER_LIST_ROOT_URLS_JSON = "%s";
 
         // These values are used when uploading diagnostic info
         static const char* FEEDBACK_ENCRYPTION_PUBLIC_KEY = "%s";
@@ -146,6 +149,7 @@ def write_embedded_values(propagation_channel_id,
         static const char* UPGRADE_SIGNATURE_PUBLIC_KEY = "%s";
         static const char* UPGRADE_ADDRESS = "%s";
         static const char* UPGRADE_REQUEST_PATH = "%s";
+        static const char* UPGRADE_URLS_JSON = "%s";
 
         static const char* GET_NEW_VERSION_URL = "%s";
         static const char* GET_NEW_VERSION_EMAIL = "%s";
@@ -168,7 +172,8 @@ def write_embedded_values(propagation_channel_id,
                                    remote_server_list_url_split[2],
                                    '?%s' % remote_server_list_url_split[3] if remote_server_list_url_split[3] else '',
                                ),
-                               urlparse.urlunsplit(OSL_root_url_split),
+                               remote_server_list_urls_json,
+                               OSL_root_urls_json,
                                feedback_encryption_public_key,
                                feedback_upload_server,
                                feedback_upload_path,
@@ -180,6 +185,7 @@ def write_embedded_values(propagation_channel_id,
                                    upgrade_url_split[2],
                                    '?%s' % upgrade_url_split[3] if upgrade_url_split[3] else '',
                                ),
+                               upgrade_urls_json,
                                get_new_version_url,
                                get_new_version_email,
                                faq_url,
@@ -196,7 +202,9 @@ def build_client(
         encoded_server_list,
         remote_server_list_signature_public_key,
         remote_server_list_url_split,
-        OSL_root_url_split,
+        remote_server_list_urls_json,
+        OSL_root_url_split, # obsolete
+        OSL_root_urls_json,
         feedback_encryption_public_key,
         feedback_upload_server,
         feedback_upload_path,
@@ -204,6 +212,7 @@ def build_client(
         info_link_url,
         upgrade_signature_public_key,
         upgrade_url_split,
+        upgrade_urls_json,
         get_new_version_url,
         get_new_version_email,
         faq_url,
@@ -236,7 +245,9 @@ def build_client(
             encoded_server_list,
             remote_server_list_signature_public_key,
             remote_server_list_url_split,
+            remote_server_list_urls_json,
             OSL_root_url_split,
+            OSL_root_urls_json,
             feedback_encryption_public_key,
             feedback_upload_server,
             feedback_upload_path,
@@ -244,6 +255,7 @@ def build_client(
             info_link_url,
             upgrade_signature_public_key,
             upgrade_url_split,
+            upgrade_urls_json,
             get_new_version_url,
             get_new_version_email,
             faq_url,
