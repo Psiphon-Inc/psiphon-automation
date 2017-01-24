@@ -2326,17 +2326,17 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if sponsor.use_data_from_sponsor_id:
             sponsor_banner = self.__sponsors[sponsor.use_data_from_sponsor_id].banner
 
-        # The *_urls params supercede the legacy *_url_split params
+        # The *_urls_json params supercede the legacy *_url_split params
 
-        remote_server_list_urls = \
+        remote_server_list_urls_json = \
             '[{"URL": "%s", "OnlyAfterAttempts" : 0, "SkipVerify" : false}]' % (
             base64.b64encode(urlparse.urlunsplit(remote_server_list_url_split)))
 
-        OSL_root_urls = \
+        OSL_root_urls_json = \
             '[{"URL": "%s", "OnlyAfterAttempts" : 0, "SkipVerify" : false}]' % (
             base64.b64encode(urlparse.urlunsplit(OSL_root_url_split)))
 
-        upgrade_urls = \
+        upgrade_urls_json = \
             '[{"URL": "%s", "OnlyAfterAttempts" : 0, "SkipVerify" : false}]' % (
             base64.b64encode(urlparse.urlunsplit(upgrade_url_split)))
 
@@ -2347,9 +2347,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         encoded_server_list,
                         remote_server_list_signature_public_key,
                         remote_server_list_url_split,
-                        remote_server_list_urls,
+                        remote_server_list_urls_json,
                         OSL_root_url_split,
-                        OSL_root_urls,
+                        OSL_root_urls_json,
                         feedback_encryption_public_key,
                         feedback_upload_info.upload_server,
                         feedback_upload_info.upload_path,
@@ -2357,7 +2357,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         info_link_url,
                         upgrade_signature_public_key,
                         upgrade_url_split,
-                        upgrade_urls,
+                        upgrade_urls_json,
                         get_new_version_url,
                         get_new_version_email,
                         faq_url,
