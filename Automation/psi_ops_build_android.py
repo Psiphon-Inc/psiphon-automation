@@ -162,15 +162,18 @@ def build_client(
         banner,
         encoded_server_list,
         remote_server_list_signature_public_key,
-        remote_server_list_url_split,
-        OSL_root_url_split,
+        remote_server_list_url_split, # obsolete
+        remote_server_list_urls_json,
+        OSL_root_url_split, # obsolete
+        OSL_root_urls_json,
         feedback_encryption_public_key,
         feedback_upload_server,
         feedback_upload_path,
         feedback_upload_server_headers,
         info_link_url,
         upgrade_signature_public_key,
-        upgrade_url_split,
+        upgrade_url_split, # obsolete
+        upgrade_urls_json,
         get_new_version_url,
         get_new_version_email,
         faq_url,
