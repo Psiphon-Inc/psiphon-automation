@@ -246,7 +246,6 @@ def build_client(
             remote_server_list_signature_public_key,
             remote_server_list_url_split,
             remote_server_list_urls_json,
-            OSL_root_url_split,
             OSL_root_urls_json,
             feedback_encryption_public_key,
             feedback_upload_server,
