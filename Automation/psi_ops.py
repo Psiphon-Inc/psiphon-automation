@@ -1030,6 +1030,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                    None,
                                    None,
                                    None,
+                                   None,
                                    False)
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
@@ -1083,6 +1084,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                    None,
                                    None,
                                    None,
+                                   None,
                                    False)
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
@@ -1100,6 +1102,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(propagation_mechanism_type in propagation_channel.propagation_mechanism_types)
         campaign = SponsorCampaign(propagation_channel.id,
                                    propagation_mechanism_type,
+                                   None,
                                    None,
                                    None,
                                    None,
