@@ -21,6 +21,7 @@ import os
 import shutil
 import subprocess
 import textwrap
+import urlparse
 import psi_utils
 
 #==== Build File Locations  ===================================================
@@ -130,6 +131,7 @@ def write_embedded_values(propagation_channel_id,
         static const char* REMOTE_SERVER_LIST_SIGNATURE_PUBLIC_KEY = "%s";
         static const char* REMOTE_SERVER_LIST_ADDRESS = "%s";
         static const char* REMOTE_SERVER_LIST_REQUEST_PATH = "%s";
+        static const char* OBFUSCATED_SERVER_LIST_ROOT_URL = "%s";
 
         // These values are used when uploading diagnostic info
         static const char* FEEDBACK_ENCRYPTION_PUBLIC_KEY = "%s";
@@ -166,6 +168,7 @@ def write_embedded_values(propagation_channel_id,
                                    remote_server_list_url_split[2],
                                    '?%s' % remote_server_list_url_split[3] if remote_server_list_url_split[3] else '',
                                ),
+                               urlparse.urlunsplit(OSL_root_url_split),
                                feedback_encryption_public_key,
                                feedback_upload_server,
                                feedback_upload_path,
