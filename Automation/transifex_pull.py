@@ -35,11 +35,31 @@ from BeautifulSoup import BeautifulSoup
 import psi_feedback_templates
 
 
-DEFAULT_LANGS = {'ar': 'ar', 'es': 'es', 'fa': 'fa', 'kk': 'kk',
-                 'ru': 'ru', 'th': 'th', 'tk': 'tk', 'vi': 'vi', 'zh': 'zh',
-                 'ug': 'ug@Latn', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr',
-                 'de': 'de', 'ko': 'ko', 'fi_FI': 'fi', 'el_GR': 'el',
-                 'hr': 'hr', 'pt_PT': 'pt_PT', 'pt_BR': 'pt_BR', 'id': 'id'}
+DEFAULT_LANGS = {
+    'ar': 'ar',         # Arabic
+    'de': 'de',         # German
+    'el_GR': 'el',      # Greek
+    'es': 'es',         # Spanish
+    'fa': 'fa',         # Farsi/Persian
+    'fi_FI': 'fi',      # Finnish
+    'fr': 'fr',         # French
+    'hr': 'hr',         # Croation
+    'id': 'id',         # Indonesian
+    'kk': 'kk',         # Kazak
+    'ko': 'ko',         # Korean
+    'nb_NO': 'nb',      # Norwegian
+    'nl': 'nl',         # Dutch
+    'pt_BR': 'pt_BR',   # Portuguese-Brazil
+    'pt_PT': 'pt_PT',   # Portuguese-Portugal
+    'ru': 'ru',         # Russian
+    'th': 'th',         # Thai
+    'tk': 'tk',         # Turkmen
+    'tr': 'tr',         # Turkish
+    'ug': 'ug@Latn',    # Uighur (latin script)
+    'vi': 'vi',         # Vietnamese
+    'zh': 'zh',         # Chinese (simplified)
+    'zh_TW': 'zh_TW'    # Chinese (traditional)
+}
 # Transifex does not support multiple character sets for Uzbek, but
 # Psiphon supports both uz@Latn and uz@cyrillic. So we're going to
 # use "Uzbek" ("uz") for uz@Latn and "Klingon" ("tlh") for uz@cyrillic.
@@ -64,6 +84,10 @@ IOS_BROWSER_RESOURCES = \
     ['ios-browser-iasklocalizablestrings', 'ios-browser-localizablestrings',
      'ios-browser-onepasswordextensionstrings', 'ios-browser-rootstrings']
 IOS_BROWSER_DIR = 'endless'
+IOS_BROWSER_LANGS = DEFAULT_LANGS.copy()
+# Xcode/iOS uses some different locale codes than Transifex does
+IOS_BROWSER_LANGS.update({'pt_PT': 'pt-PT', 'zh': 'zh-Hans', 'zh_TW': 'zh-Hant'})
+
 
 # There should be no more or fewer Transifex resources than this. Otherwise
 # either this code or Transifex needs to be updated.
@@ -313,7 +337,8 @@ def pull_ios_browser_translations():
         process_resource(resname,
                          lambda lang: './Endless/%s.lproj/%s' % (lang, fname),
                          None,
-                         bom=True,
+                         langs=IOS_BROWSER_LANGS,
+                         bom=False,
                          skip_untranslated=True,
                          encoding='utf-16')
         print('%s: DONE' % (resname,))
