@@ -2877,6 +2877,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         self.__deploy_data_required_for_all = True
 
+        for propagation_channel_id in self.__propagation_channels.iterkeys():
+            self.__deploy_pave_osls_required_for_propagation_channels.add(propagation_channel_id)
+
     def set_TCS_psiphond_config_values(self, psiphond_config_values):
         assert(self.is_locked)
         assert(isinstance(psiphond_config_values, dict))
