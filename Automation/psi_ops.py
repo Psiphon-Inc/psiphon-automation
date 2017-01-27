@@ -2620,7 +2620,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         osl_servers = [server for server in self.__servers.itervalues()
                        if server.osl_ids and server.osl_discovery_date_range and
                        server.discovery_date_range[0] <= now < server.discovery_date_range[1]]
-        TODO: construct osl_payload_json
+
+        osl_payload = []
+        for osl_server in osl_servers:
+            osl_payload.append({'ServerEntry' : self.__get_encoded_server_entry(osl_server),
+                                'OSLIDs' : osl_server.osl_ids})
 
         try:
             # Pave full OSL file sets for all propagation channels in the OSL config.
@@ -2630,7 +2634,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             osl_config_file.close()
 
             osl_payload_file = open(osl_payload_filename, 'w')
-            osl_payload_file.write(osl_payload_json)
+            osl_payload_file.write(json.dumps(osl_payload))
             osl_payload_file.close()
 
             signing_key_file = open(signing_key_filename, 'w')
