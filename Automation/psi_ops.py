@@ -212,7 +212,7 @@ Server = psi_utils.recordtype(
     'propagation_channel_id, is_embedded, is_permanent, discovery_date_range, capabilities, ' +
     'web_server_port, web_server_secret, web_server_certificate, web_server_private_key, ' +
     'ssh_port, ssh_username, ssh_password, ssh_host_key, TCS_ssh_private_key, ssh_obfuscated_port, ssh_obfuscated_key, ' +
-    'alternate_ssh_obfuscated_ports',
+    'alternate_ssh_obfuscated_ports, osl_ids, osl_discovery_date_range',
     default=None)
 
 
@@ -366,6 +366,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__upgrade_package_signing_key_pair = None
         self.__default_email_autoresponder_account = None
         self.__deploy_website_required_for_sponsors = set()
+        self.__deploy_pave_osls_required_for_propagation_channels = set()
         self.__automation_bucket = None
         self.__discovery_strategy_value_hmac_key = binascii.b2a_hex(os.urandom(32))
         self.__android_home_tab_url_exclusions = set()
@@ -383,7 +384,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.41'
+    class_version = '0.42'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -639,6 +640,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 for campaign in sponsor.campaigns:
                     campaign.alternate_s3_bucket_name = None
             self.version = '0.41'
+        if cmp(parse_version(self.version), parse_version('0.42')) < 0:
+            self.__deploy_pave_osls_required_for_propagation_channels = set()
+            self.version = '0.42'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -672,6 +676,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     Stats Server Config     %s
                                     Email Server Config     %s
                                     Websites                %d
+                                    Pave OSLs               %d
             ''') % (
                 len(self.__sponsors),
                 len(self.__propagation_channels),
@@ -702,6 +707,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 'Yes' if self.__deploy_stats_config_required else 'No',
                 'Yes' if self.__deploy_email_config_required else 'No',
                 len(self.__deploy_website_required_for_sponsors),
+                len(self.__deploy_pave_osls_required_for_propagation_channels),
                 )
 
     def show_client_versions(self):
@@ -1038,6 +1044,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
                 self.__deploy_builds_required_for_campaigns[platform].add(
                         (campaign.propagation_channel_id, sponsor.id))
+            self.__deploy_pave_osls_required_for_propagation_channels.add(propagation_channel.id)
             campaign.log('marked for build and publish (new campaign)')
 
     def set_default_email_autoresponder_account(self, email_account):
@@ -1092,6 +1099,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
                 self.__deploy_builds_required_for_campaigns[platform].add(
                         (campaign.propagation_channel_id, sponsor.id))
+            self.__deploy_pave_osls_required_for_propagation_channels.add(propagation_channel.id)
             campaign.log('marked for build and publish (new campaign)')
 
     def add_sponsor_static_download_campaign(self, sponsor_name, propagation_channel_name):
@@ -1114,6 +1122,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
                 self.__deploy_builds_required_for_campaigns[platform].add(
                         (campaign.propagation_channel_id, sponsor.id))
+            self.__deploy_pave_osls_required_for_propagation_channels.add(propagation_channel.id)
             campaign.log('marked for build and publish (new campaign)')
 
     def set_sponsor_campaign_s3_bucket_name(self, sponsor_name,
@@ -1130,6 +1139,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
                         self.__deploy_builds_required_for_campaigns[platform].add(
                             (campaign.propagation_channel_id, sponsor.id))
+                    self.__deploy_pave_osls_required_for_propagation_channels.add(propagation_channel.id)
                     campaign.log('marked for build and publish (modified campaign)')
 
     def set_sponsor_campaign_custom_download_site(self, sponsor_name, propagation_channel_name, account, is_custom):
@@ -1301,7 +1311,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def get_server_object(self, id, host_id, ip_address, egress_ip_address, internal_ip_address, propagation_channel_id,
                         is_embedded, is_permanent, discovery_date_range, capabilities, web_server_port, web_server_secret,
                         web_server_certificate, web_server_private_key, ssh_port, ssh_username, ssh_password,
-                        ssh_host_key, TCS_ssh_private_key, ssh_obfuscated_port, ssh_obfuscated_key, alternate_ssh_obfuscated_ports):
+                        ssh_host_key, TCS_ssh_private_key, ssh_obfuscated_port, ssh_obfuscated_key, alternate_ssh_obfuscated_ports,
+                        osl_ids, osl_discovery_date_range):
         return Server(id,
                     host_id,
                     ip_address,
@@ -1324,7 +1335,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     ssh_obfuscated_port,
                     ssh_obfuscated_key,
                     alternate_ssh_obfuscated_ports,
-                    )
+                    osl_ids,
+                    osl_discovery_date_range)
 
     def export_host_and_server(self, host_id_list):
 
@@ -2588,22 +2600,42 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 self.__deploy_website_required_for_sponsors.remove(sponsor_id)
                 self.save()
 
-    def pave_OSLs(self, offset, period):
+        # Pave OSLs
 
-        # Now pave full OSL file sets for all propagation channels in the OSL config.
-        # Note: currently paves only empty OSLs
+        if len(self.__deploy_pave_osls_required_for_propagation_channels) > 0:
+            self.pave_OSLs(self.__deploy_pave_osls_required_for_propagation_channels)
+            self.__deploy_pave_osls_required_for_propagation_channels.clear()
+            self.save()
+
+
+    def pave_OSLs(self, target_propagation_channel_ids, offset=None, period=None):
+        # Note: Only writes to buckets for campaigns in target_propagation_channel_ids
 
         osl_config_filename = os.path.join('.', 'osl_config.json')
+        osl_payload_filename = os.path.join('.', 'osl_payload.json')
         signing_key_filename = os.path.join('.', 'signing_key.pem')
         output_dir = tempfile.mkdtemp(prefix='osl')
 
+        now = datetime.datetime.now()
+        osl_servers = [server for server in self.__servers.itervalues()
+                       if server.osl_ids and server.osl_discovery_date_range and
+                       server.discovery_date_range[0] <= now < server.discovery_date_range[1]]
+
+        osl_payload = []
+        for osl_server in osl_servers:
+            osl_payload.append({'ServerEntry' : self.__get_encoded_server_entry(osl_server),
+                                'OSLIDs' : osl_server.osl_ids})
+
         try:
             # Pave full OSL file sets for all propagation channels in the OSL config.
-            # Note: currently paves only empty OSLs
 
             osl_config_file = open(osl_config_filename, 'w')
             osl_config_file.write(self.__TCS_OSL_config)
             osl_config_file.close()
+
+            osl_payload_file = open(osl_payload_filename, 'w')
+            osl_payload_file.write(json.dumps(osl_payload))
+            osl_payload_file.close()
 
             signing_key_file = open(signing_key_filename, 'w')
             signing_key_file.write(self.__get_remote_server_list_signing_key_pair().pem_key_pair)
@@ -2616,15 +2648,21 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if os.name == 'posix':
                 paver_binary = 'paver'
 
-            # Note: raises CalledProcessError when paver fails
-            output = subprocess.check_output(
+            paver_command_line = \
                 [os.path.join('.', paver_binary),
                  "-config", osl_config_filename,
+                 "-payload", osl_payload_filename,
                  "-key", signing_key_filename,
-                 "-offset", str(offset),
-                 "-period", str(period),
-                 "-output", output_dir],
-                 stderr=subprocess.STDOUT)
+                 "-output", output_dir]
+
+            if offset:
+                paver_command_line += ["-offset", str(offset)]
+
+            if period:
+                paver_command_line += ["-period", str(period)]
+
+            # Note: raises CalledProcessError when paver fails
+            output = subprocess.check_output(paver_command_line, stderr=subprocess.STDOUT)
             print output
 
             paved_propagation_channel_ids = set()
@@ -2633,6 +2671,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     paved_propagation_channel_ids.add(propagation_channel_id)
 
             for propagation_channel_id in paved_propagation_channel_ids:
+
+                if not propagation_channel_id in target_propagation_channel_ids:
+                    continue
 
                 prop_dir = os.path.join(output_dir, propagation_channel_id)
                 upload_filenames = [os.path.join(prop_dir, filename) for filename in os.listdir(prop_dir)]
@@ -2657,15 +2698,17 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for sponsor in self.__sponsors.itervalues():
                 for campaign in sponsor.campaigns:
                     if not campaign.propagation_channel_id in paved_propagation_channel_ids:
-                        psi_ops_s3.update_s3_osl_key_in_buckets(
-                            self.__aws_account,
-                            [campaign.s3_bucket_name, campaign.alternate_s3_bucket_name],
-                            'osl-registry',
-                            empty_osl_registry)
+                        if campaign.propagation_channel_id in target_propagation_channel_ids:
+                            psi_ops_s3.update_s3_osl_key_in_buckets(
+                                self.__aws_account,
+                                [campaign.s3_bucket_name, campaign.alternate_s3_bucket_name],
+                                'osl-registry',
+                                empty_osl_registry)
 
         finally:
             try:
                 os.remove(osl_config_filename)
+                os.remove(osl_payload_filename)
                 os.remove(signing_key_filename)
                 shutil.rmtree(output_dir, ignore_errors=True)
             except:
@@ -2833,6 +2876,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__TCS_OSL_config = OSL_config
 
         self.__deploy_data_required_for_all = True
+
+        for propagation_channel_id in self.__propagation_channels.iterkeys():
+            self.__deploy_pave_osls_required_for_propagation_channels.add(propagation_channel_id)
 
     def set_TCS_psiphond_config_values(self, psiphond_config_values):
         assert(self.is_locked)
@@ -3368,7 +3414,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 None,
                                                 server.ssh_obfuscated_port,
                                                 server.ssh_obfuscated_key,
-                                                server.alternate_ssh_obfuscated_ports)
+                                                server.alternate_ssh_obfuscated_ports,
+                                                None,
+                                                None)
 
         for sponsor in self.__sponsors.itervalues():
             sponsor_data = sponsor
@@ -3510,7 +3558,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 None,
                                                 int(server.ssh_obfuscated_port), # Some ports are stored as strings, catch this for tunnel-core-server
                                                 server.ssh_obfuscated_key,
-                                                server.alternate_ssh_obfuscated_ports).todict()
+                                                server.alternate_ssh_obfuscated_ports,
+                                                None,
+                                                None).todict()
                 server_list.append(s)
 
         for sponsor in self.__sponsors.itervalues():
