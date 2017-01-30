@@ -133,7 +133,7 @@ def write_embedded_values(propagation_channel_id,
         static const char* REMOTE_SERVER_LIST_SIGNATURE_PUBLIC_KEY = "%s";
         static const char* REMOTE_SERVER_LIST_ADDRESS = "%s";
         static const char* REMOTE_SERVER_LIST_REQUEST_PATH = "%s";
-        static const char* REMOTE_SERVER_LIST_ROOT_URLS_JSON = "%s";
+        static const char* REMOTE_SERVER_LIST_URLS_JSON = "%s";
         static const char* OBFUSCATED_SERVER_LIST_ROOT_URLS_JSON = "%s";
 
         // These values are used when uploading diagnostic info
