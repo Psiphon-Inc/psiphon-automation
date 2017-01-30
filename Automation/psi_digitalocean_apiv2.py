@@ -68,6 +68,7 @@ def set_allowed_users(digitalocean_account, ip_address, password, stats_username
     user_exists = ssh.exec_command('grep %s /etc/ssh/sshd_config' % stats_username)
     if not user_exists:
         ssh.exec_command('sed -i "s/^AllowUsers.*/& %s/" /etc/ssh/sshd_config' % stats_username)
+        ssh.exec_command('sed -i "s/^PasswordAuthentication\ no/PasswordAuthentication\ yes/" /etc/ssh/sshd_config')
         ssh.exec_command('service ssh restart')
 
 
@@ -511,7 +512,7 @@ def launch_new_server(digitalocean_account, is_TCS, _):
             instance of a psinet server
     """
 
-    base_id = '17784624' if not is_TCS else '20668187'
+    base_id = '17784624' if not is_TCS else '22464614'
     try:
         Droplet = collections.namedtuple('Droplet', ['name', 'region', 'image',
                                                      'size', 'backups'])
