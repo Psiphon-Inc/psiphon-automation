@@ -212,7 +212,7 @@ Server = psi_utils.recordtype(
     'propagation_channel_id, is_embedded, is_permanent, discovery_date_range, capabilities, ' +
     'web_server_port, web_server_secret, web_server_certificate, web_server_private_key, ' +
     'ssh_port, ssh_username, ssh_password, ssh_host_key, TCS_ssh_private_key, ssh_obfuscated_port, ssh_obfuscated_key, ' +
-    'alternate_ssh_obfuscated_ports, osl_ids, osl_discovery_date_range',
+    'alternate_ssh_obfuscated_ports',#, osl_ids, osl_discovery_date_range',
     default=None)
 
 
@@ -642,12 +642,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.version = '0.41'
         if cmp(parse_version(self.version), parse_version('0.42')) < 0:
             self.__deploy_pave_osls_required_for_propagation_channels = set()
-            for server in self.__servers.itervalues():
-                server.osl_ids = None
-                server.osl_discovery_date_range= None
-            for server in self.__deleted_servers.itervalues():
-                server.osl_ids = None
-                server.osl_discovery_date_range= None
+            #for server in self.__servers.itervalues():
+            #    server.osl_ids = None
+            #    server.osl_discovery_date_range = None
+            #for server in self.__deleted_servers.itervalues():
+            #    server.osl_ids = None
+            #    server.osl_discovery_date_range = None
             self.version = '0.42'
 
     def initialize_plugins(self):
@@ -1317,8 +1317,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def get_server_object(self, id, host_id, ip_address, egress_ip_address, internal_ip_address, propagation_channel_id,
                         is_embedded, is_permanent, discovery_date_range, capabilities, web_server_port, web_server_secret,
                         web_server_certificate, web_server_private_key, ssh_port, ssh_username, ssh_password,
-                        ssh_host_key, TCS_ssh_private_key, ssh_obfuscated_port, ssh_obfuscated_key, alternate_ssh_obfuscated_ports,
-                        osl_ids, osl_discovery_date_range):
+                        ssh_host_key, TCS_ssh_private_key, ssh_obfuscated_port, ssh_obfuscated_key, alternate_ssh_obfuscated_ports):
         return Server(id,
                     host_id,
                     ip_address,
@@ -1340,9 +1339,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     TCS_ssh_private_key,
                     ssh_obfuscated_port,
                     ssh_obfuscated_key,
-                    alternate_ssh_obfuscated_ports,
-                    osl_ids,
-                    osl_discovery_date_range)
+                    alternate_ssh_obfuscated_ports)
 
     def export_host_and_server(self, host_id_list):
 
@@ -3420,9 +3417,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 None,
                                                 server.ssh_obfuscated_port,
                                                 server.ssh_obfuscated_key,
-                                                server.alternate_ssh_obfuscated_ports,
-                                                None,
-                                                None)
+                                                server.alternate_ssh_obfuscated_ports)
 
         for sponsor in self.__sponsors.itervalues():
             sponsor_data = sponsor
@@ -3564,9 +3559,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 None,
                                                 int(server.ssh_obfuscated_port), # Some ports are stored as strings, catch this for tunnel-core-server
                                                 server.ssh_obfuscated_key,
-                                                server.alternate_ssh_obfuscated_ports,
-                                                None,
-                                                None).todict()
+                                                server.alternate_ssh_obfuscated_ports).todict()
                 server_list.append(s)
 
         for sponsor in self.__sponsors.itervalues():
