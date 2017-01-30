@@ -68,6 +68,7 @@ def set_allowed_users(digitalocean_account, ip_address, password, stats_username
     user_exists = ssh.exec_command('grep %s /etc/ssh/sshd_config' % stats_username)
     if not user_exists:
         ssh.exec_command('sed -i "s/^AllowUsers.*/& %s/" /etc/ssh/sshd_config' % stats_username)
+        ssh.exec_command('sed -i "s/^PasswordAuthentication\ no/PasswordAuthentication\ yes/" /etc/ssh/sshd_config')
         ssh.exec_command('service ssh restart')
 
 
