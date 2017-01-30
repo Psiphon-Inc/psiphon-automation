@@ -642,6 +642,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.version = '0.41'
         if cmp(parse_version(self.version), parse_version('0.42')) < 0:
             self.__deploy_pave_osls_required_for_propagation_channels = set()
+            for server in self.__servers.itervalues():
+                server.osl_ids = None
+                server.osl_discovery_date_range= None
+            for server in self.__deleted_servers.itervalues():
+                server.osl_ids = None
+                server.osl_discovery_date_range= None
             self.version = '0.42'
 
     def initialize_plugins(self):
