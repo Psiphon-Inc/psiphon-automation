@@ -212,7 +212,7 @@ Server = psi_utils.recordtype(
     'propagation_channel_id, is_embedded, is_permanent, discovery_date_range, capabilities, ' +
     'web_server_port, web_server_secret, web_server_certificate, web_server_private_key, ' +
     'ssh_port, ssh_username, ssh_password, ssh_host_key, TCS_ssh_private_key, ssh_obfuscated_port, ssh_obfuscated_key, ' +
-    'alternate_ssh_obfuscated_ports',#, osl_ids, osl_discovery_date_range',
+    'alternate_ssh_obfuscated_ports, osl_ids, osl_discovery_date_range',
     default=None)
 
 
@@ -384,7 +384,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.42'
+    class_version = '0.43'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -642,13 +642,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.version = '0.41'
         if cmp(parse_version(self.version), parse_version('0.42')) < 0:
             self.__deploy_pave_osls_required_for_propagation_channels = set()
-            #for server in self.__servers.itervalues():
-            #    server.osl_ids = None
-            #    server.osl_discovery_date_range = None
-            #for server in self.__deleted_servers.itervalues():
-            #    server.osl_ids = None
-            #    server.osl_discovery_date_range = None
             self.version = '0.42'
+        if cmp(parse_version(self.version), parse_version('0.43')) < 0:
+            for server in self.__servers.itervalues():
+                server.osl_ids = None
+                server.osl_discovery_date_range = None
+            for server in self.__deleted_servers.itervalues():
+                server.osl_ids = None
+                server.osl_discovery_date_range = None
+            self.version = '0.43'
 
     def initialize_plugins(self):
         for plugin in plugins:
