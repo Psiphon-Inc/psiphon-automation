@@ -2624,7 +2624,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         now = datetime.datetime.now()
         osl_servers = [server for server in self.__servers.itervalues()
                        if server.osl_ids and server.osl_discovery_date_range and
-                       server.discovery_date_range[0] <= now < server.discovery_date_range[1]]
+                       server.osl_discovery_date_range[0] <= now < server.osl_discovery_date_range[1]]
 
         osl_payload = []
         for osl_server in osl_servers:
