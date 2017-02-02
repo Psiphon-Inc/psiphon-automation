@@ -232,9 +232,14 @@ def deploy_TCS_implementation(ssh, host, servers, TCS_psiphond_config_values):
 
     # Upload psiphond.config
 
+    if is_TCS_native:
+        psiphond_config = make_psiphond_config(host, server, TCS_psiphond_config_values, True)
+    else:
+        psiphond_config = make_psiphond_config(host, server, TCS_psiphond_config_values)
+
     put_file_with_content(
         ssh,
-        make_psiphond_config(host, server, TCS_psiphond_config_values),
+        psiphond_config,
         TCS_PSIPHOND_CONFIG_FILE_NAME)
 
     # Upload psiphond.env
@@ -269,7 +274,7 @@ CONTAINER_SYSCTL_STRING="--sysctl 'net.ipv4.ip_local_port_range=1100 65535'"
     # is delayed until deploy_TCS_data.
 
 
-def make_psiphond_config(host, server, TCS_psiphond_config_values):
+def make_psiphond_config(host, server, TCS_psiphond_config_values, is_TCS_native=False):
 
     # Missing TCS_psiphond_config_values items throw KeyError. This is intended. Don't forget to configure these values.
 
@@ -303,14 +308,18 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
 
     config['ServerIPAddress'] = '0.0.0.0'
 
-    config['WebServerPort'] = TCS_DOCKER_WEB_SERVER_PORT
+    if is_TCS_native:
+        config['WebServerPort'] = server.web_server_port
+    else:
+        config['WebServerPort'] = TCS_DOCKER_WEB_SERVER_PORT
     config['WebServerSecret'] = server.web_server_secret
     config['WebServerCertificate'] = server.web_server_certificate
     config['WebServerPrivateKey'] = server.web_server_private_key
 
     # Redirect tunneled web server requests to the containerized web server address
     config['WebServerPortForwardAddress'] = "%s:%d" % (server.ip_address, int(server.web_server_port))
-    config['WebServerPortForwardRedirectAddress'] = "%s:%d" % ('127.0.0.1', TCS_DOCKER_WEB_SERVER_PORT)
+    if not is_TCS_native:
+        config['WebServerPortForwardRedirectAddress'] = "%s:%d" % ('127.0.0.1', TCS_DOCKER_WEB_SERVER_PORT)
 
     config['SSHPrivateKey'] = server.TCS_ssh_private_key
     config['SSHServerVersion'] = TCS_psiphond_config_values['SSHServerVersion']
