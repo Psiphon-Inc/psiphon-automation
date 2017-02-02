@@ -237,19 +237,23 @@ def deploy_TCS_implementation(ssh, host, servers, TCS_psiphond_config_values):
         make_psiphond_config(host, server, TCS_psiphond_config_values),
         TCS_PSIPHOND_CONFIG_FILE_NAME)
 
-    # Upload psiphond.env
+    if host.TCS_type == 'NATIVE':
+        # TODO: Upload psiphond, restart service
+        pass
+    elif host.TCS_type == 'DOCKER':
+        # Upload psiphond.env
 
-    external_protocol_ports = get_supported_protocol_ports(host, server)
-    docker_protocol_ports = get_supported_protocol_ports(host, server, external_ports=False)
+        external_protocol_ports = get_supported_protocol_ports(host, server)
+        docker_protocol_ports = get_supported_protocol_ports(host, server, external_ports=False)
 
-    if server.capabilities['handshake']:
-        external_protocol_ports['handshake'] = server.web_server_port
-        docker_protocol_ports['handshake'] = TCS_DOCKER_WEB_SERVER_PORT
+        if server.capabilities['handshake']:
+            external_protocol_ports['handshake'] = server.web_server_port
+            docker_protocol_ports['handshake'] = TCS_DOCKER_WEB_SERVER_PORT
 
-    port_mappings = ' '.join(
-        ["-p %s:%s" % (external_port,docker_protocol_ports[protocol],) for (protocol, external_port) in external_protocol_ports.iteritems()])
+        port_mappings = ' '.join(
+            ["-p %s:%s" % (external_port,docker_protocol_ports[protocol],) for (protocol, external_port) in external_protocol_ports.iteritems()])
 
-    psiphond_env_content = '''
+        psiphond_env_content = '''
 DOCKER_CONTENT_TRUST=1
 
 CONTAINER_TAG=production
@@ -259,10 +263,12 @@ CONTAINER_ULIMIT_STRING="--ulimit nofile=1000000:1000000"
 CONTAINER_SYSCTL_STRING="--sysctl 'net.ipv4.ip_local_port_range=1100 65535'"
 ''' % (port_mappings,)
 
-    put_file_with_content(
-        ssh,
-        psiphond_env_content,
-        TCS_PSIPHOND_DOCKER_ENVIRONMENT_FILE_NAME)
+        put_file_with_content(
+            ssh,
+            psiphond_env_content,
+            TCS_PSIPHOND_DOCKER_ENVIRONMENT_FILE_NAME)
+    else:
+        raise 'Unhandled host.TCS_type: ' + host.TCS_type
 
     # Note: not invoking TCS_PSIPHOND_ENABLE_COMMAND here as psiphond expects
     # the psinet and traffic rules data to exist when it starts. The enable
@@ -404,8 +410,6 @@ def get_supported_protocol_ports(host, server, **kwargs):
 
 def deploy_implementation_to_hosts(hosts, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
 
-    # TODO-TCS: stagger psiphond restarts. 15s delay in each batch has been OK for legacy meek updates.
-
     @retry_decorator_returning_exception
     def do_deploy_implementation(host):
         try:
@@ -416,7 +420,7 @@ def deploy_implementation_to_hosts(hosts, discovery_strategy_value_hmac_key, plu
         host.log('deploy implementation')
 
     run_in_parallel(20, do_deploy_implementation, hosts)
-    restart_psiphond_service_on_hosts([host for host in hosts if host.is_TCS])
+    restart_psiphond_service_on_hosts([host for host in hosts if host.is_TCS and host.TCS_type == 'DOCKER'])
 
 
 def deploy_data(host, host_data, TCS_traffic_rules_set, TCS_OSL_config):
