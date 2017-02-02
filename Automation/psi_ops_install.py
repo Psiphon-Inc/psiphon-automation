@@ -1305,7 +1305,7 @@ def install_TCS_psi_limit_load(host, disable_permanently=False):
     # - no equivilent to xinetd
     #
     # For TCS Native:
-    # - INPUT instead of FORWARD -o docekr0
+    # - INPUT instead of FORWARD -o docker0
 
     if host.TCS_type == 'NATIVE':
         psi_limit_load_chain_name = 'INPUT'
