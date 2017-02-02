@@ -672,10 +672,10 @@ def install_TCS_host(host, servers, existing_server_ids, plugins):
             if server.ssh_obfuscated_key is None:
                 server.ssh_obfuscated_key = binascii.hexlify(os.urandom(SSH_OBFUSCATED_KEY_BYTE_LENGTH))
 
-
 def install_firewall_rules(host, servers, plugins, do_blacklist=True):
 
     if host.is_TCS:
+        # Need see if it's TCS Docker or TCS native
         install_TCS_firewall_rules(host, servers, do_blacklist)
     else:
         install_legacy_firewall_rules(host, servers, plugins, do_blacklist)
@@ -1104,6 +1104,8 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
     if do_blacklist:
         install_malware_blacklist(host, True)
 
+def install_TCS_native_firewall_rules():
+    pass
 
 def install_malware_blacklist(host, is_TCS):
 
@@ -1154,6 +1156,7 @@ def install_geoip_database(ssh, is_TCS):
 def install_psi_limit_load(host, servers):
 
     if host.is_TCS:
+        # TCS Native or TCS Docker
         install_TCS_psi_limit_load(host)
     else:
         install_legacy_psi_limit_load(host, servers)
@@ -1349,6 +1352,8 @@ exit 0
                      'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
                      'echo "* * * * * root %s" >> %s' % (psi_limit_load_host_path, cron_file))
 
+def install_TCS_native_psi_limit_load():
+    pass
 
 def install_TCS_psi_limit_load_chain(host, server):
 
