@@ -1408,15 +1408,16 @@ def install_TCS_psi_limit_load_chain(host, server):
 
     limit_load_rules = [limit_load_new_chain]
 
+    # For TCS native (Docker less) use external ports instead of docker port.
     if host.TCS_type == 'NATIVE':
-        # If its' TCS native (Docker less) then use external ports instead of docker port.
-        for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, external_ports=True, meek_ports=False).iteritems():
-            limit_load_rules += [limit_load_template.format(port=str(port))]
+        use_external_ports = True
     elif host.TCS_type == 'DOCKER':
-        for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, external_ports=False, meek_ports=False).iteritems():
-            limit_load_rules += [limit_load_template.format(port=str(port))]
+        use_external_ports = False
     else:
         raise 'Unhandled host.TCS_type: ' + host.TCS_type
+
+    for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, external_ports=use_external_ports, meek_ports=False).iteritems():
+        limit_load_rules += [limit_load_template.format(port=str(port))]
 
     limit_load_rules += [limit_load_return]
 
