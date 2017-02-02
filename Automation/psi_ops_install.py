@@ -610,14 +610,17 @@ def install_legacy_host(host, servers, existing_server_ids, plugins):
     # NOTE: call psi_ops_deploy.deploy_host() to complete the install process
 
 
-def install_TCS_host(host, servers, existing_server_ids, plugins):
+def install_TCS_host(host, servers, existing_server_ids, plugins, is_TCS_native=False):
 
     # Limitation: only one server per host currently implemented
     assert(len(servers) == 1)
 
-    install_TCS_firewall_rules(host, servers, True)
-
-    install_TCS_psi_limit_load(host)
+    if is_TCS_native:
+        install_TCS_firewall_rules(host, servers, True, is_TCS_native)
+        install_TCS_psi_limit_load(host, is_TCS_native, is_TCS_native)
+    else:
+        install_TCS_firewall_rules(host, servers, True)
+        install_TCS_psi_limit_load(host)
 
     ssh = psi_ssh.SSH(
             host.ip_address, host.ssh_port,
@@ -672,10 +675,11 @@ def install_TCS_host(host, servers, existing_server_ids, plugins):
             if server.ssh_obfuscated_key is None:
                 server.ssh_obfuscated_key = binascii.hexlify(os.urandom(SSH_OBFUSCATED_KEY_BYTE_LENGTH))
 
-def install_firewall_rules(host, servers, plugins, do_blacklist=True):
+def install_firewall_rules(host, servers, plugins, do_blacklist=True, is_TCS_native=False):
 
-    if host.is_TCS:
-        # Need see if it's TCS Docker or TCS native
+    if is_TCS_native:
+        install_TCS_native_firewall_rules(host, servers, do_blacklist)
+    elif host.is_TCS:
         install_TCS_firewall_rules(host, servers, do_blacklist)
     else:
         install_legacy_firewall_rules(host, servers, plugins, do_blacklist)
@@ -1326,10 +1330,10 @@ def install_geoip_database(ssh, is_TCS):
                          posixpath.join(REMOTE_GEOIP_DIRECTORY, geo_ip_file))
 
 
-def install_psi_limit_load(host, servers):
-
-    if host.is_TCS:
-        # TCS Native or TCS Docker
+def install_psi_limit_load(host, servers, is_TCS_native=False):
+    if is_TCS_native:
+        install_TCS_psi_limit_load(host, is_TCS_native=True)
+    elif host.is_TCS:
         install_TCS_psi_limit_load(host)
     else:
         install_legacy_psi_limit_load(host, servers)
