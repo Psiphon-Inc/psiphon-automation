@@ -610,17 +610,14 @@ def install_legacy_host(host, servers, existing_server_ids, plugins):
     # NOTE: call psi_ops_deploy.deploy_host() to complete the install process
 
 
-def install_TCS_host(host, servers, existing_server_ids, plugins, is_TCS_native=False):
+def install_TCS_host(host, servers, existing_server_ids, plugins):
 
     # Limitation: only one server per host currently implemented
     assert(len(servers) == 1)
 
-    if is_TCS_native:
-        install_TCS_firewall_rules(host, servers, True, is_TCS_native)
-        install_TCS_psi_limit_load(host, is_TCS_native, is_TCS_native)
-    else:
-        install_TCS_firewall_rules(host, servers, True)
-        install_TCS_psi_limit_load(host)
+    install_TCS_firewall_rules(host, servers, True)
+
+    install_TCS_psi_limit_load(host)
 
     ssh = psi_ssh.SSH(
             host.ip_address, host.ssh_port,
@@ -675,11 +672,9 @@ def install_TCS_host(host, servers, existing_server_ids, plugins, is_TCS_native=
             if server.ssh_obfuscated_key is None:
                 server.ssh_obfuscated_key = binascii.hexlify(os.urandom(SSH_OBFUSCATED_KEY_BYTE_LENGTH))
 
-def install_firewall_rules(host, servers, plugins, do_blacklist=True, is_TCS_native=False):
+def install_firewall_rules(host, servers, plugins, do_blacklist=True):
 
-    if is_TCS_native:
-        install_TCS_native_firewall_rules(host, servers, do_blacklist)
-    elif host.is_TCS:
+    if host.is_TCS:
         install_TCS_firewall_rules(host, servers, do_blacklist)
     else:
         install_legacy_firewall_rules(host, servers, plugins, do_blacklist)
@@ -932,9 +927,12 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
 
     # Default posture for INPUT is reject. Allow connections to management ports
     # on INPUT.
+
+    # For DOCKER:
     # Web/protocol ports are handled by psiphond inside a container.  Rate limiting
     # rules are applied to the FORWARD chain instead of INPUT since the system
     # forwards packets to the container.
+
     # Web ports are rate limited with "limit", which is appropriate when the remote address is
     # shared (CDN) and the protocol may feature many TCP connections (HTTPS) per session.
     # Other protocols are rate limited with "recent", which is more appropriate for individual
@@ -957,13 +955,27 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
 
     rate_limit_rules = [new_rate_limit_chain]
 
+    if host.TCS_type == 'NATIVE':
+        firewall_web_server_port = server.web_server_port
+    elif host.TCS_type == 'DOCKER':
+        firewall_web_server_port = psi_ops_deploy.TCS_DOCKER_WEB_SERVER_PORT
+    else:
+        raise 'Unhandled host.TCS_type: ' + host.TCS_type
+
     if server.capabilities['handshake']:
-        web_server_port_rule =  accept_with_recent_rate_template.format(
-                port=str(psi_ops_deploy.TCS_DOCKER_WEB_SERVER_PORT),
-                recent_name='LIMIT-' + str(psi_ops_deploy.TCS_DOCKER_WEB_SERVER_PORT))
+        web_server_port_rule = accept_with_recent_rate_template.format(
+                port=str(firewall_web_server_port),
+                recent_name='LIMIT-' + str(firewall_web_server_port))
         rate_limit_rules += [web_server_port_rule]
 
-    for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, external_ports=False).iteritems():
+    if host.TCS_type == 'NATIVE':
+        use_external_ports = True
+    elif host.TCS_type == 'DOCKER':
+        use_external_ports = False
+    else:
+        raise 'Unhandled host.TCS_type: ' + host.TCS_type
+
+    for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, external_ports=use_external_ports).iteritems():
         protocol_port_rule = ''
         if 'MEEK' in protocol:
             protocol_port_rule = accept_with_limit_rate_template.format(
@@ -1004,7 +1016,17 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
         '-A OUTPUT -s 127.0.0.0/8 ! -o lo -j DROP',
         '-A OUTPUT -d 127.0.0.0/8 ! -o lo -j DROP'
 
-    ] + port_rules + [
+    ] + port_rules
+
+    if host.TCS_type == 'NATIVE':
+        # Add PSI_RATE_LIMITING jump in the INPUT
+        filter_input_rules += '-A INPUT -j PSI_RATE_LIMITING'
+    elif host.TCS_type == 'DOCKER':
+        pass
+    else:
+        raise 'Unhandled host.TCS_type: ' + host.TCS_type
+
+    filter_input_rules += [
 
         '-A INPUT -p tcp -j REJECT --reject-with tcp-reset',
         '-A INPUT -j DROP'
@@ -1073,193 +1095,32 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
     # Note: restart fail2ban and docker after applying firewall rules because iptables-restore
     # flushes iptables which will remove any chains and rules that fail2ban creates on starting up
     if_up_script_path = '/etc/network/if-up.d/firewall'
-    if_up_script_contents = textwrap.dedent('''#!/bin/sh
 
-        iptables-restore < {iptables_rules_path}
-        systemctl restart fail2ban.service
-        systemctl restart docker.service
-        iptables-restore --noflush < {iptables_rate_limit_rules_path}
-        iptables-restore --noflush < {iptables_limit_load_rules_path}
-        ''').format(
-            iptables_rules_path=iptables_rules_path,
-            iptables_rate_limit_rules_path=iptables_rate_limit_rules_path,
-            iptables_limit_load_rules_path=iptables_limit_load_rules_path)
+    if host.TCS_type == 'NATIVE':
+        if_up_script_contents = textwrap.dedent('''#!/bin/sh
 
-    ssh = psi_ssh.SSH(
-            host.ip_address, host.ssh_port,
-            host.ssh_username, host.ssh_password,
-            host.ssh_host_key)
+            iptables-restore < {iptables_rate_limit_rules_path}
+            iptables-restore --noflush < {iptables_limit_load_rules_path}
+            iptables-restore --noflush < {iptables_rules_path}
+            systemctl restart fail2ban.service
+            ''').format(
+                iptables_rules_path=iptables_rules_path,
+                iptables_rate_limit_rules_path=iptables_rate_limit_rules_path,
+                iptables_limit_load_rules_path=iptables_limit_load_rules_path)
+    elif host.TCS_type == 'DOCKER':
+        if_up_script_contents = textwrap.dedent('''#!/bin/sh
 
-    ssh.exec_command('echo "{iptables_rules_contents}" > {iptables_rules_path}'.format(
-        iptables_rules_contents=iptables_rules_contents, iptables_rules_path=iptables_rules_path))
-    ssh.exec_command('echo "{iptables_rate_limit_rules_contents}" > {iptables_rate_limit_rules_path}'.format(
-        iptables_rate_limit_rules_contents=iptables_rate_limit_rules_contents,
-        iptables_rate_limit_rules_path=iptables_rate_limit_rules_path))
-    ssh.exec_command('echo "{iptables_limit_load_rules_contents}" > {iptables_limit_load_rules_path}'.format(
-        iptables_limit_load_rules_contents=iptables_limit_load_rules_contents,
-        iptables_limit_load_rules_path=iptables_limit_load_rules_path))
-    ssh.exec_command('echo "{if_up_script_contents}" > {if_up_script_path}'.format(
-        if_up_script_contents=if_up_script_contents, if_up_script_path=if_up_script_path))
-    ssh.exec_command('chmod +x {if_up_script_path}'.format(
-        if_up_script_path=if_up_script_path))
-    ssh.exec_command(if_up_script_path)
-    ssh.close()
-
-    if do_blacklist:
-        install_malware_blacklist(host, True)
-
-def install_TCS_native_firewall_rules(host, servers, do_blacklist):
-    # The TCS native firewall rules are derived from the TCS Docker rules with the following differences:
-    # - PSI_RATE_LIMITING use actually port number (80, 443, 53, 22 etc) instead of docker port (102*)
-    # - PSI_RATE_LIMITING chain added in INPUT chain
-    # - Remove forward to Docker
-    assert(len(servers) == 1)
-    server = servers[0]
-
-    # Create a new chain for rate limiting.
-    new_rate_limit_chain = textwrap.dedent('''
-        -N PSI_RATE_LIMITING''')
-
-    accept_with_limit_rate_template = textwrap.dedent('''
-        -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m limit --limit 1000/sec -j ACCEPT''')
-
-    accept_with_recent_rate_template = textwrap.dedent('''
-        -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m recent --set --name {recent_name}
-        -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m recent --update --name {recent_name} --seconds 60 --hitcount 3 -j DROP
-        -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -j ACCEPT''')
-
-    return_from_rate_limit_chain = textwrap.dedent('''
-        -A PSI_RATE_LIMITING -j RETURN''')
-
-    rate_limit_rules = [new_rate_limit_chain]
-
-    if server.capabilities['handshake']:
-        web_server_port_rule =  accept_with_recent_rate_template.format(
-                port=str(server.web_server_port),
-                recent_name='LIMIT-' + str(server.web_server_port))
-        rate_limit_rules += [web_server_port_rule]
-
-    # Use external port instead of docker port external_ports=True
-    for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, external_ports=True).iteritems():
-        protocol_port_rule = ''
-        if 'MEEK' in protocol:
-            protocol_port_rule = accept_with_limit_rate_template.format(
-                port=str(port))
-        else:
-            protocol_port_rule = accept_with_recent_rate_template.format(
-                    port=str(port),
-                    recent_name='LIMIT-' + str(port))
-        rate_limit_rules += [protocol_port_rule]
-
-    rate_limit_rules += [return_from_rate_limit_chain]
-
-    limit_rate_forward_rules = []
-
-    iptables_rate_limit_rules_path = '/etc/iptables.rules.psi_rate_limit'
-    iptables_rate_limit_rules_contents = textwrap.dedent('''
-        *filter
-        {filter_limit_rate}
-        {filter_forward}
-        COMMIT
-        ''').format(
-            filter_limit_rate='\n'.join(rate_limit_rules),
-            filter_forward='\n'.join(limit_rate_forward_rules))
-
-    management_port_rule = textwrap.dedent('''
-        -A INPUT -p tcp -m state --state NEW -m tcp --dport {management_port} -j ACCEPT''').format(management_port=host.ssh_port)
-    port_rules = [management_port_rule]
-
-    # Common INPUT rules
-
-    filter_input_rules = [
-
-        '-A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT',
-
-        # Standard anti-spoofing rules: block external packets with loopback address
-        '-A INPUT -s 127.0.0.0/8 ! -i lo -j DROP',
-        '-A INPUT -d 127.0.0.0/8 ! -i lo -j DROP',
-        '-A OUTPUT -s 127.0.0.0/8 ! -o lo -j DROP',
-        '-A OUTPUT -d 127.0.0.0/8 ! -o lo -j DROP'
-
-    ] + port_rules + [
-        # Add PSI_RATE_LIMITING jump in the INPUT
-        '-A INPUT -j PSI_RATE_LIMITING'
-        '-A INPUT -p tcp -j REJECT --reject-with tcp-reset',
-        '-A INPUT -j DROP'
-
-    ]
-
-    filter_forward_rules = [
-
-        '-A FORWARD -j DROP'
-
-    ]
-
-    # Default posture for OUTPUT is allow, as psiphond enforces port forward destination rules itself.
-
-    filter_output_rules = [
-
-        '-A OUTPUT -j ACCEPT'
-
-    ]
- 
-    # NAT rules are used to implement service port forwarding.
-
-    nat_prerouting_rules = []
-
-    # Port forward from 443 to web servers
-    # NOTE: exclude for servers with meek capability (or is fronted) and meek_server_port is 443 or OSSH is running on 443
-    if server.capabilities['handshake'] and not (
-            ((server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET']) and int(host.meek_server_port) == 443) or
-            (server.capabilities['OSSH'] and int(server.ssh_obfuscated_port) == 443)):
-        web_server_port_forward = textwrap.dedent('''
-
-        -A PREROUTING -i eth+ -p tcp -d {server_ip_address} --dport 443 -j DNAT --to-destination :{web_server_port}''').format(
-
-            server_ip_address=str(server.internal_ip_address), web_server_port=str(server.web_server_port))
-        nat_prerouting_rules += [web_server_port_forward]
-
-    if server.alternate_ssh_obfuscated_ports:
-        for alternate in server.alternate_ssh_obfuscated_ports:
-            protocol_port_forward = textwrap.dedent('''
-
-            -A PREROUTING -i eth+ -p tcp -d {server_ip_address} --dport {alternate_port} -j DNAT --to-destination :{protocol_port}''').format(
-
-                server_ip_address=str(server.internal_ip_address), alternate_port=str(alternate), protocol_port=str(server.ssh_obfuscated_port))
-            nat_prerouting_rules += [protocol_port_forward]
-
-
-    iptables_rules_path = '/etc/iptables.rules'
-    iptables_rules_contents = textwrap.dedent('''
-        *filter
-        {filter_input}
-        {filter_output}
-        {filter_forward}
-        COMMIT
-        *nat
-        {nat_prerouting}
-        COMMIT
-        ''').format(
-            filter_input='\n'.join(filter_input_rules),
-            filter_output='\n'.join(filter_output_rules),
-            filter_forward='\n'.join(filter_forward_rules),
-            nat_prerouting='\n'.join(nat_prerouting_rules))
-    
-    # Update PSI_LIMIT_LOAD chain for port change.
-    (iptables_limit_load_rules_contents, iptables_limit_load_rules_path) = install_TCS_psi_limit_load_chain(host, server, True)
-
-    # Note: restart fail2ban after applying firewall rules because iptables-restore
-    # flushes iptables which will remove any chains and rules that fail2ban creates on starting up
-    if_up_script_path = '/etc/network/if-up.d/firewall'
-    if_up_script_contents = textwrap.dedent('''#!/bin/sh
-        iptables-restore < {iptables_rate_limit_rules_path}
-        iptables-restore --noflush < {iptables_limit_load_rules_path}
-        iptables-restore --noflush < {iptables_rules_path}
-        systemctl restart fail2ban.service
-        ''').format(
-            iptables_rules_path=iptables_rules_path,
-            iptables_rate_limit_rules_path=iptables_rate_limit_rules_path,
-            iptables_limit_load_rules_path=iptables_limit_load_rules_path)
+            iptables-restore < {iptables_rules_path}
+            systemctl restart fail2ban.service
+            systemctl restart docker.service
+            iptables-restore --noflush < {iptables_rate_limit_rules_path}
+            iptables-restore --noflush < {iptables_limit_load_rules_path}
+            ''').format(
+                iptables_rules_path=iptables_rules_path,
+                iptables_rate_limit_rules_path=iptables_rate_limit_rules_path,
+                iptables_limit_load_rules_path=iptables_limit_load_rules_path)
+    else
+        raise 'Unhandled host.TCS_type: ' + host.TCS_type
 
     ssh = psi_ssh.SSH(
             host.ip_address, host.ssh_port,
@@ -1330,10 +1191,8 @@ def install_geoip_database(ssh, is_TCS):
                          posixpath.join(REMOTE_GEOIP_DIRECTORY, geo_ip_file))
 
 
-def install_psi_limit_load(host, servers, is_TCS_native=False):
-    if is_TCS_native:
-        install_TCS_psi_limit_load(host, is_TCS_native=True)
-    elif host.is_TCS:
+def install_psi_limit_load(host, servers):
+    if host.is_TCS:
         install_TCS_psi_limit_load(host)
     else:
         install_legacy_psi_limit_load(host, servers)
@@ -1437,7 +1296,7 @@ exit 0
                      'echo "* * * * * root %s" >> %s' % (psi_limit_load_host_path, cron_file))
 
 
-def install_TCS_psi_limit_load(host, disable_permanently=False, is_TCS_native=False):
+def install_TCS_psi_limit_load(host, disable_permanently=False):
 
     # The TCS psi_limit_load is mostly the same as legacy except:
     # - no VPN case
@@ -1448,22 +1307,22 @@ def install_TCS_psi_limit_load(host, disable_permanently=False, is_TCS_native=Fa
     # For TCS Native:
     # - INPUT instead of FORWARD -o docekr0
 
-    # TODO-TCS: log to ELK
-
-    if is_TCS_native:
-        psi_limit_load_forward_switch = 'INPUT'
-    else:
-        psi_limit_load_forward_switch = 'FORWARD -o docker0'
+    if host.TCS_type == 'NATIVE':
+        psi_limit_load_chain_name = 'INPUT'
+    elif host.TCS_type == 'DOCKER':
+        psi_limit_load_chain_name = 'FORWARD -o docker0'
+    else 
+        raise 'Unhandled host.TCS_type: ' + host.TCS_type
 
     if disable_permanently:
         script = '''
 #!/bin/bash
 
-iptables -D  -j PSI_LIMIT_LOAD
+iptables -D %s -j PSI_LIMIT_LOAD
 iptables -I %s -j PSI_LIMIT_LOAD
 %s
 exit 0
-'''  % (psi_limit_load_forward_switch, psi_ops_deploy.TCS_PSIPHOND_STOP_ESTABLISHING_TUNNELS_SIGNAL_COMMAND)
+'''  % (psi_limit_load_chain_name, psi_limit_load_chain_name, psi_ops_deploy.TCS_PSIPHOND_STOP_ESTABLISHING_TUNNELS_SIGNAL_COMMAND)
     else:
         script = '''
 #!/bin/bash
@@ -1512,10 +1371,10 @@ else
     iptables -D %s -j PSI_LIMIT_LOAD
 fi
 exit 0
-''' % (psi_limit_load_forward_switch, psi_limit_load_forward_switch,
+''' % (psi_limit_load_chain_name, psi_limit_load_chain_name,
         psi_ops_deploy.TCS_PSIPHOND_STOP_ESTABLISHING_TUNNELS_SIGNAL_COMMAND,
         psi_ops_deploy.TCS_PSIPHOND_RESUME_ESTABLISHING_TUNNELS_SIGNAL_COMMAND.
-        psi_limit_load_forward_switch)
+        psi_limit_load_chain_name)
 
     ssh = psi_ssh.SSH(
             host.ip_address, host.ssh_port,
@@ -1539,7 +1398,7 @@ exit 0
                      'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
                      'echo "* * * * * root %s" >> %s' % (psi_limit_load_host_path, cron_file))
 
-def install_TCS_psi_limit_load_chain(host, server, is_TCS_native=False):
+def install_TCS_psi_limit_load_chain(host, server):
 
     limit_load_new_chain = '-N PSI_LIMIT_LOAD'
 
@@ -1549,13 +1408,15 @@ def install_TCS_psi_limit_load_chain(host, server, is_TCS_native=False):
 
     limit_load_rules = [limit_load_new_chain]
 
-    if is_TCS_native:
+    if host.TCS_type == 'NATIVE':
         # If its' TCS native (Docker less) then use external ports instead of docker port.
         for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, external_ports=True, meek_ports=False).iteritems():
             limit_load_rules += [limit_load_template.format(port=str(port))]
-    else:
+    elif host.TCS_type == 'DOCKER':
         for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, external_ports=False, meek_ports=False).iteritems():
             limit_load_rules += [limit_load_template.format(port=str(port))]
+    else:
+        raise 'Unhandled host.TCS_type: ' + host.TCS_type
 
     limit_load_rules += [limit_load_return]
 

@@ -232,14 +232,9 @@ def deploy_TCS_implementation(ssh, host, servers, TCS_psiphond_config_values):
 
     # Upload psiphond.config
 
-    if is_TCS_native:
-        psiphond_config = make_psiphond_config(host, server, TCS_psiphond_config_values, True)
-    else:
-        psiphond_config = make_psiphond_config(host, server, TCS_psiphond_config_values)
-
     put_file_with_content(
         ssh,
-        psiphond_config,
+        make_psiphond_config(host, server, TCS_psiphond_config_values),
         TCS_PSIPHOND_CONFIG_FILE_NAME)
 
     # Upload psiphond.env
@@ -274,7 +269,7 @@ CONTAINER_SYSCTL_STRING="--sysctl 'net.ipv4.ip_local_port_range=1100 65535'"
     # is delayed until deploy_TCS_data.
 
 
-def make_psiphond_config(host, server, TCS_psiphond_config_values, is_TCS_native=False):
+def make_psiphond_config(host, server, TCS_psiphond_config_values):
 
     # Missing TCS_psiphond_config_values items throw KeyError. This is intended. Don't forget to configure these values.
 
@@ -308,18 +303,26 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values, is_TCS_native
 
     config['ServerIPAddress'] = '0.0.0.0'
 
-    if is_TCS_native:
+    if host.TCS_type == 'NATIVE':
         config['WebServerPort'] = server.web_server_port
-    else:
+    elif host.TCS_type == 'DOCKER':
         config['WebServerPort'] = TCS_DOCKER_WEB_SERVER_PORT
+    else:
+        raise 'Unhandled host.TCS_type: ' + host.TCS_type
+
     config['WebServerSecret'] = server.web_server_secret
     config['WebServerCertificate'] = server.web_server_certificate
     config['WebServerPrivateKey'] = server.web_server_private_key
 
-    # Redirect tunneled web server requests to the containerized web server address
     config['WebServerPortForwardAddress'] = "%s:%d" % (server.ip_address, int(server.web_server_port))
-    if not is_TCS_native:
+
+    if host.TCS_type == 'NATIVE':
+        pass
+    elif host.TCS_type == 'DOCKER':
+        # Redirect tunneled web server requests to the containerized web server address
         config['WebServerPortForwardRedirectAddress'] = "%s:%d" % ('127.0.0.1', TCS_DOCKER_WEB_SERVER_PORT)
+    else:
+        raise 'Unhandled host.TCS_type: ' + host.TCS_type
 
     config['SSHPrivateKey'] = server.TCS_ssh_private_key
     config['SSHServerVersion'] = TCS_psiphond_config_values['SSHServerVersion']
