@@ -1119,7 +1119,7 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
                 iptables_rules_path=iptables_rules_path,
                 iptables_rate_limit_rules_path=iptables_rate_limit_rules_path,
                 iptables_limit_load_rules_path=iptables_limit_load_rules_path)
-    else
+    else:
         raise 'Unhandled host.TCS_type: ' + host.TCS_type
 
     ssh = psi_ssh.SSH(
@@ -1311,7 +1311,7 @@ def install_TCS_psi_limit_load(host, disable_permanently=False):
         psi_limit_load_chain_name = 'INPUT'
     elif host.TCS_type == 'DOCKER':
         psi_limit_load_chain_name = 'FORWARD -o docker0'
-    else 
+    else:
         raise 'Unhandled host.TCS_type: ' + host.TCS_type
 
     if disable_permanently:
