@@ -309,10 +309,13 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
 
     config['ServerIPAddress'] = '0.0.0.0'
 
-    if host.TCS_type == 'NATIVE':
-        config['WebServerPort'] = server.web_server_port
+    if host.TCS_type == 'NATIVE':    
+        config['WebServerPort'] = int(server.web_server_port)
+        config['TunnelProtocolPorts'] = get_supported_protocol_ports(host, server, external_ports=True)
     elif host.TCS_type == 'DOCKER':
         config['WebServerPort'] = TCS_DOCKER_WEB_SERVER_PORT
+        # gets the Docker ports
+        config['TunnelProtocolPorts'] = get_supported_protocol_ports(host, server, external_ports=False)
     else:
         raise 'Unhandled host.TCS_type: ' + host.TCS_type
 
@@ -344,9 +347,6 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
         config['MeekCertificateCommonName'] = TCS_psiphond_config_values['MeekCertificateCommonName']
         config['MeekProhibitedHeaders'] = TCS_psiphond_config_values['MeekProhibitedHeaders']
         config['MeekProxyForwardedForHeaders'] = TCS_psiphond_config_values['MeekProxyForwardedForHeaders']
-
-    # gets the Docker ports
-    config['TunnelProtocolPorts'] = get_supported_protocol_ports(host, server, external_ports=False)
 
     return json.dumps(config)
 
