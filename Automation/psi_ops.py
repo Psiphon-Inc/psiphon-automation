@@ -38,6 +38,7 @@ import copy
 import subprocess
 import traceback
 import shutil
+import urlparse
 from pkg_resources import parse_version
 from multiprocessing.pool import ThreadPool
 from collections import defaultdict
@@ -2346,15 +2347,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # The *_urls_json params supercede the legacy *_url_split params
 
         remote_server_list_urls_json = \
-            '[{"URL": "%s", "OnlyAfterAttempts" : 0, "SkipVerify" : false}]' % (
+            '[{\\"URL\\": \\"%s\\", \\"OnlyAfterAttempts\\" : 0, \\"SkipVerify\\" : false}]' % (
             base64.b64encode(urlparse.urlunsplit(remote_server_list_url_split)))
 
         OSL_root_urls_json = \
-            '[{"URL": "%s", "OnlyAfterAttempts" : 0, "SkipVerify" : false}]' % (
+            '[{\\"URL\\": \\"%s\\", \\"OnlyAfterAttempts\\" : 0, \\"SkipVerify\\" : false}]' % (
             base64.b64encode(urlparse.urlunsplit(OSL_root_url_split)))
 
         upgrade_urls_json = \
-            '[{"URL": "%s", "OnlyAfterAttempts" : 0, "SkipVerify" : false}]' % (
+            '[{\\"URL\\": \\"%s\\", \\"OnlyAfterAttempts\\" : 0, \\"SkipVerify\\" : false}]' % (
             base64.b64encode(urlparse.urlunsplit(upgrade_url_split)))
 
         return [builders[platform](
