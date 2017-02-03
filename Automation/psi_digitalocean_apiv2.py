@@ -50,6 +50,8 @@ def refresh_credentials(digitalocean_account, ip_address, new_root_password, new
     ssh.exec_command('rm /etc/ssh/ssh_host_*')
     ssh.exec_command('rm -rf /root/.ssh')
     ssh.exec_command('dpkg-reconfigure openssh-server')
+    ssh.exec_command('sed -i -e "/^PasswordAuthentication no/s/^.*$/PasswordAuthentication yes/" /etc/ssh/sshd_config')
+    ssh.exec_command('service ssh restart')
     return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
 
 
@@ -511,7 +513,7 @@ def launch_new_server(digitalocean_account, is_TCS, _):
             instance of a psinet server
     """
 
-    base_id = '17784624' if not is_TCS else '20668187'
+    base_id = '17784624' if not is_TCS else '22464614'
     try:
         Droplet = collections.namedtuple('Droplet', ['name', 'region', 'image',
                                                      'size', 'backups'])
