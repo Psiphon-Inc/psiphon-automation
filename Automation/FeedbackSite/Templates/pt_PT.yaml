@@ -1,1 +1,20 @@
-pt_PT: {top_content_title: Deixe-nos o Seu Comentário, submit_button: Submeter}
+pt_PT:
+  title: Psiphon - Comentário
+  top_content_title: Deixe-nos o Seu Comentário
+  top_para_1: |
+    Por favor, diga-nos se o Psiphon está a funcionar bem para si, e assim nós podemos torná-lo ainda melhor!
+  top_para_3: |
+    Pode encontrar soluções para os problemas mais comuns em
+    <a class="faqURL" href="#">Perguntas Mais Frequentes</a>.
+  diagnostic_check: |
+    Enviar dados do diagnóstico. Por favor, note que estes dados do diagnóstico não
+    o identificam, e este irá ajudar-nos a manter o Psiphon a funcionar uniformemente.
+    <a class="dataCollectionInfoURL" href="#">Clique aqui para ver os dados que nós recolhemos.</a>
+  smiley_title: Satisfação Geral
+  smiley_happy: O Psiphon liga e funciona do modo que eu esperava.
+  smiley_sad: O Psiphon falha muitas vezes na ligação ou não funciona suficientemente bem.
+  submit_button: Submeter
+  text_feedback_prompt: |
+    Por favor, insira aqui os seus comentários:
+  text_feedback_email_prompt: |
+    Se pretender obter uma resposta da nossa parte, por favor, insira o seu endereço de e-mail:
