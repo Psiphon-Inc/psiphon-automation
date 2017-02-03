@@ -1802,7 +1802,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             raise ex
 
         server_info = provider_launch_new_server_with_retries(is_TCS)
-        return server_info[0:2] + (provider.lower(),) + server_info[3:]
+        return server_info[0:3] + (provider.lower(),) + server_info[4:]
 
     def add_servers(self, server_infos, propagation_channel_name, discovery_date_range, replace_others=True, server_capabilities=None):
         assert(self.is_locked)
