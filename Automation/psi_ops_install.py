@@ -1020,7 +1020,7 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
 
     if host.TCS_type == 'NATIVE':
         # Add PSI_RATE_LIMITING jump in the INPUT
-        filter_input_rules += '-A INPUT -j PSI_RATE_LIMITING'
+        filter_input_rules += ['-A INPUT -j PSI_RATE_LIMITING']
     elif host.TCS_type == 'DOCKER':
         pass
     else:
@@ -1373,7 +1373,7 @@ fi
 exit 0
 ''' % (psi_limit_load_chain_name, psi_limit_load_chain_name,
         psi_ops_deploy.TCS_PSIPHOND_STOP_ESTABLISHING_TUNNELS_SIGNAL_COMMAND,
-        psi_ops_deploy.TCS_PSIPHOND_RESUME_ESTABLISHING_TUNNELS_SIGNAL_COMMAND.
+        psi_ops_deploy.TCS_PSIPHOND_RESUME_ESTABLISHING_TUNNELS_SIGNAL_COMMAND,
         psi_limit_load_chain_name)
 
     ssh = psi_ssh.SSH(
