@@ -307,12 +307,12 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
 
     config['HostID'] = host.id
 
-    config['ServerIPAddress'] = '0.0.0.0'
-
     if host.TCS_type == 'NATIVE':    
+        config['ServerIPAddress'] = server.internal_ip_address
         config['WebServerPort'] = int(server.web_server_port)
         config['TunnelProtocolPorts'] = get_supported_protocol_ports(host, server, external_ports=True)
     elif host.TCS_type == 'DOCKER':
+        config['ServerIPAddress'] = '0.0.0.0'
         config['WebServerPort'] = TCS_DOCKER_WEB_SERVER_PORT
         # gets the Docker ports
         config['TunnelProtocolPorts'] = get_supported_protocol_ports(host, server, external_ports=False)
