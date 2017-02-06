@@ -246,6 +246,7 @@ def deploy_TCS_implementation(ssh, host, servers, TCS_psiphond_config_values):
 
         # Symlink the psiphond binary to /usr/local/bin/
         ssh.exec_command('ln -fs %s /usr/local/bin/psiphond' % (TCS_NATIVE_PSIPHOND_BINARY_FILE_NAME))
+        ssh.exec_command('chmod +x %s' % (TCS_NATIVE_PSIPHOND_BINARY_FILE_NAME))
 
         # Setup kernel caps to allow psiphond to bind to a privileged service port
         ssh.exec_command('setcap CAP_NET_BIND_SERVICE=+eip %s' % (TCS_NATIVE_PSIPHOND_BINARY_FILE_NAME))
