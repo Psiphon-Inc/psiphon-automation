@@ -239,8 +239,8 @@ def deploy_TCS_implementation(ssh, host, servers, TCS_psiphond_config_values):
         TCS_PSIPHOND_CONFIG_FILE_NAME)
 
     if host.TCS_type == 'NATIVE':
-        # TODO: Upload psiphond, restart service
-        # No restart necessary cause the service won't run properly if config file not exist.
+        # Upload psiphond, restart service
+        # Push psiphond from bitbucket repo (Server/psiphond/psiphond) to host.
         ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', 'psiphond', 'psiphond'),
             TCS_NATIVE_PSIPHOND_BINARY_FILE_NAME)
 
