@@ -250,6 +250,9 @@ def deploy_TCS_implementation(ssh, host, servers, TCS_psiphond_config_values):
 
         # Setup kernel caps to allow psiphond to bind to a privileged service port
         ssh.exec_command('setcap CAP_NET_BIND_SERVICE=+eip %s' % (TCS_NATIVE_PSIPHOND_BINARY_FILE_NAME))
+
+        # Restart service (Using Start scipt instead of systemctl)
+        ssh.exec_command(TCS_PSIPHOND_START_COMMAND)
     elif host.TCS_type == 'DOCKER':
         # Upload psiphond.env
 
