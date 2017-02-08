@@ -93,6 +93,7 @@ TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND = 'systemctl kill --signal=USR1 psiphond'
 TCS_PSIPHOND_STOP_ESTABLISHING_TUNNELS_SIGNAL_COMMAND = 'systemctl kill --signal=TSTP psiphond'
 TCS_PSIPHOND_RESUME_ESTABLISHING_TUNNELS_SIGNAL_COMMAND = 'systemctl kill --signal=CONT psiphond'
 TCS_PSIPHOND_START_COMMAND = '/opt/psiphon/psiphond_safe_start.sh'
+TCS_PSIPHOND_SAFE_RESTART_COMMAND = '/opt/psiphon/psiphond_safe_start.sh restart'
 
 
 #==============================================================================
@@ -252,7 +253,7 @@ def deploy_TCS_implementation(ssh, host, servers, TCS_psiphond_config_values):
         ssh.exec_command('setcap CAP_NET_BIND_SERVICE=+eip %s' % (TCS_NATIVE_PSIPHOND_BINARY_FILE_NAME))
 
         # Restart service (Using Start scipt instead of systemctl)
-        ssh.exec_command('systemctl restart psiphond')
+        ssh.exec_command(TCS_PSIPHOND_SAFE_RESTART_COMMAND)
     elif host.TCS_type == 'DOCKER':
         # Upload psiphond.env
 
@@ -283,7 +284,7 @@ CONTAINER_SYSCTL_STRING="--sysctl 'net.ipv4.ip_local_port_range=1100 65535'"
     else:
         raise 'Unhandled host.TCS_type: ' + host.TCS_type
 
-    # Note: not invoking TCS_PSIPHOND_ENABLE_COMMAND here as psiphond expects
+    # Note: not invoking TCS_PSIPHOND_START_COMMAND here as psiphond expects
     # the psinet and traffic rules data to exist when it starts. The enable
     # is delayed until deploy_TCS_data.
 
