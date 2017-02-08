@@ -1004,6 +1004,17 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
         -A INPUT -p tcp -m state --state NEW -m tcp --dport {management_port} -j ACCEPT''').format(management_port=host.ssh_port)
     port_rules = [management_port_rule]
 
+    if host.TCS_type == 'NATIVE':
+        # tunneled web requests
+        port_rules += [
+            '-A INPUT -i lo -d {web_server_ip_address} -p tcp -m state --state NEW -m tcp --dport {web_server_port} -j ACCEPT'.format(
+                web_server_ip_address=str(server.internal_ip_address), web_server_port=str(server.web_server_port))
+        ]
+    elif host.TCS_type == 'DOCKER':
+        pass
+    else:
+        raise 'Unhandled host.TCS_type: ' + host.TCS_type
+
     # Common INPUT rules
 
     filter_input_rules = [
