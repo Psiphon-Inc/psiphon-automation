@@ -269,7 +269,7 @@ def launch_new_server(linode_account, is_TCS, plugins):
         # New: we'll leave this on now due to parallelization
         pass
 
-    return (hostname, is_TCS, None, str(linode_id), linode_ip_address,
+    return (hostname, is_TCS, 'DOCKER' if is_TCS else None, None, str(linode_id), linode_ip_address,
             linode_account.base_ssh_port, 'root', new_root_password,
             ' '.join(new_host_public_key.split(' ')[:2]),
             stats_username, new_stats_password,

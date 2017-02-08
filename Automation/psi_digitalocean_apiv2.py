@@ -513,7 +513,7 @@ def launch_new_server(digitalocean_account, is_TCS, _):
             instance of a psinet server
     """
 
-    base_id = '17784624' if not is_TCS else '22602790'
+    base_id = '17784624' if not is_TCS else '22712043'
     try:
         Droplet = collections.namedtuple('Droplet', ['name', 'region', 'image',
                                                      'size', 'backups'])
@@ -589,7 +589,7 @@ def launch_new_server(digitalocean_account, is_TCS, _):
             print type(e), "No droplet to be destroyed: ", str(droplet)
         raise
 
-    return (droplet.name, is_TCS, None, droplet.id, droplet.ip_address,
+    return (droplet.name, is_TCS, 'NATIVE' if is_TCS else None, None, droplet.id, droplet.ip_address,
             digitalocean_account.base_ssh_port, 'root', new_root_password,
             ' '.join(new_droplet_public_key.split(' ')[:2]),
             stats_username, new_stats_password,

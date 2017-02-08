@@ -200,7 +200,7 @@ SponsorRegex = psi_utils.recordtype(
 
 Host = psi_utils.recordtype(
     'Host',
-    'id, is_TCS, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key, ' +
+    'id, is_TCS, TCS_type, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key, ' +
     'stats_ssh_username, stats_ssh_password, ' +
     'datacenter_name, region, meek_server_port, meek_server_obfuscated_key, meek_server_fronting_domain, ' +
     'meek_server_fronting_host, alternate_meek_server_fronting_hosts, ' +
@@ -385,7 +385,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.43'
+    class_version = '0.44'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -652,6 +652,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 server.osl_ids = None
                 server.osl_discovery_date_range = None
             self.version = '0.43'
+        if cmp(parse_version(self.version), parse_version('0.44')) < 0:
+            # Existing TCS hosts use docker
+            for host in self.__hosts.itervalues():
+                host.TCS_type = 'DOCKER' if host.is_TCS else None
+            for host in self.__deleted_hosts:
+                host.TCS_type = 'DOCKER' if host.is_TCS else None
+            for host in self.__hosts_to_remove_from_providers:
+                host.TCS_type = 'DOCKER' if host.is_TCS else None
+            self.version = '0.44'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1290,13 +1299,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             return servers[0]
         return None
 
-    def get_host_object(self, id, is_TCS, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
+    def get_host_object(self, id, is_TCS, TCS_type, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
                         stats_ssh_username, stats_ssh_password, datacenter_name, region, meek_server_port,
                         meek_server_obfuscated_key, meek_server_fronting_domain, meek_server_fronting_host,
                         alternate_meek_server_fronting_hosts, meek_cookie_encryption_public_key,
                         meek_cookie_encryption_private_key):
         return Host(id,
                     is_TCS,
+                    TCS_type,
                     provider,
                     provider_id,
                     ip_address,
@@ -1355,6 +1365,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             exp_host = (host.id,
                         host.is_TCS,
+                        host.TCS_type,
                         host.provider,
                         host.provider_id,
                         host.ip_address,
@@ -1425,12 +1436,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
 
 
-    def import_host(self, id, use_TCS, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
+    def import_host(self, id, is_TCS, TCS_type, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
                     stats_ssh_username, stats_ssh_password):
         assert(self.is_locked)
         host = Host(
                 id,
-                use_TCS,
+                is_TCS,
+                TCS_type,
                 provider,
                 provider_id,
                 ip_address,
@@ -1791,7 +1803,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             raise ex
 
         server_info = provider_launch_new_server_with_retries(is_TCS)
-        return server_info[0:2] + (provider.lower(),) + server_info[3:]
+        return server_info[0:3] + (provider.lower(),) + server_info[4:]
 
     def add_servers(self, server_infos, propagation_channel_name, discovery_date_range, replace_others=True, server_capabilities=None):
         assert(self.is_locked)
@@ -1964,6 +1976,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         host_copy = Host(
                         host.id,
                         host.is_TCS,
+                        host.TCS_type,
                         host.provider,
                         host.provider_id,
                         host.ip_address,
@@ -2056,7 +2069,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             return
 
     # Migrating Legacy host to TCS host
-    def migrate_to_TCS_entry(self, host):
+    def migrate_to_TCS_entry(self, host, TCS_type):
         if type(host) == str:
             host = self.__hosts[host]
 
@@ -2074,6 +2087,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server.TCS_ssh_private_key = self.run_command_on_host(host, 'cat /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (host.ip_address))
 
         host.is_TCS = True
+        host.TCS_type = TCS_type
 
         return (host, server)
 
@@ -2869,7 +2883,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                False)  # not public
 
     def upgrade_all_TCS_hosts(self):
-      psi_ops_deploy.restart_psiphond_service_on_hosts([host for host in self.__hosts.itervalues() if host.is_TCS])
+        TCS_hosts = [host for host in self.__hosts.itervalues() if host.is_TCS]
+        psi_ops_deploy.deploy_implementation_to_hosts(TCS_hosts, self.__discovery_strategy_value_hmac_key, plugins, self.__TCS_psiphond_config_values)
 
     def add_legacy_server_version(self):
         assert(self.is_locked)
@@ -2917,10 +2932,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(self.is_locked)
         # Marks all hosts for re-deployment of server implementation
         for host in self.__hosts.itervalues():
-            if not host.is_TCS:
-                continue
-            self.__deploy_implementation_required_for_hosts.add(host.id)
-            host.log('marked for implementation deployment')
+            if host.is_TCS:
+                self.__deploy_implementation_required_for_hosts.add(host.id)
+                host.log('marked for implementation deployment')
 
     def add_client_version(self, platform, description):
         assert(self.is_locked)
@@ -3391,6 +3405,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             copy.__hosts[host.id] = Host(
                                         host.id,
                                         host.is_TCS,
+                                        '',  # Omit: TCS_type isn't needed
                                         '',  # Omit: provider isn't needed
                                         '',  # Omit: provider_id isn't needed
                                         '',  # Omit: ip_address isn't needed
@@ -3533,6 +3548,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             copy.__hosts[host.id] = Host(
                                         host.id,
                                         host.is_TCS,
+                                        '',  # Omit: TCS_type isn't needed
                                         '',  # Omit: provider isn't needed
                                         '',  # Omit: provider_id isn't needed
                                         '',  # Omit: ip_address isn't needed
@@ -3648,6 +3664,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             copy.__hosts[host.id] = Host(
                                             host.id,
                                             host.is_TCS,
+                                            host.TCS_type,
                                             host.provider,
                                             '',  # Omit: provider id isn't needed
                                             host.ip_address,
