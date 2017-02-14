@@ -1900,10 +1900,17 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 capabilities['UNFRONTED-MEEK'] = True
 
             if capabilities['UNFRONTED-MEEK']:
-                if random.random() < 0.5:
+                random_number = random.random()
+                if random_number < 0.33:
                     self.setup_meek_parameters_for_host(host, 80)
+                elif random_number < 0.66:
+                    ossh_port = 53
+                    self.setup_meek_parameters_for_host(host, 443)
                 else:
                     ossh_port = 53
+                    assert(host.is_TCS)
+                    capabilities['UNFRONTED-MEEK'] = False
+                    capabilities['UNFRONTED-MEEK-SESSION-TICKET'] = True
                     self.setup_meek_parameters_for_host(host, 443)
 
             # All and only TCS servers support SSH API requests
