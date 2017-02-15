@@ -84,7 +84,7 @@ def create_linode(linode_api):
 def create_linode_disks(linode_api, linode_id, bootstrap_password, is_TCS, plugins):
 
     if is_TCS:
-        image_id = 1540841
+        image_id = 1558434
         create_disk_job = linode_api.linode_disk_createfromimage(ImageID=image_id, LinodeID=linode_id, Size=40000)
         # Image creation keys are in upper case
         if str.upper('jobid') in create_disk_job:
@@ -269,7 +269,7 @@ def launch_new_server(linode_account, is_TCS, plugins):
         # New: we'll leave this on now due to parallelization
         pass
 
-    return (hostname, is_TCS, 'DOCKER' if is_TCS else None, None, str(linode_id), linode_ip_address,
+    return (hostname, is_TCS, 'NATIVE' if is_TCS else None, None, str(linode_id), linode_ip_address,
             linode_account.base_ssh_port, 'root', new_root_password,
             ' '.join(new_host_public_key.split(' ')[:2]),
             stats_username, new_stats_password,
