@@ -1763,12 +1763,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Deploy will upload web server source database data and client builds
         # (Only deploying for the new host, not broadcasting info yet...)
         psi_ops_deploy.deploy_implementation(host, servers, self.__discovery_strategy_value_hmac_key, plugins, self.__TCS_psiphond_config_values)
+        psi_ops_deploy.deploy_geoip_database_autoupdates(host)
         psi_ops_deploy.deploy_data(
                             host,
                             self.__compartmentalize_data_for_host(host.id, host.is_TCS),
                             self.__TCS_traffic_rules_set,
                             self.__TCS_OSL_config)
-        psi_ops_deploy.deploy_geoip_database_autoupdates(host)
         psi_ops_deploy.deploy_routes(host)
         host.log('initial deployment')
 
@@ -2121,6 +2121,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         psi_ops_install.install_host(host, servers, self.get_existing_server_ids(), plugins)
         psi_ops_install.change_weekly_crontab_runday(host, None)
         psi_ops_deploy.deploy_implementation(host, servers, self.__discovery_strategy_value_hmac_key, plugins, self.__TCS_psiphond_config_values)
+        psi_ops_deploy.deploy_geoip_database_autoupdates(host)
         # New data might have been generated
         # NOTE that if the client version has been incremented but a full deploy has not yet been run,
         # this following psi_ops_deploy.deploy_data call is not safe.  Data will specify a new version
@@ -2130,7 +2131,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             self.__compartmentalize_data_for_host(host.id, host.is_TCS),
                             self.__TCS_traffic_rules_set,
                             self.__TCS_OSL_config)
-        psi_ops_deploy.deploy_geoip_database_autoupdates(host)
 
         host.log('reinstall')
 
