@@ -68,8 +68,8 @@ def create_linode(linode_api):
     datacenter = random.choice(avail_datacenters)
     datacenter_id = datacenter['DATACENTERID']
     datacenter_name = make_datacenter_name(datacenter['LOCATION'])
-    # We use PlanID = 2: linode 2048
-    new_node_id = linode_api.linode_create(DatacenterID=datacenter_id, PlanID=2, PaymentTerm=1)['LinodeID']
+    # We use PlanID = 3: Linode 4096
+    new_node_id = linode_api.linode_create(DatacenterID=datacenter_id, PlanID=3, PaymentTerm=1)['LinodeID']
     # Status flag values: (partial list)
     # -1: Being Created
     #  0: Brand New
@@ -85,7 +85,7 @@ def create_linode_disks(linode_api, linode_id, bootstrap_password, is_TCS, plugi
 
     if is_TCS:
         image_id = 1558434
-        create_disk_job = linode_api.linode_disk_createfromimage(ImageID=image_id, LinodeID=linode_id, Size=40000)
+        create_disk_job = linode_api.linode_disk_createfromimage(ImageID=image_id, LinodeID=linode_id, Size=30000)
         # Image creation keys are in upper case
         if str.upper('jobid') in create_disk_job:
             create_disk_job['JobID'] = create_disk_job['JOBID']
@@ -98,7 +98,7 @@ def create_linode_disks(linode_api, linode_id, bootstrap_password, is_TCS, plugi
         for plugin in plugins:
             if hasattr(plugin, 'linode_distribution_id'):
                 distribution_id = plugin.linode_distribution_id()
-        create_disk_job = linode_api.linode_disk_createfromdistribution(LinodeID=linode_id, DistributionID=distribution_id, rootPass=bootstrap_password, Label='Psiphon 3 Disk Image', Size=40000)
+        create_disk_job = linode_api.linode_disk_createfromdistribution(LinodeID=linode_id, DistributionID=distribution_id, rootPass=bootstrap_password, Label='Psiphon 3 Disk Image', Size=30000)
 
     wait_while_condition(lambda: linode_api.linode_job_list(LinodeID=linode_id, JobID=create_disk_job['JobID'])[0]['HOST_SUCCESS'] == '',
                          120,
