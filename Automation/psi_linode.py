@@ -85,7 +85,7 @@ def create_linode_disks(linode_api, linode_id, bootstrap_password, is_TCS, plugi
 
     if is_TCS:
         image_id = 1558434
-        create_disk_job = linode_api.linode_disk_createfromimage(ImageID=image_id, LinodeID=linode_id, Size=30000)
+        create_disk_job = linode_api.linode_disk_createfromimage(ImageID=image_id, LinodeID=linode_id, Size=29500)
         # Image creation keys are in upper case
         if str.upper('jobid') in create_disk_job:
             create_disk_job['JobID'] = create_disk_job['JOBID']
@@ -98,7 +98,7 @@ def create_linode_disks(linode_api, linode_id, bootstrap_password, is_TCS, plugi
         for plugin in plugins:
             if hasattr(plugin, 'linode_distribution_id'):
                 distribution_id = plugin.linode_distribution_id()
-        create_disk_job = linode_api.linode_disk_createfromdistribution(LinodeID=linode_id, DistributionID=distribution_id, rootPass=bootstrap_password, Label='Psiphon 3 Disk Image', Size=30000)
+        create_disk_job = linode_api.linode_disk_createfromdistribution(LinodeID=linode_id, DistributionID=distribution_id, rootPass=bootstrap_password, Label='Psiphon 3 Disk Image', Size=29500)
 
     wait_while_condition(lambda: linode_api.linode_job_list(LinodeID=linode_id, JobID=create_disk_job['JobID'])[0]['HOST_SUCCESS'] == '',
                          120,
