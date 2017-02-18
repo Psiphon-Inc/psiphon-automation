@@ -30,7 +30,7 @@ def set_embedded_values(client_version,
                         info_link_url,
                         proxied_web_app_http_auth_username,
                         proxied_web_app_http_auth_password,
-                        upgrade_url,
+                        upgrade_urls_json,
                         upgrade_signature_public_key,
                         get_new_version_url,
                         get_new_version_email,
@@ -39,8 +39,8 @@ def set_embedded_values(client_version,
                         is_play_store_build,
                         propagation_channel_id,
                         sponsor_id,
-                        remote_server_list_url,
-                        OSL_root_url,
+                        remote_server_list_urls_json,
+                        OSL_root_urls_json,
                         remote_server_list_signature_public_key,
                         home_tab_url_exclusions):
     global embedded_values
@@ -54,7 +54,7 @@ def set_embedded_values(client_version,
     embedded_values['INFO_LINK_URL'] = info_link_url
     embedded_values['PROXIED_WEB_APP_HTTP_AUTH_USERNAME'] = proxied_web_app_http_auth_username
     embedded_values['PROXIED_WEB_APP_HTTP_AUTH_PASSWORD'] = proxied_web_app_http_auth_password
-    embedded_values['UPGRADE_URL'] = upgrade_url
+    embedded_values['UPGRADE_URLS_JSON'] = upgrade_urls_json
     embedded_values['UPGRADE_SIGNATURE_PUBLIC_KEY'] = upgrade_signature_public_key
     embedded_values['GET_NEW_VERSION_URL'] = get_new_version_url
     embedded_values['GET_NEW_VERSION_EMAIL'] = get_new_version_email
@@ -63,8 +63,8 @@ def set_embedded_values(client_version,
     embedded_values['IS_PLAY_STORE_BUILD'] = is_play_store_build
     embedded_values['PROPAGATION_CHANNEL_ID'] = propagation_channel_id
     embedded_values['SPONSOR_ID'] = sponsor_id
-    embedded_values['REMOTE_SERVER_LIST_URL'] = remote_server_list_url
-    embedded_values['OBFUSCATED_SERVER_LIST_ROOT_URL'] = OSL_root_url
+    embedded_values['REMOTE_SERVER_LIST_URLS_JSON'] = remote_server_list_urls_json
+    embedded_values['OBFUSCATED_SERVER_LIST_ROOT_URLS_JSON'] = OSL_root_urls_json
     embedded_values['REMOTE_SERVER_LIST_SIGNATURE_PUBLIC_KEY'] = remote_server_list_signature_public_key
     embedded_values['HOME_TAB_URL_EXCLUSIONS'] = home_tab_url_exclusions
 
