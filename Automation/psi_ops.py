@@ -2083,6 +2083,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     remote_fliepath = os.path.join(remote_path, filename)
                     # put file
                     ssh.put_file(local_path, remote_fliepath)
+            ssh.exec_command('service ssh restart')
         else:
             print('Action is not supported, please use "backup" or "restore"')
             return
