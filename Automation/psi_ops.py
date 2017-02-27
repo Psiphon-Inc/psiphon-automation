@@ -2110,6 +2110,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server.web_server_private_key = '-----BEGIN RSA PRIVATE KEY-----\n' + server.web_server_private_key + '\n-----END RSA PRIVATE KEY-----\n'
         server.TCS_ssh_private_key = self.run_command_on_host(host, 'cat /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (host.ip_address))
 
+        if host.is_TCS == True:
+            migrated_from = 'TCS Docker'
+        else:
+            migrated_from = 'Legacy'
+
+        server.log('Migrated' + ' from ' + migrated_from + ' to TCS ' + TCS_type)
+        
         host.is_TCS = True
         host.TCS_type = TCS_type
 
