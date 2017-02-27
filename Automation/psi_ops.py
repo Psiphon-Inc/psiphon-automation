@@ -1586,9 +1586,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # NOTE: This will also call save() only if a host has been removed and
         # __deploy_stats_config_required is set. If hosts have only been disabled, a save()
         # might not occur.
-        self.deploy()
+        # NEW: caller is responsible for deploy(), to reduce the number of save()'s when
+        # this is called in a loop.
+        #self.deploy()
 
-        if number_removed == 0 and number_disabled > 0:
+        if number_removed > 0 or number_disabled > 0:
             self.save()
 
         return number_removed, number_disabled
@@ -4029,6 +4031,7 @@ def prune_all_propagation_channels():
             number_removed, number_disabled = psinet.prune_propagation_channel_servers(propagation_channel.name)
             sys.stderr.write('Pruned %d servers from %s\n' % (number_removed, propagation_channel.name))
             sys.stderr.write('Disabled %d servers from %s\n' % (number_disabled, propagation_channel.name))
+        psinet.deploy()
     finally:
         psinet.show_status()
         psinet.release()
