@@ -4033,8 +4033,7 @@ def prune_all_propagation_channels():
     psinet.show_status()
     try:
         propagation_channels = psinet._PsiphonNetwork__propagation_channels.values()
-        random.shuffle(propagation_channels)
-        for propagation_channel in propagation_channels[0:10]:
+        for propagation_channel in propagation_channels:
             number_removed, number_disabled = psinet.prune_propagation_channel_servers(propagation_channel.name)
             sys.stderr.write('Pruned %d servers from %s\n' % (number_removed, propagation_channel.name))
             sys.stderr.write('Disabled %d servers from %s\n' % (number_disabled, propagation_channel.name))
