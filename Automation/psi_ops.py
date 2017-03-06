@@ -2461,6 +2461,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             f.close()
         return upgrade_filename
 
+    def __deploy_implementation_to_hosts(self, hosts):
+        hosts_and_servers = [(host, [server for server in self.__servers.itervalues() if server.host_id == host.id]) for host in hosts]
+        psi_ops_deploy.deploy_implementation_to_hosts(hosts_and_servers, self.__discovery_strategy_value_hmac_key, plugins, self.__TCS_psiphond_config_values)
+
     def deploy(self):
         # Deploy as required:
         #
@@ -2480,7 +2484,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Host implementation
 
         hosts = [self.__hosts[host_id] for host_id in self.__deploy_implementation_required_for_hosts]
-        psi_ops_deploy.deploy_implementation_to_hosts(hosts, self.__discovery_strategy_value_hmac_key, plugins, self.__TCS_psiphond_config_values)
+        self.__deploy_implementation_to_hosts(hosts)
 
         if len(self.__deploy_implementation_required_for_hosts) > 0:
             self.__deploy_implementation_required_for_hosts.clear()
@@ -2927,7 +2931,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def upgrade_all_TCS_hosts(self):
         TCS_hosts = [host for host in self.__hosts.itervalues() if host.is_TCS]
-        psi_ops_deploy.deploy_implementation_to_hosts(TCS_hosts, self.__discovery_strategy_value_hmac_key, plugins, self.__TCS_psiphond_config_values)
+        self.__deploy_implementation_to_hosts(TCS_hosts)
 
     def add_legacy_server_version(self):
         assert(self.is_locked)

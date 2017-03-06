@@ -424,19 +424,23 @@ def get_supported_protocol_ports(host, server, **kwargs):
     return supported_protocol_ports
 
 
-def deploy_implementation_to_hosts(hosts, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
+# hosts_and_servers is a list of tuples: [(host, [server, ...]), ...]
+def deploy_implementation_to_hosts(hosts_and_servers, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
 
     @retry_decorator_returning_exception
-    def do_deploy_implementation(host):
+    def do_deploy_implementation(host_and_servers):
         try:
-            deploy_implementation(host, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values)
+            host = host_and_servers[0]
+            servers = host_and_servers[1]
+            deploy_implementation(host, servers, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values)
         except:
             print 'Error deploying implementation to host %s' % (host.id,)
             raise
         host.log('deploy implementation')
 
-    run_in_parallel(20, do_deploy_implementation, hosts)
-    restart_psiphond_service_on_hosts([host for host in hosts if host.is_TCS and host.TCS_type == 'DOCKER'])
+    run_in_parallel(20, do_deploy_implementation, hosts_and_servers)
+    restart_psiphond_service_on_hosts([host for host in (host_and_servers[0] for host_and_servers in hosts_and_servers)
+                                                        if host.is_TCS and host.TCS_type == 'DOCKER'])
 
 
 def deploy_data(host, host_data, TCS_traffic_rules_set, TCS_OSL_config):
