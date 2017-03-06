@@ -72,6 +72,7 @@ SOURCE_FILES = [
 TCS_PSIPHOND_DOCKER_ENVIRONMENT_FILE_NAME = '/opt/psiphon/psiphond/config/psiphond.env'
 TCS_PSIPHOND_CONFIG_FILE_NAME = '/opt/psiphon/psiphond/config/psiphond.config'
 TCS_NATIVE_PSIPHOND_BINARY_FILE_NAME = '/opt/psiphon/psiphond/psiphond'
+TCS_NATIVE_PSIPHOND_TEMP_BINARY_FILE_NAME = '/opt/psiphon/psiphond/psiphond.tmp'
 TCS_PSIPHOND_LOG_FILE_NAME = '/var/log/psiphond/psiphond.log'
 TCS_PSIPHOND_PROCESS_PROFILE_OUTPUT_DIRECTORY_NAME = '/var/log/psiphond'
 TCS_TRAFFIC_RULES_FILE_NAME = '/opt/psiphon/psiphond/config/traffic-rules.config'
@@ -243,7 +244,8 @@ def deploy_TCS_implementation(ssh, host, servers, TCS_psiphond_config_values):
         # Upload psiphond, restart service
         # Push psiphond from bitbucket repo (Server/psiphond/psiphond) to host.
         ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', 'psiphond', 'psiphond'),
-            TCS_NATIVE_PSIPHOND_BINARY_FILE_NAME)
+            TCS_NATIVE_PSIPHOND_TEMP_BINARY_FILE_NAME)
+        ssh.exec_command('mv %s %s' % (TCS_NATIVE_PSIPHOND_TEMP_BINARY_FILE_NAME, TCS_NATIVE_PSIPHOND_BINARY_FILE_NAME))
 
         # Symlink the psiphond binary to /usr/local/bin/
         ssh.exec_command('ln -fs %s /usr/local/bin/psiphond' % (TCS_NATIVE_PSIPHOND_BINARY_FILE_NAME))
