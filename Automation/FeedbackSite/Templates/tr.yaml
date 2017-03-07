@@ -1,6 +1,6 @@
 tr:
   title: Psiphon Geribildirimi
-  top_content_title: Geri Bildirim Yapın
+  top_content_title: Geribildirim Yapın
   top_para_1: |
     Lütfen Psiphon'un nasıl çalıştığını öğrenmemiz için aşağıdaki formu tamamlayın biz de sistemi daha iyi yapalım!
   top_para_2: |
@@ -21,6 +21,6 @@ tr:
   text_feedback_prompt: |
     Lütfen yorumlarınızı buraya girin:
   text_feedback_email_prompt: |
-    Eğer size geri dönmememizi isterseniz, lütfen e-posta adresinizi girin:
+    Eğer size geri dönmemizi isterseniz, lütfen e-posta adresinizi girin:
   text_feedback_bottom_para: |
     Eğer yukarıdaki form çalışmıyorsa veya ekran görüntüsü yollamak isterseniz, lütfen bize <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a> adresinden e-posta gönderin.

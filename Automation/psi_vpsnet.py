@@ -254,6 +254,7 @@ def launch_new_server(vpsnet_account, is_TCS, _):
     return (
         host_id,
         is_TCS,
+        'DOCKER' if is_TCS else None,
         None,
         node.id,
         public_ip_address,
