@@ -53,6 +53,11 @@ def load_default_config():
     return CONFIG_FILE_NAME
 
 
+def load_server_config(server_id):
+    return os.path.join(os.path.abspath('.'), 'network-health', 'conf', 
+        'tunnel-core-config-{id}.config'.format(id=server_id.replace(' ', '_')))
+
+
 def retry_on_exception_decorator(function):
     @wraps(function)
     def wrapper(*args, **kwds):
@@ -69,10 +74,15 @@ def retry_on_exception_decorator(function):
 
 
 class TunnelCoreConsoleRunner:
-    def __init__(self, encoded_server_entry, propagation_channel_id = '0', split_tunnel_url_format = "", split_tunnel_signature_public_key = "", split_tunnel_dns_server = "", tunnel_core_binary = None, tunnel_core_config = None):
+    def __init__(self, encoded_server_entry, propagation_channel_id = '0', sponsor_id = '0', client_platform = '', client_version = '0', split_tunnel_url_format = '', split_tunnel_signature_public_key = '', split_tunnel_dns_server = '', tunnel_core_binary = None, tunnel_core_config = None):
         self.proc = None
+        self.http_proxy_port = 0
+        self.socks_proxy_port = 0
         self.encoded_server_entry = encoded_server_entry
         self.propagation_channel_id = propagation_channel_id
+        self.sponsor_id = sponsor_id
+        self.client_platform = client_platform
+        self.client_version = client_version
         self.split_tunnel_url_format = split_tunnel_url_format
         self.split_tunnel_signature_public_key = split_tunnel_signature_public_key
         self.split_tunnel_dns_server = split_tunnel_dns_server
@@ -85,9 +95,11 @@ class TunnelCoreConsoleRunner:
             "TargetServerEntry": self.encoded_server_entry, # Single Test Server Parameter
             "TunnelProtocol": transport, # Single or group Test Protocol
             "PropagationChannelId" : self.propagation_channel_id, # Propagation Channel ID = "Testing"
-            "SponsorId" : "0",
-            "LocalHttpProxyPort" : 8080,
-            "LocalSocksProxyPort" : 1080,
+            "SponsorId" : self.sponsor_id,
+            "ClientPlatform" : self.client_platform,
+            "ClientVersion" : self.client_version,
+            "LocalHttpProxyPort" : self.http_proxy_port,
+            "LocalSocksProxyPort" : self.socks_proxy_port,
             "UseIndistinguishableTLS": True,
             "TunnelPoolSize" : 1,
             "ConnectionWorkerPoolSize" : 1,
@@ -132,6 +144,11 @@ class TunnelCoreConsoleRunner:
                 break
 
             line = json.loads(line)
+            if line["data"].get("port"):
+                if line.get("noticeType") == "ListeningSocksProxyPort":
+                    self.socks_proxy_port = line["data"].get("port")
+                elif line.get("noticeType") == "ListeningHttpProxyPort":
+                    self.http_proxy_port = line["data"].get("port")
             if line["data"].get("count") != None:
                 if line["noticeType"] == "Tunnels" and line["data"]["count"] == 1:
                     break
@@ -142,7 +159,7 @@ class TunnelCoreConsoleRunner:
                 break
 
     def setup_proxy(self):
-        return urllib3.ProxyManager("http://127.0.0.1:8080")
+        return urllib3.ProxyManager("http://127.0.0.1:{http_port}".format(http_port=self.http_proxy_port))
         
 
     def stop_psiphon(self):
@@ -153,7 +170,7 @@ class TunnelCoreConsoleRunner:
             print e
 
         try:
-            #os.remove(CONFIG_FILE_NAME)
+            os.remove(self.tunnel_core_config)
             time.sleep(1)
         except Exception as e:
             print "Remove Config/Log File Failed" + str(e)
@@ -179,7 +196,7 @@ def __test_server(runner, transport, expected_egress_ip_addresses, split_tunnel_
         runner.connect_to_server(transport, split_tunnel_mode)
         
         runner.wait_for_connection()
-
+        
         http_proxy = runner.setup_proxy()
         
         time.sleep(5)
@@ -229,8 +246,9 @@ def __test_server(runner, transport, expected_egress_ip_addresses, split_tunnel_
 
 
 def test_server(server, host, encoded_server_entry, split_tunnel_url_format, 
-                split_tunnel_signature_public_key, split_tunnel_dns_server, version,
+                split_tunnel_signature_public_key, split_tunnel_dns_server, 
                 expected_egress_ip_addresses, test_propagation_channel_id = '0', 
+                test_sponsor_id = '0', client_platform = '', client_version = '',
                 test_cases = None, executable_path = None, config_file = None):
 
     if executable_path is None:
@@ -251,15 +269,16 @@ def test_server(server, host, encoded_server_entry, split_tunnel_url_format,
             or (test_case == 'UNFRONTED-MEEK-SESSION-TICKET-OSSH' and not (capabilities['UNFRONTED-MEEK-SESSION-TICKET']))
             or (test_case == 'FRONTED-MEEK-OSSH' and not (capabilities['FRONTED-MEEK']))
             or (test_case == 'FRONTED-MEEK-HTTP-OSSH' and not (capabilities['FRONTED-MEEK'] and host.alternate_meek_server_fronting_hosts))
-            or (test_case in ['handshake', 'OSSH', 'SSH', 'VPN'] and not capabilities[test_case])):
-            print 'Server does not support %s' % (test_case,)
+            or (test_case in ['handshake', 'OSSH', 'SSH', 'VPN'] and not capabilities[test_case])
+            or test_case == 'handshake' or test_case == 'VPN'):
             local_test_cases.remove(test_case)
     
     results = {}
     
     for test_case in local_test_cases:
         tunnel_core_runner = TunnelCoreConsoleRunner(
-            encoded_server_entry, test_propagation_channel_id,  
+            encoded_server_entry, test_propagation_channel_id, test_sponsor_id,
+            client_platform, client_version,
             split_tunnel_url_format, split_tunnel_signature_public_key, 
             split_tunnel_dns_server, executable_path, config_file)
         
