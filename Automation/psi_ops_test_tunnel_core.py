@@ -30,7 +30,7 @@ from functools import wraps
 
 # Local service should be in same GeoIP region; local split tunnel will be in effect (not proxied)
 # Remote service should be in different GeoIP region; remote split tunnel will be in effect (proxied)
-CHECK_IP_ADDRESS_URL_LOCAL = ['http://ip.psitools.com', 'https://ip.psitools.com']
+CHECK_IP_ADDRESS_URL_LOCAL = ['http://automation.whatismyip.com/n09230945.asp']
 CHECK_IP_ADDRESS_URL_REMOTE = []
 
 SOURCE_ROOT = os.path.join(os.path.abspath('.'), 'network-health', 'bin')
