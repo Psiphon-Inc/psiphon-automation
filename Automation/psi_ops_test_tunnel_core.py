@@ -31,7 +31,6 @@ from functools import wraps
 # Local service should be in same GeoIP region; local split tunnel will be in effect (not proxied)
 # Remote service should be in different GeoIP region; remote split tunnel will be in effect (proxied)
 CHECK_IP_ADDRESS_URL_LOCAL = ['http://automation.whatismyip.com/n09230945.asp']
-CHECK_IP_ADDRESS_URL_REMOTE = []
 
 SOURCE_ROOT = os.path.join(os.path.abspath('.'), 'network-health', 'bin')
 TUNNEL_CORE = os.path.join(SOURCE_ROOT, 'psiphon-tunnel-core')
@@ -177,7 +176,7 @@ class TunnelCoreConsoleRunner:
 
 
 @retry_on_exception_decorator
-def __test_server(runner, transport, expected_egress_ip_addresses, split_tunnel_mode):
+def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, split_tunnel_mode):
     # test:
     # - spawn client process, which starts the VPN
     # - sleep 5 seconds, which allows time to establish connection
@@ -201,7 +200,7 @@ def __test_server(runner, transport, expected_egress_ip_addresses, split_tunnel_
         
         time.sleep(5)
 
-        for url in CHECK_IP_ADDRESS_URL_LOCAL:
+        for url in test_sites:
             # Get egress IP from web site in same GeoIP region; local split tunnel is not proxied
             
             print "Testing site: {0}".format(url)
@@ -249,8 +248,11 @@ def test_server(server, host, encoded_server_entry, split_tunnel_url_format,
                 split_tunnel_signature_public_key, split_tunnel_dns_server, 
                 expected_egress_ip_addresses, test_propagation_channel_id = '0', 
                 test_sponsor_id = '0', client_platform = '', client_version = '',
-                test_cases = None, executable_path = None, config_file = None):
-
+                test_cases = None, test_sites = [], executable_path = None, config_file = None):
+    
+    if len(test_sites) is 0:
+        test_sites = CHECK_IP_ADDRESS_URL_LOCAL
+    
     if executable_path is None:
         executable_path = load_default_tunnel_core()
     
@@ -284,7 +286,8 @@ def test_server(server, host, encoded_server_entry, split_tunnel_url_format,
         
         results[test_case] = {}
         try:
-            results[test_case] = __test_server(tunnel_core_runner, test_case, expected_egress_ip_addresses, False)
+            results[test_case] = __test_server(tunnel_core_runner, test_case, 
+                                               expected_egress_ip_addresses, test_sites, False)
             #for split_tunnel in [True, False]:
             #    results[test_case]['SPLIT TUNNEL {0}'.format(split_tunnel)] = __test_server(tunnel_core_runner, test_case, expected_egress_ip_addresses, split_tunnel)
             #results[test_case] = 'PASS'
