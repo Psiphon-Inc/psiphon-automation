@@ -1320,8 +1320,10 @@ def install_TCS_psi_limit_load(host, disable_permanently=False):
 
     if host.TCS_type == 'NATIVE':
         psi_limit_load_chain_name = 'INPUT'
+        syn_sent_check = 'netstat -tn | grep SYN_SENT | wc -l'
     elif host.TCS_type == 'DOCKER':
         psi_limit_load_chain_name = 'FORWARD -o docker0'
+        syn_sent_check = 'docker exec psiphond-run netstat -tn | grep SYN_SENT | wc -l'
     else:
         raise 'Unhandled host.TCS_type: ' + host.TCS_type
 
@@ -1341,6 +1343,7 @@ exit 0
 threshold_load_per_cpu=1
 threshold_mem=10
 threshold_swap=20
+threshold_syn_sent=1000
 
 while true; do
 
@@ -1370,10 +1373,17 @@ while true; do
         fi
     fi
 
+    loaded_net=0
+    syn_sent=`%s`
+    if [ $syn_sent -ge $threshold_syn_sent ]; then
+        loaded_net=1
+        logger psi_limit_load: SYN_SENT threshold reached.
+    fi
+
     break
 done
 
-if [ $loaded_cpu -eq 1 ] || [ $loaded_mem -eq 1 ] || [ $loaded_swap -eq 1 ]; then
+if [ $loaded_cpu -eq 1 ] || [ $loaded_mem -eq 1 ] || [ $loaded_swap -eq 1 ] || [ $loaded_net -eq 1 ]; then
     iptables -D %s -j PSI_LIMIT_LOAD
     iptables -I %s -j PSI_LIMIT_LOAD
     %s
@@ -1382,7 +1392,8 @@ else
     iptables -D %s -j PSI_LIMIT_LOAD
 fi
 exit 0
-''' % (psi_limit_load_chain_name, psi_limit_load_chain_name,
+''' % (syn_sent_check,
+        psi_limit_load_chain_name, psi_limit_load_chain_name,
         psi_ops_deploy.TCS_PSIPHOND_STOP_ESTABLISHING_TUNNELS_SIGNAL_COMMAND,
         psi_ops_deploy.TCS_PSIPHOND_RESUME_ESTABLISHING_TUNNELS_SIGNAL_COMMAND,
         psi_limit_load_chain_name)
