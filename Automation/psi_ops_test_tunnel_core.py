@@ -25,6 +25,7 @@ import time
 import copy
 import json
 import shlex
+import signal
 
 from functools import wraps
 
@@ -163,7 +164,7 @@ class TunnelCoreConsoleRunner:
 
     def stop_psiphon(self):
         try:
-            self.proc.terminate()
+            self.proc.send_signal(signal.SIGINT)
             (stdin, stderr) = self.proc.communicate()
         except Exception as e:
             print e
@@ -237,7 +238,7 @@ def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, s
         print "Could not tunnel to {0}: {1}".format(url, e)
         output['HTTP'] = output['HTTPS'] = 'FAIL'
     finally:
-        print "Stopping tunnel"
+        print "Stopping tunnel to {ipaddr}".format(ipaddr = expected_egress_ip_addresses)
         runner.stop_psiphon()
     
     return output
