@@ -382,10 +382,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         self.__default_sponsor_id = None
 
+        self.__alternate_s3_bucket_domains = set()
+
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.44'
+    class_version = '0.45'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -661,6 +663,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for host in self.__hosts_to_remove_from_providers:
                 host.TCS_type = 'DOCKER' if host.is_TCS else None
             self.version = '0.44'
+        if cmp(parse_version(self.version), parse_version('0.45')) < 0:
+            self.__alternate_s3_bucket_domains = set()
+            self.version = '0.45'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1508,7 +1513,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         host = self.__hosts[host_id]
         if host.is_TCS:
             return int(self.run_command_on_host(host,
-                'tac /var/log/psiphond/psiphond.log | grep -m1 ALL.*established_clients | python -c \'import sys, json; print json.loads(sys.stdin.read())["ALL"]["established_clients"]\''))
+                'tac /var/log/psiphond/psiphond.log | grep -m1 \\"establish_tunnels\\": | python -c \'import sys, json; print json.loads(sys.stdin.read())["ALL"]["established_clients"]\''))
         else:
             vpn_users = int(self.run_command_on_host(host,
                                                  'ifconfig | grep ppp | wc -l'))
@@ -1581,9 +1586,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # NOTE: This will also call save() only if a host has been removed and
         # __deploy_stats_config_required is set. If hosts have only been disabled, a save()
         # might not occur.
-        self.deploy()
+        # NEW: caller is responsible for deploy(), to reduce the number of save()'s when
+        # this is called in a loop.
+        #self.deploy()
 
-        if number_removed == 0 and number_disabled > 0:
+        if number_removed > 0 or number_disabled > 0:
             self.save()
 
         return number_removed, number_disabled
@@ -1758,12 +1765,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Deploy will upload web server source database data and client builds
         # (Only deploying for the new host, not broadcasting info yet...)
         psi_ops_deploy.deploy_implementation(host, servers, self.__discovery_strategy_value_hmac_key, plugins, self.__TCS_psiphond_config_values)
+        psi_ops_deploy.deploy_geoip_database_autoupdates(host)
         psi_ops_deploy.deploy_data(
                             host,
                             self.__compartmentalize_data_for_host(host.id, host.is_TCS),
                             self.__TCS_traffic_rules_set,
                             self.__TCS_OSL_config)
-        psi_ops_deploy.deploy_geoip_database_autoupdates(host)
         psi_ops_deploy.deploy_routes(host)
         host.log('initial deployment')
 
@@ -1895,10 +1902,17 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 capabilities['UNFRONTED-MEEK'] = True
 
             if capabilities['UNFRONTED-MEEK']:
-                if random.random() < 0.5:
+                random_number = random.random()
+                if random_number < 0.33:
                     self.setup_meek_parameters_for_host(host, 80)
+                elif random_number < 0.66:
+                    ossh_port = 53
+                    self.setup_meek_parameters_for_host(host, 443)
                 else:
                     ossh_port = 53
+                    assert(host.is_TCS)
+                    capabilities['UNFRONTED-MEEK'] = False
+                    capabilities['UNFRONTED-MEEK-SESSION-TICKET'] = True
                     self.setup_meek_parameters_for_host(host, 443)
 
             # All and only TCS servers support SSH API requests
@@ -2048,10 +2062,17 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             ssh.exec_command('tar czvf /root/etc.tar.gz /etc/*')
             ssh.get_file('/root/etc.tar.gz', './Migration/' + host.ip_address + '-etc.tar.gz')
         elif action == 'restore':
-            ssh = psi_ssh.SSH(
-                    host.ip_address, host.ssh_port,
-                    host.ssh_username, host.ssh_password,
-                    self.__linode_account.tcs_base_host_public_key)
+            if host.provider == 'digitalocean':
+                ssh = psi_ssh.SSH(
+                        host.ip_address, host.ssh_port,
+                        host.ssh_username, None, None,
+                        self.__digitalocean_account.base_rsa_private_key)
+                ssh.exec_command('echo "root:%s" | chpasswd' % (host.ssh_password))
+            elif host.provider == 'linode':
+                ssh = psi_ssh.SSH(
+                        host.ip_address, host.ssh_port,
+                        host.ssh_username, host.ssh_password,
+                        self.__linode_account.tcs_base_host_public_key)
             import shlex
             subprocess.Popen(shlex.split('mkdir ./Migration/' + host.ip_address))
             subprocess.Popen(shlex.split('tar xzvf ./Migration/' + host.ip_address + '-etc.tar.gz -C ./Migration/' + host.ip_address))
@@ -2064,6 +2085,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     remote_fliepath = os.path.join(remote_path, filename)
                     # put file
                     ssh.put_file(local_path, remote_fliepath)
+            ssh.exec_command('sed -i -e "/^PasswordAuthentication no/s/^.*$/PasswordAuthentication yes/" /etc/ssh/sshd_config')
+            ssh.exec_command('sed -i -e "/PasswordAuthentication yes/s/^#//" /etc/ssh/sshd_config')
+            ssh.exec_command('service ssh restart')
         else:
             print('Action is not supported, please use "backup" or "restore"')
             return
@@ -2086,6 +2110,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server.web_server_private_key = '-----BEGIN RSA PRIVATE KEY-----\n' + server.web_server_private_key + '\n-----END RSA PRIVATE KEY-----\n'
         server.TCS_ssh_private_key = self.run_command_on_host(host, 'cat /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (host.ip_address))
 
+        if host.is_TCS == True:
+            migrated_from = 'TCS Docker'
+        else:
+            migrated_from = 'Legacy'
+
+        server.log('Migrated' + ' from ' + migrated_from + ' to TCS ' + TCS_type)
+        
         host.is_TCS = True
         host.TCS_type = TCS_type
 
@@ -2109,6 +2140,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         psi_ops_install.install_host(host, servers, self.get_existing_server_ids(), plugins)
         psi_ops_install.change_weekly_crontab_runday(host, None)
         psi_ops_deploy.deploy_implementation(host, servers, self.__discovery_strategy_value_hmac_key, plugins, self.__TCS_psiphond_config_values)
+        psi_ops_deploy.deploy_geoip_database_autoupdates(host)
         # New data might have been generated
         # NOTE that if the client version has been incremented but a full deploy has not yet been run,
         # this following psi_ops_deploy.deploy_data call is not safe.  Data will specify a new version
@@ -2118,7 +2150,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             self.__compartmentalize_data_for_host(host.id, host.is_TCS),
                             self.__TCS_traffic_rules_set,
                             self.__TCS_OSL_config)
-        psi_ops_deploy.deploy_geoip_database_autoupdates(host)
 
         host.log('reinstall')
 
@@ -2360,17 +2391,29 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # The *_urls_json params supercede the legacy *_url_split params
 
-        remote_server_list_urls_json = \
-            '[{\\"URL\\": \\"%s\\", \\"OnlyAfterAttempts\\" : 0, \\"SkipVerify\\" : false}]' % (
-            base64.b64encode(urlparse.urlunsplit(remote_server_list_url_split)))
+        alternate_download_url_domains = None
+        number_of_alternate_download_url_domains = 3
+        if self.__alternate_s3_bucket_domains:
+            if len(self.__alternate_s3_bucket_domains) > number_of_alternate_download_url_domains:
+                alternate_download_url_domains = random.sample(self.__alternate_s3_bucket_domains, number_of_alternate_download_url_domains)
+            else:
+                alternate_download_url_domains = self.__alternate_s3_bucket_domains
 
-        OSL_root_urls_json = \
-            '[{\\"URL\\": \\"%s\\", \\"OnlyAfterAttempts\\" : 0, \\"SkipVerify\\" : false}]' % (
-            base64.b64encode(urlparse.urlunsplit(OSL_root_url_split)))
+        def download_urls(url_split):
+            urls = []
+            urls.append({'URL': base64.b64encode(urlparse.urlunsplit(url_split)),
+                         'OnlyAfterAttempts': 0,
+                         'SkipVerify': False})
+            if alternate_download_url_domains and url_split.path.startswith('/psiphon/'):
+                for domain in alternate_download_url_domains:
+                    urls.append({'URL': base64.b64encode('https://' + domain + url_split.path.split('/psiphon')[1]),
+                                 'OnlyAfterAttempts': 2,
+                                 'SkipVerify': True})
+            return urls
 
-        upgrade_urls_json = \
-            '[{\\"URL\\": \\"%s\\", \\"OnlyAfterAttempts\\" : 0, \\"SkipVerify\\" : false}]' % (
-            base64.b64encode(urlparse.urlunsplit(upgrade_url_split)))
+        remote_server_list_urls = download_urls(remote_server_list_url_split)
+        OSL_root_urls = download_urls(OSL_root_url_split)
+        upgrade_urls = download_urls(upgrade_url_split)
 
         return [builders[platform](
                         propagation_channel.id,
@@ -2379,9 +2422,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         encoded_server_list,
                         remote_server_list_signature_public_key,
                         remote_server_list_url_split,
-                        remote_server_list_urls_json,
+                        json.dumps(remote_server_list_urls).replace('"', '\\"'),
                         OSL_root_url_split,
-                        OSL_root_urls_json,
+                        json.dumps(OSL_root_urls).replace('"', '\\"'),
                         feedback_encryption_public_key,
                         feedback_upload_info.upload_server,
                         feedback_upload_info.upload_path,
@@ -2389,7 +2432,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         info_link_url,
                         upgrade_signature_public_key,
                         upgrade_url_split,
-                        upgrade_urls_json,
+                        json.dumps(upgrade_urls).replace('"', '\\"'),
                         get_new_version_url,
                         get_new_version_email,
                         faq_url,
@@ -2418,6 +2461,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             f.close()
         return upgrade_filename
 
+    def __deploy_implementation_to_hosts(self, hosts):
+        hosts_and_servers = [(host, [server for server in self.__servers.itervalues() if server.host_id == host.id]) for host in hosts]
+        psi_ops_deploy.deploy_implementation_to_hosts(hosts_and_servers, self.__discovery_strategy_value_hmac_key, plugins, self.__TCS_psiphond_config_values)
+
     def deploy(self):
         # Deploy as required:
         #
@@ -2437,7 +2484,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Host implementation
 
         hosts = [self.__hosts[host_id] for host_id in self.__deploy_implementation_required_for_hosts]
-        psi_ops_deploy.deploy_implementation_to_hosts(hosts, self.__discovery_strategy_value_hmac_key, plugins, self.__TCS_psiphond_config_values)
+        self.__deploy_implementation_to_hosts(hosts)
 
         if len(self.__deploy_implementation_required_for_hosts) > 0:
             self.__deploy_implementation_required_for_hosts.clear()
@@ -2884,7 +2931,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def upgrade_all_TCS_hosts(self):
         TCS_hosts = [host for host in self.__hosts.itervalues() if host.is_TCS]
-        psi_ops_deploy.deploy_implementation_to_hosts(TCS_hosts, self.__discovery_strategy_value_hmac_key, plugins, self.__TCS_psiphond_config_values)
+        self.__deploy_implementation_to_hosts(TCS_hosts)
 
     def add_legacy_server_version(self):
         assert(self.is_locked)
@@ -3990,11 +4037,11 @@ def prune_all_propagation_channels():
     psinet.show_status()
     try:
         propagation_channels = psinet._PsiphonNetwork__propagation_channels.values()
-        random.shuffle(propagation_channels)
-        for propagation_channel in propagation_channels[0:10]:
+        for propagation_channel in propagation_channels:
             number_removed, number_disabled = psinet.prune_propagation_channel_servers(propagation_channel.name)
             sys.stderr.write('Pruned %d servers from %s\n' % (number_removed, propagation_channel.name))
             sys.stderr.write('Disabled %d servers from %s\n' % (number_disabled, propagation_channel.name))
+        psinet.deploy()
     finally:
         psinet.show_status()
         psinet.release()

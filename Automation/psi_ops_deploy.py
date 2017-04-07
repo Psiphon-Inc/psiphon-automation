@@ -72,6 +72,7 @@ SOURCE_FILES = [
 TCS_PSIPHOND_DOCKER_ENVIRONMENT_FILE_NAME = '/opt/psiphon/psiphond/config/psiphond.env'
 TCS_PSIPHOND_CONFIG_FILE_NAME = '/opt/psiphon/psiphond/config/psiphond.config'
 TCS_NATIVE_PSIPHOND_BINARY_FILE_NAME = '/opt/psiphon/psiphond/psiphond'
+TCS_NATIVE_PSIPHOND_TEMP_BINARY_FILE_NAME = '/opt/psiphon/psiphond/psiphond.tmp'
 TCS_PSIPHOND_LOG_FILE_NAME = '/var/log/psiphond/psiphond.log'
 TCS_PSIPHOND_PROCESS_PROFILE_OUTPUT_DIRECTORY_NAME = '/var/log/psiphond'
 TCS_TRAFFIC_RULES_FILE_NAME = '/opt/psiphon/psiphond/config/traffic-rules.config'
@@ -243,7 +244,8 @@ def deploy_TCS_implementation(ssh, host, servers, TCS_psiphond_config_values):
         # Upload psiphond, restart service
         # Push psiphond from bitbucket repo (Server/psiphond/psiphond) to host.
         ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', 'psiphond', 'psiphond'),
-            TCS_NATIVE_PSIPHOND_BINARY_FILE_NAME)
+            TCS_NATIVE_PSIPHOND_TEMP_BINARY_FILE_NAME)
+        ssh.exec_command('mv %s %s' % (TCS_NATIVE_PSIPHOND_TEMP_BINARY_FILE_NAME, TCS_NATIVE_PSIPHOND_BINARY_FILE_NAME))
 
         # Symlink the psiphond binary to /usr/local/bin/
         ssh.exec_command('ln -fs %s /usr/local/bin/psiphond' % (TCS_NATIVE_PSIPHOND_BINARY_FILE_NAME))
@@ -422,19 +424,23 @@ def get_supported_protocol_ports(host, server, **kwargs):
     return supported_protocol_ports
 
 
-def deploy_implementation_to_hosts(hosts, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
+# hosts_and_servers is a list of tuples: [(host, [server, ...]), ...]
+def deploy_implementation_to_hosts(hosts_and_servers, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
 
     @retry_decorator_returning_exception
-    def do_deploy_implementation(host):
+    def do_deploy_implementation(host_and_servers):
         try:
-            deploy_implementation(host, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values)
+            host = host_and_servers[0]
+            servers = host_and_servers[1]
+            deploy_implementation(host, servers, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values)
         except:
             print 'Error deploying implementation to host %s' % (host.id,)
             raise
         host.log('deploy implementation')
 
-    run_in_parallel(20, do_deploy_implementation, hosts)
-    restart_psiphond_service_on_hosts([host for host in hosts if host.is_TCS and host.TCS_type == 'DOCKER'])
+    run_in_parallel(20, do_deploy_implementation, hosts_and_servers)
+    restart_psiphond_service_on_hosts([host for host in (host_and_servers[0] for host_and_servers in hosts_and_servers)
+                                                        if host.is_TCS and host.TCS_type == 'DOCKER'])
 
 
 def deploy_data(host, host_data, TCS_traffic_rules_set, TCS_OSL_config):
