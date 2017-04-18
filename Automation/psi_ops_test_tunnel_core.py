@@ -73,6 +73,11 @@ def retry_on_exception_decorator(function):
     return wrapper
 
 
+class TunnelCoreCouldNotConnectException(Exception):
+    def __init__(self, *args):
+        Exception.__init__(self, *args)
+
+
 class TunnelCoreConsoleRunner:
     def __init__(self, encoded_server_entry, propagation_channel_id = '0', sponsor_id = '0', client_platform = '', client_version = '0', split_tunnel_url_format = '', split_tunnel_signature_public_key = '', split_tunnel_dns_server = '', tunnel_core_binary = None, tunnel_core_config = None):
         self.proc = None
@@ -156,7 +161,8 @@ class TunnelCoreConsoleRunner:
             if time.time() >= start_time + 25:
                 # if the sleep time is 25 second, get out while loop and keep going
                 print 'Not successfully connected after 25 second.'
-                break
+                raise TunnelCoreCouldNotConnectException('Could not connect after 25 seconds')
+
 
     def setup_proxy(self):
         return urllib3.ProxyManager("http://127.0.0.1:{http_port}".format(http_port=self.http_proxy_port))
