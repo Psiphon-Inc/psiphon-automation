@@ -3333,7 +3333,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Randomly choose one landing page from a set of landing pages
         # to give the client to open when connection established
         homepages = self.__get_sponsor_home_pages(sponsor_id, client_region, platform)
-        config['homepages'] = [random.choice(homepages)] if homepages else []
+        random.shuffle(homepages)
+        config['homepages'] = homepages
 
         # Tell client if an upgrade is available
         config['upgrade_client_version'] = self.__check_upgrade(platform, client_version)
