@@ -749,6 +749,11 @@ def install_legacy_firewall_rules(host, servers, plugins, do_blacklist):
     -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 4379,4380,4950,4955,27000:27037 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 31.13.64.0/18 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 179.60.192.0/22 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 91.108.4.0/22 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 91.108.8.0/22 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 91.108.56.0/22 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 149.154.160.0/20 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 149.154.164.0/22 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.8.8 -p tcp --dport 53 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.8.8 -p udp --dport 53 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.4.4 -p tcp --dport 53 -j ACCEPT
@@ -788,6 +793,11 @@ def install_legacy_firewall_rules(host, servers, plugins, do_blacklist):
     -A OUTPUT -p udp -m multiport --dports 4379,4380,4950,4955,27000:27037 -j ACCEPT
     -A OUTPUT -d 31.13.64.0/18 -j ACCEPT
     -A OUTPUT -d 179.60.192.0/22 -j ACCEPT
+    -A OUTPUT -d 91.108.4.0/22 -j ACCEPT
+    -A OUTPUT -d 91.108.8.0/22 -j ACCEPT
+    -A OUTPUT -d 91.108.56.0/22 -j ACCEPT
+    -A OUTPUT -d 149.154.160.0/20 -j ACCEPT
+    -A OUTPUT -d 149.154.164.0/22 -j ACCEPT
     -A OUTPUT -p udp -m udp --dport 123 -j ACCEPT
     -A OUTPUT -p tcp -m tcp --sport %s -j ACCEPT''' % (host.ssh_port,) + ''.join(
     # tunneled ossh requests on NATed servers
