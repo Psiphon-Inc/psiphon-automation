@@ -1513,7 +1513,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         host = self.__hosts[host_id]
         if host.is_TCS:
             return int(self.run_command_on_host(host,
-                'tac /var/log/psiphond/psiphond.log | grep -m1 ALL.*established_clients | python -c \'import sys, json; print json.loads(sys.stdin.read())["ALL"]["established_clients"]\''))
+                'tac /var/log/psiphond/psiphond.log | grep -m1 \\"establish_tunnels\\": | python -c \'import sys, json; print json.loads(sys.stdin.read())["ALL"]["established_clients"]\''))
         else:
             vpn_users = int(self.run_command_on_host(host,
                                                  'ifconfig | grep ppp | wc -l'))
@@ -1586,9 +1586,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # NOTE: This will also call save() only if a host has been removed and
         # __deploy_stats_config_required is set. If hosts have only been disabled, a save()
         # might not occur.
-        self.deploy()
+        # NEW: caller is responsible for deploy(), to reduce the number of save()'s when
+        # this is called in a loop.
+        #self.deploy()
 
-        if number_removed == 0 and number_disabled > 0:
+        if number_removed > 0 or number_disabled > 0:
             self.save()
 
         return number_removed, number_disabled
@@ -2060,10 +2062,17 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             ssh.exec_command('tar czvf /root/etc.tar.gz /etc/*')
             ssh.get_file('/root/etc.tar.gz', './Migration/' + host.ip_address + '-etc.tar.gz')
         elif action == 'restore':
-            ssh = psi_ssh.SSH(
-                    host.ip_address, host.ssh_port,
-                    host.ssh_username, host.ssh_password,
-                    self.__linode_account.tcs_base_host_public_key)
+            if host.provider == 'digitalocean':
+                ssh = psi_ssh.SSH(
+                        host.ip_address, host.ssh_port,
+                        host.ssh_username, None, None,
+                        self.__digitalocean_account.base_rsa_private_key)
+                ssh.exec_command('echo "root:%s" | chpasswd' % (host.ssh_password))
+            elif host.provider == 'linode':
+                ssh = psi_ssh.SSH(
+                        host.ip_address, host.ssh_port,
+                        host.ssh_username, host.ssh_password,
+                        self.__linode_account.tcs_base_host_public_key)
             import shlex
             subprocess.Popen(shlex.split('mkdir ./Migration/' + host.ip_address))
             subprocess.Popen(shlex.split('tar xzvf ./Migration/' + host.ip_address + '-etc.tar.gz -C ./Migration/' + host.ip_address))
@@ -2076,6 +2085,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     remote_fliepath = os.path.join(remote_path, filename)
                     # put file
                     ssh.put_file(local_path, remote_fliepath)
+            ssh.exec_command('sed -i -e "/^PasswordAuthentication no/s/^.*$/PasswordAuthentication yes/" /etc/ssh/sshd_config')
+            ssh.exec_command('sed -i -e "/PasswordAuthentication yes/s/^#//" /etc/ssh/sshd_config')
+            ssh.exec_command('service ssh restart')
         else:
             print('Action is not supported, please use "backup" or "restore"')
             return
@@ -2098,6 +2110,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server.web_server_private_key = '-----BEGIN RSA PRIVATE KEY-----\n' + server.web_server_private_key + '\n-----END RSA PRIVATE KEY-----\n'
         server.TCS_ssh_private_key = self.run_command_on_host(host, 'cat /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (host.ip_address))
 
+        if host.is_TCS == True:
+            migrated_from = 'TCS Docker'
+        else:
+            migrated_from = 'Legacy'
+
+        server.log('Migrated' + ' from ' + migrated_from + ' to TCS ' + TCS_type)
+        
         host.is_TCS = True
         host.TCS_type = TCS_type
 
@@ -2442,6 +2461,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             f.close()
         return upgrade_filename
 
+    def __deploy_implementation_to_hosts(self, hosts):
+        hosts_and_servers = [(host, [server for server in self.__servers.itervalues() if server.host_id == host.id]) for host in hosts]
+        psi_ops_deploy.deploy_implementation_to_hosts(hosts_and_servers, self.__discovery_strategy_value_hmac_key, plugins, self.__TCS_psiphond_config_values)
+
     def deploy(self):
         # Deploy as required:
         #
@@ -2461,7 +2484,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Host implementation
 
         hosts = [self.__hosts[host_id] for host_id in self.__deploy_implementation_required_for_hosts]
-        psi_ops_deploy.deploy_implementation_to_hosts(hosts, self.__discovery_strategy_value_hmac_key, plugins, self.__TCS_psiphond_config_values)
+        self.__deploy_implementation_to_hosts(hosts)
 
         if len(self.__deploy_implementation_required_for_hosts) > 0:
             self.__deploy_implementation_required_for_hosts.clear()
@@ -2908,7 +2931,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def upgrade_all_TCS_hosts(self):
         TCS_hosts = [host for host in self.__hosts.itervalues() if host.is_TCS]
-        psi_ops_deploy.deploy_implementation_to_hosts(TCS_hosts, self.__discovery_strategy_value_hmac_key, plugins, self.__TCS_psiphond_config_values)
+        self.__deploy_implementation_to_hosts(TCS_hosts)
 
     def add_legacy_server_version(self):
         assert(self.is_locked)
@@ -3310,7 +3333,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Randomly choose one landing page from a set of landing pages
         # to give the client to open when connection established
         homepages = self.__get_sponsor_home_pages(sponsor_id, client_region, platform)
-        config['homepages'] = [random.choice(homepages)] if homepages else []
+        random.shuffle(homepages)
+        config['homepages'] = homepages
 
         # Tell client if an upgrade is available
         config['upgrade_client_version'] = self.__check_upgrade(platform, client_version)
@@ -4014,11 +4038,11 @@ def prune_all_propagation_channels():
     psinet.show_status()
     try:
         propagation_channels = psinet._PsiphonNetwork__propagation_channels.values()
-        random.shuffle(propagation_channels)
-        for propagation_channel in propagation_channels[0:10]:
+        for propagation_channel in propagation_channels:
             number_removed, number_disabled = psinet.prune_propagation_channel_servers(propagation_channel.name)
             sys.stderr.write('Pruned %d servers from %s\n' % (number_removed, propagation_channel.name))
             sys.stderr.write('Disabled %d servers from %s\n' % (number_disabled, propagation_channel.name))
+        psinet.deploy()
     finally:
         psinet.show_status()
         psinet.release()

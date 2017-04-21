@@ -749,6 +749,12 @@ def install_legacy_firewall_rules(host, servers, plugins, do_blacklist):
     -A FORWARD -s 10.0.0.0/8 -p udp -m multiport --dports 4379,4380,4950,4955,27000:27037 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 31.13.64.0/18 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 179.60.192.0/22 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 91.108.4.0/22 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 91.108.8.0/22 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 91.108.12.0/22 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 91.108.16.0/22 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 91.108.56.0/22 -j ACCEPT
+    -A FORWARD -s 10.0.0.0/8 -d 149.154.164.0/22 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.8.8 -p tcp --dport 53 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.8.8 -p udp --dport 53 -j ACCEPT
     -A FORWARD -s 10.0.0.0/8 -d 8.8.4.4 -p tcp --dport 53 -j ACCEPT
@@ -788,6 +794,12 @@ def install_legacy_firewall_rules(host, servers, plugins, do_blacklist):
     -A OUTPUT -p udp -m multiport --dports 4379,4380,4950,4955,27000:27037 -j ACCEPT
     -A OUTPUT -d 31.13.64.0/18 -j ACCEPT
     -A OUTPUT -d 179.60.192.0/22 -j ACCEPT
+    -A OUTPUT -d 91.108.4.0/22 -j ACCEPT
+    -A OUTPUT -d 91.108.8.0/22 -j ACCEPT
+    -A OUTPUT -d 91.108.12.0/22 -j ACCEPT
+    -A OUTPUT -d 91.108.16.0/22 -j ACCEPT
+    -A OUTPUT -d 91.108.56.0/22 -j ACCEPT
+    -A OUTPUT -d 149.154.164.0/22 -j ACCEPT
     -A OUTPUT -p udp -m udp --dport 123 -j ACCEPT
     -A OUTPUT -p tcp -m tcp --sport %s -j ACCEPT''' % (host.ssh_port,) + ''.join(
     # tunneled ossh requests on NATed servers
@@ -1320,8 +1332,10 @@ def install_TCS_psi_limit_load(host, disable_permanently=False):
 
     if host.TCS_type == 'NATIVE':
         psi_limit_load_chain_name = 'INPUT'
+        syn_sent_check = 'netstat -tn | grep SYN_SENT | wc -l'
     elif host.TCS_type == 'DOCKER':
         psi_limit_load_chain_name = 'FORWARD -o docker0'
+        syn_sent_check = 'docker exec psiphond-run netstat -tn | grep SYN_SENT | wc -l'
     else:
         raise 'Unhandled host.TCS_type: ' + host.TCS_type
 
@@ -1341,6 +1355,7 @@ exit 0
 threshold_load_per_cpu=1
 threshold_mem=10
 threshold_swap=20
+threshold_syn_sent=1000
 
 while true; do
 
@@ -1370,10 +1385,17 @@ while true; do
         fi
     fi
 
+    loaded_net=0
+    syn_sent=`%s`
+    if [ $syn_sent -ge $threshold_syn_sent ]; then
+        loaded_net=1
+        logger psi_limit_load: SYN_SENT threshold reached.
+    fi
+
     break
 done
 
-if [ $loaded_cpu -eq 1 ] || [ $loaded_mem -eq 1 ] || [ $loaded_swap -eq 1 ]; then
+if [ $loaded_cpu -eq 1 ] || [ $loaded_mem -eq 1 ] || [ $loaded_swap -eq 1 ] || [ $loaded_net -eq 1 ]; then
     iptables -D %s -j PSI_LIMIT_LOAD
     iptables -I %s -j PSI_LIMIT_LOAD
     %s
@@ -1382,7 +1404,8 @@ else
     iptables -D %s -j PSI_LIMIT_LOAD
 fi
 exit 0
-''' % (psi_limit_load_chain_name, psi_limit_load_chain_name,
+''' % (syn_sent_check,
+        psi_limit_load_chain_name, psi_limit_load_chain_name,
         psi_ops_deploy.TCS_PSIPHOND_STOP_ESTABLISHING_TUNNELS_SIGNAL_COMMAND,
         psi_ops_deploy.TCS_PSIPHOND_RESUME_ESTABLISHING_TUNNELS_SIGNAL_COMMAND,
         psi_limit_load_chain_name)
