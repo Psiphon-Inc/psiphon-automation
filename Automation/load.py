@@ -85,7 +85,7 @@ def check_load_on_host(host):
                 alert = instances != len([server.id for server in g_psinet.get_servers() if server.host_id == host.id])
             elif process == 'systemctl':
                 alert = instances > 0
-            elif process == 'psiphond' and host.TCS_type == 'NATIVE':
+            elif process == 'psiphond':
                 alert = instances != 2
             else:
                 alert = instances != 1
