@@ -680,8 +680,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             Twitter Campaigns:      %d
             Email Campaigns:        %d
             Total Campaigns:        %d
-            Hosts:                  %d
-            Servers:                %d
+            Hosts:                  %d (Legacy: %d, TCS Docker: %d, TCS Native: %d)
+            Servers:                %d (VPN: %d)
             Automation Bucket:      %s
             Stats Server:           %s
             Windows Client Version: %s %s
@@ -709,8 +709,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                      for sponsor in self.__sponsors.itervalues()]),
                 sum([len(sponsor.campaigns)
                      for sponsor in self.__sponsors.itervalues()]),
-                len(self.__hosts),
-                len(self.__servers),
+                len(self.__hosts), len([h for h in self.__hosts.itervalues() if h.is_TCS == False]), len([h for h in self.__hosts.itervalues() if h.is_TCS == True and h.TCS_type == 'DOCKER']), len([h for h in self.__hosts.itervalues() if h.is_TCS == True and h.TCS_type == 'NATIVE']),
+                len(self.__servers), len([s for s in self.__servers.itervalues() if s.capabilities['VPN'] == True]),
                 self.__automation_bucket if self.__automation_bucket else 'None',
                 self.__stats_server_account.ip_address if self.__stats_server_account else 'None',
                 self.__client_versions[CLIENT_PLATFORM_WINDOWS][-1].version if self.__client_versions[CLIENT_PLATFORM_WINDOWS] else 'None',
@@ -877,7 +877,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         s = self.__servers[server_id]
         print textwrap.dedent('''
             Server:                  %s
-            Host:                    %s%s %s %s/%s
+            Host:                    %s%s %s %s / %s
             IP Address:              %s
             Region:                  %s
             Propagation Channel:     %s
@@ -888,7 +888,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             ''') % (
                 s.id,
                 s.host_id,
-                " (TCS)" if self.__hosts[s.host_id].is_TCS else "",
+                " (TCS " + self.__hosts[s.host_id].TCS_type + ")" if self.__hosts[s.host_id].is_TCS else "",
                 self.__hosts[s.host_id].ip_address,
                 self.__hosts[s.host_id].ssh_username,
                 self.__hosts[s.host_id].ssh_password,
@@ -919,7 +919,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             Servers:                 %(servers)s
             ''') % {
                     'id': host.id,
-                    'is_TCS' : " (TCS)" if host.is_TCS else "",
+                    'is_TCS' : " (TCS " + host.TCS_type + ")" if host.is_TCS else "",
                     'provider': host.provider,
                     'provider_id': host.provider_id,
                     'datacenter_name': host.datacenter_name,
@@ -1946,6 +1946,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         ossh_port)
 
             self.setup_server(host, [server])
+
+            self.run_command_on_host(host, 'shutdown -r')
 
             self.save()
 
