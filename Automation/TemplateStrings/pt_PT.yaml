@@ -1,0 +1,23 @@
+pt_PT:
+  plaintext_email_no_attachment: |
+    Transferir o Psiphon aqui: {{0}}/{0}/download.html#direct
+  html_email_no_attachment: |
+    <div style="direction: ltr;">
+    Transfira o Psiphon aqui: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
+  plaintext_email_with_attachment: |+
+    Para utilizar o Psiphon 3 para Windows, guarde o ficheiro anexado {{1}} com uma extensão ".exe".
+    Para utilizar o Psiphon 3 para Android, instale o ficheiro anexado {{2}}.
+    Para mais informação ou para transferir novamente os ficheiros, clique em baixo na hiperligação.
+    {{0}}/{0}/download.html#direct
+
+  html_email_with_attachment: |+
+    <div style="direction: ltr;">
+    Para utilizar o Psiphon 3 para Windows, guarde o ficheiro anexado {{1}} com uma extensão ".exe".<br>
+    Para utilizar o Psiphon 3 para Android, instale o ficheiro anexado {{2}}.<br>
+    Para mais informação ou para transferir novamente os ficheiros, clique em baixo na hiperligação.<br>
+    <a href="{{0}}/{0}/download.html">{{0}}/{0}/download.html#direct</a><br>
+    </div>
+    <br>
+
+...
