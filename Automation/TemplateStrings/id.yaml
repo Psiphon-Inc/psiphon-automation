@@ -1,0 +1,21 @@
+id:
+  plaintext_email_no_attachment: |
+    Unduh Psiphon di sini: {{0}}/{0}/download.html#direct
+  html_email_no_attachment: |
+    <div style="direction: ltr;">
+    Unduh Psiphon disini <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
+  plaintext_email_with_attachment: |+
+    Untuk menggunakan Psiphon 3 untuk Windows, simpan berkas {{1}} terlampir dengan ekstensi ".exe".
+    Untuk menggunakan Psiphon 3 untuk Android, pasang berkas {{2}} terlampir.
+    Untuk informasi lebih lanjut atau mengunduh lagi berkas-berkas tersebut, klik tautan berikut ini:
+    {{0}}/{0}/download.html#direct
+
+  html_email_with_attachment: |
+    <div style="direction: ltr;">
+    Untuk menggunakan Psiphon 3 untuk Windows, simpan berkas {{1}} terlampir dengan ekstensi ".exe".<br>
+    Untuk menggunakan Psiphon 3 untuk Android, pasang berkas {{2}} terlampir.<br>
+    Untuk informasi lebih lanjut atau mengunduh lagi berkas-berkas tersebut, klik tautan berikut ini:<br>
+    <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
+    <br>
