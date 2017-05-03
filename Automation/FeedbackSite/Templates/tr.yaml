@@ -1,15 +1,10 @@
 tr:
   title: Psiphon Geribildirimi
   top_content_title: Geribildirim Yapın
-  top_para_1: |
-    Lütfen Psiphon'un nasıl çalıştığını öğrenmemiz için aşağıdaki formu tamamlayın biz de sistemi daha iyi yapalım!
   top_para_2: |
     Çoğu sorun en son sürüm indirilerek çözülebilir. <a class="newVersionURL" href="#">En son sürümü buraya tıklayarak</a>
     veya <span id="newVersionEmail"></span> adresine
     e-posta göndererek indirebilirsiniz.
-  top_para_3: |
-    Ayrıca çoğu ortak soruna çözümleri
-    <a class="faqURL" href="#">Sıkça Sorulan Sorular</a> sayfamızda bulabilirsiniz.
   diagnostic_check: |
     Kullanım verisini yükle. Lütfen bu kullanım verisinin sizin kimliğinizin tanımlanması
     için değil Psiphon'un akıcı şekilde tutulmasına yardımcı olması için kullanılacağını unutmayın.

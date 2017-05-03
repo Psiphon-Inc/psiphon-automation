@@ -2,14 +2,14 @@ hr:
   title: Povratne informacije o Psiphon-u
   top_content_title: Dajte nam povratnu informaciju
   top_para_1: |
-    Recite nam kako Vam Psiphon radi tako da možemo poboljšati sustav!
+    Vaše povratne informacije čine Psiphon boljim!
   top_para_2: |
     Mnogi problemi mogu biti otklonjeni preuzimanjem posljednje verzije. Možete
     <a class="newVersionURL" href="#">preuzeti posljednju verziju ovdje</a>,
     ili možete poslati email na <span id="newVersionEmail"></span>.
   top_para_3: |
-    Također, možete pronaći riješenja za mnoge probleme među našim
-    <a class="faqURL" href="#"> Često postavljenim pitanjima</a>.
+    Možete dodati rješenja učestalim problemima u našim
+    <a class="faqURL" href="#">Često postavljenim pitanjima</a>.
   diagnostic_check: |
     Postavite dijagnostičke podatke. Ovi dijagnostički podatci Vas ne identificiraju, i pomoći će nam da Psiphon nastvi raditi glatko.
     <a class="dataCollectionInfoURL" href="#">Kliknite ovdje da vidite koje podatke skupljamo.</a>

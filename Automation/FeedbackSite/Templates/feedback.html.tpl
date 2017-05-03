@@ -123,7 +123,7 @@ html {{
   <option value="en">English</option>
   <option value="fa">فارسی</option>
   <option value="ar">العربي</option>
-  <option value="zh">中文</option>
+  <option value="zh">简体中文</option>
   <option value="az">azərbaycan dili</option>
   <option value="de">Deutsch</option>
   <option value="el">Ελληνικά</option>
@@ -135,6 +135,7 @@ html {{
   <option value="kk">қазақ тілі</option>
   <option value="ko">한국어</option>
   <option value="nb">Norsk (bokmål)</option>
+  <option value="nl">Nederlands</option>
   <option value="pt_BR">Português (Brasil)</option>
   <option value="pt_PT">Português (Portugal)</option>
   <option value="ru">Русский</option>
@@ -145,6 +146,7 @@ html {{
   <option value="uz@cyrillic">Ўзбекча</option>
   <option value="uz@Latn">O'zbekcha</option>
   <option value="vi">Tiếng Việt</option>
+  <option value="zh_TW">繁体中文</option>
   </select>
 
   <h1 id="top_content_title"></h1>
