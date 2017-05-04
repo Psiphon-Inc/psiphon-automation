@@ -59,11 +59,17 @@ class Api:
         json_request['os_template_id'] = 34
         json_request['has_ipv6'] = False
         json_request['has_private_networking'] = False
+        json_request['ssh_key_ids'] = [357]
 
         response =  self._post_request('/virtual_machines', json_request)
 
         if response['status'] == 'success':
             return response['id']
+
+    # Get VM
+    def get_vm(self, id):
+        response = self._get_request('/virtual_machines/' + id)
+        return response
 
     # Delete_VM !!!DO NOT USE THIS FUNCTION!!!
     def delete_vm(self, id):
