@@ -48,11 +48,13 @@ class Api:
             raise e
 
     # Create_VM
-    def create_vm(self, name, region, package=4):
+    # Package 13 = Premium
+    # Region 25 = Madrid ES
+    def create_vm(self, name, region=25, package=13):
         json_request = dict()
 
         json_request['name'] = name
-        json_request['region_id'] = region['id']
+        json_request['region_id'] = region
         json_request['package_id'] = package
         json_request['os_template_id'] = 34
         json_request['has_ipv6'] = False
@@ -106,4 +108,8 @@ class Api:
     # Get Regions
     def get_all_regions(self):
         response = self._get_request('/regions')
+        return response
+
+    def get_region(self, id):
+        response = self._get_request('/regions/' + id)
         return response
