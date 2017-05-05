@@ -61,7 +61,7 @@ def generate(dest_dir):
 
         subprocess.check_output('docpad clean --env %s --out "%s"' % (DOCPAD_ENV, dest_dir),
                                 shell=True, stderr=subprocess.STDOUT)
-        subprocess.check_output('docpad generate --env %s --out "%s"' % (DOCPAD_ENV, dest_dir),
+        subprocess.check_output('node --max-old-space-size=8192 --max-semi-space-size=512 --nouse-idle-notification node_modules/docpad/out/bin/docpad.js generate --env %s --out "%s"' % (DOCPAD_ENV, dest_dir),
                                 shell=True, stderr=subprocess.STDOUT)
     finally:
         os.chdir(prev_dir)
