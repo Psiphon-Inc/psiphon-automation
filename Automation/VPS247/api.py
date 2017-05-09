@@ -48,20 +48,28 @@ class Api:
             raise e
 
     # Create_VM
-    def create_vm(self, name, region, package=4):
+    # Package 13 = Premium
+    # Region 25 = Madrid ES
+    def create_vm(self, name, region=25, package=13):
         json_request = dict()
 
         json_request['name'] = name
-        json_request['region_id'] = region['id']
+        json_request['region_id'] = region
         json_request['package_id'] = package
         json_request['os_template_id'] = 34
         json_request['has_ipv6'] = False
         json_request['has_private_networking'] = False
+        json_request['ssh_key_ids'] = [357]
 
         response =  self._post_request('/virtual_machines', json_request)
 
         if response['status'] == 'success':
             return response['id']
+
+    # Get VM
+    def get_vm(self, id):
+        response = self._get_request('/virtual_machines/' + id)
+        return response
 
     # Delete_VM !!!DO NOT USE THIS FUNCTION!!!
     def delete_vm(self, id):
@@ -106,4 +114,8 @@ class Api:
     # Get Regions
     def get_all_regions(self):
         response = self._get_request('/regions')
+        return response
+
+    def get_region(self, id):
+        response = self._get_request('/regions/' + id)
         return response
