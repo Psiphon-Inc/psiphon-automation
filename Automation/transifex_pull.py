@@ -145,8 +145,6 @@ def process_feedback_template_strings():
 
     # Copy the HTML file to where it needs to be
     shutil.copy2('./Automation/FeedbackSite/feedback.html',
-                 './Client/psiclient/feedback.html')
-    shutil.copy2('./Automation/FeedbackSite/feedback.html',
                  './Android/app/src/main/assets/feedback.html')
 
 
