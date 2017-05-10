@@ -143,7 +143,7 @@ html {{
   <option value="tk">Türkmençe</option>
   <option value="tr">Türkçe</option>
   <option value="ug@Latn">Uyghurche</option>
-  <option value="uz@cyrillic">Ўзбекча</option>
+  <option value="uz@Cyrl">Ўзбекча</option>
   <option value="uz@Latn">O'zbekcha</option>
   <option value="vi">Tiếng Việt</option>
   <option value="zh_TW">繁体中文</option>
@@ -267,7 +267,7 @@ function setLanguage(langName, args)
   //if langName is not an exact match
   //using 'starts with' logic
   //i.e, if langName == 'uz' it will match either
-  //uz@Latn or uz@cyrillic whichever comes first
+  //uz@Latn or uz@Cyrl whichever comes first
   matchElement = $('#language_selector option[value^="' + langName + '"]:first');
   if (matchElement.length > 0) {{
     langName = matchElement.val();

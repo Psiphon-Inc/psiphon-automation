@@ -56,18 +56,12 @@ DEFAULT_LANGS = {
     'tk': 'tk',         # Turkmen
     'tr': 'tr',         # Turkish
     'ug': 'ug@Latn',    # Uighur (latin script)
+    'uz': 'uz@Latn',    # Uzbek (latin script)
+    'uz@Cyrl': 'uz@Cyrl',    # Uzbek (latin script)
     'vi': 'vi',         # Vietnamese
     'zh': 'zh',         # Chinese (simplified)
     'zh_TW': 'zh_TW'    # Chinese (traditional)
 }
-# Transifex does not support multiple character sets for Uzbek, but
-# Psiphon supports both uz@Latn and uz@cyrillic. So we're going to
-# use "Uzbek" ("uz") for uz@Latn and "Klingon" ("tlh") for uz@cyrillic.
-# We opened an issue with Transifex about this, but it hasn't been
-# rectified yet:
-# https://getsatisfaction.com/indifex/topics/uzbek_cyrillic_language
-DEFAULT_LANGS['uz'] = 'uz@Latn'
-DEFAULT_LANGS['tlh'] = 'uz@cyrillic'
 
 
 RTL_LANGS = ('ar', 'fa', 'he')
