@@ -3308,7 +3308,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def __check_upgrade(self, platform, client_version):
         # check last version number against client version number
         # assumes versions list is in ascending version order
-        if not self.__client_versions[platform]:
+        if not self.__client_versions.get(platform):
             return None
         last_version = self.__client_versions[platform][-1].version
         if int(last_version) > int(client_version):
