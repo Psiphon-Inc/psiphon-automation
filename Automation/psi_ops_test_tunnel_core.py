@@ -145,8 +145,7 @@ class TunnelCoreConsoleRunner:
         while True:
             line = self.proc.stderr.readline()
             if not line:
-                time.sleep(25)
-                break
+                raise TunnelCoreCouldNotConnectException('Could not connect, reading output failed.')
 
             line = json.loads(line)
             if line["data"].get("port"):
@@ -165,7 +164,7 @@ class TunnelCoreConsoleRunner:
 
 
     def setup_proxy(self):
-        return urllib3.ProxyManager("http://127.0.0.1:{http_port}".format(http_port=self.http_proxy_port))
+        return urllib3.ProxyManager("http://127.0.0.1:{http_port}".format(http_port=self.http_proxy_port), timeout=30.0)
         
 
     def stop_psiphon(self):
