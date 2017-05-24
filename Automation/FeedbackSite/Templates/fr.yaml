@@ -2,14 +2,14 @@ fr:
   title: Rétroaction sur Psiphon
   top_content_title: Laissez-nous une rétroaction
   top_para_1: |
-    Veuillez nous informer de votre expérience avec Psiphon afin que nous puissions encore améliorer le système !
+    Votre rétroaction améliore Psiphon !
   top_para_2: |
     De nombreux problèmes peuvent être corrigés en téléchargeant la dernière version.
     Vous pouvez <a class="newVersionURL" href="#">télécharger la dernière version en cliquant ici</a>,
     ou vous pouvez envoyer un courriel à <span id="newVersionEmail"></span>.
   top_para_3: |
-    Vous pouvez aussi trouver des solutions à de nombreux problèmes habituels dans notre
-    <a class="faqURL" href="#">Foire aux questions</a>.
+    Vous trouverez des solutions à de nombreux problèmes habituels
+    dans notre <a class="faqURL" href="#">Foire aux questions</a>.
   diagnostic_check: |
     Téléverser des données de diagnostic. Veuillez prendre note que ces données de
     diagnostic ne vous identifient pas, et elles nous aideront à offrir une exécution sans heurt de Psiphon.
