@@ -45,6 +45,7 @@ DEFAULT_LANGS = {
     'fr': 'fr',         # French
     'hr': 'hr',         # Croation
     'id': 'id',         # Indonesian
+    'it': 'it',         # Italian
     'kk': 'kk',         # Kazak
     'ko': 'ko',         # Korean
     'nb_NO': 'nb',      # Norwegian
@@ -60,14 +61,6 @@ DEFAULT_LANGS = {
     'zh': 'zh',         # Chinese (simplified)
     'zh_TW': 'zh_TW'    # Chinese (traditional)
 }
-# Transifex does not support multiple character sets for Uzbek, but
-# Psiphon supports both uz@Latn and uz@cyrillic. So we're going to
-# use "Uzbek" ("uz") for uz@Latn and "Klingon" ("tlh") for uz@cyrillic.
-# We opened an issue with Transifex about this, but it hasn't been
-# rectified yet:
-# https://getsatisfaction.com/indifex/topics/uzbek_cyrillic_language
-DEFAULT_LANGS['uz'] = 'uz@Latn'
-DEFAULT_LANGS['tlh'] = 'uz@cyrillic'
 
 
 RTL_LANGS = ('ar', 'fa', 'he')
@@ -82,7 +75,8 @@ PSIPHON_CIRCUMVENTION_SYSTEM_DIR = 'psiphon-circumvention-system'
 
 IOS_BROWSER_RESOURCES = \
     ['ios-browser-iasklocalizablestrings', 'ios-browser-localizablestrings',
-     'ios-browser-onepasswordextensionstrings', 'ios-browser-rootstrings']
+     'ios-browser-onepasswordextensionstrings', 'ios-browser-rootstrings',
+     'ios-browser-app-store-assets']
 IOS_BROWSER_DIR = 'endless'
 IOS_BROWSER_LANGS = DEFAULT_LANGS.copy()
 # Xcode/iOS uses some different locale codes than Transifex does
