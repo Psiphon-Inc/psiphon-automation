@@ -1,0 +1,20 @@
+nl:
+  plaintext_email_no_attachment: |
+    Download Psiphon hier: {{0}}/{0}/download.html#direct
+  html_email_no_attachment: |
+    <div style="direction: ltr;">
+    Download Psiphon hier: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
+  plaintext_email_with_attachment: |+
+    Om Psiphon 3 te gebruiken voor windows, het bijgevoegde bestand opslaan {{1}} met een ".exe" extensie.
+    Om Psiphon 3 te gebruiken voor Android, installeert u het bijgevoegde bestand {{2}}.
+    Voor meer informatie of om de bestanden opnieuw te downloaden, klikt u op de onderstaande link.{{0}} / {0} /download.html#direct
+
+  html_email_with_attachment: |
+    <div style="direction: ltr;">
+    Om Psiphon 3 te bebruiken voor windows, het bijgevoegde bestand opslaan {{1}} met een ".exe" extensie.<br>
+    Om Psiphon 3 te gebruiken voor Android, installeert u het bijgevoegde bestand {{2}}.<br>
+    For more information or to download the files again, click the link below.<br>
+    <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
+    <br>

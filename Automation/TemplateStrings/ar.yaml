@@ -5,9 +5,11 @@ ar:
     <div style="direction: rtl;">
     حمل سايفون هنا:<a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
     </div>
-  plaintext_email_with_attachment: "لإستعمال Psiphon 3 في ويندوز، إحفظ الملف المرفق بصيغة   {{1}}  \".exe\" extension.\nلإستعمال\
-    \  Psiphon 3 مع أندرويد، قم بتنزيل الملف المرفق   {{2}}.\nإذا كنت تريد المزيد من ألمعلومات أو لتنزيل الملفات من جديد إضغط على\
-    \ الرابط أدناه.  \n{{0}}/{0}/download.html#direct\n"
+  plaintext_email_with_attachment: |
+    لإستعمال Psiphon 3 في ويندوز، إحفظ الملف المرفق بصيغة   {{1}}  ".exe" extension.
+    لإستعمال  Psiphon 3 مع أندرويد، قم بتنزيل الملف المرفق   {{2}}.
+    إذا كنت تريد المزيد من ألمعلومات أو لتنزيل الملفات من جديد إضغط على الرابط أدناه.
+    {{0}}/{0}/download.html#direct
   html_email_with_attachment: |
     <div style="direction: rtl;">
     لإستعمال Psiphon 3 في ويندوز، إحفظ الملف المرفق {{1}}  ".exe" بصيغة .<br>

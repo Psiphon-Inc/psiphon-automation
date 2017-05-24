@@ -3,7 +3,7 @@ zh:
     从这里下载赛风： {{0}}/{0}/download.html#direct
   html_email_no_attachment: |
     <div style="direction: ltr;">
-    从这里下载赛风: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    在此下载赛风：<a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
     </div>
   plaintext_email_with_attachment: |+
     如要在 Windows 上使用赛风3, 请先保存这个后缀名为".exe"的附件 {{1}} 。
