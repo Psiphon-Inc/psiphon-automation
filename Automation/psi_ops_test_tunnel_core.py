@@ -224,40 +224,48 @@ def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, a
                     output['HTTPS'] = 'PASS' if is_proxied else 'FAIL {0}'.format(output_str)
                 else:
                     output['HTTP'] = 'PASS' if is_proxied else 'FAIL {0}'.format(output_str)
-                
-                if len(additional_test_sites) > 0:
-                    output['AdditionalSites'] = list()
-                    for url in additional_test_sites:
-                        print 'Testing: {0}'.format(url)
-                        if is_proxied:
-                            tunneled_site = http_proxy.request('GET', url)
                             
-                            pool = urllib3.PoolManager(timeout=30.0)
-                            url = additional_test_sites[0]
-                            untunneled_site = pool.request('GET', url)
-                            
-                            # Compare sites:
-                            if tunneled_site.status != untunneled_site.status:
-                                output_str = 'FAIL : mismatched status code returned'
-                            else:
-                                import hashlib
-                                untunneled_hash = hashlib.sha1(untunneled_site.data).hexdigest()
-                                tunneled_hash = hashlib.sha1(tunneled_site.data).hexdigest()
-                                if tunneled_hash != untunneled_hash:
-                                    output_str = 'FAIL : Mismatched site hashes'
-                                else:
-                                    output_str = 'SUCCESS : {url} returned the same site tunneled and untunneled'.format(url=url)
-                        else:
-                            output_str = 'FAIL : Connection to server is unproxied.  Check server connection'
-                        
-                        output['AdditionalSites'].append({url: output_str})
-            
             except urllib3.exceptions.MaxRetryError:
                 if url.startswith('https'):
                     output['HTTPS'] = 'FAIL {0}'.format(output_str)
                 else:
                     output['HTTP'] = 'FAIL {0}'.format(output_str)
                 continue
+        
+        if len(additional_test_sites) > 0:
+            output['AdditionalSites'] = list()
+            for url in additional_test_sites:
+                try:
+                    if url.startswith('https'):
+                        urllib3.disable_warnings()
+                    
+                    print 'Testing: {0}'.format(url)
+                    if is_proxied:
+                        tunneled_site = http_proxy.request('GET', url)
+                        
+                        pool = urllib3.PoolManager(timeout=30.0)
+                        untunneled_site = pool.request('GET', url)
+                        
+                        # Compare sites:
+                        if tunneled_site.status != untunneled_site.status:
+                            output_str = 'FAIL : mismatched status code returned'
+                        else:
+                            import hashlib
+                            untunneled_hash = hashlib.sha1(untunneled_site.data).hexdigest()
+                            tunneled_hash = hashlib.sha1(tunneled_site.data).hexdigest()
+                            if tunneled_hash != untunneled_hash:
+                                output_str = 'FAIL : Mismatched site hashes'
+                            else:
+                                output_str = 'SUCCESS : {url} returned the same site tunneled and untunneled'.format(url=url)
+                    else:
+                        output_str = 'FAIL : Connection to server is unproxied.  Check server connection'
+                    
+                    output['AdditionalSites'].append({url: output_str})
+                    
+                except urllib3.exceptions.MaxRetryError:
+                    output['AdditionalSites'] = 'FAIL {0}'.format(output_str)
+                    continue 
+
     
     except Exception as e:
         print "Could not tunnel to {0}: {1}".format(url, e)
