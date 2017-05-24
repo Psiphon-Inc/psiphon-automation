@@ -72,6 +72,12 @@ def set_allowed_users(digitalocean_account, ip_address, password, stats_username
         ssh.exec_command('sed -i "s/^AllowUsers.*/& %s/" /etc/ssh/sshd_config' % stats_username)
         ssh.exec_command('service ssh restart')
 
+def set_host_name(digitalocean_account, ip_address, password, new_hostname):
+    # Note: hostnamectl is for systemd servers
+    ssh = psi_ssh.make_ssh_session(ip_address, digitalocean_account.base_ssh_port,
+                                   'root', None, None, digitalocean_account.base_rsa_private_key)
+    ssh.exec_command('hostnamectl set-hostname %s' % new_hostname)
+
 
 def update_system_packages(digitalocean_account, ip_address):
     """
@@ -513,7 +519,7 @@ def launch_new_server(digitalocean_account, is_TCS, _):
             instance of a psinet server
     """
 
-    base_id = '17784624' if not is_TCS else '22712043'
+    base_id = '17784624' if not is_TCS else '24553974'
     try:
         Droplet = collections.namedtuple('Droplet', ['name', 'region', 'image',
                                                      'size', 'backups'])
@@ -570,6 +576,8 @@ def launch_new_server(digitalocean_account, is_TCS, _):
         datacenter_name = 'Digital Ocean ' + droplet.region['name']
 
         if is_TCS:
+            set_host_name(digitalocean_account, droplet.ip_address, new_root_password,
+                         droplet.name)
             stats_username = psi_utils.generate_stats_username()
             set_allowed_users(digitalocean_account, droplet.ip_address,
                               new_root_password, stats_username)
