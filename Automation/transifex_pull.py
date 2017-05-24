@@ -82,7 +82,8 @@ PSIPHON_CIRCUMVENTION_SYSTEM_DIR = 'psiphon-circumvention-system'
 
 IOS_BROWSER_RESOURCES = \
     ['ios-browser-iasklocalizablestrings', 'ios-browser-localizablestrings',
-     'ios-browser-onepasswordextensionstrings', 'ios-browser-rootstrings']
+     'ios-browser-onepasswordextensionstrings', 'ios-browser-rootstrings',
+     'ios-browser-app-store-assets']
 IOS_BROWSER_DIR = 'endless'
 IOS_BROWSER_LANGS = DEFAULT_LANGS.copy()
 # Xcode/iOS uses some different locale codes than Transifex does
