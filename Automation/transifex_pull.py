@@ -37,14 +37,17 @@ import psi_feedback_templates
 
 DEFAULT_LANGS = {
     'ar': 'ar',         # Arabic
+    'bo': 'bo',         # Tibetan
     'de': 'de',         # German
     'el_GR': 'el',      # Greek
     'es': 'es',         # Spanish
     'fa': 'fa',         # Farsi/Persian
     'fi_FI': 'fi',      # Finnish
     'fr': 'fr',         # French
+    'hi_IN': 'hi',      # Hindi
     'hr': 'hr',         # Croation
     'id': 'id',         # Indonesian
+    'it': 'it',         # Italian
     'kk': 'kk',         # Kazak
     'ko': 'ko',         # Korean
     'nb_NO': 'nb',      # Norwegian
@@ -52,6 +55,7 @@ DEFAULT_LANGS = {
     'pt_BR': 'pt_BR',   # Portuguese-Brazil
     'pt_PT': 'pt_PT',   # Portuguese-Portugal
     'ru': 'ru',         # Russian
+    'sn': 'sn',         # Shona
     'th': 'th',         # Thai
     'tk': 'tk',         # Turkmen
     'tr': 'tr',         # Turkish
@@ -60,14 +64,6 @@ DEFAULT_LANGS = {
     'zh': 'zh',         # Chinese (simplified)
     'zh_TW': 'zh_TW'    # Chinese (traditional)
 }
-# Transifex does not support multiple character sets for Uzbek, but
-# Psiphon supports both uz@Latn and uz@cyrillic. So we're going to
-# use "Uzbek" ("uz") for uz@Latn and "Klingon" ("tlh") for uz@cyrillic.
-# We opened an issue with Transifex about this, but it hasn't been
-# rectified yet:
-# https://getsatisfaction.com/indifex/topics/uzbek_cyrillic_language
-DEFAULT_LANGS['uz'] = 'uz@Latn'
-DEFAULT_LANGS['tlh'] = 'uz@cyrillic'
 
 
 RTL_LANGS = ('ar', 'fa', 'he')
