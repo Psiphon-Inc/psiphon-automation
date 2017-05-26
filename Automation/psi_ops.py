@@ -321,6 +321,7 @@ RoutesSigningKeyPair = psi_utils.recordtype(
 
 CLIENT_PLATFORM_WINDOWS = 'Windows'
 CLIENT_PLATFORM_ANDROID = 'Android'
+CLIENT_PLATFORM_IOS = 'iOS'
 
 
 class PsiphonNetwork(psi_ops_cms.PersistentObject):
@@ -2118,7 +2119,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             migrated_from = 'Legacy'
 
         server.log('Migrated' + ' from ' + migrated_from + ' to TCS ' + TCS_type)
-        
+
         host.is_TCS = True
         host.TCS_type = TCS_type
 
@@ -3276,7 +3277,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         sponsor = self.__sponsors[sponsor_id]
         sponsor_home_pages = []
         home_pages = sponsor.home_pages
-        if client_platform == CLIENT_PLATFORM_ANDROID:
+        if client_platform in (CLIENT_PLATFORM_ANDROID, CLIENT_PLATFORM_IOS):
             if sponsor.mobile_home_pages:
                 home_pages = sponsor.mobile_home_pages
         # case: lookup succeeded and corresponding region home page found
@@ -3307,7 +3308,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def __check_upgrade(self, platform, client_version):
         # check last version number against client version number
         # assumes versions list is in ascending version order
-        if not self.__client_versions[platform]:
+        if not self.__client_versions.get(platform):
             return None
         last_version = self.__client_versions[platform][-1].version
         if int(last_version) > int(client_version):
@@ -3328,6 +3329,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         platform = CLIENT_PLATFORM_WINDOWS
         if CLIENT_PLATFORM_ANDROID.lower() in client_platform_string.lower():
             platform = CLIENT_PLATFORM_ANDROID
+        elif client_platform_string.startswith(CLIENT_PLATFORM_IOS):
+            platform = CLIENT_PLATFORM_IOS
 
         if sponsor_id not in self.__sponsors and self.__default_sponsor_id and self.__default_sponsor_id in self.__sponsors:
             sponsor_id = self.__default_sponsor_id
