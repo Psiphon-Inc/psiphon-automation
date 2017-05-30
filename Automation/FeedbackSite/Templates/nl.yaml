@@ -1,0 +1,25 @@
+nl:
+  title: Psiphon Feedback
+  top_content_title: Geef Ons Je Feedback
+  top_para_1: |
+    Uw feedback maakt beter Psiphon
+  top_para_2: |
+    Veel problemen kunnen worden opgelost door het downloaden van de nieuwste versie. Je kan
+    <a class="newVersionURL" href="#">download de laatste versie door hier te klikken</a>,
+    of stuur een email naar <span id="newVersionEmail"></span>.
+  top_para_3: |
+    Vindt u oplossingen voor veel voorkomende problemen in onze
+    <a class="faqURL" href="#">Veel gestelde vragen</>
+  diagnostic_check: |
+    Upload diagnostische gegevens. Opmerking dat de diagnosegegevens U niet zal indentificeren, maar het zal ons helpen Psiphon te verbeteren.
+    <a class="dataCollectionInfoURL" href="#">Klik hier om te zien welke gegevens wij verzamelen.</a>
+  smiley_title: Overal voldoening
+  smiley_happy: Psiphon verbindt en presteert de manier waarop ik het wil.
+  smiley_sad: Pishon kan niet goed Verbinding maken of het presteren er van.
+  submit_button: Akkoord
+  text_feedback_prompt: |
+    A.u.b. plaats hier je commentaar:
+  text_feedback_email_prompt: |
+    Als je wilt dat wij U terug schrijven, plaats hier dan je email adres:
+  text_feedback_bottom_para: |
+    Als bovenstaand formulier niet werkt, of u wilt screenshots te sturen, kunt u mailen naar <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>
