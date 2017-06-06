@@ -109,7 +109,7 @@ def get_region_name(region):
     '''
     if region['cloud_id'] in [65, 91, 121, 127]:
         return 'GB'
-    if region['cloud_id'] in [66, 113, 116, 117, 118, 124, 125, 126, 129]:
+    if region['cloud_id'] in [66, 113, 116, 117, 118, 124, 125, 126, 129, 130, 131, 132, 133]:
         return 'US'
     if region['cloud_id'] in [119, 128]:
         return 'CA'
