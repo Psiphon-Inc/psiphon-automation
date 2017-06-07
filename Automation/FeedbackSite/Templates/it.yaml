@@ -1,0 +1,20 @@
+it:
+  title: Segnalazioni su Psiphon
+  top_content_title: Inviaci i tuoi commenti
+  top_para_2: |
+    Molti problemi possono essere risolti scaricando l'ultima versione del client.
+    <a class="newVersionURL" href="#">Puoi scaricare l'ultima versione cliccando quì</a>,
+    oppure inviando una mail a <span id="newVersionEmail"></span>.
+  diagnostic_check: |
+    Carica i dati diagnostici. Da notare che questi dati diagnostici non permettono di identificarti e possono aiutarci a far funzionare al meglio Psiphon.
+    <a class="dataCollectionInfoURL" href="#">Clicca quì per vedere quali dati abbiamo raccolto.</a>
+  smiley_title: Soddisfazione generale
+  smiley_happy: Psiphon si connette e funziona come desidero.
+  smiley_sad: Psiphon spesso non si connette o non funziona abbastanza bene.
+  submit_button: Invia
+  text_feedback_prompt: |
+    Per favore, inserisci i tuoi commenti quì:
+  text_feedback_email_prompt: |
+    Se desideri una risposta, inserisci il tuo indirizzo di posta:
+  text_feedback_bottom_para: |
+    Se la maschera non funziona, o desideri inviare immagini, invia una mail a  <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>

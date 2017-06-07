@@ -124,14 +124,18 @@ html {{
   <option value="fa">فارسی</option>
   <option value="ar">العربي</option>
   <option value="zh">简体中文</option>
+  <option value="zh_TW">繁体中文</option>
   <option value="az">azərbaycan dili</option>
+  <option value="bo">བོད་ཡིག</option>
   <option value="de">Deutsch</option>
   <option value="el">Ελληνικά</option>
   <option value="es">Español</option>
   <option value="fi">Suomi</option>
   <option value="fr">Français</option>
+  <option value="hi">हिन्दी</option>
   <option value="hr">Hrvatski</option>
   <option value="id">Bahasa Indonesia</option>
+  <option value="it">italiano</option>
   <option value="kk">қазақ тілі</option>
   <option value="ko">한국어</option>
   <option value="nb">Norsk (bokmål)</option>
@@ -139,6 +143,7 @@ html {{
   <option value="pt_BR">Português (Brasil)</option>
   <option value="pt_PT">Português (Portugal)</option>
   <option value="ru">Русский</option>
+  <option value="sn">chiShona</option>
   <option value="th">ภาษาไทย</option>
   <option value="tk">Türkmençe</option>
   <option value="tr">Türkçe</option>
@@ -146,7 +151,6 @@ html {{
   <option value="uz@Cyrl">Ўзбекча</option>
   <option value="uz@Latn">O'zbekcha</option>
   <option value="vi">Tiếng Việt</option>
-  <option value="zh_TW">繁体中文</option>
   </select>
 
   <h1 id="top_content_title"></h1>
