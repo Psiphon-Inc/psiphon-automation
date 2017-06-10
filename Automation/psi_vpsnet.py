@@ -156,7 +156,7 @@ def remove_server(vpsnet_account, node_id):
         raise e
 
 
-def launch_new_server(vpsnet_account, is_TCS, _):
+def launch_new_server(vpsnet_account, is_TCS, _, datacenter_city=None):
     """
         launch_new_server is called from psi_ops.py to create a new server.
     """
@@ -191,8 +191,10 @@ def launch_new_server(vpsnet_account, is_TCS, _):
                     template['cloud_label'] = region['cloud']['label']
                     psiphon_templates.append(template)
 
-        # region_template = psiphon_templates[9] - Chicago for Testing
-        region_template = random.choice(psiphon_templates) 
+        if datacenter_city != None:
+            region_template = [s for s in psiphon_templates if datacenter_city in s['cloud_label'].lower()][0]
+        else:
+            region_template = random.choice(psiphon_templates) 
         VPSNetHost.cloud_id = region_template['cloud_id']
         VPSNetHost.system_template_id = region_template['id']
 
@@ -264,7 +266,7 @@ def launch_new_server(vpsnet_account, is_TCS, _):
         'root',
         new_root_password,
         ' '.join(node_public_key.split(' ')[:2]),
-        vpsnet_account.base_stats_username,
+        stats_username,
         new_stats_password,
         region_template['cloud_label'],
         get_region_name(region_template),
