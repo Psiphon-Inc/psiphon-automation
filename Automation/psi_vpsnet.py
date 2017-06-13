@@ -109,7 +109,7 @@ def get_region_name(region):
     '''
     if region['cloud_id'] in [65, 91, 121, 127]:
         return 'GB'
-    if region['cloud_id'] in [66, 113, 116, 117, 118, 124, 125, 126, 129]:
+    if region['cloud_id'] in [66, 113, 116, 117, 118, 124, 125, 126, 129, 130, 131, 132, 133]:
         return 'US'
     if region['cloud_id'] in [119, 128]:
         return 'CA'
@@ -156,12 +156,13 @@ def remove_server(vpsnet_account, node_id):
         raise e
 
 
-def launch_new_server(vpsnet_account, is_TCS, _):
+def launch_new_server(vpsnet_account, is_TCS, _, datacenter_city=None):
     """
         launch_new_server is called from psi_ops.py to create a new server.
     """
 
     # TODO-TCS: select base image based on is_TCS flag
+    base_image_id = '8849'
 
     try:
         VPSNetHost = collections.namedtuple('VPSNetHost',
@@ -183,14 +184,17 @@ def launch_new_server(vpsnet_account, is_TCS, _):
         for region in vpsnet_clouds:
             print '%s -> %s' % (region['cloud']['id'], region['cloud']['label'])
             for template in region['cloud']['system_templates']:
-                if 'psiphond-template' in template['label'].lower():
+                if 'psiphond-template' in template['label'].lower() and str(template['id']) == base_image_id:
                     print '\tFound psiphon template id %s in region %s' % (
                         template['id'], region['cloud']['id'])
                     template['cloud_id'] = region['cloud']['id']
                     template['cloud_label'] = region['cloud']['label']
                     psiphon_templates.append(template)
 
-        region_template = random.choice(psiphon_templates)
+        if datacenter_city != None:
+            region_template = [s for s in psiphon_templates if datacenter_city in s['cloud_label'].lower()][0]
+        else:
+            region_template = random.choice(psiphon_templates) 
         VPSNetHost.cloud_id = region_template['cloud_id']
         VPSNetHost.system_template_id = region_template['id']
 
@@ -242,7 +246,7 @@ def launch_new_server(vpsnet_account, is_TCS, _):
         node_public_key = refresh_credentials(vpsnet_account, public_ip_address,
                                               generated_root_password,
                                               new_root_password, new_stats_password, stats_username)
-        set_allowed_users(vpsnet_account, ip_address, generated_root_password, stats_username)
+        set_allowed_users(vpsnet_account, public_ip_address, new_root_password, stats_username)
     except Exception as e:
         print type(e), str(e)
         if node is not None:
@@ -254,7 +258,7 @@ def launch_new_server(vpsnet_account, is_TCS, _):
     return (
         host_id,
         is_TCS,
-        'DOCKER' if is_TCS else None,
+        'NATIVE' if is_TCS else None,
         None,
         node.id,
         public_ip_address,
@@ -262,7 +266,7 @@ def launch_new_server(vpsnet_account, is_TCS, _):
         'root',
         new_root_password,
         ' '.join(node_public_key.split(' ')[:2]),
-        vpsnet_account.base_stats_username,
+        stats_username,
         new_stats_password,
         region_template['cloud_label'],
         get_region_name(region_template),

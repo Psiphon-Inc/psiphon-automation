@@ -37,14 +37,17 @@ import psi_feedback_templates
 
 DEFAULT_LANGS = {
     'ar': 'ar',         # Arabic
+    'bo': 'bo',         # Tibetan
     'de': 'de',         # German
     'el_GR': 'el',      # Greek
     'es': 'es',         # Spanish
     'fa': 'fa',         # Farsi/Persian
     'fi_FI': 'fi',      # Finnish
     'fr': 'fr',         # French
+    'hi_IN': 'hi',      # Hindi
     'hr': 'hr',         # Croation
     'id': 'id',         # Indonesian
+    'it': 'it',         # Italian
     'kk': 'kk',         # Kazak
     'ko': 'ko',         # Korean
     'nb_NO': 'nb',      # Norwegian
@@ -52,6 +55,7 @@ DEFAULT_LANGS = {
     'pt_BR': 'pt_BR',   # Portuguese-Brazil
     'pt_PT': 'pt_PT',   # Portuguese-Portugal
     'ru': 'ru',         # Russian
+    'sn': 'sn',         # Shona
     'th': 'th',         # Thai
     'tk': 'tk',         # Turkmen
     'tr': 'tr',         # Turkish
@@ -60,14 +64,6 @@ DEFAULT_LANGS = {
     'zh': 'zh',         # Chinese (simplified)
     'zh_TW': 'zh_TW'    # Chinese (traditional)
 }
-# Transifex does not support multiple character sets for Uzbek, but
-# Psiphon supports both uz@Latn and uz@cyrillic. So we're going to
-# use "Uzbek" ("uz") for uz@Latn and "Klingon" ("tlh") for uz@cyrillic.
-# We opened an issue with Transifex about this, but it hasn't been
-# rectified yet:
-# https://getsatisfaction.com/indifex/topics/uzbek_cyrillic_language
-DEFAULT_LANGS['uz'] = 'uz@Latn'
-DEFAULT_LANGS['tlh'] = 'uz@cyrillic'
 
 
 RTL_LANGS = ('ar', 'fa', 'he')
@@ -82,7 +78,8 @@ PSIPHON_CIRCUMVENTION_SYSTEM_DIR = 'psiphon-circumvention-system'
 
 IOS_BROWSER_RESOURCES = \
     ['ios-browser-iasklocalizablestrings', 'ios-browser-localizablestrings',
-     'ios-browser-onepasswordextensionstrings', 'ios-browser-rootstrings']
+     'ios-browser-onepasswordextensionstrings', 'ios-browser-rootstrings',
+     'ios-browser-app-store-assets']
 IOS_BROWSER_DIR = 'endless'
 IOS_BROWSER_LANGS = DEFAULT_LANGS.copy()
 # Xcode/iOS uses some different locale codes than Transifex does
@@ -95,9 +92,34 @@ KNOWN_RESOURCES = PSIPHON_CIRCUMVENTION_SYSTEM_RESOURCES + IOS_BROWSER_RESOURCES
 
 
 def process_android_app_strings():
-    langs = {'ar': 'ar', 'es': 'es', 'fa': 'fa', 'ru': 'ru', 'tk': 'tk',
-             'vi': 'vi', 'zh': 'zh', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr',
-             'pt_BR': 'pt-rBR'}
+    langs = {'ar': 'ar',
+             'az@latin': 'az',
+             'bo': 'bo',
+             'de': 'de',
+             'el_GR': 'el',
+             'es': 'es',
+             'fa': 'fa',
+             'fi_FI': 'fi',
+             'fr': 'fr',
+             'hi_IN': 'hi',
+             'hr': 'hr',
+             'id': 'id',
+             'it': 'it',
+             'km': 'km',
+             'ko': 'ko',
+             'ms': 'ms',
+             'nb_NO': 'nb',
+             'nl': 'nl',
+             'pt_BR': 'pt-rBR',
+             'pt_PT': 'pt',
+             'ru': 'ru',
+             'sn': 'sn',
+             'th': 'th',
+             'tk': 'tk',
+             'tr': 'tr',
+             'vi': 'vi',
+             'zh': 'zh',
+             'zh_TW': 'zh-rTW'}
     process_resource('android-app-strings',
                      lambda lang: './Android/app/src/main/res/values-%s/strings.xml' % lang,
                      None,
@@ -106,9 +128,31 @@ def process_android_app_strings():
 
 
 def process_android_library_strings():
-    langs = {'ar': 'ar', 'es': 'es', 'fa': 'fa', 'ru': 'ru', 'tk': 'tk',
-             'vi': 'vi', 'zh': 'zh', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr',
-             'pt_BR': 'pt-rBR'}
+    langs = {'ar': 'ar',
+             'az@latin': 'az',
+             'bo': 'bo',
+             'de': 'de',
+             'el_GR': 'el',
+             'es': 'es',
+             'fa': 'fa',
+             'fi_FI': 'fi',
+             'fr': 'fr',
+             'hr': 'hr',
+             'id': 'id',
+             'it': 'it',
+             'km': 'km',
+             'ko': 'ko',
+             'nb_NO': 'nb',
+             'nl': 'nl',
+             'pt_BR': 'pt-rBR',
+             'pt_PT': 'pt',
+             'ru': 'ru',
+             'sn': 'sn',
+             'tk': 'tk',
+             'tr': 'tr',
+             'vi': 'vi',
+             'zh': 'zh',
+             'zh_TW': 'zh-rTW'}
     process_resource('android-library-strings',
                      lambda lang: './Android/app/src/main/res/values-%s/psiphon_android_library_strings.xml' % lang,
                      None,
@@ -117,9 +161,32 @@ def process_android_library_strings():
 
 
 def process_android_app_browser_strings():
-    langs = {'ar': 'ar', 'es': 'es', 'fa': 'fa', 'ru': 'ru', 'tk': 'tk',
-             'vi': 'vi', 'zh': 'zh', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr',
-             'pt_BR': 'pt-rBR'}
+    langs = {'ar': 'ar',
+             'az@latin': 'az',
+             'bo': 'bo',
+             'de': 'de',
+             'el_GR': 'el',
+             'es': 'es',
+             'fa': 'fa',
+             'fi_FI': 'fi',
+             'fr': 'fr',
+             'hr': 'hr',
+             'id': 'id',
+             'it': 'it',
+             'km': 'km',
+             'ko': 'ko',
+             'ms': 'ms',
+             'nb_NO': 'nb',
+             'nl': 'nl',
+             'pt_BR': 'pt-rBR',
+             'pt_PT': 'pt',
+             'ru': 'ru',
+             'sn': 'sn',
+             'tk': 'tk',
+             'tr': 'tr',
+             'vi': 'vi',
+             'zh': 'zh',
+             'zh_TW': 'zh-rTW'}
     process_resource('android-app-browser-strings',
                      lambda lang: './Android/app/src/main/res/values-%s/zirco_browser_strings.xml' % lang,
                      None,

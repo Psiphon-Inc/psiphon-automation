@@ -2,14 +2,14 @@ es:
   title: Comentarios sobre Psiphon
   top_content_title: Envíenos sus comentarios
   top_para_1: |
-    ¡Por favor háganos saber cómo está funcionando Psiphon para usted para que podamos mejorar el sistema!
+    ¡Sus comentarios hacen mejor a Psiphon!
   top_para_2: |
     Muchos problemas pueden arreglarse descargando la última versión. Puede
     <a class="newVersionURL" href="#">descargar la última versión haciendo clic aquí</a>,
     o puede enviar un correo a <span id="newVersionEmail"></span>.
   top_para_3: |
-    También puede encontrar soluciones a muchos problemas comunes en nuestras
-    <a class="faqURL" href="#">Preguntas frecuentes</a>.
+    Puede encontrar soluciones a muchos problemas comunes en nuestras
+    <a class="faqURL" href="#">Preguntas Frecuentes (FAQ)</a>.
   diagnostic_check: |
     Suba datos de diagnóstico. Por favor observe que estos datos de
     diagnóstico no le identifican, y nos ayudarán a mantener Psiphon
