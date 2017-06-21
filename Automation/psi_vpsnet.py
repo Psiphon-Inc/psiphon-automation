@@ -162,7 +162,8 @@ def launch_new_server(vpsnet_account, is_TCS, _, datacenter_city=None):
     """
 
     # TODO-TCS: select base image based on is_TCS flag
-    base_image_id = '8849'
+    base_image_id = '8849' # For VPS
+    # base_image_id = '8850' # For Cloud Server
 
     try:
         VPSNetHost = collections.namedtuple('VPSNetHost',
@@ -176,6 +177,7 @@ def launch_new_server(vpsnet_account, is_TCS, _, datacenter_city=None):
 
         # Get a list of regions (clouds) that can be used
         vpsnet_clouds = vpsnet_conn.get_available_ssd_clouds()
+        # vpsnet_clouds = vpsnet_conn.get_available_clouds()
 
         # Check each available cloud for a psiphon template to use.
         # Populate a list of templates and the cloud IDs.
@@ -208,6 +210,7 @@ def launch_new_server(vpsnet_account, is_TCS, _, datacenter_city=None):
 
         host_id = 'vn-' + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
 
+        VPSNetHost.name = str(host_id)
         VPSNetHost.ssd_vps_plan = vpsnet_account.base_ssd_plan
         VPSNetHost.fqdn = str(host_id + '.vps.net')
         VPSNetHost.backups_enabled = False
@@ -223,10 +226,21 @@ def launch_new_server(vpsnet_account, is_TCS, _, datacenter_city=None):
             rsync_backups_enabled=VPSNetHost.rsync_backups_enabled,
             )
 
+        # node = vpsnet_conn.create_node(
+        #     name=VPSNetHost.name,
+        #     image_id=VPSNetHost.system_template_id,
+        #     cloud_id=VPSNetHost.cloud_id,
+        #     size=VPSNetHost.ssd_vps_plan,
+        #     backups_enabled=VPSNetHost.backups_enabled,
+        #     rsync_backups_enabled=VPSNetHost.rsync_backups_enabled,
+        #     ex_fqdn=VPSNetHost.fqdn,
+        #     )
+
         if not wait_on_action(vpsnet_conn, node, 30):
             raise "Could not power on node"
         else:
             node = vpsnet_conn.get_ssd_node(node.id)
+            #node = vpsnet_conn.get_node(node.id)
 
         generated_root_password = node.extra['password']
 
