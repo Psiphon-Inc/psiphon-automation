@@ -56,7 +56,7 @@ class Api:
         json_request['name'] = name
         json_request['region_id'] = region
         json_request['package_id'] = package
-        json_request['os_template_id'] = 34
+        json_request['os_template_id'] = 69
         json_request['has_ipv6'] = False
         json_request['has_private_networking'] = False
         json_request['ssh_key_ids'] = [357]
