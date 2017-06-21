@@ -100,6 +100,10 @@ def check_load_on_host(host):
         if fresh_geoip_db == '':
             process_alerts.append('geoip_db')
 
+        if host.is_TCS:
+            if !g_psinet._PsiphonNetwork__check_host_is_accepting_tunnels(host.id):
+                process_alerts.append('closed')
+
         return (host.id, users, load, free.rstrip(), free_swap.rstrip(), disk_load.rstrip(), ', '.join(process_alerts))
     except Exception as e:
         log_diagnostics('failed host: %s %s' % (host.id, str(e)))
