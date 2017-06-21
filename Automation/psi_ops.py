@@ -1522,6 +1522,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                  'ps ax | grep ssh | grep psiphon | wc -l')) / 2
             return vpn_users + ssh_users
 
+    def __check_host_is_accepting_tunnels(self, host_id):
+        host = self.__hosts[host_id]
+        if host.is_TCS:
+            return 'True' == self.run_command_on_host(host,
+                'tac /var/log/psiphond/psiphond.log | grep -m1 \\"establish_tunnels\\": | python -c \'import sys, json; print json.loads(sys.stdin.read())["establish_tunnels"]\'').strip()
+        else:
+            raise Exception("not implemented")
+
     def __upgrade_host_datacenter_names(self):
         if self.__linode_account.api_key:
             linode_datacenter_names = psi_linode.get_datacenter_names(self.__linode_account)
