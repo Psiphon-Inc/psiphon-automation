@@ -136,7 +136,7 @@ def check_load_on_hosts(psinet, hosts):
     unreachable = [load for load in loads if load[1][0] == -1]
     process_alerts = [load for load in loads if load[1][5]]
     high_load = [load for load in loads if float(load[1][1]) >= 100.0]
-    low_memory = [load for load in loads if float(load[1][2]) < 20.0 or float(load[1][3]) < 20.0]
+    low_memory = [load for load in loads if float(load[1][2]) < 10.0 or float(load[1][3]) < 20.0]
     high_disks_usage = [load for load in loads if float(load[1][4]) > 80.0]
 
     for load in high_disks_usage + low_memory + high_load + process_alerts + unreachable:
