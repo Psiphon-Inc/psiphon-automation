@@ -123,7 +123,7 @@ Elapsed: ${elapsed_time}<br>
           if float(load) >= 100.0:
             status='warning'
             load_status='warning'
-          if float(free_mem) < 20.0:
+          if float(free_mem) < 10.0:
             status='warning'
             mem_status='warning'
           if float(free_swap) < 20.0:
