@@ -25,6 +25,8 @@ import errno
 WEBSITE_DIR = '../Website'
 WEBSITE_PLUGINS_DIR = 'plugins'
 
+# We generate the website in chunks of languages, so that we don't exhaust memory
+GENERATE_CHUNKS = 6
 DOCPAD_ENV = 'production,static'
 
 
@@ -61,7 +63,15 @@ def generate(dest_dir):
 
         subprocess.check_output('docpad clean --env %s --out "%s"' % (DOCPAD_ENV, dest_dir),
                                 shell=True, stderr=subprocess.STDOUT)
-        subprocess.check_output('node --max-old-space-size=8192 --max-semi-space-size=512 --nouse-idle-notification node_modules/docpad/out/bin/docpad.js generate --global --env %s --out "%s"' % (DOCPAD_ENV, dest_dir),
-                                shell=True, stderr=subprocess.STDOUT)
+
+        # An env of `languagesplit_1_3` will split the languages into 3 chunks
+        # and generate the first chunk of them.
+        for chunk in range(1, GENERATE_CHUNKS + 1):
+            split_env = '%s,languagesplit_%d_%d' % (
+                DOCPAD_ENV, chunk, GENERATE_CHUNKS)
+            subprocess.check_output(
+                'docpad generate --cache --offline --env %s --out "%s"' % (
+                    split_env, dest_dir),
+                shell=True, stderr=subprocess.STDOUT)
     finally:
         os.chdir(prev_dir)
