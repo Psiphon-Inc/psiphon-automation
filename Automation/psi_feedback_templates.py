@@ -52,7 +52,7 @@ FEEDBACK_LANGUAGES = [
     'tk',
     'tr',
     'ug@Latn',
-    'uz@cyrillic',
+    'uz@Cyrl',
     'uz@Latn',
     'vi'
 ]

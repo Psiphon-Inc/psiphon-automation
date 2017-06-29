@@ -1522,6 +1522,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                  'ps ax | grep ssh | grep psiphon | wc -l')) / 2
             return vpn_users + ssh_users
 
+    def __check_host_is_accepting_tunnels(self, host_id):
+        host = self.__hosts[host_id]
+        if host.is_TCS:
+            return 'True' == self.run_command_on_host(host,
+                'tac /var/log/psiphond/psiphond.log | grep -m1 \\"establish_tunnels\\": | python -c \'import sys, json; print json.loads(sys.stdin.read())["establish_tunnels"]\'').strip()
+        else:
+            raise Exception("not implemented")
+
     def __upgrade_host_datacenter_names(self):
         if self.__linode_account.api_key:
             linode_datacenter_names = psi_linode.get_datacenter_names(self.__linode_account)
@@ -3245,7 +3253,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             servers = [server for server in self.__servers.itervalues()
                        if (server.propagation_channel_id == propagation_channel_id and
                            (server.is_permanent or (server.is_embedded and include_propagation_servers)))
-                       or (not test and (server.id in permanent_server_ids[0:50]))]
+                       or (not test and (server.id in permanent_server_ids[0:200]))]
         else:
             # discovery case
             if not discovery_date:
@@ -3874,7 +3882,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     [],
                                     '',         # remote_server_list_signature_public_key
                                     ('','','','',''), # remote_server_list_url
-                                    '',         # OSL_root_url_split
+                                    ('[{}]'), # remote_server_list_urls_json
+                                    '', # OSL_root_url_split
+                                    ('[{}]'), # OSL_root_urls_json
                                     '',         # feedback_encryption_public_key
                                     '',         # feedback_upload_server
                                     '',         # feedback_upload_path
@@ -3882,6 +3892,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     '',         # info_link_url
                                     '',         # upgrade_signature_public_key
                                     ('','','','',''), # upgrade_url
+                                    ('[{}]'), #upgrade_urls_json
                                     '',         # get_new_version_url
                                     '',         # get_new_version_email
                                     '',         # faq_url

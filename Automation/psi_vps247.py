@@ -53,6 +53,15 @@ def install_tcs(vps247_account, ip_address):
     ssh.close()
     return
 
+def upload_certs(vps247_account, ip_address):
+    ssh = psi_ssh.make_ssh_session(ip_address, vps247_account.base_ssh_port, 'root', vps247_account.default_root_password, None)
+    ssh.put_file(AUTOMATION_DIR + "/ssl/logs.cert.pem", "/opt/psiphon/certs/logs.cert.pem")
+    ssh.put_file(AUTOMATION_DIR + "/ssl/beats.psiphon3.com.cert.pem", "/opt/psiphon/certs/beats.psiphon3.com.cert.pem")
+    ssh.put_file(AUTOMATION_DIR + "/ssl/beats.psiphon3.com.key.pem", "/opt/psiphon/certs/beats.psiphon3.com.key.pem")
+
+    ssh.close()
+    return
+
 def refresh_credentials(vps247_account, ip_address, new_root_password, new_stats_password, new_stats_username):
     ssh = psi_ssh.make_ssh_session(ip_address, vps247_account.base_ssh_port, 'root', vps247_account.default_root_password, None)
                                    
@@ -109,6 +118,7 @@ def launch_server(vps247_account, is_TCS, _):
         print 'Waiting for TCS installation finished.'
         time.sleep(150) # Time needed to reboot the instances
 
+        upload_certs(vps247_account, instance_ip_address)
         add_swap_file(vps247_account, instance_ip_address)
         
         print 'Refreshing Credential..'
