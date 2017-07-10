@@ -1876,7 +1876,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             discovery = self.__copy_date_range(discovery_date_range) if discovery_date_range else None
 
             ssh_port = '22'
-            ossh_port = random.choice([53, 443])
+            ossh_port = random.choice([53, 443, 554])
             capabilities = ServerCapabilities()
 
             if server_capabilities:
