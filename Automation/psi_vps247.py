@@ -80,7 +80,7 @@ def refresh_credentials(vps247_account, ip_address, new_root_password, new_stats
     ssh.exec_command('dpkg-reconfigure openssh-server')
     return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
 
-def launch_server(vps247_account, is_TCS, _):
+def launch_new_server(vps247_account, is_TCS, _):
 
     # Try launch New VPS 247 Server
 

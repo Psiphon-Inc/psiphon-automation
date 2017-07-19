@@ -1876,7 +1876,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             discovery = self.__copy_date_range(discovery_date_range) if discovery_date_range else None
 
             ssh_port = '22'
-            ossh_port = random.choice([53, 443])
+            ossh_port = random.choice([53, 443, 554])
             capabilities = ServerCapabilities()
 
             if server_capabilities:
@@ -1915,10 +1915,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 if random_number < 0.33:
                     self.setup_meek_parameters_for_host(host, 80)
                 elif random_number < 0.66:
-                    ossh_port = 53
+                    ossh_port = random.choice([53, 554])
                     self.setup_meek_parameters_for_host(host, 443)
                 else:
-                    ossh_port = 53
+                    ossh_port = random.choice([53, 554])
                     assert(host.is_TCS)
                     capabilities['UNFRONTED-MEEK'] = False
                     capabilities['UNFRONTED-MEEK-SESSION-TICKET'] = True
@@ -4074,6 +4074,16 @@ def replace_propagation_channel_servers(propagation_channel_name):
         psinet.release()
 
 
+def run_deploy():
+    psinet = PsiphonNetwork.load(lock=True)
+    psinet.show_status()
+    try:
+        psinet.deploy()
+    finally:
+        psinet.show_status()
+        psinet.release()
+
+
 if __name__ == "__main__":
     parser = optparse.OptionParser('usage: %prog [options]')
     parser.add_option("-r", "--read-only", dest="readonly", action="store_true",
@@ -4083,6 +4093,8 @@ if __name__ == "__main__":
                       help="specify once for each of: handshake, VPN, OSSH, SSH, FRONTED-MEEK-OSSH, FRONTED-MEEK-HTTP-OSSH, UNFRONTED-MEEK-OSSH, UNFRONTED-MEEK-HTTPS-OSSH, UNFRONTED-MEEK-SESSION-TICKET-OSSH")
     parser.add_option("-u", "--update-routes", dest="updateroutes", action="store_true",
                       help="update external signed routes files")
+    parser.add_option("-d", "--deploy", dest="deploy", action="store_true",
+                      help="run deploy")
     parser.add_option("-p", "--prune", dest="prune", action="store_true",
                       help="prune all propagation channels")
     parser.add_option("-n", "--new-servers", dest="channel", action="store", type="string",
@@ -4092,6 +4104,8 @@ if __name__ == "__main__":
         replace_propagation_channel_servers(options.channel)
     elif options.prune:
         prune_all_propagation_channels()
+    elif options.deploy:
+        run_deploy()
     elif options.updateroutes:
         update_external_signed_routes()
     elif options.test:
