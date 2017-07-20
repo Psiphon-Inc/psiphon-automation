@@ -78,20 +78,6 @@ PSIPHON_CIRCUMVENTION_SYSTEM_RESOURCES = \
      'store-assets', 'windows-client-strings']
 PSIPHON_CIRCUMVENTION_SYSTEM_DIR = 'psiphon-circumvention-system'
 
-IOS_BROWSER_RESOURCES = \
-    ['ios-browser-iasklocalizablestrings', 'ios-browser-localizablestrings',
-     'ios-browser-onepasswordextensionstrings', 'ios-browser-rootstrings',
-     'ios-browser-app-store-assets']
-IOS_BROWSER_DIR = 'endless'
-IOS_BROWSER_LANGS = DEFAULT_LANGS.copy()
-# Xcode/iOS uses some different locale codes than Transifex does
-IOS_BROWSER_LANGS.update({'pt_PT': 'pt-PT', 'zh': 'zh-Hans', 'zh_TW': 'zh-Hant'})
-
-
-# There should be no more or fewer Transifex resources than this. Otherwise
-# either this code or Transifex needs to be updated.
-KNOWN_RESOURCES = PSIPHON_CIRCUMVENTION_SYSTEM_RESOURCES + IOS_BROWSER_RESOURCES
-
 
 def process_android_app_strings():
     langs = {'ar': 'ar',
@@ -336,14 +322,6 @@ def gather_resource(resource, langs=None, skip_untranslated=False):
     return result
 
 
-def check_resource_list():
-    r = request('resources')
-    available_resources = [res['slug'] for res in r]
-    available_resources.sort()
-    KNOWN_RESOURCES.sort()
-    return available_resources == KNOWN_RESOURCES
-
-
 def request(command, params=None):
     url = 'https://www.transifex.com/api/2/project/Psiphon3/' + command + '/'
     r = requests.get(url, params=params,
@@ -392,25 +370,6 @@ def pull_psiphon_circumvention_system_translations():
     print('process_store_assets: DONE')
 
 
-def pull_ios_browser_translations():
-    resources = (
-        ('ios-browser-iasklocalizablestrings', 'IASKLocalizable.strings'),
-        ('ios-browser-localizablestrings', 'Localizable.strings'),
-        ('ios-browser-onepasswordextensionstrings', 'OnePasswordExtension.strings'),
-        ('ios-browser-rootstrings', 'Root.strings')
-    )
-
-    for resname, fname in resources:
-        process_resource(resname,
-                         lambda lang: './Endless/%s.lproj/%s' % (lang, fname),
-                         None,
-                         langs=IOS_BROWSER_LANGS,
-                         bom=False,
-                         skip_untranslated=True,
-                         encoding='utf-16')
-        print('%s: DONE' % (resname,))
-
-
 # Transifex credentials.
 # Must be of the form:
 # {"username": ..., "password": ...}
@@ -455,10 +414,8 @@ def _getconfig():
 
 
 def go():
-    if check_resource_list():
-        print('Known and available resources match')
-    else:
-        raise Exception('Known and available resources do not match')
+    # Initialize the config before we change the working directory.
+    _getconfig()
 
     # Figure out what repo we're in, based on the current path. This isn't very
     # robust -- since the repo dir could be named anything -- but it's good
@@ -471,29 +428,16 @@ def go():
     except:
         psiphon_circumvention_system_index = sys.maxsize
 
-    try:
-        ios_browser_index = rpath.index(IOS_BROWSER_DIR)
-    except:
-        ios_browser_index = sys.maxsize
-
-    if psiphon_circumvention_system_index < 0 and ios_browser_index < 0:
+    if psiphon_circumvention_system_index < 0:
         raise Exception('Must be executed from within repo!')
-    elif psiphon_circumvention_system_index < ios_browser_index:
-        # Change pwd to root of the repo
-        rpath = rpath[psiphon_circumvention_system_index:]
-        rpath.reverse()
-        path = os.path.sep.join(rpath)
-        os.chdir(path)
 
-        pull_psiphon_circumvention_system_translations()
-    else:
-        # Change pwd to root of the repo
-        rpath = rpath[ios_browser_index:]
-        rpath.reverse()
-        path = os.path.sep.join(rpath)
-        os.chdir(path)
+    # Change pwd to root of the repo
+    rpath = rpath[psiphon_circumvention_system_index:]
+    rpath.reverse()
+    path = os.path.sep.join(rpath)
+    os.chdir(path)
 
-        pull_ios_browser_translations()
+    pull_psiphon_circumvention_system_translations()
 
     print('FINISHED')
 
