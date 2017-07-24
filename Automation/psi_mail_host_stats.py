@@ -71,8 +71,8 @@ def _get_connected(interval, index_param):
     with open(query_files, 'r') as f:
         query = json.load(f)
 
-        query['query']['filtered']['filter']['bool']['must'][0]['range']['@timestamp']['gte'] = interval[0]
-        query['query']['filtered']['filter']['bool']['must'][0]['range']['@timestamp']['lt'] = interval[1]
+        query['query']['bool']['filter']['bool']['must'][0]['range']['@timestamp']['gte'] = interval[0]
+        query['query']['bool']['filter']['bool']['must'][0]['range']['@timestamp']['lt'] = interval[1]
 
         res = es.search(index=index_param, body=query, request_timeout=1800)
         print("[%s] Finished in %.2fs" % (datetime.datetime.now(), round((time()-startTime), 2)))
