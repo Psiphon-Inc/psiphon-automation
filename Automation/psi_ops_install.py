@@ -1265,6 +1265,9 @@ while true; do
     fi
 
     free=$(free | grep "buffers/cache" | awk '{print $4/($3+$4) * 100.0}')
+    if [ -z "$free" ]; then
+        free=$(free | grep "Mem" | awk '{print $7/$2 * 100.0}')
+    fi
     loaded_mem=$(echo "$free<$threshold_mem" | bc)
     if [ $loaded_mem -eq 1 ]; then
         logger psi_limit_load: Free memory load threshold reached.
@@ -1370,6 +1373,9 @@ while true; do
     fi
 
     free=$(free | grep "buffers/cache" | awk '{print $4/($3+$4) * 100.0}')
+    if [ -z "$free" ]; then
+        free=$(free | grep "Mem" | awk '{print $7/$2 * 100.0}')
+    fi
     loaded_mem=$(echo "$free<$threshold_mem" | bc)
     if [ $loaded_mem -eq 1 ]; then
         logger psi_limit_load: Free memory load threshold reached.
