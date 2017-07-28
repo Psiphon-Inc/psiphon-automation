@@ -1125,7 +1125,9 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
             iptables-restore < {iptables_rate_limit_rules_path}
             iptables-restore --noflush < {iptables_limit_load_rules_path}
             iptables-restore --noflush < {iptables_rules_path}
-            systemctl restart fail2ban.service
+            if [ -d /run/systemd/system ]; then
+                systemctl list-jobs | grep -q network.target || systemctl restart fail2ban.service
+            fi
             ''').format(
                 iptables_rules_path=iptables_rules_path,
                 iptables_rate_limit_rules_path=iptables_rate_limit_rules_path,
@@ -1265,6 +1267,9 @@ while true; do
     fi
 
     free=$(free | grep "buffers/cache" | awk '{print $4/($3+$4) * 100.0}')
+    if [ -z "$free" ]; then
+        free=$(free | grep "Mem" | awk '{print $7/$2 * 100.0}')
+    fi
     loaded_mem=$(echo "$free<$threshold_mem" | bc)
     if [ $loaded_mem -eq 1 ]; then
         logger psi_limit_load: Free memory load threshold reached.
@@ -1370,6 +1375,9 @@ while true; do
     fi
 
     free=$(free | grep "buffers/cache" | awk '{print $4/($3+$4) * 100.0}')
+    if [ -z "$free" ]; then
+        free=$(free | grep "Mem" | awk '{print $7/$2 * 100.0}')
+    fi
     loaded_mem=$(echo "$free<$threshold_mem" | bc)
     if [ $loaded_mem -eq 1 ]; then
         logger psi_limit_load: Free memory load threshold reached.
