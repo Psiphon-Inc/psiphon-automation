@@ -2039,6 +2039,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             deleted_server.ssh_password = None
             deleted_server.ssh_host_key = None
             deleted_server.ssh_obfuscated_key = None
+            deleted_server.TCS_ssh_private_key = None
             self.__deleted_servers[server_id] = deleted_server
         # We don't assign host IDs and can't guarentee uniqueness, so not
         # archiving deleted host keyed by ID.
