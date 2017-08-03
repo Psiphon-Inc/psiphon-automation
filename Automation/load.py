@@ -182,6 +182,7 @@ def log_load():
     send_mail(results)
 
 def log_diagnostics(line):
+    line = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S") + ' ' + line
     with open('psi_host_load_diagnostics.log', 'a') as log_file:
         log_file.write(line + '\n')
 
