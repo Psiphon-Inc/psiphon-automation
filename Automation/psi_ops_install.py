@@ -1128,9 +1128,7 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
             iptables-restore < {iptables_rate_limit_rules_path}
             iptables-restore --noflush < {iptables_limit_load_rules_path}
             iptables-restore --noflush < {iptables_rules_path}
-            if [ -d /run/systemd/system ]; then
-                systemctl list-jobs | grep -q network.target || systemctl restart fail2ban.service
-            fi
+            systemctl list-jobs | grep -q network.target || systemctl restart fail2ban.service
             ''').format(
                 iptables_rules_path=iptables_rules_path,
                 iptables_rate_limit_rules_path=iptables_rate_limit_rules_path,
