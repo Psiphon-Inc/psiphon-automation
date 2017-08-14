@@ -1848,7 +1848,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             else:
                 self.__replace_propagation_channel_discovery_servers(propagation_channel.id)
 
-        if discovery_data_range:
+        if discovery_date_range:
             self.__deploy_data_required_for_all = True
 
         self.__deploy_stats_config_required = True
