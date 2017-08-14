@@ -307,6 +307,10 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
 
     config['ProcessCPUProfileDurationSeconds'] = 30
 
+    config['RunPacketTunnel'] = True
+
+    config['PacketTunnelSudoNetworkConfigCommands'] = True
+
     config['DiscoveryValueHMACKey'] = TCS_psiphond_config_values['DiscoveryValueHMACKey']
 
     config['GeoIPDatabaseFilenames'] = [TCS_GEOIP_CITY_DATABASE_FILE_NAME, TCS_GEOIP_ISP_DATABASE_FILE_NAME]
