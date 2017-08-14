@@ -84,7 +84,7 @@ def create_linode(linode_api):
 def create_linode_disks(linode_api, linode_id, bootstrap_password, is_TCS, plugins):
 
     if is_TCS:
-        image_id = 2109413
+        image_id = 2238805
         create_disk_job = linode_api.linode_disk_createfromimage(ImageID=image_id, LinodeID=linode_id, Size=29500)
         # Image creation keys are in upper case
         if str.upper('jobid') in create_disk_job:
@@ -261,7 +261,8 @@ def launch_new_server(linode_account, is_TCS, plugins):
                                                   stats_username)
     except Exception as ex:
         if linode_id:
-            remove_server(linode_account, linode_id)
+            pass
+            # remove_server(linode_account, linode_id)
         raise
     finally:
         # Power down the base image linode
