@@ -1058,6 +1058,9 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
 
     filter_forward_rules = [
 
+        '-A FORWARD -s 10.0.0.0/8 -d 10.0.0.0/8 -j DROP',
+        '-A FORWARD -s 10.0.0.0/8 -o eth+ -j ACCEPT',
+        '-A FORWARD -d 10.0.0.0/8 -i eth+ -j ACCEPT',
         '-A FORWARD -j DROP'
 
     ]
