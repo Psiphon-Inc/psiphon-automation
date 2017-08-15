@@ -261,8 +261,7 @@ def launch_new_server(linode_account, is_TCS, plugins):
                                                   stats_username)
     except Exception as ex:
         if linode_id:
-            pass
-            # remove_server(linode_account, linode_id)
+            remove_server(linode_account, linode_id)
         raise
     finally:
         # Power down the base image linode
