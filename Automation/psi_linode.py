@@ -84,7 +84,7 @@ def create_linode(linode_api):
 def create_linode_disks(linode_api, linode_id, bootstrap_password, is_TCS, plugins):
 
     if is_TCS:
-        image_id = 2109413
+        image_id = 2238805
         create_disk_job = linode_api.linode_disk_createfromimage(ImageID=image_id, LinodeID=linode_id, Size=29500)
         # Image creation keys are in upper case
         if str.upper('jobid') in create_disk_job:
