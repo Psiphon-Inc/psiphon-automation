@@ -309,7 +309,12 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
 
     config['RunPacketTunnel'] = True
 
-    config['PacketTunnelSudoNetworkConfigCommands'] = True
+    if host.TCS_type == 'NATIVE':    
+        config['PacketTunnelSudoNetworkConfigCommands'] = True
+    elif host.TCS_type == 'DOCKER':
+        config['PacketTunnelSudoNetworkConfigCommands'] = False
+    else:
+        raise 'Unhandled host.TCS_type: ' + host.TCS_type
 
     config['DiscoveryValueHMACKey'] = TCS_psiphond_config_values['DiscoveryValueHMACKey']
 
