@@ -376,19 +376,17 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__alternate_meek_fronting_addresses_regex = defaultdict(str)
         self.__meek_fronting_disable_SNI = defaultdict(bool)
         self.__routes_signing_key_pair = None
-
         self.__TCS_traffic_rules_set = None
         self.__TCS_OSL_config = None
         self.__TCS_psiphond_config_values = None
-
         self.__default_sponsor_id = None
-
         self.__alternate_s3_bucket_domains = set()
+        self.__global_https_request_regexes = []
 
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.45'
+    class_version = '0.46'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -667,6 +665,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.45')) < 0:
             self.__alternate_s3_bucket_domains = set()
             self.version = '0.45'
+        if cmp(parse_version(self.version), parse_version('0.46')) < 0:
+            self.__global_https_request_regexes = []
+            self.version = '0.46'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1238,6 +1239,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             sponsor.log('deleted page view regex %s' % regex)
             self.__deploy_data_required_for_all = True
             sponsor.log('marked all hosts for data deployment')
+
+    def set_global_https_request_regex(self, regex, replace):
+        assert(self.is_locked)
+        if not [rx for rx in self.__global_https_request_regexes if rx.regex == regex]:
+            self.__global_https_request_regexes.append(SponsorRegex(regex, replace))
+            self.__deploy_data_required_for_all = True
 
     def set_sponsor_https_request_regex(self, sponsor_name, regex, replace):
         assert(self.is_locked)
@@ -1848,7 +1855,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             else:
                 self.__replace_propagation_channel_discovery_servers(propagation_channel.id)
 
-        self.__deploy_data_required_for_all = True
+        if discovery_date_range:
+            self.__deploy_data_required_for_all = True
+
         self.__deploy_stats_config_required = True
 
         # Unless the node is reserved for discovery, release it through
@@ -3547,7 +3556,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 copy_sponsor.page_view_regexes.append(SponsorRegex(
                                                              page_view_regex.regex,
                                                              page_view_regex.replace))
-            for https_request_regex in sponsor_data.https_request_regexes:
+            # global_https_request_regexes have top priority
+            for https_request_regex in self.__global_https_request_regexes + sponsor_data.https_request_regexes:
                 copy_sponsor.https_request_regexes.append(SponsorRegex(
                                                              https_request_regex.regex,
                                                              https_request_regex.replace))
@@ -3691,7 +3701,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 copy_sponsor.page_view_regexes.append(SponsorRegex(
                                                              page_view_regex.regex,
                                                              page_view_regex.replace))
-            for https_request_regex in sponsor_data.https_request_regexes:
+            # global_https_request_regexes have top priority
+            for https_request_regex in self.__global_https_request_regexes + sponsor_data.https_request_regexes:
                 copy_sponsor.https_request_regexes.append(SponsorRegex(
                                                              https_request_regex.regex,
                                                              https_request_regex.replace))

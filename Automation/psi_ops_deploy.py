@@ -252,7 +252,7 @@ def deploy_TCS_implementation(ssh, host, servers, TCS_psiphond_config_values):
         ssh.exec_command('chmod +x %s' % (TCS_NATIVE_PSIPHOND_BINARY_FILE_NAME))
 
         # Setup kernel caps to allow psiphond to bind to a privileged service port
-        ssh.exec_command('setcap CAP_NET_BIND_SERVICE=+eip %s' % (TCS_NATIVE_PSIPHOND_BINARY_FILE_NAME))
+        ssh.exec_command('setcap CAP_NET_ADMIN,CAP_NET_BIND_SERVICE=+eip %s' % (TCS_NATIVE_PSIPHOND_BINARY_FILE_NAME))
 
         # Restart service (Using Start scipt instead of systemctl)
         ssh.exec_command(TCS_PSIPHOND_SAFE_RESTART_COMMAND)
@@ -306,6 +306,15 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
     config['ProcessBlockProfileDurationSeconds'] = 30
 
     config['ProcessCPUProfileDurationSeconds'] = 30
+
+    if host.TCS_type == 'NATIVE':    
+        config['RunPacketTunnel'] = True
+        config['PacketTunnelSudoNetworkConfigCommands'] = True
+    elif host.TCS_type == 'DOCKER':
+        config['RunPacketTunnel'] = False
+        config['PacketTunnelSudoNetworkConfigCommands'] = False
+    else:
+        raise 'Unhandled host.TCS_type: ' + host.TCS_type
 
     config['DiscoveryValueHMACKey'] = TCS_psiphond_config_values['DiscoveryValueHMACKey']
 
