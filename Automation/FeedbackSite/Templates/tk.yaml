@@ -1,1 +1,28 @@
-tk: {title: Psiphon seslenme, top_content_title: Seslenme beriň, submit_button: Tabşyr}
+tk:
+  title: Psiphon seslenme
+  top_content_title: Seslenme beriň
+  top_para_1: |
+    Seniñ teswiriñ Psiphony gowlašdyryar!
+  top_para_2: |
+    Iň soňky görnüşi ýüklemek arkaly köp yüze çykan meseleleri düzedip bolar. . Siz
+    <a class="newVersionURL" href="#">şu ýere basyp  iň soňky görnüşi ýükläp bilersiňiz</a>,
+    ýada email ugradyp bilersiňiz <span id="newVersionEmail"></span>.
+  top_para_3: |
+    Sen umumy soraglaryñ çözgüdini Biziń
+    Yygy-ýygydan Soralýan Soraglar
+    bölüminde tapyp bilersiñ.
+  diagnostic_check: |
+    Diagnostiki maglumatlary ýükle. Bellik, bu diagnostiki maglumatlar
+    sizi belli etmez, we ol bize Psiphon kadaly işlemegine kömek eder.
+    <a class="dataCollectionInfoURL" href="#">Biziň nähili maglumat topýanymyzy görmek üçin şu ýere bas.</a>
+  smiley_title: Umumy kanagatlandyrma
+  smiley_happy: 'Psipon men islegime görä išleyâr we baglanyar. '
+  smiley_sad: 'Psiphon köplenç baglanšmany bašaranok yada kanagatlandyryjy iślanok. '
+  submit_button: Tabşyr
+  text_feedback_prompt: |
+    Haýyş, öz teswirinñi bu ýerde yaz
+  text_feedback_email_prompt: |
+    Eger-de bizden jogap almagy islesenñiz, onda öz email salgyñyzy su yerde yazyñ:
+  text_feedback_bottom_para: |
+    Eger-de yokardaky forma isšlemeyaän bolsa ya-da ekran suradyny ibersesinñiz gelse, hayysš bize
+    feedback@psiphon.ca email ugradyñ
