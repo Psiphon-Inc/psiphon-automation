@@ -56,19 +56,25 @@ def get_vpsnet_connection(vpsnet_account):
 
 
 def refresh_credentials(vpsnet_account, ip_address, generated_root_password,
-                        new_root_password, new_stats_password):
+                        new_root_password, new_stats_password, stats_username):
     ssh = psi_ssh.make_ssh_session(
-        ip_address, vpsnet_account.base_ssh_port, 
+        ip_address, vpsnet_account.base_ssh_port,
         'root', generated_root_password, None, None,
         )
     ssh.exec_command('echo "root:%s" | chpasswd' % (new_root_password,))
-    ssh.exec_command('echo "%s:%s" | chpasswd' % (
-        vpsnet_account.base_stats_username, new_stats_password))
+    ssh.exec_command('useradd -M -d /var/log -s /bin/sh -g adm %s' % (stats_username))
+    ssh.exec_command('echo "%s:%s" | chpasswd' % (stats_username, new_stats_password))
     ssh.exec_command('rm /etc/ssh/ssh_host_*')
     ssh.exec_command('rm -rf /root/.ssh')
     ssh.exec_command('dpkg-reconfigure openssh-server')
     return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
 
+def set_allowed_users(vpsnet_account, ip_address, password, stats_username):
+    ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_ssh_port, 'root', password, None, None)
+    user_exists = ssh.exec_command('grep %s /etc/ssh/sshd_config' % stats_username)
+    if not user_exists:
+        ssh.exec_command('sed -i "s/^AllowUsers.*/& %s/" /etc/ssh/sshd_config' % stats_username)
+        ssh.exec_command('service ssh restart')
 
 def wait_on_action(vpsnet_conn, node, interval=30):
     for attempt in range(10):
@@ -78,30 +84,34 @@ def wait_on_action(vpsnet_conn, node, interval=30):
         else:
             print 'node state : %s.  Trying again in %s' % (node.state, interval)
             time.sleep(int(interval))
-    
+
     return False
 
 
 def get_region_name(region):
     '''
-        65:  LON-K-SSD:                     London GB
+        65:  LON-K-SSD:                     London GB (Not available)
         66:  SLC-G-SSD:                     Salt Lake City US
-        91:  LON-M-SSD:                     London GB
+        91:  LON-M-SSD:                     London GB (Not available)
         113: SLC-H-SSD:                     Salt Lake City US
         116: (New York) - NYC-A-SSD:        US
         117: (Los Angeles) - LAX-A-SSD:     US
         118: SLC-K-SSD:                     Salt Lake City US
         119: TOR-A-SSD:                     Toronto CA
         120: AMS-B-SSD:                     Amsterdam NL
-        121: LON-P-SSD:                     London GB
+        121: LON-P-SSD:                     London GB (Not available)
         124: (Miami) - MIA-A-SSD:           Miami US
         125: (Chicago) - CHI-C-SSD:         Chicago US
+        126: (Dallas) - DAL-B-SSD           Dallas US
+        127: LON-R-SSD                      London GB
+        128: VAN-A-SSD                      Vancouver CA
+        129: (New York) - NYC-B-SSH         New York US
     '''
-    if region['cloud_id'] in [65, 91, 121]:
+    if region['cloud_id'] in [65, 91, 121, 127]:
         return 'GB'
-    if region['cloud_id'] in [66, 113, 116, 117, 118, 124, 125]:
+    if region['cloud_id'] in [66, 113, 116, 117, 118, 124, 125, 126, 129, 130, 131, 132, 133]:
         return 'US'
-    if region['cloud_id'] in [119]:
+    if region['cloud_id'] in [119, 128]:
         return 'CA'
     if region['cloud_id'] in [120]:
         return 'NL'
@@ -118,7 +128,7 @@ def get_server(account, node_id):
         node = vpsnet_conn.get_ssd_node(node_id)
     except Exception as e:
         raise e
-    
+
     return node
 
 
@@ -146,26 +156,29 @@ def remove_server(vpsnet_account, node_id):
         raise e
 
 
-def launch_new_server(vpsnet_account, is_TCS, _):
+def launch_new_server(vpsnet_account, is_TCS, _, datacenter_city=None):
     """
         launch_new_server is called from psi_ops.py to create a new server.
     """
 
     # TODO-TCS: select base image based on is_TCS flag
+    base_image_id = '8849' # For VPS
+    # base_image_id = '8850' # For Cloud Server
 
     try:
         VPSNetHost = collections.namedtuple('VPSNetHost',
-                                            ['ssd_vps_plan', 'fqdn', 
+                                            ['ssd_vps_plan', 'fqdn',
                                              'system_template_id',
-                                             'cloud_id', 'backups_enabled', 
+                                             'cloud_id', 'backups_enabled',
                                              'rsync_backups_enabled',
                                              'licenses'])
 
         vpsnet_conn = get_vpsnet_connection(vpsnet_account)
-        
+
         # Get a list of regions (clouds) that can be used
         vpsnet_clouds = vpsnet_conn.get_available_ssd_clouds()
-        
+        # vpsnet_clouds = vpsnet_conn.get_available_clouds()
+
         # Check each available cloud for a psiphon template to use.
         # Populate a list of templates and the cloud IDs.
         psiphon_templates = list()
@@ -173,34 +186,39 @@ def launch_new_server(vpsnet_account, is_TCS, _):
         for region in vpsnet_clouds:
             print '%s -> %s' % (region['cloud']['id'], region['cloud']['label'])
             for template in region['cloud']['system_templates']:
-                if 'psiphon-template' in template['label'].lower():
+                if 'psiphond-template' in template['label'].lower() and str(template['id']) == base_image_id:
                     print '\tFound psiphon template id %s in region %s' % (
                         template['id'], region['cloud']['id'])
                     template['cloud_id'] = region['cloud']['id']
                     template['cloud_label'] = region['cloud']['label']
                     psiphon_templates.append(template)
-        
-        region_template = random.choice(psiphon_templates)
+
+        if datacenter_city != None:
+            region_template = [s for s in psiphon_templates if datacenter_city in s['cloud_label'].lower()][0]
+        else:
+            region_template = random.choice(psiphon_templates) 
         VPSNetHost.cloud_id = region_template['cloud_id']
         VPSNetHost.system_template_id = region_template['id']
-        
+
         print 'Using template: %s with cloud_id: %s' % (
             VPSNetHost.system_template_id, VPSNetHost.cloud_id)
-       
+
         '''
-            package/plan for the new SSD server. 
+            package/plan for the new SSD server.
             (VPS 1GB - 1, VPS 2GB - 2, VPS 4GB - 3, VPS 8GB - 4, VPS 16GB - 5)
         '''
+
+        host_id = 'vn-' + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
+
+        VPSNetHost.name = str(host_id)
         VPSNetHost.ssd_vps_plan = vpsnet_account.base_ssd_plan
-        VPSNetHost.fqdn = str('vn-' +
-                              ''.join(random.choice(string.ascii_lowercase) for x in range(8)) +
-                              '.vps.net')
+        VPSNetHost.fqdn = str(host_id + '.vps.net')
         VPSNetHost.backups_enabled = False
         VPSNetHost.rsync_backups_enabled = False
         VPSNetHost.licenses = None
 
         node = vpsnet_conn.create_ssd_node(
-            fqdn=VPSNetHost.fqdn, 
+            fqdn=VPSNetHost.fqdn,
             image_id=VPSNetHost.system_template_id,
             cloud_id=VPSNetHost.cloud_id,
             size=VPSNetHost.ssd_vps_plan,
@@ -208,24 +226,41 @@ def launch_new_server(vpsnet_account, is_TCS, _):
             rsync_backups_enabled=VPSNetHost.rsync_backups_enabled,
             )
 
+        # node = vpsnet_conn.create_node(
+        #     name=VPSNetHost.name,
+        #     image_id=VPSNetHost.system_template_id,
+        #     cloud_id=VPSNetHost.cloud_id,
+        #     size=VPSNetHost.ssd_vps_plan,
+        #     backups_enabled=VPSNetHost.backups_enabled,
+        #     rsync_backups_enabled=VPSNetHost.rsync_backups_enabled,
+        #     ex_fqdn=VPSNetHost.fqdn,
+        #     )
+
         if not wait_on_action(vpsnet_conn, node, 30):
             raise "Could not power on node"
         else:
             node = vpsnet_conn.get_ssd_node(node.id)
-        
+            #node = vpsnet_conn.get_node(node.id)
+
         generated_root_password = node.extra['password']
-        
+
         # Get the Node IP address
         if isinstance(node.public_ips, list):
             for public_ip in node.public_ips:
                 if 'ip_address' in (public_ip and public_ip['ip_address']):
                     public_ip_address = public_ip['ip_address']['ip_address']
-        
+
+        if is_TCS:
+            stats_username = psi_utils.generate_stats_username()
+        elif not is_TCS:
+            stats_username = vpsnet_account.base_stats_username
+
         new_root_password = psi_utils.generate_password()
         new_stats_password = psi_utils.generate_password()
-        node_public_key = refresh_credentials(vpsnet_account, public_ip_address, 
+        node_public_key = refresh_credentials(vpsnet_account, public_ip_address,
                                               generated_root_password,
-                                              new_root_password, new_stats_password)
+                                              new_root_password, new_stats_password, stats_username)
+        set_allowed_users(vpsnet_account, public_ip_address, new_root_password, stats_username)
     except Exception as e:
         print type(e), str(e)
         if node is not None:
@@ -233,18 +268,19 @@ def launch_new_server(vpsnet_account, is_TCS, _):
         else:
             print type(e), "No node to be destoryed: %s", str(node)
         raise
-        
+
     return (
-        VPSNetHost.fqdn, 
+        host_id,
         is_TCS,
-        None, 
-        node.id, 
+        'NATIVE' if is_TCS else None,
+        None,
+        node.id,
         public_ip_address,
         vpsnet_account.base_ssh_port,
         'root',
         new_root_password,
         ' '.join(node_public_key.split(' ')[:2]),
-        vpsnet_account.base_stats_username,
+        stats_username,
         new_stats_password,
         region_template['cloud_label'],
         get_region_name(region_template),

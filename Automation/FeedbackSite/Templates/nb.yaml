@@ -2,7 +2,7 @@ nb:
   title: Psiphon-tilbakemeldinger
   top_content_title: Gi oss din tilbakemelding
   top_para_1: |
-    La høre fra deg om hvordan Psiphon fungerer slik at vi kan gjøre systemet enda bedre!
+    Dine tilbakemeldinger gjør Psiphon bedre!
   top_para_2: |+
     Mange problemer kan ordnes ved å laste ned siste versjon.
     Du kan
@@ -10,8 +10,8 @@ nb:
     eller du kan sende en epost til<span id="newVersionEmail"></span>.
 
   top_para_3: |
-    Du kan finne svar på mange vanlige problemer i vår oversikt over
-    <a class="faqURL" href="#">Ofte Stilte Spørsmål</a>.
+    Du kan finne løsninger på mange vanlige problemer i våre
+    <a class="faqURL" href="#">Ofte-Stilte-Spørsmål</a>.
   diagnostic_check: |+
     Last opp diagnostisk data. Bit deg merke i at denne diagnostikk-dataen ikke
     identifiserer deg, og at du kan hjelpe oss å holde Psiphon-hjulene med å fungere knirkefritt.

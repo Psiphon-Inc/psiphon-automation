@@ -23,6 +23,7 @@ import email
 import json
 import re
 import traceback
+import datetime
 import time
 import tempfile
 import dkim
@@ -538,7 +539,7 @@ if __name__ == '__main__':
             processing_time = time.time()-starttime
 
             logger.critical('success: %s: %fs', requested_addr, processing_time)
-            logger_json.critical('{"event_name": "success", "requested_address": "%s"}' % requested_addr)
+            logger_json.critical('{"timestamp": "%s", "event_name": "success", "requested_address": "%s"}' % (datetime.datetime.utcnow().isoformat() + "Z", requested_addr))
 
             aws_helpers.put_cloudwatch_metric_data(settings.CLOUDWATCH_PROCESSING_TIME_METRIC_NAME,
                                                    processing_time,

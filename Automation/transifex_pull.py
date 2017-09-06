@@ -21,72 +21,162 @@
 Pulls and massages our translations from Transifex.
 '''
 
+from __future__ import print_function
 import os
+import sys
 import errno
 import shutil
 import json
 import codecs
+import argparse
 import requests
 from BeautifulSoup import BeautifulSoup
 
 import psi_feedback_templates
 
 
-DEFAULT_LANGS = {'ar': 'ar', 'es': 'es', 'fa': 'fa', 'kk': 'kk',
-                 'ru': 'ru', 'th': 'th', 'tk': 'tk', 'vi': 'vi', 'zh': 'zh',
-                 'ug': 'ug@Latn', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr',
-                 'de': 'de', 'ko': 'ko', 'fi_FI': 'fi', 'el_GR': 'el',
-                 'hr': 'hr', 'pt_PT': 'pt_PT', 'pt_BR': 'pt_BR', 'id': 'id'}
-# Transifex does not support multiple character sets for Uzbek, but
-# Psiphon supports both uz@Latn and uz@cyrillic. So we're going to
-# use "Uzbek" ("uz") for uz@Latn and "Klingon" ("tlh") for uz@cyrillic.
-# We opened an issue with Transifex about this, but it hasn't been
-# rectified yet:
-# https://getsatisfaction.com/indifex/topics/uzbek_cyrillic_language
-DEFAULT_LANGS['uz'] = 'uz@Latn'
-DEFAULT_LANGS['tlh'] = 'uz@cyrillic'
+DEFAULT_LANGS = {
+    'ar': 'ar',         # Arabic
+    'bo': 'bo',         # Tibetan
+    'de': 'de',         # German
+    'el_GR': 'el',      # Greek
+    'es': 'es',         # Spanish
+    'fa': 'fa',         # Farsi/Persian
+    'fi_FI': 'fi',      # Finnish
+    'fr': 'fr',         # French
+    'hi_IN': 'hi',      # Hindi
+    'hr': 'hr',         # Croation
+    'id': 'id',         # Indonesian
+    'it': 'it',         # Italian
+    'kk': 'kk',         # Kazak
+    'ko': 'ko',         # Korean
+    'nb_NO': 'nb',      # Norwegian
+    'nl': 'nl',         # Dutch
+    'pt_BR': 'pt_BR',   # Portuguese-Brazil
+    'pt_PT': 'pt_PT',   # Portuguese-Portugal
+    'ru': 'ru',         # Russian
+    'sn': 'sn',         # Shona
+    'th': 'th',         # Thai
+    'tk': 'tk',         # Turkmen
+    'tr': 'tr',         # Turkish
+    'ug': 'ug@Latn',    # Uighur (latin script)
+    'uz': 'uz@Latn',    # Uzbek (latin script)
+    'uz@Cyrl': 'uz@Cyrl',    # Uzbek (latin script)
+    'vi': 'vi',         # Vietnamese
+    'zh': 'zh',         # Chinese (simplified)
+    'zh_TW': 'zh_TW'    # Chinese (traditional)
+}
 
 
 RTL_LANGS = ('ar', 'fa', 'he')
 
 
-# There should be no more or fewer Transifex resources than this. Otherwise
-# one or the other needs to be updated.
-known_resources = \
+PSIPHON_CIRCUMVENTION_SYSTEM_RESOURCES = \
     ['android-app-strings', 'android-app-browser-strings',
      'email-template-strings', 'feedback-template-strings',
      'android-library-strings', 'feedback-auto-responses', 'website-strings',
      'store-assets', 'windows-client-strings']
+PSIPHON_CIRCUMVENTION_SYSTEM_DIR = 'psiphon-circumvention-system'
 
 
 def process_android_app_strings():
-    langs = {'ar': 'ar', 'es': 'es', 'fa': 'fa', 'ru': 'ru', 'tk': 'tk',
-             'vi': 'vi', 'zh': 'zh', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr',
-             'pt_BR': 'pt-rBR'}
+    langs = {'ar': 'ar',
+             'az@latin': 'az',
+             'bo': 'bo',
+             'de': 'de',
+             'el_GR': 'el',
+             'es': 'es',
+             'fa': 'fa',
+             'fi_FI': 'fi',
+             'fr': 'fr',
+             'hi_IN': 'hi',
+             'hr': 'hr',
+             'id': 'id',
+             'it': 'it',
+             'km': 'km',
+             'ko': 'ko',
+             'ms': 'ms',
+             'nb_NO': 'nb',
+             'nl': 'nl',
+             'pt_BR': 'pt-rBR',
+             'pt_PT': 'pt',
+             'ru': 'ru',
+             'sn': 'sn',
+             'th': 'th',
+             'tk': 'tk',
+             'tr': 'tr',
+             'vi': 'vi',
+             'zh': 'zh',
+             'zh_TW': 'zh-rTW'}
     process_resource('android-app-strings',
-                     lambda lang: '../Android/app/src/main/res/values-%s/strings.xml' % lang,
+                     lambda lang: './Android/app/src/main/res/values-%s/strings.xml' % lang,
                      None,
                      bom=False,
                      langs=langs)
 
 
 def process_android_library_strings():
-    langs = {'ar': 'ar', 'es': 'es', 'fa': 'fa', 'ru': 'ru', 'tk': 'tk',
-             'vi': 'vi', 'zh': 'zh', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr',
-             'pt_BR': 'pt-rBR'}
+    langs = {'ar': 'ar',
+             'az@latin': 'az',
+             'bo': 'bo',
+             'de': 'de',
+             'el_GR': 'el',
+             'es': 'es',
+             'fa': 'fa',
+             'fi_FI': 'fi',
+             'fr': 'fr',
+             'hr': 'hr',
+             'id': 'id',
+             'it': 'it',
+             'km': 'km',
+             'ko': 'ko',
+             'nb_NO': 'nb',
+             'nl': 'nl',
+             'pt_BR': 'pt-rBR',
+             'pt_PT': 'pt',
+             'ru': 'ru',
+             'sn': 'sn',
+             'tk': 'tk',
+             'tr': 'tr',
+             'vi': 'vi',
+             'zh': 'zh',
+             'zh_TW': 'zh-rTW'}
     process_resource('android-library-strings',
-                     lambda lang: '../Android/app/src/main/res/values-%s/psiphon_android_library_strings.xml' % lang,
+                     lambda lang: './Android/app/src/main/res/values-%s/psiphon_android_library_strings.xml' % lang,
                      None,
                      bom=False,
                      langs=langs)
 
 
 def process_android_app_browser_strings():
-    langs = {'ar': 'ar', 'es': 'es', 'fa': 'fa', 'ru': 'ru', 'tk': 'tk',
-             'vi': 'vi', 'zh': 'zh', 'nb_NO': 'nb', 'tr': 'tr', 'fr': 'fr',
-             'pt_BR': 'pt-rBR'}
+    langs = {'ar': 'ar',
+             'az@latin': 'az',
+             'bo': 'bo',
+             'de': 'de',
+             'el_GR': 'el',
+             'es': 'es',
+             'fa': 'fa',
+             'fi_FI': 'fi',
+             'fr': 'fr',
+             'hr': 'hr',
+             'id': 'id',
+             'it': 'it',
+             'km': 'km',
+             'ko': 'ko',
+             'ms': 'ms',
+             'nb_NO': 'nb',
+             'nl': 'nl',
+             'pt_BR': 'pt-rBR',
+             'pt_PT': 'pt',
+             'ru': 'ru',
+             'sn': 'sn',
+             'tk': 'tk',
+             'tr': 'tr',
+             'vi': 'vi',
+             'zh': 'zh',
+             'zh_TW': 'zh-rTW'}
     process_resource('android-app-browser-strings',
-                     lambda lang: '../Android/app/src/main/res/values-%s/zirco_browser_strings.xml' % lang,
+                     lambda lang: './Android/app/src/main/res/values-%s/zirco_browser_strings.xml' % lang,
                      None,
                      bom=False,
                      langs=langs)
@@ -94,14 +184,14 @@ def process_android_app_browser_strings():
 
 def process_email_template_strings():
     process_resource('email-template-strings',
-                     lambda lang: './TemplateStrings/%s.yaml' % lang,
+                     lambda lang: './Automation/TemplateStrings/%s.yaml' % lang,
                      yaml_lang_change,
                      bom=False)
 
 
 def process_feedback_template_strings():
     process_resource('feedback-template-strings',
-                     lambda lang: './FeedbackSite/Templates/%s.yaml' % lang,
+                     lambda lang: './Automation/FeedbackSite/Templates/%s.yaml' % lang,
                      yaml_lang_change,
                      bom=False)
 
@@ -109,10 +199,8 @@ def process_feedback_template_strings():
     psi_feedback_templates.make_feedback_html()
 
     # Copy the HTML file to where it needs to be
-    shutil.copy2('./FeedbackSite/feedback.html',
-                 '../Client/psiclient/feedback.html')
-    shutil.copy2('./FeedbackSite/feedback.html',
-                 '../Android/app/src/main/assets/feedback.html')
+    shutil.copy2('./Automation/FeedbackSite/feedback.html',
+                 './Android/app/src/main/assets/feedback.html')
 
 
 def process_feedback_auto_responses():
@@ -131,7 +219,7 @@ def process_feedback_auto_responses():
         return result
 
     process_resource('feedback-auto-responses',
-                     lambda lang: '../EmailResponder/FeedbackDecryptor/responses/%s.html' % lang,
+                     lambda lang: './EmailResponder/FeedbackDecryptor/responses/%s.html' % lang,
                      auto_response_modifier,
                      bom=False,
                      skip_untranslated=True)
@@ -139,7 +227,7 @@ def process_feedback_auto_responses():
 
 def process_website_strings():
     process_resource('website-strings',
-                     lambda lang: '../Website/_locales/%s/messages.json' % lang,
+                     lambda lang: './Website/_locales/%s/messages.json' % lang,
                      None,
                      bom=False,
                      skip_untranslated=True)
@@ -147,7 +235,7 @@ def process_website_strings():
 
 def process_windows_client_strings():
     process_resource('windows-client-strings',
-                     lambda lang: '../Client/psiclient/webui/_locales/%s/messages.json' % lang,
+                     lambda lang: './Client/psiclient/webui/_locales/%s/messages.json' % lang,
                      output_mutator_fn=None,
                      bom=False,
                      skip_untranslated=True)
@@ -155,7 +243,7 @@ def process_windows_client_strings():
 
 def process_store_assets():
     process_resource('store-assets',
-                     lambda lang: '../Assets/Store/%s/text.html' % lang,
+                     lambda lang: './Assets/Store/%s/text.html' % lang,
                      None,
                      bom=False)
 
@@ -165,13 +253,13 @@ WEBSITE_LANGS = DEFAULT_LANGS.values()
 
 
 def process_resource(resource, output_path_fn, output_mutator_fn, bom,
-                     langs=None, skip_untranslated=False):
+                     langs=None, skip_untranslated=False, encoding='utf-8'):
     '''
     `output_path_fn` must be callable. It will be passed the language code and
     must return the path+filename to write to.
     `output_mutator_fn` must be callable. It will be passed the output and the
     current language code. May be None.
-    If `skip_untranslated` is True, translations that are less than 10% complete
+    If `skip_untranslated` is True, translations that are less than 20% complete
     will be skipped.
     '''
     if not langs:
@@ -180,7 +268,7 @@ def process_resource(resource, output_path_fn, output_mutator_fn, bom,
     for in_lang, out_lang in langs.items():
         if skip_untranslated:
             stats = request('resource/%s/stats/%s' % (resource, in_lang))
-            if int(stats['completed'].rstrip('%')) < 10:
+            if int(stats['completed'].rstrip('%')) < 20:
                 continue
 
         r = request('resource/%s/translation/%s' % (resource, in_lang))
@@ -208,7 +296,7 @@ def process_resource(resource, output_path_fn, output_mutator_fn, bom,
             else:
                 raise
 
-        with codecs.open(output_path, 'w', 'utf-8') as f:
+        with codecs.open(output_path, 'w', encoding) as f:
             if bom:
                 f.write(u'\uFEFF')
             f.write(content)
@@ -234,29 +322,10 @@ def gather_resource(resource, langs=None, skip_untranslated=False):
     return result
 
 
-def check_resource_list():
-    r = request('resources')
-    available_resources = [res['slug'] for res in r]
-    available_resources.sort()
-    known_resources.sort()
-    return available_resources == known_resources
-
-
-# Initialized on first use.
-_config = None
-
-
 def request(command, params=None):
-    global _config
-    if not _config:
-        # Must be of the form:
-        # {"username": ..., "password": ...}
-        with open('./transifex_conf.json') as config_fp:
-            _config = json.load(config_fp)
-
     url = 'https://www.transifex.com/api/2/project/Psiphon3/' + command + '/'
     r = requests.get(url, params=params,
-                     auth=(_config['username'], _config['password']))
+                     auth=(_getconfig()['username'], _getconfig()['password']))
     if r.status_code != 200:
         raise Exception('Request failed with code %d: %s' %
                             (r.status_code, url))
@@ -271,12 +340,7 @@ def html_doctype_add(in_html, to_lang):
     return '<!DOCTYPE html>\n' + in_html
 
 
-def go():
-    if check_resource_list():
-        print('Known and available resources match')
-    else:
-        raise Exception('Known and available resources do not match')
-
+def pull_psiphon_circumvention_system_translations():
     process_feedback_template_strings()
     print('process_feedback_template_strings: DONE')
 
@@ -306,10 +370,77 @@ def go():
     print('process_store_assets: DONE')
 
 
-if __name__ == '__main__':
-    if os.getcwd().split(os.path.sep)[-1] != 'Automation':
-        raise Exception('Must be executed from Automation directory!')
+# Transifex credentials.
+# Must be of the form:
+# {"username": ..., "password": ...}
+_config = None  # Don't use this directly. Call _getconfig()
+def _getconfig():
+    global _config
+    if _config:
+        return _config
 
-    go()
+    DEFAULT_CONFIG_FILENAME = 'transifex_conf.json'
+
+    # Figure out where the config file is
+    parser = argparse.ArgumentParser(description='Pull translations from Transifex')
+    parser.add_argument('configfile', default=None, nargs='?',
+                        help='config file (default: pwd or location of script)')
+    args = parser.parse_args()
+    configfile = None
+    if args.configfile and os.path.exists(args.configfile):
+        # Use the script argument
+        configfile = args.configfile
+    elif os.path.exists(DEFAULT_CONFIG_FILENAME):
+        # Use the conf in pwd
+        configfile = DEFAULT_CONFIG_FILENAME
+    elif __file__ and os.path.exists(os.path.join(
+                        os.path.dirname(os.path.realpath(__file__)),
+                        DEFAULT_CONFIG_FILENAME)):
+        configfile = os.path.join(
+                        os.path.dirname(os.path.realpath(__file__)),
+                        DEFAULT_CONFIG_FILENAME)
+    else:
+        print('Unable to find config file')
+        sys.exit(1)
+
+    with open(configfile) as config_fp:
+        _config = json.load(config_fp)
+
+    if not _config:
+        print('Unable to load config contents')
+        sys.exit(1)
+
+    return _config
+
+
+def go():
+    # Initialize the config before we change the working directory.
+    _getconfig()
+
+    # Figure out what repo we're in, based on the current path. This isn't very
+    # robust -- since the repo dir could be named anything -- but it's good
+    # enough for our purposes.
+    rpath = os.getcwd().split(os.path.sep)
+    rpath.reverse()
+
+    try:
+        psiphon_circumvention_system_index = rpath.index(PSIPHON_CIRCUMVENTION_SYSTEM_DIR)
+    except:
+        psiphon_circumvention_system_index = sys.maxsize
+
+    if psiphon_circumvention_system_index < 0:
+        raise Exception('Must be executed from within repo!')
+
+    # Change pwd to root of the repo
+    rpath = rpath[psiphon_circumvention_system_index:]
+    rpath.reverse()
+    path = os.path.sep.join(rpath)
+    os.chdir(path)
+
+    pull_psiphon_circumvention_system_translations()
 
     print('FINISHED')
+
+
+if __name__ == '__main__':
+    go()

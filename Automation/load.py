@@ -44,16 +44,45 @@ def check_load_on_host(host):
     try:
         log_diagnostics('checking host: %s' % (host.id))
         users = g_psinet._PsiphonNetwork__count_users_on_host(host.id)
-        load_metrics = g_psinet.run_command_on_host(host,
-            'uptime | cut -d , -f 4 | cut -d : -f 2; grep "model name" /proc/cpuinfo | wc -l').split('\n')
-        load_threshold = 4.0 * float(load_metrics[1].strip()) - 1
+
+        load_commands = ['uptime | cut -d , -f 4 | cut -d : -f 2',
+                         'grep "model name" /proc/cpuinfo | wc -l',
+                         'free | grep "Mem" | awk \'{print $7/$2 * 100.0}\'',
+                         'free | grep "buffers/cache" | awk \'{print $4/($3+$4) * 100.0}\'',
+                         'free | grep "Swap" | awk \'{if ($2 == 0) {print 0} else {print $4/$2 * 100.0}}\'',
+                         'df -T / | grep "/" | awk \'{if ($4 == 0) {print 0} else {print $4/$3 * 100.0}}\'']
+        load_metrics = g_psinet.run_command_on_host(host, '; '.join(load_commands)).strip().split('\n')
+        if host.is_TCS:
+            load_threshold = float(load_metrics[1].strip())
+        else:
+            load_threshold = 4.0 * float(load_metrics[1].strip()) - 1
         load = str(float(load_metrics[0].strip())/load_threshold * 100.0)
-        free = g_psinet.run_command_on_host(host, 'free | grep "buffers/cache" | awk \'{print $4/($3+$4) * 100.0}\'')
-        free_swap = g_psinet.run_command_on_host(host, 'free | grep "Swap" | awk \'{if ($2 == 0) {print 0} else {print $4/$2 * 100.0}}\'')
-        disk_load = g_psinet.run_command_on_host(host, 'df -hT / | grep "/" | awk \'{if ($4 == 0) {print 0} else {print $4/$3 * 100.0}}\'')
-        processes_to_check = ['psi_web.py', 'redis-server', 'badvpn-udpgw', 'xinetd', 'xl2tpd', 'cron', 'rsyslogd', 'fail2ban-server', 'ntpd', 'systemctl']
-        if host.meek_server_port:
-            processes_to_check.append('meek-server')
+        if len(load_metrics) == 5:
+            # New versions of "free" do not include the "buffers/cache" line, that command had no output
+            free = load_metrics[2]
+            free_swap = load_metrics[3]
+            disk_load = load_metrics[4]
+        elif len(load_metrics) == 6:
+            # Skip the calculation based on the "Mem" line
+            free = load_metrics[3]
+            free_swap = load_metrics[4]
+            disk_load = load_metrics[5]
+        else:
+            raise Exception("Unexpected number of load metrics")
+
+        processes_to_check = ['cron', 'rsyslogd', 'fail2ban-server', 'ntpd', 'systemctl']
+        legacy_process = ['psi_web.py', 'redis-server', 'badvpn-udpgw', 'xinetd']
+        vpn_servers = [server.host_id for server in g_psinet.get_servers() if server.host_id == host.id and server.capabilities['VPN'] == True]
+        if host.is_TCS:
+            processes_to_check.append('psiphond')
+        else:
+            processes_to_check = processes_to_check + legacy_process
+
+            if host.meek_server_port:
+                processes_to_check.append('meek-server')
+            if len(vpn_servers) > 0:
+                processes_to_check.append('xl2tpd')
+
         process_counts = g_psinet.run_command_on_host(host,
             '; '.join(['pgrep -xc ' + process for process in processes_to_check])).split('\n')
         process_alerts = []
@@ -66,10 +95,25 @@ def check_load_on_host(host):
                 alert = instances != len([server.id for server in g_psinet.get_servers() if server.host_id == host.id])
             elif process == 'systemctl':
                 alert = instances > 0
+            elif process == 'psiphond':
+                alert = instances != 2
             else:
                 alert = instances != 1
             if alert:
                 process_alerts.append(process)
+
+        if host.is_TCS:
+            geoip_freshness_check = 'find /usr/local/share/GeoIP/GeoIP2-City.mmdb -mtime -14'
+        else:
+            geoip_freshness_check = 'find /usr/local/share/GeoIP/GeoIPCity.dat -mtime -14'
+        fresh_geoip_db = g_psinet.run_command_on_host(host, geoip_freshness_check)
+        if fresh_geoip_db == '':
+            process_alerts.append('geoip_db')
+
+        if host.is_TCS:
+            if not g_psinet._PsiphonNetwork__check_host_is_accepting_tunnels(host.id):
+                process_alerts.append('closed')
+
         return (host.id, users, load, free.rstrip(), free_swap.rstrip(), disk_load.rstrip(), ', '.join(process_alerts))
     except Exception as e:
         log_diagnostics('failed host: %s %s' % (host.id, str(e)))
@@ -87,7 +131,7 @@ def check_load_on_hosts(psinet, hosts):
     log_diagnostics('...done checking hosts')
 
     # retry failed hosts
-    failed_hosts = [psinet._PsiphonNetwork__hosts[result[0]] for result in results if result[1] == -1 or result[5]]
+    failed_hosts = [psinet._PsiphonNetwork__hosts[result[0]] for result in results if result[1] == -1 or result[6]]
     if len(failed_hosts):
         log_diagnostics('Retrying failed hosts')
     new_results = pool.map(check_load_on_host, failed_hosts)
@@ -102,7 +146,7 @@ def check_load_on_hosts(psinet, hosts):
     unreachable = [load for load in loads if load[1][0] == -1]
     process_alerts = [load for load in loads if load[1][5]]
     high_load = [load for load in loads if float(load[1][1]) >= 100.0]
-    low_memory = [load for load in loads if float(load[1][2]) < 20.0 or float(load[1][3]) < 20.0]
+    low_memory = [load for load in loads if float(load[1][2]) < 10.0 or float(load[1][3]) < 20.0]
     high_disks_usage = [load for load in loads if float(load[1][4]) > 80.0]
 
     for load in high_disks_usage + low_memory + high_load + process_alerts + unreachable:
@@ -138,6 +182,7 @@ def log_load():
     send_mail(results)
 
 def log_diagnostics(line):
+    line = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S") + ' ' + line
     with open('psi_host_load_diagnostics.log', 'a') as log_file:
         log_file.write(line + '\n')
 

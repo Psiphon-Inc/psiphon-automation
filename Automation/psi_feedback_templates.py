@@ -28,25 +28,31 @@ FEEDBACK_LANGUAGES = [
     'fa',
     'ar',
     'zh',
+    'zh_TW',
     'az',
+    'bo',
     'de',
     'el',
     'es',
     'fi',
     'fr',
+    'hi',
     'hr',
     'id',
+    'it',
     'kk',
     'ko',
     'nb',
+    'nl',
     'pt_BR',
     'pt_PT',
     'ru',
+    'sn',
     'th',
     'tk',
     'tr',
     'ug@Latn',
-    'uz@cyrillic',
+    'uz@Cyrl',
     'uz@Latn',
     'vi'
 ]
@@ -57,8 +63,8 @@ def make_feedback_html():
     for language in FEEDBACK_LANGUAGES:
         lang[language] = get_language_from_template(language)
 
-    feedback_path = os.path.join('.', 'FeedbackSite', 'feedback.html')
-    feedback_template_path = os.path.join('.', 'FeedbackSite', 'Templates', 'feedback.html.tpl')
+    feedback_path = os.path.join('.', 'Automation', 'FeedbackSite', 'feedback.html')
+    feedback_template_path = os.path.join('.', 'Automation', 'FeedbackSite', 'Templates', 'feedback.html.tpl')
 
     format = {
         "langJSON": json.dumps(lang, indent=2),
@@ -87,7 +93,7 @@ def make_feedback_html():
 
 
 def get_language_from_template(language):
-    path = os.path.join('.', 'FeedbackSite', 'Templates', language + '.yaml')
+    path = os.path.join('.', 'Automation', 'FeedbackSite', 'Templates', language + '.yaml')
     with open(path) as f:
         return yaml.load(f.read())[language]
 

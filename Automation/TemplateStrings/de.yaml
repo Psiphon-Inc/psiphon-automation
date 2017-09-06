@@ -1,0 +1,7 @@
+de:
+  plaintext_email_no_attachment: |
+    Psiphon hier herunterladen: {{0}}/{0}/download.html#direct
+  html_email_no_attachment: |
+    <div style="direction: ltr;">
+    Psiphon hier herunterladen: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>

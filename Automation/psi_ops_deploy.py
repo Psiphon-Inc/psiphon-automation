@@ -29,6 +29,7 @@ import psi_routes
 import psi_ops_install
 from multiprocessing.pool import ThreadPool
 from functools import wraps
+from time import sleep
 
 sys.path.insert(0, os.path.abspath(os.path.join('..', 'Server')))
 import psi_config
@@ -70,22 +71,30 @@ SOURCE_FILES = [
 
 TCS_PSIPHOND_DOCKER_ENVIRONMENT_FILE_NAME = '/opt/psiphon/psiphond/config/psiphond.env'
 TCS_PSIPHOND_CONFIG_FILE_NAME = '/opt/psiphon/psiphond/config/psiphond.config'
+TCS_NATIVE_PSIPHOND_BINARY_FILE_NAME = '/opt/psiphon/psiphond/psiphond'
+TCS_NATIVE_PSIPHOND_TEMP_BINARY_FILE_NAME = '/opt/psiphon/psiphond/psiphond.tmp'
 TCS_PSIPHOND_LOG_FILE_NAME = '/var/log/psiphond/psiphond.log'
+TCS_PSIPHOND_PROCESS_PROFILE_OUTPUT_DIRECTORY_NAME = '/var/log/psiphond'
 TCS_TRAFFIC_RULES_FILE_NAME = '/opt/psiphon/psiphond/config/traffic-rules.config'
+TCS_OSL_CONFIG_FILE_NAME = '/opt/psiphon/psiphond/config/osl.config'
 TCS_PSINET_FILE_NAME = '/opt/psiphon/psiphond/data/psinet.json'
 TCS_GEOIP_CITY_DATABASE_FILE_NAME = '/usr/local/share/GeoIP/GeoIP2-City.mmdb'
 TCS_GEOIP_ISP_DATABASE_FILE_NAME = '/usr/local/share/GeoIP/GeoIP2-ISP.mmdb'
 
-TCS_DOCKER_WEB_SERVER_PORT = 3000
-TCS_SSH_DOCKER_PORT = 3001
-TCS_OSSH_DOCKER_PORT = 3002
-TCS_FRONTED_MEEK_DOCKER_PORT = 3003
-TCS_UNFRONTED_MEEK_DOCKER_PORT = 3004
-TCS_FRONTED_MEEK_HTTP_DOCKER_PORT = 3005
-TCS_UNFRONTED_MEEK_HTTPS_DOCKER_PORT = 3006
+TCS_DOCKER_WEB_SERVER_PORT = 1025
+TCS_SSH_DOCKER_PORT = 1026
+TCS_OSSH_DOCKER_PORT = 1027
+TCS_FRONTED_MEEK_OSSH_DOCKER_PORT = 1028
+TCS_UNFRONTED_MEEK_OSSH_DOCKER_PORT = 1029
+TCS_FRONTED_MEEK_HTTP_OSSH_DOCKER_PORT = 1030
+TCS_UNFRONTED_MEEK_HTTPS_OSSH_DOCKER_PORT = 1031
+TCS_UNFRONTED_MEEK_SESSION_TICKET_OSSH_DOCKER_PORT = 1032
 
 TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND = 'systemctl kill --signal=USR1 psiphond'
+TCS_PSIPHOND_STOP_ESTABLISHING_TUNNELS_SIGNAL_COMMAND = 'systemctl kill --signal=TSTP psiphond'
+TCS_PSIPHOND_RESUME_ESTABLISHING_TUNNELS_SIGNAL_COMMAND = 'systemctl kill --signal=CONT psiphond'
 TCS_PSIPHOND_START_COMMAND = '/opt/psiphon/psiphond_safe_start.sh'
+TCS_PSIPHOND_SAFE_RESTART_COMMAND = '/opt/psiphon/psiphond_safe_start.sh restart'
 
 
 #==============================================================================
@@ -231,28 +240,53 @@ def deploy_TCS_implementation(ssh, host, servers, TCS_psiphond_config_values):
         make_psiphond_config(host, server, TCS_psiphond_config_values),
         TCS_PSIPHOND_CONFIG_FILE_NAME)
 
-    # Upload psiphond.env
+    if host.TCS_type == 'NATIVE':
+        # Upload psiphond, restart service
+        # Push psiphond from bitbucket repo (Server/psiphond/psiphond) to host.
+        ssh.put_file(os.path.join(os.path.abspath('..'), 'Server', 'psiphond', 'psiphond'),
+            TCS_NATIVE_PSIPHOND_TEMP_BINARY_FILE_NAME)
+        ssh.exec_command('mv %s %s' % (TCS_NATIVE_PSIPHOND_TEMP_BINARY_FILE_NAME, TCS_NATIVE_PSIPHOND_BINARY_FILE_NAME))
 
-    external_protocol_ports = get_supported_protocol_ports(host, server, True)
-    docker_protocol_ports = get_supported_protocol_ports(host, server, False)
+        # Symlink the psiphond binary to /usr/local/bin/
+        ssh.exec_command('ln -fs %s /usr/local/bin/psiphond' % (TCS_NATIVE_PSIPHOND_BINARY_FILE_NAME))
+        ssh.exec_command('chmod +x %s' % (TCS_NATIVE_PSIPHOND_BINARY_FILE_NAME))
 
-    port_mappings = ' '.join(
-        ["-p %s:%s" % (external_port,docker_protocol_ports[protocol],) for (protocol, external_port) in external_protocol_ports.iteritems()])
+        # Setup kernel caps to allow psiphond to bind to a privileged service port
+        ssh.exec_command('setcap CAP_NET_ADMIN,CAP_NET_BIND_SERVICE=+eip %s' % (TCS_NATIVE_PSIPHOND_BINARY_FILE_NAME))
 
-    psiphond_env_content = '''
+        # Restart service (Using Start scipt instead of systemctl)
+        ssh.exec_command(TCS_PSIPHOND_SAFE_RESTART_COMMAND)
+    elif host.TCS_type == 'DOCKER':
+        # Upload psiphond.env
+
+        external_protocol_ports = get_supported_protocol_ports(host, server)
+        docker_protocol_ports = get_supported_protocol_ports(host, server, external_ports=False)
+
+        if server.capabilities['handshake']:
+            external_protocol_ports['handshake'] = server.web_server_port
+            docker_protocol_ports['handshake'] = TCS_DOCKER_WEB_SERVER_PORT
+
+        port_mappings = ' '.join(
+            ["-p %s:%s" % (external_port,docker_protocol_ports[protocol],) for (protocol, external_port) in external_protocol_ports.iteritems()])
+
+        psiphond_env_content = '''
 DOCKER_CONTENT_TRUST=1
 
 CONTAINER_TAG=production
 CONTAINER_PORT_STRING="%s"
 CONTAINER_VOLUME_STRING="-v /opt/psiphon/psiphond/config:/opt/psiphon/psiphond/config -v /opt/psiphon/psiphond/data:/opt/psiphon/psiphond/data -v /var/log/psiphond:/var/log/psiphond -v /usr/local/share/GeoIP:/usr/local/share/GeoIP"
+CONTAINER_ULIMIT_STRING="--ulimit nofile=1000000:1000000"
+CONTAINER_SYSCTL_STRING="--sysctl 'net.ipv4.ip_local_port_range=1100 65535'"
 ''' % (port_mappings,)
 
-    put_file_with_content(
-        ssh,
-        psiphond_env_content,
-        TCS_PSIPHOND_DOCKER_ENVIRONMENT_FILE_NAME)
+        put_file_with_content(
+            ssh,
+            psiphond_env_content,
+            TCS_PSIPHOND_DOCKER_ENVIRONMENT_FILE_NAME)
+    else:
+        raise 'Unhandled host.TCS_type: ' + host.TCS_type
 
-    # Note: not invoking TCS_PSIPHOND_ENABLE_COMMAND here as psiphond expects
+    # Note: not invoking TCS_PSIPHOND_START_COMMAND here as psiphond expects
     # the psinet and traffic rules data to exist when it starts. The enable
     # is delayed until deploy_TCS_data.
 
@@ -267,6 +301,21 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
 
     config['LogFilename'] = TCS_PSIPHOND_LOG_FILE_NAME
 
+    config['ProcessProfileOutputDirectory'] = TCS_PSIPHOND_PROCESS_PROFILE_OUTPUT_DIRECTORY_NAME
+
+    config['ProcessBlockProfileDurationSeconds'] = 30
+
+    config['ProcessCPUProfileDurationSeconds'] = 30
+
+    if host.TCS_type == 'NATIVE':    
+        config['RunPacketTunnel'] = True
+        config['PacketTunnelSudoNetworkConfigCommands'] = True
+    elif host.TCS_type == 'DOCKER':
+        config['RunPacketTunnel'] = False
+        config['PacketTunnelSudoNetworkConfigCommands'] = False
+    else:
+        raise 'Unhandled host.TCS_type: ' + host.TCS_type
+
     config['DiscoveryValueHMACKey'] = TCS_psiphond_config_values['DiscoveryValueHMACKey']
 
     config['GeoIPDatabaseFilenames'] = [TCS_GEOIP_CITY_DATABASE_FILE_NAME, TCS_GEOIP_ISP_DATABASE_FILE_NAME]
@@ -275,70 +324,83 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
 
     config['TrafficRulesFilename'] = TCS_TRAFFIC_RULES_FILE_NAME
 
+    config['OSLConfigFilename'] = TCS_OSL_CONFIG_FILE_NAME
+
     config['LoadMonitorPeriodSeconds'] = 60
 
     config['UDPInterceptUdpgwServerAddress'] = '127.0.0.1:7300'
 
     config['HostID'] = host.id
 
-    config['ServerIPAddress'] = '0.0.0.0'
+    if host.TCS_type == 'NATIVE':    
+        config['ServerIPAddress'] = server.internal_ip_address
+        config['WebServerPort'] = int(server.web_server_port)
+        config['TunnelProtocolPorts'] = get_supported_protocol_ports(host, server, external_ports=True)
+    elif host.TCS_type == 'DOCKER':
+        config['ServerIPAddress'] = '0.0.0.0'
+        config['WebServerPort'] = TCS_DOCKER_WEB_SERVER_PORT
+        # gets the Docker ports
+        config['TunnelProtocolPorts'] = get_supported_protocol_ports(host, server, external_ports=False)
+    else:
+        raise 'Unhandled host.TCS_type: ' + host.TCS_type
 
-    config['WebServerPort'] = TCS_DOCKER_WEB_SERVER_PORT
     config['WebServerSecret'] = server.web_server_secret
     config['WebServerCertificate'] = server.web_server_certificate
     config['WebServerPrivateKey'] = server.web_server_private_key
 
-    # Redirect tunneled web server requests to the containerized web server address
-    config['TCPPortForwardRedirects'] = {
-        "%s:%d" % (server.ip_address, server.web_server_port) : "%s:%d" % ('127.0.0.1', TCS_DOCKER_WEB_SERVER_PORT)
-    }
+    config['WebServerPortForwardAddress'] = "%s:%d" % (server.ip_address, int(server.web_server_port))
+
+    if host.TCS_type == 'NATIVE':
+        pass
+    elif host.TCS_type == 'DOCKER':
+        # Redirect tunneled web server requests to the containerized web server address
+        config['WebServerPortForwardRedirectAddress'] = "%s:%d" % ('127.0.0.1', TCS_DOCKER_WEB_SERVER_PORT)
+    else:
+        raise 'Unhandled host.TCS_type: ' + host.TCS_type
 
     config['SSHPrivateKey'] = server.TCS_ssh_private_key
     config['SSHServerVersion'] = TCS_psiphond_config_values['SSHServerVersion']
     config['SSHUserName'] = server.ssh_username
     config['SSHPassword'] = server.ssh_password
 
-    if server.capabilities['OSSH'] or server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK']:
+    if server.capabilities['OSSH'] or server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET']:
         config['ObfuscatedSSHKey'] = server.ssh_obfuscated_key
 
-    if server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK']:
+    if server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET']:
         config['MeekCookieEncryptionPrivateKey'] = host.meek_cookie_encryption_private_key
         config['MeekObfuscatedKey'] = host.meek_server_obfuscated_key
         config['MeekCertificateCommonName'] = TCS_psiphond_config_values['MeekCertificateCommonName']
         config['MeekProhibitedHeaders'] = TCS_psiphond_config_values['MeekProhibitedHeaders']
         config['MeekProxyForwardedForHeaders'] = TCS_psiphond_config_values['MeekProxyForwardedForHeaders']
 
-    config['TunnelProtocolPorts'] = {}
-
-    TCS_protocols = [
-        ('SSH', TCS_SSH_DOCKER_PORT),
-        ('OSSH', TCS_OSSH_DOCKER_PORT),
-        ('FRONTED-MEEK', TCS_FRONTED_MEEK_DOCKER_PORT),
-        ('UNFRONTED-MEEK', TCS_UNFRONTED_MEEK_DOCKER_PORT),
-        ('FRONTED-MEEK-HTTP', TCS_FRONTED_MEEK_HTTP_DOCKER_PORT),
-        ('UNFRONTED-MEEK-HTTPS', TCS_UNFRONTED_MEEK_HTTPS_DOCKER_PORT)
-    ]
-
-    # gets the Docker ports
-    config['TunnelProtocolPorts'] = get_supported_protocol_ports(host, server, False)
-
     return json.dumps(config)
 
 
 # get_supported_protocol_ports returns a map of protocol name to protocol
 # port with entries for each protocol supported on the host/server.
-# Specify external_ports=True to get public ports, or external_ports=False
-# to get Docker ports.
-def get_supported_protocol_ports(host, server, external_ports=True):
+# Optional keyword args:
+# - external_ports=True (the default) to get public ports,
+#   or external_ports=False to get Docker ports.
+# - meek_ports=True (the default) to include meek protocols,
+#   or meek_ports=False to exclude meek protocols.
+def get_supported_protocol_ports(host, server, **kwargs):
+
+    external_ports = kwargs['external_ports'] if 'external_ports' in kwargs else True
+    meek_ports = kwargs['meek_ports'] if 'meek_ports' in kwargs else True
 
     TCS_protocols = [
         ('SSH', TCS_SSH_DOCKER_PORT),
-        ('OSSH', TCS_OSSH_DOCKER_PORT),
-        ('FRONTED-MEEK', TCS_FRONTED_MEEK_DOCKER_PORT),
-        ('UNFRONTED-MEEK', TCS_UNFRONTED_MEEK_DOCKER_PORT),
-        ('FRONTED-MEEK-HTTP', TCS_FRONTED_MEEK_HTTP_DOCKER_PORT),
-        ('UNFRONTED-MEEK-HTTPS', TCS_UNFRONTED_MEEK_HTTPS_DOCKER_PORT)
+        ('OSSH', TCS_OSSH_DOCKER_PORT)
     ]
+
+    if meek_ports:
+        TCS_protocols += [
+            ('FRONTED-MEEK-OSSH', TCS_FRONTED_MEEK_OSSH_DOCKER_PORT),
+            ('UNFRONTED-MEEK-OSSH', TCS_UNFRONTED_MEEK_OSSH_DOCKER_PORT),
+            ('FRONTED-MEEK-HTTP-OSSH', TCS_FRONTED_MEEK_HTTP_OSSH_DOCKER_PORT),
+            ('UNFRONTED-MEEK-HTTPS-OSSH', TCS_UNFRONTED_MEEK_HTTPS_OSSH_DOCKER_PORT),
+            ('UNFRONTED-MEEK-SESSION-TICKET-OSSH', TCS_UNFRONTED_MEEK_SESSION_TICKET_OSSH_DOCKER_PORT)
+        ]
 
     supported_protocol_ports = {}
 
@@ -347,44 +409,50 @@ def get_supported_protocol_ports(host, server, external_ports=True):
     # for example.
 
     for (protocol, docker_port) in TCS_protocols:
-        if protocol == 'SSH' and server.capabilities[protocol]:
+        if protocol == 'SSH' and server.capabilities['SSH']:
                 supported_protocol_ports[protocol] = int(server.ssh_port) if external_ports else docker_port
 
-        if protocol == 'OSSH' and server.capabilities[protocol]:
+        if protocol == 'OSSH' and server.capabilities['OSSH']:
                 supported_protocol_ports[protocol] = int(server.ssh_obfuscated_port) if external_ports else docker_port
 
-        if protocol == 'FRONTED-MEEK' and server.capabilities[protocol]:
+        if protocol == 'FRONTED-MEEK-OSSH' and server.capabilities['FRONTED-MEEK']:
                 supported_protocol_ports[protocol] = 443 if external_ports else docker_port
 
-        if protocol == 'UNFRONTED-MEEK' and server.capabilities[protocol] and not int(host.meek_server_port) == 443:
+        if protocol == 'UNFRONTED-MEEK-OSSH' and server.capabilities['UNFRONTED-MEEK'] and not int(host.meek_server_port) == 443:
                 supported_protocol_ports[protocol] = int(host.meek_server_port) if external_ports else docker_port
 
-        if protocol == 'FRONTED-MEEK-HTTP' and server.capabilities['FRONTED-MEEK'] and host.alternate_meek_server_fronting_hosts:
+        if protocol == 'FRONTED-MEEK-HTTP-OSSH' and server.capabilities['FRONTED-MEEK'] and host.alternate_meek_server_fronting_hosts:
                 supported_protocol_ports[protocol] = 80 if external_ports else docker_port
 
-        if protocol == 'UNFRONTED-MEEK-HTTPS' and server.capabilities['UNFRONTED-MEEK'] and int(host.meek_server_port) == 443:
+        if protocol == 'UNFRONTED-MEEK-HTTPS-OSSH' and server.capabilities['UNFRONTED-MEEK'] and int(host.meek_server_port) == 443:
+                supported_protocol_ports[protocol] = int(host.meek_server_port) if external_ports else docker_port
+
+        if protocol == 'UNFRONTED-MEEK-SESSION-TICKET-OSSH' and server.capabilities['UNFRONTED-MEEK-SESSION-TICKET']:
                 supported_protocol_ports[protocol] = int(host.meek_server_port) if external_ports else docker_port
 
     return supported_protocol_ports
 
 
-def deploy_implementation_to_hosts(hosts, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
-
-    # TODO-TCS: stagger psiphond restarts. 15s delay in each batch has been OK for legacy meek updates.
+# hosts_and_servers is a list of tuples: [(host, [server, ...]), ...]
+def deploy_implementation_to_hosts(hosts_and_servers, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
 
     @retry_decorator_returning_exception
-    def do_deploy_implementation(host):
+    def do_deploy_implementation(host_and_servers):
         try:
-            deploy_implementation(host, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values)
+            host = host_and_servers[0]
+            servers = host_and_servers[1]
+            deploy_implementation(host, servers, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values)
         except:
             print 'Error deploying implementation to host %s' % (host.id,)
             raise
         host.log('deploy implementation')
 
-    run_in_parallel(20, do_deploy_implementation, hosts)
+    run_in_parallel(20, do_deploy_implementation, hosts_and_servers)
+    restart_psiphond_service_on_hosts([host for host in (host_and_servers[0] for host_and_servers in hosts_and_servers)
+                                                        if host.is_TCS and host.TCS_type == 'DOCKER'])
 
 
-def deploy_data(host, host_data, TCS_traffic_rules_set):
+def deploy_data(host, host_data, TCS_traffic_rules_set, TCS_OSL_config):
 
     print 'deploy data to host %s%s...' % (host.id, " (TCS) " if host.is_TCS else "", )
 
@@ -394,7 +462,7 @@ def deploy_data(host, host_data, TCS_traffic_rules_set):
                     host.ssh_host_key)
 
     if host.is_TCS:
-        deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set)
+        deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set, TCS_OSL_config)
     else:
         deploy_legacy_data(ssh, host, host_data)
 
@@ -438,16 +506,18 @@ def deploy_legacy_data(ssh, host, host_data):
     ssh.exec_command('rm %s' % (psi_config.HOST_SERVER_STOPPED_LOCK_FILE,))
 
 
-def deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set):
+def deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set, TCS_OSL_config):
 
     # Upload psinet file
     # We upload a compartmentalized version of the master file
 
     put_file_with_content(ssh, host_data, TCS_PSINET_FILE_NAME)
 
-    # Upload traffic rules file
+    # Upload auxillary config files
 
     put_file_with_content(ssh, TCS_traffic_rules_set, TCS_TRAFFIC_RULES_FILE_NAME)
+
+    put_file_with_content(ssh, TCS_OSL_config, TCS_OSL_CONFIG_FILE_NAME)
 
     ssh.exec_command(TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND)
 
@@ -477,19 +547,25 @@ def put_file_with_content(ssh, content, destination_path):
             pass
 
 
-def deploy_data_to_hosts(hosts, data_generator, TCS_traffic_rules_set):
+def deploy_data_to_hosts(hosts, data_generator, TCS_traffic_rules_set, TCS_OSL_config):
+
+    # TCS data is not unique per host, so only generate it once
+    TCS_data = None
+    TCS_hosts = [host for host in hosts if host.is_TCS]
+    if TCS_hosts:
+        TCS_data = data_generator(TCS_hosts[0].id, True)
 
     @retry_decorator_returning_exception
     def do_deploy_data(host_and_data_generator):
         host = host_and_data_generator[0]
-        host_data = host_and_data_generator[1](host.id, host.is_TCS)
+        host_data = TCS_data if host.is_TCS and TCS_data else host_and_data_generator[1](host.id, host.is_TCS)
         try:
-            deploy_data(host, host_data, TCS_traffic_rules_set)
+            deploy_data(host, host_data, TCS_traffic_rules_set, TCS_OSL_config)
         except:
             print 'Error deploying data to host %s' % (host.id,)
             raise
 
-    run_in_parallel(40, do_deploy_data, [(host, data_generator) for host in hosts])
+    run_in_parallel(30, do_deploy_data, [(host, data_generator) for host in hosts])
 
 
 def deploy_build(host, build_filename):
@@ -526,6 +602,35 @@ def deploy_build_to_hosts(hosts, build_filename):
             raise
 
     run_in_parallel(10, do_deploy_build, hosts)
+
+
+def restart_psiphond_service_on_hosts(hosts):
+
+  @retry_decorator_returning_exception
+  def do_service_restart(host):
+    sleep(30)
+
+    if not host.is_TCS:
+      return
+
+    try:
+      print("restarting 'psiphond.service' on host: %s" % host.id)
+
+      ssh = psi_ssh.SSH(
+                      host.ip_address, host.ssh_port,
+                      host.ssh_username, host.ssh_password,
+                      host.ssh_host_key)
+      ssh.exec_command("systemctl restart psiphond.service")
+
+    except Exception as e:
+      print("Error restarting 'psiphond.service' on host %s: %r" % (host.id, e))
+      raise
+    host.log("restarted psiphond.service")
+
+  run_in_parallel(
+      min(len(hosts)/10, 30) if len(hosts) > 10 else 1,
+      do_service_restart,
+      hosts)
 
 
 def deploy_routes(host):
