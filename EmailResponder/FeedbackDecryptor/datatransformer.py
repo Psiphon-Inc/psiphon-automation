@@ -87,9 +87,14 @@ _transformations = {
                                   _convert_locale_info, _sanitize_keys),
                     'ios': (_translate_feedback, _parse_survey_results,
                             _convert_locale_info, _sanitize_keys),
+                    'ios-browser': (_translate_feedback, _parse_survey_results,
+                                    _convert_locale_info, _sanitize_keys),
+                    'ios-vpn': (_translate_feedback, _parse_survey_results,
+                                _convert_locale_info, _sanitize_keys),
                     'windows': (_translate_feedback, _parse_survey_results,
                                 _convert_locale_info, _sanitize_keys),
                     }
+
 
 
 def _postprocess_yaml(data):
