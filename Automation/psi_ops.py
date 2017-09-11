@@ -3817,8 +3817,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 host.ip_address, host.ssh_port,
                 host.ssh_username, host.ssh_password,
                 host.ssh_host_key)
-
-        return ssh.exec_command(command)
+	ssh_output = ssh.exec_command(command)
+	ssh.close()
+        return ssh_output
 
     def run_command_on_hosts(self, command):
 
