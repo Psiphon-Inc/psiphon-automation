@@ -123,7 +123,7 @@ def check_load_on_host(host):
 def check_load_on_hosts(psinet, hosts):
     loads = {}
 
-    pool = ThreadPool(25)
+    pool = ThreadPool(50)
     global g_psinet
     g_psinet = psinet
     log_diagnostics('Checking Hosts...')
