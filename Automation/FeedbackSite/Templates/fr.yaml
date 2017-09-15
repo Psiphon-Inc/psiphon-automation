@@ -2,7 +2,7 @@ fr:
   title: Rétroaction sur Psiphon
   top_content_title: Laissez-nous une rétroaction
   top_para_1: |
-    Votre rétroaction améliore Psiphon !
+    Votre rétroaction améliore Psiphon !
   top_para_2: |
     De nombreux problèmes peuvent être corrigés en téléchargeant la dernière version.
     Vous pouvez <a class="newVersionURL" href="#">télécharger la dernière version en cliquant ici</a>,
@@ -11,8 +11,7 @@ fr:
     Vous trouverez des solutions à de nombreux problèmes habituels
     dans notre <a class="faqURL" href="#">Foire aux questions</a>.
   diagnostic_check: |
-    Téléverser des données de diagnostic. Veuillez prendre note que ces données de
-    diagnostic ne vous identifient pas, et elles nous aideront à offrir une exécution sans heurt de Psiphon.
+    Téléverser des données de diagnostic. Veuillez prendre note que ces données de diagnostic ne vous identifient pas et elles nous aideront à offrir une exécution sans heurt de Psiphon.
     <a class="dataCollectionInfoURL" href="#">Cliquez ici pour voir quelles données nous recueillons.</a>
   smiley_title: Satisfaction globale
   smiley_happy: Psiphon se connecte et fonctionne comme je le veux.
