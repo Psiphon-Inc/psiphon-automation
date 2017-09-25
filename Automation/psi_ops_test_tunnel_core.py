@@ -79,7 +79,11 @@ class TunnelCoreCouldNotConnectException(Exception):
 
 
 class TunnelCoreConsoleRunner:
-    def __init__(self, encoded_server_entry, propagation_channel_id = '0', sponsor_id = '0', client_platform = '', client_version = '0', split_tunnel_url_format = '', split_tunnel_signature_public_key = '', split_tunnel_dns_server = '', tunnel_core_binary = None, tunnel_core_config = None):
+    def __init__(self, encoded_server_entry, propagation_channel_id='0', 
+                 sponsor_id='0', client_platform='', client_version='0', 
+                 use_indistinguishable_tls=True, split_tunnel_url_format='', 
+                 split_tunnel_signature_public_key='', split_tunnel_dns_server='', 
+                 tunnel_core_binary=None, tunnel_core_config=None):
         self.proc = None
         self.http_proxy_port = 0
         self.socks_proxy_port = 0
@@ -88,11 +92,13 @@ class TunnelCoreConsoleRunner:
         self.sponsor_id = sponsor_id
         self.client_platform = client_platform
         self.client_version = client_version
+        self.use_indistinguishable_tls = use_indistinguishable_tls
         self.split_tunnel_url_format = split_tunnel_url_format
         self.split_tunnel_signature_public_key = split_tunnel_signature_public_key
         self.split_tunnel_dns_server = split_tunnel_dns_server
         self.tunnel_core_binary = tunnel_core_binary
         self.tunnel_core_config = tunnel_core_config
+
 
     # Setup and create tunnel core config file.
     def _setup_tunnel_config(self, transport):
@@ -105,7 +111,7 @@ class TunnelCoreConsoleRunner:
             "ClientVersion" : self.client_version,
             "LocalHttpProxyPort" : self.http_proxy_port,
             "LocalSocksProxyPort" : self.socks_proxy_port,
-            "UseIndistinguishableTLS": True,
+            "UseIndistinguishableTLS": self.use_indistinguishable_tls,
             "TunnelPoolSize" : 1,
             "ConnectionWorkerPoolSize" : 1,
             "PortForwardFailureThreshold" : 5,
@@ -270,6 +276,7 @@ def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, a
     except Exception as e:
         print "Could not tunnel to {0}: {1}".format(url, e)
         output['HTTP'] = output['HTTPS'] = 'FAIL {0}'.format(output_str)
+        raise
     finally:
         print "Stopping tunnel to {ipaddr}".format(ipaddr = expected_egress_ip_addresses)
         runner.stop_psiphon()
@@ -300,9 +307,11 @@ def get_server_test_cases(server, host, test_cases):
 
 def test_server(server, host, encoded_server_entry, split_tunnel_url_format, 
                 split_tunnel_signature_public_key, split_tunnel_dns_server, 
-                expected_egress_ip_addresses, test_propagation_channel_id = '0', 
-                test_sponsor_id = '0', client_platform = '', client_version = '',
-                test_cases = None, ip_test_sites = [], additional_test_sites = [], executable_path = None, config_file = None):
+                expected_egress_ip_addresses, test_propagation_channel_id='0', 
+                test_sponsor_id='0', client_platform='', client_version='',
+                use_indistinguishable_tls=True, test_cases = None, 
+                ip_test_sites = [], additional_test_sites = [], 
+                executable_path = None, config_file = None):
     
     if len(ip_test_sites) is 0:
         ip_test_sites = CHECK_IP_ADDRESS_URL_LOCAL
@@ -320,7 +329,7 @@ def test_server(server, host, encoded_server_entry, split_tunnel_url_format,
     for test_case in test_cases:
         tunnel_core_runner = TunnelCoreConsoleRunner(
             encoded_server_entry, test_propagation_channel_id, test_sponsor_id,
-            client_platform, client_version,
+            client_platform, client_version, use_indistinguishable_tls,
             split_tunnel_url_format, split_tunnel_signature_public_key, 
             split_tunnel_dns_server, executable_path, config_file)
         
