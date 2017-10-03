@@ -1059,7 +1059,9 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
     filter_forward_rules = [
 
         '-A FORWARD -s 10.0.0.0/8 -d 10.0.0.0/8 -j DROP',
+        '-A FORWARD -s 10.0.0.0/8 -o en+ -j ACCEPT',
         '-A FORWARD -s 10.0.0.0/8 -o eth+ -j ACCEPT',
+        '-A FORWARD -d 10.0.0.0/8 -i en+ -j ACCEPT',
         '-A FORWARD -d 10.0.0.0/8 -i eth+ -j ACCEPT',
         '-A FORWARD -j DROP'
 
@@ -1084,6 +1086,7 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
             (server.capabilities['OSSH'] and int(server.ssh_obfuscated_port) == 443)):
         web_server_port_forward = textwrap.dedent('''
 
+        -A PREROUTING -i en+ -p tcp -d {server_ip_address} --dport 443 -j DNAT --to-destination :{web_server_port}
         -A PREROUTING -i eth+ -p tcp -d {server_ip_address} --dport 443 -j DNAT --to-destination :{web_server_port}''').format(
 
             server_ip_address=str(server.internal_ip_address), web_server_port=str(server.web_server_port))
@@ -1093,11 +1096,18 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
         for alternate in server.alternate_ssh_obfuscated_ports:
             protocol_port_forward = textwrap.dedent('''
 
+            -A PREROUTING -i en+ -p tcp -d {server_ip_address} --dport {alternate_port} -j DNAT --to-destination :{protocol_port}
             -A PREROUTING -i eth+ -p tcp -d {server_ip_address} --dport {alternate_port} -j DNAT --to-destination :{protocol_port}''').format(
 
                 server_ip_address=str(server.internal_ip_address), alternate_port=str(alternate), protocol_port=str(server.ssh_obfuscated_port))
             nat_prerouting_rules += [protocol_port_forward]
 
+    nat_postrouting_rules = [
+
+        '-A POSTROUTING -s 10.0.0.0/8 -o en+ -j MASQUERADE',
+        '-A POSTROUTING -s 10.0.0.0/8 -o eth+ -j MASQUERADE'
+
+    ]
 
     iptables_rules_path = '/etc/iptables.rules'
     iptables_rules_contents = textwrap.dedent('''
@@ -1108,12 +1118,14 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
         COMMIT
         *nat
         {nat_prerouting}
+        {nat_postrouting}
         COMMIT
         ''').format(
             filter_input='\n'.join(filter_input_rules),
             filter_output='\n'.join(filter_output_rules),
             filter_forward='\n'.join(filter_forward_rules),
-            nat_prerouting='\n'.join(nat_prerouting_rules))
+            nat_prerouting='\n'.join(nat_prerouting_rules),
+            nat_postrouting='\n'.join(nat_postrouting_rules))
 
 
     (iptables_limit_load_rules_contents, iptables_limit_load_rules_path) = install_TCS_psi_limit_load_chain(host, server)
