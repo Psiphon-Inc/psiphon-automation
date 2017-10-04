@@ -275,7 +275,7 @@ VPSNetAccount = psi_utils.recordtype(
 VPS247Account = psi_utils.recordtype(
     'VPS247Account',
     'account_id, api_key, api_base_url, base_ssh_port, ' +
-    'base_root_password, base_stats_username, base_rsa_private_key' +
+    'base_root_password, base_stats_username, base_rsa_private_key, ' +
     'base_region_id, base_package_id',
     default=None)
 
