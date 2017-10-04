@@ -272,6 +272,13 @@ VPSNetAccount = psi_utils.recordtype(
     'base_cloud_id, base_system_template, base_ssd_plan',
     default=None)
 
+VPS247Account = psi_utils.recordtype(
+    'VPS247Account',
+    'account_id, api_key, api_base_url, base_ssh_port, ' +
+    'base_root_password, base_stats_username, base_rsa_private_key' +
+    'base_region_id, base_package_id',
+    default=None)
+
 ElasticHostsAccount = psi_utils.recordtype(
     'ElasticHostsAccount',
     'zone, uuid, api_key, base_drive_id, cpu, mem, base_host_public_key, ' +
@@ -352,6 +359,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__linode_account = LinodeAccount()
         self.__digitalocean_account = DigitalOceanAccount()
         self.__vpsnet_account = VPSNetAccount()
+        self.__vps247_account = VPS247Account()
         self.__elastichosts_accounts = []
         self.__deploy_implementation_required_for_hosts = set()
         self.__deploy_data_required_for_all = False
@@ -386,7 +394,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.46'
+    class_version = '0.47'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -668,6 +676,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.46')) < 0:
             self.__global_https_request_regexes = []
             self.version = '0.46'
+        if cmp(parse_version(self.version), parse_version('0.47')) < 0:
+            self.__vps247_account = VPS247Account()
+            self.version = '0.47'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -724,6 +735,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 'Configured' if self.__linode_account.api_key else 'None',
                 'Configured' if self.__digitalocean_account.client_id and self.__digitalocean_account.api_key else 'None',
                 'Configured' if self.__vpsnet_account.account_id and self.__vpsnet_account.api_key else 'None',
+                'Configured' if self.__vps247_account.access_id and self.__vps247_account.api_key else 'None',
                 'Configured' if self.__elastichosts_accounts else 'None',
                 len(self.__deploy_implementation_required_for_hosts),
                 'Yes' if self.__deploy_data_required_for_all else 'No',
@@ -1808,6 +1820,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         elif provider.lower() == 'vpsnet':
             provider_launch_new_server = psi_vpsnet.launch_new_server
             provider_account = self.__vpsnet_account
+        elif provider.lower() == 'vps247':
+            provider_launch_new_server = psi_vps247.launch_new_server
+            provider_account = self.__vps247_account
         elif provider.lower() == 'elastichosts':
             provider_launch_new_server = psi_elastichosts.ElasticHosts().launch_new_server
             provider_account = self._weighted_random_choice(self.__elastichosts_accounts)
@@ -3108,6 +3123,17 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             base_ssh_port=base_ssh_port, base_root_password=base_root_password,
             base_stats_username=base_stats_username, base_cloud_id=base_cloud_id,
             base_system_template=base_system_template, base_ssd_plan=base_ssd_plan)
+
+    def set_vps247_account(self, account_id, api_key, api_base_url, base_ssh_port,
+                        base_root_password, base_stats_username,
+                        base_rsa_private_key, base_region_id, base_package_id):
+        assert(self.is_locked)
+        psi_utils.update_recordtype(
+            self.__vps247_account,
+            account_id=account_id, api_key=api_key, api_base_url=api_base_url, base_ssh_port=base_ssh_port,
+            base_root_password=base_root_password, base_stats_username=base_stats_username,
+            base_rsa_private_key=base_rsa_private_key,
+            base_region_id=base_region_id, base_package_id=base_package_id)
 
     def upsert_elastichosts_account(self, zone, uuid, api_key, base_drive_id,
                                     cpu, mem, base_host_public_key, root_username,
