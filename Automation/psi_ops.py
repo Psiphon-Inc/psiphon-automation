@@ -735,7 +735,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 'Configured' if self.__linode_account.api_key else 'None',
                 'Configured' if self.__digitalocean_account.client_id and self.__digitalocean_account.api_key else 'None',
                 'Configured' if self.__vpsnet_account.account_id and self.__vpsnet_account.api_key else 'None',
-                'Configured' if self.__vps247_account.access_id and self.__vps247_account.api_key else 'None',
+                'Configured' if self.__vps247_account.account_id and self.__vps247_account.api_key else 'None',
                 'Configured' if self.__elastichosts_accounts else 'None',
                 len(self.__deploy_implementation_required_for_hosts),
                 'Yes' if self.__deploy_data_required_for_all else 'No',
