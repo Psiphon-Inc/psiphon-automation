@@ -18,7 +18,7 @@ import psi_ssh
 AUTOMATION_DIR = os.path.abspath(os.path.join('..', 'Automation'))
 
 def add_swap_file(vps247_account, ip_address):
-    ssh = psi_ssh.make_ssh_session(ip_address, vps247_account.base_ssh_port, 'root', vps247_account.default_root_password, None)
+    ssh = psi_ssh.make_ssh_session(ip_address, vps247_account.base_ssh_port, 'root', vps247_account.base_root_password, None)
     ssh.exec_command('dd if=/dev/zero of=/swapfile bs=1024 count=1048576 && mkswap /swapfile && chown root:root /swapfile && chmod 0600 /swapfile')
     ssh.exec_command('echo "/swapfile swap swap defaults 0 0" >> /etc/fstab')
     ssh.exec_command('swapon -a')
@@ -47,14 +47,14 @@ def reset_root_password(vps247_account, ip_address, init_pass):
     return
 
 def install_tcs(vps247_account, ip_address):
-    ssh = psi_ssh.make_ssh_session(ip_address, 22, 'root', vps247_account.default_root_password, None)
+    ssh = psi_ssh.make_ssh_session(ip_address, 22, 'root', vps247_account.base_root_password, None)
     ssh.exec_command('bash /home/debian/native.sh > /home/debian/installing.log')
     
     ssh.close()
     return
 
 def upload_certs(vps247_account, ip_address):
-    ssh = psi_ssh.make_ssh_session(ip_address, vps247_account.base_ssh_port, 'root', vps247_account.default_root_password, None)
+    ssh = psi_ssh.make_ssh_session(ip_address, vps247_account.base_ssh_port, 'root', vps247_account.base_root_password, None)
     ssh.put_file(AUTOMATION_DIR + "/ssl/logs.cert.pem", "/opt/psiphon/certs/logs.cert.pem")
     ssh.put_file(AUTOMATION_DIR + "/ssl/beats.psiphon3.com.cert.pem", "/opt/psiphon/certs/beats.psiphon3.com.cert.pem")
     ssh.put_file(AUTOMATION_DIR + "/ssl/beats.psiphon3.com.key.pem", "/opt/psiphon/certs/beats.psiphon3.com.key.pem")
@@ -63,7 +63,7 @@ def upload_certs(vps247_account, ip_address):
     return
 
 def refresh_credentials(vps247_account, ip_address, new_root_password, new_stats_password, new_stats_username):
-    ssh = psi_ssh.make_ssh_session(ip_address, vps247_account.base_ssh_port, 'root', vps247_account.default_root_password, None)
+    ssh = psi_ssh.make_ssh_session(ip_address, vps247_account.base_ssh_port, 'root', vps247_account.base_root_password, None)
                                    
     ssh.exec_command('echo "root:%s" | chpasswd' % (new_root_password,))
     ssh.exec_command('useradd -M -d /var/log -s /bin/sh -g adm %s' % (new_stats_username))
@@ -88,13 +88,13 @@ def launch_new_server(vps247_account, is_TCS, _):
         v247_api = v247.Api(key=vps247_account.api_key)
                
         # Get random choice region id or use default region id: 25 (ES)
-        if vps247_account.default_region_id != 0:
-            region_id = vps247_account.default_region_id
+        if vps247_account.base_region_id != 0:
+            region_id = vps247_account.base_region_id
         else:
             region_id = get_region_id(random_pick_ragion(v247_api.get_all_regions()))
 
         # Get preset default package id
-        package_id = vps247_account.default_package_id
+        package_id = vps247_account.base_package_id
                    
         # Hostname generator
         hostname = generate_host_id()
