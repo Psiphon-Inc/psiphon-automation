@@ -704,6 +704,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             Linode Account:         %s
             DigitalOcean Account:   %s
             VPSNet Account          %s
+            VPS247 Account          %s
             ElasticHosts Account:   %s
             Deploys Pending:        Host Implementations    %d
                                     Host Data               %s
