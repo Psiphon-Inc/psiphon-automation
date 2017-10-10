@@ -1,10 +1,15 @@
 pt_PT:
   title: Psiphon - Comentário
-  top_content_title: Deixe-nos o Seu Comentário
+  top_content_title: Dê-nos a Sua Opinião
+  top_para_1: |
+    A sua opinião torna o Psiphon melhor!
   top_para_2: |
     Muitos problemas podem ser corrigidos ao transferir a última versão. Pode
     <a class="newVersionURL" href="#">transferir a última versão, clicando aqui</a>,
     ou pode enviar uma mensagem para <span id="newVersionEmail"></span>.
+  top_para_3: |
+    Pode encontrar soluções para muitos problemas comuns nas nossas
+    <a class="faqURL" href="#">Perguntas Mais Frequentes</a>.
   diagnostic_check: |
     Enviar dados do diagnóstico. Por favor, note que estes dados do diagnóstico não
     o identificam, e este irá ajudar-nos a manter o Psiphon a funcionar uniformemente.

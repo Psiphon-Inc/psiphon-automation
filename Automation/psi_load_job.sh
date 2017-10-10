@@ -7,6 +7,7 @@ if [[ -n "$process" ]]; then
   seconds=$(echo "$(date +%s) - $(stat -c %X /proc/$process)" | bc)
   if [[ "$seconds" -ge "$max_seconds" ]]; then
     kill "$process"
+    sleep 10
   fi
 fi
 
@@ -21,7 +22,7 @@ touch $lockfile
 
 hg pull && hg up
 
-ulimit -n 5000
+ulimit -n 10000
 
 python ./load.py
 

@@ -272,6 +272,13 @@ VPSNetAccount = psi_utils.recordtype(
     'base_cloud_id, base_system_template, base_ssd_plan',
     default=None)
 
+VPS247Account = psi_utils.recordtype(
+    'VPS247Account',
+    'account_id, api_key, api_base_url, base_ssh_port, ' +
+    'base_root_password, base_stats_username, base_rsa_private_key, ' +
+    'base_region_id, base_package_id',
+    default=None)
+
 ElasticHostsAccount = psi_utils.recordtype(
     'ElasticHostsAccount',
     'zone, uuid, api_key, base_drive_id, cpu, mem, base_host_public_key, ' +
@@ -352,6 +359,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__linode_account = LinodeAccount()
         self.__digitalocean_account = DigitalOceanAccount()
         self.__vpsnet_account = VPSNetAccount()
+        self.__vps247_account = VPS247Account()
         self.__elastichosts_accounts = []
         self.__deploy_implementation_required_for_hosts = set()
         self.__deploy_data_required_for_all = False
@@ -376,19 +384,17 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__alternate_meek_fronting_addresses_regex = defaultdict(str)
         self.__meek_fronting_disable_SNI = defaultdict(bool)
         self.__routes_signing_key_pair = None
-
         self.__TCS_traffic_rules_set = None
         self.__TCS_OSL_config = None
         self.__TCS_psiphond_config_values = None
-
         self.__default_sponsor_id = None
-
         self.__alternate_s3_bucket_domains = set()
+        self.__global_https_request_regexes = []
 
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.45'
+    class_version = '0.47'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -667,6 +673,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.45')) < 0:
             self.__alternate_s3_bucket_domains = set()
             self.version = '0.45'
+        if cmp(parse_version(self.version), parse_version('0.46')) < 0:
+            self.__global_https_request_regexes = []
+            self.version = '0.46'
+        if cmp(parse_version(self.version), parse_version('0.47')) < 0:
+            self.__vps247_account = VPS247Account()
+            self.version = '0.47'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -692,6 +704,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             Linode Account:         %s
             DigitalOcean Account:   %s
             VPSNet Account          %s
+            VPS247 Account          %s
             ElasticHosts Account:   %s
             Deploys Pending:        Host Implementations    %d
                                     Host Data               %s
@@ -723,6 +736,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 'Configured' if self.__linode_account.api_key else 'None',
                 'Configured' if self.__digitalocean_account.client_id and self.__digitalocean_account.api_key else 'None',
                 'Configured' if self.__vpsnet_account.account_id and self.__vpsnet_account.api_key else 'None',
+                'Configured' if self.__vps247_account.account_id and self.__vps247_account.api_key else 'None',
                 'Configured' if self.__elastichosts_accounts else 'None',
                 len(self.__deploy_implementation_required_for_hosts),
                 'Yes' if self.__deploy_data_required_for_all else 'No',
@@ -1238,6 +1252,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             sponsor.log('deleted page view regex %s' % regex)
             self.__deploy_data_required_for_all = True
             sponsor.log('marked all hosts for data deployment')
+
+    def set_global_https_request_regex(self, regex, replace):
+        assert(self.is_locked)
+        if not [rx for rx in self.__global_https_request_regexes if rx.regex == regex]:
+            self.__global_https_request_regexes.append(SponsorRegex(regex, replace))
+            self.__deploy_data_required_for_all = True
 
     def set_sponsor_https_request_regex(self, sponsor_name, regex, replace):
         assert(self.is_locked)
@@ -1801,6 +1821,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         elif provider.lower() == 'vpsnet':
             provider_launch_new_server = psi_vpsnet.launch_new_server
             provider_account = self.__vpsnet_account
+        elif provider.lower() == 'vps247':
+            provider_launch_new_server = psi_vps247.launch_new_server
+            provider_account = self.__vps247_account
         elif provider.lower() == 'elastichosts':
             provider_launch_new_server = psi_elastichosts.ElasticHosts().launch_new_server
             provider_account = self._weighted_random_choice(self.__elastichosts_accounts)
@@ -1848,7 +1871,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             else:
                 self.__replace_propagation_channel_discovery_servers(propagation_channel.id)
 
-        self.__deploy_data_required_for_all = True
+        if discovery_date_range:
+            self.__deploy_data_required_for_all = True
+
         self.__deploy_stats_config_required = True
 
         # Unless the node is reserved for discovery, release it through
@@ -2039,6 +2064,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             deleted_server.ssh_password = None
             deleted_server.ssh_host_key = None
             deleted_server.ssh_obfuscated_key = None
+            deleted_server.TCS_ssh_private_key = None
             self.__deleted_servers[server_id] = deleted_server
         # We don't assign host IDs and can't guarentee uniqueness, so not
         # archiving deleted host keyed by ID.
@@ -3099,6 +3125,17 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             base_stats_username=base_stats_username, base_cloud_id=base_cloud_id,
             base_system_template=base_system_template, base_ssd_plan=base_ssd_plan)
 
+    def set_vps247_account(self, account_id, api_key, api_base_url, base_ssh_port,
+                        base_root_password, base_stats_username,
+                        base_rsa_private_key, base_region_id, base_package_id):
+        assert(self.is_locked)
+        psi_utils.update_recordtype(
+            self.__vps247_account,
+            account_id=account_id, api_key=api_key, api_base_url=api_base_url, base_ssh_port=base_ssh_port,
+            base_root_password=base_root_password, base_stats_username=base_stats_username,
+            base_rsa_private_key=base_rsa_private_key,
+            base_region_id=base_region_id, base_package_id=base_package_id)
+
     def upsert_elastichosts_account(self, zone, uuid, api_key, base_drive_id,
                                     cpu, mem, base_host_public_key, root_username,
                                     base_root_password, base_ssh_port, stats_username, rank):
@@ -3546,7 +3583,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 copy_sponsor.page_view_regexes.append(SponsorRegex(
                                                              page_view_regex.regex,
                                                              page_view_regex.replace))
-            for https_request_regex in sponsor_data.https_request_regexes:
+            # global_https_request_regexes have top priority
+            for https_request_regex in self.__global_https_request_regexes + sponsor_data.https_request_regexes:
                 copy_sponsor.https_request_regexes.append(SponsorRegex(
                                                              https_request_regex.regex,
                                                              https_request_regex.replace))
@@ -3690,7 +3728,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 copy_sponsor.page_view_regexes.append(SponsorRegex(
                                                              page_view_regex.regex,
                                                              page_view_regex.replace))
-            for https_request_regex in sponsor_data.https_request_regexes:
+            # global_https_request_regexes have top priority
+            for https_request_regex in self.__global_https_request_regexes + sponsor_data.https_request_regexes:
                 copy_sponsor.https_request_regexes.append(SponsorRegex(
                                                              https_request_regex.regex,
                                                              https_request_regex.replace))
@@ -3805,8 +3844,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 host.ip_address, host.ssh_port,
                 host.ssh_username, host.ssh_password,
                 host.ssh_host_key)
-
-        return ssh.exec_command(command)
+	ssh_output = ssh.exec_command(command)
+	ssh.close()
+        return ssh_output
 
     def run_command_on_hosts(self, command):
 

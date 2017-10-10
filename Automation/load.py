@@ -123,7 +123,7 @@ def check_load_on_host(host):
 def check_load_on_hosts(psinet, hosts):
     loads = {}
 
-    pool = ThreadPool(25)
+    pool = ThreadPool(50)
     global g_psinet
     g_psinet = psinet
     log_diagnostics('Checking Hosts...')
@@ -182,6 +182,7 @@ def log_load():
     send_mail(results)
 
 def log_diagnostics(line):
+    line = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S") + ' ' + line
     with open('psi_host_load_diagnostics.log', 'a') as log_file:
         log_file.write(line + '\n')
 
