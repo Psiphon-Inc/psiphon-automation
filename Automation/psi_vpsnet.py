@@ -167,7 +167,7 @@ def launch_new_server(vpsnet_account, is_TCS, _, datacenter_city=None):
     """
 
     # TODO-TCS: select base image based on is_TCS flag
-    base_image_id = '8849' # For VPS
+    base_image_id = '8917' # For VPS (Old: 8849)
     # base_image_id = '8850' # For Cloud Server
 
     try:
@@ -191,7 +191,7 @@ def launch_new_server(vpsnet_account, is_TCS, _, datacenter_city=None):
         for region in vpsnet_clouds:
             print '%s -> %s' % (region['cloud']['id'], region['cloud']['label'])
             for template in region['cloud']['system_templates']:
-                if 'psiphond-template' in template['label'].lower() and str(template['id']) == base_image_id:
+                if 'tcs' in template['label'].lower() and str(template['id']) == base_image_id:
                     print '\tFound psiphon template id %s in region %s' % (
                         template['id'], region['cloud']['id'])
                     template['cloud_id'] = region['cloud']['id']
