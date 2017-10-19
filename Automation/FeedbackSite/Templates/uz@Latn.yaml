@@ -1,1 +1,26 @@
-uz@Latn: {}
+uz@Latn:
+  title: Psiphon bo‘yicha fikr-mulohazalar
+  top_content_title: Bizga fikr-mulohaza yuboring
+  top_para_1: |
+    Fikr-mulohazalaringiz Phiphon yanada yaxshiroq bo‘lishiga yordam beradi!
+  top_para_2: |
+    Ko‘plab muammolarga oxirgi versiyani yuklab olish yechim bo‘lishi mumkin. Siz
+    <a class="newVersionURL" href="#">bu yerga bosib oxirgi versiyani yuklab olishingiz</a>,
+    yoki <span id="newVersionEmail"></span> manziliga xat yuborib olishingiz mumkin.
+  top_para_3: |
+    Ko‘p tanish muammolar va ularning yechimini bizning
+    <a class="faqURL" href="#">ko‘p so‘ralgan savollar</a> sahifamizdan topish mumkin.
+  diagnostic_check: |
+    Diagnostiga hisobotini yuborish. Diagnostik hisobot faylida
+    shaxsiy axborotingiz bo‘lmaydi va tizim yaxshiroq va ishonchliroq bo‘lishini ta’minlaydi.
+    <a class="dataCollectionInfoURL" href="#">Qanday ma’lumotlarni yig‘ishimiz haqida o‘rganish uchun bu yerga bosing.</a>
+  smiley_title: Umumiy qoniqish
+  smiley_happy: Psiphon ulanishi va ishlashida muammolar yo‘q.
+  smiley_sad: Psiphon ba’zida ulanmayapti yoki yaxshi ishlamayapti.
+  submit_button: Yuborish
+  text_feedback_prompt: |
+    Quyida izoh qoldiring:
+  text_feedback_email_prompt: |
+    Xabaringizga javob olishni xohlasangiz e-pochta manzilingizni kiriting:
+  text_feedback_bottom_para: |
+    Yuqoridagi shakl ishlamasa yoki skrinshotlar yuborishni istasangiz, <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a> manzilimizga xat yuboring.
