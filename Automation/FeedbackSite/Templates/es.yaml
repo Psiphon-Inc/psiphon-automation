@@ -14,14 +14,14 @@ es:
     Suba datos de diagnóstico. Por favor observe que estos datos de
     diagnóstico no le identifican, y nos ayudarán a mantener Psiphon
     funcionando sin sobresaltos.
-    <a class="dataCollectionInfoURL" href="#">Haga clic aquí para ver que datos recogemos.</a>
-  smiley_title: Satisfacción del conjunto
-  smiley_happy: Psiphon conecta y rinde de la forma que yo quiero.
-  smiley_sad: Psiphon falla a menudo al conectar o no rinde suficientemente bien.
+    <a class="dataCollectionInfoURL" href="#">Haga clic aquí para ver que datos recopilamos.</a>
+  smiley_title: Satisfacción general
+  smiley_happy: Psiphon conecta y funciona de la forma que yo quiero.
+  smiley_sad: Psiphon falla a menudo al conectar o no funciona suficientemente bien.
   submit_button: Enviar
   text_feedback_prompt: |
     Por favor introduzca sus comentarios aquí:
   text_feedback_email_prompt: |
-    Si quiere que nosotros le respondamos, por favor introduzca su dirección de correo electrónico
+    Si quiere que nosotros le respondamos, por favor, introduzca su dirección de correo electrónico
   text_feedback_bottom_para: |
-    Si el formulario de arriba no le está funcionando, o si quisiese enviar capturas de pantalla, por favor envíenos un correo a <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>
+    Si el formulario de arriba no le está funcionando, o si le gustaría enviar capturas de pantalla, por favor envíenos un correo a <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>

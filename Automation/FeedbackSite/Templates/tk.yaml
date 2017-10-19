@@ -2,7 +2,7 @@ tk:
   title: Psiphon seslenme
   top_content_title: Seslenme beriň
   top_para_1: |
-    Seniñ teswiriñ Psiphony gowlašdyryar!
+    Siziň teswiriňiz Psiphon gowylaşdyrýar!
   top_para_2: |
     Iň soňky görnüşi ýüklemek arkaly köp yüze çykan meseleleri düzedip bolar. . Siz
     <a class="newVersionURL" href="#">şu ýere basyp  iň soňky görnüşi ýükläp bilersiňiz</a>,
@@ -16,13 +16,12 @@ tk:
     sizi belli etmez, we ol bize Psiphon kadaly işlemegine kömek eder.
     <a class="dataCollectionInfoURL" href="#">Biziň nähili maglumat topýanymyzy görmek üçin şu ýere bas.</a>
   smiley_title: Umumy kanagatlandyrma
-  smiley_happy: 'Psipon men islegime görä išleyâr we baglanyar. '
-  smiley_sad: 'Psiphon köplenç baglanšmany bašaranok yada kanagatlandyryjy iślanok. '
-  submit_button: Tabşyr
+  smiley_happy: Psiphon islegime görä birikýär we işleýär.
+  smiley_sad: 'Psiphon köplenç birikmegi şowsuz yada kanagatlandyryjy işlemeýär. '
+  submit_button: Iber
   text_feedback_prompt: |
-    Haýyş, öz teswirinñi bu ýerde yaz
+    Haýyş, öz teswiriñizi bu ýere yaz:
   text_feedback_email_prompt: |
-    Eger-de bizden jogap almagy islesenñiz, onda öz email salgyñyzy su yerde yazyñ:
+    Eger-de bizden jogap almagy isleseñiz, onda öz email salgyñyzy bu ýere yazyñ:
   text_feedback_bottom_para: |
-    Eger-de yokardaky forma isšlemeyaän bolsa ya-da ekran suradyny ibersesinñiz gelse, hayysš bize
-    feedback@psiphon.ca email ugradyñ
+    Eger-de ýokardaky forma işlemeýän bolsa ýa-da ekran suradyny ibermek isleseňiz, haýyş bize <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>email ugradyň
