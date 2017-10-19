@@ -34,7 +34,11 @@ def format(data):
     # them enough to put them directly in to a filename.
     if data['Metadata']['platform'] == 'windows':
         platform = 'windows'
-    elif data['Metadata']['platform'] == 'ios':
+    elif data['Metadata']['platform'] == 'ios': # legacy catch all
+        platform = 'ios'
+    elif data['Metadata']['platform'] == 'ios-browser':
+        platform = 'ios'
+    elif data['Metadata']['platform'] == 'ios-vpn':
         platform = 'ios'
     else:
         platform = 'android'

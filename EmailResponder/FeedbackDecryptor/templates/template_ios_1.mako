@@ -216,7 +216,8 @@
           'networkTypeName': 'Network Type',
           'CLIENT_VERSION': 'Client Version',
           'PROPAGATION_CHANNEL_ID': 'Prop. Channel',
-          'SPONSOR_ID': 'Sponsor'
+          'SPONSOR_ID': 'Sponsor',
+          'buildInfo': 'Build Info',
         }
   %>
   % if key in map:
@@ -254,6 +255,7 @@
   ${sys_info_row('isJailbroken', sys_info['isJailbroken'])}
   ${sys_info_row('isAppStoreBuild', sys_info['isAppStoreBuild'])}
   ${sys_info_row('networkTypeName', sys_info.get('networkTypeName', 'None'))}
+  ${sys_info_row('buildInfo', sys_info.get('buildInfo', 'None'))}
 </table>
 
 <h3>Psiphon Info</h3>
