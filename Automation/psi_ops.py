@@ -247,7 +247,7 @@ ProviderRank = psi_utils.recordtype(
     'ProviderRank',
     'provider, rank',
     default=None)
-ProviderRank.provider_values = ('linode', 'elastichosts', 'digitalocean')
+ProviderRank.provider_values = ('linode', 'elastichosts', 'digitalocean', 'vpsnet')
 
 LinodeAccount = psi_utils.recordtype(
     'LinodeAccount',
@@ -1605,7 +1605,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 and not server.discovery_date_range
                 and not server.is_embedded
                 and server.logs[0][0] < (today - datetime.timedelta(days=max_propagation_server_age_in_days))
-                and self.__hosts[server.host_id].provider in ['linode', 'digitalocean']]
+                and self.__hosts[server.host_id].provider in ['linode', 'digitalocean', 'vpsnet']]
             removed, disabled = self.__prune_servers(old_propagation_servers)
             number_removed += removed
             number_disabled += disabled
@@ -2008,7 +2008,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 provider_account = self.__digitalocean_account
             if host.provider == 'vpsnet':
                 provider_remove_host = psi_vpsnet.remove_server
-                provider_account == self.__vpsnet_account
+                provider_account = self.__vpsnet_account
             if provider_remove_host:
                 # Remove the actual host through the provider's API
                 provider_remove_host(provider_account, host.provider_id)
