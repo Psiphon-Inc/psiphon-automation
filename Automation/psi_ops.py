@@ -1573,6 +1573,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return number_removed, number_disabled
 
     def prune_propagation_channel_servers(self, propagation_channel_name,
+                                          max_osl_discovery_server_age_in_days=None,
                                           max_discovery_server_age_in_days=None,
                                           max_propagation_server_age_in_days=None):
         assert(self.is_locked)
@@ -1584,6 +1585,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Remove old servers with low activity
         number_removed = 0
         number_disabled = 0
+
+        if max_osl_discovery_server_age_in_days == None:
+            max_osl_discovery_server_age_in_days = propagation_channel.max_osl_discovery_server_age_in_days
+        if max_osl_discovery_server_age_in_days > 0:
+            old_osl_discovery_servers = [server for server in self.__servers.itervalues()
+                if server.propagation_channel_id == propagation_channel.id
+                and server.osl_discovery_date_range
+                and server.osl_discovery_date_range[1] < (today - datetime.timedelta(days=max_osl_discovery_server_age_in_days))
+                and self.__hosts[server.host_id].provider in ['linode', 'digitalocean', 'vpsnet']]
+            removed, disabled = self.__prune_servers(old_osl_discovery_servers)
+            number_removed += removed
+            number_disabled += disabled
 
         if max_discovery_server_age_in_days == None:
             max_discovery_server_age_in_days = propagation_channel.max_discovery_server_age_in_days
