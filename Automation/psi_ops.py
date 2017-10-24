@@ -157,7 +157,8 @@ PropagationChannel = psi_utils.recordtype(
     'PropagationChannel',
     'id, name, propagation_mechanism_types, propagator_managed_upgrades, ' +
     'new_osl_discovery_servers_count, new_discovery_servers_count, new_propagation_servers_count, ' +
-    'max_osl_discovery_server_age_in_days, max_discovery_server_age_in_days, max_propagation_server_age_in_days')
+    'max_osl_discovery_server_age_in_days, max_discovery_server_age_in_days, max_propagation_server_age_in_days',
+    default=None)
 
 PropagationMechanism = psi_utils.recordtype(
     'PropagationMechanism',
