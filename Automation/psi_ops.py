@@ -156,8 +156,8 @@ EMAIL_RESPONDER_CONFIG_BUCKET_KEY = 'EmailResponder/conf.json'
 PropagationChannel = psi_utils.recordtype(
     'PropagationChannel',
     'id, name, propagation_mechanism_types, propagator_managed_upgrades, ' +
-    'new_osl_discovery_servers_count, new_discovery_servers_count, new_propagation_servers_count, ' +
-    'max_osl_discovery_server_age_in_days, max_discovery_server_age_in_days, max_propagation_server_age_in_days',
+    'new_discovery_servers_count, new_propagation_servers_count, ' +
+    'max_discovery_server_age_in_days, max_propagation_server_age_in_days',
     default=None)
 
 PropagationMechanism = psi_utils.recordtype(
@@ -395,7 +395,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.48'
+    class_version = '0.47'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -680,11 +680,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.47')) < 0:
             self.__vps247_account = VPS247Account()
             self.version = '0.47'
-        if cmp(parse_version(self.version), parse_version('0.48')) < 0:
-            for propagation_channel in self.__propagation_channels.itervalues():
-                propagation_channel.new_osl_discovery_servers_count = 0
-                propagation_channel.max_osl_discovery_server_age_in_days = 0
-            self.version = '0.48'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -985,7 +980,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(self.is_locked)
         for type in propagation_mechanism_types:
             assert(type in self.__propagation_mechanisms)
-        propagation_channel = PropagationChannel(id, name, propagation_mechanism_types, propagator_managed_upgrades, 0, 0, 0, 0, 0, 0)
+        propagation_channel = PropagationChannel(id, name, propagation_mechanism_types, propagator_managed_upgrades, 0, 0, 0, 0)
         assert(id not in self.__propagation_channels)
         assert(not filter(lambda x: x.name == name, self.__propagation_channels.itervalues()))
         self.__propagation_channels[id] = propagation_channel
@@ -1592,17 +1587,17 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         number_removed = 0
         number_disabled = 0
 
-        if max_osl_discovery_server_age_in_days == None:
-            max_osl_discovery_server_age_in_days = propagation_channel.max_osl_discovery_server_age_in_days
-        if max_osl_discovery_server_age_in_days > 0:
-            old_osl_discovery_servers = [server for server in self.__servers.itervalues()
-                if server.propagation_channel_id == propagation_channel.id
-                and server.osl_discovery_date_range
-                and server.osl_discovery_date_range[1] < (today - datetime.timedelta(days=max_osl_discovery_server_age_in_days))
-                and self.__hosts[server.host_id].provider in ['linode', 'digitalocean', 'vpsnet']]
-            removed, disabled = self.__prune_servers(old_osl_discovery_servers)
-            number_removed += removed
-            number_disabled += disabled
+        #if max_osl_discovery_server_age_in_days == None:
+        #    max_osl_discovery_server_age_in_days = propagation_channel.max_osl_discovery_server_age_in_days
+        #if max_osl_discovery_server_age_in_days > 0:
+        #    old_osl_discovery_servers = [server for server in self.__servers.itervalues()
+        #        if server.propagation_channel_id == propagation_channel.id
+        #        and server.osl_discovery_date_range
+        #        and server.osl_discovery_date_range[1] < (today - datetime.timedelta(days=max_osl_discovery_server_age_in_days))
+        #        and self.__hosts[server.host_id].provider in ['linode', 'digitalocean', 'vpsnet']]
+        #    removed, disabled = self.__prune_servers(old_osl_discovery_servers)
+        #    number_removed += removed
+        #    number_disabled += disabled
 
         if max_discovery_server_age_in_days == None:
             max_discovery_server_age_in_days = propagation_channel.max_discovery_server_age_in_days
@@ -3515,8 +3510,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                                     '',  # Omit propagator_managed_upgrades
                                                                     '',  # Omit new server counts
                                                                     '',  # Omit new server counts
-                                                                    '',  # Omit new server counts
-                                                                    '',  # Omit server ages
                                                                     '',  # Omit server ages
                                                                     '')  # Omit server ages
 
@@ -3661,8 +3654,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                                     '',  # Omit propagator_managed_upgrades
                                                                     '',  # Omit new server counts
                                                                     '',  # Omit new server counts
-                                                                    '',  # Omit new server counts
-                                                                    '',  # Omit server ages
                                                                     '',  # Omit server ages
                                                                     '')  # Omit server ages
 
@@ -3842,8 +3833,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         '',  # Omit propagator_managed_upgrades
                                         '',  # Omit new server counts
                                         '',  # Omit new server counts
-                                        '',  # Omit new server counts
-                                        '',  # Omit server ages
                                         '',  # Omit server ages
                                         '')  # Omit server ages
 
