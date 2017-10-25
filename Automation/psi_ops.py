@@ -852,14 +852,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         old_discovery_servers.sort()
 
         print textwrap.dedent('''
-            ID:                                %s
-            Name:                              %s
-            Propagation Mechanisms:            %s
-            Propagator Managed Upgrades        %s
-            New Propagation Servers:           %s
-            Max Propagation Server Age (days): %s
-            New Discovery Servers:             %s
-            Max Discovery Server Age (days):   %s
+            ID:                                  %s
+            Name:                                %s
+            Propagation Mechanisms:              %s
+            Propagator Managed Upgrades          %s
+            New Propagation Servers:             %s
+            Max Propagation Server Age (days):   %s
+            New Discovery Servers:               %s
+            Max Discovery Server Age (days):     %s
+            New OSL Discovery Servers:           %s
+            Max OSL Discovery Server Age (days): %s
             ''') % (
                 p.id,
                 p.name,
@@ -868,7 +870,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 str(p.new_propagation_servers_count),
                 str(p.max_propagation_server_age_in_days),
                 str(p.new_discovery_servers_count),
-                str(p.max_discovery_server_age_in_days))
+                str(p.max_discovery_server_age_in_days),
+                str(p.new_osl_discovery_servers_count),
+                str(p.max_osl_discovery_server_age_in_days))
 
         if verbose:
             print textwrap.dedent('''
@@ -990,6 +994,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(not filter(lambda x: x.name == name, self.__propagation_channels.itervalues()))
         self.__propagation_channels[id] = propagation_channel
 
+    def set_propagation_channel_new_osl_discovery_servers_count(self, propagation_channel_name, count):
+        assert(self.is_locked)
+        propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
+        propagation_channel.new_osl_discovery_servers_count = count
+        propagation_channel.log('New OSL discovery servers count set to %d' % (count,))
+
     def set_propagation_channel_new_discovery_servers_count(self, propagation_channel_name, count):
         assert(self.is_locked)
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
@@ -1001,6 +1011,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         propagation_channel.new_propagation_servers_count = count
         propagation_channel.log('New propagation servers count set to %d' % (count,))
+
+    def set_propagation_channel_max_osl_discovery_server_age_in_days(self, propagation_channel_name, age):
+        assert(self.is_locked)
+        propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
+        propagation_channel.max_osl_discovery_server_age_in_days = age
+        propagation_channel.log('Max OSL discovery server age set to %d days' % (age,))
 
     def set_propagation_channel_max_discovery_server_age_in_days(self, propagation_channel_name, age):
         assert(self.is_locked)
