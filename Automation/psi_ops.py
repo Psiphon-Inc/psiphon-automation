@@ -2921,7 +2921,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # Note: raises CalledProcessError when paver fails
             output = subprocess.check_output(paver_command_line, stderr=subprocess.STDOUT)
 
-            for line in output.split('\n'):
+            for line in output.strip().split('\n'):
                 propagation_channel_id, osl_id = line.split()
                 propagation_channel_ids.add(propagation_channel_id)
                 osl_ids.add(osl_id)
