@@ -2895,7 +2895,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             except:
                 pass
 
-    def get_current_propagation_channel_and_osl_ids_for_scheme(scheme_id):
+    def get_current_propagation_channel_and_osl_ids_for_scheme(self, scheme_id):
         propagation_channel_ids = set()
         osl_ids = set()
 
