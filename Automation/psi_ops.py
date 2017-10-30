@@ -901,15 +901,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def show_server(self, server_id):
         s = self.__servers[server_id]
         print textwrap.dedent('''
-            Server:                  %s
-            Host:                    %s%s %s %s / %s
-            IP Address:              %s
-            Region:                  %s
-            Propagation Channel:     %s
-            Is Embedded:             %s
-            Is Permanent:            %s
-            Discovery Date Range:    %s
-            Capabilities:            %s
+            Server:                   %s
+            Host:                     %s%s %s %s / %s
+            IP Address:               %s
+            Region:                   %s
+            Propagation Channel:      %s
+            Is Embedded:              %s
+            Is Permanent:             %s
+            Discovery Date Range:     %s
+            OSL Discovery Date Range: %s
+            Capabilities:             %s
             ''') % (
                 s.id,
                 s.host_id,
@@ -924,6 +925,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 s.is_permanent,
                 ('%s - %s' % (s.discovery_date_range[0].isoformat(),
                             s.discovery_date_range[1].isoformat())) if s.discovery_date_range else 'None',
+                ('%s - %s' % (s.osl_discovery_date_range[0].isoformat(),
+                            s.osl_discovery_date_range[1].isoformat())) if s.osl_discovery_date_range else 'None',
                 ', '.join([capability for capability, enabled in s.capabilities.iteritems() if enabled]))
         self.__show_logs(s)
 
