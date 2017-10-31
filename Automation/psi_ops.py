@@ -2039,7 +2039,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         None,
                         ossh_port)
 
-            server.osl_ids = list(osl_ids)
+            server.osl_ids = list(osl_ids) if osl_ids else None
             server.osl_discovery_date_range = osl_discovery
 
             self.setup_server(host, [server])
