@@ -901,15 +901,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def show_server(self, server_id):
         s = self.__servers[server_id]
         print textwrap.dedent('''
-            Server:                  %s
-            Host:                    %s%s %s %s / %s
-            IP Address:              %s
-            Region:                  %s
-            Propagation Channel:     %s
-            Is Embedded:             %s
-            Is Permanent:            %s
-            Discovery Date Range:    %s
-            Capabilities:            %s
+            Server:                   %s
+            Host:                     %s%s %s %s / %s
+            IP Address:               %s
+            Region:                   %s
+            Propagation Channel:      %s
+            Is Embedded:              %s
+            Is Permanent:             %s
+            Discovery Date Range:     %s
+            OSL Discovery Date Range: %s
+            Capabilities:             %s
             ''') % (
                 s.id,
                 s.host_id,
@@ -924,6 +925,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 s.is_permanent,
                 ('%s - %s' % (s.discovery_date_range[0].isoformat(),
                             s.discovery_date_range[1].isoformat())) if s.discovery_date_range else 'None',
+                ('%s - %s' % (s.osl_discovery_date_range[0].isoformat(),
+                            s.osl_discovery_date_range[1].isoformat())) if s.osl_discovery_date_range else 'None',
                 ', '.join([capability for capability, enabled in s.capabilities.iteritems() if enabled]))
         self.__show_logs(s)
 
@@ -1660,6 +1663,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return number_removed, number_disabled
 
     def replace_propagation_channel_servers(self, propagation_channel_name,
+                                            new_osl_discovery_servers_count=None,
                                             new_discovery_servers_count=None,
                                             new_propagation_servers_count=None):
         assert(self.is_locked)
@@ -1671,7 +1675,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # Use a default 1 day discovery date range.
         new_discovery_date_range = (tomorrow, tomorrow + datetime.timedelta(days=1))
+        # Use a default 15 day osl discovery date range.
+        new_osl_discovery_date_range = (today, today + datetime.timedelta(days=15))
 
+        if new_osl_discovery_servers_count == None:
+            new_osl_discovery_servers_count = propagation_channel.new_osl_discovery_servers_count
         if new_discovery_servers_count == None:
             new_discovery_servers_count = propagation_channel.new_discovery_servers_count
         if new_propagation_servers_count == None:
@@ -1685,13 +1693,21 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 return None
 
         pool = ThreadPool(20)
-        new_servers = pool.map(_launch_new_server, [None for _ in range(new_discovery_servers_count + new_propagation_servers_count)])
+        new_servers = pool.map(_launch_new_server, [None for _ in range(new_osl_discovery_servers_count + new_discovery_servers_count + new_propagation_servers_count)])
 
         failure = None
 
+        if new_osl_discovery_servers_count > 0:
+            try:
+                self.add_servers(new_servers[:new_osl_discovery_servers_count], propagation_channel_name, new_osl_discovery_date_range, None, False)
+            except Exception as ex:
+                for line in traceback.format_exc().split('\n'):
+                    print line
+                failure = ex
+
         if new_discovery_servers_count > 0:
             try:
-                self.add_servers(new_servers[:new_discovery_servers_count], propagation_channel_name, new_discovery_date_range, False)
+                self.add_servers(new_servers[new_osl_discovery_servers_count:new_osl_discovery_servers_count + new_discovery_servers_count], propagation_channel_name, None, new_discovery_date_range, False)
             except Exception as ex:
                 for line in traceback.format_exc().split('\n'):
                     print line
@@ -1699,7 +1715,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         if new_propagation_servers_count > 0:
             try:
-                self.add_servers(new_servers[new_discovery_servers_count:], propagation_channel_name, None)
+                self.add_servers(new_servers[new_osl_discovery_servers_count + new_discovery_servers_count:], propagation_channel_name, None, None)
             except Exception as ex:
                 for line in traceback.format_exc().split('\n'):
                     print line
@@ -1879,7 +1895,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server_info = provider_launch_new_server_with_retries(is_TCS)
         return server_info[0:3] + (provider.lower(),) + server_info[4:]
 
-    def add_servers(self, server_infos, propagation_channel_name, discovery_date_range, replace_others=True, server_capabilities=None):
+    def add_servers(self, server_infos, propagation_channel_name, osl_discovery_date_range, discovery_date_range, replace_others=True, server_capabilities=None):
         assert(self.is_locked)
 
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
@@ -1887,7 +1903,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Embedded servers (aka "propagation servers") are embedded in client
         # builds, where as discovery servers are only revealed when clients
         # connect to a server.
-        is_embedded_server = (discovery_date_range is None)
+        is_embedded_server = (osl_discovery_date_range is None and discovery_date_range is None)
 
         # The following changes will be saved if at least one server is successfully added
 
@@ -1903,8 +1919,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         old_server.is_embedded = False
                         old_server.log('unembedded')
             # If we are creating new discovery servers, stop discovering existing ones
-            else:
+            elif discovery_date_range:
                 self.__replace_propagation_channel_discovery_servers(propagation_channel.id)
+            else:
+                raise Exception("not implemented")
+
+        osl_ids = None
+        if osl_discovery_date_range:
+            osl_propagation_channel_ids, osl_ids = self.get_current_propagation_channel_and_osl_ids_for_scheme(0)
+            for channel_id in osl_propagation_channel_ids:
+                self.__deploy_pave_osls_required_for_propagation_channels.add(channel_id)
 
         if discovery_date_range:
             self.__deploy_data_required_for_all = True
@@ -1934,6 +1958,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # resolved when unpickling, if discovery_date_range is used directly.
             # So create a copy instead.
             discovery = self.__copy_date_range(discovery_date_range) if discovery_date_range else None
+            osl_discovery = self.__copy_date_range(osl_discovery_date_range) if osl_discovery_date_range else None
 
             ssh_port = '22'
             ossh_port = random.choice([53, 443, 554])
@@ -1941,7 +1966,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             if server_capabilities:
                 capabilities = copy_server_capabilities(server_capabilities)
-            elif discovery:
+            elif discovery or osl_discovery:
                 # Discovery servers will either be OSSH-only or UNFRONTED-MEEK-only
                 capabilities['handshake'] = False
                 capabilities['VPN'] = False
@@ -2013,6 +2038,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         None,
                         None,
                         ossh_port)
+
+            server.osl_ids = list(osl_ids)
+            server.osl_discovery_date_range = osl_discovery
 
             self.setup_server(host, [server])
 
@@ -2869,6 +2897,45 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 shutil.rmtree(output_dir, ignore_errors=True)
             except:
                 pass
+
+    def get_current_propagation_channel_and_osl_ids_for_scheme(self, scheme_id):
+        propagation_channel_ids = set()
+        osl_ids = set()
+
+        osl_config_filename = os.path.join('.', 'osl_config.json')
+
+        try:
+            # Pave full OSL file sets for all propagation channels in the OSL config.
+
+            osl_config_file = open(osl_config_filename, 'w')
+            osl_config_file.write(self.__TCS_OSL_config)
+            osl_config_file.close()
+
+            # Source: https://github.com/Psiphon-Labs/psiphon-tunnel-core/tree/master/psiphon/common/osl/paver
+            paver_binary = 'paver.exe'
+            if os.name == 'posix':
+                paver_binary = 'paver'
+
+            paver_command_line = \
+                [os.path.join('.', paver_binary),
+                 "-config", osl_config_filename,
+                 "-list-scheme", str(scheme_id)]
+
+            # Note: raises CalledProcessError when paver fails
+            output = subprocess.check_output(paver_command_line, stderr=subprocess.STDOUT)
+
+            for line in output.strip().split('\n'):
+                propagation_channel_id, osl_id = line.split()
+                propagation_channel_ids.add(propagation_channel_id)
+                osl_ids.add(osl_id)
+
+        finally:
+            try:
+                os.remove(osl_config_filename)
+            except:
+                pass
+
+        return propagation_channel_ids, osl_ids
 
     def update_static_site_content(self, sponsor, campaign, do_generate=False):
         assert(self.is_locked)
