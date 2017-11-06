@@ -157,6 +157,12 @@ def remove_server(vpsnet_account, node_id):
         result = vpsnet_conn.delete_ssd_node(node)
         if not result:
             raise Exception('Could not destroy node: %s' % str(node_id))
+    except KeyError as e:
+        if e.message == 'virtual_machine':
+            # The server has already been deleted
+            pass
+        else:
+            raise e
     except Exception as e:
         raise e
 
