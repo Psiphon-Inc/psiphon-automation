@@ -383,7 +383,9 @@ function setLanguage(langName, args)
   // Some of our links go to our download page. Switch to the correct language.
   // No-op if it's a different kind of link.
   $('a').click(function(e) {{
-    var RTL_LANGS = ['ar', 'fa', 'he'];
+    // Checking for RTL needs to work for 'fa-AF' as well as 'fa'.
+    var RTL_CHARSETS = ['ar', 'fa', 'he', 'yi'];
+    var currentLangIsRTL = RTL_CHARSETS.some(function (element) { return element === currentLangName.slice(0, 2); });
 
     var url = e.currentTarget.href;
     url = url.replace(/\/en\//, '/'+currentLangName+'/');
@@ -393,7 +395,7 @@ function setLanguage(langName, args)
       return;
     }}
 
-    if ($.inArray(currentLangName, RTL_LANGS) >= 0 && url.indexOf('#') < 0) {{
+    if (currentLangIsRTL && url.indexOf('#') < 0) {{
       url += "#rtl";
     }}
 
