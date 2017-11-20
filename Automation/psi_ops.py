@@ -699,7 +699,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             Twitter Campaigns:      %d
             Email Campaigns:        %d
             Total Campaigns:        %d
-            Hosts:                  %d (Legacy: %d, TCS Docker: %d, TCS Native: %d)
+            Hosts:                  %d (Legacy: %d, TCS Native: %d)
             Servers:                %d (VPN: %d)
             Automation Bucket:      %s
             Stats Server:           %s
@@ -729,7 +729,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                      for sponsor in self.__sponsors.itervalues()]),
                 sum([len(sponsor.campaigns)
                      for sponsor in self.__sponsors.itervalues()]),
-                len(self.__hosts), len([h for h in self.__hosts.itervalues() if h.is_TCS == False]), len([h for h in self.__hosts.itervalues() if h.is_TCS == True and h.TCS_type == 'DOCKER']), len([h for h in self.__hosts.itervalues() if h.is_TCS == True and h.TCS_type == 'NATIVE']),
+                len(self.__hosts), len([h.id for h in self.__hosts.itervalues() if h.is_TCS == False and h.id not in [s.host_id for s in self.__servers.itervalues() if s.capabilities['VPN'] == True]]), len([h for h in self.__hosts.itervalues() if h.is_TCS == True and h.TCS_type == 'NATIVE']),
                 len(self.__servers), len([s for s in self.__servers.itervalues() if s.capabilities['VPN'] == True]),
                 self.__automation_bucket if self.__automation_bucket else 'None',
                 self.__stats_server_account.ip_address if self.__stats_server_account else 'None',
