@@ -1,10 +1,15 @@
 zh_TW:
   title: 賽風的回饋
   top_content_title: '向我們提供您的回饋 '
+  top_para_1: |
+    您的回饋讓賽風可以做得更好。
   top_para_2: |
     您可以通過下載最新版本解決很多問題
     <a class="newVersionURL" href="#">您可以點擊此處下载最新版本</a>，
     或者發送電子郵件至<span id="newVersionEmail"></span>。
+  top_para_3: |
+    許多相同的問題可以在
+    <a class="faqURL" href="#">常見問答集</a>中找到解決方法。
   diagnostic_check: |
     上載診斷數據。請注意此診斷數據不會泄露你的身份，它的目的是幫助我們保持賽風運行平穩和順利。
     <a class="dataCollectionInfoURL" href="#">點擊此處查看我们收集的資料</a>。

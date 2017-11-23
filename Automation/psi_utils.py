@@ -163,12 +163,6 @@ def recordtype(typename, field_names, verbose=False, logs=True, **default_kwds):
 
             def __ne__(self, other):
                 return not self==other
-
-            def __getstate__(self):
-                return %(tupletxt)s
-
-            def __setstate__(self, state):
-                %(tupletxt)s = state
     ''') % locals()
     # Execute the template string in a temporary namespace
     namespace = {}
