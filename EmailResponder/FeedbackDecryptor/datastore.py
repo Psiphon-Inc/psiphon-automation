@@ -336,13 +336,3 @@ def _get_stats_helper(since_time):
                       })
 
     return stats
-
-
-#
-# Functions related to the sqlexporter
-#
-
-def get_sqlexporter_diagnostic_info_iterator(start_datetime):
-    cursor = _diagnostic_info_store.find({'datetime': {'$gt': start_datetime}})
-    cursor.sort('datetime')
-    return cursor

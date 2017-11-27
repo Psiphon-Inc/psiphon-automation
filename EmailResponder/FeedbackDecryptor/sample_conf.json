@@ -47,8 +47,6 @@
   "defaultSponsorName": "Psiphon",
   "defaultPropagationChannelName": "Psiphon - email autoresponder",
 
-  "sqlExporterDBConnectionString": "mysql://root@localhost/diagnostic_feedback?unix_socket=/data/mariadb-data/mariadb.sock",
-
   // This is the maximum acceptable size for S3 feedback objects.
   "s3ObjectMaxSize": 4194304 // 4MiB
 }
