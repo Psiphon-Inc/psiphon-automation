@@ -1,1 +1,21 @@
-tk: {}
+tk:
+  plaintext_email_no_attachment: |
+    Psiphon bu ýerde ýükle: {{0}}/{0}/download.html#direct
+  html_email_no_attachment: |
+    <div style="direction: ltr;">
+    Psiphon bu ýerde ýükle: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
+  plaintext_email_with_attachment: |+
+    Psiphon 3 Windows arkaly ulanmak üçin, goşulan faýly {{1}} ".exe" görnüşde ýatda sakla.
+    Psiphon 3 Android arkaly ulanmak üçin, goşulan faýly gurna {{2}}.
+    Goşmaça maglumatlar üçin ýada faýllary täzeden ýüklemek üçin , aşakdaky linke basyň.
+    {{0}}/{0}/download.html#direct
+
+  html_email_with_attachment: |
+    <div style="direction: ltr;">
+    Psiphon 3 Windows arkaly ulanmak üçin, goşulan faýly {{1}} with a ".exe" görnüşde ýatda sakla.<br>
+    Psiphon 3 Android arkaly ulanmak üçin, goşulan faýly gurna {{2}}.<br>
+    Goşmaça maglumatlar üçin ýada faýllary täzeden ýüklemek üçin , aşakdaky linke basyň.<br>
+    <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
+    <br>

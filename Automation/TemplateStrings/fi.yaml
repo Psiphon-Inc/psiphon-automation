@@ -1,6 +1,10 @@
 fi:
   plaintext_email_no_attachment: |
     Lataa Psiphon täältä: {{0}}/{0}/download.html#direct
+  html_email_no_attachment: |
+    <div style="direction: ltr;">
+    Lataa Psiphon täältä: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
   plaintext_email_with_attachment: |+
     Psiphon 3 for Windows-sovelluksen käyttämiseksi tallenna liitetiedosto {{1}}, joka tarkennin on ".exe".
     Psiphon 3 for Android-sovelluksen käyttämiseksi asenna liitetiedosto {{2}}.
