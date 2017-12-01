@@ -36,6 +36,7 @@ import psi_feedback_templates
 
 
 DEFAULT_LANGS = {
+    'am': 'am',         # Amharic
     'ar': 'ar',         # Arabic
     'bo': 'bo',         # Tibetan
     'de': 'de',         # German
@@ -44,7 +45,7 @@ DEFAULT_LANGS = {
     'fa': 'fa',         # Farsi/Persian
     'fi_FI': 'fi',      # Finnish
     'fr': 'fr',         # French
-    'hi_IN': 'hi',      # Hindi
+    'hi': 'hi',         # Hindi
     'hr': 'hr',         # Croation
     'id': 'id',         # Indonesian
     'it': 'it',         # Italian
@@ -80,7 +81,8 @@ PSIPHON_CIRCUMVENTION_SYSTEM_DIR = 'psiphon-circumvention-system'
 
 
 def process_android_app_strings():
-    langs = {'ar': 'ar',
+    langs = {'am': 'am',
+             'ar': 'ar',
              'az@latin': 'az',
              'bo': 'bo',
              'de': 'de',
@@ -116,7 +118,8 @@ def process_android_app_strings():
 
 
 def process_android_library_strings():
-    langs = {'ar': 'ar',
+    langs = {'am': 'am',
+             'ar': 'ar',
              'az@latin': 'az',
              'bo': 'bo',
              'de': 'de',
@@ -149,7 +152,8 @@ def process_android_library_strings():
 
 
 def process_android_app_browser_strings():
-    langs = {'ar': 'ar',
+    langs = {'am': 'am',
+             'ar': 'ar',
              'az@latin': 'az',
              'bo': 'bo',
              'de': 'de',
