@@ -38,11 +38,14 @@ import psi_feedback_templates
 DEFAULT_LANGS = {
     'am': 'am',         # Amharic
     'ar': 'ar',         # Arabic
+    'az@latin': 'az',   # Azerbaijani
+    'be': 'be',         # Belarusian
     'bo': 'bo',         # Tibetan
     'de': 'de',         # German
     'el_GR': 'el',      # Greek
     'es': 'es',         # Spanish
     'fa': 'fa',         # Farsi/Persian
+    'fa_AF': 'fa_AF',   # Persian (Afghanistan)
     'fi_FI': 'fi',      # Finnish
     'fr': 'fr',         # French
     'hi': 'hi',         # Hindi
@@ -50,17 +53,22 @@ DEFAULT_LANGS = {
     'id': 'id',         # Indonesian
     'it': 'it',         # Italian
     'kk': 'kk',         # Kazak
+    'km': 'km',         # Khmer
     'ko': 'ko',         # Korean
+    'ky': 'ky',         # Kyrgyz
+    'my': 'my',         # Burmese
     'nb_NO': 'nb',      # Norwegian
     'nl': 'nl',         # Dutch
     'pt_BR': 'pt_BR',   # Portuguese-Brazil
     'pt_PT': 'pt_PT',   # Portuguese-Portugal
     'ru': 'ru',         # Russian
     'sn': 'sn',         # Shona
+    'tg': 'tg',         # Tajik
     'th': 'th',         # Thai
     'tk': 'tk',         # Turkmen
     'tr': 'tr',         # Turkish
     'ug': 'ug@Latn',    # Uighur (latin script)
+    'uk': 'uk',         # Ukrainian
     'uz': 'uz@Latn',    # Uzbek (latin script)
     'uz@Cyrl': 'uz@Cyrl',    # Uzbek (latin script)
     'vi': 'vi',         # Vietnamese
@@ -69,7 +77,7 @@ DEFAULT_LANGS = {
 }
 
 
-RTL_LANGS = ('ar', 'fa', 'he')
+RTL_LANGS = ('ar', 'fa', 'fa_AF', 'he')
 
 
 PSIPHON_CIRCUMVENTION_SYSTEM_RESOURCES = \
