@@ -1,0 +1,26 @@
+km:
+  title: ផ្តល់មតិយោបល់លើ Psiphon
+  top_content_title: សូមផ្តល់មតិយោបល់របស់អ្នកដល់យើង
+  top_para_1: |
+    មតិយោបល់របស់អ្នកធ្វើឲ្យ Psiphon កាន់តែប្រសើរ!
+  top_para_2: |
+    បញ្ហាជាច្រើនអាចដោះស្រាយដោយទាញយកកម្មវិធីជំនាន់ចុងក្រោយ។ អ្នកអាច
+    <a class="newVersionURL" href="#">ទាញយកកម្មវិធីជំនាន់ចុងក្រោយដោយចុចទីនេះ</a>,
+    ឬ អ្នកអាចផ្ញើអ៊ីម៉ែលទៅកាន់ <span id="newVersionEmail"></span>។
+  top_para_3: |
+    អ្នកអាចស្វែងរកដំណោះស្រាយសម្រាប់បញ្ហាទូទៅក្នុង
+    <a class="faqURL" href="#">សំណួរសួរញឹកញាប់</a>​ របស់យើង។
+  diagnostic_check: |
+    បញ្ជូនទិន្នន័យវិភាគ។ សូមចំណាំថា ទិន្នន័យវិភាគមិនបង្ហាញ
+    អត្តសញ្ញាណអ្នក និងវានឹងជួយយើងរក្សាដំណើរការPsiphon ឲ្យរលូនជាមុន។
+    <a class="dataCollectionInfoURL" href="#">ចុចទីនេះដើម្បីមើលអ្វីដែលយើងប្រមូល។</a>
+  smiley_title: ការពេញចិត្តទូទៅ
+  smiley_happy: Psiphon តភ្ជាប់និងដំណើរការតាមរបៀបដែលខ្ញុំចង់បាន។
+  smiley_sad: Psiphon ជាញឹកញយបរាជ័យក្នុងការតភ្ជាប់ ឬមិនដំណើរការដោយប្រក្រតី។
+  submit_button: បញ្ជូន
+  text_feedback_prompt: |
+    សូមបញ្ចូលមតិរបស់អ្នកនៅទីនេះ៖
+  text_feedback_email_prompt: |
+    បើអ្នកចង់ឲ្យយើងខ្ញុំ ឆ្លើយតបទៅវិញ សូមបំពេញអាសយដ្ឋានអ៊ីម៉ែលអ្នក៖
+  text_feedback_bottom_para: |
+    បើទម្រង់មិនដំណើរការ ឬអ្នកចង់បញ្ជូនរូបភាពអេក្រង់ សូមផ្ញើអ៊ីម៉ែលមកយើងតាម <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>
