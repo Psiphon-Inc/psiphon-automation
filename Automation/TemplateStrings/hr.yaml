@@ -1,0 +1,21 @@
+hr:
+  plaintext_email_no_attachment: |
+    Preuzmite Psiphon ovdje: {{0}}/{0}/download.html#direct
+  html_email_no_attachment: |
+    <div style="direction: ltr;">
+    Preuzmite Psiphon ovdje: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
+  plaintext_email_with_attachment: |+
+    Da bi koristili Psiphon 3 na Windows-ima, pohranite privijenu datoteku {{1}} s ".exe" ekstenzijom.
+    Da bi koristili Pisphon 3 za Android, instalirajte privinutu datoteku {{2}}.
+    Za više informacija ili ponovno preuzimanje datoteka, kliknite poveznicu ispod.
+    {{0}}/{0}/download.html#direct
+
+  html_email_with_attachment: |
+    <div style="direction: ltr;">
+    Da bi koristili Psiphon 3 na Windows-ima, pohranite privijenu datoteku {{1}} s ".exe" ekstenzijom.<br>
+    Da bi koristili Pisphon 3 za Android, instalirajte privinutu datoteku {{2}}.<br>
+    Za više informacija ili ponovno preuzimanje datoteka, kliknite poveznicu ispod.<br>
+    <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
+    <br>

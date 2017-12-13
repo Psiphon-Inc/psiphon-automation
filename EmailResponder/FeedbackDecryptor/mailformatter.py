@@ -32,7 +32,17 @@ def format(data):
 
     # The values in `data` come directly from the user, so we shouldn't trust
     # them enough to put them directly in to a filename.
-    platform = 'windows' if data['Metadata']['platform'] == 'windows' else 'android'
+    if data['Metadata']['platform'] == 'windows':
+        platform = 'windows'
+    elif data['Metadata']['platform'] == 'ios': # legacy catch all
+        platform = 'ios'
+    elif data['Metadata']['platform'] == 'ios-browser':
+        platform = 'ios'
+    elif data['Metadata']['platform'] == 'ios-vpn':
+        platform = 'ios'
+    else:
+        platform = 'android'
+
     version = int(data['Metadata']['version'])
 
     template_filename = 'templates/template_%s_%d.mako' % (platform, version)

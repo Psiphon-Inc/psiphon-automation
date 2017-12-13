@@ -1,19 +1,21 @@
 tk:
   plaintext_email_no_attachment: |
-    Türkmençe - {{0}}/{0}/index.html
+    Psiphon bu ýerde ýükle: {{0}}/{0}/download.html#direct
   html_email_no_attachment: |
     <div style="direction: ltr;">
-    Türkmençe - <a href="{{0}}/{0}/index.html">{{0}}/{0}/index.html</a>
-    <br>
+    Psiphon bu ýerde ýükle: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
     </div>
-  plaintext_email_with_attachment: |
-    Psiphon 3-i Windows-da ulanmak üçin ".exe" giňeltmeli seplenen faýly {{1}}  ýatda saklaň.
-    Has giňişleýin maglumat üçin ýa-da faýllary täzeden göçürip almak üçin aşakdaky baglanyşyga basyň.
-    {{0}}/{0}/index.html
+  plaintext_email_with_attachment: |+
+    Psiphon 3 Windows arkaly ulanmak üçin, goşulan faýly {{1}} ".exe" görnüşde ýatda sakla.
+    Psiphon 3 Android arkaly ulanmak üçin, goşulan faýly gurna {{2}}.
+    Goşmaça maglumatlar üçin ýada faýllary täzeden ýüklemek üçin , aşakdaky linke basyň.
+    {{0}}/{0}/download.html#direct
+
   html_email_with_attachment: |
     <div style="direction: ltr;">
-    Psiphon 3-i Windows-da ulanmak üçin ".exe" giňeltmeli seplenen faýly {{1}}  ýatda saklaň.
-    Has giňişleýin maglumat üçin ýa-da faýllary täzeden göçürip almak üçin aşakdaky baglanyşyga basyň.<br>
-    <a href="{{0}}/{0}/index.html">{{0}}/{0}/index.html</a><br>
+    Psiphon 3 Windows arkaly ulanmak üçin, goşulan faýly {{1}} with a ".exe" görnüşde ýatda sakla.<br>
+    Psiphon 3 Android arkaly ulanmak üçin, goşulan faýly gurna {{2}}.<br>
+    Goşmaça maglumatlar üçin ýada faýllary täzeden ýüklemek üçin , aşakdaky linke basyň.<br>
+    <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
     </div>
     <br>

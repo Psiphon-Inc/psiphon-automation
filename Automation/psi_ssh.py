@@ -91,42 +91,48 @@ class SSH(object):
     def close(self):
         self.ssh.close()
 
-    def exec_command(self, command_line):
+    def exec_command(self, command_line, muted=False):
         (_, output, _) = self.ssh.exec_command(command_line)
         out = output.read()
         out = out.decode('utf-8')
-        print 'SSH %s: %s %s' % (self.ip_address, command_line[0:20]+'...', out[:100])
+        if not muted:
+            print 'SSH %s: %s %s' % (self.ip_address, command_line[0:20]+'...', out[:100])
         return out
 
-    def list_dir(self, remote_path):
-        print 'SSH %s: list dir %s' % (self.ip_address, remote_path)
+    def list_dir(self, remote_path, muted=False):
+        if not muted:
+            print 'SSH %s: list dir %s' % (self.ip_address, remote_path)
         sftp = self.ssh.open_sftp()
         list = sftp.listdir(remote_path)
         sftp.close()
         return list
 
-    def list_dir_attributes(self, remote_path):
-        print 'SSH %s: list dir %s' % (self.ip_address, remote_path)
+    def list_dir_attributes(self, remote_path, muted=False):
+        if not muted:
+            print 'SSH %s: list dir %s' % (self.ip_address, remote_path)
         sftp = self.ssh.open_sftp()
         list = sftp.listdir_attr(remote_path)
         sftp.close()
         return list
 
-    def stat_file(self, remote_path):
-        print 'SSH %s: stat file %s' % (self.ip_address, remote_path)
+    def stat_file(self, remote_path, muted=False):
+        if not muted:
+            print 'SSH %s: stat file %s' % (self.ip_address, remote_path)
         sftp = self.ssh.open_sftp()
         attributes = sftp.lstat(remote_path)
         sftp.close()
         return attributes
 
-    def put_file(self, local_path, remote_path):
-        print 'SSH %s: put file %s %s' % (self.ip_address, local_path, remote_path)
+    def put_file(self, local_path, remote_path, muted=False):
+        if not muted:
+            print 'SSH %s: put file %s %s' % (self.ip_address, local_path, remote_path)
         sftp = self.ssh.open_sftp()
         sftp.put(local_path, remote_path)
         sftp.close()
 
-    def get_file(self, remote_path, local_path):
-        print 'SSH %s: get file %s %s' % (self.ip_address, local_path, remote_path)
+    def get_file(self, remote_path, local_path, muted=False):
+        if not muted:
+            print 'SSH %s: get file %s %s' % (self.ip_address, local_path, remote_path)
         sftp = self.ssh.open_sftp()
         sftp.get(remote_path, local_path)
         sftp.close()

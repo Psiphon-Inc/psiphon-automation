@@ -3,19 +3,19 @@ es:
     Descargar Psiphon desde: {{0}}/{0}/download.html#direct
   html_email_no_attachment: |
     <div style="direction: ltr;">
-    Descargar Psiphon aquí: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    Descargue Psiphon aquí: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
     </div>
   plaintext_email_with_attachment: |+
-    Para usar Psiphon 3 para Windows, guarde el fichero adjunto {{1}} con una extensión ".exe".
-    Para usar Psiphon 3 para Android, instalé el fichero adjunto {{2}}.
-    Para más información o para descargar los ficheros de nuevo, haga clic en enlace de debajo.
+    Para usar Psiphon 3 para Windows, guarde el archivo adjunto {{1}} con una extensión ".exe".
+    Para usar Psiphon 3 para Android, instale el archivo adjunto {{2}}.
+    Para más información o para descargar los archivos de nuevo, haga clic en enlace de debajo.
     {{0}}/{0}/download.html#direct
 
   html_email_with_attachment: |
     <div style="direction: ltr;">
-    Para usar Psiphon 3 para Windows, guarde el fichero adjunto {{1}} con una extension ".exe".<br>
-    Para usar Psiphon 3 para Android, instale el fichero adjunto {{2}}.<br>
-    Para más información o para descargar los ficheros de nuevo, haga clic en el enlace de debajo.<br>
+    Para usar Psiphon 3 para Windows, guarde el archivo adjunto {{1}} con una extension ".exe".<br>
+    Para usar Psiphon 3 para Android, instale el archivo adjunto {{2}}.<br>
+    Para más información o para descargar los archivos de nuevo, haga clic en el enlace de debajo.<br>
     <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
     </div>
     <br>

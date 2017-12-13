@@ -21,8 +21,8 @@
 import collections
 from collections import defaultdict
 from collections import OrderedDict
-import psycopg2
-import psi_ops_stats_credentials
+# import psycopg2
+# import psi_ops_stats_credentials
 from mako.template import Template
 from mako.lookup import TemplateLookup
 from mako import exceptions
@@ -31,29 +31,62 @@ import os
 import sys
 import json
 
+import datetime
+from time import time, mktime
+from elasticsearch import ConflictError, NotFoundError, ConnectionTimeout, Elasticsearch, helpers as esHelpers
+
+# Using the elasticsearch server enrty from a file
+sys.path.append(os.path.abspath(os.path.join('.', 'Query')))
+import psi_es_server_config as server_config
+
 # Using the FeedbackDecryptor's mail capabilities
 sys.path.append(os.path.abspath(os.path.join('..', 'EmailResponder')))
 sys.path.append(os.path.abspath(os.path.join('..', 'EmailResponder', 'FeedbackDecryptor')))
 import sender
 from config import config
 
-
+es = None
 PSI_OPS_DB_FILENAME = os.path.join(os.path.abspath('.'), 'psi_ops_stats.dat')
 
+class ElasticsearchUnreachableException(Exception):
+    def __init__(self, passedHost):
+        self.passedHost = passedHost
 
-def connections_on_hosts_in_interval(db_conn, interval):
-    query = '''
-        select host_id, count(host_id) from connected
-        where timestamp between current_timestamp - interval '{0}' and current_timestamp - interval '{1}'
-        group by host_id;
-        '''
-    cursor = db_conn.cursor()
-    cursor.execute(query.format(interval[0], interval[1]))
-    rows = cursor.fetchall()
+    def __unicode__(self):
+        return "The Elasticsearch cluster at '%s' is not reachable" % (self.passedHost)
+
+    def __str__(self):
+        return unicode(self).encode("utf-8")
+
+def _get_connected(interval, index_param):
+    res = None
+
+    query_files = './Query/hosts_stats.json'
+
+    startTime = time()
+    print("[%s] Starting query - 30 minute timeout" % datetime.datetime.now())
+
+
+    # "query.json" is JSON object in a file that is a valid elasticsearch query
+    with open(query_files, 'r') as f:
+        query = json.load(f)
+
+        query['query']['bool']['filter']['bool']['must'][0]['range']['@timestamp']['gte'] = interval[0]
+        query['query']['bool']['filter']['bool']['must'][0]['range']['@timestamp']['lt'] = interval[1]
+
+        res = es.search(index=index_param, body=query, request_timeout=1800)
+        print("[%s] Finished in %.2fs" % (datetime.datetime.now(), round((time()-startTime), 2)))
+        return res['aggregations']['2']['buckets']
+
+
+def connections_on_hosts_in_interval(interval):
+	# Different query for Unique users and Connections
+    connections_result = _get_connected(interval, "psiphon-connected-*")
     connections = {}
-    for row in rows:
-        connections[row[0]] = row[1]
-    cursor.close()
+
+    for entry in connections_result:
+        connections[entry['key']] = entry['doc_count']
+
     return connections
 
 
@@ -86,10 +119,12 @@ def render_mail(data):
 
 
 column_specs = [
-    ('Yesterday', '40 hours', '16 hours'),
-    ('1 week ago', '208 hours', '184 hours'),
-    ('Past Week', '184 hours', '16 hours'),
+    ('Yesterday', 'now/d-24h', 'now/d'),
+    ('1 week ago', 'now/d-192h', 'now/d-168h'),
+    ('Past Week', 'now/d-168h', 'now/d'),
 ]
+
+query_example = {}
 
 
 if __name__ == "__main__":
@@ -112,13 +147,15 @@ if __name__ == "__main__":
     datacenter_connections = {}
     region_connections = {}
 
-    db_conn = psycopg2.connect(
-        'dbname=%s user=%s password=%s host=%s port=%d' % (
-            psi_ops_stats_credentials.POSTGRES_DBNAME,
-            psi_ops_stats_credentials.POSTGRES_USER,
-            psi_ops_stats_credentials.POSTGRES_PASSWORD,
-            psi_ops_stats_credentials.POSTGRES_HOST,
-            psi_ops_stats_credentials.POSTGRES_PORT))
+    server_entry = server_config.ELASTICSEARCH_SERVER_IP_ADDRESS + ':' + server_config.ELASTICSEARCH_SERVER_PORT
+
+    try:
+    	es = Elasticsearch(hosts=[server_entry], retry_on_timeout=True, max_retries=3)
+    	if not es.ping():
+    			raise ElasticsearchUnreachableException(elasticsearch)
+
+    except ElasticsearchUnreachableException as e:
+        print("Could not initialize. The Elasticsearch cluster at '%s' is unavailable" % (e.passedHost))
 
     def set_connections(host, connections, column_name):
         if not host.id in host_connections:
@@ -135,7 +172,7 @@ if __name__ == "__main__":
         region_connections[host.region][column_name] += connections
 
     for spec in column_specs:
-        connections_for_spec = connections_on_hosts_in_interval(db_conn, (spec[1], spec[2]))
+        connections_for_spec = connections_on_hosts_in_interval((spec[1], spec[2]))
         for host in hosts:
             c = 0
             if host.id in connections_for_spec:
@@ -143,9 +180,9 @@ if __name__ == "__main__":
             set_connections(host, c, spec[0])
 
     def add_table(tables, title, key, connections):
-        tables[title] = {}
-        tables[title]['headers'] = [key] + [spec[0] for spec in column_specs]
-        tables[title]['data'] = sorted(connections.items(), key=lambda x: x[1][column_specs[0][0]], reverse=True)
+		tables[title] = {}
+		tables[title]['headers'] = [key] + [spec[0] for spec in column_specs]
+		tables[title]['data'] = sorted(connections.items(), key=lambda x: x[1][column_specs[0][0]], reverse=True)
 
     tables_data = OrderedDict()
     add_table(tables_data, 'Connections to Regions', 'Region', region_connections)
@@ -153,13 +190,11 @@ if __name__ == "__main__":
     add_table(tables_data, 'Connections to Datacenters', 'Datacenter', datacenter_connections)
     add_table(tables_data, 'Connections to Hosts', 'Host', host_connections)
 
-    db_conn.close()
-
     html_body = render_mail(tables_data)
+
 
     sender.send(config['statsEmailRecipients'],
                 config['emailUsername'],
                 'Psiphon 3 Host Stats',
                 repr(tables_data),
                 html_body)
-

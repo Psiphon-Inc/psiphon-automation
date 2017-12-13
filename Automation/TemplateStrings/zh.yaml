@@ -1,20 +1,21 @@
 zh:
   plaintext_email_no_attachment: |
-    在这里下载 Psiphon: {{0}}/{0}/download.html#direct
+    赛风下载链接： {{0}}/{0}/download.html#direct
   html_email_no_attachment: |
     <div style="direction: ltr;">
-    点击这里下载 Psiphon: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    赛风下载链接：<a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
     </div>
-  plaintext_email_with_attachment: |
-    在 Windows 上使用 Psiphon 3, 保存这个后缀名为".exe"的附件 {{1}} 。
-    在 Android 上使用 Psiphon 3, 安装这个附件 {{2}}。
-    获取更多信息或者再次下载文件，点击以下链接。
+  plaintext_email_with_attachment: |+
+    如需在 Windows 上使用赛风 3，请将附件中的 {{1}} 保存为 .exe 文件。
+    如需在 Android 上使用赛风 3，请安装附件中的 {{2}}。
+    如需更多信息或重新下载文件，请点击下方链接。
     {{0}}/{0}/download.html#direct
+
   html_email_with_attachment: |
     <div style="direction: ltr;">
-    在 Windows 上使用 Psiphon 3, 保存这个后缀名为".exe"的附件 {{1}} 。<br>
-    在 Android 上使用 Psiphon 3, 安装这个附件 {{2}}。<br>
-    获取更多信息或者再次下载文件，点击以下链接。<br>
+    如需在 Windows 上使用赛风 3，请将附件中的 {{1}} 以后缀名 .exe 保存。<br>
+    如需在 Android 上使用赛风 3，请安装附件中的 {{2}}。<br>
+    如需更多信息或重新下载文件，请点击下方链接。<br>
     <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
     </div>
     <br>

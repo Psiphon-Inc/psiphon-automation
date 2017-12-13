@@ -27,20 +27,42 @@ FEEDBACK_LANGUAGES = [
     'en',
     'fa',
     'ar',
-    'tr',
     'zh',
-    'uz@cyrillic',
-    'uz@Latn',
-    'ru',
-    'kk',
+    'zh_TW',
+    'am',
     'az',
-    'tk',
-    'th',
-    'ug@Latn',
+    'be',
+    'bo',
+    'de',
+    'el',
     'es',
-    'vi',
+    'fa_AF',
+    'fi',
     'fr',
-    'nb'
+    'hi',
+    'hr',
+    'id',
+    'it',
+    'kk',
+    'km',
+    'ko',
+    'ky',
+    'my',
+    'nb',
+    'nl',
+    'pt_BR',
+    'pt_PT',
+    'ru',
+    'sn',
+    'tg',
+    'th',
+    'tk',
+    'tr',
+    'ug@Latn',
+    'uk',
+    'uz@Cyrl',
+    'uz@Latn',
+    'vi'
 ]
 
 
@@ -49,8 +71,8 @@ def make_feedback_html():
     for language in FEEDBACK_LANGUAGES:
         lang[language] = get_language_from_template(language)
 
-    feedback_path = os.path.join('.', 'FeedbackSite', 'feedback.html')
-    feedback_template_path = os.path.join('.', 'FeedbackSite', 'Templates', 'feedback.html.tpl')
+    feedback_path = os.path.join('.', 'Automation', 'FeedbackSite', 'feedback.html')
+    feedback_template_path = os.path.join('.', 'Automation', 'FeedbackSite', 'Templates', 'feedback.html.tpl')
 
     format = {
         "langJSON": json.dumps(lang, indent=2),
@@ -79,7 +101,7 @@ def make_feedback_html():
 
 
 def get_language_from_template(language):
-    path = os.path.join('.', 'FeedbackSite', 'Templates', language + '.yaml')
+    path = os.path.join('.', 'Automation', 'FeedbackSite', 'Templates', language + '.yaml')
     with open(path) as f:
         return yaml.load(f.read())[language]
 

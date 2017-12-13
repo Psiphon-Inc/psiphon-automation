@@ -1,4 +1,26 @@
-vi: {title: Thông tin nhản hồi về Psiphon, top_content_title: Cho Chúng Tôi Biết Thông
-    Tin Phản Hồi của Bạn, smiley_title: Nói chung hài lòng, smiley_happy: Psiphon
-    kết nối và làm việc đúng theo cách tôi muốn., smiley_sad: Psiphon thường không
-    kết nối được hay không thực hiện đủ tốt., submit_button: Gửi}
+vi:
+  title: Phản hồi về Psiphon
+  top_content_title: Gửi Phản Hồi của Bạn cho Chúng Tôi
+  top_para_1: |
+    Phản hồi của bạn giúp cho Psiphon tốt hơn!
+  top_para_2: |
+    Nhiều vấn đề có thể được khắc phục bằng cách tải phiên bản mới nhất. Bạn có thể
+    <a class="newVersionURL" href="#">tải phiên bản mới nhất bằng cách nhấp vào đây</a>,
+    hoặc bạn có thể gửi email tới <span id="newVersionEmail"></span>.
+  top_para_3: |
+    Bạn cũng có thể tìm thấy các giải pháp cho nhiều vấn đề thông thường trong phần
+    <a class="faqURL" href="#">Các Câu Hỏi Thường Gặp</a> .
+  diagnostic_check: |
+    Tải dữ liệu chẩn đoán lên. Lưu ý là dữ liệu chẩn đoán này không
+    nêu danh tính của bạn, và nó sẽ giúp chúng tôi cải thiện cho Psiphon chạy tốt hơn.
+    <a class="dataCollectionInfoURL" href="#">Bấm vào đây để biết chúng tôi thâu thập các dữ liệu gì.</a>
+  smiley_title: Nói chung hài lòng
+  smiley_happy: Psiphon kết nối và làm việc đúng theo cách tôi muốn.
+  smiley_sad: Psiphon thường không kết nối được hay không thực hiện đủ tốt.
+  submit_button: Gửi
+  text_feedback_prompt: |
+    Xin điền ý kiến của bạn nơi đây:
+  text_feedback_email_prompt: |
+    Nếu muốn chúng tôi hồi âm cho bạn, xin cho biết địa chỉ email:
+  text_feedback_bottom_para: |
+    Nếu mẫu trên không chạy, hoặc bạn muốn gửi ảnh chụp màn hình, xin gửi đến <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>

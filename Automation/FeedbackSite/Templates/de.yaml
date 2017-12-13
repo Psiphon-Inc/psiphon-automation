@@ -1,0 +1,11 @@
+de:
+  title: Psiphon Rückmeldung
+  top_content_title: Geben Sie uns Ihre Rückmeldung
+  top_para_1: |
+    Ihre Rückmeldung macht Psiphon besser!
+  smiley_title: Gesamtzufriedenheit
+  smiley_happy: Psiphon verbindet sich und funktioniert wie ich es haben will.
+  smiley_sad: Psiphon schlägt oft fehl oder funktioniert nicht gut genug.
+  submit_button: Absenden
+  text_feedback_prompt: |
+    Bitte geben Sie Ihre Kommentare hier ein:

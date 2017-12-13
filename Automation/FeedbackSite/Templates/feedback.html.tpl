@@ -123,20 +123,42 @@ html {{
   <option value="en">English</option>
   <option value="fa">فارسی</option>
   <option value="ar">العربي</option>
-  <option value="zh">中文</option>
-  <option value="tr">Türkçe</option>
-  <option value="uz@cyrillic">Ўзбекча</option>
-  <option value="uz@Latn">O'zbekcha</option>
-  <option value="ru">Русский</option>
-  <option value="kk">қазақ тілі</option>
+  <option value="zh">简体中文</option>
+  <option value="zh_TW">繁体中文</option>
+  <option value="am">አማርኛ</option>
   <option value="az">azərbaycan dili</option>
-  <option value="tk">Türkmençe</option>
-  <option value="th">ภาษาไทย</option>
-  <option value="ug@Latn">Uyghurche</option>
+  <option value="be">Беларуская</option>
+  <option value="bo">བོད་ཡིག</option>
+  <option value="de">Deutsch</option>
+  <option value="el">Ελληνικά</option>
   <option value="es">Español</option>
-  <option value="vi">Tiếng Việt</option>
+  <option value="fa_AF">فارسی دری</option>
+  <option value="fi">Suomi</option>
   <option value="fr">Français</option>
+  <option value="hi">हिन्दी</option>
+  <option value="hr">Hrvatski</option>
+  <option value="id">Bahasa Indonesia</option>
+  <option value="it">italiano</option>
+  <option value="kk">қазақ тілі</option>
+  <option value="km">ភាសាខ្មែរ</option>
+  <option value="ko">한국어</option>
+  <option value="ky">Кыргызча</option>
+  <option value="my">မြန်မာဘာသာ</option>
   <option value="nb">Norsk (bokmål)</option>
+  <option value="nl">Nederlands</option>
+  <option value="pt_BR">Português (Brasil)</option>
+  <option value="pt_PT">Português (Portugal)</option>
+  <option value="ru">Русский</option>
+  <option value="sn">chiShona</option>
+  <option value="tg">Тоҷикӣ</option>
+  <option value="th">ภาษาไทย</option>
+  <option value="tk">Türkmençe</option>
+  <option value="tr">Türkçe</option>
+  <option value="ug@Latn">Uyghurche</option>
+  <option value="uk">Українська</option>
+  <option value="uz@Cyrl">Ўзбекча</option>
+  <option value="uz@Latn">O'zbekcha</option>
+  <option value="vi">Tiếng Việt</option>
   </select>
 
   <h1 id="top_content_title"></h1>
@@ -257,7 +279,7 @@ function setLanguage(langName, args)
   //if langName is not an exact match
   //using 'starts with' logic
   //i.e, if langName == 'uz' it will match either
-  //uz@Latn or uz@cyrillic whichever comes first
+  //uz@Latn or uz@Cyrl whichever comes first
   matchElement = $('#language_selector option[value^="' + langName + '"]:first');
   if (matchElement.length > 0) {{
     langName = matchElement.val();
@@ -369,7 +391,9 @@ function setLanguage(langName, args)
   // Some of our links go to our download page. Switch to the correct language.
   // No-op if it's a different kind of link.
   $('a').click(function(e) {{
-    var RTL_LANGS = ['ar', 'fa', 'he'];
+    // Checking for RTL needs to work for 'fa-AF' as well as 'fa'.
+    var RTL_CHARSETS = ['ar', 'fa', 'he', 'yi'];
+    var currentLangIsRTL = RTL_CHARSETS.some(function (element) {{ return element === currentLangName.slice(0, 2); }});
 
     var url = e.currentTarget.href;
     url = url.replace(/\/en\//, '/'+currentLangName+'/');
@@ -379,7 +403,7 @@ function setLanguage(langName, args)
       return;
     }}
 
-    if ($.inArray(currentLangName, RTL_LANGS) >= 0 && url.indexOf('#') < 0) {{
+    if (currentLangIsRTL && url.indexOf('#') < 0) {{
       url += "#rtl";
     }}
 

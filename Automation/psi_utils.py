@@ -163,12 +163,6 @@ def recordtype(typename, field_names, verbose=False, logs=True, **default_kwds):
 
             def __ne__(self, other):
                 return not self==other
-
-            def __getstate__(self):
-                return %(tupletxt)s
-
-            def __setstate__(self, state):
-                %(tupletxt)s = state
     ''') % locals()
     # Execute the template string in a temporary namespace
     namespace = {}
@@ -213,6 +207,13 @@ def generate_password():
     '''
     return ''.join([_sysrand.choice(string.letters + string.digits) for i in range(_PASSWORD_LENGTH)])
 
+
+_STATSUSER_LENGTH = 10
+def generate_stats_username():
+    '''
+    Generatees a new stats user
+    '''
+    return 'stats-' + ''.join([_sysrand.choice(string.letters + string.digits) for i in range(_STATSUSER_LENGTH)])
 
 class TemporaryBackup:
     
