@@ -40,6 +40,7 @@ DEFAULT_LANGS = {
     'ar': 'ar',         # Arabic
     'az@latin': 'az',   # Azerbaijani
     'be': 'be',         # Belarusian
+    'bn': 'bn',         # Bengali
     'bo': 'bo',         # Tibetan
     'de': 'de',         # German
     'el_GR': 'el',      # Greek
