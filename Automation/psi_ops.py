@@ -2837,6 +2837,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                  "-config", osl_config_filename,
                  "-payload", osl_payload_filename,
                  "-key", signing_key_filename,
+                 "-omit-md5sums", "0",
                  "-output", output_dir]
 
             if offset:
