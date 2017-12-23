@@ -1,1 +1,21 @@
-uz@Latn: {}
+uz@Latn:
+  plaintext_email_no_attachment: |
+    Psiphonni bu yerdan yuklab oling: {{0}}/{0}/download.html#direct
+  html_email_no_attachment: |
+    <div style="direction: ltr;">
+    Psiphonni bu yerdan yuklab oling: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
+  plaintext_email_with_attachment: |+
+    Psiphon 3 dasturini Windows tizimida ishlatish uchun ”.exe” kengaytmali {{1}} faylini saqlang.
+    Psiphon 3 ilovasini Android tizimida ishlatish uchun {{2}} faylini o‘rnating.
+    Batafsil axborot yoki fayllarni qaytadan yuklab olish uchun quyidagi sahifaga o‘ting.
+    {{0}}/{0}/download.html#direct
+
+  html_email_with_attachment: |
+    <div style="direction: ltr;">
+    Psiphon 3 dasturini Windows tizimida ishlatish uchun ”.exe” kengaytmali {{1}} faylini saqlang.<br>
+    Psiphon 3 ilovasini Android tizimida ishlatish uchun {{2}} faylini o‘rnating.<br>
+    Batafsil axborot yoki fayllarni qaytadan yuklab olish uchun quyidagi sahifaga o‘ting.<br>
+    <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
+    <br>

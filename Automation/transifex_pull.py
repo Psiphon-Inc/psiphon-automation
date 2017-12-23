@@ -36,30 +36,40 @@ import psi_feedback_templates
 
 
 DEFAULT_LANGS = {
+    'am': 'am',         # Amharic
     'ar': 'ar',         # Arabic
+    'az@latin': 'az',   # Azerbaijani
+    'be': 'be',         # Belarusian
+    'bn': 'bn',         # Bengali
     'bo': 'bo',         # Tibetan
     'de': 'de',         # German
     'el_GR': 'el',      # Greek
     'es': 'es',         # Spanish
     'fa': 'fa',         # Farsi/Persian
+    'fa_AF': 'fa_AF',   # Persian (Afghanistan)
     'fi_FI': 'fi',      # Finnish
     'fr': 'fr',         # French
-    'hi_IN': 'hi',      # Hindi
+    'hi': 'hi',         # Hindi
     'hr': 'hr',         # Croation
     'id': 'id',         # Indonesian
     'it': 'it',         # Italian
     'kk': 'kk',         # Kazak
+    'km': 'km',         # Khmer
     'ko': 'ko',         # Korean
+    'ky': 'ky',         # Kyrgyz
+    'my': 'my',         # Burmese
     'nb_NO': 'nb',      # Norwegian
     'nl': 'nl',         # Dutch
     'pt_BR': 'pt_BR',   # Portuguese-Brazil
     'pt_PT': 'pt_PT',   # Portuguese-Portugal
     'ru': 'ru',         # Russian
     'sn': 'sn',         # Shona
+    'tg': 'tg',         # Tajik
     'th': 'th',         # Thai
     'tk': 'tk',         # Turkmen
     'tr': 'tr',         # Turkish
     'ug': 'ug@Latn',    # Uighur (latin script)
+    'uk': 'uk',         # Ukrainian
     'uz': 'uz@Latn',    # Uzbek (latin script)
     'uz@Cyrl': 'uz@Cyrl',    # Uzbek (latin script)
     'vi': 'vi',         # Vietnamese
@@ -67,8 +77,49 @@ DEFAULT_LANGS = {
     'zh_TW': 'zh_TW'    # Chinese (traditional)
 }
 
+ANDROID_LANGS = {
+    'am': 'am',
+    'ar': 'ar',
+    'az@latin': 'az',
+    'be': 'be',
+    'bn': 'bn',
+    'bo': 'bo',
+    'de': 'de',
+    'el_GR': 'el',
+    'es': 'es',
+    'fa': 'fa',
+    'fa_AF': 'fa-rAF',
+    'fi_FI': 'fi',
+    'fr': 'fr',
+    'hi': 'hi',
+    'hr': 'hr',
+    'id': 'id',
+    'it': 'it',
+    'kk': 'kk',
+    'km': 'km',
+    'ko': 'ko',
+    'ky': 'ky',
+    'ms': 'ms',
+    'my': 'my',
+    'nb_NO': 'nb',
+    'nl': 'nl',
+    'pt_BR': 'pt-rBR',
+    'pt_PT': 'pt',
+    'ru': 'ru',
+    'sn': 'sn',
+    'tg': 'tg',
+    'th': 'th',
+    'tk': 'tk',
+    'tr': 'tr',
+    'uk': 'uk',
+    'uz': 'uz',
+    'vi': 'vi',
+    'zh': 'zh',
+    'zh_TW': 'zh-rTW'
+}
 
-RTL_LANGS = ('ar', 'fa', 'he')
+
+RTL_LANGS = ('ar', 'fa', 'fa_AF', 'he')
 
 
 PSIPHON_CIRCUMVENTION_SYSTEM_RESOURCES = \
@@ -80,106 +131,27 @@ PSIPHON_CIRCUMVENTION_SYSTEM_DIR = 'psiphon-circumvention-system'
 
 
 def process_android_app_strings():
-    langs = {'ar': 'ar',
-             'az@latin': 'az',
-             'bo': 'bo',
-             'de': 'de',
-             'el_GR': 'el',
-             'es': 'es',
-             'fa': 'fa',
-             'fi_FI': 'fi',
-             'fr': 'fr',
-             'hi_IN': 'hi',
-             'hr': 'hr',
-             'id': 'id',
-             'it': 'it',
-             'km': 'km',
-             'ko': 'ko',
-             'ms': 'ms',
-             'nb_NO': 'nb',
-             'nl': 'nl',
-             'pt_BR': 'pt-rBR',
-             'pt_PT': 'pt',
-             'ru': 'ru',
-             'sn': 'sn',
-             'th': 'th',
-             'tk': 'tk',
-             'tr': 'tr',
-             'vi': 'vi',
-             'zh': 'zh',
-             'zh_TW': 'zh-rTW'}
     process_resource('android-app-strings',
                      lambda lang: './Android/app/src/main/res/values-%s/strings.xml' % lang,
                      None,
                      bom=False,
-                     langs=langs)
+                     langs=ANDROID_LANGS)
 
 
 def process_android_library_strings():
-    langs = {'ar': 'ar',
-             'az@latin': 'az',
-             'bo': 'bo',
-             'de': 'de',
-             'el_GR': 'el',
-             'es': 'es',
-             'fa': 'fa',
-             'fi_FI': 'fi',
-             'fr': 'fr',
-             'hr': 'hr',
-             'id': 'id',
-             'it': 'it',
-             'km': 'km',
-             'ko': 'ko',
-             'nb_NO': 'nb',
-             'nl': 'nl',
-             'pt_BR': 'pt-rBR',
-             'pt_PT': 'pt',
-             'ru': 'ru',
-             'sn': 'sn',
-             'tk': 'tk',
-             'tr': 'tr',
-             'vi': 'vi',
-             'zh': 'zh',
-             'zh_TW': 'zh-rTW'}
     process_resource('android-library-strings',
                      lambda lang: './Android/app/src/main/res/values-%s/psiphon_android_library_strings.xml' % lang,
                      None,
                      bom=False,
-                     langs=langs)
+                     langs=ANDROID_LANGS)
 
 
 def process_android_app_browser_strings():
-    langs = {'ar': 'ar',
-             'az@latin': 'az',
-             'bo': 'bo',
-             'de': 'de',
-             'el_GR': 'el',
-             'es': 'es',
-             'fa': 'fa',
-             'fi_FI': 'fi',
-             'fr': 'fr',
-             'hr': 'hr',
-             'id': 'id',
-             'it': 'it',
-             'km': 'km',
-             'ko': 'ko',
-             'ms': 'ms',
-             'nb_NO': 'nb',
-             'nl': 'nl',
-             'pt_BR': 'pt-rBR',
-             'pt_PT': 'pt',
-             'ru': 'ru',
-             'sn': 'sn',
-             'tk': 'tk',
-             'tr': 'tr',
-             'vi': 'vi',
-             'zh': 'zh',
-             'zh_TW': 'zh-rTW'}
     process_resource('android-app-browser-strings',
                      lambda lang: './Android/app/src/main/res/values-%s/zirco_browser_strings.xml' % lang,
                      None,
                      bom=False,
-                     langs=langs)
+                     langs=ANDROID_LANGS)
 
 
 def process_email_template_strings():
