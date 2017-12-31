@@ -124,6 +124,7 @@ class MailResponder(object):
         for conf in request_conf:
             attachments = None
             if conf['attachments']:
+                continue  # TEMP: disable attachment email
                 attachments = []
                 for attachment_info in conf['attachments']:
                     bucketname, bucket_filename, attachment_filename = attachment_info
