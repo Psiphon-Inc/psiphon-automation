@@ -37,6 +37,9 @@ import sendmail
 import blacklist
 import aws_helpers
 
+# This is sometimes necessary when the load spikes extremely high.
+_DISABLE_ATTACHMENTS = False
+
 
 RESPONDER_DOMAINS_LIST_FILE = os.path.join(os.path.expanduser('~%s' % settings.MAIL_RESPONDER_USERNAME),
                                            'postfix_responder_domains')
@@ -124,7 +127,9 @@ class MailResponder(object):
         for conf in request_conf:
             attachments = None
             if conf['attachments']:
-                continue  # TEMP: disable attachment email
+                if _DISABLE_ATTACHMENTS:
+                    continue
+
                 attachments = []
                 for attachment_info in conf['attachments']:
                     bucketname, bucket_filename, attachment_filename = attachment_info
