@@ -958,7 +958,7 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
         -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m limit --limit 1000/sec -j ACCEPT''')
 
     accept_with_fronted_limit_rate_template = textwrap.dedent('''
-        -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m limit --limit 200/sec -j ACCEPT''')
+        -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m limit --limit 50/sec -j ACCEPT''')
 
     accept_with_recent_rate_template = textwrap.dedent('''
         -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m recent --set --name {recent_name}
