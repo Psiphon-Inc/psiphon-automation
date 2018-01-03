@@ -373,6 +373,8 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
         config['MeekProhibitedHeaders'] = TCS_psiphond_config_values['MeekProhibitedHeaders']
         config['MeekProxyForwardedForHeaders'] = TCS_psiphond_config_values['MeekProxyForwardedForHeaders']
 
+    config['MaxConcurrentSSHHandshakes'] = 2000
+
     return json.dumps(config)
 
 
