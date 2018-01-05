@@ -1422,7 +1422,7 @@ while true; do
     break
 done
 
-if [ $loaded_cpu -eq 1 ] || [ $loaded_mem -eq 1 ] || [ $loaded_swap -eq 1 ] || [ $loaded_net -eq 1 ]; then
+if [ $loaded_cpu -eq 1 ] || { [ $loaded_mem -eq 1 ] && [ $loaded_swap -eq 1 ]; } || [ $loaded_net -eq 1 ]; then
     iptables -D %s -j PSI_LIMIT_LOAD
     iptables -I %s -j PSI_LIMIT_LOAD
     %s
