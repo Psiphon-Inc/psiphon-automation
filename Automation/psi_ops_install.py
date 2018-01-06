@@ -1378,7 +1378,7 @@ exit 0
 
 threshold_load_per_cpu=1
 threshold_mem=10
-threshold_swap=10
+threshold_swap=20
 threshold_syn_sent=1000
 
 while true; do
