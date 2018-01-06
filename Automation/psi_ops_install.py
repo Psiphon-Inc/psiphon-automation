@@ -954,8 +954,11 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
     new_rate_limit_chain = textwrap.dedent('''
         -N PSI_RATE_LIMITING''')
 
-    accept_with_limit_rate_template = textwrap.dedent('''
+    accept_with_unfronted_limit_rate_template = textwrap.dedent('''
         -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m limit --limit 1000/sec -j ACCEPT''')
+
+    accept_with_fronted_limit_rate_template = textwrap.dedent('''
+        -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m limit --limit 50/sec -j ACCEPT''')
 
     accept_with_recent_rate_template = textwrap.dedent('''
         -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m recent --set --name {recent_name}
@@ -989,8 +992,11 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
 
     for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, external_ports=use_external_ports).iteritems():
         protocol_port_rule = ''
-        if 'MEEK' in protocol:
-            protocol_port_rule = accept_with_limit_rate_template.format(
+        if 'UNFRONTED-MEEK' in protocol:
+            protocol_port_rule = accept_with_unfronted_limit_rate_template.format(
+                port=str(port))
+        elif 'MEEK' in protocol:
+            protocol_port_rule = accept_with_fronted_limit_rate_template.format(
                 port=str(port))
         else:
             protocol_port_rule = accept_with_recent_rate_template.format(
@@ -1372,7 +1378,6 @@ exit 0
 
 threshold_load_per_cpu=1
 threshold_mem=10
-threshold_swap=20
 threshold_syn_sent=1000
 
 while true; do
@@ -1396,16 +1401,6 @@ while true; do
         logger psi_limit_load: Free memory load threshold reached.
     fi
 
-    loaded_swap=0
-    total_swap=$(free | grep "Swap" | awk '{print $2}')
-    if [ $total_swap -ne 0 ]; then
-        free_swap=$(free | grep "Swap" | awk '{print $4/$2 * 100.0}')
-        loaded_swap=$(echo "$free_swap<$threshold_swap" | bc)
-        if [ $loaded_swap -eq 1 ]; then
-            logger psi_limit_load: Swap threshold reached.
-        fi
-    fi
-
     loaded_net=0
     syn_sent=`%s`
     if [ $syn_sent -ge $threshold_syn_sent ]; then
@@ -1416,7 +1411,7 @@ while true; do
     break
 done
 
-if [ $loaded_cpu -eq 1 ] || [ $loaded_mem -eq 1 ] || [ $loaded_swap -eq 1 ] || [ $loaded_net -eq 1 ]; then
+if [ $loaded_cpu -eq 1 ] || [ $loaded_mem -eq 1 ] || [ $loaded_net -eq 1 ]; then
     iptables -D %s -j PSI_LIMIT_LOAD
     iptables -I %s -j PSI_LIMIT_LOAD
     %s
