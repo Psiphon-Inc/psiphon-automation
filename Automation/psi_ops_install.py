@@ -1378,6 +1378,7 @@ exit 0
 
 threshold_load_per_cpu=1
 threshold_mem=10
+threshold_swap=20
 threshold_syn_sent=1000
 
 while true; do
@@ -1401,6 +1402,16 @@ while true; do
         logger psi_limit_load: Free memory load threshold reached.
     fi
 
+    loaded_swap=0
+    total_swap=$(free | grep "Swap" | awk '{print $2}')
+    if [ $total_swap -ne 0 ]; then
+        free_swap=$(free | grep "Swap" | awk '{print $4/$2 * 100.0}')
+        loaded_swap=$(echo "$free_swap<$threshold_swap" | bc)
+        if [ $loaded_swap -eq 1 ]; then
+            logger psi_limit_load: Swap threshold reached.
+        fi
+    fi
+
     loaded_net=0
     syn_sent=`%s`
     if [ $syn_sent -ge $threshold_syn_sent ]; then
@@ -1411,7 +1422,7 @@ while true; do
     break
 done
 
-if [ $loaded_cpu -eq 1 ] || [ $loaded_mem -eq 1 ] || [ $loaded_net -eq 1 ]; then
+if [ $loaded_cpu -eq 1 ] || [ $loaded_mem -eq 1 ] || [ $loaded_swap -eq 1 ] || [ $loaded_net -eq 1 ]; then
     iptables -D %s -j PSI_LIMIT_LOAD
     iptables -I %s -j PSI_LIMIT_LOAD
     %s
