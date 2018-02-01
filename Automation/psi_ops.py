@@ -2053,7 +2053,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # This deploy will broadcast server info, propagate builds, and update
         # the stats and email server
-        self.deploy()
+        # NEW: deploy() is called by another process
+        #self.deploy()
 
     def remove_hosts_from_providers(self):
         assert(self.is_locked)
@@ -4224,7 +4225,8 @@ def prune_all_propagation_channels():
             number_removed, number_disabled = psinet.prune_propagation_channel_servers(propagation_channel.name)
             sys.stderr.write('Pruned %d servers from %s\n' % (number_removed, propagation_channel.name))
             sys.stderr.write('Disabled %d servers from %s\n' % (number_disabled, propagation_channel.name))
-        psinet.deploy()
+        # NEW: deploy() is called by another process
+        #psinet.deploy()
     finally:
         psinet.show_status()
         psinet.release()
