@@ -326,6 +326,10 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
 
     config['OSLConfigFilename'] = TCS_OSL_CONFIG_FILE_NAME
 
+    # TCS_psiphond_config_values['AccessControlVerificationKeyRing'] is a string value, set with psi_ops.set_TCS_psiphond_config_values,
+    # containing a JSON-encoded https://godoc.org/github.com/Psiphon-Labs/psiphon-tunnel-core/psiphon/common/accesscontrol#VerificationKeyRing
+    config['AccessControlVerificationKeyRing'] = json.loads(TCS_psiphond_config_values['AccessControlVerificationKeyRing'])
+
     config['LoadMonitorPeriodSeconds'] = 60
 
     config['UDPInterceptUdpgwServerAddress'] = '127.0.0.1:7300'
