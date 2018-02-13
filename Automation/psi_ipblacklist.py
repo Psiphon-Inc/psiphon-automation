@@ -103,7 +103,7 @@ def parse_ip_list(raw_list_filename, read_mode):
                 next
             else:
                 blackhole_list.append(line.strip())
-    return blackhole_list
+    return list(set(blackhole_list))
 
 
 # Create the ipset script which includes creating the set name and blocklist

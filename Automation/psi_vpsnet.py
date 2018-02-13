@@ -111,6 +111,7 @@ def get_region_name(region):
         132: ATL-G-SSD                      Atlanta US
         133: (New York) - NYC-C-SSD         New York US
         134: LON-Q-SS                       London GB
+        135: FRA-B-SSD                      Frankfurt DE
     '''
     if region['cloud_id'] in [65, 91, 121, 127, 134]:
         return 'GB'
@@ -120,6 +121,8 @@ def get_region_name(region):
         return 'CA'
     if region['cloud_id'] in [120]:
         return 'NL'
+    if region['cloud_id'] in [135]:
+        return 'DE'
     return ''
 
 
@@ -173,7 +176,7 @@ def launch_new_server(vpsnet_account, is_TCS, _, datacenter_city=None):
     """
 
     # TODO-TCS: select base image based on is_TCS flag
-    base_image_id = '8917' # For VPS (Old: 8849)
+    base_image_id = '8984' # For VPS (Old: 8849)
     # base_image_id = '8850' # For Cloud Server
 
     try:

@@ -521,7 +521,7 @@ def launch_new_server(digitalocean_account, is_TCS, _):
 
     # None TCS id '25617090' only for VPN + filebeat
     # Old working None TCS id: 17784624
-    base_id = '25617090' if not is_TCS else '28132531'
+    base_id = '25617090' if not is_TCS else '31623342'
     try:
         Droplet = collections.namedtuple('Droplet', ['name', 'region', 'image',
                                                      'size', 'backups'])
@@ -547,7 +547,7 @@ def launch_new_server(digitalocean_account, is_TCS, _):
         if not unicode(digitalocean_account.base_size_slug) in [unicode(s.slug) for s in droplet_sizes]:
             raise 'Size slug not found'
 
-        Droplet.size = '2gb'
+        Droplet.size = 's-2vcpu-4gb'
 
         droplet_regions = do_mgr.get_all_regions()
         common_regions = list(set([r.slug for r in droplet_regions if r.available])

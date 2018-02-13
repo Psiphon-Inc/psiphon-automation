@@ -2053,11 +2053,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # This deploy will broadcast server info, propagate builds, and update
         # the stats and email server
-        self.deploy()
+        # NEW: deploy() is called by another process
+        #self.deploy()
 
     def remove_hosts_from_providers(self):
         assert(self.is_locked)
 
+        params_list = []
         need_to_save = False
         for host in self.__hosts_to_remove_from_providers.copy():
             # Only hosts that can be removed via an API are removed here.
@@ -2073,12 +2075,28 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 provider_remove_host = psi_vpsnet.remove_server
                 provider_account = self.__vpsnet_account
             if provider_remove_host:
-                # Remove the actual host through the provider's API
-                provider_remove_host(provider_account, host.provider_id)
+                params_list.append((provider_remove_host, provider_account, host))
                 self.__hosts_to_remove_from_providers.remove(host)
                 need_to_save = True
                 # It is safe to call provider_remove_host() for a host that has
                 # already been removed, so there is no need to save() yet.
+
+        def remove_host_from_provider(params):
+            provider_remove_host = params[0]
+            provider_account = params[1]
+            host = params[2]
+            try:
+                # Remove the actual host through the provider's API
+                provider_remove_host(provider_account, host.provider_id)
+            except Exception as ex:
+                print str(ex)
+                return ex
+
+        pool = ThreadPool(30)
+        results = pool.map(remove_host_from_provider, params_list)
+        for result in results:
+            if result:
+                raise result
 
         if need_to_save:
             self.save()
@@ -4207,7 +4225,8 @@ def prune_all_propagation_channels():
             number_removed, number_disabled = psinet.prune_propagation_channel_servers(propagation_channel.name)
             sys.stderr.write('Pruned %d servers from %s\n' % (number_removed, propagation_channel.name))
             sys.stderr.write('Disabled %d servers from %s\n' % (number_disabled, propagation_channel.name))
-        psinet.deploy()
+        # NEW: deploy() is called by another process
+        #psinet.deploy()
     finally:
         psinet.show_status()
         psinet.release()

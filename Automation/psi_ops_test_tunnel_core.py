@@ -83,7 +83,7 @@ class TunnelCoreConsoleRunner:
                  sponsor_id='0', client_platform='', client_version='0', 
                  use_indistinguishable_tls=True, split_tunnel_url_format='', 
                  split_tunnel_signature_public_key='', split_tunnel_dns_server='', 
-                 tunnel_core_binary=None, tunnel_core_config=None):
+                 tunnel_core_binary=None, tunnel_core_config=None, packet_tunnel_params=dict()):
         self.proc = None
         self.http_proxy_port = 0
         self.socks_proxy_port = 0
@@ -98,8 +98,20 @@ class TunnelCoreConsoleRunner:
         self.split_tunnel_dns_server = split_tunnel_dns_server
         self.tunnel_core_binary = tunnel_core_binary
         self.tunnel_core_config = tunnel_core_config
-
-
+        
+        self.packet_tunnel_tests = False
+        self.cmdline_opts = list()
+        self.tun_source_ip_address = ''
+        self.tun_source_port = 0
+        self.test_sites = []
+        if len(packet_tunnel_params) > 0:
+            self.packet_tunnel_tests = True
+            self.tun_source_ip_address = packet_tunnel_params.pop('tunIPAddress')
+            self.test_sites = packet_tunnel_params.pop('test_sites')
+            for k,v in packet_tunnel_params.iteritems():
+                self.cmdline_opts += ['-'+k, v]
+    
+     
     # Setup and create tunnel core config file.
     def _setup_tunnel_config(self, transport):
         config = {
@@ -120,6 +132,10 @@ class TunnelCoreConsoleRunner:
             "SplitTunnelRoutesSignaturePublicKey" : self.split_tunnel_signature_public_key,
             "SplitTunnelDnsServer" : self.split_tunnel_dns_server
         }
+        
+        if self.packet_tunnel_tests:
+            config['DisableLocalSocksProxy'] = True
+            config['DisableLocalHTTPProxy'] = True
 
         with open(self.tunnel_core_config, 'w+') as config_file:
             json.dump(config, config_file)
@@ -135,9 +151,9 @@ class TunnelCoreConsoleRunner:
 
         self._setup_tunnel_config(transport)
 
-        cmd = '"%s" --config "%s"' % (self.tunnel_core_binary, self.tunnel_core_config)
+        cmd = [self.tunnel_core_binary, '-config', self.tunnel_core_config] + self.cmdline_opts
 
-        self.proc = subprocess.Popen(shlex.split(cmd), stderr=subprocess.PIPE)
+        self.proc = subprocess.Popen(cmd, stderr=subprocess.PIPE)
 
     def wait_for_connection(self):
         # If using tunnel-core
@@ -171,7 +187,53 @@ class TunnelCoreConsoleRunner:
 
     def setup_proxy(self):
         return urllib3.ProxyManager("http://127.0.0.1:{http_port}".format(http_port=self.http_proxy_port), timeout=30.0)
+    
+    
+    def run_packet_tunnel_tests(self, test_sites, expected_egress_ip_addresses):
+        import dns.resolver
+        import urllib3
         
+        if len(test_sites) == 0:
+            output = {'PT-DNS' : 'FAIL: No test sites provided',
+                      'PT-HTTPS' : 'FAIL: No test sites provided'}
+        else:
+            # TODO: Perform the test on multiple sites and record each result
+            url = test_sites[0]['url']
+            expected_ip = test_sites[0]['expected_ip']
+            
+            # packet tunnel dns test. Resolve the url through the tunnel
+            output = {'PT-DNS' : 'FAIL',
+                      'PT-HTTPS' : 'FAIL'}
+            
+            fqdn=''
+            remote_host = expected_ip
+            remote_port = 443
+            split_url = url.split('://')
+            if len(split_url) >= 2:
+                fqdn = split_url[1].split('/')[0]
+            
+            resolver = dns.resolver.Resolver(configure=False) # Don't use the system resolver settings
+            resolver.nameservers = ['10.0.0.2']
+            answer = resolver.query(fqdn, source=self.tun_source_ip_address)
+            for rr in answer.rrset:
+                if rr.address == expected_ip:
+                    print 'Packet Tunnel DNS Test successful'
+                    output['PT-DNS'] = 'PASS: {0} resolved to {1}'.format(fqdn, rr.address)
+                    break
+            
+            
+            pool = urllib3.HTTPSConnectionPool(host=remote_host, port=remote_port, 
+                                               maxsize=2,
+                                               source_address=(self.tun_source_ip_address,
+                                                               self.tun_source_port))
+            response = pool.request('GET', '/', release_conn=True)
+            egress_ip_address = response.data.strip()
+            is_proxied = (egress_ip_address in expected_egress_ip_addresses)
+            if is_proxied:
+                output['PT-HTTPS'] = 'PASS'
+        
+        
+        return output
 
     def stop_psiphon(self):
         try:
@@ -181,7 +243,7 @@ class TunnelCoreConsoleRunner:
             print e
 
         try:
-            os.remove(self.tunnel_core_config)
+            #os.remove(self.tunnel_core_config)
             time.sleep(1)
         except Exception as e:
             print "Remove Config/Log File Failed" + str(e)
@@ -197,6 +259,7 @@ def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, a
     output_str = ''
     output = {}
     url = ''
+    packet_tunnel_test_results = {}
     # Split tunnelling is not implemented for VPN.
     # Also, if there is no remote check, don't use split tunnel mode because we always want
     # to test at least one proxied case.
@@ -209,73 +272,80 @@ def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, a
         
         runner.wait_for_connection()
         
-        http_proxy = runner.setup_proxy()
+        if runner.packet_tunnel_tests:
+            output.update(runner.run_packet_tunnel_tests(
+                                    runner.test_sites, 
+                                    expected_egress_ip_addresses))
         
-        time.sleep(5)
-        
-        for url in test_sites:
-            # Get egress IP from web site in same GeoIP region; local split tunnel is not proxied
+        else:
             
-            print "Testing site: {0}".format(url)
-            
-            if url.startswith('https'):
-                urllib3.disable_warnings()
-            
-            try:
-                egress_ip_address = http_proxy.request('GET', url).data.split('\n')[0]
-                
-                is_proxied = (egress_ip_address in expected_egress_ip_addresses)
-                
-                if url.startswith('https'):
-                    output['HTTPS'] = 'PASS' if is_proxied else 'FAIL {0}'.format(output_str)
-                else:
-                    output['HTTP'] = 'PASS' if is_proxied else 'FAIL {0}'.format(output_str)
-                            
-            except urllib3.exceptions.MaxRetryError:
-                if url.startswith('https'):
-                    output['HTTPS'] = 'FAIL {0}'.format(output_str)
-                else:
-                    output['HTTP'] = 'FAIL {0}'.format(output_str)
-                continue
-        
-        if len(additional_test_sites) > 0:
-            output['AdditionalSites'] = list()
-            for url in additional_test_sites:
-                try:
-                    if url.startswith('https'):
-                        urllib3.disable_warnings()
-                    
-                    print 'Testing: {0}'.format(url)
-                    if is_proxied:
-                        tunneled_site = http_proxy.request('GET', url)
-                        
-                        pool = urllib3.PoolManager(timeout=30.0)
-                        untunneled_site = pool.request('GET', url)
-                        
-                        # Compare sites:
-                        if tunneled_site.status != untunneled_site.status:
-                            output_str = 'FAIL : mismatched status code returned'
-                        else:
-                            import hashlib
-                            untunneled_hash = hashlib.sha1(untunneled_site.data).hexdigest()
-                            tunneled_hash = hashlib.sha1(tunneled_site.data).hexdigest()
-                            if tunneled_hash != untunneled_hash:
-                                output_str = 'FAIL : Mismatched site hashes'
-                            else:
-                                output_str = 'SUCCESS : {url} returned the same site tunneled and untunneled'.format(url=url)
-                    else:
-                        output_str = 'FAIL : Connection to server is unproxied.  Check server connection'
-                    
-                    output['AdditionalSites'].append({url: output_str})
-                    
-                except urllib3.exceptions.MaxRetryError:
-                    output['AdditionalSites'] = 'FAIL {0}'.format(output_str)
-                    continue 
+            http_proxy = runner.setup_proxy()
 
+            
+            time.sleep(5)
+            
+            for url in test_sites:
+                # Get egress IP from web site in same GeoIP region; local split tunnel is not proxied
+                
+                print "Testing site: {0}".format(url)
+                
+                if url.startswith('https'):
+                    urllib3.disable_warnings()
+                
+                try:
+                    egress_ip_address = http_proxy.request('GET', url).data.split('\n')[0]
+                    
+                    is_proxied = (egress_ip_address in expected_egress_ip_addresses)
+                    
+                    if url.startswith('https'):
+                        output['HTTPS'] = 'PASS' if is_proxied else 'FAIL : Connection is not proxied.  Egress IP is: {0}, expected: {1}'.format(egress_ip_address, expected_egress_ip_addresses)
+                    else:
+                        output['HTTP'] = 'PASS' if is_proxied else 'FAIL : Connection is not proxied.  Egress IP is: {0}, expected: {1}'.format(egress_ip_address, expected_egress_ip_addresses)
+                                
+                except urllib3.exceptions.MaxRetryError as err:
+                    if url.startswith('https'):
+                        output['HTTPS'] = 'FAIL : MaxRetryError: {0}'.format(err)
+                    else:
+                        output['HTTP'] = 'FAIL MaxRetryError: {0}'.format(err)
+                    continue
+            
+            if len(additional_test_sites) > 0:
+                output['AdditionalSites'] = list()
+                for url in additional_test_sites:
+                    try:
+                        if url.startswith('https'):
+                            urllib3.disable_warnings()
+                        
+                        print 'Testing: {0}'.format(url)
+                        if is_proxied:
+                            tunneled_site = http_proxy.request('GET', url)
+                            
+                            pool = urllib3.PoolManager(timeout=30.0)
+                            untunneled_site = pool.request('GET', url)
+                            
+                            # Compare sites:
+                            if tunneled_site.status != untunneled_site.status:
+                                output_str = 'FAIL : mismatched status code returned'
+                            else:
+                                import hashlib
+                                untunneled_hash = hashlib.sha1(untunneled_site.data).hexdigest()
+                                tunneled_hash = hashlib.sha1(tunneled_site.data).hexdigest()
+                                if tunneled_hash != untunneled_hash:
+                                    output_str = 'FAIL : Mismatched site hashes'
+                                else:
+                                    output_str = 'SUCCESS : {url} returned the same site tunneled and untunneled'.format(url=url)
+                        else:
+                            output_str = 'FAIL : Connection to server is unproxied.  Check server connection'
+                        
+                        output['AdditionalSites'].append({url: output_str})
+                        
+                    except urllib3.exceptions.MaxRetryError:
+                        output['AdditionalSites'] = 'FAIL {0}'.format(output_str)
+                        continue 
     
-    except Exception as e:
-        print "Could not tunnel to {0}: {1}".format(url, e)
-        output['HTTP'] = output['HTTPS'] = 'FAIL {0}'.format(output_str)
+    except Exception as err:
+        print "Could not tunnel to {0}: {1}".format(url, err)
+        output['HTTP'] = output['HTTPS'] = 'FAIL : General Exception: {0}'.format(err)
         raise
     finally:
         print "Stopping tunnel to {ipaddr}".format(ipaddr = expected_egress_ip_addresses)
@@ -311,7 +381,8 @@ def test_server(server, host, encoded_server_entry, split_tunnel_url_format,
                 test_sponsor_id='0', client_platform='', client_version='',
                 use_indistinguishable_tls=True, test_cases = None, 
                 ip_test_sites = [], additional_test_sites = [], 
-                executable_path = None, config_file = None):
+                executable_path = None, config_file = None, 
+                packet_tunnel_params=dict()):
     
     if len(ip_test_sites) is 0:
         ip_test_sites = CHECK_IP_ADDRESS_URL_LOCAL
@@ -324,14 +395,21 @@ def test_server(server, host, encoded_server_entry, split_tunnel_url_format,
     
     test_cases = get_server_test_cases(server, host, test_cases)
     
-    results = {}
     
+    # Use kwargs to pass command line options
+    cmdline_opts = list()
+    
+    if len(packet_tunnel_params) > 0:
+        test_cases = [test_cases][0]
+        print 'Testing Packet Tunnel using {}'.format(test_cases[0])
+    
+    results = {}
     for test_case in test_cases:
         tunnel_core_runner = TunnelCoreConsoleRunner(
             encoded_server_entry, test_propagation_channel_id, test_sponsor_id,
             client_platform, client_version, use_indistinguishable_tls,
             split_tunnel_url_format, split_tunnel_signature_public_key, 
-            split_tunnel_dns_server, executable_path, config_file)
+            split_tunnel_dns_server, executable_path, config_file, packet_tunnel_params)
         
         results[test_case] = {}
         try:
@@ -341,8 +419,8 @@ def test_server(server, host, encoded_server_entry, split_tunnel_url_format,
             #for split_tunnel in [True, False]:
             #    results[test_case]['SPLIT TUNNEL {0}'.format(split_tunnel)] = __test_server(tunnel_core_runner, test_case, expected_egress_ip_addresses, split_tunnel)
             #results[test_case] = 'PASS'
-        except Exception as ex:
-            results[test_case] = 'FAIL: ' + str(ex)
+        except Exception as err:
+            results[test_case] = 'FAIL : Exception: {0}'.format(str(err))
     
     return results
 
