@@ -26,7 +26,7 @@ WEBSITE_DIR = '../Website'
 WEBSITE_PLUGINS_DIR = 'plugins'
 
 # We generate the website in chunks of languages, so that we don't exhaust memory
-GENERATE_CHUNKS = 6
+GENERATE_CHUNKS = 10
 DOCPAD_ENV = 'production,static'
 
 
