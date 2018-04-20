@@ -536,7 +536,7 @@ def deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set, TCS_OSL_config,
         tactics_request_public_key = host.tactics_request_public_key
     if host.tactics_request_private_key != None:
         tactics_request_private_key = host.tactics_request_private_key
-    if host.tactics_request_public_key != None:
+    if host.tactics_request_obfuscated_key != None:
         tactics_request_obfusated_key = host.tactics_request_obfuscated_key
 
     TCS_tactics_config = TCS_tactics_config_template % (

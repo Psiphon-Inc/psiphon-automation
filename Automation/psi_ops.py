@@ -3183,7 +3183,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for propagation_channel_id in self.__propagation_channels.iterkeys():
             self.__deploy_pave_osls_required_for_propagation_channels.add(propagation_channel_id)
 
-    def set_TCS_traffic_rules_set(self, tactics_config_template):
+    def set_TCS_tactics_config_template(self, tactics_config_template):
         assert(self.is_locked)
 
         # Check that the input is valid JSON
@@ -3870,7 +3870,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         '',  # Omit: meek_cookie_encryption_private_key isn't needed
                                         host.tactics_request_public_key,
                                         '', # Omit: tactics_request_private_key isn't needed
-                                        host.tactics_request_obfuscated_key)
+                                        host.tactics_request_obfuscated_key).todict()
 
         # Store servers as array instead of map as a method of preprocessing for
         # tunnel-core-server
