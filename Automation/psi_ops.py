@@ -205,7 +205,8 @@ Host = psi_utils.recordtype(
     'stats_ssh_username, stats_ssh_password, ' +
     'datacenter_name, region, meek_server_port, meek_server_obfuscated_key, meek_server_fronting_domain, ' +
     'meek_server_fronting_host, alternate_meek_server_fronting_hosts, ' +
-    'meek_cookie_encryption_public_key, meek_cookie_encryption_private_key',
+    'meek_cookie_encryption_public_key, meek_cookie_encryption_private_key, ' +
+    'tactics_request_public_key, tactics_request_private_key, tactics_request_obfuscated_key',
     default=None)
 
 Server = psi_utils.recordtype(
@@ -223,14 +224,14 @@ def ServerCapabilities():
     for capability in ('handshake', 'VPN', 'SSH', 'OSSH'):
         capabilities[capability] = True
     # These are disabled by default
-    for capability in ('ssh-api-requests', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET'):
+    for capability in ('ssh-api-requests', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'FRONTED-MEEK-TACTICS'):
         capabilities[capability] = False
     return capabilities
 
 
 def copy_server_capabilities(caps):
     capabilities = {}
-    for capability in ('handshake', 'ssh-api-requests', 'VPN', 'SSH', 'OSSH', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET'):
+    for capability in ('handshake', 'ssh-api-requests', 'VPN', 'SSH', 'OSSH', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'FRONTED-MEEK-TACTICS'):
         capabilities[capability] = caps[capability]
     return capabilities
 
@@ -387,6 +388,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__routes_signing_key_pair = None
         self.__TCS_traffic_rules_set = None
         self.__TCS_OSL_config = None
+        self.__TCS_tactics_config_template = None
         self.__TCS_psiphond_config_values = None
         self.__default_sponsor_id = None
         self.__alternate_s3_bucket_domains = set()
@@ -395,7 +397,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.48'
+    class_version = '0.49'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -685,6 +687,36 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 propagation_channel.new_osl_discovery_servers_count = 0
                 propagation_channel.max_osl_discovery_server_age_in_days = 0
             self.version = '0.48'
+        if cmp(parse_version(self.version), parse_version('0.49')) < 0:
+            # Note: this tactics config template is for illustration only
+            self.__TCS_tactics_config_template = '''
+            {
+              "RequestPublicKey" : "%s",
+              "RequestPrivateKey" : "%s",
+              "RequestObfuscatedKey" : "%s",
+              "DefaultTactics" : {
+                "TTL" : "1s",
+                "Probability" : 1.0,
+                "Parameters" : {
+                }
+              }
+            }
+            '''
+            for host in self.__hosts.values() + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
+                host.tactics_request_public_key = None
+                host.tactics_request_private_key = None
+                host.tactics_request_obfuscated_key = None
+            for server in self.__servers.values() + self.__deleted_servers.values():
+                server.capabilities['FRONTED-MEEK-TACTICS'] = False
+            for server in self.__servers.itervalues():
+                if server.capabilities['FRONTED-MEEK']:
+                    server.capabilities['FRONTED-MEEK-TACTICS'] = True
+                    host = self.__hosts[server.host_id]
+                    public_key, private_key = self.generate_nacl_keypair()
+                    host.tactics_request_public_key = public_key
+                    host.tactics_request_private_key = private_key
+                    host.tactics_request_obfuscated_key = self.generate_obfuscated_key()
+            self.version = '0.49'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1354,7 +1386,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         stats_ssh_username, stats_ssh_password, datacenter_name, region, meek_server_port,
                         meek_server_obfuscated_key, meek_server_fronting_domain, meek_server_fronting_host,
                         alternate_meek_server_fronting_hosts, meek_cookie_encryption_public_key,
-                        meek_cookie_encryption_private_key):
+                        meek_cookie_encryption_private_key,
+                        tactics_request_public_key, tactics_request_private_key, tactics_request_obfuscated_key):
         return Host(id,
                     is_TCS,
                     TCS_type,
@@ -1376,6 +1409,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     alternate_meek_server_fronting_hosts,
                     meek_cookie_encryption_public_key,
                     meek_cookie_encryption_private_key,
+                    tactics_request_public_key,
+                    tactics_request_private_key,
+                    tactics_request_obfuscated_key
                     )
 
     def get_server_object(self, id, host_id, ip_address, egress_ip_address, internal_ip_address, propagation_channel_id,
@@ -1434,7 +1470,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.meek_server_fronting_host,
                         host.alternate_meek_server_fronting_hosts,
                         host.meek_cookie_encryption_public_key,
-                        host.meek_cookie_encryption_private_key)
+                        host.meek_cookie_encryption_private_key,
+                        host.tactics_request_public_key,
+                        host.tactics_request_private_key,
+                        host.tactics_request_obfuscated_key)
 
             exp_server = (server.id,
                             server.host_id,
@@ -1749,7 +1788,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             host,
                             self.__compartmentalize_data_for_host(host.id, host.is_TCS),
                             self.__TCS_traffic_rules_set,
-                            self.__TCS_OSL_config)
+                            self.__TCS_OSL_config,
+                            self.__TCS_tactics_config_template)
 
         for server in servers_on_host:
             self.test_server(server.id, ['handshake'])
@@ -1763,6 +1803,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         host.meek_server_fronting_domain = meek_server_fronting_domain
         host.meek_server_fronting_host = meek_server_fronting_host
         self.setup_meek_parameters_for_host(host, 443)
+
+        server.capabilities['FRONTED-MEEK-TACTICS'] = True
+        if not host.tactics_request_public_key or not host.tactics_request_private_key:
+            public_key, private_key = self.generate_nacl_keypair()
+            host.tactics_request_public_key = public_key
+            host.tactics_request_private_key = private_key
+        if not host.tactics_request_obfuscated_key:
+            host.tactics_request_obfuscated_key = self.generate_obfuscated_key()
+
         self.install_meek_for_host(host)
 
     def setup_unfronted_meek_for_server(self, server_id):
@@ -1795,18 +1844,25 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.setup_meek_parameters_for_host(host, 443)
         self.install_meek_for_host(host)
 
+    def generate_obfuscated_key(self):
+        return binascii.hexlify(os.urandom(psi_ops_install.SSH_OBFUSCATED_KEY_BYTE_LENGTH))
+
+    def generate_nacl_keypair(self):
+        keygenerator_binary = 'keygenerator.exe'
+        if os.name == 'posix':
+            keygenerator_binary = 'keygenerator'
+        keypair = json.loads(subprocess.Popen([os.path.join('.', keygenerator_binary)], stdout=subprocess.PIPE).communicate()[0])
+        return keypair['publicKey'], keypair['privateKey']
+
     def setup_meek_parameters_for_host(self, host, meek_server_port):
         assert(host.meek_server_port == None)
         host.meek_server_port = meek_server_port
         if not host.meek_server_obfuscated_key:
-            host.meek_server_obfuscated_key = binascii.hexlify(os.urandom(psi_ops_install.SSH_OBFUSCATED_KEY_BYTE_LENGTH))
+            host.meek_server_obfuscated_key = self.generate_obfuscated_key()
         if not host.meek_cookie_encryption_public_key or not host.meek_cookie_encryption_private_key:
-            keygenerator_binary = 'keygenerator.exe'
-            if os.name == 'posix':
-                keygenerator_binary = 'keygenerator'
-            keypair = json.loads(subprocess.Popen([os.path.join('.', keygenerator_binary)], stdout=subprocess.PIPE).communicate()[0])
-            host.meek_cookie_encryption_public_key = keypair['publicKey']
-            host.meek_cookie_encryption_private_key = keypair['privateKey']
+            public_key, private_key = self.generate_nacl_keypair()
+            host.meek_cookie_encryption_public_key = public_key
+            host.meek_cookie_encryption_private_key = private_key
 
     def install_meek_for_host(self, host):
         servers = [s for s in self.__servers.itervalues() if s.host_id == host.id]
@@ -1817,7 +1873,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             host,
                             self.__compartmentalize_data_for_host(host.id, host.is_TCS),
                             self.__TCS_traffic_rules_set,
-                            self.__TCS_OSL_config)
+                            self.__TCS_OSL_config,
+                            self.__TCS_tactics_config_template)
 
     def setup_server(self, host, servers):
         # Install Psiphon 3 and generate configuration values
@@ -1850,7 +1907,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             host,
                             self.__compartmentalize_data_for_host(host.id, host.is_TCS),
                             self.__TCS_traffic_rules_set,
-                            self.__TCS_OSL_config)
+                            self.__TCS_OSL_config,
+                            self.__TCS_tactics_config_template)
         psi_ops_deploy.deploy_routes(host)
         host.log('initial deployment')
 
@@ -2267,7 +2325,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             host,
                             self.__compartmentalize_data_for_host(host.id, host.is_TCS),
                             self.__TCS_traffic_rules_set,
-                            self.__TCS_OSL_config)
+                            self.__TCS_OSL_config,
+                            self.__TCS_tactics_config_template)
 
         host.log('reinstall')
 
@@ -2761,7 +2820,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 self.get_hosts(),
                 self.__compartmentalize_data_for_host,
                 self.__TCS_traffic_rules_set,
-                self.__TCS_OSL_config)
+                self.__TCS_OSL_config,
+                self.__TCS_tactics_config_template)
             self.__deploy_data_required_for_all = False
             self.save()
 
@@ -3123,6 +3183,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for propagation_channel_id in self.__propagation_channels.iterkeys():
             self.__deploy_pave_osls_required_for_propagation_channels.add(propagation_channel_id)
 
+    def set_TCS_traffic_rules_set(self, tactics_config_template):
+        assert(self.is_locked)
+
+        # Check that the input is valid JSON
+        json.loads(tactics_config_template)
+
+        self.__TCS_tactics_config_template = tactics_config_template
+
+        self.__deploy_data_required_for_all = True
+
     def set_TCS_psiphond_config_values(self, psiphond_config_values):
         assert(self.is_locked)
         assert(isinstance(psiphond_config_values, dict))
@@ -3172,7 +3242,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             host,
             self.__compartmentalize_data_for_host(host.id, host.is_TCS),
             self.__TCS_traffic_rules_set,
-            self.__TCS_OSL_config)
+            self.__TCS_OSL_config,
+            self.__TCS_tactics_config_template)
 
     def deploy_implementation_and_data_for_propagation_channel(self, propagation_channel_name):
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
@@ -3387,6 +3458,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             extended_config['meekFrontingHosts'] = alternate_meek_server_fronting_hosts[:3]
             if server_capabilities['FRONTED-MEEK']:
                 server_capabilities['FRONTED-MEEK-HTTP'] = True
+
+        extended_config['tacticsRequestPublicKey'] = host.tactics_request_public_key if host.tactics_request_public_key else ''
+        extended_config['tacticsRequestObfuscatedKey'] = host.tactics_request_obfuscated_key if host.tactics_request_obfuscated_key else ''
 
         extended_config['capabilities'] = [capability for capability, enabled in server_capabilities.iteritems() if enabled] if server_capabilities else []
 
@@ -3644,7 +3718,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         host.meek_server_fronting_host,
                                         [],  # Omit: alternate_meek_server_fronting_hosts isn't needed
                                         host.meek_cookie_encryption_public_key,
-                                        '')  # Omit: meek_cookie_encryption_private_key isn't needed
+                                        '',  # Omit: meek_cookie_encryption_private_key isn't needed
+                                        host.tactics_request_public_key,
+                                        '', # Omit: tactics_request_private_key isn't needed
+                                        host.tactics_request_obfuscated_key)
 
         for server in self.__servers.itervalues():
             if ((server.discovery_date_range and server.host_id != host_id and server.discovery_date_range[1] <= discovery_date) or
@@ -3790,7 +3867,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         host.meek_server_fronting_host,
                                         [],  # Omit: alternate_meek_server_fronting_hosts isn't needed
                                         host.meek_cookie_encryption_public_key,
-                                        '').todict()  # Omit: meek_cookie_encryption_private_key isn't needed
+                                        '',  # Omit: meek_cookie_encryption_private_key isn't needed
+                                        host.tactics_request_public_key,
+                                        '', # Omit: tactics_request_private_key isn't needed
+                                        host.tactics_request_obfuscated_key)
 
         # Store servers as array instead of map as a method of preprocessing for
         # tunnel-core-server
@@ -3907,7 +3987,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.meek_server_fronting_host,
                                             [],  # Omit: alternate_meek_server_fronting_hosts
                                             '',  # Omit: meek_cookie_encryption_public_key
-                                            '')  # Omit: meek_cookie_encryption_private_key
+                                            '',  # Omit: meek_cookie_encryption_private_key
+                                            '', '', '') # Omit: tactics fields
 
         for server in self.__servers.itervalues():
             copy.__servers[server.id] = Server(
@@ -3971,8 +4052,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 host.ip_address, host.ssh_port,
                 host.ssh_username, host.ssh_password,
                 host.ssh_host_key)
-	ssh_output = ssh.exec_command(command)
-	ssh.close()
+        ssh_output = ssh.exec_command(command)
+        ssh.close()
         return ssh_output
 
     def run_command_on_hosts(self, command):
