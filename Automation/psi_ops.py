@@ -215,8 +215,20 @@ Server = psi_utils.recordtype(
     'propagation_channel_id, is_embedded, is_permanent, discovery_date_range, capabilities, ' +
     'web_server_port, web_server_secret, web_server_certificate, web_server_private_key, ' +
     'ssh_port, ssh_username, ssh_password, ssh_host_key, TCS_ssh_private_key, ssh_obfuscated_port, ssh_obfuscated_key, ' +
-    'alternate_ssh_obfuscated_ports, osl_ids, osl_discovery_date_range',
+    'alternate_ssh_obfuscated_ports, osl_ids, osl_discovery_date_range, ' +
+    'configuration_version',
     default=None)
+
+# Server.configuration_version is emitted as the configuration version field in
+# server entries. This version field is used by clients when importing server
+# entries, to determine when to replace existing entries. For certain server
+# entry sources, any existing entry will be replaced only when its version is
+# lower than this version field.
+# SERVER_CONFIGURATION_VERSION is the default Server.configuration_version for
+# newly created servers.
+# Increment SERVER_CONFIGURATION_VERSION/Server.configuration_version when adding
+# new capabilities and configuration to new/existing servers.
+SERVER_CONFIGURATION_VERSION = 1
 
 
 def ServerCapabilities():
@@ -331,7 +343,6 @@ RoutesSigningKeyPair = psi_utils.recordtype(
 CLIENT_PLATFORM_WINDOWS = 'Windows'
 CLIENT_PLATFORM_ANDROID = 'Android'
 CLIENT_PLATFORM_IOS = 'iOS'
-
 
 class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
@@ -708,9 +719,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 host.tactics_request_obfuscated_key = None
             for server in self.__servers.values() + self.__deleted_servers.values():
                 server.capabilities['FRONTED-MEEK-TACTICS'] = False
+                server.configuration_version = 0
             for server in self.__servers.itervalues():
                 if server.capabilities['FRONTED-MEEK']:
                     server.capabilities['FRONTED-MEEK-TACTICS'] = True
+                    server.configuration_version = 1
                     host = self.__hosts[server.host_id]
                     public_key, private_key = self.generate_nacl_keypair()
                     host.tactics_request_public_key = public_key
@@ -943,6 +956,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             Discovery Date Range:     %s
             OSL Discovery Date Range: %s
             Capabilities:             %s
+            Configuration Version:    %d
             ''') % (
                 s.id,
                 s.host_id,
@@ -959,7 +973,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             s.discovery_date_range[1].isoformat())) if s.discovery_date_range else 'None',
                 ('%s - %s' % (s.osl_discovery_date_range[0].isoformat(),
                             s.osl_discovery_date_range[1].isoformat())) if s.osl_discovery_date_range else 'None',
-                ', '.join([capability for capability, enabled in s.capabilities.iteritems() if enabled]))
+                ', '.join([capability for capability, enabled in s.capabilities.iteritems() if enabled]),
+                s.configuration_version)
         self.__show_logs(s)
 
     def show_host(self, host_id, show_logs=False):
@@ -1116,7 +1131,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for sponsor in self.__sponsors.itervalues():
             self.__deploy_website_required_for_sponsors.add(sponsor.id)
             sponsor.log('website updated, marked for publish')
-
 
     def add_sponsor_email_campaign(self, sponsor_name, propagation_channel_name, email_account):
         assert(self.is_locked)
@@ -1417,7 +1431,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def get_server_object(self, id, host_id, ip_address, egress_ip_address, internal_ip_address, propagation_channel_id,
                         is_embedded, is_permanent, discovery_date_range, capabilities, web_server_port, web_server_secret,
                         web_server_certificate, web_server_private_key, ssh_port, ssh_username, ssh_password,
-                        ssh_host_key, TCS_ssh_private_key, ssh_obfuscated_port, ssh_obfuscated_key, alternate_ssh_obfuscated_ports):
+                        ssh_host_key, TCS_ssh_private_key, ssh_obfuscated_port, ssh_obfuscated_key, alternate_ssh_obfuscated_ports,
+                        configuration_version):
         return Server(id,
                     host_id,
                     ip_address,
@@ -1439,7 +1454,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     TCS_ssh_private_key,
                     ssh_obfuscated_port,
                     ssh_obfuscated_key,
-                    alternate_ssh_obfuscated_ports)
+                    alternate_ssh_obfuscated_ports,
+                    configuration_version)
 
     def export_host_and_server(self, host_id_list):
 
@@ -1496,13 +1512,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             server.TCS_ssh_private_key,
                             server.ssh_obfuscated_port,
                             server.ssh_obfuscated_key,
-                            server.alternate_ssh_obfuscated_ports)
+                            server.alternate_ssh_obfuscated_ports,
+                            server.configuration_version)
 
             exp_entry.append([exp_host, exp_server])
 
         with open("entries.txt", 'ab') as export_file:
             pickle.dump(exp_entry, export_file)
-
 
     def import_host_and_server(self):
 
@@ -1524,8 +1540,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 self.__hosts[host.id] = host
                 self.__servers[server.id] = server
 
-
-
+    # obsolete
     def import_host(self, id, is_TCS, TCS_type, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
                     stats_ssh_username, stats_ssh_password):
         assert(self.is_locked)
@@ -1546,6 +1561,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(host.id not in self.__hosts)
         self.__hosts[host.id] = host
 
+    # obsolete
     def import_server(self, server_id, host_id, ip_address, egress_ip_address, internal_ip_address,
                       propagation_channel_id, is_embedded, is_permanent, discovery_date_range, capabilities, web_server_port,
                       web_server_secret, web_server_certificate, web_server_private_key, ssh_port, ssh_username,
@@ -2095,7 +2111,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         None,
                         None,
                         None,
-                        ossh_port)
+                        ossh_port,
+                        SERVER_CONFIGURATION_VERSION)
 
             server.osl_ids = list(osl_ids) if osl_ids else None
             server.osl_discovery_date_range = osl_discovery
@@ -3464,6 +3481,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         extended_config['capabilities'] = [capability for capability, enabled in server_capabilities.iteritems() if enabled] if server_capabilities else []
 
+        extended_config['configurationVersion'] = server.configuration_version
+
         return binascii.hexlify('%s %s %s %s %s' % (
                                     server.ip_address,
                                     server.web_server_port,
@@ -3750,7 +3769,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 None,
                                                 server.ssh_obfuscated_port,
                                                 server.ssh_obfuscated_key,
-                                                server.alternate_ssh_obfuscated_ports)
+                                                server.alternate_ssh_obfuscated_ports,
+                                                server.configuration_version)
 
         for sponsor in self.__sponsors.itervalues():
             sponsor_data = sponsor
@@ -3899,7 +3919,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 None,
                                                 int(server.ssh_obfuscated_port), # Some ports are stored as strings, catch this for tunnel-core-server
                                                 server.ssh_obfuscated_key,
-                                                server.alternate_ssh_obfuscated_ports).todict()
+                                                server.alternate_ssh_obfuscated_ports,
+                                                server.configuration_version).todict()
                 server_list.append(s)
 
         for sponsor in self.__sponsors.itervalues():
@@ -4002,7 +4023,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             server.is_permanent,
                                             server.discovery_date_range,
                                             server.capabilities)
-                                            # Omit: propagation, web server, ssh info
+                                            # Omit: propagation, web server, ssh info, version
 
         for deleted_server in self.__deleted_servers.itervalues():
             copy.__deleted_servers[deleted_server.id] = Server(
@@ -4015,7 +4036,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             deleted_server.is_embedded,
                                             deleted_server.is_permanent,
                                             deleted_server.discovery_date_range)
-                                            # Omit: propagation, web server, ssh info
+                                            # Omit: propagation, web server, ssh info, version
 
         for propagation_channel in self.__propagation_channels.itervalues():
             copy.__propagation_channels[propagation_channel.id] = PropagationChannel(
