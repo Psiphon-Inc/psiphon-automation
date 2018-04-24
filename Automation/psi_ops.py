@@ -224,11 +224,11 @@ Server = psi_utils.recordtype(
 # entries, to determine when to replace existing entries. For certain server
 # entry sources, any existing entry will be replaced only when its version is
 # lower than this version field.
-# SERVER_CONFIGURATION_VERSION is the default Server.configuration_version for
-# newly created servers.
-# Increment SERVER_CONFIGURATION_VERSION/Server.configuration_version when adding
-# new capabilities and configuration to new/existing servers.
-SERVER_CONFIGURATION_VERSION = 1
+#
+# All servers start at INITIAL_SERVER_CONFIGURATION_VERSION. When new capabilities
+# or configuration is set for an existing, deployed server, increment its
+# Server.configuration_version to ensure clients update their server entries.
+INITIAL_SERVER_CONFIGURATION_VERSION = 0
 
 
 def ServerCapabilities():
@@ -719,11 +719,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 host.tactics_request_obfuscated_key = None
             for server in self.__servers.values() + self.__deleted_servers.values():
                 server.capabilities['FRONTED-MEEK-TACTICS'] = False
-                server.configuration_version = 0
+                server.configuration_version = INITIAL_SERVER_CONFIGURATION_VERSION
             for server in self.__servers.itervalues():
                 if server.capabilities['FRONTED-MEEK']:
                     server.capabilities['FRONTED-MEEK-TACTICS'] = True
-                    server.configuration_version = 1
+                    server.configuration_version = INITIAL_SERVER_CONFIGURATION_VERSION + 1
                     host = self.__hosts[server.host_id]
                     public_key, private_key = self.generate_nacl_keypair()
                     host.tactics_request_public_key = public_key
@@ -2112,7 +2112,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         None,
                         None,
                         ossh_port,
-                        SERVER_CONFIGURATION_VERSION)
+                        None,
+                        None,
+                        INITIAL_SERVER_CONFIGURATION_VERSION)
 
             server.osl_ids = list(osl_ids) if osl_ids else None
             server.osl_discovery_date_range = osl_discovery
