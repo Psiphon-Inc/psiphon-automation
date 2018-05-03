@@ -4048,7 +4048,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             None,
                                             deleted_server.is_embedded,
                                             deleted_server.is_permanent,
-                                            deleted_server.discovery_date_range)
+                                            deleted_server.discovery_date_range,
+                                            deleted_server.capabilities)
                                             # Omit: propagation, web server, ssh info, version
 
         for propagation_channel in self.__propagation_channels.itervalues():
