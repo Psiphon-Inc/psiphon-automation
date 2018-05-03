@@ -728,7 +728,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     public_key, private_key = self.generate_nacl_keypair()
                     host.tactics_request_public_key = public_key
                     host.tactics_request_private_key = private_key
-                    host.tactics_request_obfuscated_key = self.generate_obfuscated_key()
+                    host.tactics_request_obfuscated_key = self.generate_obfuscated_key(base64_encode=True)
             self.version = '0.49'
 
     def initialize_plugins(self):
@@ -1826,7 +1826,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             host.tactics_request_public_key = public_key
             host.tactics_request_private_key = private_key
         if not host.tactics_request_obfuscated_key:
-            host.tactics_request_obfuscated_key = self.generate_obfuscated_key()
+            host.tactics_request_obfuscated_key = self.generate_obfuscated_key(base64_encode=True)
 
         self.install_meek_for_host(host)
 
@@ -1860,8 +1860,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.setup_meek_parameters_for_host(host, 443)
         self.install_meek_for_host(host)
 
-    def generate_obfuscated_key(self):
-        return binascii.hexlify(os.urandom(psi_ops_install.SSH_OBFUSCATED_KEY_BYTE_LENGTH))
+    def generate_obfuscated_key(self, base64_encode=False):
+        obfuscated_key = os.urandom(psi_ops_install.SSH_OBFUSCATED_KEY_BYTE_LENGTH)
+        return base64.b64encode(obfuscated_key) if base64_encode else binascii.hexlify(obfuscated_key)
 
     def generate_nacl_keypair(self):
         keygenerator_binary = 'keygenerator.exe'
