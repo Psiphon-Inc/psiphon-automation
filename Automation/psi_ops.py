@@ -974,7 +974,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 ('%s - %s' % (s.osl_discovery_date_range[0].isoformat(),
                             s.osl_discovery_date_range[1].isoformat())) if s.osl_discovery_date_range else 'None',
                 ', '.join([capability for capability, enabled in s.capabilities.iteritems() if enabled]),
-                s.configuration_version)
+                s.configuration_version if s.configuration_version else 0)
         self.__show_logs(s)
 
     def show_host(self, host_id, show_logs=False):
