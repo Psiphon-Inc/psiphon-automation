@@ -1,0 +1,21 @@
+om:
+  plaintext_email_no_attachment: |
+      Psiphon asitti gad fe'i: {{0}}/{0}/download.html#direct
+  html_email_no_attachment: |
+      <div style="direction: ltr;">
+      Psiphon asitti gad fe'i: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+      </div>
+  plaintext_email_with_attachment: |+
+      Psiphon 3 windowidhaaf gargaaramuuf, faayilii {{1}} maxxane fufiinsa ".exe" jedhu waliin ol-kaayyadhu.
+      Psiphon 3 Android ‘dhaaf gargaaramuuf, faayila itti qabsiisamee jiru fe'adhaa {{2}}.
+      Odeeffannoo dabalataaf yookiin irra deebi'uun faayilawwan sana gad fe'uuf, hidhata armaan gadii cuqaasi.
+      {{0}}/{0}/download.html#direct
+
+  html_email_with_attachment: |
+      <div style="direction: ltr;">
+      Psiphon 3 Windowsi’dhaaf gargaaramuuf, faayila qabsiisamee jiru hidhata ".exe" waliin ol kaa'i {{1}}.<br>
+      Psiphon 3 Android ‘dhaaf gargaaramuuf, faayila qabsiisamee jiru fe'i {{2}}.<br>
+      Odeeffannoo dabalataaf yookiin faayiliiwwan sana irra deebi'uun yoo gad fe'uu barbaadde, hidhata armaan gadii cuqaasi.<br>
+      <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct </a><br>
+      </div>
+      <br>

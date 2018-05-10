@@ -1,0 +1,21 @@
+km:
+  plaintext_email_no_attachment: |
+      ទាញយក Psiphon ទីនេះ៖ {{0}}/{0}/download.html#direct
+  html_email_no_attachment: |
+      <div style="direction: ltr;">
+      ទាញយក Psiphon ទីនេះ៖ <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+      </div>
+  plaintext_email_with_attachment: |+
+      ដើម្បីប្រើប្រាស់ Psiphon 3 សម្រាប់ Windows, រក្សាទុកឯកសារភ្ជាប់ {{1}} ជាមួយទម្រង់ ".exe" ។
+      ដើម្បីប្រើប្រាស់ Psiphon 3 សម្រាប់ Android, ទាញយកឯកសារភ្ជាប់ {{2}}។
+      សម្រាប់ព័ត៌មានបន្ថែម ឬទាញយកឯកសារម្តងទៀត, សូមចុចតំណខាងក្រោម។
+      {{0}}/{0}/download.html#direct
+
+  html_email_with_attachment: |
+      <div style="direction: ltr;">
+      ដើម្បីប្រើប្រាស់ Psiphon 3 សម្រាប់ Windows, រក្សាទុកឯកសារភ្ជាប់ {{1}} ជាមួយទម្រង់ ".exe" ។<br>
+      ដើម្បីប្រើប្រាស់ Psiphon 3 សម្រាប់ Android, ទាញយកឯកសារភ្ជាប់ {{2}}។<br>
+      សម្រាប់ព័ត៌មានបន្ថែម ឬទាញយកឯកសារម្តងទៀត, សូមចុចតំណខាងក្រោម។<br>
+      <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+      </div>
+      <br>

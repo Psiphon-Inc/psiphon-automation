@@ -1,21 +1,21 @@
 vi:
   plaintext_email_no_attachment: |
-    Tải Psiphon tại đây:{{0}}/{0}/download.html#direct
+      Tải Psiphon tại đây:{{0}}/{0}/download.html#direct
   html_email_no_attachment: |
-    <div style="direction: ltr;">
-    Tải Psiphon tại đây: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
-    </div>
+      <div style="direction: ltr;">
+      Tải Psiphon tại đây: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+      </div>
   plaintext_email_with_attachment: |+
-    Để dùng Psiphon 3 cho Windows, lưu tập tin đính kèm {{1}} có đuôi mở rộng ".exe".
-    Để dùng Psiphon 3 cho Android, cài đặt tập tin đính kèm {{2}}.
-    Để biết thêm chi tiết hoặc tải lại các tập tin này, bấm vào đường dẫn dưới đây.
-    {{0}}/{0}/download.html#direct
+      Để dùng Psiphon 3 cho Windows, lưu tập tin đính kèm {{1}} có đuôi mở rộng ".exe".
+      Để dùng Psiphon 3 cho Android, cài đặt tập tin đính kèm {{2}}.
+      Để biết thêm chi tiết hoặc tải lại các tập tin này, bấm vào đường dẫn dưới đây.
+      {{0}}/{0}/download.html#direct
 
   html_email_with_attachment: |
-    <div style="direction: ltr;">
-    Để dùng Psiphon 3 cho Windows, lưu tập tin đính kèm {{1}} có đuôi mở rộng ".exe".<br>
-    Để dùng Psiphon 3 cho Android, cài đặt tập tin đính kèm {{2}}.<br>
-    Để biết thêm chi tiết hoặc tải lại các tập tin này, bấm vào đường dẫn dưới đây.<br>
-    <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
-    </div>
-    <br>
+      <div style="direction: ltr;">
+      Để dùng Psiphon 3 cho Windows, lưu tập tin đính kèm {{1}} có đuôi mở rộng ".exe".<br>
+      Để dùng Psiphon 3 cho Android, cài đặt tập tin đính kèm {{2}}.<br>
+      Để biết thêm chi tiết hoặc tải lại các tập tin này, bấm vào đường dẫn dưới đây.<br>
+      <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+      </div>
+      <br>
