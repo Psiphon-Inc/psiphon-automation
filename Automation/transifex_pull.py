@@ -60,12 +60,14 @@ DEFAULT_LANGS = {
     'my': 'my',         # Burmese
     'nb_NO': 'nb',      # Norwegian
     'nl': 'nl',         # Dutch
+    'om': 'om',         # Afaan Oromoo
     'pt_BR': 'pt_BR',   # Portuguese-Brazil
     'pt_PT': 'pt_PT',   # Portuguese-Portugal
     'ru': 'ru',         # Russian
     'sn': 'sn',         # Shona
     'tg': 'tg',         # Tajik
     'th': 'th',         # Thai
+    'ti': 'ti',         # Tigrinya
     'tk': 'tk',         # Turkmen
     'tr': 'tr',         # Turkish
     'ug': 'ug@Latn',    # Uighur (latin script)

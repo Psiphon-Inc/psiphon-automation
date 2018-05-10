@@ -1,0 +1,21 @@
+az:
+  plaintext_email_no_attachment: |
+      Psiphon-u burdan yükləyin: {{0}}/{0}/download.html#direct
+  html_email_no_attachment: |
+      <div style="direction: ltr;">
+      Psiphonu burdan yükləyin: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+      </div>
+  plaintext_email_with_attachment: |+
+      Windows üçün Psiphon 3 istifadə etməkdən ötrü {{1}} ".exe" sonluqlu faylı yükləyin.
+      Android üçün Psiphon 3 istifadə etmək lazımdırsa, qoşma faylı yükləyin {{2}}.
+      Daha ətraflı məlumat və faylları yenidən yükləmək üçün aşağıdakı linki klikləyin.
+      {{0}}/{0}/download.html#direct
+
+  html_email_with_attachment: |
+      <div style="direction: ltr;">
+      Windows üçün Psiphon 3 istifadə etməkdən ötrü {{1}} ".exe" sonluqlu faylı yükləyin.<br>
+      Android üçün Psiphon 3 istifadə etmək lazımdırsa, qoşma faylı yükləyin {{2}}.<br>
+      Daha ətraflı məlumat və faylları yenidən yükləmək üçün aşağıdakı linki klikləyin.<br>
+      <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+      </div>
+      <br>

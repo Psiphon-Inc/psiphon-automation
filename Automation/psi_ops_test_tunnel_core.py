@@ -222,7 +222,7 @@ class TunnelCoreConsoleRunner:
                     break
             
             
-            pool = urllib3.HTTPSConnectionPool(host=remote_host, port=remote_port, 
+            pool = urllib3.HTTPSConnectionPool(host=fqdn, port=remote_port, 
                                                maxsize=2,
                                                source_address=(self.tun_source_ip_address,
                                                                self.tun_source_port))

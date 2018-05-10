@@ -1,0 +1,21 @@
+my:
+  plaintext_email_no_attachment: |
+      Psiphon ကိုဤတွင် ဒေါင်းလုပ်လုပ်ရန် : {{0}}/{0}/download.html#direct
+  html_email_no_attachment: |
+      <div style="direction: ltr;">
+      Psiphon ကိုဤတွင် ဒေါင်းလုပ်လုပ်ရန် : {{0}}/{0}/download.html#direct<a href="{{0}}/{0}/download.html#direct"><br>
+      </a>
+  plaintext_email_with_attachment: |+
+      Windows တွင် Psiphon 3 ကိုအသုံးပြုရန်အတွက် ပူးတွဲပေးပို့ထားသော ".exe" extension ပါသည့်ဖိုင် {{1}} ကိုသိမ်းပါ။
+      Android တွင် Psiphon 3 ကိုအသုံးပြုရန်အတွက် ပူးတွဲပေးပို့ထားသော {{2}} ကိုသွင်းပါ။
+      နောက်ထပ်သတင်းအချက်အလက်များအတွက် သို့မဟုတ် နောက်တစ်ကြိမ်ဖိုင်များ ဒေါင်းလုပ်လုပ်ရန်အတွက် အောက်ပါလင့်ကိုနှိပ်ပါ။
+      {{0}}/{0}/download.html#direct
+
+  html_email_with_attachment: |
+      <div style="direction: ltr;">
+      Windows တွင် Psiphon 3 ကိုအသုံးပြုရန်အတွက် ပူးတွဲပေးပို့ထားသော ".exe" extension ပါသည့်ဖိုင် {{1}} ကိုသိမ်းပါ။<br>
+      Android တွင် Psiphon 3 ကိုအသုံးပြုရန်အတွက် ပူးတွဲပေးပို့ထားသော {{2}} ကိုသွင်းပါ။<br>
+      နောက်ထပ်သတင်းအချက်အလက်များအတွက် သို့မဟုတ် နောက်တစ်ကြိမ်ဖိုင်များ ဒေါင်းလုပ်လုပ်ရန်အတွက် အောက်ပါလင့်ကိုနှိပ်ပါ။<br>
+      <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+      </div>
+      <br>

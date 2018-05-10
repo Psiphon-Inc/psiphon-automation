@@ -1,21 +1,21 @@
 zh:
   plaintext_email_no_attachment: |
-    赛风下载链接： {{0}}/{0}/download.html#direct
+      赛风下载链接： {{0}}/{0}/download.html#direct
   html_email_no_attachment: |
-    <div style="direction: ltr;">
-    赛风下载链接：<a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
-    </div>
+      <div style="direction: ltr;">
+      赛风下载链接：<a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+      </div>
   plaintext_email_with_attachment: |+
-    如需在 Windows 上使用赛风 3，请将附件中的 {{1}} 保存为 .exe 文件。
-    如需在 Android 上使用赛风 3，请安装附件中的 {{2}}。
-    如需更多信息或重新下载文件，请点击下方链接。
-    {{0}}/{0}/download.html#direct
+      如需在 Windows 上使用赛风 3，请将附件中的 {{1}} 保存为 .exe 文件。
+      如需在 Android 上使用赛风 3，请安装附件中的 {{2}}。
+      如需更多信息或重新下载文件，请点击下方链接。
+      {{0}}/{0}/download.html#direct
 
   html_email_with_attachment: |
-    <div style="direction: ltr;">
-    如需在 Windows 上使用赛风 3，请将附件中的 {{1}} 以后缀名 .exe 保存。<br>
-    如需在 Android 上使用赛风 3，请安装附件中的 {{2}}。<br>
-    如需更多信息或重新下载文件，请点击下方链接。<br>
-    <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
-    </div>
-    <br>
+      <div style="direction: ltr;">
+      如需在 Windows 上使用赛风 3，请将附件中的 {{1}} 以后缀名 .exe 保存。<br>
+      如需在 Android 上使用赛风 3，请安装附件中的 {{2}}。<br>
+      如需更多信息或重新下载文件，请点击下方链接。<br>
+      <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+      </div>
+      <br>

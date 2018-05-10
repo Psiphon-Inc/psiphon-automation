@@ -1,21 +1,21 @@
 am:
   plaintext_email_no_attachment: |
-    ሳይፈንን እዚህ ያውርዱ:- {{0}}/{0}/download.html#direct
+      ሳይፈንን እዚህ ያውርዱ:- {{0}}/{0}/download.html#direct
   html_email_no_attachment: |
-    <div style="direction: ltr;">
-    ሳይፈንን እዚህ ያውርዱ:- <a href="{{0}}/{0}/download.html#direct"> {{0}}/{0}/download.html#direct </a><br>
-    </div>
+      <div style="direction: ltr;">
+      ሳይፈንን እዚህ ያውርዱ:- <a href="{{0}}/{0}/download.html#direct"> {{0}}/{0}/download.html#direct </a><br>
+      </div>
   plaintext_email_with_attachment: |+
-    ሳይፈን 3ን ለWindows ለመጠቀም ".exe" የሚል ቅጥያ ያለውን የአባሪ ሰነድ  {{1}}  ያስቀምጡ።
-    ሳይፈን 3ን ለAndroid ለመጠቀ አባሪ ሰነዱን  {{2}} ይጫኑ።
-    ለበለጠ መረጃ ወይም ሰነዱን እንደገና ለማውረድ ከዚህ በታች ያለው ትይይዝ ላይ ጠቅ ያድርጉ።
-    {{0}}/{0}/download.html#direct
+      ሳይፈን 3ን ለWindows ለመጠቀም ".exe" የሚል ቅጥያ ያለውን የአባሪ ሰነድ  {{1}}  ያስቀምጡ።
+      ሳይፈን 3ን ለAndroid ለመጠቀ አባሪ ሰነዱን  {{2}} ይጫኑ።
+      ለበለጠ መረጃ ወይም ሰነዱን እንደገና ለማውረድ ከዚህ በታች ያለው ትይይዝ ላይ ጠቅ ያድርጉ።
+      {{0}}/{0}/download.html#direct
 
   html_email_with_attachment: |
-    <div style="direction: ltr;">
-    ሳይፈን 3ን ለWindows ለመጠቀም ".exe" የሚል ቅጥያ ያለውን የአባሪ ሰነድ  {{1}}  ያስቀምጡ።<br>
-    ሳይፈን 3ን ለAndroid ለመጠቀ አባሪ ሰነዱን  {{2}} ይጫኑ። <br>
-    ለበለጠ መረጃ ወይም ሰነዱን እንደገና ለማውረድ ከዚህ በታች ያለው ትይይዝ ላይ ጠቅ ያድርጉ።<br>
-    <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
-    </div>
-    <br>
+      <div style="direction: ltr;">
+      ሳይፈን 3ን ለWindows ለመጠቀም ".exe" የሚል ቅጥያ ያለውን የአባሪ ሰነድ  {{1}}  ያስቀምጡ።<br>
+      ሳይፈን 3ን ለAndroid ለመጠቀ አባሪ ሰነዱን  {{2}} ይጫኑ። <br>
+      ለበለጠ መረጃ ወይም ሰነዱን እንደገና ለማውረድ ከዚህ በታች ያለው ትይይዝ ላይ ጠቅ ያድርጉ።<br>
+      <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+      </div>
+      <br>

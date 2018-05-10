@@ -77,6 +77,7 @@ TCS_PSIPHOND_LOG_FILE_NAME = '/var/log/psiphond/psiphond.log'
 TCS_PSIPHOND_PROCESS_PROFILE_OUTPUT_DIRECTORY_NAME = '/var/log/psiphond'
 TCS_TRAFFIC_RULES_FILE_NAME = '/opt/psiphon/psiphond/config/traffic-rules.config'
 TCS_OSL_CONFIG_FILE_NAME = '/opt/psiphon/psiphond/config/osl.config'
+TCS_TACTICS_CONFIG_FILE_NAME = '/opt/psiphon/psiphond/config/tactics.config'
 TCS_PSINET_FILE_NAME = '/opt/psiphon/psiphond/data/psinet.json'
 TCS_GEOIP_CITY_DATABASE_FILE_NAME = '/usr/local/share/GeoIP/GeoIP2-City.mmdb'
 TCS_GEOIP_ISP_DATABASE_FILE_NAME = '/usr/local/share/GeoIP/GeoIP2-ISP.mmdb'
@@ -326,6 +327,8 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
 
     config['OSLConfigFilename'] = TCS_OSL_CONFIG_FILE_NAME
 
+    config['TacticsConfigFilename'] = TCS_TACTICS_CONFIG_FILE_NAME
+
     # TCS_psiphond_config_values['AccessControlVerificationKeyRing'] is a string value, set with psi_ops.set_TCS_psiphond_config_values,
     # containing a JSON-encoded https://godoc.org/github.com/Psiphon-Labs/psiphon-tunnel-core/psiphon/common/accesscontrol#VerificationKeyRing
     config['AccessControlVerificationKeyRing'] = json.loads(TCS_psiphond_config_values['AccessControlVerificationKeyRing'])
@@ -458,7 +461,7 @@ def deploy_implementation_to_hosts(hosts_and_servers, discovery_strategy_value_h
                                                         if host.is_TCS and host.TCS_type == 'DOCKER'])
 
 
-def deploy_data(host, host_data, TCS_traffic_rules_set, TCS_OSL_config):
+def deploy_data(host, host_data, TCS_traffic_rules_set, TCS_OSL_config, TCS_tactics_config_template):
 
     print 'deploy data to host %s%s...' % (host.id, " (TCS) " if host.is_TCS else "", )
 
@@ -468,7 +471,7 @@ def deploy_data(host, host_data, TCS_traffic_rules_set, TCS_OSL_config):
                     host.ssh_host_key)
 
     if host.is_TCS:
-        deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set, TCS_OSL_config)
+        deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set, TCS_OSL_config, TCS_tactics_config_template)
     else:
         deploy_legacy_data(ssh, host, host_data)
 
@@ -512,7 +515,7 @@ def deploy_legacy_data(ssh, host, host_data):
     ssh.exec_command('rm %s' % (psi_config.HOST_SERVER_STOPPED_LOCK_FILE,))
 
 
-def deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set, TCS_OSL_config):
+def deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set, TCS_OSL_config, TCS_tactics_config_template):
 
     # Upload psinet file
     # We upload a compartmentalized version of the master file
@@ -524,6 +527,22 @@ def deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set, TCS_OSL_config)
     put_file_with_content(ssh, TCS_traffic_rules_set, TCS_TRAFFIC_RULES_FILE_NAME)
 
     put_file_with_content(ssh, TCS_OSL_config, TCS_OSL_CONFIG_FILE_NAME)
+
+    tactics_request_public_key = ''
+    tactics_request_private_key = ''
+    tactics_request_obfuscated_key = ''
+
+    if host.tactics_request_public_key != None:
+        tactics_request_public_key = host.tactics_request_public_key
+    if host.tactics_request_private_key != None:
+        tactics_request_private_key = host.tactics_request_private_key
+    if host.tactics_request_obfuscated_key != None:
+        tactics_request_obfuscated_key = host.tactics_request_obfuscated_key
+
+    TCS_tactics_config = TCS_tactics_config_template % (
+        tactics_request_public_key, tactics_request_private_key, tactics_request_obfuscated_key)
+
+    put_file_with_content(ssh, TCS_tactics_config, TCS_TACTICS_CONFIG_FILE_NAME)
 
     ssh.exec_command(TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND)
 
@@ -553,7 +572,7 @@ def put_file_with_content(ssh, content, destination_path):
             pass
 
 
-def deploy_data_to_hosts(hosts, data_generator, TCS_traffic_rules_set, TCS_OSL_config):
+def deploy_data_to_hosts(hosts, data_generator, TCS_traffic_rules_set, TCS_OSL_config, TCS_tactics_config_template):
 
     # TCS data is not unique per host, so only generate it once
     TCS_data = None
@@ -566,7 +585,7 @@ def deploy_data_to_hosts(hosts, data_generator, TCS_traffic_rules_set, TCS_OSL_c
         host = host_and_data_generator[0]
         host_data = TCS_data if host.is_TCS and TCS_data else host_and_data_generator[1](host.id, host.is_TCS)
         try:
-            deploy_data(host, host_data, TCS_traffic_rules_set, TCS_OSL_config)
+            deploy_data(host, host_data, TCS_traffic_rules_set, TCS_OSL_config, TCS_tactics_config_template)
         except:
             print 'Error deploying data to host %s' % (host.id,)
             raise
