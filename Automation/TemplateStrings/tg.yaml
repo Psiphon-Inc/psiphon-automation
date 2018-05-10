@@ -1,0 +1,20 @@
+tg:
+  plaintext_email_no_attachment: |
+      Psiphon-ро аз инҷо боргирӣ кунед: {{0}}/{0}/download.html#direct
+  html_email_no_attachment: |
+      <div style="direction: ltr;">Psiphon-ро аз инҷо боргирӣ кунед: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+      </div>
+  plaintext_email_with_attachment: |+
+      Барои Psiphon 3 барои Windows-ро истифода бурдан, файли {{1}}-и замшударо бо пасванди “.exe” захира кунед.
+      Барои Psiphon 3 барои Android-ро истифода бурдан, файли {{2}}-и замшударо насб кунед.
+      Барои маълумоти бештар гирифтан ё файлро дубора боргирӣ кардан, пайванди зеринро пахш кунед.
+      {{0}}/{0}/download.html#direct
+
+  html_email_with_attachment: |
+      <div style="direction: ltr;">
+      Барои Psiphon 3 барои Windows-ро истифода бурдан, файли {{1}}-и замшударо бо пасванди “.exe” захира кунед.<br>
+      Барои Psiphon 3 барои Android-ро истифода бурдан, файли {{2}}-и замшударо насб кунед.<br>
+      Барои маълумоти бештар гирифтан ё файлро дубора боргирӣ кардан, пайванди зеринро пахш кунед.<br>
+      <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+      </div>
+      <br>

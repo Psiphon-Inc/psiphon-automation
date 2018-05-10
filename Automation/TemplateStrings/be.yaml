@@ -1,0 +1,20 @@
+be:
+  plaintext_email_no_attachment: |
+      Спампаваць Psiphon тут: {{0}}/{0}/download.html#direct
+  html_email_no_attachment: |
+      <div style="direction: ltr;">
+      Спампаваць Psiphon тут: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+      </div>
+  plaintext_email_with_attachment: |+
+      Для Psiphon 3 для Windows, захавайце далучаны файл {{1}} з пашырэннем ".exe".
+      Для Psiphon 3 для Android, захавайце далучаны файл {{2}}.
+      Каб атрымаць больш інфармацыі або зноў загрузіць файлы, націсніце на спасылку ніжэй.
+      {{0}}/{0}/download.html#direct
+
+  html_email_with_attachment: |
+      Для Psiphon 3 для Windows, захавайце далучаны файл {{1}} з пашырэннем ".exe".<br>
+      Для Psiphon 3 для Android, захавайце далучаны файл {{2}}.<br>
+      Каб атрымаць больш інфармацыі або зноў загрузіць файлы, націсніце на спасылку ніжэй.<br>
+      <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+      <div style="direction: ltr;">
+      <br>
