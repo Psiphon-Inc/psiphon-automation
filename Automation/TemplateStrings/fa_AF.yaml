@@ -1,0 +1,21 @@
+fa_AF:
+  plaintext_email_no_attachment: |
+      سایفون را از اینجا دانلود کنید: {{0}}/{0}/download.html#direct
+  html_email_no_attachment: |
+      <div style="direction: ltr;">
+      سایفون را از اینجا دانلود کنید: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct23</a><br>
+      </div>
+  plaintext_email_with_attachment: |+
+      برای استفاده از سایفون 3 برای ویندوز، فایل ضمیمه شده {{1}} را با پسوند "exe." ذخیره نمایید.
+      برای استفاده از سایفون 3 برای اندرواید، فایل ضمیمه شده {{2}} را نصب نمایید.
+      برای کسب معلومات بیشتر یا دانلود مجدد فایل ها، روی لینک ذیل کلیک کنید.
+      {{0}}/{0}/download.html#direct
+
+  html_email_with_attachment: |
+      <div style="direction: ltr;">
+      برای استفاده از سایفون 3 برای ویندوز، فایل ضمیمه شده {{1}} را با پسوند ".exe" ذخیره نمایید.<br>
+      برای استفاده از سایفون 3 جهت اندرواید، فایل ضمیمه شده {{2}} را نصب نمایید.{{2}}.<br>
+      برای کسب معلومات بیشتر یا دانلود مجدد فایل ها، روی لینک ذیل کلیک کنید.<br>
+      <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+      </div>
+      <br>

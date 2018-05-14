@@ -1,21 +1,21 @@
 kk:
   plaintext_email_no_attachment: |
-    Psiphon қолданбасын осы жерден жүктеп алыңыз: {{0}}/{0}/download.html#direct
+      Psiphon қолданбасын осы жерден жүктеп алыңыз: {{0}}/{0}/download.html#direct
   html_email_no_attachment: |
-    <div style="direction: ltr;">
-    Psiphon қолданбасын осы жерден жүктеп алыңыз: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
-    </div>
+      <div style="direction: ltr;">
+      Psiphon қолданбасын осы жерден жүктеп алыңыз: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+      </div>
   plaintext_email_with_attachment: |+
-    Windows үшін Psiphon 3 қолданбасын қолдану үшін ".exe" кеңейтімі бар {{1}} тіркелген файлын сақтаңыз.
-    Android жүйесіне арналған Psiphon 3 қолданбасын пайдалану үшін тіркелген  {{2}} файлын сақтаңыз.
-    Толық ақпарат алу үшін немесе файлдарды қайта жүктеп алу үшін төмендегі сілтемені ашыңыз.
-    {{0}}/{0}/download.html#direct
+      Windows үшін Psiphon 3 қолданбасын қолдану үшін ".exe" кеңейтімі бар {{1}} тіркелген файлын сақтаңыз.
+      Android жүйесіне арналған Psiphon 3 қолданбасын пайдалану үшін тіркелген  {{2}} файлын сақтаңыз.
+      Толық ақпарат алу үшін немесе файлдарды қайта жүктеп алу үшін төмендегі сілтемені ашыңыз.
+      {{0}}/{0}/download.html#direct
 
   html_email_with_attachment: |
-    <div style="direction: ltr;">
-    Windows үшін Psiphon 3 қолданбасын қолдану үшін, ".exe" кеңейтуі бар {{1}} тіркелген файлын сақтаңыз.<br>
-    Android жүйесіне арналған Psiphon 3 қолданбасын пайдалану үшін тіркелген {{2}} файлын сақтаңыз.<br>
-    Толық ақпарат алу үшін немесе файлдарды қайта жүктеп алу үшін төмендегі сілтемені ашыңыз.<br>
-    <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
-    </div>
-    <br>
+      <div style="direction: ltr;">
+      Windows үшін Psiphon 3 қолданбасын қолдану үшін, ".exe" кеңейтуі бар {{1}} тіркелген файлын сақтаңыз.<br>
+      Android жүйесіне арналған Psiphon 3 қолданбасын пайдалану үшін тіркелген {{2}} файлын сақтаңыз.<br>
+      Толық ақпарат алу үшін немесе файлдарды қайта жүктеп алу үшін төмендегі сілтемені ашыңыз.<br>
+      <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+      </div>
+      <br>

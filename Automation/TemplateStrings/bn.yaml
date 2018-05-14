@@ -1,0 +1,20 @@
+bn:
+  plaintext_email_no_attachment: |
+      এখানে সাইফন ডাউনলোড করুন: {{0}} / {0} /download.html#direct
+  html_email_no_attachment: |
+      <div style="direction: ltr;">
+      এখানে সাইফন ডাউনলোড করুন: <a href="{{0}}/{0}/download.html#direct">{{0}} / {0} /download.html#direct</a><br>
+      </div>
+  plaintext_email_with_attachment: |
+      Windows এর জন্য সাইফন 3 ব্যবহার করতে, সংযুক্ত ফাইলটি {{1}} ".exe" এক্সটেনশন দিয়ে সংরক্ষণ করুন।
+      Android এর জন্য সাইফন 3 ব্যবহার করতে, সংযুক্ত ফাইল {{2}} ইনস্টল করুন।
+      আরও তথ্যের জন্য বা আবার ফাইলগুলি ডাউনলোড করতে , নীচের লিঙ্কে ক্লিক করুন।
+      {{0}} / {0} /download.html#direct
+  html_email_with_attachment: |
+      <div style="direction: ltr;">
+      Windows এর জন্য সাইফন 3 ব্যবহার করতে, সংযুক্ত ফাইলটি {{1}} ".exe" এক্সটেনশন দিয়ে সংরক্ষণ করুন।<br>
+      অ্যান্ড্রয়েডের জন্য সাইফন 3 ব্যবহার করতে, সংযুক্ত ফাইলটি {{2}} ইনস্টল করুন। <br>
+      আরও তথ্যের জন্য বা ফাইলগুলি আবার ডাউনলোড করতে , নীচের লিঙ্কে ক্লিক করুন।<br>
+      <a href="{{0}}/{0}/download.html#direct">{{0}} / {0} /download.html#direct</a><br>
+      </div>
+      <br>
