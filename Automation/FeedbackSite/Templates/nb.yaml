@@ -2,28 +2,28 @@ nb:
   title: Psiphon-tilbakemeldinger
   top_content_title: Gi oss din tilbakemelding
   top_para_1: |
-    Dine tilbakemeldinger gjør Psiphon bedre!
+      Dine tilbakemeldinger gjør Psiphon bedre!
   top_para_2: |+
-    Mange problemer kan ordnes ved å laste ned siste versjon.
-    Du kan
-    <a class="newVersionURL" href="#">laste ned siste versjon ved å trykke her</a>,
-    eller du kan sende en e-post til<span id="newVersionEmail"></span>.
+      Mange problemer kan ordnes ved å laste ned siste versjon.
+      Du kan
+      <a class="newVersionURL" href="#">laste ned siste versjon ved å trykke her</a>,
+      eller du kan sende en e-post til<span id="newVersionEmail"></span>.
 
   top_para_3: |
-    Du kan finne løsninger på mange vanlige problemer i våre
-    <a class="faqURL" href="#">Ofte-Stilte-Spørsmål</a>.
+      Du kan finne løsninger på mange vanlige problemer i våre
+      <a class="faqURL" href="#">Ofte-Stilte-Spørsmål</a>.
   diagnostic_check: |+
-    Last opp diagnostisk data. Bit deg merke i at denne diagnostikk-dataen ikke
-    identifiserer deg, og at du kan hjelpe oss å holde Psiphon-hjulene med å fungere knirkefritt.
-    <a class="dataCollectionInfoURL" href="#">Trykk her for å se hva vi samler inn.</a>
+      Last opp diagnostisk data. Bit deg merke i at denne diagnostikk-dataen ikke
+      identifiserer deg, og at du kan hjelpe oss å holde Psiphon-hjulene med å fungere knirkefritt.
+      <a class="dataCollectionInfoURL" href="#">Trykk her for å se hva vi samler inn.</a>
 
   smiley_title: Helhetsinntrykk
   smiley_happy: Psiphon kobler til og fungerer slik jeg ønsker det.
   smiley_sad: Psiphon klarer ikke og koble til eller fungerer ikke bra nok.
   submit_button: Send inn
   text_feedback_prompt: |
-    Kommenter her:
+      Kommenter her:
   text_feedback_email_prompt: |
-    Hvis du ønsker at vi svarer deg, legg ved din e-postadresse:
+      Hvis du ønsker at vi svarer deg, legg ved din e-postadresse:
   text_feedback_bottom_para: |
-    Hvis overstående skjema ikke virker, eller du vil sende oss skjermbilder, send e-post til <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>
+      Hvis overstående skjema ikke virker, eller du vil sende oss skjermbilder, send e-post til <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>
