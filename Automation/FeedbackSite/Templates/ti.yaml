@@ -1,0 +1,26 @@
+ti:
+  title: ርእይቶታት ሳይፎን (Psiphon)
+  top_content_title: ርእቶኹም ሃቡና
+  top_para_1: |
+      ርእይቶኹም ኣብ ምምሕያሽ ሳይፎን (Psiphon) ሓጋዚ`ዩ!
+  top_para_2: |
+      ነዚ ዳሕራዋይ ስሪት ብምውራድ ብዙሕ ጸገማት ክዕረ ይኽእል።
+      <a class="newVersionURL" href="#">ኣብ`ዚ</a>,
+      ብምጥዋቕ ንዳሕራዋይ ስሪት ምውራድ ይክኣል ወይ ከኣ ናብ`ዚ ዝስዕብ ኢመይል ግበር<span id="newVersionEmail"></span>.
+  top_para_3: |
+      ኣብ <a class="faqURL" href="#">ብተደጋጋሚ ዝሕተቱ ሕቶታት</a>
+      ንዝውቱራት ጸገማት ፍታሕ ክትረኽበሎም ትኽእል ኢኻ.
+  diagnostic_check: |
+      መመርመሪ ዳታ ጽዓን:: እዚ መመርመሪ ዳታ ኖቲደንቲፋይ ከምዝይገብረካ
+      ኣስተውዕል ሳይፎን (Psiphon) ብጽቡቕ ክኸይድ`ውን ይሕግዘና`ዩ::
+      <a class="dataCollectionInfoURL" href="#">ጠውቕኣብ`ዚ ንእክቦ ዳታ ንምርኣይጠውቕ፡፡</a>
+  smiley_title: ሓፈሻዊ ዕግበትካ
+  smiley_happy: ሳይፎን (Psiphon) በቲ ዝደልኽዎ ይሰርሕን የራኽበንን ኣሎ
+  smiley_sad: ሳይፎን (Psiphon) ፅቡቕ ይሰርሕ የለን
+  submit_button: ኣረክብ
+  text_feedback_prompt: |
+      ርእይቶኻ ኣብ`ዚ ኣእቱ:
+  text_feedback_email_prompt: |
+      መታን ኽንምልሰልካ ናይ ኢመይል ኣድራሻኻ ጽሓፍ፡
+  text_feedback_bottom_para: |
+      ኣብ ላዕሊ ዘሎ ቐጥዒ ዝይሰርሕ እንተኾይኑ ወይ ክኣ ስክሪንሾታት ክትልእኽ እንተደሊኽእ፡ ናብ`ዚ ኢመይል ግበረልና <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>
