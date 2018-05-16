@@ -128,6 +128,7 @@ html {{
   <option value="am">አማርኛ</option>
   <option value="az">azərbaycan dili</option>
   <option value="be">Беларуская</option>
+  <option value="bn">বাংলা</option>
   <option value="bo">བོད་ཡིག</option>
   <option value="de">Deutsch</option>
   <option value="el">Ελληνικά</option>
@@ -146,12 +147,14 @@ html {{
   <option value="my">မြန်မာဘာသာ</option>
   <option value="nb">Norsk (bokmål)</option>
   <option value="nl">Nederlands</option>
+  <option value="om">Afaan Oromo</option>
   <option value="pt_BR">Português (Brasil)</option>
   <option value="pt_PT">Português (Portugal)</option>
   <option value="ru">Русский</option>
   <option value="sn">chiShona</option>
   <option value="tg">Тоҷикӣ</option>
   <option value="th">ภาษาไทย</option>
+  <option value="ti">ትግርኛ</option>
   <option value="tk">Türkmençe</option>
   <option value="tr">Türkçe</option>
   <option value="ug@Latn">Uyghurche</option>

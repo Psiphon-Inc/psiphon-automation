@@ -2,25 +2,25 @@ am:
   title: 'የሳይፈን ግብረመልስ '
   top_content_title: 'ግብረ መልስዎን ይስጡን '
   top_para_1: |
-    የእርስዎ ግብረ መልስ ሳይፈንን የተሻለ ያደርገዋል!
+      የእርስዎ ግብረ መልስ ሳይፈንን የተሻለ ያደርገዋል!
   top_para_2: |
-    ብዙ ችግሮች የመጨረሻውን ስሪት በማውረድ ሊፈቱ ይችላሉ።
-    የ<a class="newVersionURL" href="#">መጨረሻውን ብጅት ይህንን ጠቅ በማድረግ ማውረድ</a> ይችላሉ።
-    ወይም ወደ <span id="newVersionEmail"></span> ኢሜል መላክ ይችላሉ።
+      ብዙ ችግሮች የመጨረሻውን ስሪት በማውረድ ሊፈቱ ይችላሉ።
+      የ<a class="newVersionURL" href="#">መጨረሻውን ብጅት ይህንን ጠቅ በማድረግ ማውረድ</a> ይችላሉ።
+      ወይም ወደ <span id="newVersionEmail"></span> ኢሜል መላክ ይችላሉ።
   top_para_3: |
-    ለብዙ የተለመዱ ችግሮች መፍትሄዎችን
-    <a class="faqURL" href="#"> በኤፍኤኪውዋችን</a> ውስጥ ሊያገኙ ይችላሉ።
+      ለብዙ የተለመዱ ችግሮች መፍትሄዎችን
+      <a class="faqURL" href="#"> በኤፍኤኪውዋችን</a> ውስጥ ሊያገኙ ይችላሉ።
   diagnostic_check: |
-    የምርመራ ዳታውን ይጫኑ። ይህ የምርመራ ዳታ
-    ማንነትዎን እንደማይለይ እና ሳይፈንን ያለምንም ችግር እንድናሰራ የሚረዳን መሆኑን እባክዎ ያስተውሉ።
-    <a class="dataCollectionInfoURL" href="#">ምን አይነት ዳታ እንደምንሰበስብ ለማየት ይህንን ጠቅ ያድርጉ። </a>
+      የምርመራ ዳታውን ይጫኑ። ይህ የምርመራ ዳታ
+      ማንነትዎን እንደማይለይ እና ሳይፈንን ያለምንም ችግር እንድናሰራ የሚረዳን መሆኑን እባክዎ ያስተውሉ።
+      <a class="dataCollectionInfoURL" href="#">ምን አይነት ዳታ እንደምንሰበስብ ለማየት ይህንን ጠቅ ያድርጉ። </a>
   smiley_title: 'አጠቃላይ እርካታ '
   smiley_happy: 'ሳይፈን የሚገናኘው እና የሚሰራው እኔ እንደምፈልገው ነው። '
   smiley_sad: 'አብዛኛውን ጊዜ ሳይፈን ሳይገናኝ ወይም በደንብ ሳይሰራ ይቀራል። '
   submit_button: 'አስገባ '
   text_feedback_prompt: |
-    እባክዎን አስተያየቶችዎች እዚህ ጋር ያስገቡ፡-
+      እባክዎን አስተያየቶችዎች እዚህ ጋር ያስገቡ፡-
   text_feedback_email_prompt: |
-    ምላሽ እንድንሰጥዎት የሚፈልጉ ከሆነ እባክዎ የኢሜል አድራሻዎን ያስገቡ፡-
+      ምላሽ እንድንሰጥዎት የሚፈልጉ ከሆነ እባክዎ የኢሜል አድራሻዎን ያስገቡ፡-
   text_feedback_bottom_para: |
-    ከላይ ያለው ቅጽ የማይሰራ ከሆነ ወይም ቅጽበታዊ ገጽ እይታን መላክ የሚፈልጉ ከሆነ እባክዎን <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a> ላይ ኢሜል ይላኩልን።
+      ከላይ ያለው ቅጽ የማይሰራ ከሆነ ወይም ቅጽበታዊ ገጽ እይታን መላክ የሚፈልጉ ከሆነ እባክዎን <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a> ላይ ኢሜል ይላኩልን።
