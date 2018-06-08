@@ -124,10 +124,6 @@ coalesce.test = coalesce_test
 # Very rudimentary, but sufficient
 ipv4_regex = re.compile(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})')
 
-# The min length of 33 is arbitrary, but must be longer than any other hex
-# values that we want to leave intact (like the ID values).
-server_entry_regex = re.compile(r'([0-9A-Fa-f]{33,})')
-
 
 def convert_psinet_values(config, obj):
     '''
@@ -158,17 +154,6 @@ def convert_psinet_values(config, obj):
 
             if val_modified:
                 clean_val = ''.join(split)
-                assign_value_to_obj_at_path(obj, path, clean_val)
-
-            #
-            # Find server entries and remove them
-            #
-
-            split = re.split(server_entry_regex, val)
-
-            if len(split) > 1:
-                # With re.split, the odd items are the matches. Keep the even items.
-                clean_val = '[SERVER ENTRY REDACTED]'.join(split[::2])
                 assign_value_to_obj_at_path(obj, path, clean_val)
 
         if path[-1] == 'PROPAGATION_CHANNEL_ID':
