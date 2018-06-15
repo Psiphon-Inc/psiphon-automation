@@ -386,7 +386,15 @@ def _get_response_content(response_id, diagnostic_info):
                 '2': home_page_url,
                 '3': faq_page_url
             }
-            body = unicode(body) % format_dict
+
+            try:
+                body = unicode(body) % format_dict
+            except TypeError as e:
+                # This is probably "not enough arguments for format string" and indicates
+                # a problem with a translation.
+                logger.error('_get_response_content: format failed for response_id %s with lang %s: %s' % (response_id, lang_id, e))
+                continue
+
             bodies.append(body)
 
     # Render the email body from the Mako template
