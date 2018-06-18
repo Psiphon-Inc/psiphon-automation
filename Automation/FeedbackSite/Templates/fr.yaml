@@ -18,8 +18,8 @@ fr:
   smiley_sad: Psiphon n’arrive souvent pas à se connecter et ne fonctionne pas assez bien.
   submit_button: Envoyer
   text_feedback_prompt: |
-      Veuillez saisir vos commentaires ici :
+      Veuillez saisir vos commentaires ici :
   text_feedback_email_prompt: |
-      Si vous voulez que l’on vous réponde, veuillez saisir votre adresse courriel :
+      Si vous voulez que l’on vous réponde, veuillez saisir votre adresse courriel :
   text_feedback_bottom_para: |
-      Si le formulaire ne fonctionne pas, ou que vous voudriez envoyer des captures d’écran, veuillez le faire par courriel à <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>
+      Si le formulaire ne fonctionne pas ou que vous voulez envoyer des captures d’écran, veuillez le faire par courriel à <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>
