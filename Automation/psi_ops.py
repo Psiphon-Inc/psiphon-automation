@@ -2991,7 +2991,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             empty_osl_registry = zlib.compress(psi_ops_crypto_tools.make_signed_data(
                     self.__get_remote_server_list_signing_key_pair().pem_key_pair,
                     REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD,
-                    base64.b64encode('{}')))
+                    base64.b64encode('{"FileSpecs" : []}')))
 
             for sponsor in self.__sponsors.itervalues():
                 for campaign in sponsor.campaigns:
