@@ -3940,7 +3940,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 server.ssh_host_key,
                                                 None,
                                                 int(server.ssh_obfuscated_port), # Some ports are stored as strings, catch this for tunnel-core-server
-                                                int(server.ssh_obfuscated_quic_port),
+                                                int(server.ssh_obfuscated_quic_port) if server.ssh_obfuscated_quic_port else 0,
                                                 server.ssh_obfuscated_key,
                                                 server.alternate_ssh_obfuscated_ports,
                                                 None,
