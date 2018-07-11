@@ -961,9 +961,9 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
         -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m limit --limit 1000/sec -j ACCEPT''')
 
     accept_with_recent_rate_template = textwrap.dedent('''
-        -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m recent --set --name {recent_name}
-        -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m recent --update --name {recent_name} --seconds 60 --hitcount 3 -j DROP
-        -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -j ACCEPT''')
+        -A PSI_RATE_LIMITING -p {proto} -m state --state NEW -m {proto} --dport {port} -m recent --set --name LIMIT-{proto}-{port}
+        -A PSI_RATE_LIMITING -p {proto} -m state --state NEW -m {proto} --dport {port} -m recent --update --name LIMIT-{proto}-{port} --seconds 60 --hitcount 3 -j DROP
+        -A PSI_RATE_LIMITING -p {proto} -m state --state NEW -m {proto} --dport {port} -j ACCEPT''')
 
     return_from_rate_limit_chain = textwrap.dedent('''
         -A PSI_RATE_LIMITING -j RETURN''')
@@ -979,8 +979,8 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
 
     if server.capabilities['handshake']:
         web_server_port_rule = accept_with_recent_rate_template.format(
-                port=str(firewall_web_server_port),
-                recent_name='LIMIT-' + str(firewall_web_server_port))
+                proto="tcp",
+                port=str(firewall_web_server_port))
         rate_limit_rules += [web_server_port_rule]
 
     if host.TCS_type == 'NATIVE':
@@ -998,10 +998,14 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
         elif 'MEEK' in protocol:
             protocol_port_rule = accept_with_fronted_limit_rate_template.format(
                 port=str(port))
+        elif 'QUIC' in protocol:
+            protocol_port_rule = accept_with_recent_rate_template.format(
+                    proto="udp",
+                    port=str(port))
         else:
             protocol_port_rule = accept_with_recent_rate_template.format(
-                    port=str(port),
-                    recent_name='LIMIT-' + str(port))
+                    proto="tcp",
+                    port=str(port))
         rate_limit_rules += [protocol_port_rule]
 
     rate_limit_rules += [return_from_rate_limit_chain]
