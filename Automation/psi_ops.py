@@ -3143,10 +3143,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
                     # Email with attachments
                     attachments = []
-                    if campaign.platforms == None or CLIENT_PLATFORM_WINDOWS in campaign.platforms:
-                        attachments.append([campaign.s3_bucket_name,
-                                            psi_ops_s3.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME,
-                                            psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME])
+                    # We are temporarily disabling the Windows attachment because Gmail is currently blocking it.
+                    #if campaign.platforms == None or CLIENT_PLATFORM_WINDOWS in campaign.platforms:
+                    #    attachments.append([campaign.s3_bucket_name,
+                    #                        psi_ops_s3.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME,
+                    #                        psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME])
                     if campaign.platforms == None or CLIENT_PLATFORM_ANDROID in campaign.platforms:
                         attachments.append([campaign.s3_bucket_name,
                                             psi_ops_s3.DOWNLOAD_SITE_ANDROID_BUILD_FILENAME,
