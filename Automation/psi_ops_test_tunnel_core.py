@@ -357,7 +357,7 @@ def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, a
 def get_server_test_cases(server, host, test_cases):
     capabilities = server.capabilities
     
-    local_test_cases = copy.copy(test_cases) if test_cases else ['handshake', 'VPN', 'OSSH', 'SSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH', 'UNFRONTED-MEEK-SESSION-TICKET-OSSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTP-OSSH']
+    local_test_cases = copy.copy(test_cases) if test_cases else ['handshake', 'VPN', 'OSSH', 'SSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH', 'UNFRONTED-MEEK-SESSION-TICKET-OSSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTP-OSSH', 'QUIC-OSSH']
 
     for test_case in copy.copy(local_test_cases):
         if ((test_case == 'VPN' # VPN requires handshake, SSH or SSH+
@@ -368,7 +368,8 @@ def get_server_test_cases(server, host, test_cases):
             or (test_case == 'FRONTED-MEEK-OSSH' and not (capabilities['FRONTED-MEEK']))
             or (test_case == 'FRONTED-MEEK-HTTP-OSSH' and not (capabilities['FRONTED-MEEK'] and host.alternate_meek_server_fronting_hosts))
             or (test_case in ['handshake', 'OSSH', 'SSH', 'VPN'] and not capabilities[test_case])
-            or test_case == 'handshake' or test_case == 'VPN'):
+            or test_case == 'handshake' or test_case == 'VPN'
+            or (test_case == 'QUIC-OSSH' and not capabilities['QUIC'])):
             local_test_cases.remove(test_case)
     
     return local_test_cases

@@ -214,7 +214,8 @@ Server = psi_utils.recordtype(
     'id, host_id, ip_address, egress_ip_address, internal_ip_address, ' +
     'propagation_channel_id, is_embedded, is_permanent, discovery_date_range, capabilities, ' +
     'web_server_port, web_server_secret, web_server_certificate, web_server_private_key, ' +
-    'ssh_port, ssh_username, ssh_password, ssh_host_key, TCS_ssh_private_key, ssh_obfuscated_port, ssh_obfuscated_key, ' +
+    'ssh_port, ssh_username, ssh_password, ssh_host_key, TCS_ssh_private_key, ' +
+    'ssh_obfuscated_port, ssh_obfuscated_quic_port, ssh_obfuscated_key, ' +
     'alternate_ssh_obfuscated_ports, osl_ids, osl_discovery_date_range, ' +
     'configuration_version',
     default=None)
@@ -236,14 +237,14 @@ def ServerCapabilities():
     for capability in ('handshake', 'VPN', 'SSH', 'OSSH'):
         capabilities[capability] = True
     # These are disabled by default
-    for capability in ('ssh-api-requests', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'FRONTED-MEEK-TACTICS'):
+    for capability in ('ssh-api-requests', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'FRONTED-MEEK-TACTICS', 'QUIC'):
         capabilities[capability] = False
     return capabilities
 
 
 def copy_server_capabilities(caps):
     capabilities = {}
-    for capability in ('handshake', 'ssh-api-requests', 'VPN', 'SSH', 'OSSH', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'FRONTED-MEEK-TACTICS'):
+    for capability in ('handshake', 'ssh-api-requests', 'VPN', 'SSH', 'OSSH', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'FRONTED-MEEK-TACTICS', 'QUIC'):
         capabilities[capability] = caps[capability]
     return capabilities
 
@@ -408,7 +409,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.49'
+    class_version = '0.50'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -730,6 +731,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     host.tactics_request_private_key = private_key
                     host.tactics_request_obfuscated_key = self.generate_obfuscated_key(base64_encode=True)
             self.version = '0.49'
+        if cmp(parse_version(self.version), parse_version('0.50')) < 0:
+            for server in self.__servers.values() + self.__deleted_servers.values():
+                server.capabilities['QUIC'] = False
+                server.ssh_obfuscated_quic_port = None
+            self.version = '0.50'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1431,8 +1437,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def get_server_object(self, id, host_id, ip_address, egress_ip_address, internal_ip_address, propagation_channel_id,
                         is_embedded, is_permanent, discovery_date_range, capabilities, web_server_port, web_server_secret,
                         web_server_certificate, web_server_private_key, ssh_port, ssh_username, ssh_password,
-                        ssh_host_key, TCS_ssh_private_key, ssh_obfuscated_port, ssh_obfuscated_key, alternate_ssh_obfuscated_ports,
-                        osl_ids, osl_discovery_date_range, configuration_version):
+                        ssh_host_key, TCS_ssh_private_key, ssh_obfuscated_port, ssh_obfuscated_quic_port, ssh_obfuscated_key,
+                        alternate_ssh_obfuscated_ports, osl_ids, osl_discovery_date_range, configuration_version):
         return Server(id,
                     host_id,
                     ip_address,
@@ -1453,6 +1459,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     ssh_host_key,
                     TCS_ssh_private_key,
                     ssh_obfuscated_port,
+                    ssh_obfuscated_quic_port,
                     ssh_obfuscated_key,
                     alternate_ssh_obfuscated_ports,
                     osl_ids,
@@ -1513,6 +1520,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             server.ssh_host_key,
                             server.TCS_ssh_private_key,
                             server.ssh_obfuscated_port,
+                            server.ssh_obfuscated_quic_port,
                             server.ssh_obfuscated_key,
                             server.alternate_ssh_obfuscated_ports,
                             server.osl_ids,
@@ -2116,6 +2124,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         None,
                         None,
                         None,
+                        ossh_port,
                         ossh_port,
                         None,
                         None,
@@ -2982,7 +2991,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             empty_osl_registry = zlib.compress(psi_ops_crypto_tools.make_signed_data(
                     self.__get_remote_server_list_signing_key_pair().pem_key_pair,
                     REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD,
-                    base64.b64encode('{}')))
+                    base64.b64encode('{"FileSpecs" : []}')))
 
             for sponsor in self.__sponsors.itervalues():
                 for campaign in sponsor.campaigns:
@@ -3134,10 +3143,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
                     # Email with attachments
                     attachments = []
-                    if campaign.platforms == None or CLIENT_PLATFORM_WINDOWS in campaign.platforms:
-                        attachments.append([campaign.s3_bucket_name,
-                                            psi_ops_s3.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME,
-                                            psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME])
+                    # We are temporarily disabling the Windows attachment because Gmail is currently blocking it.
+                    #if campaign.platforms == None or CLIENT_PLATFORM_WINDOWS in campaign.platforms:
+                    #    attachments.append([campaign.s3_bucket_name,
+                    #                        psi_ops_s3.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME,
+                    #                        psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME])
                     if campaign.platforms == None or CLIENT_PLATFORM_ANDROID in campaign.platforms:
                         attachments.append([campaign.s3_bucket_name,
                                             psi_ops_s3.DOWNLOAD_SITE_ANDROID_BUILD_FILENAME,
@@ -3451,6 +3461,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Use the latest alternate port unless tunneling through meek
         if server.alternate_ssh_obfuscated_ports and not (server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET']):
             extended_config['sshObfuscatedPort'] = int(server.alternate_ssh_obfuscated_ports[-1])
+        extended_config['sshObfuscatedQUICPort'] = int(server.ssh_obfuscated_quic_port) if server.ssh_obfuscated_quic_port else 0
         extended_config['sshObfuscatedKey'] = server.ssh_obfuscated_key if server.ssh_obfuscated_key else ''
 
         host = self.__hosts[server.host_id]
@@ -3777,6 +3788,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 server.ssh_host_key,
                                                 None,
                                                 server.ssh_obfuscated_port,
+                                                server.ssh_obfuscated_quic_port,
                                                 server.ssh_obfuscated_key,
                                                 server.alternate_ssh_obfuscated_ports,
                                                 None,
@@ -3929,6 +3941,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 server.ssh_host_key,
                                                 None,
                                                 int(server.ssh_obfuscated_port), # Some ports are stored as strings, catch this for tunnel-core-server
+                                                int(server.ssh_obfuscated_quic_port) if server.ssh_obfuscated_quic_port else 0,
                                                 server.ssh_obfuscated_key,
                                                 server.alternate_ssh_obfuscated_ports,
                                                 None,

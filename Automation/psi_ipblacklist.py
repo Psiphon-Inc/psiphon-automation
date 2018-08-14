@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2015, Psiphon Inc.
+# Copyright (c) 2018, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -31,28 +31,6 @@ IPSET_DIR = os.path.abspath(os.path.join(BASE_PATH, BLACKLIST_DIR, 'ipset'))
 LIST_DIR = os.path.abspath(os.path.join(BASE_PATH, BLACKLIST_DIR, 'lists'))
 
 LISTS_URL = 'https://s3.amazonaws.com/p3_malware_lists/'
-
-
-def apply_local_lists(mal_lists, list_dir=LIST_DIR):
-    """Check if there is a local list. One that is not published. Apply it."""
-    if os.path.isdir(list_dir):
-        lists = os.listdir(list_dir)
-        for L in lists:
-            if L.endswith('.list'):
-                item = L[:-5]
-                if item not in mal_lists.keys():
-                    print item
-                    mal_lists[item] = {'set_name' : item,
-                                       'rawlist' : L,
-                                       'ipset_file' : ''.join([item, '.ipset'])
-                                      }
-                    
-                    mal_lists[item]['ip_list'] = parse_ip_list(mal_lists[item]['rawlist'], 'r')
-                    create_ipset_commands(mal_lists[item])
-                    write_ipset_list_file(mal_lists[item])
-                    apply_ipset_list(mal_lists[item])
-                    modify_iptables(mal_lists[item], '-D', 'INPUT', 'src', '-j DROP')
-                    modify_iptables(mal_lists[item], '-I', 'INPUT 2', 'src', '-j DROP')
 
 
 def build_malware_dictionary(url):
@@ -110,10 +88,9 @@ def parse_ip_list(raw_list_filename, read_mode):
 # which is stored in a file for execution
 def create_ipset_commands(tracker):
     """Create the ipset name and add elements of the list."""
-    ipset_base = ["ipset -N %s iphash" % str(tracker['set_name']),
-                  "ipset -F %s" % str(tracker['set_name'])]
+    ipset_base = ["ipset -N %s iphash" % str(tracker['set_name'])]
     tracker['ipset_rules'] = ipset_base + \
-        ["ipset -A %s %s" % (str(tracker['set_name']), str(ip)) for ip in tracker['ip_list']]
+        ["ipset -q -A %s %s" % (str(tracker['set_name']), str(ip)) for ip in tracker['ip_list']]
 
 
 def write_ipset_list_file(tracker):
@@ -132,6 +109,29 @@ def apply_ipset_list(tracker):
     subprocess.call(script, shell=True)
 
 
+def get_iptables_chain(chain):
+    cmd = "iptables -L %s" % (chain)
+    proc = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE)
+    stdout, stderr = proc.communicate()
+    
+    return stdout
+
+
+def modify_iptables_insert_tracker(tracker, chain, rules):
+    """
+        Check if the tracker already exists in the iptables rules.  Don't add
+        if it already exists as it creates duplicate entries
+    """
+    add_tracker = True
+    for line in rules.split('\n'):
+        if tracker['set_name'] in line:       # return if we see the tracker
+            add_tracker = False
+            break
+    
+    if add_tracker:
+        modify_iptables(tracker, '-I', chain)
+
+
 def modify_iptables(tracker, opt, chain, flags="dst", job='-j DROP'):
     """Modify iptables to include the ipset list."""
     # iptables command:
@@ -144,6 +144,12 @@ if __name__ == "__main__":
     # Build a dict containing each malware list.
     mal_lists = build_malware_dictionary(LISTS_URL)
     
+    iptables_chains = {'OUTPUT': None,
+                       'FORWARD': None}
+    
+    for chain in iptables_chains:
+        iptables_chains[chain] = get_iptables_chain(chain)
+    
     if mal_lists:
         # lists to use:
         for item in mal_lists:
@@ -152,12 +158,10 @@ if __name__ == "__main__":
             create_ipset_commands(mal_lists[item])
             write_ipset_list_file(mal_lists[item])
             apply_ipset_list(mal_lists[item])
-            modify_iptables(mal_lists[item], '-D', 'OUTPUT')
-            modify_iptables(mal_lists[item], '-I', 'OUTPUT')
-            modify_iptables(mal_lists[item], '-D', 'FORWARD')
-            modify_iptables(mal_lists[item], '-I', 'FORWARD')
-        
-        apply_local_lists(mal_lists, LIST_DIR)
+            
+            for chain in iptables_chains:
+                modify_iptables_insert_tracker(mal_lists[item], chain, iptables_chains[chain])
+            
     else:
         print 'Malware list is empty, exiting'
         sys.exit()
