@@ -1470,7 +1470,7 @@ def install_TCS_psi_limit_load_chain(host, server):
     else:
         raise 'Unhandled host.TCS_type: ' + host.TCS_type
 
-    for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, external_ports=use_external_ports, meek_ports=False).iteritems():
+    for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, external_ports=use_external_ports, meek_ports=False, quic_ports=False).iteritems():
         limit_load_rules += [limit_load_template.format(port=str(port))]
 
     limit_load_rules += [limit_load_return]
