@@ -2104,6 +2104,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 capabilities['handshake'] = False
                 capabilities['VPN'] = False
 
+            if host.is_TCS:
+                capabilities['QUIC'] = capabilities['OSSH']
+
             server = Server(
                         None,
                         host.id,
