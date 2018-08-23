@@ -2898,7 +2898,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     self.update_static_site_content(sponsor, campaign)
 
                 self.__deploy_website_required_for_sponsors.remove(sponsor_id)
-                self.save()
+
+            self.save()
 
         # Pave OSLs
 
