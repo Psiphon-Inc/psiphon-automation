@@ -4389,8 +4389,8 @@ if __name__ == "__main__":
     parser.add_option("-r", "--read-only", dest="readonly", action="store_true",
                       help="don't lock the network object")
     parser.add_option("-t", "--test", dest="test", action="append",
-                      choices=('handshake', 'VPN', 'OSSH', 'SSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTP-OSSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH', 'UNFRONTED-MEEK-SESSION-TICKET-OSSH'),
-                      help="specify once for each of: handshake, VPN, OSSH, SSH, FRONTED-MEEK-OSSH, FRONTED-MEEK-HTTP-OSSH, UNFRONTED-MEEK-OSSH, UNFRONTED-MEEK-HTTPS-OSSH, UNFRONTED-MEEK-SESSION-TICKET-OSSH")
+                      choices=('handshake', 'VPN', 'OSSH', 'SSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTP-OSSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH', 'UNFRONTED-MEEK-SESSION-TICKET-OSSH', 'QUIC-OSSH'),
+                      help="specify once for each of: handshake, VPN, OSSH, SSH, FRONTED-MEEK-OSSH, FRONTED-MEEK-HTTP-OSSH, UNFRONTED-MEEK-OSSH, UNFRONTED-MEEK-HTTPS-OSSH, UNFRONTED-MEEK-SESSION-TICKET-OSSH, QUIC-OSSH")
     parser.add_option("-u", "--update-routes", dest="updateroutes", action="store_true",
                       help="update external signed routes files")
     parser.add_option("-d", "--deploy", dest="deploy", action="store_true",
