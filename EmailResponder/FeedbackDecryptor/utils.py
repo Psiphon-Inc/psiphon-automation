@@ -291,6 +291,23 @@ iteritems = lambda mapping: getattr(mapping, 'iteritems', mapping.items)()
 
 
 def objwalk(obj, path=(), memo=None):
+    """
+    Iterates across all leaves of an object, yielding (path, value).
+    The path is a tuple of the keys up to the value. For example:
+        >>> for path, val in utils.objwalk({'a': 1, 'b': {'c': 2}}):
+        ...   print(path, val)
+        ('b', 'c') 2
+        ('a',) 1
+
+    This function operates on types that satisfy collections.Mapping, .Set, and .Sequence,
+    such as dicts, sets, lists, and tuples.
+
+    path and memo should have their default values on first call (they're used for
+    recursive calls).
+
+    Note: DO NOT modify the object's keys while iterating, or the iteration will be messed
+    up. Instead, save the keys into a list, which you can then iterate and modify.
+    """
     if memo is None:
         memo = set()
     iterator = None

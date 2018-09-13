@@ -1456,7 +1456,8 @@ def install_TCS_psi_limit_load_chain(host, server):
 
     limit_load_new_chain = '-N PSI_LIMIT_LOAD'
 
-    limit_load_template = '-A PSI_LIMIT_LOAD -p tcp -m state --state NEW -m tcp --dport {port} -j REJECT --reject-with tcp-reset'
+    limit_load_template_tcp = '-A PSI_LIMIT_LOAD -p tcp -m state --state NEW -m tcp --dport {port} -j REJECT --reject-with tcp-reset'
+    limit_load_template_udp = '-A PSI_LIMIT_LOAD -p udp -m state --state NEW -m udp --dport {port} -j REJECT --reject-with icmp-port-unreachable'
 
     limit_load_return = '-A PSI_LIMIT_LOAD -j RETURN'
 
@@ -1471,7 +1472,10 @@ def install_TCS_psi_limit_load_chain(host, server):
         raise 'Unhandled host.TCS_type: ' + host.TCS_type
 
     for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, external_ports=use_external_ports, meek_ports=False).iteritems():
-        limit_load_rules += [limit_load_template.format(port=str(port))]
+        if 'QUIC' in protocol:
+            limit_load_rules += [limit_load_template_udp.format(port=str(port))]
+        else:
+            limit_load_rules += [limit_load_template_tcp.format(port=str(port))]
 
     limit_load_rules += [limit_load_return]
 

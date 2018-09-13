@@ -371,7 +371,7 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
     config['SSHUserName'] = server.ssh_username
     config['SSHPassword'] = server.ssh_password
 
-    if server.capabilities['OSSH'] or server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] or server.capabilities['QUIC-OSSH']:
+    if server.capabilities['OSSH'] or server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] or server.capabilities['QUIC']:
         config['ObfuscatedSSHKey'] = server.ssh_obfuscated_key
 
     if server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET']:
@@ -391,18 +391,25 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
 # Optional keyword args:
 # - external_ports=True (the default) to get public ports,
 #   or external_ports=False to get Docker ports.
+# - quic_ports=True (the default) to include quic protocols,
+#   or quic_ports=False to exclude quic protocols.
 # - meek_ports=True (the default) to include meek protocols,
 #   or meek_ports=False to exclude meek protocols.
 def get_supported_protocol_ports(host, server, **kwargs):
 
     external_ports = kwargs['external_ports'] if 'external_ports' in kwargs else True
+    quic_ports = kwargs['quic_ports'] if 'quic_ports' in kwargs else True
     meek_ports = kwargs['meek_ports'] if 'meek_ports' in kwargs else True
 
     TCS_protocols = [
         ('SSH', TCS_SSH_DOCKER_PORT),
-        ('OSSH', TCS_OSSH_DOCKER_PORT),        
-        ('QUIC-OSSH', TCS_QUIC_OSSH_DOCKER_PORT)
+        ('OSSH', TCS_OSSH_DOCKER_PORT)
     ]
+
+    if quic_ports:
+        TCS_protocols += [
+            ('QUIC-OSSH', TCS_QUIC_OSSH_DOCKER_PORT)
+        ]
 
     if meek_ports:
         TCS_protocols += [
