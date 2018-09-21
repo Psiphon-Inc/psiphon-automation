@@ -75,11 +75,23 @@ def _sanitize_keys(data):
     the diagnostic data. So we'll replace dots with an allowable character.
     """
 
-    for path, val in utils.objwalk(data):
-        if isinstance(path[-1], utils.string_types) and path[-1].find('.') >= 0:
-            utils.rename_key_in_obj_at_path(data,
-                                            path,
-                                            path[-1].replace('.', '_'))
+    paths_to_sanitize = []
+
+    for path, _ in utils.objwalk(data):
+        for i in xrange(len(path)):
+            if isinstance(path[i], utils.string_types) and path[i].find('.') >= 0:
+                paths_to_sanitize.append(path[:i+1])
+
+    # paths_to_sanitize has the paths that end in keys with dots; e.g.:
+    #   [('a.a',), ('a.a', 'b.b'), ('c', 'd.d')]
+    # We need to iterate through the list backward, so we don't invalidate the higher-up
+    # keys before we've used all of them; e.g., if we change ('a.a',) before we change
+    # ('a.a', 'b.b'), then we won't actually find the latter.
+
+    for path in reversed(paths_to_sanitize):
+        utils.rename_key_in_obj_at_path(data,
+                                        path,
+                                        path[-1].replace('.', '_'))
 
 
 _transformations = {

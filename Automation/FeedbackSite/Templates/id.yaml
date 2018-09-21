@@ -2,24 +2,24 @@ id:
   title: Kritik dan Saran Psiphon
   top_content_title: Beri Kami Kritik dan Saran
   top_para_1: |
-      Umpan balik Anda membuat Psiphon lebih baik!
+      Kritik dan saran Anda membuat Psiphon lebih baik!
   top_para_2: |
-      Ada banyak masalah yang terselesaikan dengan mengunduh versi terbaru. Silakan
+      Ada banyak masalah yang terselesaikan dengan mengunduh versi terbaru. Anda dapat
       <a class="newVersionURL" href="#">klik di sini untuk mengunduh versi terbaru</a>,
       kirim email ke <span id="newVersionEmail"></span>.
   top_para_3: |
-      Anda dapat mencari solusi dari beberapa persoalan umum pada
+      Anda dapat menemukan solusi dari beberapa persoalan umum pada
       <a class="faqURL" href="#">Pertanyaan yang Sering Diajukan</a>.
   diagnostic_check: |
       Unggah data diagnostik. Perlu dicatat bahwa data diagnostik ini tidak bersifat mengenali pribadi Anda dan akan membantu kami melancarkan kinerja Psiphon.
-      <a class="dataCollectionInfoURL" href="#">Klik di sini untuk mengetahui data yang kami kumpulkan</a>.
+      <a class="dataCollectionInfoURL" href="#">Klik di sini untuk melihat data yang kami kumpulkan</a>.
   smiley_title: Tingkat kepuasan keseluruhan
   smiley_happy: Psiphon tersambung dan berfungsi sesuai keinginan saya.
-  smiley_sad: Psiphon seringkali gagal menyambung atau tidak berfungsi sebagaimana mestinya.
+  smiley_sad: Psiphon seringkali gagal menyambung atau tidak berfungsi cukup baik.
   submit_button: Kirim
   text_feedback_prompt: |
       Silakan berikan komentar Anda di sini:
   text_feedback_email_prompt: |
-      Jika Anda ingin kami membalasnya, silakan masukkan alamat email Anda:
+      Jika Anda ingin kami membalas pesan Anda, silakan cantumkan alamat surel Anda:
   text_feedback_bottom_para: |
-      Jika formulir tidak berfungsi atau Anda ingin mengirim cuplikan layar, silakan kirim lewat email ke <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>
+      Jika formulir tidak berfungsi atau Anda ingin mengirim cuplikan layar, silakan kirimkan melalui surel ke <a id="emailAddress" href="mailto:feedback@psiphon.ca">feedback@psiphon.ca</a>

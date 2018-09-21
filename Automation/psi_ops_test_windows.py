@@ -355,6 +355,7 @@ def test_server(server, host, encoded_server_entry,
             or (test_case == 'UNFRONTED-MEEK-SESSION-TICKET-OSSH' and not (capabilities['UNFRONTED-MEEK-SESSION-TICKET']))
             or (test_case == 'FRONTED-MEEK-OSSH' and not (capabilities['FRONTED-MEEK']))
             or (test_case == 'FRONTED-MEEK-HTTP-OSSH' and not (capabilities['FRONTED-MEEK'] and host.alternate_meek_server_fronting_hosts))
+            or (test_case == 'QUIC-OSSH' and not (capabilities['QUIC']))
             or (test_case in ['handshake', 'OSSH', 'SSH', 'VPN'] and not capabilities[test_case])):
             print 'Server does not support %s' % (test_case,)
             local_test_cases.remove(test_case)
