@@ -2105,7 +2105,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 capabilities['VPN'] = False
 
             if host.is_TCS:
-                capabilities['QUIC'] = capabilities['OSSH']
+                capabilities['QUIC'] = capabilities['OSSH'] and ossh_port != 123
 
             server = Server(
                         None,
