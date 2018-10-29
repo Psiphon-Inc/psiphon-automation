@@ -204,9 +204,11 @@ def get_new_stats_count(since_time):
 
 
 def get_stats(since_time):
-    if not since_time:
-        # Pick a sufficiently old date
-        since_time = datetime.datetime(2000, 1, 1)
+    # The "count" queries with large time windows seem very slow, so we're going to cap
+    # since_time to 1 day ago.
+    day_ago = datetime.datetime.now() - datetime.timedelta(days=1)
+    if (not since_time) or (since_time < day_ago):
+        since_time = day_ago
 
     ERROR_LIMIT = 500
 

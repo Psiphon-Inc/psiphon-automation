@@ -72,12 +72,16 @@ def _send(template_name, data):
 
 
 def _send_stats_email(last_send_time):
+    logger.log("stats email: sending; since: %s" % last_send_time)
     stats = datastore.get_stats(last_send_time)
     _send('stats', stats)
+    logger.log("stats email: sent")
 
 
 def _send_warning_email(recs_per_min):
+    logger.log("warning email: sending")
     _send('warning', recs_per_min)
+    logger.log("warning email: sent")
 
 
 def go():
