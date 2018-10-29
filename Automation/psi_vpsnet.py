@@ -176,7 +176,7 @@ def launch_new_server(vpsnet_account, is_TCS, _, datacenter_city=None):
     """
 
     # TODO-TCS: select base image based on is_TCS flag
-    base_image_id = '9171' # For VPS (Old: 8849)
+    base_image_id = '9173' # For VPS (Old: 8849)
     # base_image_id = '8850' # For Cloud Server
 
     try:
