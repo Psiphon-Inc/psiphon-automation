@@ -1000,12 +1000,15 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
                 port=str(port))
         elif 'QUIC' in protocol:
             protocol_port_rule = accept_with_recent_rate_template.format(
-                    proto="udp",
-                    port=str(port))
+                proto="udp",
+                port=str(port))
+        elif 'TAPDANCE' in protocol:
+            protocol_port_rule = accept_with_fronted_limit_rate_template.format(
+                port=str(port))
         else:
             protocol_port_rule = accept_with_recent_rate_template.format(
-                    proto="tcp",
-                    port=str(port))
+                proto="tcp",
+                port=str(port))
         rate_limit_rules += [protocol_port_rule]
 
     rate_limit_rules += [return_from_rate_limit_chain]
