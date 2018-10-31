@@ -91,6 +91,7 @@ TCS_FRONTED_MEEK_HTTP_OSSH_DOCKER_PORT = 1030
 TCS_UNFRONTED_MEEK_HTTPS_OSSH_DOCKER_PORT = 1031
 TCS_UNFRONTED_MEEK_SESSION_TICKET_OSSH_DOCKER_PORT = 1032
 TCS_QUIC_OSSH_DOCKER_PORT = 1033
+TCS_TAPDANCE_OSSH_DOCKER_PORT = 1034
 
 TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND = 'systemctl kill --signal=USR1 psiphond'
 TCS_PSIPHOND_STOP_ESTABLISHING_TUNNELS_SIGNAL_COMMAND = 'systemctl kill --signal=TSTP psiphond'
@@ -371,7 +372,7 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
     config['SSHUserName'] = server.ssh_username
     config['SSHPassword'] = server.ssh_password
 
-    if server.capabilities['OSSH'] or server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] or server.capabilities['QUIC']:
+    if server.capabilities['OSSH'] or server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] or server.capabilities['QUIC'] or server.capabilities['TAPDANCE']:
         config['ObfuscatedSSHKey'] = server.ssh_obfuscated_key
 
     if server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET']:
@@ -403,7 +404,8 @@ def get_supported_protocol_ports(host, server, **kwargs):
 
     TCS_protocols = [
         ('SSH', TCS_SSH_DOCKER_PORT),
-        ('OSSH', TCS_OSSH_DOCKER_PORT)
+        ('OSSH', TCS_OSSH_DOCKER_PORT),
+        ('TAPDANCE-OSSH', TCS_TAPDANCE_OSSH_DOCKER_PORT)
     ]
 
     if quic_ports:
@@ -435,6 +437,9 @@ def get_supported_protocol_ports(host, server, **kwargs):
 
         if protocol == 'QUIC-OSSH' and server.capabilities['QUIC']:
                 supported_protocol_ports[protocol] = int(server.ssh_obfuscated_quic_port) if external_ports else docker_port
+
+        if protocol == 'TAPDANCE-OSSH' and server.capabilities['TAPDANCE']:
+                supported_protocol_ports[protocol] = int(server.ssh_obfuscated_tapdance_port) if external_ports else docker_port
 
         if protocol == 'FRONTED-MEEK-OSSH' and server.capabilities['FRONTED-MEEK']:
                 supported_protocol_ports[protocol] = 443 if external_ports else docker_port

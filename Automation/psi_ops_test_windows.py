@@ -345,7 +345,7 @@ def test_server(server, host, encoded_server_entry,
     web_server_port = server.web_server_port
     web_server_secret = server.web_server_secret
 
-    local_test_cases = copy.copy(test_cases) if test_cases else ['handshake', 'VPN', 'OSSH', 'SSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH', 'UNFRONTED-MEEK-SESSION-TICKET-OSSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTP-OSSH', 'QUIC-OSSH']
+    local_test_cases = copy.copy(test_cases) if test_cases else ['handshake', 'VPN', 'OSSH', 'SSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH', 'UNFRONTED-MEEK-SESSION-TICKET-OSSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTP-OSSH', 'QUIC-OSSH', 'TAPDANCE-OSSH']
 
     for test_case in copy.copy(local_test_cases):
         if ((test_case == 'VPN' # VPN requires handshake, SSH or SSH+
@@ -356,6 +356,7 @@ def test_server(server, host, encoded_server_entry,
             or (test_case == 'FRONTED-MEEK-OSSH' and not (capabilities['FRONTED-MEEK']))
             or (test_case == 'FRONTED-MEEK-HTTP-OSSH' and not (capabilities['FRONTED-MEEK'] and host.alternate_meek_server_fronting_hosts))
             or (test_case == 'QUIC-OSSH' and not (capabilities['QUIC']))
+            or (test_case == 'TAPDANCE-OSSH' and not (capabilities['TAPDANCE']))
             or (test_case in ['handshake', 'OSSH', 'SSH', 'VPN'] and not capabilities[test_case])):
             print 'Server does not support %s' % (test_case,)
             local_test_cases.remove(test_case)
