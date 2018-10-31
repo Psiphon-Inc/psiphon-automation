@@ -35,7 +35,7 @@ except Exception as e:
 _DEBUG = os.environ.get('DEBUG', False)
 
 _my_logger = logging.getLogger('MyLogger')
-_my_logger.setLevel(logging.DEBUG if _DEBUG else logging.WARNING)
+_my_logger.setLevel(logging.DEBUG if _DEBUG else logging.INFO)
 
 # syslog won't work on Windows
 try:
