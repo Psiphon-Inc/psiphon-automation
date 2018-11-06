@@ -757,6 +757,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             Total Campaigns:        %d
             Hosts:                  %d (VPN: %d, TCS: %d)
             Servers:                %d
+            Providers:              %d
             Automation Bucket:      %s
             Stats Server:           %s
             Windows Client Version: %s %s
@@ -787,6 +788,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                      for sponsor in self.__sponsors.itervalues()]),
                 len(self.__hosts), len([s for s in self.__servers.itervalues() if s.capabilities['VPN'] == True]), len([h for h in self.__hosts.itervalues() if h.is_TCS == True and h.TCS_type == 'NATIVE']),
                 len(self.__servers),
+                len(set([h.provider for h in self.__hosts.itervalues()])),
                 self.__automation_bucket if self.__automation_bucket else 'None',
                 self.__stats_server_account.ip_address if self.__stats_server_account else 'None',
                 self.__client_versions[CLIENT_PLATFORM_WINDOWS][-1].version if self.__client_versions[CLIENT_PLATFORM_WINDOWS] else 'None',
