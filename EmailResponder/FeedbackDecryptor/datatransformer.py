@@ -128,7 +128,11 @@ def _postprocess_yaml(data):
     for path, val in timestamps:
         new_path = list(path[:-1])
         new_path.append(path[-1][:path[-1].rindex(TIMESTAMP_SUFFIX)])
-        new_val = datetime.datetime.strptime(val, '%Y-%m-%dT%H:%M:%S.%fZ')
+        try:
+            new_val = datetime.datetime.strptime(val, '%Y-%m-%dT%H:%M:%S.%fZ')
+        except:
+            # The datetime parse failed. Just ignore this value.
+            continue
         utils.rename_key_in_obj_at_path(data, path, new_path[-1])
         utils.assign_value_to_obj_at_path(data, new_path, new_val)
 
