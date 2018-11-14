@@ -133,10 +133,11 @@ class MailResponder(object):
                 attachments = []
                 for attachment_info in conf['attachments']:
                     bucketname, bucket_filename, attachment_filename = attachment_info
-                    attachments.append((aws_helpers.get_s3_attachment(settings.ATTACHMENT_CACHE_DIR,
-                                                                      bucketname,
-                                                                      bucket_filename),
-                                        attachment_filename))
+                    attachment_file = aws_helpers.get_s3_attachment(
+                        settings.ATTACHMENT_CACHE_DIR, bucketname, bucket_filename)
+                    attachment_filename = _make_attachment_safe_for_provider(
+                        self._requester_addr, attachment_filename)
+                    attachments.append((attachment_file, attachment_filename,))
 
             extra_headers = {
                 'Reply-To': self.requested_addr,
@@ -441,6 +442,48 @@ def _dkim_sign_email(raw_email):
     sig = dkim.sign(raw_email, settings.DKIM_SELECTOR, settings.DKIM_DOMAIN,
                     open(settings.DKIM_PRIVATE_KEY).read())
     return sig + raw_email
+
+
+_RESTRICTED_ATTACHMENTS_PROVIDERS = (re.compile(r'^(gmail)|(googlemail)\..+$'),
+                                     re.compile(r'^psiphon.ca$'),
+                                    )
+
+def _make_attachment_safe_for_provider(email_addr, attachment_filename):
+    # type: (str, str) -> str
+    '''
+    Some email providers -- like Gmail -- are more restrictive in the attachments they
+    allow and therefore require different (generally user-unfriendly), tricks to get
+    attachments through.
+    attachment_filename is returned unmodified if email_addr's provider does not require
+    special tactics.
+    '''
+
+    email_provider = email_addr[email_addr.rindex('@') + 1:]
+
+    file_base, file_ext = os.path.splitext(attachment_filename)
+
+    for provider_regex in _RESTRICTED_ATTACHMENTS_PROVIDERS:
+        if provider_regex.match(email_provider):
+            if file_ext == '.exe':
+                # Gmail rejects '.exe' files. Also if they're renamed to '.ex_' (our old
+                # trick). Also if they're in a zip file. _However_, for some baffling
+                # reason, Gmail allows '.exe' files if they have a '.txt' extension.
+                # We're going to use '.ex_.txt' because, by default, Windows Explorer
+                # hides known extensions. If the file were named psiphon3.txt, the user
+                # would see "psiphon3"; if it were 'psiphon3.exe.txt', the user would see
+                # "psiphon3.exe" -- both of those are confusing. If it's named
+                # 'psiphon3.ex_.txt', the user will see "psiphon3.ex_", which is what they
+                # saw before the addition Gmail blocking and will hopefully indicate that
+                # renaming is necessary.
+                file_ext = '.ex_.txt'
+            elif file_ext == '.apk':
+                # Gmail rejects '.apk' files. However, simply renaming the extension
+                # defeats the blocking (for now).
+                file_ext = '.ap_'
+
+            break
+
+    return file_base + file_ext
 
 
 def dump_to_exception_file(string):
