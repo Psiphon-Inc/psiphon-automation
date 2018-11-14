@@ -80,7 +80,7 @@ def get_language_string(language, key):
 
     if string:
         # Assumes strings have one {0} format specifier to receive the
-        # language name Other format specifiers, to be substituted later,
+        # language name. Other format specifiers, to be substituted later,
         # should be escaped: {{N}}
         string = string.format(language)
 
@@ -137,8 +137,8 @@ def get_plaintext_attachment_email_content(
         'plaintext_email_with_attachment',
         languages).format(
             bucket_root_url,
-            windows_attachment_filename,
-            android_attachment_filename)
+            windows_attachment_filename, # supports legacy translations; can be removed in future release
+            android_attachment_filename) # # supports legacy translations; can be removed in future release
 
 
 def get_html_attachment_email_content(
