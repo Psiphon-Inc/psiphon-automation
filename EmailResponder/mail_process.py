@@ -466,16 +466,12 @@ def _make_attachment_safe_for_provider(email_addr, attachment_filename):
         if provider_regex.match(email_provider):
             if file_ext == '.exe':
                 # Gmail rejects '.exe' files. Also if they're renamed to '.ex_' (our old
-                # trick). Also if they're in a zip file. _However_, for some baffling
-                # reason, Gmail allows '.exe' files if they have a '.txt' extension.
-                # We're going to use '.ex_.txt' because, by default, Windows Explorer
-                # hides known extensions. If the file were named psiphon3.txt, the user
-                # would see "psiphon3"; if it were 'psiphon3.exe.txt', the user would see
-                # "psiphon3.exe" -- both of those are confusing. If it's named
-                # 'psiphon3.ex_.txt', the user will see "psiphon3.ex_", which is what they
-                # saw before the addition Gmail blocking and will hopefully indicate that
-                # renaming is necessary.
-                file_ext = '.ex_.txt'
+                # trick). Also if they're in a zip file. However, for some baffling
+                # reason, Gmail allows '.exe' files if they don't have any extension.
+                # (Gmail also allows executables with a '.txt' extension, but renaming
+                # those files is difficult for users who have "hide known extensions"
+                # enabled in Windows Explorer, which is the default.)
+                file_ext = ''
             elif file_ext == '.apk':
                 # Gmail rejects '.apk' files. However, simply renaming the extension
                 # defeats the blocking (for now).
