@@ -3156,11 +3156,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
                     # Email with attachments
                     attachments = []
-                    # We are temporarily disabling the Windows attachment because Gmail is currently blocking it.
-                    #if campaign.platforms == None or CLIENT_PLATFORM_WINDOWS in campaign.platforms:
-                    #    attachments.append([campaign.s3_bucket_name,
-                    #                        psi_ops_s3.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME,
-                    #                        psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME])
+                    if campaign.platforms == None or CLIENT_PLATFORM_WINDOWS in campaign.platforms:
+                        attachments.append([campaign.s3_bucket_name,
+                                            psi_ops_s3.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME,
+                                            psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME])
                     if campaign.platforms == None or CLIENT_PLATFORM_ANDROID in campaign.platforms:
                         attachments.append([campaign.s3_bucket_name,
                                             psi_ops_s3.DOWNLOAD_SITE_ANDROID_BUILD_FILENAME,
@@ -4032,7 +4031,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             copy.__hosts[host.id] = Host(
                                             host.id,
                                             host.is_TCS,
-                                            host.TCS_type,
+                                            '',  # Omit: host.TCS_type,
                                             host.provider,
                                             '',  # Omit: provider id isn't needed
                                             host.ip_address,
@@ -4045,9 +4044,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.datacenter_name,
                                             host.region,
                                             host.meek_server_port,
-                                            host.meek_server_obfuscated_key,
-                                            host.meek_server_fronting_domain,
-                                            host.meek_server_fronting_host,
+                                            '',  # Omit: host.meek_server_obfuscated_key,
+                                            '',  # Omit: host.meek_server_fronting_domain,
+                                            '',  # Omit: host.meek_server_fronting_host,
                                             [],  # Omit: alternate_meek_server_fronting_hosts
                                             '',  # Omit: meek_cookie_encryption_public_key
                                             '',  # Omit: meek_cookie_encryption_private_key
@@ -4059,11 +4058,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             server.host_id,
                                             server.ip_address,
                                             None, # Omit: egress_ip_address
-                                            server.internal_ip_address,
+                                            '',   # Omit: server.internal_ip_address,
                                             None, # Omit: propagation_channel_id
-                                            server.is_embedded,
-                                            server.is_permanent,
-                                            server.discovery_date_range,
+                                            '',   # Omit: server.is_embedded,
+                                            '',   # Omit: server.is_permanent,
+                                            '',   # Omit: server.discovery_date_range,
                                             server.capabilities)
                                             # Omit: propagation, web server, ssh info, version
 
@@ -4073,11 +4072,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             deleted_server.host_id,
                                             deleted_server.ip_address,
                                             None,
-                                            deleted_server.internal_ip_address,
+                                            '', # Omit: deleted_server.internal_ip_address,
                                             None,
-                                            deleted_server.is_embedded,
-                                            deleted_server.is_permanent,
-                                            deleted_server.discovery_date_range,
+                                            '', # Omit: deleted_server.is_embedded,
+                                            '', # Omit: deleted_server.is_permanent,
+                                            '', # Omit: deleted_server.discovery_date_range,
                                             deleted_server.capabilities)
                                             # Omit: propagation, web server, ssh info, version
 
