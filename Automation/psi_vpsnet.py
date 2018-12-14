@@ -43,6 +43,8 @@ if not os.path.exists(libcloud.security.CA_CERTS_PATH[0]):
     See: https://libcloud.readthedocs.org/en/latest/other/ssl-certificate-validation.html
     '''
 
+libcloud.security.SSL_VERSION = ssl.PROTOCOL_TLSv1_2
+
 
 def get_vpsnet_connection(vpsnet_account):
     '''
