@@ -1409,6 +1409,24 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             return servers[0]
         return None
 
+    def get_deleted_server_by_host_id(self, host_id):
+        servers = filter(lambda x: x.host_id == host_id, self.__deleted_servers.itervalues())
+        if len(servers) == 1:
+            return servers[0]
+        return None
+
+    def get_deleted_host_by_ip_address(self, ip_address):
+        hosts = filter(lambda x: x.ip_address == ip_address, self.__deleted_hosts)
+        if len(hosts) == 1:
+            return hosts[0]
+        return None
+
+    def get_deleted_host_by_host_id(self, host_id):
+        hosts = filter(lambda x: x.id == host_id, self.__deleted_hosts)
+        if len(hosts) == 1:
+            return hosts[0]
+        return None
+
     def get_host_object(self, id, is_TCS, TCS_type, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
                         stats_ssh_username, stats_ssh_password, datacenter_name, region, meek_server_port,
                         meek_server_obfuscated_key, meek_server_fronting_domain, meek_server_fronting_host,
