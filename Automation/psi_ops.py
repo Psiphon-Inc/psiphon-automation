@@ -4169,6 +4169,22 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         psi_ops_deploy.run_in_parallel(50, do_copy_file_to_host, self.__hosts.itervalues())
 
+    def swap_host_ip_address(self, host, new_ip_address):
+        assert(self.is_locked)
+        if type(host) == str:
+            assert(host not in self.__hosts)
+            host = self.__hosts[host]
+        assert(host.id not in self.__hosts)
+        server = [s for s in self.get_servers() if s.host_id == host.id][0]
+        try:
+            host.ip_address = new_ip_address
+            server.ip_address = new_ip_address
+            server.egress_ip_address = new_ip_address
+            server.internal_ip_address = new_ip_address
+            self.reinstall_host(host.id)
+        except:
+            pass
+
     def __test_server(self, server, test_cases, version, test_propagation_channel_id, executable_path):
 
         return psi_ops_test_windows.test_server(
