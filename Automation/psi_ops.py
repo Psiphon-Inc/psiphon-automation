@@ -4172,9 +4172,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def swap_host_ip_address(self, host, new_ip_address):
         assert(self.is_locked)
         if type(host) == str:
-            assert(host not in self.__hosts)
             host = self.__hosts[host]
-        assert(host.id not in self.__hosts)
         server = [s for s in self.get_servers() if s.host_id == host.id][0]
         try:
             host.ip_address = new_ip_address
