@@ -1409,6 +1409,24 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             return servers[0]
         return None
 
+    def get_deleted_server_by_host_id(self, host_id):
+        servers = filter(lambda x: x.host_id == host_id, self.__deleted_servers.itervalues())
+        if len(servers) == 1:
+            return servers[0]
+        return None
+
+    def get_deleted_host_by_ip_address(self, ip_address):
+        hosts = filter(lambda x: x.ip_address == ip_address, self.__deleted_hosts)
+        if len(hosts) == 1:
+            return hosts[0]
+        return None
+
+    def get_deleted_host_by_host_id(self, host_id):
+        hosts = filter(lambda x: x.id == host_id, self.__deleted_hosts)
+        if len(hosts) == 1:
+            return hosts[0]
+        return None
+
     def get_host_object(self, id, is_TCS, TCS_type, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
                         stats_ssh_username, stats_ssh_password, datacenter_name, region, meek_server_port,
                         meek_server_obfuscated_key, meek_server_fronting_domain, meek_server_fronting_host,
@@ -2066,7 +2084,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 # Discovery servers will either be OSSH-only or UNFRONTED-MEEK-only
                 capabilities['handshake'] = False
                 capabilities['VPN'] = False
-                capabilities['SSH'] = False
+                capabilities['SSH'] = True
                 if random.random() < 0.5:
                     capabilities['OSSH'] = False
                     capabilities['UNFRONTED-MEEK'] = True
@@ -4150,6 +4168,20 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.copy_file_to_host(host, source_filename, dest_filename)
 
         psi_ops_deploy.run_in_parallel(50, do_copy_file_to_host, self.__hosts.itervalues())
+
+    def swap_host_ip_address(self, host, new_ip_address):
+        assert(self.is_locked)
+        if type(host) == str:
+            host = self.__hosts[host]
+        server = [s for s in self.get_servers() if s.host_id == host.id][0]
+        try:
+            host.ip_address = new_ip_address
+            server.ip_address = new_ip_address
+            server.egress_ip_address = new_ip_address
+            server.internal_ip_address = new_ip_address
+            self.reinstall_host(host.id)
+        except:
+            pass
 
     def __test_server(self, server, test_cases, version, test_propagation_channel_id, executable_path):
 

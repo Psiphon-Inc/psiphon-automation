@@ -164,4 +164,17 @@ def go():
             logger.exception()
             logger.error(str(e))
 
+        except Exception as e:
+            try:
+                # Something bad happened while decrypting. Report it via email.
+                sender.send(config['decryptedEmailRecipient'],
+                            config['emailUsername'],
+                            u'S3Decryptor: unhandled exception',
+                            str(e) + '\n---\n' + str(diagnostic_info),
+                            None)  # no html body
+            except smtplib.SMTPException as e:
+                logger.exception()
+                logger.error(str(e))
+            raise
+
     logger.debug_log('s3decryptor.go: end')

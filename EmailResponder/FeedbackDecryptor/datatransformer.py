@@ -17,6 +17,7 @@
 
 import json
 import datetime
+import sys
 import translation
 import utils
 from config import config
@@ -94,17 +95,29 @@ def _sanitize_keys(data):
                                         path[-1].replace('.', '_'))
 
 
+def _shorten_ints(data):
+    """
+    Python can handle integer values (longs) that are larger than MongoDB will store; it
+    will throw an exception if an attempt is made to insert them. We'll go through all the
+    integer values and convert them to floats if they're too big.
+    We have seen this occur with freeVirtualMemoryKB in Windows feedback.
+    """
+    for path, value in utils.objwalk(data):
+        if (type(value) == int or type(value) == long) and value > sys.maxsize-1:
+            utils.assign_value_to_obj_at_path(data, path, float(value))
+
+
 _transformations = {
                     'android_4': (_translate_feedback, _parse_survey_results,
-                                  _convert_locale_info, _sanitize_keys),
+                                  _convert_locale_info, _sanitize_keys, _shorten_ints),
                     'ios': (_translate_feedback, _parse_survey_results,
-                            _convert_locale_info, _sanitize_keys),
+                            _convert_locale_info, _sanitize_keys, _shorten_ints),
                     'ios-browser': (_translate_feedback, _parse_survey_results,
-                                    _convert_locale_info, _sanitize_keys),
+                                    _convert_locale_info, _sanitize_keys, _shorten_ints),
                     'ios-vpn': (_translate_feedback, _parse_survey_results,
-                                _convert_locale_info, _sanitize_keys),
+                                _convert_locale_info, _sanitize_keys, _shorten_ints),
                     'windows': (_translate_feedback, _parse_survey_results,
-                                _convert_locale_info, _sanitize_keys),
+                                _convert_locale_info, _sanitize_keys, _shorten_ints),
                     }
 
 
