@@ -38,7 +38,7 @@ IPSET_DIR = os.path.abspath(os.path.join(BASE_PATH, BLACKLIST_DIR, 'ipset'))
 LIST_DIR = os.path.abspath(os.path.join(BASE_PATH, BLACKLIST_DIR, 'lists'))
 
 
-CIF_DEFAULT_MALWARE_TAGS = ['zeus', 'feodo'. 'botnet']    # set the tags we want to use.
+CIF_DEFAULT_MALWARE_TAGS = ['zeus', 'feodo', 'botnet']    # set the tags we want to use.
 
 ###############################################################################
 
@@ -47,7 +47,7 @@ def make_cifs_connection():
     """Connect to CIFS instance."""
     cif_client = Client(token=psi_ops_config.CIF_TOKEN,
                         remote=psi_ops_config.CIF_REMOTE,
-                        verify_ssl=psi_ops_config.CIF_NO_VERIFY_SSL,
+                        verify_ssl=psi_ops_config.CIF_VERIFY_SSL,
                         )
     return cif_client
 
