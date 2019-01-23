@@ -38,7 +38,7 @@ IPSET_DIR = os.path.abspath(os.path.join(BASE_PATH, BLACKLIST_DIR, 'ipset'))
 LIST_DIR = os.path.abspath(os.path.join(BASE_PATH, BLACKLIST_DIR, 'lists'))
 
 
-CIF_DEFAULT_MALWARE_TAGS = ['zeus', 'feodo']    # set the tags we want to use.
+CIF_DEFAULT_MALWARE_TAGS = ['zeus', 'feodo'. 'botnet']    # set the tags we want to use.
 
 ###############################################################################
 
