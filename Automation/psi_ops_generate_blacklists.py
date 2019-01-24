@@ -38,7 +38,8 @@ IPSET_DIR = os.path.abspath(os.path.join(BASE_PATH, BLACKLIST_DIR, 'ipset'))
 LIST_DIR = os.path.abspath(os.path.join(BASE_PATH, BLACKLIST_DIR, 'lists'))
 
 
-CIF_DEFAULT_MALWARE_TAGS = ['zeus', 'botnet', 'malware', 'phishing']    # set the tags we want to use.
+#CIF_DEFAULT_MALWARE_TAGS = ['zeus', 'botnet', 'malware', 'phishing']    # set the tags we want to use.
+CIF_DEFAULT_MALWARE_TAGS = ['zeus', 'feodo']    # set the tags we want to use.
 
 ###############################################################################
 
@@ -85,7 +86,6 @@ def generate_ipset_list(psinet, cif_tag, cif_otype, confidence_threshold):
                 listed_hosts.append(host)
                 cif_results.remove(cif_host)
     
-    sorted(cif_results, key=lambda k: k['observable'])
     output_file = ''.join((cif_tag, '.list'))
     with open(output_file, 'w') as f:
         for result in cif_results:
