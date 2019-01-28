@@ -4183,6 +4183,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         except:
             pass
 
+    def restore_deleted_host_and_server(self, host_id):
+        assert(self.is_locked)
+        try:
+            deleted_host = [host for host in self.__deleted_hosts if host.id == host_id][0]
+            deleted_server = [server for server in self.__deleted_servers.values() if server.host_id == host_id][0]
+
+            self.__hosts[deleted_host.id] = deleted_host
+            self.__deleted_hosts.remove(deleted_host)
+            self.__servers[deleted_server.id] = self.__deleted_servers.pop(deleted_server.id)
+        except:
+            pass
+
+
     def __test_server(self, server, test_cases, version, test_propagation_channel_id, executable_path):
 
         return psi_ops_test_windows.test_server(
