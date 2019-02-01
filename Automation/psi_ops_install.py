@@ -1585,8 +1585,8 @@ syslog.syslog(syslog.LOG_INFO, json.dumps(log_record))
 # Change the crontab file so that weekly jobs are not run on the same day across all servers
 def change_weekly_crontab_runday(host, weekdaynum):
     if weekdaynum == None:
-        weekdaynum = datetime.date.isoweekday(datetime.date.today())
-    if weekdaynum >= 1 or weekdaynum <= 7:
+        weekdaynum = random.randint(1, 7)
+    if 1 <= weekdaynum <= 7:
         cmd = "sed -i 's/^.*weekly.*$/47 6    * * " +str(weekdaynum)+ "\troot\ttest -x \/usr\/sbin\/anacron || ( cd \/ \&\& run-parts --report \/etc\/cron.weekly )/' /etc/crontab"
         ssh = psi_ssh.SSH(
                             host.ip_address, host.ssh_port,
