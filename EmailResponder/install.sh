@@ -61,7 +61,6 @@ sudo mv psiphon-log-rotate.tmp /etc/logrotate.d/psiphon-log-rotate.conf
 sudo chown root:root /etc/logrotate.d/psiphon-log-rotate.conf
 sudo chmod 644 /etc/logrotate.d/psiphon-log-rotate.conf
 sudo cp 20-psiphon-logging.conf /etc/rsyslog.d/
-sudo reload rsyslog
 sudo service rsyslog restart
 sudo cp 50_scores.cf /etc/spamassassin/
 sudo service spamassassin restart
