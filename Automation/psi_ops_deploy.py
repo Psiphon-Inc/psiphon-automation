@@ -483,7 +483,7 @@ def deploy_implementation_to_hosts(hosts_and_servers, discovery_strategy_value_h
                                                         if host.is_TCS and host.TCS_type == 'DOCKER'])
 
 
-def deploy_data(host, host_data, TCS_traffic_rules_set, TCS_OSL_config, TCS_tactics_config_template):
+def deploy_data(host, host_data, TCS_traffic_rules_set, TCS_OSL_config, TCS_tactics_config_template, TCS_blocklist_csv):
 
     print 'deploy data to host %s%s...' % (host.id, " (TCS) " if host.is_TCS else "", )
 
@@ -493,7 +493,7 @@ def deploy_data(host, host_data, TCS_traffic_rules_set, TCS_OSL_config, TCS_tact
                     host.ssh_host_key)
 
     if host.is_TCS:
-        deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set, TCS_OSL_config, TCS_tactics_config_template)
+        deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set, TCS_OSL_config, TCS_tactics_config_template, TCS_blocklist_csv)
     else:
         deploy_legacy_data(ssh, host, host_data)
 
@@ -537,7 +537,7 @@ def deploy_legacy_data(ssh, host, host_data):
     ssh.exec_command('rm %s' % (psi_config.HOST_SERVER_STOPPED_LOCK_FILE,))
 
 
-def deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set, TCS_OSL_config, TCS_tactics_config_template):
+def deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set, TCS_OSL_config, TCS_tactics_config_template, TCS_blocklist_csv):
 
     # Upload psinet file
     # We upload a compartmentalized version of the master file
@@ -565,6 +565,8 @@ def deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set, TCS_OSL_config,
         tactics_request_public_key, tactics_request_private_key, tactics_request_obfuscated_key)
 
     put_file_with_content(ssh, TCS_tactics_config, TCS_TACTICS_CONFIG_FILE_NAME)
+
+    put_file_with_content(ssh, TCS_blocklist_csv, TCS_BLOCKLIST_CSV_FILE_NAME)
 
     ssh.exec_command(TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND)
 
@@ -594,7 +596,7 @@ def put_file_with_content(ssh, content, destination_path):
             pass
 
 
-def deploy_data_to_hosts(hosts, data_generator, TCS_traffic_rules_set, TCS_OSL_config, TCS_tactics_config_template):
+def deploy_data_to_hosts(hosts, data_generator, TCS_traffic_rules_set, TCS_OSL_config, TCS_tactics_config_template, TCS_blocklist_csv):
 
     # TCS data is not unique per host, so only generate it once
     TCS_data = None
@@ -607,7 +609,7 @@ def deploy_data_to_hosts(hosts, data_generator, TCS_traffic_rules_set, TCS_OSL_c
         host = host_and_data_generator[0]
         host_data = TCS_data if host.is_TCS and TCS_data else host_and_data_generator[1](host.id, host.is_TCS)
         try:
-            deploy_data(host, host_data, TCS_traffic_rules_set, TCS_OSL_config, TCS_tactics_config_template)
+            deploy_data(host, host_data, TCS_traffic_rules_set, TCS_OSL_config, TCS_tactics_config_template, TCS_blocklist_csv)
         except:
             print 'Error deploying data to host %s' % (host.id,)
             raise

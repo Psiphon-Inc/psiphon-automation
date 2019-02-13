@@ -39,6 +39,7 @@ import subprocess
 import traceback
 import shutil
 import urlparse
+import csv
 from pkg_resources import parse_version
 from multiprocessing.pool import ThreadPool
 from collections import defaultdict
@@ -402,6 +403,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__TCS_OSL_config = None
         self.__TCS_tactics_config_template = None
         self.__TCS_psiphond_config_values = None
+        self.__TCS_blocklist_csv = None
         self.__default_sponsor_id = None
         self.__alternate_s3_bucket_domains = set()
         self.__global_https_request_regexes = []
@@ -409,7 +411,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.51'
+    class_version = '0.52'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -741,6 +743,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 server.capabilities['TAPDANCE'] = False
                 server.ssh_obfuscated_tapdance_port = None
             self.version = '0.51'
+        if cmp(parse_version(self.version), parse_version('0.52')) < 0:
+            self.__TCS_blocklist_csv = ""
+            self.version = '0.52'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1844,7 +1849,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             self.__compartmentalize_data_for_host(host.id, host.is_TCS),
                             self.__TCS_traffic_rules_set,
                             self.__TCS_OSL_config,
-                            self.__TCS_tactics_config_template)
+                            self.__TCS_tactics_config_template,
+                            self.__TCS_blocklist_csv)
 
         for server in servers_on_host:
             self.test_server(server.id, ['handshake'])
@@ -1930,7 +1936,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             self.__compartmentalize_data_for_host(host.id, host.is_TCS),
                             self.__TCS_traffic_rules_set,
                             self.__TCS_OSL_config,
-                            self.__TCS_tactics_config_template)
+                            self.__TCS_tactics_config_template,
+                            self.__TCS_blocklist_csv)
 
     def setup_server(self, host, servers):
         # Install Psiphon 3 and generate configuration values
@@ -1964,7 +1971,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             self.__compartmentalize_data_for_host(host.id, host.is_TCS),
                             self.__TCS_traffic_rules_set,
                             self.__TCS_OSL_config,
-                            self.__TCS_tactics_config_template)
+                            self.__TCS_tactics_config_template,
+                            self.__TCS_blocklist_csv)
         psi_ops_deploy.deploy_routes(host)
         host.log('initial deployment')
 
@@ -2391,7 +2399,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             self.__compartmentalize_data_for_host(host.id, host.is_TCS),
                             self.__TCS_traffic_rules_set,
                             self.__TCS_OSL_config,
-                            self.__TCS_tactics_config_template)
+                            self.__TCS_tactics_config_template,
+                            self.__TCS_blocklist_csv)
 
         host.log('reinstall')
 
@@ -2886,7 +2895,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 self.__compartmentalize_data_for_host,
                 self.__TCS_traffic_rules_set,
                 self.__TCS_OSL_config,
-                self.__TCS_tactics_config_template)
+                self.__TCS_tactics_config_template,
+                self.__TCS_blocklist_csv)
             self.__deploy_data_required_for_all = False
             self.save()
 
@@ -3269,6 +3279,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if host.is_TCS:
                 self.__deploy_implementation_required_for_hosts.add(host.id)
 
+    def set_TCS_blocklist_csv(self, blocklist_csv):
+        assert(self.is_locked)
+
+        # Check that the CSV is valid
+        csvreader = csv.reader(blocklist_csv.split('\n'), delimiter=',')
+        for row in csvreader:
+            if row:
+                assert(len(row) == 3)
+
+        self.__TCS_blocklist_csv = blocklist_csv
+
+        self.__deploy_data_required_for_all = True
+
     def add_TCS_server_version(self):
         assert(self.is_locked)
         # Marks all hosts for re-deployment of server implementation
@@ -3309,7 +3332,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__compartmentalize_data_for_host(host.id, host.is_TCS),
             self.__TCS_traffic_rules_set,
             self.__TCS_OSL_config,
-            self.__TCS_tactics_config_template)
+            self.__TCS_tactics_config_template,
+            self.__TCS_blocklist_csv)
 
     def deploy_implementation_and_data_for_propagation_channel(self, propagation_channel_name):
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
