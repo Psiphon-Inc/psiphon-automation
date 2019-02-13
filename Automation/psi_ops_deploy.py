@@ -81,6 +81,7 @@ TCS_TACTICS_CONFIG_FILE_NAME = '/opt/psiphon/psiphond/config/tactics.config'
 TCS_PSINET_FILE_NAME = '/opt/psiphon/psiphond/data/psinet.json'
 TCS_GEOIP_CITY_DATABASE_FILE_NAME = '/usr/local/share/GeoIP/GeoIP2-City.mmdb'
 TCS_GEOIP_ISP_DATABASE_FILE_NAME = '/usr/local/share/GeoIP/GeoIP2-ISP.mmdb'
+TCS_BLOCKLIST_CSV_FILE_NAME = '/opt/psiphon/psiphond/data/blocklist.csv'
 
 TCS_DOCKER_WEB_SERVER_PORT = 1025
 TCS_SSH_DOCKER_PORT = 1026
@@ -243,6 +244,8 @@ def deploy_TCS_implementation(ssh, host, servers, TCS_psiphond_config_values):
         make_psiphond_config(host, server, TCS_psiphond_config_values),
         TCS_PSIPHOND_CONFIG_FILE_NAME)
 
+    ssh.exec_command('touch %s' % (TCS_BLOCKLIST_CSV_FILE_NAME,))
+
     if host.TCS_type == 'NATIVE':
         # Upload psiphond, restart service
         # Push psiphond from bitbucket repo (Server/psiphond/psiphond) to host.
@@ -330,6 +333,8 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
     config['OSLConfigFilename'] = TCS_OSL_CONFIG_FILE_NAME
 
     config['TacticsConfigFilename'] = TCS_TACTICS_CONFIG_FILE_NAME
+
+    config['BlocklistFilename'] = TCS_BLOCKLIST_CSV_FILE_NAME
 
     # TCS_psiphond_config_values['AccessControlVerificationKeyRing'] is a string value, set with psi_ops.set_TCS_psiphond_config_values,
     # containing a JSON-encoded https://godoc.org/github.com/Psiphon-Labs/psiphon-tunnel-core/psiphon/common/accesscontrol#VerificationKeyRing
