@@ -1241,6 +1241,39 @@ def install_geoip_database(ssh, is_TCS):
             ssh.put_file(os.path.join(os.path.abspath('.'), geo_ip_file),
                          posixpath.join(REMOTE_GEOIP_DIRECTORY, geo_ip_file))
 
+def install_second_ip_address(host, new_ip_address):
+    interfaces_path = '/etc/network/interfaces.d/multi_ip_interfaces'
+    nat_routing_path = '/etc/network/if-up.d/nat_routing'
+
+    new_interfaces_contents = textwrap.dedent('''
+        auto eth0:1
+        allow-hotplug eth0:1
+        iface eth0:1 inet static
+            address {ip_address}
+            netmask 255.255.255.0
+            gateway 185.10.56.1
+    ''').format(ip_address=new_ip_address)
+
+    new_nat_routing_contents = textwrap.dedent('''
+        #!/bin/bash
+
+        iptables -t nat -I PREROUTING -j DNAT -d {new_ip_address} --to-destination {host_ip_address}
+    ''').format(new_ip_address=new_ip_address, host_ip_address=host.ip_address)
+
+    ssh = psi_ssh.SSH(
+        host.ip_address, host.ssh_port,
+        host.ssh_username, host.ssh_password,
+        host.ssh_host_key)
+
+    ssh.exec_command('echo "{second_interfaces_contents}" >> {interfaces_path}'.format(
+        second_interfaces_contents=new_interfaces_contents, interfaces_path=interfaces_path))
+
+    ssh.exec_command('echo "{new_nat_routing_contents}" >> {nat_routing_path}'.format(
+        new_nat_routing_contents=new_nat_routing_contents, nat_routing_path=nat_routing_path))
+
+    ssh.exec_command('chmod +x {nat_routing_path}'.format(nat_routing_path=nat_routing_path))
+
+    ssh.close()
 
 def install_psi_limit_load(host, servers):
     if host.is_TCS:
@@ -1585,8 +1618,8 @@ syslog.syslog(syslog.LOG_INFO, json.dumps(log_record))
 # Change the crontab file so that weekly jobs are not run on the same day across all servers
 def change_weekly_crontab_runday(host, weekdaynum):
     if weekdaynum == None:
-        weekdaynum = datetime.date.isoweekday(datetime.date.today())
-    if weekdaynum >= 1 or weekdaynum <= 7:
+        weekdaynum = random.randint(1, 7)
+    if 1 <= weekdaynum <= 7:
         cmd = "sed -i 's/^.*weekly.*$/47 6    * * " +str(weekdaynum)+ "\troot\ttest -x \/usr\/sbin\/anacron || ( cd \/ \&\& run-parts --report \/etc\/cron.weekly )/' /etc/crontab"
         ssh = psi_ssh.SSH(
                             host.ip_address, host.ssh_port,

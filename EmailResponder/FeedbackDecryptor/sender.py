@@ -24,6 +24,9 @@ sys.path.append('..')
 import sendmail
 
 
+_SES_EMAIL_SIZE_LIMIT = 10485760
+
+
 def send(recipients, from_address,
          subject, body_text, body_html,
          replyid=None):
@@ -89,6 +92,20 @@ def send_response(recipient, from_address,
                                           body,
                                           attachments,
                                           extra_headers)
+
+    if not raw_email:
+        return
+
+    # SES has a send size limit, above which it'll reject the email. If our raw_email is
+    # larger than that, we'll discard the HTML version.
+    if len(raw_email) > _SES_EMAIL_SIZE_LIMIT:
+        body.pop() # discard HTML
+        raw_email = sendmail.create_raw_email(recipient,
+                                              from_address,
+                                              subject,
+                                              body,
+                                              attachments,
+                                              extra_headers)
 
     if not raw_email:
         return

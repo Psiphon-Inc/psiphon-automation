@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2011, Psiphon Inc.
+# Copyright (c) 2019, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -17,8 +17,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import socket
-import struct
 import urllib2
 import zipfile
 import os, os.path
@@ -79,12 +77,12 @@ def recache_geodata(url):
         print("The geodata file is not modified, using cached version")
 
 
-def consume_line(files, start_ip, end_ip, country_code):
-    start = ip2int(start_ip)
-    end = ip2int(end_ip)
+def consume_line(files, ip_block, country_code):
+    base_ip, prefix = ip_block.split('/')
+    prefix = int(prefix)
 
     #check if all values are valid
-    if not start or not end or len(country_code) != 2:
+    if not base_ip or not prefix or len(country_code) != 2:
         return False
 
     path = os.path.join(GEO_ROUTES_ROOT, '%s.route' % country_code)
@@ -94,37 +92,10 @@ def consume_line(files, start_ip, end_ip, country_code):
         file = open(path, 'a')
         files[path] = file
 
-    base = start
-    step = 0
-    while base <= end:
-        step = 0
-        while base | (1 << step) != base:
-            if (base | (((~0) & 0xffffffff) >> (31-step))) > end:
-                break
-            step += 1
-
-        # In case CIDR is needed 
-        #cidr = 32 - step
-        bitmask = 0xffffffff ^ (1 << step) - 1
-        file.write( "%s\t%s\n" % (int2ip(base), int2ip(bitmask)))
-        base += 1 << step
-
-
-def ip2int(ip):
-    try:
-        val = socket.inet_aton(ip) 
-    except socket.error:
-        return False
-    return struct.unpack('!I', val)[0]
-
-
-def int2ip(ip):
-    val = struct.pack('!I', ip)
-    try:
-        return socket.inet_ntoa(val)
-    except socket.error:
-        return False
-
+    # from https://stackoverflow.com/a/27832518
+    netmask = '.'.join([str((0xffffffff << (32 - prefix) >> i) & 0xff) for i in [24, 16, 8, 0]])
+    file.write( "%s\t%s\n" % (base_ip, netmask))
+    
 
 def make_routes():
     # create the directories
@@ -134,29 +105,49 @@ def make_routes():
         os.makedirs(GEO_ROUTES_ROOT)
 
     # TODO: get url from psi_db
-    url='http://geolite.maxmind.com/download/geoip/database/GeoIPCountryCSV.zip'
+    url='https://geolite.maxmind.com/download/geoip/database/GeoLite2-Country-CSV.zip'
     recache_geodata(url)
 
     if not os.path.exists(GEO_ZIP_PATH):
         raise Exception('Geodata file does not exist')
 
+    country_blocks_filename = ''
+    country_names_filename = ''
+    
     fh=open(GEO_ZIP_PATH, 'rb')
     zf = zipfile.ZipFile(fh)
     names=zf.namelist()
     for name in names:
-        _, fileExtension = os.path.splitext(name)
-        if fileExtension == '.csv':
+        fileName, fileExtension = os.path.splitext(name)
+        if fileExtension == '.csv' and 'Country-Blocks-IPv4' in fileName:
             print "CSV found: %s" % name
-            break
+            country_blocks_filename = name
+        if fileExtension == '.csv' and 'Country-Locations-en' in fileName:
+            print "CSV found: %s" % name
+            country_names_filename = name
     
-    if not name:
-        raise Exception('CSV not found in the %s' % GEO_ZIP_PATH)
+    if not country_blocks_filename:
+        raise Exception('blocks CSV not found in the %s' % GEO_ZIP_PATH)
 
-    data = StringIO.StringIO(zf.read(name))
-    if not data:
+    if not country_names_filename:
+        raise Exception('locations CSV not found in the %s' % GEO_ZIP_PATH)
+
+    ip_blocks_data = StringIO.StringIO(zf.read(country_blocks_filename))
+    if not ip_blocks_data:
         raise Exception('Can not read from the %s' % GEO_ZIP_PATH)
     
-    #delete current routing files
+    country_names_data = StringIO.StringIO(zf.read(country_names_filename))
+    if not country_names_data:
+        raise Exception('Can not read from the %s' % GEO_ZIP_PATH)
+
+    # read country names file and build a dict of id to country code
+    country_codes = {}
+    myreader = csv.reader(country_names_data, delimiter=',', quotechar='"')
+    for row in myreader:
+        if len(row) == 7:
+            country_codes[row[0]] = row[4]
+    
+    # delete current routing files
     for root, dirs, files in os.walk(GEO_ROUTES_ROOT):
         for name in files:
             os.remove(os.path.join(root, name))
@@ -164,13 +155,19 @@ def make_routes():
     # Keep route files open for appending while processing CSV
     files = {}
 
-    myreader = csv.reader(data, delimiter=',', quotechar='"')
+    myreader = csv.reader(ip_blocks_data, delimiter=',', quotechar='"')
+    # skip the header row
+    next(myreader, None)
     for row in myreader:
         if len(row) == 6:
-            ip1 = row[0]
-            ip2 = row[1]
-            country_code = row[4]
-            consume_line(files, ip1, ip2, country_code)
+            ip_block = row[0]
+            country_id = row[2]
+            if country_id == '':
+                continue
+            country_code = country_codes[country_id]
+            if country_code == '':
+                continue
+            consume_line(files, ip_block, country_code)
 
     # Close route files and make zlib compressed copies
     # Create single file archive containing all zlib route files

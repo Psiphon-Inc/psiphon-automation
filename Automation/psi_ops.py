@@ -39,6 +39,7 @@ import subprocess
 import traceback
 import shutil
 import urlparse
+import csv
 from pkg_resources import parse_version
 from multiprocessing.pool import ThreadPool
 from collections import defaultdict
@@ -402,6 +403,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__TCS_OSL_config = None
         self.__TCS_tactics_config_template = None
         self.__TCS_psiphond_config_values = None
+        self.__TCS_blocklist_csv = None
         self.__default_sponsor_id = None
         self.__alternate_s3_bucket_domains = set()
         self.__global_https_request_regexes = []
@@ -409,7 +411,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.51'
+    class_version = '0.52'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -741,6 +743,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 server.capabilities['TAPDANCE'] = False
                 server.ssh_obfuscated_tapdance_port = None
             self.version = '0.51'
+        if cmp(parse_version(self.version), parse_version('0.52')) < 0:
+            self.__TCS_blocklist_csv = ""
+            self.version = '0.52'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1409,6 +1414,24 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             return servers[0]
         return None
 
+    def get_deleted_server_by_host_id(self, host_id):
+        servers = filter(lambda x: x.host_id == host_id, self.__deleted_servers.itervalues())
+        if len(servers) == 1:
+            return servers[0]
+        return None
+
+    def get_deleted_host_by_ip_address(self, ip_address):
+        hosts = filter(lambda x: x.ip_address == ip_address, self.__deleted_hosts)
+        if len(hosts) == 1:
+            return hosts[0]
+        return None
+
+    def get_deleted_host_by_host_id(self, host_id):
+        hosts = filter(lambda x: x.id == host_id, self.__deleted_hosts)
+        if len(hosts) == 1:
+            return hosts[0]
+        return None
+
     def get_host_object(self, id, is_TCS, TCS_type, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
                         stats_ssh_username, stats_ssh_password, datacenter_name, region, meek_server_port,
                         meek_server_obfuscated_key, meek_server_fronting_domain, meek_server_fronting_host,
@@ -1826,7 +1849,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             self.__compartmentalize_data_for_host(host.id, host.is_TCS),
                             self.__TCS_traffic_rules_set,
                             self.__TCS_OSL_config,
-                            self.__TCS_tactics_config_template)
+                            self.__TCS_tactics_config_template,
+                            self.__TCS_blocklist_csv)
 
         for server in servers_on_host:
             self.test_server(server.id, ['handshake'])
@@ -1912,7 +1936,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             self.__compartmentalize_data_for_host(host.id, host.is_TCS),
                             self.__TCS_traffic_rules_set,
                             self.__TCS_OSL_config,
-                            self.__TCS_tactics_config_template)
+                            self.__TCS_tactics_config_template,
+                            self.__TCS_blocklist_csv)
 
     def setup_server(self, host, servers):
         # Install Psiphon 3 and generate configuration values
@@ -1946,7 +1971,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             self.__compartmentalize_data_for_host(host.id, host.is_TCS),
                             self.__TCS_traffic_rules_set,
                             self.__TCS_OSL_config,
-                            self.__TCS_tactics_config_template)
+                            self.__TCS_tactics_config_template,
+                            self.__TCS_blocklist_csv)
         psi_ops_deploy.deploy_routes(host)
         host.log('initial deployment')
 
@@ -2066,7 +2092,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 # Discovery servers will either be OSSH-only or UNFRONTED-MEEK-only
                 capabilities['handshake'] = False
                 capabilities['VPN'] = False
-                capabilities['SSH'] = False
+                capabilities['SSH'] = True
                 if random.random() < 0.5:
                     capabilities['OSSH'] = False
                     capabilities['UNFRONTED-MEEK'] = True
@@ -2373,7 +2399,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             self.__compartmentalize_data_for_host(host.id, host.is_TCS),
                             self.__TCS_traffic_rules_set,
                             self.__TCS_OSL_config,
-                            self.__TCS_tactics_config_template)
+                            self.__TCS_tactics_config_template,
+                            self.__TCS_blocklist_csv)
 
         host.log('reinstall')
 
@@ -2868,7 +2895,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 self.__compartmentalize_data_for_host,
                 self.__TCS_traffic_rules_set,
                 self.__TCS_OSL_config,
-                self.__TCS_tactics_config_template)
+                self.__TCS_tactics_config_template,
+                self.__TCS_blocklist_csv)
             self.__deploy_data_required_for_all = False
             self.save()
 
@@ -3156,11 +3184,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
                     # Email with attachments
                     attachments = []
-                    # We are temporarily disabling the Windows attachment because Gmail is currently blocking it.
-                    #if campaign.platforms == None or CLIENT_PLATFORM_WINDOWS in campaign.platforms:
-                    #    attachments.append([campaign.s3_bucket_name,
-                    #                        psi_ops_s3.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME,
-                    #                        psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME])
+                    if campaign.platforms == None or CLIENT_PLATFORM_WINDOWS in campaign.platforms:
+                        attachments.append([campaign.s3_bucket_name,
+                                            psi_ops_s3.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME,
+                                            psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME])
                     if campaign.platforms == None or CLIENT_PLATFORM_ANDROID in campaign.platforms:
                         attachments.append([campaign.s3_bucket_name,
                                             psi_ops_s3.DOWNLOAD_SITE_ANDROID_BUILD_FILENAME,
@@ -3252,6 +3279,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if host.is_TCS:
                 self.__deploy_implementation_required_for_hosts.add(host.id)
 
+    def set_TCS_blocklist_csv(self, blocklist_csv):
+        assert(self.is_locked)
+
+        # Check that the CSV is valid
+        csvreader = csv.reader(blocklist_csv.split('\n'), delimiter=',')
+        for row in csvreader:
+            if row:
+                assert(len(row) == 3)
+
+        self.__TCS_blocklist_csv = blocklist_csv
+
+        self.__deploy_data_required_for_all = True
+
     def add_TCS_server_version(self):
         assert(self.is_locked)
         # Marks all hosts for re-deployment of server implementation
@@ -3292,7 +3332,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__compartmentalize_data_for_host(host.id, host.is_TCS),
             self.__TCS_traffic_rules_set,
             self.__TCS_OSL_config,
-            self.__TCS_tactics_config_template)
+            self.__TCS_tactics_config_template,
+            self.__TCS_blocklist_csv)
 
     def deploy_implementation_and_data_for_propagation_channel(self, propagation_channel_name):
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
@@ -4032,7 +4073,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             copy.__hosts[host.id] = Host(
                                             host.id,
                                             host.is_TCS,
-                                            host.TCS_type,
+                                            '',  # Omit: host.TCS_type,
                                             host.provider,
                                             '',  # Omit: provider id isn't needed
                                             host.ip_address,
@@ -4045,9 +4086,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.datacenter_name,
                                             host.region,
                                             host.meek_server_port,
-                                            host.meek_server_obfuscated_key,
-                                            host.meek_server_fronting_domain,
-                                            host.meek_server_fronting_host,
+                                            '',  # Omit: host.meek_server_obfuscated_key,
+                                            '',  # Omit: host.meek_server_fronting_domain,
+                                            '',  # Omit: host.meek_server_fronting_host,
                                             [],  # Omit: alternate_meek_server_fronting_hosts
                                             '',  # Omit: meek_cookie_encryption_public_key
                                             '',  # Omit: meek_cookie_encryption_private_key
@@ -4059,11 +4100,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             server.host_id,
                                             server.ip_address,
                                             None, # Omit: egress_ip_address
-                                            server.internal_ip_address,
+                                            '',   # Omit: server.internal_ip_address,
                                             None, # Omit: propagation_channel_id
-                                            server.is_embedded,
-                                            server.is_permanent,
-                                            server.discovery_date_range,
+                                            '',   # Omit: server.is_embedded,
+                                            '',   # Omit: server.is_permanent,
+                                            '',   # Omit: server.discovery_date_range,
                                             server.capabilities)
                                             # Omit: propagation, web server, ssh info, version
 
@@ -4073,11 +4114,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             deleted_server.host_id,
                                             deleted_server.ip_address,
                                             None,
-                                            deleted_server.internal_ip_address,
+                                            '', # Omit: deleted_server.internal_ip_address,
                                             None,
-                                            deleted_server.is_embedded,
-                                            deleted_server.is_permanent,
-                                            deleted_server.discovery_date_range,
+                                            '', # Omit: deleted_server.is_embedded,
+                                            '', # Omit: deleted_server.is_permanent,
+                                            '', # Omit: deleted_server.discovery_date_range,
                                             deleted_server.capabilities)
                                             # Omit: propagation, web server, ssh info, version
 
@@ -4151,6 +4192,33 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.copy_file_to_host(host, source_filename, dest_filename)
 
         psi_ops_deploy.run_in_parallel(50, do_copy_file_to_host, self.__hosts.itervalues())
+
+    def swap_host_ip_address(self, host, new_ip_address):
+        assert(self.is_locked)
+        if type(host) == str:
+            host = self.__hosts[host]
+        server = [s for s in self.get_servers() if s.host_id == host.id][0]
+        try:
+            host.ip_address = new_ip_address
+            server.ip_address = new_ip_address
+            server.egress_ip_address = new_ip_address
+            server.internal_ip_address = new_ip_address
+            self.reinstall_host(host.id)
+        except:
+            pass
+
+    def restore_deleted_host_and_server(self, host_id):
+        assert(self.is_locked)
+        try:
+            deleted_host = [host for host in self.__deleted_hosts if host.id == host_id][0]
+            deleted_server = [server for server in self.__deleted_servers.values() if server.host_id == host_id][0]
+
+            self.__hosts[deleted_host.id] = deleted_host
+            self.__deleted_hosts.remove(deleted_host)
+            self.__servers[deleted_server.id] = self.__deleted_servers.pop(deleted_server.id)
+        except:
+            pass
+
 
     def __test_server(self, server, test_cases, version, test_propagation_channel_id, executable_path):
 
