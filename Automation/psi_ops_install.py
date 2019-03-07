@@ -1254,10 +1254,8 @@ def install_second_ip_address(host, new_ip_address):
             gateway 185.10.56.1
     ''').format(ip_address=new_ip_address)
 
-    new_nat_routing_contents = textwrap.dedent('''
-        #!/bin/bash
-
-        iptables -t nat -I PREROUTING -j DNAT -d {new_ip_address} --to-destination {host_ip_address}
+    new_nat_routing_contents = textwrap.dedent('''#!/bin/sh
+        /sbin/iptables -t nat -I PREROUTING -j DNAT -d {new_ip_address} --to-destination {host_ip_address}
     ''').format(new_ip_address=new_ip_address, host_ip_address=host.ip_address)
 
     ssh = psi_ssh.SSH(
