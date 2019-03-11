@@ -116,6 +116,7 @@ def create_raw_email(recipients,
             msgAttachment = MIMEBase('application', 'octet-stream')
 
             msgAttachment.add_header('Content-Disposition', 'attachment', filename=filename)
+            msgAttachment.add_header('Content-ID', '<' + filename + '>')
 
             msgAttachment.set_payload(fp.read())
             fp.close()
