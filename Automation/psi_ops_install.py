@@ -668,9 +668,8 @@ def install_TCS_host(host, servers, existing_server_ids, plugins):
             rsa_key.save_key_bio(buf, cipher=None)
             server.TCS_ssh_private_key = buf.read()
 
-        if server.ssh_obfuscated_port is not None:
-            if server.ssh_obfuscated_key is None:
-                server.ssh_obfuscated_key = binascii.hexlify(os.urandom(SSH_OBFUSCATED_KEY_BYTE_LENGTH))
+        if server.ssh_obfuscated_key is None:
+            server.ssh_obfuscated_key = binascii.hexlify(os.urandom(SSH_OBFUSCATED_KEY_BYTE_LENGTH))
 
 def install_firewall_rules(host, servers, plugins, do_blacklist=True):
 
