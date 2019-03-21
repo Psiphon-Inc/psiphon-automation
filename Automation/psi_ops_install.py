@@ -1255,7 +1255,7 @@ def install_second_ip_address(host, new_ip_addresses_list):
         interfaces_contents = textwrap.dedent('''
             auto eth0:{virtual_interface_number}
             allow-hotplug eth0:{virtual_interface_number}
-            iface eth0:1 inet static
+            iface eth0:{virtual_interface_number} inet static
                 address {ip_address}
                 netmask 255.255.255.0
                 gateway 185.10.56.1
