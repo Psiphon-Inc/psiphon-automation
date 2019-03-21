@@ -1240,22 +1240,32 @@ def install_geoip_database(ssh, is_TCS):
             ssh.put_file(os.path.join(os.path.abspath('.'), geo_ip_file),
                          posixpath.join(REMOTE_GEOIP_DIRECTORY, geo_ip_file))
 
-def install_second_ip_address(host, new_ip_address):
+def install_second_ip_address(host, new_ip_addresses_list):
     interfaces_path = '/etc/network/interfaces.d/multi_ip_interfaces'
     nat_routing_path = '/etc/network/if-up.d/nat_routing'
 
-    new_interfaces_contents = textwrap.dedent('''
-        auto eth0:1
-        allow-hotplug eth0:1
-        iface eth0:1 inet static
-            address {ip_address}
-            netmask 255.255.255.0
-            gateway 185.10.56.1
-    ''').format(ip_address=new_ip_address)
+    if type(new_ip_addresses_list) != list:
+        print("New IP Address has to be a list.")
+        return
 
+    interfaces_contents_list = []
+
+    for i in range(0, len(new_ip_addresses_list)):
+        new_ip_address = new_ip_addresses_list[i]
+        interfaces_contents = textwrap.dedent('''
+            auto eth0:{virtual_interface_number}
+            allow-hotplug eth0:{virtual_interface_number}
+            iface eth0:1 inet static
+                address {ip_address}
+                netmask 255.255.255.0
+                gateway 185.10.56.1
+        ''').format(virtual_interface_number=i+1, ip_address=new_ip_address)
+        interfaces_contents_list.append(interfaces_contents)
+
+    new_interfaces_contents = '\n'.join(interfaces_contents_list)
     new_nat_routing_contents = textwrap.dedent('''#!/bin/sh
-        /sbin/iptables -t nat -I PREROUTING -j DNAT -d {new_ip_address} --to-destination {host_ip_address}
-    ''').format(new_ip_address=new_ip_address, host_ip_address=host.ip_address)
+        /sbin/iptables -t nat -I PREROUTING -j DNAT -d {new_ip_addresses} --to-destination {host_ip_address}
+    ''').format(new_ip_addresses=','.join(new_ip_addresses_list), host_ip_address=host.ip_address)
 
     ssh = psi_ssh.SSH(
         host.ip_address, host.ssh_port,
