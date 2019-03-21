@@ -1272,14 +1272,15 @@ def install_second_ip_address(host, new_ip_addresses_list):
         host.ssh_username, host.ssh_password,
         host.ssh_host_key)
 
-    ssh.exec_command('echo "{second_interfaces_contents}" >> {interfaces_path}'.format(
+    ssh.exec_command('echo "{second_interfaces_contents}" > {interfaces_path}'.format(
         second_interfaces_contents=new_interfaces_contents, interfaces_path=interfaces_path))
 
-    ssh.exec_command('echo "{new_nat_routing_contents}" >> {nat_routing_path}'.format(
+    ssh.exec_command('echo "{new_nat_routing_contents}" > {nat_routing_path}'.format(
         new_nat_routing_contents=new_nat_routing_contents, nat_routing_path=nat_routing_path))
 
     ssh.exec_command('chmod +x {nat_routing_path}'.format(nat_routing_path=nat_routing_path))
 
+    ssh.exec_command('systemctl restart networking')
     ssh.close()
 
 def install_psi_limit_load(host, servers):
