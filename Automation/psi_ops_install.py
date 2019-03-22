@@ -1280,7 +1280,6 @@ def install_second_ip_address(host, new_ip_addresses_list):
 
     ssh.exec_command('chmod +x {nat_routing_path}'.format(nat_routing_path=nat_routing_path))
 
-    ssh.exec_command('systemctl restart networking')
     ssh.close()
 
 def install_psi_limit_load(host, servers):
