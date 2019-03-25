@@ -1243,39 +1243,53 @@ def install_geoip_database(ssh, is_TCS):
 def install_second_ip_address(host, new_ip_addresses_list):
     interfaces_path = '/etc/network/interfaces.d/multi_ip_interfaces'
     nat_routing_path = '/etc/network/if-up.d/nat_routing'
+    interface_dev = 'eth0'
 
     if type(new_ip_addresses_list) != list:
         print("New IP Address has to be a list.")
         return
-
-    interfaces_contents_list = []
-
-    for i in range(0, len(new_ip_addresses_list)):
-        new_ip_address = new_ip_addresses_list[i]
-        interfaces_contents = textwrap.dedent('''
-            auto eth0:{virtual_interface_number}
-            allow-hotplug eth0:{virtual_interface_number}
-            iface eth0:{virtual_interface_number} inet static
-                address {ip_address}
-                netmask 255.255.255.0
-                gateway 185.10.56.1
-        ''').format(virtual_interface_number=i+1, ip_address=new_ip_address)
-        interfaces_contents_list.append(interfaces_contents)
-
-    new_interfaces_contents = '\n'.join(interfaces_contents_list)
-    new_nat_routing_contents = textwrap.dedent('''#!/bin/sh
-        /sbin/iptables -t nat -I PREROUTING -j DNAT -d {new_ip_addresses} --to-destination {host_ip_address}
-    ''').format(new_ip_addresses=','.join(new_ip_addresses_list), host_ip_address=host.ip_address)
 
     ssh = psi_ssh.SSH(
         host.ip_address, host.ssh_port,
         host.ssh_username, host.ssh_password,
         host.ssh_host_key)
 
-    ssh.exec_command('echo "{second_interfaces_contents}" > {interfaces_path}'.format(
+    interface_up = ssh.exec_command('cat /sys/class/net/' + interface_dev + '/operstate')
+    nat_routing_exist = ssh.exec_command('[ -f ' + nat_routing_path  + ' ] && echo "found" || echo "no"')
+
+    if 'up' in interface_up:
+        print("Checked eth0 is up, using eth0 as default virtual interfaces")
+    elif 'down' in interface_up:
+        print("Checked eth0 is down, using eth1 as default virtual interfaces")
+        interface_dev = 'eth1'
+
+    interfaces_contents_list = []
+
+    for i in range(0, len(new_ip_addresses_list)):
+        new_ip_address = new_ip_addresses_list[i]
+        interfaces_contents = textwrap.dedent('''auto {interface_dev}:{virtual_interface_number}
+        allow-hotplug {interface_dev}:{virtual_interface_number}
+        iface {interface_dev}:{virtual_interface_number} inet static
+            address {ip_address}
+            netmask 255.255.255.0
+            #gateway 185.10.56.1
+        ''').format(interface_dev=interface_dev, virtual_interface_number=i+1, ip_address=new_ip_address)
+        interfaces_contents_list.append(interfaces_contents)
+    new_interfaces_contents = '\n'.join(interfaces_contents_list)
+
+    if 'no' in nat_routing_exist:
+        print("Nat routing iptables rule not found, creating a new one with header.")
+        new_nat_routing_header = textwrap.dedent('''#!/bin/sh''')
+        ssh.exec_command('echo "{new_nat_routing_header}" > {nat_routing_path}'.format(
+            new_nat_routing_header=new_nat_routing_header, nat_routing_path=nat_routing_path))
+
+    new_nat_routing_contents = textwrap.dedent('''/sbin/iptables -t nat -I PREROUTING -j DNAT -d {new_ip_addresses} --to-destination {host_ip_address}
+    ''').format(new_ip_addresses=','.join(new_ip_addresses_list), host_ip_address=host.ip_address)
+
+    ssh.exec_command('echo "{second_interfaces_contents}" >> {interfaces_path}'.format(
         second_interfaces_contents=new_interfaces_contents, interfaces_path=interfaces_path))
 
-    ssh.exec_command('echo "{new_nat_routing_contents}" > {nat_routing_path}'.format(
+    ssh.exec_command('echo "{new_nat_routing_contents}" >> {nat_routing_path}'.format(
         new_nat_routing_contents=new_nat_routing_contents, nat_routing_path=nat_routing_path))
 
     ssh.exec_command('chmod +x {nat_routing_path}'.format(nat_routing_path=nat_routing_path))
