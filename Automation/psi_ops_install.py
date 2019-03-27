@@ -668,9 +668,8 @@ def install_TCS_host(host, servers, existing_server_ids, plugins):
             rsa_key.save_key_bio(buf, cipher=None)
             server.TCS_ssh_private_key = buf.read()
 
-        if server.ssh_obfuscated_port is not None:
-            if server.ssh_obfuscated_key is None:
-                server.ssh_obfuscated_key = binascii.hexlify(os.urandom(SSH_OBFUSCATED_KEY_BYTE_LENGTH))
+        if server.ssh_obfuscated_key is None:
+            server.ssh_obfuscated_key = binascii.hexlify(os.urandom(SSH_OBFUSCATED_KEY_BYTE_LENGTH))
 
 def install_firewall_rules(host, servers, plugins, do_blacklist=True):
 
@@ -1241,27 +1240,50 @@ def install_geoip_database(ssh, is_TCS):
             ssh.put_file(os.path.join(os.path.abspath('.'), geo_ip_file),
                          posixpath.join(REMOTE_GEOIP_DIRECTORY, geo_ip_file))
 
-def install_second_ip_address(host, new_ip_address):
+def install_second_ip_address(host, new_ip_addresses_list):
     interfaces_path = '/etc/network/interfaces.d/multi_ip_interfaces'
     nat_routing_path = '/etc/network/if-up.d/nat_routing'
+    interface_dev = 'eth0'
 
-    new_interfaces_contents = textwrap.dedent('''
-        auto eth0:1
-        allow-hotplug eth0:1
-        iface eth0:1 inet static
-            address {ip_address}
-            netmask 255.255.255.0
-            gateway 185.10.56.1
-    ''').format(ip_address=new_ip_address)
-
-    new_nat_routing_contents = textwrap.dedent('''#!/bin/sh
-        /sbin/iptables -t nat -I PREROUTING -j DNAT -d {new_ip_address} --to-destination {host_ip_address}
-    ''').format(new_ip_address=new_ip_address, host_ip_address=host.ip_address)
+    if type(new_ip_addresses_list) != list:
+        print("New IP Address has to be a list.")
+        return
 
     ssh = psi_ssh.SSH(
         host.ip_address, host.ssh_port,
         host.ssh_username, host.ssh_password,
         host.ssh_host_key)
+
+    interface_up = ssh.exec_command('cat /sys/class/net/' + interface_dev + '/operstate')
+    nat_routing_exist = ssh.exec_command('[ -f ' + nat_routing_path  + ' ] && echo "found" || echo "no"')
+
+    if 'up' in interface_up:
+        print("Checked eth0 is up, using eth0 as default virtual interfaces")
+    elif 'down' in interface_up:
+        print("Checked eth0 is down, using eth1 as default virtual interfaces")
+        interface_dev = 'eth1'
+
+    interfaces_contents_list = []
+
+    for i in range(0, len(new_ip_addresses_list)):
+        new_ip_address = new_ip_addresses_list[i]
+        interfaces_contents = textwrap.dedent('''auto {interface_dev}:{virtual_interface_number}
+        allow-hotplug {interface_dev}:{virtual_interface_number}
+        iface {interface_dev}:{virtual_interface_number} inet static
+            address {ip_address}
+            netmask 255.255.255.0
+        ''').format(interface_dev=interface_dev, virtual_interface_number=i+1, ip_address=new_ip_address)
+        interfaces_contents_list.append(interfaces_contents)
+    new_interfaces_contents = '\n'.join(interfaces_contents_list)
+
+    if 'no' in nat_routing_exist:
+        print("Nat routing iptables rule not found, creating a new one with header.")
+        new_nat_routing_header = textwrap.dedent('''#!/bin/sh''')
+        ssh.exec_command('echo "{new_nat_routing_header}" > {nat_routing_path}'.format(
+            new_nat_routing_header=new_nat_routing_header, nat_routing_path=nat_routing_path))
+
+    new_nat_routing_contents = textwrap.dedent('''/sbin/iptables -t nat -I PREROUTING -j DNAT -d {new_ip_addresses} --to-destination {host_ip_address}
+    ''').format(new_ip_addresses=','.join(new_ip_addresses_list), host_ip_address=host.ip_address)
 
     ssh.exec_command('echo "{second_interfaces_contents}" >> {interfaces_path}'.format(
         second_interfaces_contents=new_interfaces_contents, interfaces_path=interfaces_path))

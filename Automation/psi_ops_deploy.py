@@ -377,7 +377,7 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
     config['SSHUserName'] = server.ssh_username
     config['SSHPassword'] = server.ssh_password
 
-    if server.capabilities['OSSH'] or server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] or server.capabilities['QUIC'] or server.capabilities['TAPDANCE']:
+    if server.capabilities['SSH'] or server.capabilities['OSSH'] or server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] or server.capabilities['QUIC'] or server.capabilities['TAPDANCE']:
         config['ObfuscatedSSHKey'] = server.ssh_obfuscated_key
 
     if server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET']:
