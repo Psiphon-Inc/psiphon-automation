@@ -2722,9 +2722,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # - Implementation to flagged hosts
         # - Builds for required channels and sponsors
         # - Publish, tweet
-        # - Data to all hosts
         # - Email and stats server config
         # - Remove hosts from providers that are marked for removal
+        # - Data to all hosts
         #
         # NOTE: Order is important. Hosts get new implementation before
         # new data, in case schema has changed; deploy builds before
@@ -2887,19 +2887,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if deployed_builds_for_platform:
                 self.save()
 
-        # Host data
-
-        if self.__deploy_data_required_for_all:
-            psi_ops_deploy.deploy_data_to_hosts(
-                self.get_hosts(),
-                self.__compartmentalize_data_for_host,
-                self.__TCS_traffic_rules_set,
-                self.__TCS_OSL_config,
-                self.__TCS_tactics_config_template,
-                self.__TCS_blocklist_csv)
-            self.__deploy_data_required_for_all = False
-            self.save()
-
         # Email and stats server configs
 
         if self.__deploy_stats_config_required:
@@ -2915,6 +2902,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Remove hosts from providers that are marked for removal
 
         self.remove_hosts_from_providers()
+
+        # Host data
+
+        if self.__deploy_data_required_for_all:
+            psi_ops_deploy.deploy_data_to_hosts(
+                self.get_hosts(),
+                self.__compartmentalize_data_for_host,
+                self.__TCS_traffic_rules_set,
+                self.__TCS_OSL_config,
+                self.__TCS_tactics_config_template,
+                self.__TCS_blocklist_csv)
+            self.__deploy_data_required_for_all = False
+            self.save()
 
         #
         # Website
