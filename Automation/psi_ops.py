@@ -2278,7 +2278,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             deleted_server.ssh_obfuscated_key = None
             deleted_server.TCS_ssh_private_key = None
             # Add deleted log to deleted server
-            seleted_server.log("Deleted")
+            deleted_server.log("deleted")
             self.__deleted_servers[server_id] = deleted_server
         # We don't assign host IDs and can't guarentee uniqueness, so not
         # archiving deleted host keyed by ID.
@@ -2289,7 +2289,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if 'deploy' in log[1]:
                 deleted_host.logs.remove(log)
         # Add deleted log to deleted host
-        deleted_host.log("Deleted")
+        deleted_host.log("deleted")
         self.__deleted_hosts.append(deleted_host)
 
         # Clear flags that include this host id.  Update stats config.
@@ -4214,11 +4214,23 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         except:
             pass
 
-    def restore_deleted_host_and_server(self, host_id):
+    def restore_deleted_host(self, host_id):
         assert(self.is_locked)
         try:
             deleted_host = [host for host in self.__deleted_hosts if host.id == host_id][0]
             deleted_server = [server for server in self.__deleted_servers.values() if server.host_id == host_id][0]
+
+            # Add Restored log
+            deleted_host.log('restored')
+            deleted_server.log('restored')
+
+            # Clean up old Deleted log
+            for log in copy.copy(deleted_host.logs):
+                if 'deleted' in log[1]:
+                    deleted_host.logs.remove(log)
+            for log in copy.copy(deleted_server.logs):
+                if 'deleted' in log[1]:
+                    deleted_server.logs.remove(log)
 
             self.__hosts[deleted_host.id] = deleted_host
             self.__deleted_hosts.remove(deleted_host)
