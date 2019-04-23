@@ -2277,6 +2277,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             deleted_server.ssh_host_key = None
             deleted_server.ssh_obfuscated_key = None
             deleted_server.TCS_ssh_private_key = None
+            # Add deleted log to deleted server
+            deleted_server.log("deleted")
             self.__deleted_servers[server_id] = deleted_server
         # We don't assign host IDs and can't guarentee uniqueness, so not
         # archiving deleted host keyed by ID.
@@ -2286,6 +2288,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for log in copy.copy(deleted_host.logs):
             if 'deploy' in log[1]:
                 deleted_host.logs.remove(log)
+        # Add deleted log to deleted host
+        deleted_host.log("deleted")
         self.__deleted_hosts.append(deleted_host)
 
         # Clear flags that include this host id.  Update stats config.
@@ -2722,9 +2726,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # - Implementation to flagged hosts
         # - Builds for required channels and sponsors
         # - Publish, tweet
-        # - Data to all hosts
         # - Email and stats server config
         # - Remove hosts from providers that are marked for removal
+        # - Data to all hosts
         #
         # NOTE: Order is important. Hosts get new implementation before
         # new data, in case schema has changed; deploy builds before
@@ -2887,19 +2891,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if deployed_builds_for_platform:
                 self.save()
 
-        # Host data
-
-        if self.__deploy_data_required_for_all:
-            psi_ops_deploy.deploy_data_to_hosts(
-                self.get_hosts(),
-                self.__compartmentalize_data_for_host,
-                self.__TCS_traffic_rules_set,
-                self.__TCS_OSL_config,
-                self.__TCS_tactics_config_template,
-                self.__TCS_blocklist_csv)
-            self.__deploy_data_required_for_all = False
-            self.save()
-
         # Email and stats server configs
 
         if self.__deploy_stats_config_required:
@@ -2915,6 +2906,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Remove hosts from providers that are marked for removal
 
         self.remove_hosts_from_providers()
+
+        # Host data
+
+        if self.__deploy_data_required_for_all:
+            psi_ops_deploy.deploy_data_to_hosts(
+                self.get_hosts(),
+                self.__compartmentalize_data_for_host,
+                self.__TCS_traffic_rules_set,
+                self.__TCS_OSL_config,
+                self.__TCS_tactics_config_template,
+                self.__TCS_blocklist_csv)
+            self.__deploy_data_required_for_all = False
+            self.save()
 
         #
         # Website
@@ -4093,6 +4097,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             '',  # Omit: meek_cookie_encryption_public_key
                                             '',  # Omit: meek_cookie_encryption_private_key
                                             '', '', '') # Omit: tactics fields
+            copy.__hosts[host.id].logs = host.logs
 
         for server in self.__servers.itervalues():
             copy.__servers[server.id] = Server(
@@ -4107,6 +4112,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             '',   # Omit: server.discovery_date_range,
                                             server.capabilities)
                                             # Omit: propagation, web server, ssh info, version
+            copy.__servers[server.id].logs = server.logs
 
         for deleted_server in self.__deleted_servers.itervalues():
             copy.__deleted_servers[deleted_server.id] = Server(
@@ -4121,6 +4127,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             '', # Omit: deleted_server.discovery_date_range,
                                             deleted_server.capabilities)
                                             # Omit: propagation, web server, ssh info, version
+            copy.__deleted_servers[deleted_server.id].logs = deleted_server.logs
 
         for propagation_channel in self.__propagation_channels.itervalues():
             copy.__propagation_channels[propagation_channel.id] = PropagationChannel(
@@ -4207,11 +4214,23 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         except:
             pass
 
-    def restore_deleted_host_and_server(self, host_id):
+    def restore_deleted_host(self, host_id):
         assert(self.is_locked)
         try:
             deleted_host = [host for host in self.__deleted_hosts if host.id == host_id][0]
             deleted_server = [server for server in self.__deleted_servers.values() if server.host_id == host_id][0]
+
+            # Add Restored log
+            deleted_host.log('restored')
+            deleted_server.log('restored')
+
+            # Clean up old Deleted log
+            for log in copy.copy(deleted_host.logs):
+                if 'deleted' in log[1]:
+                    deleted_host.logs.remove(log)
+            for log in copy.copy(deleted_server.logs):
+                if 'deleted' in log[1]:
+                    deleted_server.logs.remove(log)
 
             self.__hosts[deleted_host.id] = deleted_host
             self.__deleted_hosts.remove(deleted_host)
