@@ -20,9 +20,9 @@ diagnostic-info-DB, then response email is formatted and sent; entry is
 deleted from email-ID-DB. Also cleans up expired email-ID-DB entries.
 '''
 
-import yaml
 import smtplib
 import time
+import pprint
 
 from config import config
 import logger
@@ -45,18 +45,6 @@ def _email_diagnostic_info_records_iterator():
         time.sleep(_SLEEP_TIME_SECS)
 
 
-def _clean_diagnostic_info_for_yaml_dumping(diagnostic_info):
-    '''
-    When we pull the `diagnostic_info` out of the database, it has a '_id'
-    field added that is a non-safe-YAML-able object. We'll make sure that
-    the object is okay to dump.
-    Modifies `diagnostic_info`.
-    '''
-    for key, value in diagnostic_info.iteritems():
-        if key.startswith('_'):
-            diagnostic_info[key] = str(value)
-
-
 def go():
     # Retrieve and process email-to-diagnostic-info records.
     # Note that `_email_diagnostic_info_records` throttles itself if/when
@@ -67,13 +55,7 @@ def go():
         if not diagnostic_info:
             continue
 
-        # Modifies diagnostic_info
-        _clean_diagnostic_info_for_yaml_dumping(diagnostic_info)
-
-        # Convert the modified YAML back into a string for emailing.
-        diagnostic_info_text = yaml.safe_dump(diagnostic_info,
-                                              default_flow_style=False,
-                                              width=75)
+        diagnostic_info_text = pprint.pformat(diagnostic_info, indent=1, width=75)
 
         try:
             diagnostic_info_html = mailformatter.format(diagnostic_info)
