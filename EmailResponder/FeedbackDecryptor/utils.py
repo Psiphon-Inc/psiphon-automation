@@ -162,6 +162,7 @@ def convert_psinet_values(config, obj):
             prop_channel_name = prop_channel_id_to_name.get(val)
             if not prop_channel_name:
                 prop_channel_name = psi_ops_helpers.get_propagation_channel_name_by_id(val)
+                prop_channel_id_to_name[val] = prop_channel_name
 
             if prop_channel_name:
                 assign_value_to_obj_at_path(obj,
@@ -171,6 +172,7 @@ def convert_psinet_values(config, obj):
             sponsor_name = sponsor_id_to_name.get(val)
             if not sponsor_name:
                 sponsor_name = psi_ops_helpers.get_sponsor_name_by_id(val)
+                sponsor_id_to_name[val] = sponsor_name
 
             if sponsor_name:
                 assign_value_to_obj_at_path(obj,
