@@ -1979,8 +1979,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for server in servers:
             self.test_server(server.id, ['handshake'])
 
-    def launch_new_server(self, is_TCS):
-        provider = self._weighted_random_choice(self.__provider_ranks).provider
+    def launch_new_server(self, is_TCS, provider=None):
+        if provider == None:
+            provider = self._weighted_random_choice(self.__provider_ranks).provider
 
         # This is pretty dirty. We should use some proper OO technique.
         provider_launch_new_server = None

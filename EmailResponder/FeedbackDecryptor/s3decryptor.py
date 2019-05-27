@@ -67,7 +67,7 @@ def _bucket_iterator(bucket):
 
             # Make sure to delete the key *before* proceeding, so we don't
             # try to re-process if there's an error.
-            bucket.delete_key(key)
+            key.delete()
 
             if contents:
                 yield contents
