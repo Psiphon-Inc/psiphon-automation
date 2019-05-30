@@ -40,6 +40,8 @@ import traceback
 import shutil
 import urlparse
 import csv
+import hmac
+import hashlib
 from pkg_resources import parse_version
 from multiprocessing.pool import ThreadPool
 from collections import defaultdict
@@ -4058,10 +4060,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Alphabetize by host_id
         server_list.sort(key=lambda k: k['host_id'])
 
+        valid_server_entry_tags = {}
+        for server in self.__servers.itervalues():
+            tag = base64.b64encode(hmac.new(str(server.web_server_secret), msg=str(server.ip_address), digestmod=hashlib.sha256).digest())
+            valid_server_entry_tags[tag] = True
+
         return json.dumps({
             "client_versions": copy.__client_versions,
             "hosts": copy.__hosts,
             "servers": server_list,
+            "valid_server_entry_tags": valid_server_entry_tags,
             "sponsors": copy.__sponsors,
             "default_sponsor_id": self.__default_sponsor_id
         }, default=self.__json_serializer)
