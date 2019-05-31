@@ -47,10 +47,11 @@ def get_region(datacenter_id):
     #  {u'DATACENTERID': 4, u'LOCATION': u'Atlanta, GA, USA'},
     #  {u'DATACENTERID': 6, u'LOCATION': u'Newark, NJ, USA'},
     #  {u'DATACENTERID': 7, u'LOCATION': u'London, England, UK'},
-    #  {u'DATACENTERID': 8, u'LOCATION': u'Tokyo, JP'}
-    #  {u'DATACENTERID': 9, u'LOCATION': u'Singapore, SG', u'ABBR': u'singapore'}
-    #  {u'DATACENTERID': 10, u'LOCATION': u'Frankfurt, DE', u'ABBR': u'frankfurt'}
-    #  {u'DATACENTERID': 11, u'LOCATION': u'Tokyo 2, JP'}]
+    #  {u'DATACENTERID': 8, u'LOCATION': u'Tokyo, JP'},
+    #  {u'DATACENTERID': 9, u'LOCATION': u'Singapore, SG', u'ABBR': u'singapore'},
+    #  {u'DATACENTERID': 10, u'LOCATION': u'Frankfurt, DE', u'ABBR': u'frankfurt'},
+    #  {u'DATACENTERID': 11, u'LOCATION': u'Tokyo 2, JP', u'ABBR': u'shinagawa1'},
+    #  {u'DATACENTERID': 15, u'LOCATION': u'Toronto, Ontario, CAN', u'ABBR': u'tor1'}]
     if datacenter_id in [2, 3, 4, 6]:
         return 'US'
     if datacenter_id in [7]:
@@ -61,6 +62,8 @@ def get_region(datacenter_id):
         return 'SG'
     if datacenter_id in [10]:
         return 'DE'
+    if datacenter_id in [15]:
+        return 'CA'
     return ''
 
 def create_linode(linode_api):
