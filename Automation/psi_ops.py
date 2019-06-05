@@ -2164,7 +2164,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         None,
                         None,
                         ossh_port,
-                        ossh_port,
+                        random.choice([ssh_port, ossh_port]),
                         None,
                         None,
                         None,
