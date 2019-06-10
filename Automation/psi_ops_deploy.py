@@ -27,6 +27,7 @@ import json
 import psi_ssh
 import psi_routes
 import psi_ops_install
+import random
 from multiprocessing.pool import ThreadPool
 from functools import wraps
 from time import sleep
@@ -388,6 +389,19 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
         config['MeekProxyForwardedForHeaders'] = TCS_psiphond_config_values['MeekProxyForwardedForHeaders']
 
     config['MaxConcurrentSSHHandshakes'] = 2000
+
+    # SSHBeginHandshakeTimeoutMillisecondsList/SSHHandshakeTimeoutMillisecondsList
+    # should be Python lists of integer millisecond values.
+
+    ssh_begin_handshake_timeouts = TCS_psiphond_config_values.get('SSHBeginHandshakeTimeoutMillisecondsList', None)
+    if ssh_begin_handshake_timeouts is not None:
+        assert(isinstance(ssh_begin_handshake_timeouts, list))
+        config['SSHBeginHandshakeTimeoutMilliseconds'] = random.choice(ssh_begin_handshake_timeouts)
+
+    ssh_handshake_timeouts = TCS_psiphond_config_values.get('SSHHandshakeTimeoutMillisecondsList', None)
+    if ssh_handshake_timeouts is not None:
+        assert(isinstance(ssh_handshake_timeouts, list))
+        config['SSHHandshakeTimeoutMilliseconds'] = random.choice(ssh_handshake_timeouts)
 
     return json.dumps(config)
 
