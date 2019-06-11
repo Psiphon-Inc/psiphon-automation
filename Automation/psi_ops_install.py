@@ -957,13 +957,17 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
     # AcceptRecentRateLimitList:    "--seconds <n> --hitcount <m>"
 
     accept_unfronted_rate_limit = "--limit 1000/sec"
-    accept_unfronted_rate_limits = TCS_psiphond_config_values.get('AcceptUnfrontedRateLimitList', None)
+    # TODO temporary fix
+    # accept_unfronted_rate_limits = TCS_psiphond_config_values.get('AcceptUnfrontedRateLimitList', None)
+    accept_unfronted_rate_limits = None
     if accept_unfronted_rate_limits is not None:
         assert(isinstance(accept_unfronted_rate_limits, list))
         accept_unfronted_rate_limit = random.choice(accept_unfronted_rate_limits)
 
     accept_recent_rate_limit = "--seconds 60 --hitcount 3"
-    accept_recent_rate_limits = TCS_psiphond_config_values.get('AcceptRecentRateLimitList', None)
+    # TODO temporary fix
+    # accept_recent_rate_limits = TCS_psiphond_config_values.get('AcceptRecentRateLimitList', None)
+    accept_recent_rate_limits = None
     if accept_recent_rate_limits is not None:
         assert(isinstance(accept_recent_rate_limits, list))
         accept_recent_rate_limit = random.choice(accept_recent_rate_limits)
