@@ -401,17 +401,17 @@ def generate_self_signed_certificate():
     return certificate.as_pem(), rsa.as_pem(cipher=None) # Use rsa for PKCS#1
 
 
-def install_host(host, servers, existing_server_ids, plugins):
+def install_host(host, servers, existing_server_ids, TCS_psiphond_config_values, plugins):
 
     if host.is_TCS:
-        install_TCS_host(host, servers, existing_server_ids, plugins)
+        install_TCS_host(host, servers, existing_server_ids, TCS_psiphond_config_values, plugins)
     else:
         install_legacy_host(host, servers, existing_server_ids, plugins)
 
 
 def install_legacy_host(host, servers, existing_server_ids, plugins):
 
-    install_firewall_rules(host, servers, plugins)
+    install_firewall_rules(host, servers, None, plugins)
 
     install_psi_limit_load(host, servers)
 
@@ -611,12 +611,12 @@ def install_legacy_host(host, servers, existing_server_ids, plugins):
     # NOTE: call psi_ops_deploy.deploy_host() to complete the install process
 
 
-def install_TCS_host(host, servers, existing_server_ids, plugins):
+def install_TCS_host(host, servers, existing_server_ids, TCS_psiphond_config_values, plugins):
 
     # Limitation: only one server per host currently implemented
     assert(len(servers) == 1)
 
-    install_TCS_firewall_rules(host, servers, True)
+    install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, True)
 
     install_TCS_psi_limit_load(host)
 
@@ -672,10 +672,10 @@ def install_TCS_host(host, servers, existing_server_ids, plugins):
         if server.ssh_obfuscated_key is None:
             server.ssh_obfuscated_key = binascii.hexlify(os.urandom(SSH_OBFUSCATED_KEY_BYTE_LENGTH))
 
-def install_firewall_rules(host, servers, plugins, do_blacklist=True):
+def install_firewall_rules(host, servers, TCS_psiphond_config_values, plugins, do_blacklist=True):
 
     if host.is_TCS:
-        install_TCS_firewall_rules(host, servers, do_blacklist)
+        install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, do_blacklist)
     else:
         install_legacy_firewall_rules(host, servers, plugins, do_blacklist)
 
@@ -924,7 +924,7 @@ iptables-restore < %s
         install_malware_blacklist(host, False)
 
 
-def install_TCS_firewall_rules(host, servers, do_blacklist):
+def install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, do_blacklist):
 
     # TODO-TCS: security review
 
@@ -957,17 +957,13 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
     # AcceptRecentRateLimitList:    "--seconds <n> --hitcount <m>"
 
     accept_unfronted_rate_limit = "--limit 1000/sec"
-    # TODO temporary fix
-    # accept_unfronted_rate_limits = TCS_psiphond_config_values.get('AcceptUnfrontedRateLimitList', None)
-    accept_unfronted_rate_limits = None
+    accept_unfronted_rate_limits = TCS_psiphond_config_values.get('AcceptUnfrontedRateLimitList', None)
     if accept_unfronted_rate_limits is not None:
         assert(isinstance(accept_unfronted_rate_limits, list))
         accept_unfronted_rate_limit = random.choice(accept_unfronted_rate_limits)
 
     accept_recent_rate_limit = "--seconds 60 --hitcount 3"
-    # TODO temporary fix
-    # accept_recent_rate_limits = TCS_psiphond_config_values.get('AcceptRecentRateLimitList', None)
-    accept_recent_rate_limits = None
+    accept_recent_rate_limits = TCS_psiphond_config_values.get('AcceptRecentRateLimitList', None)
     if accept_recent_rate_limits is not None:
         assert(isinstance(accept_recent_rate_limits, list))
         accept_recent_rate_limit = random.choice(accept_recent_rate_limits)
