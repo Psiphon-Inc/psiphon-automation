@@ -2142,8 +2142,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 capabilities['handshake'] = False
                 capabilities['VPN'] = False
 
+            quic_port = ossh_port
+            if quic_port in [68, 123] or random.random() < 0.1:
+                quic_port = ssh_port
+
             if host.is_TCS:
-                capabilities['QUIC'] = capabilities['OSSH'] and ossh_port != 123
+                capabilities['QUIC'] = capabilities['OSSH']
 
             server = Server(
                         None,
@@ -2166,7 +2170,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         None,
                         None,
                         ossh_port,
-                        random.choice([ssh_port, ossh_port]),
+                        quic_port,
                         None,
                         None,
                         None,
