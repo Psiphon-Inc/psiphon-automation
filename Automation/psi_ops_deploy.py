@@ -236,8 +236,8 @@ def deploy_legacy_implementation(ssh, host, discovery_strategy_value_hmac_key, p
 def deploy_TCS_implementation(ssh, host, servers, TCS_psiphond_config_values):
 
     # Limitation: only one server per host currently implemented
-    assert(len(servers) == 1)
-    server = servers[0]
+    # Multiple IP addresses (and servers) can be supported by port forwarding to the host IP address
+    server = [server for server in servers if server.ip_address == host.ip_address][0]
 
     # Upload psiphond.config
 
