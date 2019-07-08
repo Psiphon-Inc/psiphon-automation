@@ -240,14 +240,14 @@ def ServerCapabilities():
     for capability in ('handshake', 'VPN', 'SSH', 'OSSH'):
         capabilities[capability] = True
     # These are disabled by default
-    for capability in ('ssh-api-requests', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'FRONTED-MEEK-TACTICS', 'QUIC', 'TAPDANCE'):
+    for capability in ('ssh-api-requests', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'FRONTED-MEEK-TACTICS', 'QUIC', 'TAPDANCE', 'FRONTED-MEEK-QUIC'):
         capabilities[capability] = False
     return capabilities
 
 
 def copy_server_capabilities(caps):
     capabilities = {}
-    for capability in ('handshake', 'ssh-api-requests', 'VPN', 'SSH', 'OSSH', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'FRONTED-MEEK-TACTICS', 'QUIC', 'TAPDANCE'):
+    for capability in ('handshake', 'ssh-api-requests', 'VPN', 'SSH', 'OSSH', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'FRONTED-MEEK-TACTICS', 'QUIC', 'TAPDANCE', 'FRONTED-MEEK-QUIC'):
         capabilities[capability] = caps[capability]
     return capabilities
 
@@ -413,7 +413,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.52'
+    class_version = '0.53'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -748,6 +748,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.52')) < 0:
             self.__TCS_blocklist_csv = ""
             self.version = '0.52'
+        if cmp(parse_version(self.version), parse_version('0.53')) < 0:
+            for server in self.__servers.values() + self.__deleted_servers.values():
+                server.capabilities['FRONTED-MEEK-QUIC'] = False
+            self.version = '0.53'
 
     def initialize_plugins(self):
         for plugin in plugins:

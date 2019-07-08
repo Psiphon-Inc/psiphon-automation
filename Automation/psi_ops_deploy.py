@@ -94,6 +94,7 @@ TCS_UNFRONTED_MEEK_HTTPS_OSSH_DOCKER_PORT = 1031
 TCS_UNFRONTED_MEEK_SESSION_TICKET_OSSH_DOCKER_PORT = 1032
 TCS_QUIC_OSSH_DOCKER_PORT = 1033
 TCS_TAPDANCE_OSSH_DOCKER_PORT = 1034
+TCS_FRONTED_MEEK_QUIC_OSSH_DOCKER_PORT = 1035
 
 TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND = 'systemctl kill --signal=USR1 psiphond'
 TCS_PSIPHOND_STOP_ESTABLISHING_TUNNELS_SIGNAL_COMMAND = 'systemctl kill --signal=TSTP psiphond'
@@ -438,7 +439,8 @@ def get_supported_protocol_ports(host, server, **kwargs):
             ('UNFRONTED-MEEK-OSSH', TCS_UNFRONTED_MEEK_OSSH_DOCKER_PORT),
             ('FRONTED-MEEK-HTTP-OSSH', TCS_FRONTED_MEEK_HTTP_OSSH_DOCKER_PORT),
             ('UNFRONTED-MEEK-HTTPS-OSSH', TCS_UNFRONTED_MEEK_HTTPS_OSSH_DOCKER_PORT),
-            ('UNFRONTED-MEEK-SESSION-TICKET-OSSH', TCS_UNFRONTED_MEEK_SESSION_TICKET_OSSH_DOCKER_PORT)
+            ('UNFRONTED-MEEK-SESSION-TICKET-OSSH', TCS_UNFRONTED_MEEK_SESSION_TICKET_OSSH_DOCKER_PORT),
+            ('FRONTED-MEEK-QUIC-OSSH', TCS_FRONTED_MEEK_QUIC_OSSH_DOCKER_PORT),
         ]
 
     supported_protocol_ports = {}
@@ -474,6 +476,9 @@ def get_supported_protocol_ports(host, server, **kwargs):
 
         if protocol == 'UNFRONTED-MEEK-SESSION-TICKET-OSSH' and server.capabilities['UNFRONTED-MEEK-SESSION-TICKET']:
                 supported_protocol_ports[protocol] = int(host.meek_server_port) if external_ports else docker_port
+
+        if protocol == 'FRONTED-MEEK-QUIC-OSSH' and server.capabilities['FRONTED-MEEK-QUIC']:
+                supported_protocol_ports[protocol] = 443 if external_ports else docker_port
 
     return supported_protocol_ports
 
