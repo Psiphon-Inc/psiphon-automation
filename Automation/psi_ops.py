@@ -3630,7 +3630,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         env = {'SIGNER_PUBLIC_KEY': self.__server_entry_signing_key_pair[0],
                'SIGNER_PRIVATE_KEY': self.__server_entry_signing_key_pair[1],
                'SIGNER_SERVER_ENTRY': encoded_server_entry}
-        return subprocess.Popen(args, env=env, stdout=subprocess.PIPE).communicate()[0]
+        return subprocess.Popen(args, env=env, stdout=subprocess.PIPE).communicate()[0].strip()
 
     def __get_encoded_server_list(self, propagation_channel_id,
                                   client_ip_address_strategy_value=None, event_logger=None, discovery_date=None, test=False, include_propagation_servers=True):
@@ -3973,7 +3973,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         return jsonpickle.encode(copy)
 
-    def __get_server_tag(self):
+    def __get_server_tag(self, server):
         return base64.b64encode(hmac.new(
             str(server.web_server_secret),
             msg=str(server.ip_address),
