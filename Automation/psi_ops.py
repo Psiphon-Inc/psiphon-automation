@@ -415,6 +415,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # and store as a tuple (<public-key>, <private-key>)
         self.__server_entry_signing_key_pair = None
 
+        self.__exchange_obfuscation_key = base64.b64encode(os.urandom(32))
+
         if initialize_plugins:
             self.initialize_plugins()
 
@@ -759,6 +761,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.version = '0.53'
         if cmp(parse_version(self.version), parse_version('0.54')) < 0:
             self.__server_entry_signing_key_pair = None
+            self.__exchange_obfuscation_key = base64.b64encode(os.urandom(32))
             self.version = '0.54'
 
     def initialize_plugins(self):
