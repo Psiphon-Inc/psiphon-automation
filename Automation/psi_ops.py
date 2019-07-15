@@ -3630,8 +3630,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if os.name == 'posix':
             server_entry_signer_binary = 'server-entry-signer'
         args = [os.path.join('.', server_entry_signer_binary), 'sign']
-        env = {'SIGNER_PUBLIC_KEY': self.__server_entry_signing_key_pair[0],
-               'SIGNER_PRIVATE_KEY': self.__server_entry_signing_key_pair[1],
+        env = {'SIGNER_PUBLIC_KEY': str(self.__server_entry_signing_key_pair[0]),
+               'SIGNER_PRIVATE_KEY': str(self.__server_entry_signing_key_pair[1]),
                'SIGNER_SERVER_ENTRY': encoded_server_entry}
         return subprocess.Popen(args, env=env, stdout=subprocess.PIPE).communicate()[0].strip()
 
