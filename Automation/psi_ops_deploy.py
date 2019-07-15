@@ -127,7 +127,7 @@ def run_in_parallel(thread_pool_size, function, arguments):
             raise result
 
 
-def deploy_implementation(host, servers, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
+def deploy_implementation(host, servers, own_encoded_server_entries, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
 
     print 'deploy implementation to host %s%s...' % (host.id, " (TCS) " if host.is_TCS else "", )
 
@@ -137,7 +137,7 @@ def deploy_implementation(host, servers, discovery_strategy_value_hmac_key, plug
                     host.ssh_host_key)
 
     if host.is_TCS:
-        deploy_TCS_implementation(ssh, host, servers, TCS_psiphond_config_values)
+        deploy_TCS_implementation(ssh, host, servers, own_encoded_server_entries, TCS_psiphond_config_values)
     else:
         deploy_legacy_implementation(ssh, host, discovery_strategy_value_hmac_key, plugins)
 
@@ -233,7 +233,7 @@ def deploy_legacy_implementation(ssh, host, discovery_strategy_value_hmac_key, p
             plugin.deploy_implementation(ssh)
 
 
-def deploy_TCS_implementation(ssh, host, servers, TCS_psiphond_config_values):
+def deploy_TCS_implementation(ssh, host, servers, own_encoded_server_entries, TCS_psiphond_config_values):
 
     # Limitation: only one server per host currently implemented
     # Multiple IP addresses (and servers) can be supported by port forwarding to the host IP address
@@ -243,7 +243,7 @@ def deploy_TCS_implementation(ssh, host, servers, TCS_psiphond_config_values):
 
     put_file_with_content(
         ssh,
-        make_psiphond_config(host, server, TCS_psiphond_config_values),
+        make_psiphond_config(host, server, own_encoded_server_entries, TCS_psiphond_config_values),
         TCS_PSIPHOND_CONFIG_FILE_NAME)
 
     ssh.exec_command('touch %s' % (TCS_BLOCKLIST_CSV_FILE_NAME,))
@@ -299,7 +299,7 @@ CONTAINER_SYSCTL_STRING="--sysctl 'net.ipv4.ip_local_port_range=1100 65535'"
     # is delayed until deploy_TCS_data.
 
 
-def make_psiphond_config(host, server, TCS_psiphond_config_values):
+def make_psiphond_config(host, server, own_encoded_server_entries, TCS_psiphond_config_values):
 
     # Missing TCS_psiphond_config_values items throw KeyError. This is intended. Don't forget to configure these values.
 
@@ -404,6 +404,8 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
         assert(isinstance(ssh_handshake_timeouts, list))
         config['SSHHandshakeTimeoutMilliseconds'] = random.choice(ssh_handshake_timeouts)
 
+    config['OwnEncodedServerEntries'] = own_encoded_server_entries
+
     return json.dumps(config)
 
 
@@ -484,14 +486,15 @@ def get_supported_protocol_ports(host, server, **kwargs):
 
 
 # hosts_and_servers is a list of tuples: [(host, [server, ...]), ...]
-def deploy_implementation_to_hosts(hosts_and_servers, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
+def deploy_implementation_to_hosts(hosts_and_servers, own_encoded_server_entries_generator, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
 
     @retry_decorator_returning_exception
     def do_deploy_implementation(host_and_servers):
         try:
             host = host_and_servers[0]
             servers = host_and_servers[1]
-            deploy_implementation(host, servers, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values)
+            own_encoded_server_entries = own_encoded_server_entries_generator(host.id)
+            deploy_implementation(host, servers, own_encoded_server_entries, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values)
         except:
             print 'Error deploying implementation to host %s' % (host.id,)
             raise
