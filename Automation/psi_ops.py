@@ -343,12 +343,6 @@ RoutesSigningKeyPair = psi_utils.recordtype(
     'RoutesSigningKeyPair',
     'pem_key_pair, password')
 
-# Generate a server entry signing key pair using
-# https://github.com/Psiphon-Labs/psiphon-tunnel-core/tree/master/psiphon/common/protocol/signer
-ServerEntrySigningKeyPair = psi_utils.recordtype(
-    'ServerEntrySigningKeyPair',
-    'key_pair')
-
 
 CLIENT_PLATFORM_WINDOWS = 'Windows'
 CLIENT_PLATFORM_ANDROID = 'Android'
@@ -415,6 +409,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__default_sponsor_id = None
         self.__alternate_s3_bucket_domains = set()
         self.__global_https_request_regexes = []
+
+        # Generate a server entry signing key pair using
+        # https://github.com/Psiphon-Labs/psiphon-tunnel-core/tree/master/psiphon/common/protocol/signer
+        # and store as a tuple (<public-key>, <private-key>)
         self.__server_entry_signing_key_pair = None
 
         if initialize_plugins:
@@ -3628,7 +3626,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server_entry_signer_binary = 'server-entry-signer.exe'
         if os.name == 'posix':
             server_entry_signer_binary = 'server-entry-signer'
-        args = [os.path.join('.', server_entry_signer_binary), sign]
+        args = [os.path.join('.', server_entry_signer_binary), 'sign']
         env = {'SIGNER_PUBLIC_KEY': self.__server_entry_signing_key_pair[0],
                'SIGNER_PRIVATE_KEY': self.__server_entry_signing_key_pair[1],
                'SIGNER_SERVER_ENTRY': encoded_server_entry}
