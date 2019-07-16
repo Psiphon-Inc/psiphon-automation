@@ -3984,8 +3984,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def __json_serializer(self, obj):
         # JSON serializer for datetime objects
+        # to be consumed by psiphond
         if isinstance(obj, datetime.datetime):
-            return obj.isoformat()
+            # psiphond json deserialization expects RFC 3339 format
+            timestamp = obj.isoformat()
+            if obj.tzinfo == None:
+                timestamp += 'Z'
+            return timestamp
         if isinstance(obj, set):
             return list(obj)
         else:
@@ -4140,7 +4145,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for server in self.__servers.itervalues():
             if server.discovery_date_range and server.discovery_date_range[1] > discovery_date:
                 discovery_server = {
-                    "discovery_date_range": [server.discovery_date_range[0].isoformat(), server.discovery_date_range[1].isoformat()],
+                    "discovery_date_range": [server.discovery_date_range[0], server.discovery_date_range[1]],
                     "encoded_server_entry": self.__get_encoded_server_entry(server)
                 }
                 discovery_servers.append(discovery_server)
