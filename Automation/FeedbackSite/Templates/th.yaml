@@ -1,1 +1,2 @@
-th: {submit_button: เสนอ}
+th:
+  submit_button: เสนอ
