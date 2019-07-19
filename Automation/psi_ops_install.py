@@ -29,6 +29,7 @@ import time
 import M2Crypto
 import datetime
 import base64
+import random
 
 import psi_ops_deploy
 
@@ -400,17 +401,17 @@ def generate_self_signed_certificate():
     return certificate.as_pem(), rsa.as_pem(cipher=None) # Use rsa for PKCS#1
 
 
-def install_host(host, servers, existing_server_ids, plugins):
+def install_host(host, servers, existing_server_ids, TCS_psiphond_config_values, plugins):
 
     if host.is_TCS:
-        install_TCS_host(host, servers, existing_server_ids, plugins)
+        install_TCS_host(host, servers, existing_server_ids, TCS_psiphond_config_values, plugins)
     else:
         install_legacy_host(host, servers, existing_server_ids, plugins)
 
 
 def install_legacy_host(host, servers, existing_server_ids, plugins):
 
-    install_firewall_rules(host, servers, plugins)
+    install_firewall_rules(host, servers, None, plugins)
 
     install_psi_limit_load(host, servers)
 
@@ -610,12 +611,12 @@ def install_legacy_host(host, servers, existing_server_ids, plugins):
     # NOTE: call psi_ops_deploy.deploy_host() to complete the install process
 
 
-def install_TCS_host(host, servers, existing_server_ids, plugins):
+def install_TCS_host(host, servers, existing_server_ids, TCS_psiphond_config_values, plugins):
 
     # Limitation: only one server per host currently implemented
     assert(len(servers) == 1)
 
-    install_TCS_firewall_rules(host, servers, True)
+    install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, True)
 
     install_TCS_psi_limit_load(host)
 
@@ -671,10 +672,10 @@ def install_TCS_host(host, servers, existing_server_ids, plugins):
         if server.ssh_obfuscated_key is None:
             server.ssh_obfuscated_key = binascii.hexlify(os.urandom(SSH_OBFUSCATED_KEY_BYTE_LENGTH))
 
-def install_firewall_rules(host, servers, plugins, do_blacklist=True):
+def install_firewall_rules(host, servers, TCS_psiphond_config_values, plugins, do_blacklist=True):
 
     if host.is_TCS:
-        install_TCS_firewall_rules(host, servers, do_blacklist)
+        install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, do_blacklist)
     else:
         install_legacy_firewall_rules(host, servers, plugins, do_blacklist)
 
@@ -923,7 +924,7 @@ iptables-restore < %s
         install_malware_blacklist(host, False)
 
 
-def install_TCS_firewall_rules(host, servers, do_blacklist):
+def install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, do_blacklist):
 
     # TODO-TCS: security review
 
@@ -949,6 +950,24 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
     # Other protocols are rate limited with "recent", which is more appropriate for individual
     # remote addresses.
 
+    # AcceptUnfrontedRateLimitList/AcceptRecentRateLimit
+    # should be Python lists of string values, with the strings conforming to iptables syntax:
+    #
+    # AcceptUnfrontedRateLimitList: "--limit <n>/sec"
+    # AcceptRecentRateLimitList:    "--seconds <n> --hitcount <m>"
+
+    accept_unfronted_rate_limit = "--limit 1000/sec"
+    accept_unfronted_rate_limits = TCS_psiphond_config_values.get('AcceptUnfrontedRateLimitList', None)
+    if accept_unfronted_rate_limits is not None:
+        assert(isinstance(accept_unfronted_rate_limits, list))
+        accept_unfronted_rate_limit = random.choice(accept_unfronted_rate_limits)
+
+    accept_recent_rate_limit = "--seconds 60 --hitcount 3"
+    accept_recent_rate_limits = TCS_psiphond_config_values.get('AcceptRecentRateLimitList', None)
+    if accept_recent_rate_limits is not None:
+        assert(isinstance(accept_recent_rate_limits, list))
+        accept_recent_rate_limit = random.choice(accept_recent_rate_limits)
+
     # Create a new chain for rate limiting.
     new_rate_limit_chain = textwrap.dedent('''
         -N PSI_RATE_LIMITING''')
@@ -957,11 +976,11 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
         -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m limit --limit 1000/sec -j ACCEPT''')
 
     accept_with_fronted_limit_rate_template = textwrap.dedent('''
-        -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m limit --limit 1000/sec -j ACCEPT''')
+        -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m limit {accept_unfronted_rate_limit} -j ACCEPT''')
 
     accept_with_recent_rate_template = textwrap.dedent('''
         -A PSI_RATE_LIMITING -p {proto} -m state --state NEW -m {proto} --dport {port} -m recent --set --name LIMIT-{proto}-{port}
-        -A PSI_RATE_LIMITING -p {proto} -m state --state NEW -m {proto} --dport {port} -m recent --update --name LIMIT-{proto}-{port} --seconds 60 --hitcount 3 -j DROP
+        -A PSI_RATE_LIMITING -p {proto} -m state --state NEW -m {proto} --dport {port} -m recent --update --name LIMIT-{proto}-{port} {accept_recent_rate_limit} -j DROP
         -A PSI_RATE_LIMITING -p {proto} -m state --state NEW -m {proto} --dport {port} -j ACCEPT''')
 
     return_from_rate_limit_chain = textwrap.dedent('''
@@ -978,6 +997,7 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
 
     if server.capabilities['handshake']:
         web_server_port_rule = accept_with_recent_rate_template.format(
+                accept_recent_rate_limit=accept_recent_rate_limit,
                 proto="tcp",
                 port=str(firewall_web_server_port))
         rate_limit_rules += [web_server_port_rule]
@@ -993,12 +1013,14 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
         protocol_port_rule = ''
         if 'UNFRONTED-MEEK' in protocol:
             protocol_port_rule = accept_with_unfronted_limit_rate_template.format(
+                accept_unfronted_rate_limit=accept_unfronted_rate_limit,
                 port=str(port))
         elif 'MEEK' in protocol:
             protocol_port_rule = accept_with_fronted_limit_rate_template.format(
                 port=str(port))
         elif 'QUIC' in protocol:
             protocol_port_rule = accept_with_recent_rate_template.format(
+                accept_recent_rate_limit=accept_recent_rate_limit,
                 proto="udp",
                 port=str(port))
         elif 'TAPDANCE' in protocol:
@@ -1006,6 +1028,7 @@ def install_TCS_firewall_rules(host, servers, do_blacklist):
                 port=str(port))
         else:
             protocol_port_rule = accept_with_recent_rate_template.format(
+                accept_recent_rate_limit=accept_recent_rate_limit,
                 proto="tcp",
                 port=str(port))
         rate_limit_rules += [protocol_port_rule]

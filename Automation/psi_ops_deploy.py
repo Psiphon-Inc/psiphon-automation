@@ -27,6 +27,7 @@ import json
 import psi_ssh
 import psi_routes
 import psi_ops_install
+import random
 from multiprocessing.pool import ThreadPool
 from functools import wraps
 from time import sleep
@@ -93,6 +94,7 @@ TCS_UNFRONTED_MEEK_HTTPS_OSSH_DOCKER_PORT = 1031
 TCS_UNFRONTED_MEEK_SESSION_TICKET_OSSH_DOCKER_PORT = 1032
 TCS_QUIC_OSSH_DOCKER_PORT = 1033
 TCS_TAPDANCE_OSSH_DOCKER_PORT = 1034
+TCS_FRONTED_MEEK_QUIC_OSSH_DOCKER_PORT = 1035
 
 TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND = 'systemctl kill --signal=USR1 psiphond'
 TCS_PSIPHOND_STOP_ESTABLISHING_TUNNELS_SIGNAL_COMMAND = 'systemctl kill --signal=TSTP psiphond'
@@ -125,7 +127,7 @@ def run_in_parallel(thread_pool_size, function, arguments):
             raise result
 
 
-def deploy_implementation(host, servers, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
+def deploy_implementation(host, servers, own_encoded_server_entries, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
 
     print 'deploy implementation to host %s%s...' % (host.id, " (TCS) " if host.is_TCS else "", )
 
@@ -135,7 +137,7 @@ def deploy_implementation(host, servers, discovery_strategy_value_hmac_key, plug
                     host.ssh_host_key)
 
     if host.is_TCS:
-        deploy_TCS_implementation(ssh, host, servers, TCS_psiphond_config_values)
+        deploy_TCS_implementation(ssh, host, servers, own_encoded_server_entries, TCS_psiphond_config_values)
     else:
         deploy_legacy_implementation(ssh, host, discovery_strategy_value_hmac_key, plugins)
 
@@ -231,17 +233,17 @@ def deploy_legacy_implementation(ssh, host, discovery_strategy_value_hmac_key, p
             plugin.deploy_implementation(ssh)
 
 
-def deploy_TCS_implementation(ssh, host, servers, TCS_psiphond_config_values):
+def deploy_TCS_implementation(ssh, host, servers, own_encoded_server_entries, TCS_psiphond_config_values):
 
     # Limitation: only one server per host currently implemented
-    assert(len(servers) == 1)
-    server = servers[0]
+    # Multiple IP addresses (and servers) can be supported by port forwarding to the host IP address
+    server = [server for server in servers if server.ip_address == host.ip_address][0]
 
     # Upload psiphond.config
 
     put_file_with_content(
         ssh,
-        make_psiphond_config(host, server, TCS_psiphond_config_values),
+        make_psiphond_config(host, server, own_encoded_server_entries, TCS_psiphond_config_values),
         TCS_PSIPHOND_CONFIG_FILE_NAME)
 
     ssh.exec_command('touch %s' % (TCS_BLOCKLIST_CSV_FILE_NAME,))
@@ -297,7 +299,7 @@ CONTAINER_SYSCTL_STRING="--sysctl 'net.ipv4.ip_local_port_range=1100 65535'"
     # is delayed until deploy_TCS_data.
 
 
-def make_psiphond_config(host, server, TCS_psiphond_config_values):
+def make_psiphond_config(host, server, own_encoded_server_entries, TCS_psiphond_config_values):
 
     # Missing TCS_psiphond_config_values items throw KeyError. This is intended. Don't forget to configure these values.
 
@@ -389,6 +391,21 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
 
     config['MaxConcurrentSSHHandshakes'] = 2000
 
+    # SSHBeginHandshakeTimeoutMillisecondsList/SSHHandshakeTimeoutMillisecondsList
+    # should be Python lists of integer millisecond values.
+
+    ssh_begin_handshake_timeouts = TCS_psiphond_config_values.get('SSHBeginHandshakeTimeoutMillisecondsList', None)
+    if ssh_begin_handshake_timeouts is not None:
+        assert(isinstance(ssh_begin_handshake_timeouts, list))
+        config['SSHBeginHandshakeTimeoutMilliseconds'] = random.choice(ssh_begin_handshake_timeouts)
+
+    ssh_handshake_timeouts = TCS_psiphond_config_values.get('SSHHandshakeTimeoutMillisecondsList', None)
+    if ssh_handshake_timeouts is not None:
+        assert(isinstance(ssh_handshake_timeouts, list))
+        config['SSHHandshakeTimeoutMilliseconds'] = random.choice(ssh_handshake_timeouts)
+
+    config['OwnEncodedServerEntries'] = own_encoded_server_entries
+
     return json.dumps(config)
 
 
@@ -424,7 +441,8 @@ def get_supported_protocol_ports(host, server, **kwargs):
             ('UNFRONTED-MEEK-OSSH', TCS_UNFRONTED_MEEK_OSSH_DOCKER_PORT),
             ('FRONTED-MEEK-HTTP-OSSH', TCS_FRONTED_MEEK_HTTP_OSSH_DOCKER_PORT),
             ('UNFRONTED-MEEK-HTTPS-OSSH', TCS_UNFRONTED_MEEK_HTTPS_OSSH_DOCKER_PORT),
-            ('UNFRONTED-MEEK-SESSION-TICKET-OSSH', TCS_UNFRONTED_MEEK_SESSION_TICKET_OSSH_DOCKER_PORT)
+            ('UNFRONTED-MEEK-SESSION-TICKET-OSSH', TCS_UNFRONTED_MEEK_SESSION_TICKET_OSSH_DOCKER_PORT),
+            ('FRONTED-MEEK-QUIC-OSSH', TCS_FRONTED_MEEK_QUIC_OSSH_DOCKER_PORT),
         ]
 
     supported_protocol_ports = {}
@@ -461,18 +479,22 @@ def get_supported_protocol_ports(host, server, **kwargs):
         if protocol == 'UNFRONTED-MEEK-SESSION-TICKET-OSSH' and server.capabilities['UNFRONTED-MEEK-SESSION-TICKET']:
                 supported_protocol_ports[protocol] = int(host.meek_server_port) if external_ports else docker_port
 
+        if protocol == 'FRONTED-MEEK-QUIC-OSSH' and server.capabilities['FRONTED-MEEK-QUIC']:
+                supported_protocol_ports[protocol] = 443 if external_ports else docker_port
+
     return supported_protocol_ports
 
 
 # hosts_and_servers is a list of tuples: [(host, [server, ...]), ...]
-def deploy_implementation_to_hosts(hosts_and_servers, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
+def deploy_implementation_to_hosts(hosts_and_servers, own_encoded_server_entries_generator, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
 
     @retry_decorator_returning_exception
     def do_deploy_implementation(host_and_servers):
         try:
             host = host_and_servers[0]
             servers = host_and_servers[1]
-            deploy_implementation(host, servers, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values)
+            own_encoded_server_entries = own_encoded_server_entries_generator(host.id)
+            deploy_implementation(host, servers, own_encoded_server_entries, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values)
         except:
             print 'Error deploying implementation to host %s' % (host.id,)
             raise
