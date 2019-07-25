@@ -182,7 +182,7 @@ def launch_new_server(vpsnet_account, is_TCS, _, datacenter_city=None):
     """
 
     # TODO-TCS: select base image based on is_TCS flag
-    base_image_id = '9249' # For VPS
+    base_image_id = '9258' # For VPS
     # base_image_id = '8850' # For Cloud Server
 
     try:
@@ -255,7 +255,7 @@ def launch_new_server(vpsnet_account, is_TCS, _, datacenter_city=None):
         #     rsync_backups_enabled=VPSNetHost.rsync_backups_enabled,
         #     ex_fqdn=VPSNetHost.fqdn,
         #     )
-
+        
         if not wait_on_action(vpsnet_conn, node, 30):
             raise "Could not power on node"
         else:
