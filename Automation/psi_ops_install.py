@@ -973,10 +973,10 @@ def install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, do_bla
         -N PSI_RATE_LIMITING''')
 
     accept_with_unfronted_limit_rate_template = textwrap.dedent('''
-        -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m limit --limit 1000/sec -j ACCEPT''')
+        -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m limit {accept_unfronted_rate_limit} -j ACCEPT''')
 
     accept_with_fronted_limit_rate_template = textwrap.dedent('''
-        -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m limit {accept_unfronted_rate_limit} -j ACCEPT''')
+        -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m limit --limit 1000/sec -j ACCEPT''')
 
     accept_with_recent_rate_template = textwrap.dedent('''
         -A PSI_RATE_LIMITING -p {proto} -m state --state NEW -m {proto} --dport {port} -m recent --set --name LIMIT-{proto}-{port}
