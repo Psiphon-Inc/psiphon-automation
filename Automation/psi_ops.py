@@ -4197,11 +4197,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.is_TCS,
                                             '',  # Omit: host.TCS_type,
                                             host.provider,
-                                            host.provider_id,  # Omit: provider id isn't needed
+                                            host.provider_id,
                                             host.ip_address,
                                             host.ssh_port,
-                                            host.ssh_root_username,  # Omit: root ssh username
-                                            host.ssh_root_password,  # Omit: root ssh password
+                                            host.ssh_username,
+                                            host.ssh_password,
                                             host.ssh_host_key,
                                             host.stats_ssh_username,
                                             host.stats_ssh_password,
