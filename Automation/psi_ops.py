@@ -4231,7 +4231,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             server.ip_address,
                                             server.egress_ip_address,
                                             '',   # Omit: server.internal_ip_address,
-                                            None, # Omit: propagation_channel_id
+                                            '', # Omit: propagation_channel_id
                                             '',   # Omit: server.is_embedded,
                                             '',   # Omit: server.is_permanent,
                                             '',   # Omit: server.discovery_date_range,
