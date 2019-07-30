@@ -401,6 +401,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__alternate_meek_fronting_addresses_regex = defaultdict(str)
         self.__meek_fronting_disable_SNI = defaultdict(bool)
         self.__routes_signing_key_pair = None
+        self.__routes_signing_public_key = None
         self.__TCS_traffic_rules_set = None
         self.__TCS_OSL_config = None
         self.__TCS_tactics_config_template = None
@@ -420,7 +421,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.54'
+    class_version = '0.55'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -763,6 +764,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__server_entry_signing_key_pair = None
             self.__exchange_obfuscation_key = base64.b64encode(os.urandom(32))
             self.version = '0.54'
+        if cmp(parse_version(self.version), parse_version('0.55')) < 0:
+            self.__routes_signing_public_key = None
+            self.version = '0.55'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -2625,6 +2629,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return 'https://s3.amazonaws.com/psiphon/routes/%s.route.zlib.json' # TODO get it from psi_ops_s3
 
     def __split_tunnel_signature_public_key(self):
+        if self.__routes_signing_public_key:
+            return self.__routes_signing_public_key
+
         return psi_ops_crypto_tools.get_base64_der_public_key(
                 self.get_routes_signing_key_pair().pem_key_pair,
                 self.get_routes_signing_key_pair().password)
@@ -4260,6 +4267,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             deleted_server.capabilities)
                                             # Omit: propagation, web server, ssh info, version
             copy.__deleted_servers[deleted_server.id].logs = deleted_server.logs
+
+            copy.__routes_signing_public_key = self.__split_tunnel_signature_public_key()
 
         return jsonpickle.encode(copy)
 
