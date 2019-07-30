@@ -4241,7 +4241,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             server.ssh_obfuscated_port,
                                             server.ssh_obfuscated_quic_port,
                                             server.ssh_obfuscated_tapdance_port,
-                                            server.ssh_obfucated_key,
+                                            server.ssh_obfuscated_key,
                                             server.alternate_ssh_obfuscated_ports)
                                             # Omit: propagation, web server, ssh info, version
             copy.__servers[server.id].logs = server.logs
