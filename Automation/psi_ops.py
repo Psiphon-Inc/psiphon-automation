@@ -2940,6 +2940,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         if self.__deploy_stats_config_required:
             self.push_stats_config()
+            self.push_devops_config()
             self.__deploy_stats_config_required = False
             self.save()
 
@@ -3182,6 +3183,22 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 self.__aws_account,
                 psi_routes.GEO_ROUTES_ROOT,
                 psi_routes.GEO_ROUTES_SIGNED_EXTENSION)
+
+    def push_devops_config(self):
+        assert(self.is_locked)
+        print 'push devops config...'
+
+        temp_file = tempfile.NamedTemporaryFile(delete=False)
+        try:
+            temp_file.write(self.__compartmentalize_data_for_devops_server())
+            temp_file.close()
+            psi_ops_cms.import_document(temp_file.name, True)
+            self.__stats_server_account.log('pushed')
+        finally:
+            try:
+                os.remove(temp_file.name)
+            except:
+                pass
 
     def push_stats_config(self):
         assert(self.is_locked)
@@ -4166,6 +4183,85 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if server.host_id == host_id:
                 own_encoded_server_entries[self.__get_server_tag(server)] = self.__get_encoded_server_entry(server)
         return own_encoded_server_entries
+
+    def __compartmentalize_data_for_devops_server(self):
+        # The stats server needs to be able to connect to all hosts and needs
+        # the information to replace server IPs with server IDs, sponsor IDs
+        # with names and propagation IDs with names
+
+        copy = PsiphonNetwork(initialize_plugins=False)
+
+        for host in self.__hosts.itervalues():
+            copy.__hosts[host.id] = Host(
+                                            host.id,
+                                            host.is_TCS,
+                                            '',  # Omit: host.TCS_type,
+                                            host.provider,
+                                            host.provider_id,  # Omit: provider id isn't needed
+                                            host.ip_address,
+                                            host.ssh_port,
+                                            host.ssh_root_username,  # Omit: root ssh username
+                                            host.ssh_root_password,  # Omit: root ssh password
+                                            host.ssh_host_key,
+                                            host.stats_ssh_username,
+                                            host.stats_ssh_password,
+                                            host.datacenter_name,
+                                            host.region,
+                                            host.meek_server_port,
+                                            host.meek_server_obfuscated_key,
+                                            host.meek_server_fronting_domain,
+                                            host.meek_server_fronting_host,
+                                            host.alternate_meek_server_fronting_hosts,
+                                            host.meek_cookie_encryption_public_key,
+                                            '',  # Omit: meek_cookie_encryption_private_key
+                                            '', '', '') # Omit: tactics fields
+            copy.__hosts[host.id].logs = host.logs
+
+        for server in self.__servers.itervalues():
+            copy.__servers[server.id] = Server(
+                                            server.id,
+                                            server.host_id,
+                                            server.ip_address,
+                                            server.egress_ip_address,
+                                            '',   # Omit: server.internal_ip_address,
+                                            None, # Omit: propagation_channel_id
+                                            '',   # Omit: server.is_embedded,
+                                            '',   # Omit: server.is_permanent,
+                                            '',   # Omit: server.discovery_date_range,
+                                            server.capabilities,
+                                            server.web_server_port,
+                                            server.web_server_secret,
+                                            server.web_server_certificate,
+                                            None, # Omit: server.web_server_private_key
+                                            server.ssh_port,
+                                            server.ssh_username,
+                                            server.ssh_password,
+                                            server.ssh_host_key,
+                                            None, # Omit: server.TCS_ssh_private_key
+                                            server.ssh_obfuscated_port,
+                                            server.ssh_obfuscated_quic_port,
+                                            server.ssh_obfuscated_tapdance_port,
+                                            server.ssh_obfucated_key,
+                                            server.alternate_ssh_obfuscated_ports)
+                                            # Omit: propagation, web server, ssh info, version
+            copy.__servers[server.id].logs = server.logs
+
+        for deleted_server in self.__deleted_servers.itervalues():
+            copy.__deleted_servers[deleted_server.id] = Server(
+                                            deleted_server.id,
+                                            deleted_server.host_id,
+                                            deleted_server.ip_address,
+                                            None,
+                                            '', # Omit: deleted_server.internal_ip_address,
+                                            None,
+                                            '', # Omit: deleted_server.is_embedded,
+                                            '', # Omit: deleted_server.is_permanent,
+                                            '', # Omit: deleted_server.discovery_date_range,
+                                            deleted_server.capabilities)
+                                            # Omit: propagation, web server, ssh info, version
+            copy.__deleted_servers[deleted_server.id].logs = deleted_server.logs
+
+        return jsonpickle.encode(copy)
 
     def __compartmentalize_data_for_stats_server(self):
         # The stats server needs to be able to connect to all hosts and needs
