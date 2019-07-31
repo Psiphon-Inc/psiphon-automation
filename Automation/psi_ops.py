@@ -3200,7 +3200,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             temp_file.write(self.__compartmentalize_data_for_devops_server())
             temp_file.close()
             psi_ops_cms.import_document(temp_file.name, False, True)
-            self.__stats_server_account.log('pushed')
         finally:
             try:
                 os.remove(temp_file.name)
@@ -3216,7 +3215,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             temp_file.write(self.__compartmentalize_data_for_stats_server())
             temp_file.close()
             psi_ops_cms.import_document(temp_file.name, True, False)
-            self.__stats_server_account.log('pushed')
         finally:
             try:
                 os.remove(temp_file.name)
@@ -4192,9 +4190,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return own_encoded_server_entries
 
     def __compartmentalize_data_for_devops_server(self):
-        # The stats server needs to be able to connect to all hosts and needs
-        # the information to replace server IPs with server IDs, sponsor IDs
-        # with names and propagation IDs with names
+        # The database is for DevOps and used by Nagios for testing and monitoring
+        # DevOps people who needs to be able to connect to all hosts through SSH
 
         copy = PsiphonNetwork(initialize_plugins=False)
 
@@ -4231,7 +4228,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             server.ip_address,
                                             server.egress_ip_address,
                                             '',   # Omit: server.internal_ip_address,
-                                            '', # Omit: propagation_channel_id
+                                            '',   # Omit: propagation_channel_id
                                             '',   # Omit: server.is_embedded,
                                             '',   # Omit: server.is_permanent,
                                             '',   # Omit: server.discovery_date_range,
