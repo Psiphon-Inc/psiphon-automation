@@ -2945,11 +2945,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # Email and stats server configs
 
-        if self.__deploy_stats_config_required:
-            self.push_stats_config()
-            self.push_devops_config()
-            self.__deploy_stats_config_required = False
-            self.save()
+        self.deploy_stats_config_if_required()
 
         if self.__deploy_email_config_required:
             self.push_email_config()
@@ -3000,6 +2996,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if len(self.__deploy_pave_osls_required_for_propagation_channels) > 0:
             self.pave_OSLs(self.__deploy_pave_osls_required_for_propagation_channels)
             self.__deploy_pave_osls_required_for_propagation_channels.clear()
+            self.save()
+
+
+    def deploy_stats_config_if_required(self):
+        if self.__deploy_stats_config_required:
+            self.push_stats_config()
+            self.push_devops_config()
+            self.__deploy_stats_config_required = False
             self.save()
 
 
@@ -4663,6 +4667,11 @@ def prune_all_propagation_channels():
         # NEW: deploy() is called by another process
         #psinet.deploy()
     finally:
+        # Attempt to update the stats db immediately if required
+        try:
+            psinet.deploy_stats_config_if_required()
+        except:
+            pass
         psinet.show_status()
         psinet.release()
 
