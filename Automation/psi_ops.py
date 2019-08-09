@@ -4203,7 +4203,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             copy.__hosts[host.id] = Host(
                                             host.id,
                                             host.is_TCS,
-                                            '',  # Omit: host.TCS_type,
+                                            host.TCS_type,
                                             host.provider,
                                             host.provider_id,
                                             host.ip_address,
