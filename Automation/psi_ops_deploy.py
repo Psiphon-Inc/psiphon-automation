@@ -27,6 +27,7 @@ import json
 import psi_ssh
 import psi_routes
 import psi_ops_install
+import random
 from multiprocessing.pool import ThreadPool
 from functools import wraps
 from time import sleep
@@ -81,6 +82,7 @@ TCS_TACTICS_CONFIG_FILE_NAME = '/opt/psiphon/psiphond/config/tactics.config'
 TCS_PSINET_FILE_NAME = '/opt/psiphon/psiphond/data/psinet.json'
 TCS_GEOIP_CITY_DATABASE_FILE_NAME = '/usr/local/share/GeoIP/GeoIP2-City.mmdb'
 TCS_GEOIP_ISP_DATABASE_FILE_NAME = '/usr/local/share/GeoIP/GeoIP2-ISP.mmdb'
+TCS_BLOCKLIST_CSV_FILE_NAME = '/opt/psiphon/psiphond/data/blocklist.csv'
 
 TCS_DOCKER_WEB_SERVER_PORT = 1025
 TCS_SSH_DOCKER_PORT = 1026
@@ -92,6 +94,7 @@ TCS_UNFRONTED_MEEK_HTTPS_OSSH_DOCKER_PORT = 1031
 TCS_UNFRONTED_MEEK_SESSION_TICKET_OSSH_DOCKER_PORT = 1032
 TCS_QUIC_OSSH_DOCKER_PORT = 1033
 TCS_TAPDANCE_OSSH_DOCKER_PORT = 1034
+TCS_FRONTED_MEEK_QUIC_OSSH_DOCKER_PORT = 1035
 
 TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND = 'systemctl kill --signal=USR1 psiphond'
 TCS_PSIPHOND_STOP_ESTABLISHING_TUNNELS_SIGNAL_COMMAND = 'systemctl kill --signal=TSTP psiphond'
@@ -124,7 +127,7 @@ def run_in_parallel(thread_pool_size, function, arguments):
             raise result
 
 
-def deploy_implementation(host, servers, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
+def deploy_implementation(host, servers, own_encoded_server_entries, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
 
     print 'deploy implementation to host %s%s...' % (host.id, " (TCS) " if host.is_TCS else "", )
 
@@ -134,7 +137,7 @@ def deploy_implementation(host, servers, discovery_strategy_value_hmac_key, plug
                     host.ssh_host_key)
 
     if host.is_TCS:
-        deploy_TCS_implementation(ssh, host, servers, TCS_psiphond_config_values)
+        deploy_TCS_implementation(ssh, host, servers, own_encoded_server_entries, TCS_psiphond_config_values)
     else:
         deploy_legacy_implementation(ssh, host, discovery_strategy_value_hmac_key, plugins)
 
@@ -230,18 +233,20 @@ def deploy_legacy_implementation(ssh, host, discovery_strategy_value_hmac_key, p
             plugin.deploy_implementation(ssh)
 
 
-def deploy_TCS_implementation(ssh, host, servers, TCS_psiphond_config_values):
+def deploy_TCS_implementation(ssh, host, servers, own_encoded_server_entries, TCS_psiphond_config_values):
 
     # Limitation: only one server per host currently implemented
-    assert(len(servers) == 1)
-    server = servers[0]
+    # Multiple IP addresses (and servers) can be supported by port forwarding to the host IP address
+    server = [server for server in servers if server.ip_address == host.ip_address][0]
 
     # Upload psiphond.config
 
     put_file_with_content(
         ssh,
-        make_psiphond_config(host, server, TCS_psiphond_config_values),
+        make_psiphond_config(host, server, own_encoded_server_entries, TCS_psiphond_config_values),
         TCS_PSIPHOND_CONFIG_FILE_NAME)
+
+    ssh.exec_command('touch %s' % (TCS_BLOCKLIST_CSV_FILE_NAME,))
 
     if host.TCS_type == 'NATIVE':
         # Upload psiphond, restart service
@@ -294,7 +299,7 @@ CONTAINER_SYSCTL_STRING="--sysctl 'net.ipv4.ip_local_port_range=1100 65535'"
     # is delayed until deploy_TCS_data.
 
 
-def make_psiphond_config(host, server, TCS_psiphond_config_values):
+def make_psiphond_config(host, server, own_encoded_server_entries, TCS_psiphond_config_values):
 
     # Missing TCS_psiphond_config_values items throw KeyError. This is intended. Don't forget to configure these values.
 
@@ -330,6 +335,8 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
     config['OSLConfigFilename'] = TCS_OSL_CONFIG_FILE_NAME
 
     config['TacticsConfigFilename'] = TCS_TACTICS_CONFIG_FILE_NAME
+
+    config['BlocklistFilename'] = TCS_BLOCKLIST_CSV_FILE_NAME
 
     # TCS_psiphond_config_values['AccessControlVerificationKeyRing'] is a string value, set with psi_ops.set_TCS_psiphond_config_values,
     # containing a JSON-encoded https://godoc.org/github.com/Psiphon-Labs/psiphon-tunnel-core/psiphon/common/accesscontrol#VerificationKeyRing
@@ -372,7 +379,7 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
     config['SSHUserName'] = server.ssh_username
     config['SSHPassword'] = server.ssh_password
 
-    if server.capabilities['OSSH'] or server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] or server.capabilities['QUIC'] or server.capabilities['TAPDANCE']:
+    if server.capabilities['SSH'] or server.capabilities['OSSH'] or server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] or server.capabilities['QUIC'] or server.capabilities['TAPDANCE']:
         config['ObfuscatedSSHKey'] = server.ssh_obfuscated_key
 
     if server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET']:
@@ -383,6 +390,21 @@ def make_psiphond_config(host, server, TCS_psiphond_config_values):
         config['MeekProxyForwardedForHeaders'] = TCS_psiphond_config_values['MeekProxyForwardedForHeaders']
 
     config['MaxConcurrentSSHHandshakes'] = 2000
+
+    # SSHBeginHandshakeTimeoutMillisecondsList/SSHHandshakeTimeoutMillisecondsList
+    # should be Python lists of integer millisecond values.
+
+    ssh_begin_handshake_timeouts = TCS_psiphond_config_values.get('SSHBeginHandshakeTimeoutMillisecondsList', None)
+    if ssh_begin_handshake_timeouts is not None:
+        assert(isinstance(ssh_begin_handshake_timeouts, list))
+        config['SSHBeginHandshakeTimeoutMilliseconds'] = random.choice(ssh_begin_handshake_timeouts)
+
+    ssh_handshake_timeouts = TCS_psiphond_config_values.get('SSHHandshakeTimeoutMillisecondsList', None)
+    if ssh_handshake_timeouts is not None:
+        assert(isinstance(ssh_handshake_timeouts, list))
+        config['SSHHandshakeTimeoutMilliseconds'] = random.choice(ssh_handshake_timeouts)
+
+    config['OwnEncodedServerEntries'] = own_encoded_server_entries
 
     return json.dumps(config)
 
@@ -419,7 +441,8 @@ def get_supported_protocol_ports(host, server, **kwargs):
             ('UNFRONTED-MEEK-OSSH', TCS_UNFRONTED_MEEK_OSSH_DOCKER_PORT),
             ('FRONTED-MEEK-HTTP-OSSH', TCS_FRONTED_MEEK_HTTP_OSSH_DOCKER_PORT),
             ('UNFRONTED-MEEK-HTTPS-OSSH', TCS_UNFRONTED_MEEK_HTTPS_OSSH_DOCKER_PORT),
-            ('UNFRONTED-MEEK-SESSION-TICKET-OSSH', TCS_UNFRONTED_MEEK_SESSION_TICKET_OSSH_DOCKER_PORT)
+            ('UNFRONTED-MEEK-SESSION-TICKET-OSSH', TCS_UNFRONTED_MEEK_SESSION_TICKET_OSSH_DOCKER_PORT),
+            ('FRONTED-MEEK-QUIC-OSSH', TCS_FRONTED_MEEK_QUIC_OSSH_DOCKER_PORT),
         ]
 
     supported_protocol_ports = {}
@@ -456,18 +479,22 @@ def get_supported_protocol_ports(host, server, **kwargs):
         if protocol == 'UNFRONTED-MEEK-SESSION-TICKET-OSSH' and server.capabilities['UNFRONTED-MEEK-SESSION-TICKET']:
                 supported_protocol_ports[protocol] = int(host.meek_server_port) if external_ports else docker_port
 
+        if protocol == 'FRONTED-MEEK-QUIC-OSSH' and server.capabilities['FRONTED-MEEK-QUIC']:
+                supported_protocol_ports[protocol] = 443 if external_ports else docker_port
+
     return supported_protocol_ports
 
 
 # hosts_and_servers is a list of tuples: [(host, [server, ...]), ...]
-def deploy_implementation_to_hosts(hosts_and_servers, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
+def deploy_implementation_to_hosts(hosts_and_servers, own_encoded_server_entries_generator, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
 
     @retry_decorator_returning_exception
     def do_deploy_implementation(host_and_servers):
         try:
             host = host_and_servers[0]
             servers = host_and_servers[1]
-            deploy_implementation(host, servers, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values)
+            own_encoded_server_entries = own_encoded_server_entries_generator(host.id)
+            deploy_implementation(host, servers, own_encoded_server_entries, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values)
         except:
             print 'Error deploying implementation to host %s' % (host.id,)
             raise
@@ -478,7 +505,7 @@ def deploy_implementation_to_hosts(hosts_and_servers, discovery_strategy_value_h
                                                         if host.is_TCS and host.TCS_type == 'DOCKER'])
 
 
-def deploy_data(host, host_data, TCS_traffic_rules_set, TCS_OSL_config, TCS_tactics_config_template):
+def deploy_data(host, host_data, TCS_traffic_rules_set, TCS_OSL_config, TCS_tactics_config_template, TCS_blocklist_csv):
 
     print 'deploy data to host %s%s...' % (host.id, " (TCS) " if host.is_TCS else "", )
 
@@ -488,7 +515,7 @@ def deploy_data(host, host_data, TCS_traffic_rules_set, TCS_OSL_config, TCS_tact
                     host.ssh_host_key)
 
     if host.is_TCS:
-        deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set, TCS_OSL_config, TCS_tactics_config_template)
+        deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set, TCS_OSL_config, TCS_tactics_config_template, TCS_blocklist_csv)
     else:
         deploy_legacy_data(ssh, host, host_data)
 
@@ -532,7 +559,7 @@ def deploy_legacy_data(ssh, host, host_data):
     ssh.exec_command('rm %s' % (psi_config.HOST_SERVER_STOPPED_LOCK_FILE,))
 
 
-def deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set, TCS_OSL_config, TCS_tactics_config_template):
+def deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set, TCS_OSL_config, TCS_tactics_config_template, TCS_blocklist_csv):
 
     # Upload psinet file
     # We upload a compartmentalized version of the master file
@@ -560,6 +587,8 @@ def deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set, TCS_OSL_config,
         tactics_request_public_key, tactics_request_private_key, tactics_request_obfuscated_key)
 
     put_file_with_content(ssh, TCS_tactics_config, TCS_TACTICS_CONFIG_FILE_NAME)
+
+    put_file_with_content(ssh, TCS_blocklist_csv, TCS_BLOCKLIST_CSV_FILE_NAME)
 
     ssh.exec_command(TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND)
 
@@ -589,7 +618,7 @@ def put_file_with_content(ssh, content, destination_path):
             pass
 
 
-def deploy_data_to_hosts(hosts, data_generator, TCS_traffic_rules_set, TCS_OSL_config, TCS_tactics_config_template):
+def deploy_data_to_hosts(hosts, data_generator, TCS_traffic_rules_set, TCS_OSL_config, TCS_tactics_config_template, TCS_blocklist_csv):
 
     # TCS data is not unique per host, so only generate it once
     TCS_data = None
@@ -602,7 +631,7 @@ def deploy_data_to_hosts(hosts, data_generator, TCS_traffic_rules_set, TCS_OSL_c
         host = host_and_data_generator[0]
         host_data = TCS_data if host.is_TCS and TCS_data else host_and_data_generator[1](host.id, host.is_TCS)
         try:
-            deploy_data(host, host_data, TCS_traffic_rules_set, TCS_OSL_config, TCS_tactics_config_template)
+            deploy_data(host, host_data, TCS_traffic_rules_set, TCS_OSL_config, TCS_tactics_config_template, TCS_blocklist_csv)
         except:
             print 'Error deploying data to host %s' % (host.id,)
             raise

@@ -44,7 +44,10 @@ if not os.path.exists(libcloud.security.CA_CERTS_PATH[0]):
     See: https://libcloud.readthedocs.org/en/latest/other/ssl-certificate-validation.html
     '''
 
-libcloud.security.SSL_VERSION = ssl.PROTOCOL_TLSv1_2
+try:
+    libcloud.security.SSL_VERSION = ssl.PROTOCOL_TLSv1_2
+except AttributeError:
+    raise ImportError("psi_vpsnet requires ssl.PROTOCOL_TLSv1_2")
 
 
 def get_vpsnet_connection(vpsnet_account):
@@ -179,7 +182,7 @@ def launch_new_server(vpsnet_account, is_TCS, _, datacenter_city=None):
     """
 
     # TODO-TCS: select base image based on is_TCS flag
-    base_image_id = '9173' # For VPS (Old: 8849)
+    base_image_id = '9258' # For VPS
     # base_image_id = '8850' # For Cloud Server
 
     try:
@@ -252,7 +255,7 @@ def launch_new_server(vpsnet_account, is_TCS, _, datacenter_city=None):
         #     rsync_backups_enabled=VPSNetHost.rsync_backups_enabled,
         #     ex_fqdn=VPSNetHost.fqdn,
         #     )
-
+        
         if not wait_on_action(vpsnet_conn, node, 30):
             raise "Could not power on node"
         else:

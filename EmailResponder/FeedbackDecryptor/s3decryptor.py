@@ -67,7 +67,7 @@ def _bucket_iterator(bucket):
 
             # Make sure to delete the key *before* proceeding, so we don't
             # try to re-process if there's an error.
-            bucket.delete_key(key)
+            key.delete()
 
             if contents:
                 yield contents
@@ -163,5 +163,18 @@ def go():
             # Try the next attachment/message
             logger.exception()
             logger.error(str(e))
+
+        except Exception as e:
+            try:
+                # Something bad happened while decrypting. Report it via email.
+                sender.send(config['decryptedEmailRecipient'],
+                            config['emailUsername'],
+                            u'S3Decryptor: unhandled exception',
+                            str(e) + '\n---\n' + str(diagnostic_info),
+                            None)  # no html body
+            except smtplib.SMTPException as e:
+                logger.exception()
+                logger.error(str(e))
+            raise
 
     logger.debug_log('s3decryptor.go: end')

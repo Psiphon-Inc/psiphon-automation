@@ -21,10 +21,10 @@ send an email with the data.
 From the instructions [here](http://docs.mongodb.org/manual/tutorial/install-mongodb-on-ubuntu/):
 
 ```
-apt-key adv --keyserver keyserver.ubuntu.com --recv 7F0CEB10
-echo 'deb http://downloads-distro.mongodb.org/repo/ubuntu-upstart dist 10gen' | sudo tee /etc/apt/sources.list.d/10gen.list
+apt-key adv --keyserver keyserver.ubuntu.com:80 --recv 9DA31620334BD75D9DCB49F368818C72E52529D4
+echo "deb [ arch=amd64 ] https://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/4.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-4.0.list
 sudo apt-get update
-sudo apt-get install mongodb-10gen
+sudo apt-get install mongodb-org
 ```
 
 #### Everything else
@@ -127,11 +127,11 @@ must be filled in.
 
 ## Running
 
-Use the Upstart utilities. For example:
+Use the systemd utilities. For example:
 
 ```shell
-sudo restart maildecryptor
-sudo restart s3decryptor
-sudo restart mailsender
-sudo restart statschecker
+sudo systemctl restart maildecryptor
+sudo systemctl restart s3decryptor
+sudo systemctl restart mailsender
+sudo systemctl restart statschecker
 ```

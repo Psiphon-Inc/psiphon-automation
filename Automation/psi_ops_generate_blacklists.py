@@ -38,6 +38,7 @@ IPSET_DIR = os.path.abspath(os.path.join(BASE_PATH, BLACKLIST_DIR, 'ipset'))
 LIST_DIR = os.path.abspath(os.path.join(BASE_PATH, BLACKLIST_DIR, 'lists'))
 
 
+#CIF_DEFAULT_MALWARE_TAGS = ['zeus', 'botnet', 'malware', 'phishing']    # set the tags we want to use.
 CIF_DEFAULT_MALWARE_TAGS = ['zeus', 'feodo']    # set the tags we want to use.
 
 ###############################################################################
@@ -47,7 +48,7 @@ def make_cifs_connection():
     """Connect to CIFS instance."""
     cif_client = Client(token=psi_ops_config.CIF_TOKEN,
                         remote=psi_ops_config.CIF_REMOTE,
-                        no_verify_ssl=psi_ops_config.CIF_NO_VERIFY_SSL,
+                        verify_ssl=psi_ops_config.CIF_VERIFY_SSL,
                         )
     return cif_client
 
@@ -61,7 +62,10 @@ def search_cif(decode=True, limit=5000, nolog=None, filters={}, sort=None):
     results = cif_client.search(decode=decode, limit=limit, nolog=nolog,
                                 sort=sort, filters=filters)
     
-    return results
+    feed = cif_client.aggregate(results)
+
+    return feed
+    #return results
 
 
 def generate_ipset_list(psinet, cif_tag, cif_otype, confidence_threshold):
@@ -72,7 +76,7 @@ def generate_ipset_list(psinet, cif_tag, cif_otype, confidence_threshold):
     cif_results = search_cif(filters={'tags': cif_tag,
                                       'confidence': confidence_threshold,
                                       'otype': cif_otype},
-                             limit=10000)
+                             limit=100000)
     
     # TODO: Check the list to see if any of our IPs are listed
     for host in psinet.get_hosts():

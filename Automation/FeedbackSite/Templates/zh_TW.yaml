@@ -1,8 +1,8 @@
 zh_TW:
-  title: 賽風的回饋
+  title: Psiphon 回饋
   top_content_title: '向我們提供您的回饋 '
   top_para_1: |
-      您的回饋讓賽風可以做得更好。
+      您的回饋讓 Psiphon 更好。
   top_para_2: |
       您可以通過下載最新版本解決很多問題
       <a class="newVersionURL" href="#">您可以點擊此處下载最新版本</a>，
@@ -14,8 +14,8 @@ zh_TW:
       上載診斷數據。請注意此診斷數據不會泄露你的身份，它的目的是幫助我們保持賽風運行平穩和順利。
       <a class="dataCollectionInfoURL" href="#">點擊此處查看我们收集的資料</a>。
   smiley_title: '總體滿意度 '
-  smiley_happy: '賽風的連接和表現如我所願。 '
-  smiley_sad: "賽風經常連接失敗或表現不盡人意。 \n　　　"
+  smiley_happy: 'Psiphon 的連接和表現如我所願。 '
+  smiley_sad: "Psiphon 經常連接失敗或表現不盡人意。 \n　　　"
   submit_button: 送出
   text_feedback_prompt: |
       請在此輸入你的評論:

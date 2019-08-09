@@ -124,6 +124,8 @@ coalesce.test = coalesce_test
 # Very rudimentary, but sufficient
 ipv4_regex = re.compile(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})')
 
+prop_channel_id_to_name = dict()
+sponsor_id_to_name = dict()
 
 def convert_psinet_values(config, obj):
     '''
@@ -157,13 +159,21 @@ def convert_psinet_values(config, obj):
                 assign_value_to_obj_at_path(obj, path, clean_val)
 
         if path[-1] == 'PROPAGATION_CHANNEL_ID':
-            prop_channel_name = psi_ops_helpers.get_propagation_channel_name_by_id(val)
+            prop_channel_name = prop_channel_id_to_name.get(val)
+            if not prop_channel_name:
+                prop_channel_name = psi_ops_helpers.get_propagation_channel_name_by_id(val)
+                prop_channel_id_to_name[val] = prop_channel_name
+
             if prop_channel_name:
                 assign_value_to_obj_at_path(obj,
                                             path,
                                             prop_channel_name)
         elif path[-1] == 'SPONSOR_ID':
-            sponsor_name = psi_ops_helpers.get_sponsor_name_by_id(val)
+            sponsor_name = sponsor_id_to_name.get(val)
+            if not sponsor_name:
+                sponsor_name = psi_ops_helpers.get_sponsor_name_by_id(val)
+                sponsor_id_to_name[val] = sponsor_name
+
             if sponsor_name:
                 assign_value_to_obj_at_path(obj,
                                             path,
