@@ -4274,6 +4274,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             # Omit: propagation, web server, ssh info, version
             copy.__deleted_servers[deleted_server.id].logs = deleted_server.logs
 
+        for propagation_channel in self.__propagation_channels.itervalues():
+            copy.__propagation_channels[propagation_channel.id] = PropagationChannel(
+                                        propagation_channel.id,
+                                        propagation_channel.name,
+                                        [],  # Omit mechanism info
+                                        '',  # Omit propagator_managed_upgrades
+                                        '',  # Omit new server counts
+                                        '',  # Omit new server counts
+                                        '',  # Omit new server counts
+                                        '',  # Omit server ages
+                                        '',  # Omit server ages
+                                        '')  # Omit server ages
+
             copy.__routes_signing_public_key = self.__split_tunnel_signature_public_key()
 
         return jsonpickle.encode(copy)
