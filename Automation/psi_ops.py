@@ -4287,7 +4287,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         '',  # Omit server ages
                                         '')  # Omit server ages
 
-            copy.__routes_signing_public_key = self.__split_tunnel_signature_public_key()
+        copy.__routes_signing_public_key = self.__split_tunnel_signature_public_key()
 
         return jsonpickle.encode(copy)
 
