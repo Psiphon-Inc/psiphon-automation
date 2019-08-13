@@ -1016,6 +1016,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 s.configuration_version if s.configuration_version else 0)
         self.__show_logs(s)
 
+    def show_server_by_diagnostic_id(self, diagnostic_id):
+        for s in self.__servers.itervalues():
+            if diagnostic_id == self.__get_server_tag(s)[0:8]:
+                self.show_server(s.id)
+
     def show_host(self, host_id, show_logs=False):
         host = self.__hosts[host_id]
         servers = [self.__servers[s].id + (' (permanent)' if self.__servers[s].is_permanent else '')
@@ -2945,11 +2950,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # Email and stats server configs
 
-        if self.__deploy_stats_config_required:
-            self.push_stats_config()
-            self.push_devops_config()
-            self.__deploy_stats_config_required = False
-            self.save()
+        self.deploy_stats_config_if_required()
 
         if self.__deploy_email_config_required:
             self.push_email_config()
@@ -3000,6 +3001,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if len(self.__deploy_pave_osls_required_for_propagation_channels) > 0:
             self.pave_OSLs(self.__deploy_pave_osls_required_for_propagation_channels)
             self.__deploy_pave_osls_required_for_propagation_channels.clear()
+            self.save()
+
+
+    def deploy_stats_config_if_required(self):
+        if self.__deploy_stats_config_required:
+            self.push_stats_config()
+            self.push_devops_config()
+            self.__deploy_stats_config_required = False
             self.save()
 
 
@@ -4199,7 +4208,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             copy.__hosts[host.id] = Host(
                                             host.id,
                                             host.is_TCS,
-                                            '',  # Omit: host.TCS_type,
+                                            host.TCS_type,
                                             host.provider,
                                             host.provider_id,
                                             host.ip_address,
@@ -4265,7 +4274,20 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             # Omit: propagation, web server, ssh info, version
             copy.__deleted_servers[deleted_server.id].logs = deleted_server.logs
 
-            copy.__routes_signing_public_key = self.__split_tunnel_signature_public_key()
+        for propagation_channel in self.__propagation_channels.itervalues():
+            copy.__propagation_channels[propagation_channel.id] = PropagationChannel(
+                                        propagation_channel.id,
+                                        propagation_channel.name,
+                                        [],  # Omit mechanism info
+                                        '',  # Omit propagator_managed_upgrades
+                                        '',  # Omit new server counts
+                                        '',  # Omit new server counts
+                                        '',  # Omit new server counts
+                                        '',  # Omit server ages
+                                        '',  # Omit server ages
+                                        '')  # Omit server ages
+
+        copy.__routes_signing_public_key = self.__split_tunnel_signature_public_key()
 
         return jsonpickle.encode(copy)
 
@@ -4663,6 +4685,11 @@ def prune_all_propagation_channels():
         # NEW: deploy() is called by another process
         #psinet.deploy()
     finally:
+        # Attempt to update the stats db immediately if required
+        try:
+            psinet.deploy_stats_config_if_required()
+        except:
+            pass
         psinet.show_status()
         psinet.release()
 
