@@ -1016,6 +1016,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 s.configuration_version if s.configuration_version else 0)
         self.__show_logs(s)
 
+    def show_server_by_diagnostic_id(self, diagnostic_id):
+        for s in self.__servers.itervalues():
+            if diagnostic_id == self.__get_server_tag(s)[0:8]:
+                self.show_server(s.id)
+
     def show_host(self, host_id, show_logs=False):
         host = self.__hosts[host_id]
         servers = [self.__servers[s].id + (' (permanent)' if self.__servers[s].is_permanent else '')
