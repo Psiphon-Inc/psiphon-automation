@@ -4287,6 +4287,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         '',  # Omit server ages
                                         '')  # Omit server ages
 
+        for k,addresses in self.__alternate_meek_fronting_addresses.iteritems():
+            for address in addresses:
+                copy.__alternate_meek_fronting_addresses[k].add(address)
+
+        for k,regex in self.__alternate_meek_fronting_addresses_regex.iteritems():
+            copy.__alternate_meek_fronting_addresses_regex[k] = regex
+
+        for k,v in self.__meek_fronting_disable_SNI.iteritems():
+            copy.__meek_fronting_disable_SNI[k] = v
+
         copy.__routes_signing_public_key = self.__split_tunnel_signature_public_key()
 
         return jsonpickle.encode(copy)
