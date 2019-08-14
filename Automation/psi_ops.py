@@ -401,6 +401,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__alternate_meek_fronting_addresses_regex = defaultdict(str)
         self.__meek_fronting_disable_SNI = defaultdict(bool)
         self.__routes_signing_key_pair = None
+        self.__routes_signing_public_key = None
         self.__TCS_traffic_rules_set = None
         self.__TCS_OSL_config = None
         self.__TCS_tactics_config_template = None
@@ -420,7 +421,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.54'
+    class_version = '0.55'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -763,6 +764,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__server_entry_signing_key_pair = None
             self.__exchange_obfuscation_key = base64.b64encode(os.urandom(32))
             self.version = '0.54'
+        if cmp(parse_version(self.version), parse_version('0.55')) < 0:
+            self.__routes_signing_public_key = None
+            self.version = '0.55'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1011,6 +1015,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 ', '.join([capability for capability, enabled in s.capabilities.iteritems() if enabled]),
                 s.configuration_version if s.configuration_version else 0)
         self.__show_logs(s)
+
+    def show_server_by_diagnostic_id(self, diagnostic_id):
+        for s in self.__servers.itervalues():
+            if diagnostic_id == self.__get_server_tag(s)[0:8]:
+                self.show_server(s.id)
 
     def show_host(self, host_id, show_logs=False):
         host = self.__hosts[host_id]
@@ -2625,6 +2634,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return 'https://s3.amazonaws.com/psiphon/routes/%s.route.zlib.json' # TODO get it from psi_ops_s3
 
     def __split_tunnel_signature_public_key(self):
+        if self.__routes_signing_public_key:
+            return self.__routes_signing_public_key
+
         return psi_ops_crypto_tools.get_base64_der_public_key(
                 self.get_routes_signing_key_pair().pem_key_pair,
                 self.get_routes_signing_key_pair().password)
@@ -2938,10 +2950,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # Email and stats server configs
 
-        if self.__deploy_stats_config_required:
-            self.push_stats_config()
-            self.__deploy_stats_config_required = False
-            self.save()
+        self.deploy_stats_config_if_required()
 
         if self.__deploy_email_config_required:
             self.push_email_config()
@@ -2992,6 +3001,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if len(self.__deploy_pave_osls_required_for_propagation_channels) > 0:
             self.pave_OSLs(self.__deploy_pave_osls_required_for_propagation_channels)
             self.__deploy_pave_osls_required_for_propagation_channels.clear()
+            self.save()
+
+
+    def deploy_stats_config_if_required(self):
+        if self.__deploy_stats_config_required:
+            self.push_stats_config()
+            self.push_devops_config()
+            self.__deploy_stats_config_required = False
             self.save()
 
 
@@ -3183,6 +3200,21 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 psi_routes.GEO_ROUTES_ROOT,
                 psi_routes.GEO_ROUTES_SIGNED_EXTENSION)
 
+    def push_devops_config(self):
+        assert(self.is_locked)
+        print 'push devops config...'
+
+        temp_file = tempfile.NamedTemporaryFile(delete=False)
+        try:
+            temp_file.write(self.__compartmentalize_data_for_devops_server())
+            temp_file.close()
+            psi_ops_cms.import_document(temp_file.name, False, True)
+        finally:
+            try:
+                os.remove(temp_file.name)
+            except:
+                pass
+
     def push_stats_config(self):
         assert(self.is_locked)
         print 'push stats config...'
@@ -3191,8 +3223,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         try:
             temp_file.write(self.__compartmentalize_data_for_stats_server())
             temp_file.close()
-            psi_ops_cms.import_document(temp_file.name, True)
-            self.__stats_server_account.log('pushed')
+            psi_ops_cms.import_document(temp_file.name, True, False)
         finally:
             try:
                 os.remove(temp_file.name)
@@ -4167,6 +4198,109 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 own_encoded_server_entries[self.__get_server_tag(server)] = self.__get_encoded_server_entry(server)
         return own_encoded_server_entries
 
+    def __compartmentalize_data_for_devops_server(self):
+        # The database is for DevOps and used by Nagios for testing and monitoring
+        # DevOps people who needs to be able to connect to all hosts through SSH
+
+        copy = PsiphonNetwork(initialize_plugins=False)
+
+        for host in self.__hosts.itervalues():
+            copy.__hosts[host.id] = Host(
+                                            host.id,
+                                            host.is_TCS,
+                                            host.TCS_type,
+                                            host.provider,
+                                            host.provider_id,
+                                            host.ip_address,
+                                            host.ssh_port,
+                                            host.ssh_username,
+                                            host.ssh_password,
+                                            host.ssh_host_key,
+                                            host.stats_ssh_username,
+                                            host.stats_ssh_password,
+                                            host.datacenter_name,
+                                            host.region,
+                                            host.meek_server_port,
+                                            host.meek_server_obfuscated_key,
+                                            host.meek_server_fronting_domain,
+                                            host.meek_server_fronting_host,
+                                            host.alternate_meek_server_fronting_hosts,
+                                            host.meek_cookie_encryption_public_key,
+                                            '',  # Omit: meek_cookie_encryption_private_key
+                                            '', '', '') # Omit: tactics fields
+            copy.__hosts[host.id].logs = host.logs
+
+        for server in self.__servers.itervalues():
+            copy.__servers[server.id] = Server(
+                                            server.id,
+                                            server.host_id,
+                                            server.ip_address,
+                                            server.egress_ip_address,
+                                            '',   # Omit: server.internal_ip_address,
+                                            '',   # Omit: propagation_channel_id
+                                            '',   # Omit: server.is_embedded,
+                                            '',   # Omit: server.is_permanent,
+                                            '',   # Omit: server.discovery_date_range,
+                                            server.capabilities,
+                                            server.web_server_port,
+                                            server.web_server_secret,
+                                            server.web_server_certificate,
+                                            None, # Omit: server.web_server_private_key
+                                            server.ssh_port,
+                                            server.ssh_username,
+                                            server.ssh_password,
+                                            server.ssh_host_key,
+                                            None, # Omit: server.TCS_ssh_private_key
+                                            server.ssh_obfuscated_port,
+                                            server.ssh_obfuscated_quic_port,
+                                            server.ssh_obfuscated_tapdance_port,
+                                            server.ssh_obfuscated_key,
+                                            server.alternate_ssh_obfuscated_ports)
+                                            # Omit: propagation, web server, ssh info, version
+            copy.__servers[server.id].logs = server.logs
+
+        for deleted_server in self.__deleted_servers.itervalues():
+            copy.__deleted_servers[deleted_server.id] = Server(
+                                            deleted_server.id,
+                                            deleted_server.host_id,
+                                            deleted_server.ip_address,
+                                            None,
+                                            '', # Omit: deleted_server.internal_ip_address,
+                                            None,
+                                            '', # Omit: deleted_server.is_embedded,
+                                            '', # Omit: deleted_server.is_permanent,
+                                            '', # Omit: deleted_server.discovery_date_range,
+                                            deleted_server.capabilities)
+                                            # Omit: propagation, web server, ssh info, version
+            copy.__deleted_servers[deleted_server.id].logs = deleted_server.logs
+
+        for propagation_channel in self.__propagation_channels.itervalues():
+            copy.__propagation_channels[propagation_channel.id] = PropagationChannel(
+                                        propagation_channel.id,
+                                        propagation_channel.name,
+                                        [],  # Omit mechanism info
+                                        '',  # Omit propagator_managed_upgrades
+                                        '',  # Omit new server counts
+                                        '',  # Omit new server counts
+                                        '',  # Omit new server counts
+                                        '',  # Omit server ages
+                                        '',  # Omit server ages
+                                        '')  # Omit server ages
+
+        for k,addresses in self.__alternate_meek_fronting_addresses.iteritems():
+            for address in addresses:
+                copy.__alternate_meek_fronting_addresses[k].add(address)
+
+        for k,regex in self.__alternate_meek_fronting_addresses_regex.iteritems():
+            copy.__alternate_meek_fronting_addresses_regex[k] = regex
+
+        for k,v in self.__meek_fronting_disable_SNI.iteritems():
+            copy.__meek_fronting_disable_SNI[k] = v
+
+        copy.__routes_signing_public_key = self.__split_tunnel_signature_public_key()
+
+        return jsonpickle.encode(copy)
+
     def __compartmentalize_data_for_stats_server(self):
         # The stats server needs to be able to connect to all hosts and needs
         # the information to replace server IPs with server IDs, sponsor IDs
@@ -4561,6 +4695,11 @@ def prune_all_propagation_channels():
         # NEW: deploy() is called by another process
         #psinet.deploy()
     finally:
+        # Attempt to update the stats db immediately if required
+        try:
+            psinet.deploy_stats_config_if_required()
+        except:
+            pass
         psinet.show_status()
         psinet.release()
 
