@@ -1016,6 +1016,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 s.configuration_version if s.configuration_version else 0)
         self.__show_logs(s)
 
+    def show_server_by_diagnostic_id(self, diagnostic_id):
+        for s in self.__servers.itervalues():
+            if diagnostic_id == self.__get_server_tag(s)[0:8]:
+                self.show_server(s.id)
+
     def show_host(self, host_id, show_logs=False):
         host = self.__hosts[host_id]
         servers = [self.__servers[s].id + (' (permanent)' if self.__servers[s].is_permanent else '')
@@ -4269,7 +4274,30 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             # Omit: propagation, web server, ssh info, version
             copy.__deleted_servers[deleted_server.id].logs = deleted_server.logs
 
-            copy.__routes_signing_public_key = self.__split_tunnel_signature_public_key()
+        for propagation_channel in self.__propagation_channels.itervalues():
+            copy.__propagation_channels[propagation_channel.id] = PropagationChannel(
+                                        propagation_channel.id,
+                                        propagation_channel.name,
+                                        [],  # Omit mechanism info
+                                        '',  # Omit propagator_managed_upgrades
+                                        '',  # Omit new server counts
+                                        '',  # Omit new server counts
+                                        '',  # Omit new server counts
+                                        '',  # Omit server ages
+                                        '',  # Omit server ages
+                                        '')  # Omit server ages
+
+        for k,addresses in self.__alternate_meek_fronting_addresses.iteritems():
+            for address in addresses:
+                copy.__alternate_meek_fronting_addresses[k].add(address)
+
+        for k,regex in self.__alternate_meek_fronting_addresses_regex.iteritems():
+            copy.__alternate_meek_fronting_addresses_regex[k] = regex
+
+        for k,v in self.__meek_fronting_disable_SNI.iteritems():
+            copy.__meek_fronting_disable_SNI[k] = v
+
+        copy.__routes_signing_public_key = self.__split_tunnel_signature_public_key()
 
         return jsonpickle.encode(copy)
 
