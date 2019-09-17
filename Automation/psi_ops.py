@@ -3394,7 +3394,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for campaign in sponsor.campaigns:
                 self.__deploy_builds_required_for_campaigns[platform].add(
                         (campaign.propagation_channel_id, sponsor.id))
-                campaign.log('marked for build and publish (upgraded %s client)' % (platform,))
+                # Don't log this, too much noise
+                #campaign.log('marked for build and publish (upgraded %s client)' % (platform,))
         # Need to deploy data as well for auto-update
         self.__deploy_data_required_for_all = True
 
