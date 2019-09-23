@@ -142,7 +142,7 @@ def import_document(source_filename, for_stats=False, for_devops=False):
         raise Exception('CipherShare import failed: ' + str(output))
 
 
-def delete_document(for_stats=False, for_devops=False):
+def delete_document(for_stats=False):
     cmd = 'CipherShareScriptingClient.exe \
             DeleteDocument \
             -UserName %s -Password %s \
@@ -155,7 +155,7 @@ def delete_document(for_stats=False, for_devops=False):
             psi_ops_config.CIPHERSHARE_SERVERHOST,
             psi_ops_config.CIPHERSHARE_SERVERPORT,
             psi_ops_config.CIPHERSHARE_PSI_OPS_FOR_STATS_DOCUMENT_PATH if for_stats else
-                psi_ops_config.CIPHERSHARE_PSI_OPS_FOR_DEVOPS_DOCUMENT_PATH if for_devops)
+                psi_ops_config.CIPHERSHARE_PSI_OPS_FOR_DEVOPS_DOCUMENT_PATH)
     
     proc = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output = proc.communicate()
