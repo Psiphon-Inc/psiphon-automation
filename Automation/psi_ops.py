@@ -3208,6 +3208,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         try:
             temp_file.write(self.__compartmentalize_data_for_devops_server())
             temp_file.close()
+            psi_ops_cms.delete_document(False, True)
             psi_ops_cms.import_document(temp_file.name, False, True)
         finally:
             try:
@@ -3223,6 +3224,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         try:
             temp_file.write(self.__compartmentalize_data_for_stats_server())
             temp_file.close()
+            psi_ops_cms.delete_document(True, False)
             psi_ops_cms.import_document(temp_file.name, True, False)
         finally:
             try:
