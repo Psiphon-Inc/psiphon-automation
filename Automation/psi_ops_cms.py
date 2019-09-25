@@ -131,7 +131,9 @@ def import_document(source_filename, for_stats=False, for_devops=False):
             psi_ops_config.CIPHERSHARE_PSI_OPS_FOR_STATS_DOCUMENT_PATH if for_stats else
                 psi_ops_config.CIPHERSHARE_PSI_OPS_FOR_DEVOPS_DOCUMENT_PATH if for_devops else
                 psi_ops_config.CIPHERSHARE_PSI_OPS_DOCUMENT_PATH,
-            psi_ops_config.CIPHERSHARE_SHAREGROUP,
+            psi_ops_config.CIPHERSHARE_STATS_SHAREGROUP if for_stats else
+                psi_ops_config.CIPHERSHARE_DEVOPS_SHAREGROUP if for_devops else
+                psi_ops_config.CIPHERSHARE_SHAREGROUP,
             psi_ops_config.CIPHERSHARE_PSI_OPS_DOCUMENT_DESCRIPTION,
             '' if for_stats or for_devops else '-KeepLocked')
     
