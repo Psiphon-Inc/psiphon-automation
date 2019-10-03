@@ -391,6 +391,8 @@ def test_server(server, host, encoded_server_entry,
                                     ('[{}]'), # remote_server_list_urls_json
                                     '', # OSL_root_url_split
                                     ('[{}]'), # OSL_root_urls_json
+                                    None,       # server_entry_signature_public_key
+                                    None,       # server_entry_exchange_obfuscation_key
                                     '',         # feedback_encryption_public_key
                                     '',         # feedback_upload_server
                                     '',         # feedback_upload_path

@@ -42,6 +42,8 @@ def set_embedded_values(client_version,
                         remote_server_list_urls_json,
                         OSL_root_urls_json,
                         remote_server_list_signature_public_key,
+                        server_entry_signature_public_key,
+                        server_entry_exchange_obfuscation_key,
                         home_tab_url_exclusions):
     global embedded_values
     embedded_values['CLIENT_VERSION'] = client_version
@@ -66,6 +68,8 @@ def set_embedded_values(client_version,
     embedded_values['REMOTE_SERVER_LIST_URLS_JSON'] = remote_server_list_urls_json
     embedded_values['OBFUSCATED_SERVER_LIST_ROOT_URLS_JSON'] = OSL_root_urls_json
     embedded_values['REMOTE_SERVER_LIST_SIGNATURE_PUBLIC_KEY'] = remote_server_list_signature_public_key
+    embedded_values['SERVER_ENTRY_SIGNATURE_PUBLIC_KEY'] = server_entry_signature_public_key
+    embedded_values['SERVER_ENTRY_EXCHANGE_OBFUSCATION_KEY'] = server_entry_exchange_obfuscation_key
     embedded_values['HOME_TAB_URL_EXCLUSIONS'] = home_tab_url_exclusions
 
 

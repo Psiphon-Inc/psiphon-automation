@@ -206,6 +206,8 @@ def build_client(
         remote_server_list_urls_json,
         OSL_root_url_split, # obsolete
         OSL_root_urls_json,
+        server_entry_signature_public_key,
+        server_entry_exchange_obfuscation_key,
         feedback_encryption_public_key,
         feedback_upload_server,
         feedback_upload_path,

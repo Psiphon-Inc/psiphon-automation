@@ -2732,6 +2732,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         json.dumps(remote_server_list_urls).replace('"', '\\"'),
                         OSL_root_url_split,
                         json.dumps(OSL_root_urls).replace('"', '\\"'),
+                        self.__server_entry_signing_key_pair[0],
+                        self.__exchange_obfuscation_key,
                         feedback_encryption_public_key,
                         feedback_upload_info.upload_server,
                         feedback_upload_info.upload_path,
@@ -4522,6 +4524,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     ('[{}]'), # remote_server_list_urls_json
                                     '', # OSL_root_url_split
                                     ('[{}]'), # OSL_root_urls_json
+                                    None,       # server_entry_signature_public_key
+                                    None,       # server_entry_exchange_obfuscation_key
                                     '',         # feedback_encryption_public_key
                                     '',         # feedback_upload_server
                                     '',         # feedback_upload_path
