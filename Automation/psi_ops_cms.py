@@ -131,7 +131,9 @@ def import_document(source_filename, for_stats=False, for_devops=False):
             psi_ops_config.CIPHERSHARE_PSI_OPS_FOR_STATS_DOCUMENT_PATH if for_stats else
                 psi_ops_config.CIPHERSHARE_PSI_OPS_FOR_DEVOPS_DOCUMENT_PATH if for_devops else
                 psi_ops_config.CIPHERSHARE_PSI_OPS_DOCUMENT_PATH,
-            psi_ops_config.CIPHERSHARE_SHAREGROUP,
+            psi_ops_config.CIPHERSHARE_STATS_SHAREGROUP if for_stats else
+                psi_ops_config.CIPHERSHARE_DEVOPS_SHAREGROUP if for_devops else
+                psi_ops_config.CIPHERSHARE_SHAREGROUP,
             psi_ops_config.CIPHERSHARE_PSI_OPS_DOCUMENT_DESCRIPTION,
             '' if for_stats or for_devops else '-KeepLocked')
     
@@ -140,6 +142,28 @@ def import_document(source_filename, for_stats=False, for_devops=False):
     
     if proc.returncode != 0:
         raise Exception('CipherShare import failed: ' + str(output))
+
+
+def delete_document(for_stats=False):
+    cmd = 'CipherShareScriptingClient.exe \
+            DeleteDocument \
+            -UserName %s -Password %s \
+            -OfficeName %s -DatabasePath "%s" -ServerHost %s -ServerPort %s \
+            -Document "%s"' \
+         % (psi_ops_config.CIPHERSHARE_USERNAME,
+            psi_ops_config.CIPHERSHARE_PASSWORD,
+            psi_ops_config.CIPHERSHARE_OFFICENAME,
+            psi_ops_config.CIPHERSHARE_DATABASEPATH,
+            psi_ops_config.CIPHERSHARE_SERVERHOST,
+            psi_ops_config.CIPHERSHARE_SERVERPORT,
+            psi_ops_config.CIPHERSHARE_PSI_OPS_FOR_STATS_DOCUMENT_PATH if for_stats else
+                psi_ops_config.CIPHERSHARE_PSI_OPS_FOR_DEVOPS_DOCUMENT_PATH)
+    
+    proc = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output = proc.communicate()
+    
+    if proc.returncode != 0:
+        raise Exception('CipherShare delete failed: ' + str(output))
 
 
 # Adapted from:

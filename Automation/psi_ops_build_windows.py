@@ -23,11 +23,12 @@ import subprocess
 import textwrap
 import urlparse
 import psi_utils
+import local_repos_config
 
 #==== Build File Locations  ===================================================
 
 APPLICATION_TITLE = 'Psiphon 3' # (TODO: sync this value with client source code; only used for testing)
-SOURCE_ROOT = os.path.join(os.path.abspath('..'), 'Client', 'psiclient')
+SOURCE_ROOT = local_repos_config.WINDOWS_REPO_ROOT
 CLIENT_SOLUTION_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient2015.sln')
 CODE_SIGNING_PFX_FILENAME = os.path.join(os.path.abspath('..'), 'Data', 'CodeSigning', 'test-code-signing-package.pfx')
 BANNER_FILENAME = os.path.join(SOURCE_ROOT, 'webui', 'banner.png')

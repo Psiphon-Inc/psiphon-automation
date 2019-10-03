@@ -27,6 +27,7 @@ import copy
 import shutil
 import json
 import shlex
+import local_repos_config
 
 from functools import wraps
 try:
@@ -49,10 +50,10 @@ import psi_ops_build_windows
 CHECK_IP_ADDRESS_URL_LOCAL = 'http://automation.whatismyip.com/n09230945.asp'
 CHECK_IP_ADDRESS_URL_REMOTE = 'http://automation.whatismyip.com/n09230945.asp'
 
-SOURCE_ROOT = os.path.join(os.path.abspath('..'), 'Client', 'psiclient', '3rdParty')
-TUNNEL_CORE = os.path.join(SOURCE_ROOT, 'psiphon-tunnel-core.exe')
-CONFIG_FILE_NAME = os.path.join(SOURCE_ROOT, 'tunnel-core-config.config')
-LOG_FILE_NAME = os.path.join(SOURCE_ROOT, 'tunnel-core-log.txt')
+SOURCE_ROOT = local_repos_config.WINDOWS_REPO_ROOT
+TUNNEL_CORE = os.path.join(SOURCE_ROOT, '3rdParty', 'psiphon-tunnel-core.exe')
+CONFIG_FILE_NAME = os.path.join(SOURCE_ROOT, '3rdParty', 'tunnel-core-config.config')
+LOG_FILE_NAME = os.path.join(SOURCE_ROOT, '3rdParty', 'tunnel-core-log.txt')
 
 def urlopen(url, timeout):
     if url.startswith('https') and hasattr(ssl, 'SSLContext'):
