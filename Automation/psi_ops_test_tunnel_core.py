@@ -357,20 +357,21 @@ def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, a
 def get_server_test_cases(server, host, test_cases):
     capabilities = server.capabilities
     
-    local_test_cases = copy.copy(test_cases) if test_cases else ['handshake', 'VPN', 'OSSH', 'SSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH', 'UNFRONTED-MEEK-SESSION-TICKET-OSSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTP-OSSH', 'QUIC-OSSH', 'TAPDANCE-OSSH']
+    local_test_cases = copy.copy(test_cases) if test_cases else ['handshake', 'VPN', 'OSSH', 'SSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH', 'UNFRONTED-MEEK-SESSION-TICKET-OSSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTP-OSSH', 'FRONTED-MEEK-QUIC-OSSH', 'QUIC-OSSH', 'TAPDANCE-OSSH']
 
     for test_case in copy.copy(local_test_cases):
         if ((test_case == 'VPN' # VPN requires handshake, SSH or SSH+
                 and not (capabilities['handshake'] or capabilities['OSSH'] or capabilities['SSH'] or capabilities['FRONTED-MEEK'] or capabilities['UNFRONTED-MEEK']))
             or (test_case == 'UNFRONTED-MEEK-OSSH' and not (capabilities['UNFRONTED-MEEK'] and int(host.meek_server_port) == 80))
             or (test_case == 'UNFRONTED-MEEK-HTTPS-OSSH' and not (capabilities['UNFRONTED-MEEK'] and int(host.meek_server_port) == 443))
-            or (test_case == 'UNFRONTED-MEEK-SESSION-TICKET-OSSH' and not (capabilities['UNFRONTED-MEEK-SESSION-TICKET']))
-            or (test_case == 'FRONTED-MEEK-OSSH' and not (capabilities['FRONTED-MEEK']))
+            or (test_case == 'UNFRONTED-MEEK-SESSION-TICKET-OSSH' and not capabilities['UNFRONTED-MEEK-SESSION-TICKET'])
+            or (test_case == 'FRONTED-MEEK-OSSH' and not capabilities['FRONTED-MEEK'])
             or (test_case == 'FRONTED-MEEK-HTTP-OSSH' and not (capabilities['FRONTED-MEEK'] and host.alternate_meek_server_fronting_hosts))
-            or (test_case in ['handshake', 'OSSH', 'SSH', 'VPN'] and not capabilities[test_case])
-            or test_case == 'handshake' or test_case == 'VPN'
+            or (test_case == 'FRONTED-MEEK-QUIC-OSSH' and not capabilities['FRONTED-MEEK-QUIC'])
             or (test_case == 'QUIC-OSSH' and not capabilities['QUIC'])
-            or (test_case == 'TAPDANCE-OSSH' and not capabilities['TAPDANCE'])):
+            or (test_case == 'TAPDANCE-OSSH' and not capabilities['TAPDANCE'])
+            or (test_case in ['handshake', 'OSSH', 'SSH', 'VPN'] and not capabilities[test_case])
+            or test_case == 'handshake' or test_case == 'VPN'):
             local_test_cases.remove(test_case)
     
     return local_test_cases
