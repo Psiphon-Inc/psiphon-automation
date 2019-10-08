@@ -117,7 +117,7 @@ def create_linode_disks(linode_api, linode_id, bootstrap_password, is_TCS, plugi
     return str(create_disk_job['DiskID']), str(create_swap_job['DiskID'])
 
 
-def create_linode_configurations(linode_api, linode_id, disk_list, is_TCS, plugins):
+def create_linode_configurations(linode_api, linode_id, disk_list, is_TCS, plugins, multi_ip):
     # KernelID = 138: Latest 64 bit
     bootstrap_kernel_id = 138
 
@@ -131,7 +131,7 @@ def create_linode_configurations(linode_api, linode_id, disk_list, is_TCS, plugi
         if hasattr(plugin, 'linode_kernel_ids'):
             bootstrap_kernel_id, host_kernel_id = plugin.linode_kernel_ids()
     bootstrap_config_id = linode_api.linode_config_create(LinodeID=linode_id, KernelID=bootstrap_kernel_id, Label='BootStrap', DiskList=disk_list)
-    psiphon3_host_config_id = linode_api.linode_config_create(LinodeID=linode_id, KernelID=host_kernel_id, Label='Psiphon 3 Host', DiskList=disk_list)
+    psiphon3_host_config_id = linode_api.linode_config_create(LinodeID=linode_id, KernelID=host_kernel_id, Label='Psiphon 3 Host', DiskList=disk_list, helper_network=multi_ip)
     return bootstrap_config_id['ConfigID'], psiphon3_host_config_id['ConfigID']
 
 
@@ -207,7 +207,7 @@ def set_host_name(linode_account, ip_address, password, host_public_key, new_hos
     ssh.exec_command('hostnamectl set-hostname %s' % new_hostname)
 
 
-def launch_new_server(linode_account, is_TCS, plugins):
+def launch_new_server(linode_account, is_TCS, plugins, multi_ip=False):
 
     linode_id = None
     linode_api = linode.api.Api(key=linode_account.api_key)
@@ -228,12 +228,20 @@ def launch_new_server(linode_account, is_TCS, plugins):
         new_root_password = psi_utils.generate_password()
         linode_id, datacenter_name, region = create_linode(linode_api)
 
+        if multi_ip:
+            linode_second_ip_address = linode_api.linode_ip_addpublic(LinodeID=linode_id)['IPADDRESS']
+
         disk_ids = create_linode_disks(linode_api, linode_id, new_root_password, is_TCS, plugins)
-        bootstrap_config_id, psiphon3_host_config_id = create_linode_configurations(linode_api, linode_id, ','.join(disk_ids), is_TCS, plugins)
+        bootstrap_config_id, psiphon3_host_config_id = create_linode_configurations(linode_api, linode_id, ','.join(disk_ids), is_TCS, plugins, multi_ip)
 
         # Clone the base linode
         linode_ip_details = linode_api.linode_ip_list(LinodeID=linode_id)
-        linode_ip_address = linode_ip_details[0]['IPADDRESS']
+
+        if multi_ip:
+            linode_ip_address = linode_second_ip_address
+        else:
+            linode_ip_address = linode_ip_details[0]['IPADDRESS']
+
         linode_rdns_name = linode_ip_details[0]['RDNS_NAME'].split('.', 1)[0]
 
         if not is_TCS:
