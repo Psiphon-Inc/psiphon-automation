@@ -176,7 +176,7 @@ def remove_server(vpsnet_account, node_id):
         raise e
 
 
-def launch_new_server(vpsnet_account, is_TCS, _, datacenter_city=None):
+def launch_new_server(vpsnet_account, is_TCS, _, datacenter_city=None, multi_ip=False):
     """
         launch_new_server is called from psi_ops.py to create a new server.
     """
