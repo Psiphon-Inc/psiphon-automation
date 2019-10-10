@@ -239,8 +239,10 @@ def launch_new_server(linode_account, is_TCS, plugins, multi_ip=False):
 
         if multi_ip:
             linode_ip_address = linode_second_ip_address
+            egress_ip_address = linode_ip_details[0]['IPADDRESS']
         else:
             linode_ip_address = linode_ip_details[0]['IPADDRESS']
+            egress_ip_address = None
 
         linode_rdns_name = linode_ip_details[0]['RDNS_NAME'].split('.', 1)[0]
 
@@ -284,7 +286,7 @@ def launch_new_server(linode_account, is_TCS, plugins, multi_ip=False):
             linode_account.base_ssh_port, 'root', new_root_password,
             ' '.join(new_host_public_key.split(' ')[:2]),
             stats_username, new_stats_password,
-            datacenter_name, region, None, None, None, None)
+            datacenter_name, region, None, None, None, None, egress_ip_address)
 
 
 def remove_server(linode_account, linode_id):

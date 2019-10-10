@@ -2113,7 +2113,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             server_info = server_infos[new_server_number]
             if type(server_info) != tuple:
                 continue
-            host = Host(*server_info)
+            host = Host(*server_info[:-1])
 
             # NOTE: jsonpickle will serialize references to discovery_date_range, which can't be
             # resolved when unpickling, if discovery_date_range is used directly.
@@ -2189,7 +2189,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         None,
                         host.id,
                         host.ip_address,
-                        host.ip_address,
+                        server_info[-1] if server_info[-1] else host.ip_address,
                         host.ip_address,
                         propagation_channel.id,
                         is_embedded_server,

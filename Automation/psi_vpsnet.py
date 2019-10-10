@@ -304,5 +304,5 @@ def launch_new_server(vpsnet_account, is_TCS, _, datacenter_city=None):
         new_stats_password,
         region_template['cloud_label'],
         get_region_name(region_template),
-        None, None, None, None, None, None, None,
+        None, None, None, None, None, None, None, None
         )
