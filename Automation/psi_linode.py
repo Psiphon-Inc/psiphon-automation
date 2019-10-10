@@ -238,8 +238,11 @@ def launch_new_server(linode_account, is_TCS, plugins, multi_ip=False):
         linode_ip_details = linode_api.linode_ip_list(LinodeID=linode_id)
 
         if multi_ip:
-            linode_ip_address = linode_ip_details[1]['IPADDRESS']
-            egress_ip_address = linode_ip_details[0]['IPADDRESS']
+            # There is no guaranteed which one would be egress
+            # Need a better method to determine, maybe from RDNS (compare with host_id)
+            # Option 2 would be SSH into the server and check ifconfig or similar
+            linode_ip_address = linode_ip_details[0]['IPADDRESS']
+            egress_ip_address = linode_ip_details[1]['IPADDRESS']
         else:
             linode_ip_address = linode_ip_details[0]['IPADDRESS']
             egress_ip_address = None
