@@ -21,4 +21,5 @@ import os
 
 
 WINDOWS_REPO_ROOT = os.path.abspath(os.path.join('..', '..', 'psiphon-windows', 'src'))
+WEBSITE_REPO_ROOT = os.path.abspath(os.path.join('..', '..', 'psiphon-website'))
 
