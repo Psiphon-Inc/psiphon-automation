@@ -27,6 +27,7 @@ import copy
 import shutil
 import json
 import shlex
+import local_repos_config
 
 from functools import wraps
 try:
@@ -49,10 +50,10 @@ import psi_ops_build_windows
 CHECK_IP_ADDRESS_URL_LOCAL = 'http://automation.whatismyip.com/n09230945.asp'
 CHECK_IP_ADDRESS_URL_REMOTE = 'http://automation.whatismyip.com/n09230945.asp'
 
-SOURCE_ROOT = os.path.join(os.path.abspath('..'), 'Client', 'psiclient', '3rdParty')
-TUNNEL_CORE = os.path.join(SOURCE_ROOT, 'psiphon-tunnel-core.exe')
-CONFIG_FILE_NAME = os.path.join(SOURCE_ROOT, 'tunnel-core-config.config')
-LOG_FILE_NAME = os.path.join(SOURCE_ROOT, 'tunnel-core-log.txt')
+SOURCE_ROOT = local_repos_config.WINDOWS_REPO_ROOT
+TUNNEL_CORE = os.path.join(SOURCE_ROOT, '3rdParty', 'psiphon-tunnel-core.exe')
+CONFIG_FILE_NAME = os.path.join(SOURCE_ROOT, '3rdParty', 'tunnel-core-config.config')
+LOG_FILE_NAME = os.path.join(SOURCE_ROOT, '3rdParty', 'tunnel-core-log.txt')
 
 def urlopen(url, timeout):
     if url.startswith('https') and hasattr(ssl, 'SSLContext'):
@@ -345,18 +346,19 @@ def test_server(server, host, encoded_server_entry,
     web_server_port = server.web_server_port
     web_server_secret = server.web_server_secret
 
-    local_test_cases = copy.copy(test_cases) if test_cases else ['handshake', 'VPN', 'OSSH', 'SSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH', 'UNFRONTED-MEEK-SESSION-TICKET-OSSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTP-OSSH', 'QUIC-OSSH', 'TAPDANCE-OSSH']
+    local_test_cases = copy.copy(test_cases) if test_cases else ['handshake', 'VPN', 'OSSH', 'SSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH', 'UNFRONTED-MEEK-SESSION-TICKET-OSSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTP-OSSH', 'FRONTED-MEEK-QUIC-OSSH', 'QUIC-OSSH', 'TAPDANCE-OSSH']
 
     for test_case in copy.copy(local_test_cases):
         if ((test_case == 'VPN' # VPN requires handshake, SSH or SSH+
                 and not (capabilities['handshake'] or capabilities['OSSH'] or capabilities['SSH'] or capabilities['FRONTED-MEEK'] or capabilities['UNFRONTED-MEEK']))
             or (test_case == 'UNFRONTED-MEEK-OSSH' and not (capabilities['UNFRONTED-MEEK'] and int(host.meek_server_port) == 80))
             or (test_case == 'UNFRONTED-MEEK-HTTPS-OSSH' and not (capabilities['UNFRONTED-MEEK'] and int(host.meek_server_port) == 443))
-            or (test_case == 'UNFRONTED-MEEK-SESSION-TICKET-OSSH' and not (capabilities['UNFRONTED-MEEK-SESSION-TICKET']))
-            or (test_case == 'FRONTED-MEEK-OSSH' and not (capabilities['FRONTED-MEEK']))
+            or (test_case == 'UNFRONTED-MEEK-SESSION-TICKET-OSSH' and not capabilities['UNFRONTED-MEEK-SESSION-TICKET'])
+            or (test_case == 'FRONTED-MEEK-OSSH' and not capabilities['FRONTED-MEEK'])
             or (test_case == 'FRONTED-MEEK-HTTP-OSSH' and not (capabilities['FRONTED-MEEK'] and host.alternate_meek_server_fronting_hosts))
-            or (test_case == 'QUIC-OSSH' and not (capabilities['QUIC']))
-            or (test_case == 'TAPDANCE-OSSH' and not (capabilities['TAPDANCE']))
+            or (test_case == 'FRONTED-MEEK-QUIC-OSSH' and not capabilities['FRONTED-MEEK-QUIC'])
+            or (test_case == 'QUIC-OSSH' and not capabilities['QUIC'])
+            or (test_case == 'TAPDANCE-OSSH' and not capabilities['TAPDANCE'])
             or (test_case in ['handshake', 'OSSH', 'SSH', 'VPN'] and not capabilities[test_case])):
             print 'Server does not support %s' % (test_case,)
             local_test_cases.remove(test_case)
@@ -390,6 +392,8 @@ def test_server(server, host, encoded_server_entry,
                                     ('[{}]'), # remote_server_list_urls_json
                                     '', # OSL_root_url_split
                                     ('[{}]'), # OSL_root_urls_json
+                                    None,       # server_entry_signature_public_key
+                                    None,       # server_entry_exchange_obfuscation_key
                                     '',         # feedback_encryption_public_key
                                     '',         # feedback_upload_server
                                     '',         # feedback_upload_path

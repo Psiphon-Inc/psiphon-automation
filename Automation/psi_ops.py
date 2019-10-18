@@ -2732,6 +2732,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         json.dumps(remote_server_list_urls).replace('"', '\\"'),
                         OSL_root_url_split,
                         json.dumps(OSL_root_urls).replace('"', '\\"'),
+                        self.__server_entry_signing_key_pair[0],
+                        self.__exchange_obfuscation_key,
                         feedback_encryption_public_key,
                         feedback_upload_info.upload_server,
                         feedback_upload_info.upload_path,
@@ -3208,6 +3210,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         try:
             temp_file.write(self.__compartmentalize_data_for_devops_server())
             temp_file.close()
+            psi_ops_cms.delete_document(for_stats=False)
             psi_ops_cms.import_document(temp_file.name, False, True)
         finally:
             try:
@@ -3223,6 +3226,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         try:
             temp_file.write(self.__compartmentalize_data_for_stats_server())
             temp_file.close()
+            psi_ops_cms.delete_document(for_stats=True)
             psi_ops_cms.import_document(temp_file.name, True, False)
         finally:
             try:
@@ -3394,7 +3398,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for campaign in sponsor.campaigns:
                 self.__deploy_builds_required_for_campaigns[platform].add(
                         (campaign.propagation_channel_id, sponsor.id))
-                campaign.log('marked for build and publish (upgraded %s client)' % (platform,))
+                # Don't log this, too much noise
+                #campaign.log('marked for build and publish (upgraded %s client)' % (platform,))
         # Need to deploy data as well for auto-update
         self.__deploy_data_required_for_all = True
 
@@ -4519,6 +4524,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     ('[{}]'), # remote_server_list_urls_json
                                     '', # OSL_root_url_split
                                     ('[{}]'), # OSL_root_urls_json
+                                    None,       # server_entry_signature_public_key
+                                    None,       # server_entry_exchange_obfuscation_key
                                     '',         # feedback_encryption_public_key
                                     '',         # feedback_upload_server
                                     '',         # feedback_upload_path
@@ -4729,8 +4736,8 @@ if __name__ == "__main__":
     parser.add_option("-r", "--read-only", dest="readonly", action="store_true",
                       help="don't lock the network object")
     parser.add_option("-t", "--test", dest="test", action="append",
-                      choices=('handshake', 'VPN', 'OSSH', 'SSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTP-OSSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH', 'UNFRONTED-MEEK-SESSION-TICKET-OSSH', 'QUIC-OSSH'),
-                      help="specify once for each of: handshake, VPN, OSSH, SSH, FRONTED-MEEK-OSSH, FRONTED-MEEK-HTTP-OSSH, UNFRONTED-MEEK-OSSH, UNFRONTED-MEEK-HTTPS-OSSH, UNFRONTED-MEEK-SESSION-TICKET-OSSH, QUIC-OSSH")
+                      choices=('handshake', 'VPN', 'OSSH', 'SSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTP-OSSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH', 'UNFRONTED-MEEK-SESSION-TICKET-OSSH', 'QUIC-OSSH', 'FRONTED-MEEK-QUIC-OSSH'),
+                      help="specify once for each of: handshake, VPN, OSSH, SSH, FRONTED-MEEK-OSSH, FRONTED-MEEK-HTTP-OSSH, UNFRONTED-MEEK-OSSH, UNFRONTED-MEEK-HTTPS-OSSH, UNFRONTED-MEEK-SESSION-TICKET-OSSH, QUIC-OSSH, FRONTED-MEEK-QUIC-OSSH")
     parser.add_option("-u", "--update-routes", dest="updateroutes", action="store_true",
                       help="update external signed routes files")
     parser.add_option("-d", "--deploy", dest="deploy", action="store_true",
