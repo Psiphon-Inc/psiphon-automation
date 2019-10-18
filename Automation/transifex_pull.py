@@ -96,7 +96,7 @@ ANDROID_LANGS = {
     'fr': 'fr',
     'hi': 'hi',
     'hr': 'hr',
-    'id': 'id',
+    'id': 'in',         # Android uses in for Indonesian
     'it': 'it',
     'kk': 'kk',
     'km': 'km',
