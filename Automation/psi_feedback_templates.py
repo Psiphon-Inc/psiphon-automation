@@ -63,6 +63,7 @@ FEEDBACK_LANGUAGES = [
     'tr',
     'ug@Latn',
     'uk',
+    'ur',
     'uz@Cyrl',
     'uz@Latn',
     'vi'

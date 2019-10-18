@@ -159,6 +159,7 @@ html {{
   <option value="tr">Türkçe</option>
   <option value="ug@Latn">Uyghurche</option>
   <option value="uk">Українська</option>
+  <option value="ur">اردو</option>
   <option value="uz@Cyrl">Ўзбекча</option>
   <option value="uz@Latn">O'zbekcha</option>
   <option value="vi">Tiếng Việt</option>
