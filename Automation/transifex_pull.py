@@ -72,6 +72,7 @@ DEFAULT_LANGS = {
     'tr': 'tr',         # Turkish
     'ug': 'ug@Latn',    # Uighur (latin script)
     'uk': 'uk',         # Ukrainian
+    'ur': 'ur',         # Urdu
     'uz': 'uz@Latn',    # Uzbek (latin script)
     'uz@Cyrl': 'uz@Cyrl',    # Uzbek (latin script)
     'vi': 'vi',         # Vietnamese
@@ -116,6 +117,7 @@ ANDROID_LANGS = {
     'tk': 'tk',
     'tr': 'tr',
     'uk': 'uk',
+    'ur': 'ur',
     'uz': 'uz',
     'vi': 'vi',
     'zh': 'zh',
@@ -123,7 +125,7 @@ ANDROID_LANGS = {
 }
 
 
-RTL_LANGS = ('ar', 'fa', 'fa_AF', 'he')
+RTL_LANGS = ('ar', 'fa', 'fa_AF', 'he', 'ur')
 
 
 PSIPHON_CIRCUMVENTION_SYSTEM_RESOURCES = \
