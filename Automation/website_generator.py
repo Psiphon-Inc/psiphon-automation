@@ -20,9 +20,10 @@
 import subprocess
 import os
 import errno
+import local_repos_config
 
 
-WEBSITE_DIR = '../Website'
+WEBSITE_DIR = local_repos_config.WEBSITE_REPO_ROOT
 WEBSITE_PLUGINS_DIR = 'plugins'
 
 # We generate the website in chunks of languages, so that we don't exhaust memory

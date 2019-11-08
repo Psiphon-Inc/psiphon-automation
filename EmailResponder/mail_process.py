@@ -446,6 +446,7 @@ def _dkim_sign_email(raw_email):
 
 _RESTRICTED_ATTACHMENTS_PROVIDERS = (re.compile(r'^(gmail)|(googlemail)\..+$'),
                                      re.compile(r'^psiphon.ca$'),
+                                     re.compile(r'^(outlook)|(hotmail)\..+$'),
                                     )
 
 def _make_attachment_safe_for_provider(email_addr, attachment_filename):
