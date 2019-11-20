@@ -206,6 +206,11 @@ def set_host_name(linode_account, ip_address, password, host_public_key, new_hos
                                    'root', password, host_public_key)
     ssh.exec_command('hostnamectl set-hostname %s' % new_hostname)
 
+def get_egress_ip_address(linode_account, ip_address, password, host_public_key):
+    ssh = psi_ssh.make_ssh_session(ip_address, linode_account.base_ssh_port,
+                                   'root', password, host_public_key)
+    egress_ip = ssh.exec_command("/sbin/ifconfig eth0 | grep 'inet addr' | cut -d: -f2 | awk '{print $1}'")
+    return egress_ip.split("\n")[0]
 
 def launch_new_server(linode_account, is_TCS, plugins, multi_ip=False):
 
@@ -236,16 +241,8 @@ def launch_new_server(linode_account, is_TCS, plugins, multi_ip=False):
 
         # Clone the base linode
         linode_ip_details = linode_api.linode_ip_list(LinodeID=linode_id)
-
-        if multi_ip:
-            # There is no guaranteed which one would be egress
-            # Need a better method to determine, maybe from RDNS (compare with host_id)
-            # Option 2 would be SSH into the server and check ifconfig or similar
-            linode_ip_address = linode_ip_details[0]['IPADDRESS']
-            egress_ip_address = linode_ip_details[1]['IPADDRESS']
-        else:
-            linode_ip_address = linode_ip_details[0]['IPADDRESS']
-            egress_ip_address = None
+        linode_ip_address = linode_ip_details[0]['IPADDRESS']
+        egress_ip_address = None
 
         linode_rdns_name = linode_ip_details[0]['RDNS_NAME'].split('.', 1)[0]
 
@@ -275,6 +272,11 @@ def launch_new_server(linode_account, is_TCS, plugins, multi_ip=False):
                                                   root_password, host_public_key,
                                                   new_root_password, new_stats_password,
                                                   stats_username)
+
+        if multi_ip:
+            egress_ip_address = get_egress_ip_address(linode_account, linode_ip_address, new_root_password, new_host_public_key)
+            linode_ip_address = linode_ip_details[1]['IPADDRESS'] if linode_ip_address == egress_ip_address else linode_ip_address
+
     except Exception as ex:
         if linode_id:
             remove_server(linode_account, linode_id)
