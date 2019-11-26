@@ -26,11 +26,12 @@ import urlparse
 import psi_utils
 import utils
 from cogapp import Cog
+import local_repos_config
 
 
 #==== Build File Locations  ===================================================
 
-SOURCE_ROOT = os.path.join(os.path.abspath('..'), 'Android')
+SOURCE_ROOT = local_repos_config.ANDROID_REPO_ROOT
 
 GRADLE_WRAPPER = os.path.join(SOURCE_ROOT, 'gradlew')
 
@@ -46,10 +47,6 @@ EMBEDDED_VALUES_FILENAME = os.path.join(PSIPHON_SOURCE_ROOT, 'java', 'com', 'psi
 
 BUILDS_ROOT = os.path.join('.', 'Builds', 'Android')
 APK_FILENAME_TEMPLATE = 'PsiphonAndroid-%s-%s.apk'
-
-FEEDBACK_SOURCE_ROOT = os.path.join('.', 'FeedbackSite')
-FEEDBACK_HTML_PATH = os.path.join(FEEDBACK_SOURCE_ROOT, 'feedback.html')
-PSIPHON_ASSETS = os.path.join(PSIPHON_SOURCE_ROOT, 'assets')
 
 ZIPALIGNED_APK_FILENAME = os.path.join(SOURCE_ROOT, 'app', 'build', 'outputs', 'apk', 'release', 'PsiphonAndroid-release.apk')
 
@@ -230,9 +227,6 @@ def build_client(
             propagator_managed_upgrades,
             test,
             home_tab_url_exclusions)
-
-        # copy feedback.html
-        shutil.copy(FEEDBACK_HTML_PATH, PSIPHON_ASSETS)
 
         # build
         build_apk()

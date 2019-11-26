@@ -20,6 +20,7 @@
 import os
 
 
+ANDROID_REPO_ROOT = os.path.abspath(os.path.join('..', '..', 'psiphon-android'))
 WINDOWS_REPO_ROOT = os.path.abspath(os.path.join('..', '..', 'psiphon-windows', 'src'))
 WEBSITE_REPO_ROOT = os.path.abspath(os.path.join('..', '..', 'psiphon-website'))
 
