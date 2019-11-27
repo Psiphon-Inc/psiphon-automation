@@ -117,7 +117,7 @@ def create_linode_disks(linode_api, linode_id, bootstrap_password, is_TCS, plugi
     return str(create_disk_job['DiskID']), str(create_swap_job['DiskID'])
 
 
-def create_linode_configurations(linode_api, linode_id, disk_list, is_TCS, plugins):
+def create_linode_configurations(linode_api, linode_id, disk_list, is_TCS, plugins, multi_ip):
     # KernelID = 138: Latest 64 bit
     bootstrap_kernel_id = 138
 
@@ -131,7 +131,7 @@ def create_linode_configurations(linode_api, linode_id, disk_list, is_TCS, plugi
         if hasattr(plugin, 'linode_kernel_ids'):
             bootstrap_kernel_id, host_kernel_id = plugin.linode_kernel_ids()
     bootstrap_config_id = linode_api.linode_config_create(LinodeID=linode_id, KernelID=bootstrap_kernel_id, Label='BootStrap', DiskList=disk_list)
-    psiphon3_host_config_id = linode_api.linode_config_create(LinodeID=linode_id, KernelID=host_kernel_id, Label='Psiphon 3 Host', DiskList=disk_list)
+    psiphon3_host_config_id = linode_api.linode_config_create(LinodeID=linode_id, KernelID=host_kernel_id, Label='Psiphon 3 Host', DiskList=disk_list, helper_network=multi_ip)
     return bootstrap_config_id['ConfigID'], psiphon3_host_config_id['ConfigID']
 
 
@@ -206,8 +206,13 @@ def set_host_name(linode_account, ip_address, password, host_public_key, new_hos
                                    'root', password, host_public_key)
     ssh.exec_command('hostnamectl set-hostname %s' % new_hostname)
 
+def get_egress_ip_address(linode_account, ip_address, password, host_public_key):
+    ssh = psi_ssh.make_ssh_session(ip_address, linode_account.base_ssh_port,
+                                   'root', password, host_public_key)
+    egress_ip = ssh.exec_command("/sbin/ifconfig eth0 | grep 'inet addr' | cut -d: -f2 | awk '{print $1}'")
+    return egress_ip.split("\n")[0]
 
-def launch_new_server(linode_account, is_TCS, plugins):
+def launch_new_server(linode_account, is_TCS, plugins, multi_ip=False):
 
     linode_id = None
     linode_api = linode.api.Api(key=linode_account.api_key)
@@ -228,12 +233,17 @@ def launch_new_server(linode_account, is_TCS, plugins):
         new_root_password = psi_utils.generate_password()
         linode_id, datacenter_name, region = create_linode(linode_api)
 
+        if multi_ip:
+            linode_second_ip_address = linode_api.linode_ip_addpublic(LinodeID=linode_id)['IPADDRESS']
+
         disk_ids = create_linode_disks(linode_api, linode_id, new_root_password, is_TCS, plugins)
-        bootstrap_config_id, psiphon3_host_config_id = create_linode_configurations(linode_api, linode_id, ','.join(disk_ids), is_TCS, plugins)
+        bootstrap_config_id, psiphon3_host_config_id = create_linode_configurations(linode_api, linode_id, ','.join(disk_ids), is_TCS, plugins, multi_ip)
 
         # Clone the base linode
         linode_ip_details = linode_api.linode_ip_list(LinodeID=linode_id)
         linode_ip_address = linode_ip_details[0]['IPADDRESS']
+        egress_ip_address = None
+
         linode_rdns_name = linode_ip_details[0]['RDNS_NAME'].split('.', 1)[0]
 
         if not is_TCS:
@@ -262,6 +272,11 @@ def launch_new_server(linode_account, is_TCS, plugins):
                                                   root_password, host_public_key,
                                                   new_root_password, new_stats_password,
                                                   stats_username)
+
+        if multi_ip:
+            egress_ip_address = get_egress_ip_address(linode_account, linode_ip_address, new_root_password, new_host_public_key)
+            linode_ip_address = linode_ip_details[1]['IPADDRESS'] if linode_ip_address == egress_ip_address else linode_ip_address
+
     except Exception as ex:
         if linode_id:
             remove_server(linode_account, linode_id)
@@ -276,7 +291,7 @@ def launch_new_server(linode_account, is_TCS, plugins):
             linode_account.base_ssh_port, 'root', new_root_password,
             ' '.join(new_host_public_key.split(' ')[:2]),
             stats_username, new_stats_password,
-            datacenter_name, region, None, None, None, None)
+            datacenter_name, region, None, None, None, None, egress_ip_address)
 
 
 def remove_server(linode_account, linode_id):

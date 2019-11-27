@@ -176,7 +176,7 @@ def remove_server(vpsnet_account, node_id):
         raise e
 
 
-def launch_new_server(vpsnet_account, is_TCS, _, datacenter_city=None):
+def launch_new_server(vpsnet_account, is_TCS, _, multi_ip=False, datacenter_city=None):
     """
         launch_new_server is called from psi_ops.py to create a new server.
     """
@@ -304,5 +304,5 @@ def launch_new_server(vpsnet_account, is_TCS, _, datacenter_city=None):
         new_stats_password,
         region_template['cloud_label'],
         get_region_name(region_template),
-        None, None, None, None, None, None, None,
+        None, None, None, None, None, None, None, None
         )

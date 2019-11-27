@@ -508,7 +508,7 @@ def transfer_server(digitalocean_account, droplet):
     return failures
 
 
-def launch_new_server(digitalocean_account, is_TCS, _):
+def launch_new_server(digitalocean_account, is_TCS, _, multi_ip=False):
     """
         Launches a new droplet and configures it to be a Psiphon server.
         This is called from psi_ops.py
@@ -603,7 +603,7 @@ def launch_new_server(digitalocean_account, is_TCS, _):
             digitalocean_account.base_ssh_port, 'root', new_root_password,
             ' '.join(new_droplet_public_key.split(' ')[:2]),
             stats_username, new_stats_password,
-            datacenter_name, region, None, None, None, None, None, None, None)
+            datacenter_name, region, None, None, None, None, None, None, None, None)
 
 if __name__ == "__main__":
     parser = optparse.OptionParser('usage: %prog [options]')

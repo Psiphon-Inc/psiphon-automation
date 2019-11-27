@@ -2017,7 +2017,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for server in servers:
             self.test_server(server.id, ['handshake'])
 
-    def launch_new_server(self, is_TCS, provider=None):
+    def launch_new_server(self, is_TCS, provider=None, multi_ip=False):
         if provider == None:
             provider = self._weighted_random_choice(self.__provider_ranks).provider
 
@@ -2048,7 +2048,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         def provider_launch_new_server_with_retries(is_TCS):
             for _ in range(3):
                 try:
-                    return provider_launch_new_server(provider_account, is_TCS, plugins)
+                    return provider_launch_new_server(provider_account, is_TCS, plugins, multi_ip)
                 except Exception as ex:
                     print str(ex)
             raise ex
@@ -2113,7 +2113,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             server_info = server_infos[new_server_number]
             if type(server_info) != tuple:
                 continue
-            host = Host(*server_info)
+            host = Host(*server_info[:-1])
 
             # NOTE: jsonpickle will serialize references to discovery_date_range, which can't be
             # resolved when unpickling, if discovery_date_range is used directly.
@@ -2189,7 +2189,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         None,
                         host.id,
                         host.ip_address,
-                        host.ip_address,
+                        server_info[-1] if server_info[-1] else host.ip_address,
                         host.ip_address,
                         propagation_channel.id,
                         is_embedded_server,
