@@ -2017,7 +2017,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for server in servers:
             self.test_server(server.id, ['handshake'])
 
-    def launch_new_server(self, is_TCS, provider=None, multi_ip=False):
+    def launch_new_server(self, is_TCS, provider=None, multi_ip=True):
         if provider == None:
             provider = self._weighted_random_choice(self.__provider_ranks).provider
 
