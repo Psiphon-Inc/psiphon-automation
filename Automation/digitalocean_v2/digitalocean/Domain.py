@@ -42,16 +42,18 @@ class Domain(BaseAPI):
             https://developers.digitalocean.com/#create-a-new-domain-record
 
             Args:
-
-            @type  The record type (A, MX, CNAME, etc).
-            @name  The host name, alias, or service being defined by the record
-            @data  Variable data depending on record type.
+                type: The record type (A, MX, CNAME, etc).
+                name: The host name, alias, or service being defined by the record
+                data: Variable data depending on record type.
 
             Optional Args:
-
-            @priority The priority of the host
-            @port The port that the service is accessible on
-            @weight The weight of records with the same priority
+                priority: The priority of the host
+                port: The port that the service is accessible on
+                weight: The weight of records with the same priority
+                ttl: This value is the time to live for the record, in seconds.
+                flags: An unsigned integer between 0-255 used for CAA records.
+                tag: The parameter tag for CAA records. Valid values are "issue",
+                    "issuewild", or "iodef".
         """
         data = {
             "type": kwargs.get("type", None),
@@ -60,14 +62,23 @@ class Domain(BaseAPI):
         }
 
         #  Optional Args
-        if kwargs.get("priority", None):
+        if kwargs.get("priority", None) != None:
             data['priority'] = kwargs.get("priority", None)
 
         if kwargs.get("port", None):
             data['port'] = kwargs.get("port", None)
 
-        if kwargs.get("weight", None):
+        if kwargs.get("weight", None) != None:
             data['weight'] = kwargs.get("weight", None)
+
+        if kwargs.get("ttl", None):
+            data['ttl'] = kwargs.get("ttl", 1800)
+
+        if kwargs.get("flags", None) != None:
+            data['flags'] = kwargs.get("flags", None)
+
+        if kwargs.get("tag", None):
+            data['tag'] = kwargs.get("tag", "issue")
 
         return self.get_data(
             "domains/%s/records" % self.name,
@@ -88,21 +99,24 @@ class Domain(BaseAPI):
         domain = self.get_data("domains", type=POST, params=data)
         return domain
 
-    def get_records(self):
+    def get_records(self, params=None):
         """
             Returns a list of Record objects
         """
+        if params is None:
+            params = {}
+        
         # URL https://api.digitalocean.com/v2/domains/[NAME]/records/
         records = []
-        data = self.get_data("domains/%s/records/" % self.name, type=GET)
+        data = self.get_data("domains/%s/records/" % self.name, type=GET, params=params)
 
         for record_data in data['domain_records']:
 
-            record = Record(domain_name = self.name, **record_data)
+            record = Record(domain_name=self.name, **record_data)
             record.token = self.token
             records.append(record)
 
         return records
 
     def __str__(self):
-        return "%s" % self.name
+        return "%s" % (self.name)

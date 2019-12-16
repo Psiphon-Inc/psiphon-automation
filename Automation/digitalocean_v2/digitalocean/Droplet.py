@@ -6,6 +6,7 @@ from .Image import Image
 from .Kernel import Kernel
 from .baseapi import BaseAPI, Error, GET, POST, DELETE
 from .SSHKey import SSHKey
+from .Volume import Volume
 
 
 class DropletError(Error):
@@ -22,42 +23,45 @@ class BadSSHKeyFormat(DropletError):
 
 
 class Droplet(BaseAPI):
-    """"Droplet managment
+    """Droplet management
 
     Attributes accepted at creation time:
-        name: str - name
-        size_slug: str - droplet size
-        image: str - image name to use to create droplet
-        region: str - region
-        ssh_keys: [str] - list of ssh keys
-        backups: bool - True if backups enabled
-        ipv6: bool - True if ipv6 enabled
-        private_networking: bool - True if private networking enabled
-        user_data: str - arbitrary data to pass to droplet
+
+    Args:
+        name (str): name
+        size_slug (str): droplet size
+        image (str): image name to use to create droplet
+        region (str): region
+        ssh_keys (:obj:`str`, optional): list of ssh keys
+        backups (bool): True if backups enabled
+        ipv6 (bool): True if ipv6 enabled
+        private_networking (bool): True if private networking enabled
+        user_data (str): arbitrary data to pass to droplet
+        volumes (:obj:`str`, optional): list of blockstorage volumes
+        monitoring (bool): True if installing the DigitalOcean monitoring agent
 
     Attributes returned by API:
-        id: int - droplet id
-        memory: str - memory size
-        vcpus: int - number of vcpus
-        disk: int - disk size in GB
-        status: str - status
-        locked: bool - True if locked
-        created_at: str - creation date in format u'2014-11-06T10:42:09Z'
-        status: str - status, e.g. 'new', 'active', etc
-        networks: dict - details of connected networks
-        kernel: dict - details of kernel
-        backup_ids: [int] - list of ids of backups of this droplet
-        snapshot_ids: [int] - list of ids of snapshots of this droplet
-        action_ids: [int] - list of ids of actions
-        features: [str] - list of enabled features. e.g.
-                  [u'private_networking', u'virtio']
-        min_size: str - minumum size of droplet that can bew created from a
-                   snapshot of this droplet
-        image: dict - details of image used to create this droplet
-        ip_address: str - public ip addresses
-        private_ip_address: str - private ip address
-        ip_v6_address: [str] - list of ipv6 addresses assigned
-        end_point: str - url of api endpoint used
+        * id (int): droplet id
+        * memory (str): memory size
+        * vcpus (int): number of vcpus
+        * disk (int): disk size in GB
+        * locked (bool): True if locked
+        * created_at (str): creation date in format u'2014-11-06T10:42:09Z'
+        * status (str): status, e.g. 'new', 'active', etc
+        * networks (dict): details of connected networks
+        * kernel (dict): details of kernel
+        * backup_ids (:obj:`int`, optional): list of ids of backups of this droplet
+        * snapshot_ids (:obj:`int`, optional): list of ids of snapshots of this droplet
+        * action_ids (:obj:`int`, optional): list of ids of actions
+        * features (:obj:`str`, optional): list of enabled features. e.g.
+              [u'private_networking', u'virtio']
+        * image (dict): details of image used to create this droplet
+        * ip_address (str): public ip addresses
+        * private_ip_address (str): private ip address
+        * ip_v6_address (:obj:`str`, optional): list of ipv6 addresses assigned
+        * end_point (str): url of api endpoint used
+        * volume_ids (:obj:`str`, optional): list of blockstorage volumes
+
     """
 
     def __init__(self, *args, **kwargs):
@@ -68,7 +72,6 @@ class Droplet(BaseAPI):
         self.vcpus = None
         self.disk = None
         self.region = []
-        self.status = None
         self.image = None
         self.size_slug = None
         self.locked = None
@@ -88,6 +91,9 @@ class Droplet(BaseAPI):
         self.ipv6 = None
         self.private_networking = None
         self.user_data = None
+        self.volumes = []
+        self.tags = []
+        self.monitoring = None
 
         # This will load also the values passed
         super(Droplet, self).__init__(*args, **kwargs)
@@ -97,12 +103,50 @@ class Droplet(BaseAPI):
         """Class method that will return a Droplet object by ID.
 
         Args:
-            api_token: str - token
-            droplet_id: int - droplet id
+            api_token (str): token
+            droplet_id (int): droplet id
         """
         droplet = cls(token=api_token, id=droplet_id)
         droplet.load()
         return droplet
+
+    @classmethod
+    def create_multiple(*args, **kwargs):
+        api = BaseAPI(token=kwargs.get("token"))
+
+        data = {
+            "names": kwargs.get("names"),
+            "size": kwargs.get("size_slug") or kwargs.get("size"),
+            "image": kwargs.get("image"),
+            "region": kwargs.get("region"),
+            "backups": bool(kwargs.get("backups")),
+            "ipv6": bool(kwargs.get("ipv6")),
+            "private_networking": bool(kwargs.get("private_networking")),
+            "tags": kwargs.get("tags"),
+            "monitoring": bool(kwargs.get("monitoring")),
+        }
+
+        if kwargs.get("ssh_keys"):
+            data["ssh_keys"] = Droplet.__get_ssh_keys_id_or_fingerprint(
+                    kwargs["ssh_keys"], kwargs.get("token"),
+                    kwargs["names"][0])
+
+        if kwargs.get("user_data"):
+            data["user_data"] = kwargs["user_data"]
+
+        droplets = []
+
+        data = api.get_data("droplets/", type=POST, params=data)
+
+        if data:
+            action_ids = [data["links"]["actions"][0]["id"]]
+            for droplet_json in data["droplets"]:
+                droplet_json["token"] = kwargs["token"]
+                droplet = Droplet(**droplet_json)
+                droplet.action_ids = action_ids
+                droplets.append(droplet)
+
+        return droplets
 
     def __check_actions_in_data(self, data):
         # reloading actions if actions is provided.
@@ -138,6 +182,23 @@ class Droplet(BaseAPI):
                 self.ip_address = net['ip_address']
         if self.networks['v6']:
             self.ip_v6_address = self.networks['v6'][0]['ip_address']
+
+            if "backups" in self.features:
+                self.backups = True
+            else:
+                self.backups = False
+            if "ipv6" in self.features:
+                self.ipv6 = True
+            else:
+                self.ipv6 = False
+            if "private_networking" in self.features:
+                self.private_networking = True
+            else:
+                self.private_networking = False
+
+        if "tags" in droplets:
+            self.tags = droplets["tags"]
+
         return self
 
     def _perform_action(self, params, return_dict=True):
@@ -145,10 +206,10 @@ class Droplet(BaseAPI):
             Perform a droplet action.
 
             Args:
-                params - dict : parameters of the action
+                params (dict): parameters of the action
 
             Optional Args:
-                return_dict - bool : Return a dict when True (default),
+                return_dict (bool): Return a dict when True (default),
                     otherwise return an Action.
 
             Returns dict or Action
@@ -162,7 +223,7 @@ class Droplet(BaseAPI):
             return action
         else:
             action = action[u'action']
-            return_action = Action()
+            return_action = Action(token=self.token)
             # Loading attributes
             for attr in action.keys():
                 setattr(return_action, attr, action[attr])
@@ -173,7 +234,7 @@ class Droplet(BaseAPI):
             Boot up the droplet
 
             Optional Args:
-                return_dict - bool : Return a dict when True (default),
+                return_dict (bool): Return a dict when True (default),
                     otherwise return an Action.
 
             Returns dict or Action
@@ -185,7 +246,7 @@ class Droplet(BaseAPI):
             shutdown the droplet
 
             Optional Args:
-                return_dict - bool : Return a dict when True (default),
+                return_dict (bool): Return a dict when True (default),
                     otherwise return an Action.
 
             Returns dict or Action
@@ -197,7 +258,7 @@ class Droplet(BaseAPI):
             restart the droplet
 
             Optional Args:
-                return_dict - bool : Return a dict when True (default),
+                return_dict (bool): Return a dict when True (default),
                     otherwise return an Action.
 
             Returns dict or Action
@@ -209,7 +270,7 @@ class Droplet(BaseAPI):
             restart the droplet
 
             Optional Args:
-                return_dict - bool : Return a dict when True (default),
+                return_dict (bool): Return a dict when True (default),
                     otherwise return an Action.
 
             Returns dict or Action
@@ -221,7 +282,7 @@ class Droplet(BaseAPI):
             restart the droplet
 
             Optional Args:
-                return_dict - bool : Return a dict when True (default),
+                return_dict (bool): Return a dict when True (default),
                     otherwise return an Action.
 
             Returns dict or Action
@@ -233,42 +294,52 @@ class Droplet(BaseAPI):
             reset the root password
 
             Optional Args:
-                return_dict - bool : Return a dict when True (default),
+                return_dict (bool): Return a dict when True (default),
                     otherwise return an Action.
 
             Returns dict or Action
         """
         return self._perform_action({'type': 'password_reset'}, return_dict)
 
-    def resize(self, new_size_slug, return_dict=True):
+    def resize(self, new_size_slug, return_dict=True, disk=True):
         """Resize the droplet to a new size slug.
+        https://developers.digitalocean.com/documentation/v2/#resize-a-droplet
 
         Args:
-            new_size_slug: str - name of new size
+            new_size_slug (str): name of new size
 
         Optional Args:
-            return_dict - bool : Return a dict when True (default),
+            return_dict (bool): Return a dict when True (default), \
                 otherwise return an Action.
+            disk (bool): If a permanent resize, with disk changes included.
 
         Returns dict or Action
         """
-        return self._perform_action(
-            {"type": "resize", "size": new_size_slug},
-            return_dict
-        )
+        options = {"type": "resize", "size": new_size_slug}
+        if disk: options["disk"] = "true"
 
-    def take_snapshot(self, snapshot_name, return_dict=True):
+        return self._perform_action(options, return_dict)
+
+    def take_snapshot(self, snapshot_name, return_dict=True, power_off=False):
         """Take a snapshot!
 
         Args:
-            snapshot_name: str - name of snapshot
+            snapshot_name (str): name of snapshot
 
         Optional Args:
-            return_dict - bool : Return a dict when True (default),
+            return_dict (bool): Return a dict when True (default),
                 otherwise return an Action.
+            power_off (bool): Before taking the snapshot the droplet will be
+                turned off with another API call. It will wait until the
+                droplet will be powered off.
 
         Returns dict or Action
         """
+        if power_off is True and self.status != "off":
+            action = self.power_off(return_dict=False)
+            action.wait()
+            self.load()
+
         return self._perform_action(
             {"type": "snapshot", "name": snapshot_name},
             return_dict
@@ -278,10 +349,10 @@ class Droplet(BaseAPI):
         """Restore the droplet to an image ( snapshot or backup )
 
         Args:
-            image_id : int - id of image
+            image_id (int): id of image
 
         Optional Args:
-            return_dict - bool : Return a dict when True (default),
+            return_dict (bool): Return a dict when True (default),
                 otherwise return an Action.
 
         Returns dict or Action
@@ -295,10 +366,10 @@ class Droplet(BaseAPI):
         """Restore the droplet to an image ( snapshot or backup )
 
         Args:
-            image_id : int - id of image
+            image_id (int): id of image
 
         Optional Args:
-            return_dict - bool : Return a dict when True (default),
+            return_dict (bool): Return a dict when True (default),
                 otherwise return an Action.
 
         Returns dict or Action
@@ -311,18 +382,24 @@ class Droplet(BaseAPI):
             return_dict
         )
 
-    def enable_backups(self):
+    def enable_backups(self, return_dict=True):
         """
-            Enable automatic backups (Not yet implemented in APIv2)
+            Enable automatic backups
+
+            Optional Args:
+                return_dict (bool): Return a dict when True (default),
+                    otherwise return an Action.
+
+            Returns dict or Action
         """
-        print("Not yet implemented in APIv2")
+        return self._perform_action({'type': 'enable_backups'}, return_dict)
 
     def disable_backups(self, return_dict=True):
         """
             Disable automatic backups
 
             Optional Args:
-                return_dict - bool : Return a dict when True (default),
+                return_dict (bool): Return a dict when True (default),
                     otherwise return an Action.
 
             Returns dict or Action
@@ -333,11 +410,7 @@ class Droplet(BaseAPI):
         """
             Destroy the droplet
 
-            Optional Args:
-                return_dict - bool : Return a dict when True (default),
-                    otherwise return an Action.
-
-            Returns dict or Action
+            Returns dict
         """
         return self.get_data("droplets/%s" % self.id, type=DELETE)
 
@@ -345,10 +418,10 @@ class Droplet(BaseAPI):
         """Rename the droplet
 
         Args:
-            name : str - new name
+            name (str): new name
 
         Optional Args:
-            return_dict - bool : Return a dict when True (default),
+            return_dict (bool): Return a dict when True (default),
                 otherwise return an Action.
 
         Returns dict or Action
@@ -363,19 +436,22 @@ class Droplet(BaseAPI):
            Enable private networking on an existing Droplet where available.
 
            Optional Args:
-               return_dict - bool : Return a dict when True (default),
+               return_dict (bool): Return a dict when True (default),
                    otherwise return an Action.
 
            Returns dict or Action
         """
-        return self._perform_action({'type': 'enable_private_networking'}, return_dict)
+        return self._perform_action(
+            {'type': 'enable_private_networking'},
+            return_dict
+        )
 
     def enable_ipv6(self, return_dict=True):
         """
             Enable IPv6 on an existing Droplet where available.
 
             Optional Args:
-                return_dict - bool : Return a dict when True (default),
+                return_dict (bool): Return a dict when True (default),
                     otherwise return an Action.
 
             Returns dict or Action
@@ -389,7 +465,7 @@ class Droplet(BaseAPI):
             kernel : instance of digitalocean.Kernel.Kernel
 
         Optional Args:
-            return_dict - bool : Return a dict when True (default),
+            return_dict (bool): Return a dict when True (default),
                 otherwise return an Action.
 
         Returns dict or Action
@@ -402,15 +478,16 @@ class Droplet(BaseAPI):
             return_dict
         )
 
-    def __get_ssh_keys_id_or_fingerprint(self):
+    @staticmethod
+    def __get_ssh_keys_id_or_fingerprint(ssh_keys, token, name):
         """
             Check and return a list of SSH key IDs or fingerprints according
             to DigitalOcean's API. This method is used to check and create a
             droplet with the correct SSH keys.
         """
         ssh_keys_id = list()
-        for ssh_key in self.ssh_keys:
-            if type(ssh_key) in [int, type(2**64)]:
+        for ssh_key in ssh_keys:
+            if type(ssh_key) in [int, type(2 ** 64)]:
                 ssh_keys_id.append(int(ssh_key))
 
             elif type(ssh_key) == SSHKey:
@@ -430,12 +507,12 @@ class Droplet(BaseAPI):
 
                 else:
                     key = SSHKey()
-                    key.token = self.token
+                    key.token = token
                     results = key.load_by_pub_key(ssh_key)
 
                     if results is None:
                         key.public_key = ssh_key
-                        key.name = "SSH Key %s" % self.name
+                        key.name = "SSH Key %s" % name
                         key.create()
                     else:
                         key = results
@@ -463,21 +540,28 @@ class Droplet(BaseAPI):
         if not self.size_slug and self.size:
             self.size_slug = self.size
 
+        ssh_keys_id = Droplet.__get_ssh_keys_id_or_fingerprint(self.ssh_keys,
+                                                               self.token,
+                                                               self.name)
+
         data = {
             "name": self.name,
             "size": self.size_slug,
             "image": self.image,
             "region": self.region,
-            "ssh_keys": self.__get_ssh_keys_id_or_fingerprint(),
+            "ssh_keys": ssh_keys_id,
             "backups": bool(self.backups),
             "ipv6": bool(self.ipv6),
             "private_networking": bool(self.private_networking),
+            "volumes": self.volumes,
+            "tags": self.tags,
+            "monitoring": bool(self.monitoring),
         }
 
         if self.user_data:
             data["user_data"] = self.user_data
 
-        data = self.get_data("droplets", type=POST, params=data)
+        data = self.get_data("droplets/", type=POST, params=data)
 
         if data:
             self.id = data['droplet']['id']
@@ -487,7 +571,7 @@ class Droplet(BaseAPI):
 
     def get_events(self):
         """
-            A helper function for backwards compatability.
+            A helper function for backwards compatibility.
             Calls get_actions()
         """
         return self.get_actions()
@@ -512,7 +596,7 @@ class Droplet(BaseAPI):
         """Returns a specific Action by its ID.
 
         Args:
-            action_id: int - id of action
+            action_id (int): id of action
         """
         return Action.get_object(
             api_token=self.token,
@@ -540,19 +624,34 @@ class Droplet(BaseAPI):
         kernels = list()
         data = self.get_data("droplets/%s/kernels/" % self.id)
         while True:
-                for jsond in data[u'kernels']:
-                    kernel = Kernel(**jsond)
-                    kernel.token = self.token
-                    kernels.append(kernel)
-                try:
-                    url = data[u'links'][u'pages'].get(u'next')
-                    if not url:
-                            break
-                    data = self.get_data(url)
-                except KeyError:  # No links.
-                    break
+            for jsond in data[u'kernels']:
+                kernel = Kernel(**jsond)
+                kernel.token = self.token
+                kernels.append(kernel)
+            try:
+                url = data[u'links'][u'pages'].get(u'next')
+                if not url:
+                        break
+                data = self.get_data(url)
+            except KeyError:  # No links.
+                break
 
         return kernels
 
+    def update_volumes_data(self):
+        """
+           Trigger volume objects list refresh.
+           When called on a droplet instance, it will take
+           all volumes ids(gathered in initial droplet details
+           collection) and will create list of object of Volume
+           types. Each volume is a separate api call.
+        """
+        self.volumes = list()
+
+        for volume_id in self.volume_ids:
+            volume = Volume().get_object(self.token, volume_id)
+            self.volumes.append(volume)
+
+
     def __str__(self):
-        return "%s %s" % (self.id, self.name)
+        return "<Droplet: %s %s>" % (self.id, self.name)

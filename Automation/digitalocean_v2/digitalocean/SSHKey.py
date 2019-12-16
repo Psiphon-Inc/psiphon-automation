@@ -27,7 +27,7 @@ class SSHKey(BaseAPI):
             Requires either self.id or self.fingerprint to be set.
         """
         identifier = None
-        if self.id is not None:
+        if self.id:
             identifier = self.id
         elif self.fingerprint is not None:
             identifier = self.fingerprint
@@ -43,8 +43,8 @@ class SSHKey(BaseAPI):
 
     def load_by_pub_key(self, public_key):
         """
-            This method will laod a SSHKey object from DigitalOcean
-            from a public_key. This method will avoid problem like
+            This method will load a SSHKey object from DigitalOcean
+            from a public_key. This method will avoid problems like
             uploading the same public_key twice.
         """
 
@@ -95,4 +95,4 @@ class SSHKey(BaseAPI):
         return self.get_data("account/keys/%s" % self.id, type=DELETE)
 
     def __str__(self):
-        return "%s %s" % (self.id, self.name)
+        return "<SSHKey: %s %s>" % (self.id, self.name)

@@ -2220,7 +2220,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             self.run_command_on_host(host, 'shutdown -r')
 
-            self.save()
+            #self.save()
 
         # The save() above ensures new server configuration is saved to CMS before deploying new
         # server info to the network

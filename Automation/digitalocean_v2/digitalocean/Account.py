@@ -5,9 +5,12 @@ from .baseapi import BaseAPI
 class Account(BaseAPI):
     def __init__(self, *args, **kwargs):
         self.droplet_limit = None
+        self.floating_ip_limit = None
         self.email = None
         self.uuid = None
         self.email_verified = None
+        self.status = None
+        self.status_message = None
 
         super(Account, self).__init__(*args, **kwargs)
 
@@ -29,4 +32,4 @@ class Account(BaseAPI):
             setattr(self, attr, account[attr])
 
     def __str__(self):
-        return "%s" % self.email
+        return "%s" % (self.email)

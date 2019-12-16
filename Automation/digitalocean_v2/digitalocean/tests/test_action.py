@@ -16,18 +16,38 @@ class TestAction(BaseTest):
     def test_load_directly(self):
         data = self.load_from_file('actions/ipv6_completed.json')
 
-        responses.add(responses.GET, self.base_url + "actions/39388122",
+        url = self.base_url + "actions/39388122"
+        responses.add(responses.GET,
+                      url,
                       body=data,
                       status=200,
                       content_type='application/json')
 
         self.action.load_directly()
 
-        self.assertEqual(responses.calls[0].request.url,
-                         self.base_url + "actions/39388122")
+        self.assert_get_url_equal(responses.calls[0].request.url, url)
         self.assertEqual(self.action.status, "completed")
         self.assertEqual(self.action.id, 39388122)
         self.assertEqual(self.action.region_slug, 'nyc3')
+
+    @responses.activate
+    def test_load_without_droplet_id(self):
+        data = self.load_from_file('actions/ipv6_completed.json')
+
+        url = self.base_url + "actions/39388122"
+        responses.add(responses.GET,
+                      url,
+                      body=data,
+                      status=200,
+                      content_type='application/json')
+
+        self.action.load()
+
+        self.assert_get_url_equal(responses.calls[0].request.url, url)
+        self.assertEqual(self.action.status, "completed")
+        self.assertEqual(self.action.id, 39388122)
+        self.assertEqual(self.action.region_slug, 'nyc3')
+
 
 if __name__ == '__main__':
     unittest.main()
