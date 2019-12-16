@@ -1,0 +1,22 @@
+{
+  "tag": {
+    "name": "extra-awesome",
+    "resources": {
+      "count": 1,
+      "last_tagged_uri": "https://api.digitalocean.com/v2/droplets/3164444",
+      "droplets": {
+        "count": 1,
+        "last_tagged_uri": "https://api.digitalocean.com/v2/droplets/3164444"
+      },
+      "images": {
+        "count": 0
+      },
+      "volumes": {
+        "count": 0
+      },
+      "volume_snapshots": {
+        "count": 0
+      }
+    }
+  }
+}
