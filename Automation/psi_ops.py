@@ -272,7 +272,7 @@ LinodeAccount = psi_utils.recordtype(
     'api_key, base_id, base_ip_address, base_ssh_port, ' +
     'base_root_password, base_stats_username, base_host_public_key, ' +
     'base_known_hosts_entry, base_rsa_private_key, base_rsa_public_key, ' +
-    'base_tarball_path, tcs_base_root_password, tcs_base_host_public_key',
+    'base_tarball_path, tcs_base_root_password, tcs_base_host_public_key, api_token',
     default=None)
 
 DigitalOceanAccount = psi_utils.recordtype(
@@ -421,7 +421,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.55'
+    class_version = '0.56'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -767,6 +767,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.55')) < 0:
             self.__routes_signing_public_key = None
             self.version = '0.55'
+        if cmp(parse_version(self.version), parse_version('0.56')) < 0:
+            self.__linode_account.api_token = ''
+            self.version = '0.56'
 
     def initialize_plugins(self):
         for plugin in plugins:
