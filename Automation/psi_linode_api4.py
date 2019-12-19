@@ -84,7 +84,8 @@ class PsiLinode:
 
     def list_linodes(self):
         #TODO: Will impliment this to support getting Psiphon 3 Linodes with filter by tags etc.
-        pass
+        # Notes: The filter by ignore tags doesn't work, need other way to work around it
+        return self.client.linode.instances() # currently return all linodes in the account.
     
     def linode_list(self, linode_id):
         # List single linode by searching its id
@@ -307,7 +308,6 @@ def launch_new_server(linode_account, is_TCS, plugins, multi_ip=False):
         linode, datacenter_name, region = linode_api.create_linode()
         
         if multi_ip:
-            #TODO: multi-ip changes need more work
             linode_second_ip_address = linode_api.pubip_allocate(linode)
         
         disk_ids = linode_api.create_linode_disks(linode, root_password, is_TCS, plugins)
