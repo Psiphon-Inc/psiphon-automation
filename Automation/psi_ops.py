@@ -74,7 +74,7 @@ except ImportError as error:
     print error
 
 try:
-    import psi_linode
+    import psi_linode_api4 as psi_linode
 except ImportError as error:
     print error
 
