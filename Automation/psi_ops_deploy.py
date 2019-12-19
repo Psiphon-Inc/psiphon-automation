@@ -262,6 +262,14 @@ def deploy_TCS_implementation(ssh, host, servers, own_encoded_server_entries, TC
         # Setup kernel caps to allow psiphond to bind to a privileged service port
         ssh.exec_command('setcap CAP_NET_ADMIN,CAP_NET_BIND_SERVICE=+eip %s' % (TCS_NATIVE_PSIPHOND_BINARY_FILE_NAME))
 
+        # Set madvdontneed environment variable for psiphond
+        ssh.exec_command('mkdir -p /etc/systemd/system/psiphond.service.d')
+        godebug_env_content = '''[Service]
+Environment=\"GODEBUG=madvdontneed=1\"
+'''
+        put_file_with_content(ssh, godebug_env_content, '/etc/systemd/system/psiphond.service.d/01-env-godebug.conf')
+        ssh.exec_command('systemctl daemon-reload')
+
         # Restart service (Using Start scipt instead of systemctl)
         ssh.exec_command(TCS_PSIPHOND_SAFE_RESTART_COMMAND)
     elif host.TCS_type == 'DOCKER':
