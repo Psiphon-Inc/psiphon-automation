@@ -54,7 +54,7 @@ def wait_while_condition(condition, max_wait_seconds, description):
 ###
 class PsiLinode:
     def __init__(self, linode_account):
-        api_token = linode_account.api_key
+        api_token = linode_account.api_token
         self.client = linode_api4.LinodeClient(api_token)
 
     def get_available_regions(self):
