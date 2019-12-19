@@ -7,7 +7,10 @@
       "data": "8.8.8.8",
       "priority": null,
       "port": null,
-      "weight": null
+      "ttl": 1800,
+      "weight": null,
+      "flags": null,
+      "tag": null
     },
     {
       "id": 2,
@@ -16,7 +19,10 @@
       "data": "NS1.DIGITALOCEAN.COM.",
       "priority": null,
       "port": null,
-      "weight": null
+      "ttl": 1800,
+      "weight": null,
+      "flags": null,
+      "tag": null
     },
     {
       "id": 3,
@@ -25,7 +31,10 @@
       "data": "NS2.DIGITALOCEAN.COM.",
       "priority": null,
       "port": null,
-      "weight": null
+      "ttl": 1800,
+      "weight": null,
+      "flags": null,
+      "tag": null
     },
     {
       "id": 4,
@@ -34,7 +43,10 @@
       "data": "NS3.DIGITALOCEAN.COM.",
       "priority": null,
       "port": null,
-      "weight": null
+      "ttl": 1800,
+      "weight": null,
+      "flags": null,
+      "tag": null
     },
     {
       "id": 5,
@@ -43,7 +55,22 @@
       "data": "@",
       "priority": null,
       "port": null,
-      "weight": null
+      "ttl": 600,
+      "weight": null,
+      "flags": null,
+      "tag": null
+    },
+    {
+      "id": 6,
+      "type": "CAA",
+      "name": "@",
+      "data": "letsencrypt.org.",
+      "priority": null,
+      "port": null,
+      "ttl": 1800,
+      "weight": null,
+      "flags": 0,
+      "tag": "issue"
     }
   ],
   "meta": {

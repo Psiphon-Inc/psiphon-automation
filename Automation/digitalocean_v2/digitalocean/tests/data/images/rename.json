@@ -1,0 +1,17 @@
+{
+  "image":
+    {
+      "id": 449676856,
+      "name": "Descriptive name",
+      "distribution": "Ubuntu",
+      "slug": "",
+      "public": false,
+      "regions": [
+        "nyc1",
+        "nyc3"
+      ],
+      "created_at": "2014-08-18T16:35:40Z",
+      "min_disk_size": 20,
+      "size_gigabytes": 2.34
+    }
+}

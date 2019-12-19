@@ -1,9 +1,9 @@
-import unittest
-import responses
 import json
+import unittest
+
+import responses
 
 import digitalocean
-
 from .BaseTest import BaseTest
 
 
@@ -15,7 +15,9 @@ class TestDroplet(BaseTest):
         self.actions_url = self.base_url + "droplets/12345/actions/"
 
         data = self.load_from_file('droplets/single.json')
-        responses.add(responses.GET, self.base_url + "droplets/12345",
+        url = self.base_url + "droplets/12345"
+        responses.add(responses.GET,
+                      url,
                       body=data,
                       status=200,
                       content_type='application/json')
@@ -25,7 +27,9 @@ class TestDroplet(BaseTest):
     def test_load(self):
         data = self.load_from_file('droplets/single.json')
 
-        responses.add(responses.GET, self.base_url + "droplets/12345",
+        url = self.base_url + "droplets/12345"
+        responses.add(responses.GET,
+                      url,
                       body=data,
                       status=200,
                       content_type='application/json')
@@ -33,13 +37,15 @@ class TestDroplet(BaseTest):
         droplet = digitalocean.Droplet(id='12345', token=self.token)
         d = droplet.load()
 
-        self.assertEqual(responses.calls[0].request.url,
-                         self.base_url + "droplets/12345")
+        self.assert_get_url_equal(responses.calls[0].request.url, url)
         self.assertEqual(d.id, 12345)
         self.assertEqual(d.name, "example.com")
         self.assertEqual(d.memory, 512)
         self.assertEqual(d.vcpus, 1)
         self.assertEqual(d.disk, 20)
+        self.assertEqual(d.backups, False)
+        self.assertEqual(d.ipv6, True)
+        self.assertEqual(d.private_networking, False)
         self.assertEqual(d.region['slug'], "nyc3")
         self.assertEqual(d.status, "active")
         self.assertEqual(d.image['slug'], "ubuntu-14-04-x64")
@@ -50,6 +56,7 @@ class TestDroplet(BaseTest):
                          "2604:A880:0800:0010:0000:0000:031D:2001")
         self.assertEqual(d.kernel['id'], 2233)
         self.assertEqual(d.features, ["ipv6", "virtio"])
+        self.assertEqual(d.tags, [])
 
     @responses.activate
     def test_power_off(self):
@@ -360,7 +367,7 @@ class TestDroplet(BaseTest):
         self.assert_url_query_equal(responses.calls[0].request.url,
                                     self.actions_url)
         self.assertEqual(json.loads(responses.calls[0].request.body),
-                         {"type": "resize", "size": "64gb"})
+                         {"type": "resize", "size": "64gb", "disk": "true"})
         self.assertEqual(response['action']['id'], 54321)
         self.assertEqual(response['action']['status'], "in-progress")
         self.assertEqual(response['action']['type'], "resize")
@@ -381,7 +388,7 @@ class TestDroplet(BaseTest):
         self.assert_url_query_equal(responses.calls[0].request.url,
                                     self.actions_url)
         self.assertEqual(json.loads(responses.calls[0].request.body),
-                         {"type": "resize", "size": "64gb"})
+                         {"type": "resize", "size": "64gb", "disk": "true"})
         self.assertEqual(response.id, 54321)
         self.assertEqual(response.status, "in-progress")
         self.assertEqual(response.type, "resize")
@@ -527,6 +534,27 @@ class TestDroplet(BaseTest):
         self.assertEqual(response.resource_type, "droplet")
 
     @responses.activate
+    def test_enable_backups(self):
+        data = self.load_from_file('droplet_actions/enable_backups.json')
+
+        responses.add(responses.POST, self.actions_url,
+                      body=data,
+                      status=201,
+                      content_type='application/json')
+
+        response = self.droplet.enable_backups()
+
+        self.assertEqual(responses.calls[0].request.url,
+                         self.actions_url)
+        self.assertEqual(json.loads(responses.calls[0].request.body),
+                         {"type": "enable_backups"})
+        self.assertEqual(response['action']['id'], 54321)
+        self.assertEqual(response['action']['status'], "in-progress")
+        self.assertEqual(response['action']['type'], "enable_backups")
+        self.assertEqual(response['action']['resource_id'], 12345)
+        self.assertEqual(response['action']['resource_type'], "droplet")
+
+    @responses.activate
     def test_disable_backups(self):
         data = self.load_from_file('droplet_actions/disable_backups.json')
 
@@ -570,7 +598,9 @@ class TestDroplet(BaseTest):
 
     @responses.activate
     def test_destroy(self):
-        responses.add(responses.DELETE, self.base_url + "droplets/12345",
+        url = self.base_url + "droplets/12345"
+        responses.add(responses.DELETE,
+                      url,
                       status=204,
                       content_type='application/json')
 
@@ -760,7 +790,9 @@ class TestDroplet(BaseTest):
     def test_create_no_keys(self):
         data = self.load_from_file('droplet_actions/create.json')
 
-        responses.add(responses.POST, self.base_url + "droplets",
+        url = self.base_url + "droplets/"
+        responses.add(responses.POST,
+                      url,
                       body=data,
                       status=202,
                       content_type='application/json')
@@ -772,21 +804,65 @@ class TestDroplet(BaseTest):
                                        backups=True,
                                        ipv6=True,
                                        private_networking=True,
+                                       monitoring=True,
                                        user_data="Some user data.",
-                                       token=self.token)
+                                       token=self.token,
+                                       tags=["web"])
         droplet.create()
 
-        self.assert_url_query_equal(responses.calls[0].request.url,
-                                    self.base_url + "droplets")
+        self.assert_url_query_equal(responses.calls[0].request.url, url)
         self.maxDiff = None
         self.assertEqual(
             json.loads(responses.calls[0].request.body),
             {u"name": u"example.com", u"region": u"nyc3",
              u"user_data": u"Some user data.", u"ipv6": True,
-             u"private_networking": True, u"backups": True,
-             u"image": u"ubuntu-14-04-x64", u"size": u"512mb", u"ssh_keys": []})
+             u"private_networking": True, u"monitoring": True,
+             u"backups": True, u"image": u"ubuntu-14-04-x64",
+             u"size": u"512mb", u"ssh_keys": [],
+             u"volumes": [], u"tags": ["web"]})
         self.assertEqual(droplet.id, 3164494)
         self.assertEqual(droplet.action_ids, [36805096])
+
+    @responses.activate
+    def test_create_multiple_no_keys(self):
+        data = self.load_from_file('droplet_actions/create_multiple.json')
+
+        url = self.base_url + "droplets/"
+        responses.add(responses.POST,
+                      url,
+                      body=data,
+                      status=202,
+                      content_type='application/json')
+
+
+        droplets = digitalocean.Droplet.create_multiple(names=["example.com",
+                                                               "example2.com"],
+                                                        size_slug="512mb",
+                                                        image="ubuntu-14-04-x64",
+                                                        region="nyc3",
+                                                        backups=True,
+                                                        ipv6=True,
+                                                        private_networking=True,
+                                                        monitoring=True,
+                                                        user_data="Some user data.",
+                                                        token=self.token,
+                                                        tags=["web"])
+        self.assert_url_query_equal(responses.calls[0].request.url, url)
+        self.assertEqual(len(droplets), 2)
+        self.assertEqual(droplets[0].id, 3164494)
+        self.assertEqual(droplets[1].id, 3164495)
+        self.assertEqual(droplets[0].action_ids, [36805096])
+        self.assertEqual(droplets[1].action_ids, [36805096])
+
+        self.maxDiff = None
+        self.assertEqual(
+            json.loads(responses.calls[0].request.body),
+            {u"names": [u"example.com", u"example2.com"], u"region": u"nyc3",
+             u"user_data": u"Some user data.", u"ipv6": True,
+             u"private_networking": True,  u"monitoring": True,
+             u"backups": True, u"image": u"ubuntu-14-04-x64",
+             u"size": u"512mb", u"tags": ["web"]})
+
 
     @responses.activate
     def test_get_actions(self):
@@ -811,11 +887,12 @@ class TestDroplet(BaseTest):
 
         self.assertEqual(len(actions), 2)
         self.assertEqual(len(responses.calls), 3)
-        self.assertEqual(responses.calls[0].request.url, self.actions_url)
-        self.assertEqual(responses.calls[1].request.url,
-                         self.actions_url + "39388122")
-        self.assertEqual(responses.calls[2].request.url,
-                         self.actions_url + "39290099")
+        self.assert_get_url_equal(responses.calls[0].request.url,
+                                  self.actions_url)
+        self.assert_get_url_equal(responses.calls[1].request.url,
+                                  self.actions_url + "39388122")
+        self.assert_get_url_equal(responses.calls[2].request.url,
+                                  self.actions_url + "39290099")
         self.assertEqual(actions[0].id, 39290099)
         self.assertEqual(actions[0].type, "create")
         self.assertEqual(actions[0].status, "completed")
@@ -827,15 +904,16 @@ class TestDroplet(BaseTest):
     def test_get_action(self):
         data = self.load_from_file('actions/create_completed.json')
 
-        responses.add(responses.GET, self.base_url + "actions/39388122",
+        url = self.base_url + "actions/39388122"
+        responses.add(responses.GET,
+                      url,
                       body=data,
                       status=200,
                       content_type='application/json')
 
         action = self.droplet.get_action(39388122)
 
-        self.assertEqual(responses.calls[0].request.url,
-                         self.base_url + "actions/39388122")
+        self.assert_get_url_equal(responses.calls[0].request.url, url)
         self.assertEqual(action.id, 39290099)
         self.assertEqual(action.type, "create")
         self.assertEqual(action.status, "completed")
@@ -850,15 +928,16 @@ class TestDroplet(BaseTest):
     def test_get_kernel_available_no_pages(self):
         data = self.load_from_file('kernels/list.json')
 
-        responses.add(responses.GET, self.base_url + "droplets/12345/kernels/",
+        url = self.base_url + "droplets/12345/kernels/"
+        responses.add(responses.GET,
+                      url,
                       body=data,
                       status=200,
                       content_type='application/json')
 
         kernels = self.droplet.get_kernel_available()
 
-        self.assertEqual(responses.calls[0].request.url,
-                         self.base_url + "droplets/12345/kernels/")
+        self.assert_get_url_equal(responses.calls[0].request.url, url)
         self.assertEqual(len(kernels), 2)
         self.assertEqual(kernels[0].id, 61833229)
         self.assertEqual(kernels[0].name,
@@ -869,12 +948,15 @@ class TestDroplet(BaseTest):
         one = self.load_from_file('kernels/page_one.json')
         two = self.load_from_file('kernels/page_two.json')
 
-        responses.add(responses.GET, self.base_url + "droplets/12345/kernels/",
+        url_0 = self.base_url + "droplets/12345/kernels/"
+        responses.add(responses.GET,
+                      url_0,
                       body=one,
                       status=200,
                       content_type='application/json')
+        url_1 = self.base_url + "droplets/12345/kernels?page=2&per_page=200"
         responses.add(responses.GET,
-                      self.base_url + "droplets/12345/kernels?page=2",
+                      url_1,
                       body=two,
                       status=200,
                       content_type='application/json',
@@ -882,10 +964,8 @@ class TestDroplet(BaseTest):
 
         kernels = self.droplet.get_kernel_available()
 
-        self.assertEqual(responses.calls[0].request.url,
-                         self.base_url + "droplets/12345/kernels/")
-        self.assertEqual(responses.calls[1].request.url,
-                         self.base_url + "droplets/12345/kernels?page=2")
+        self.assert_get_url_equal(responses.calls[0].request.url, url_0)
+        self.assert_url_query_equal(responses.calls[1].request.url, url_1)
         self.assertEqual(len(kernels), 3)
         self.assertEqual(kernels[0].id, 61833229)
         self.assertEqual(kernels[0].name,
@@ -893,6 +973,37 @@ class TestDroplet(BaseTest):
         self.assertEqual(kernels[2].id, 231)
         self.assertEqual(kernels[2].name,
                          "Ubuntu 14.04 x64 vmlinuz-3.13.0-32-generic")
+
+    @responses.activate
+    def test_update_volumes_data(self):
+        droplet_response = self.load_from_file('droplets/single.json')
+        volume_response = self.load_from_file('volumes/single.json')
+        url_droplet =self.base_url + "droplets/12345"
+        url_volume = self.base_url +  "volumes/506f78a4-e098-11e5-ad9f-000f53306ae1"
+        responses.add(responses.GET,
+                      url_droplet,
+                      body=droplet_response,
+                      status=200,
+                      content_type='application/json')
+        responses.add(responses.GET,
+                      url_volume,
+                      body=volume_response,
+                      status=200,
+                      content_type='application/json')
+
+        droplet = digitalocean.Droplet(id='12345', token=self.token)
+        d = droplet.load()
+        d.update_volumes_data()
+
+        self.assert_get_url_equal(responses.calls[0].request.url, url_droplet)
+        self.assert_get_url_equal(responses.calls[1].request.url, url_volume)
+        self.assertEqual(len(d.volumes), 1)
+        self.assertEqual(d.volumes[0].id, '506f78a4-e098-11e5-ad9f-000f53306ae1')
+        self.assertEqual(d.volumes[0].name, 'example')
+        self.assertEqual(d.volumes[0].region['slug'], 'nyc1')
+
+
+
 
 if __name__ == '__main__':
     unittest.main()
