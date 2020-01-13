@@ -2478,6 +2478,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         self.__deploy_data_required_for_all = True
 
+    def list_orphans(self, provider):
+        provider_controller = globals()["psi_{}".format(provider)]
+        provider_account = vars(self)["_PsiphonNetwork__{}_account".format(provider)]
+        
+        running_machines = provider_controller.get_servers(provider_account) # This method returns a list of provider id
+        existing_hosts = [str(host.provider_id) for host in self.get_hosts() if host.provider == provider]
+        to_be_removed_hosts = [str(host.provider_id) for host in self._PsiphonNetwork__hosts_to_remove_from_providers if host.provider == provider]
+        
+        orphans = [o for o in running_machines if o[0] not in existing_hosts + to_be_removed_hosts]
+        
+        return orphans
+
     def __copy_date_range(self, date_range):
         return (datetime.datetime(date_range[0].year,
                                   date_range[0].month,

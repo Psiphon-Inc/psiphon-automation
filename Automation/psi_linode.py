@@ -299,6 +299,12 @@ def launch_new_server(linode_account, is_TCS, plugins, multi_ip=False):
             stats_username, new_stats_password,
             datacenter_name, region, None, None, None, None, egress_ip_address)
 
+def get_servers(linode_account):
+    ignore_tags = ['Transfer Quota', 'Base Images']
+    linode_api = linode.api.Api(key=linode_account.api_key)
+    linodes = linode_api.linode_list()
+
+    return [(str(li['LINODEID']),li['LABEL']) for li in linodes if li['STATUS'] != 0 and li['LPM_DISPLAYGROUP'] not in ignore_tags]
 
 def remove_server(linode_account, linode_id):
     linode_api = linode.api.Api(key=linode_account.api_key)
