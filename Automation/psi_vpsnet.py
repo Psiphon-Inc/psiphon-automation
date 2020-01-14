@@ -153,7 +153,7 @@ def get_servers(account):
         nodes = vpsnet_conn.list_ssd_nodes()
     except Exception as e:
         raise e
-    return [str(node.id) for node in nodes]
+    return [(str(node.id), node.name) for node in nodes]
 
 
 def remove_server(vpsnet_account, node_id):
