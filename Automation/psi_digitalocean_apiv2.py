@@ -341,6 +341,11 @@ def prepare_new_server(digitalocean_account, droplet, psinet):
 
     return (False, False)
 
+def get_servers(digitalocean_account):
+    do_mgr = digitalocean.Manager(token=digitalocean_account.oauth_token)
+    droplets = do_mgr.get_all_droplets()
+
+    return [(str(droplet.id), droplet.name) for droplet in droplets if droplet.tags == []]
 
 def remove_server(digitalocean_account, droplet_id):
     """
