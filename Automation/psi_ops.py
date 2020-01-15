@@ -2490,6 +2490,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         
         return orphans
 
+    def find_orphans(self):
+        for provider in ['linode', 'digitalocean', 'vpsnet']:
+            orphans = self.list_orphans(provider)
+            sys.stderr.write(provider + ' orphans:\n' + str(orphans) + '\n\n')
+
     def __copy_date_range(self, date_range):
         return (datetime.datetime(date_range[0].year,
                                   date_range[0].month,
@@ -4743,6 +4748,11 @@ def run_deploy():
         psinet.release()
 
 
+def find_orphans():
+    psinet = PsiphonNetwork.load(lock=False)
+    psinet.find_orphans()
+
+
 if __name__ == "__main__":
     parser = optparse.OptionParser('usage: %prog [options]')
     parser.add_option("-r", "--read-only", dest="readonly", action="store_true",
@@ -4758,8 +4768,12 @@ if __name__ == "__main__":
                       help="prune all propagation channels")
     parser.add_option("-n", "--new-servers", dest="channel", action="store", type="string",
                       help="create new servers for this propagation channel")
+    parser.add_option("-o", "--orphans", dest="orphans", action="store_true",
+                      help="find VPSes that are not in psinet")
     (options, _) = parser.parse_args()
-    if options.channel:
+    if options.orphans:
+        find_orphans()
+    elif options.channel:
         replace_propagation_channel_servers(options.channel)
     elif options.prune:
         prune_all_propagation_channels()
