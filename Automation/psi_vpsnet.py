@@ -153,7 +153,7 @@ def get_servers(account):
         nodes = vpsnet_conn.list_ssd_nodes()
     except Exception as e:
         raise e
-    return nodes
+    return [(str(node.id), node.name) for node in nodes]
 
 
 def remove_server(vpsnet_account, node_id):
@@ -182,7 +182,7 @@ def launch_new_server(vpsnet_account, is_TCS, _, multi_ip=False, datacenter_city
     """
 
     # TODO-TCS: select base image based on is_TCS flag
-    base_image_id = '9258' # For VPS
+    base_image_id = '9388' # For VPS
     # base_image_id = '8850' # For Cloud Server
 
     try:

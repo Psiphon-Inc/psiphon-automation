@@ -2482,6 +2482,23 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         self.__deploy_data_required_for_all = True
 
+    def list_orphans(self, provider):
+        provider_controller = globals()["psi_{}".format(provider)]
+        provider_account = vars(self)["_PsiphonNetwork__{}_account".format(provider)]
+        
+        running_machines = provider_controller.get_servers(provider_account) # This method returns a list of provider id
+        existing_hosts = [str(host.provider_id) for host in self.get_hosts() if host.provider == provider]
+        to_be_removed_hosts = [str(host.provider_id) for host in self._PsiphonNetwork__hosts_to_remove_from_providers if host.provider == provider]
+        
+        orphans = [o for o in running_machines if o[0] not in existing_hosts + to_be_removed_hosts]
+        
+        return orphans
+
+    def find_orphans(self):
+        for provider in ['linode', 'digitalocean', 'vpsnet']:
+            orphans = self.list_orphans(provider)
+            sys.stderr.write(provider + ' orphans:\n' + str(orphans) + '\n\n')
+
     def __copy_date_range(self, date_range):
         return (datetime.datetime(date_range[0].year,
                                   date_range[0].month,
@@ -4735,6 +4752,11 @@ def run_deploy():
         psinet.release()
 
 
+def find_orphans():
+    psinet = PsiphonNetwork.load(lock=False)
+    psinet.find_orphans()
+
+
 if __name__ == "__main__":
     parser = optparse.OptionParser('usage: %prog [options]')
     parser.add_option("-r", "--read-only", dest="readonly", action="store_true",
@@ -4750,8 +4772,12 @@ if __name__ == "__main__":
                       help="prune all propagation channels")
     parser.add_option("-n", "--new-servers", dest="channel", action="store", type="string",
                       help="create new servers for this propagation channel")
+    parser.add_option("-o", "--orphans", dest="orphans", action="store_true",
+                      help="find VPSes that are not in psinet")
     (options, _) = parser.parse_args()
-    if options.channel:
+    if options.orphans:
+        find_orphans()
+    elif options.channel:
         replace_propagation_channel_servers(options.channel)
     elif options.prune:
         prune_all_propagation_channels()

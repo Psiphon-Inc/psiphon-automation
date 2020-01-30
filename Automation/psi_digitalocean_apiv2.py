@@ -341,6 +341,11 @@ def prepare_new_server(digitalocean_account, droplet, psinet):
 
     return (False, False)
 
+def get_servers(digitalocean_account):
+    do_mgr = digitalocean.Manager(token=digitalocean_account.oauth_token)
+    droplets = do_mgr.get_all_droplets()
+
+    return [(str(droplet.id), droplet.name) for droplet in droplets if droplet.tags == []]
 
 def remove_server(digitalocean_account, droplet_id):
     """
@@ -521,7 +526,7 @@ def launch_new_server(digitalocean_account, is_TCS, _, multi_ip=False):
 
     # None TCS id '25617090' only for VPN + filebeat
     # Old working None TCS id: 17784624
-    base_id = '25617090' if not is_TCS else '55012358'
+    base_id = '25617090' if not is_TCS else '57885472'
     try:
         Droplet = collections.namedtuple('Droplet', ['name', 'region', 'image',
                                                      'size', 'backups'])

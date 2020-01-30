@@ -104,8 +104,15 @@ def make_routes():
     if not os.path.exists(GEO_ROUTES_ROOT):
         os.makedirs(GEO_ROUTES_ROOT)
 
+    if not os.path.isfile('./maxmind_license.txt'):
+        raise Exception('maxmind_license.txt file missing from Automation directory.')
+    with open('./maxmind_license.txt', 'r') as licenseFile:
+        licenseKey = licenseFile.read().replace('\n', '')
+    if not 'license_key=' in licenseKey:
+        raise Exception('maxmind_license.txt file must include a single line of the format \"license_key=<KEY>\".')
+
     # TODO: get url from psi_db
-    url='https://geolite.maxmind.com/download/geoip/database/GeoLite2-Country-CSV.zip'
+    url='https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country-CSV&' + licenseKey + '&suffix=zip'
     recache_geodata(url)
 
     if not os.path.exists(GEO_ZIP_PATH):

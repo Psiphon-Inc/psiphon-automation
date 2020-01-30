@@ -1,0 +1,22 @@
+{
+  "tags": [
+    {
+      "name": "test",
+      "resources": {
+        "count": 0,
+        "droplets": {
+          "count": 0
+        },
+        "images": {
+          "count": 0
+        },
+        "volumes": {
+          "count": 0
+        },
+        "volume_snapshots": {
+          "count": 0
+        }
+      }
+    }
+  ]
+}
