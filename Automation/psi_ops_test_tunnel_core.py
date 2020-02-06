@@ -32,6 +32,7 @@ from functools import wraps
 # Local service should be in same GeoIP region; local split tunnel will be in effect (not proxied)
 # Remote service should be in different GeoIP region; remote split tunnel will be in effect (proxied)
 CHECK_IP_ADDRESS_URL_LOCAL = ['http://automation.whatismyip.com/n09230945.asp']
+USER_AGENT = "Python-urllib/psiphon-tunnel-core"
 
 SOURCE_ROOT = os.path.join(os.path.abspath('.'), 'network-health', 'bin')
 TUNNEL_CORE = os.path.join(SOURCE_ROOT, 'psiphon-tunnel-core')
@@ -293,7 +294,12 @@ def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, a
                     urllib3.disable_warnings()
                 
                 try:
-                    egress_ip_address = http_proxy.request('GET', url).data.split('\n')[0]
+                    egress_ip_address = http_proxy.request(
+                        'GET', 
+                        url, 
+                        headers={
+                            "User-Agent":   USER_AGENT
+                        }).data.split('\n')[0]
                     
                     is_proxied = (egress_ip_address in expected_egress_ip_addresses)
                     
