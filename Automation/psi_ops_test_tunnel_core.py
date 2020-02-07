@@ -251,7 +251,7 @@ class TunnelCoreConsoleRunner:
 
 
 @retry_on_exception_decorator
-def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, additional_test_sites, split_tunnel_mode):
+def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, additional_test_sites, user_agent, split_tunnel_mode):
     # test:
     # - spawn client process, which starts the VPN
     # - sleep 5 seconds, which allows time to establish connection
@@ -298,7 +298,7 @@ def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, a
                         'GET', 
                         url, 
                         headers={
-                            "User-Agent":   USER_AGENT
+                            "User-Agent":   user_agent
                         }).data.split('\n')[0]
                     
                     is_proxied = (egress_ip_address in expected_egress_ip_addresses)
@@ -389,7 +389,7 @@ def test_server(server, host, encoded_server_entry, split_tunnel_url_format,
                 expected_egress_ip_addresses, test_propagation_channel_id='0', 
                 test_sponsor_id='0', client_platform='', client_version='',
                 use_indistinguishable_tls=True, test_cases = None, 
-                ip_test_sites = [], additional_test_sites = [], 
+                ip_test_sites = [], additional_test_sites = [], user_agent='',
                 executable_path = None, config_file = None, 
                 packet_tunnel_params=dict()):
     
@@ -424,7 +424,7 @@ def test_server(server, host, encoded_server_entry, split_tunnel_url_format,
         try:
             results[test_case] = __test_server(tunnel_core_runner, test_case, 
                                                expected_egress_ip_addresses, 
-                                               ip_test_sites, additional_test_sites, False)
+                                               ip_test_sites, additional_test_sites, user_agent, False)
             #for split_tunnel in [True, False]:
             #    results[test_case]['SPLIT TUNNEL {0}'.format(split_tunnel)] = __test_server(tunnel_core_runner, test_case, expected_egress_ip_addresses, split_tunnel)
             #results[test_case] = 'PASS'
