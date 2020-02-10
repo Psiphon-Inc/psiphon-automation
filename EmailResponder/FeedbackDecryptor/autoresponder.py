@@ -365,17 +365,11 @@ def _get_response_content(response_id, diagnostic_info):
             # Strip outer element
             body = u''.join(unicode(elem) for elem in body.contents).strip()
 
-            # The user might be using a language for which there isn't a
-            # download page. Fall back to English if that's the case.
-            home_page_url = psi_ops_helpers.get_s3_bucket_home_page_url(
-                bucketname,
-                lang_id if lang_id in psi_ops_helpers.WEBSITE_LANGS else 'en')
-            download_page_url = psi_ops_helpers.get_s3_bucket_download_page_url(
-                bucketname,
-                lang_id if lang_id in psi_ops_helpers.WEBSITE_LANGS else 'en')
-            faq_page_url = psi_ops_helpers.get_s3_bucket_faq_url(
-                bucketname,
-                lang_id if lang_id in psi_ops_helpers.WEBSITE_LANGS else 'en')
+            # Available response translation languages may not match the available website
+            # languages, so we'll link to the language-redirect pages.
+            home_page_url = psi_ops_helpers.get_s3_bucket_home_page_url(bucketname)
+            download_page_url = psi_ops_helpers.get_s3_bucket_download_page_url(bucketname)
+            faq_page_url = psi_ops_helpers.get_s3_bucket_faq_url(bucketname)
 
             # We're using numbers rather than more readable names here because
             # they're less likely to be accidentally modified by translators
