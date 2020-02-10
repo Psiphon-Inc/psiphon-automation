@@ -83,10 +83,9 @@ class PsiLinode:
         return regions.get(region.id, "")
 
     def list_linodes(self):
-        #TODO: Will impliment this to support getting Psiphon 3 Linodes with filter by tags etc.
-        # Notes: The filter by ignore tags doesn't work, need other way to work around it
-        return self.client.linode.instances() # currently return all linodes in the account.
-    
+        # return all linodes in the account.
+        return self.client.linode.instances()
+
     def linode_list(self, linode_id):
         # List single linode by searching its id
         return linode_api4.linode.Instance(self.client, linode_id)
@@ -275,6 +274,11 @@ def get_egress_ip_address(linode_account, ip_address, password, host_public_key)
 # Main function
 #
 ###
+def get_servers(linode_account):
+    linode_api = PsiLinode(linode_account)
+    linodes = linode_api.list_linodes()
+    return [(str(li.id), li.label) for li in linodes if not li.tags]
+
 def remove_server(linode_account, linode_id):
     linode_api = PsiLinode(linode_account)
     try:
