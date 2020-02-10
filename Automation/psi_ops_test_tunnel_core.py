@@ -389,7 +389,7 @@ def test_server(server, host, encoded_server_entry, split_tunnel_url_format,
                 expected_egress_ip_addresses, test_propagation_channel_id='0', 
                 test_sponsor_id='0', client_platform='', client_version='',
                 use_indistinguishable_tls=True, test_cases = None, 
-                ip_test_sites = [], additional_test_sites = [], user_agent='',
+                ip_test_sites = [], additional_test_sites = [], user_agent=USER_AGENT,
                 executable_path = None, config_file = None, 
                 packet_tunnel_params=dict()):
     
