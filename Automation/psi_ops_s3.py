@@ -233,7 +233,7 @@ def get_s3_bucket_home_page_url(bucket_id, language=None):
     return urlparse.urlunsplit(url_split)
 
 
-def get_s3_bucket_download_page_url(bucket_id, lang='en'):
+def get_s3_bucket_download_page_url(bucket_id, language=None):
     """
     Args:
         bucket_id (str): Old- or new-style bucket name.
@@ -243,12 +243,16 @@ def get_s3_bucket_download_page_url(bucket_id, lang='en'):
         URL (str): Absolute URL.
     """
 
-    page = '%s/download.html#direct' % (lang,)
+    if language:
+        page = '%s/download.html#direct' % (language,)
+    else:
+        page = 'download.html#direct'
+
     url_split = get_s3_bucket_resource_url_split(bucket_id, page)
     return urlparse.urlunsplit(url_split)
 
 
-def get_s3_bucket_faq_url(bucket_id, lang='en'):
+def get_s3_bucket_faq_url(bucket_id, language=None):
     """
     Args:
         bucket_id (str): Old- or new-style bucket name.
@@ -258,12 +262,16 @@ def get_s3_bucket_faq_url(bucket_id, lang='en'):
         URL (str): Absolute URL.
     """
 
-    page = '%s/faq.html' % (lang,)
+    if language:
+        page = '%s/faq.html' % (language,)
+    else:
+        page = 'faq.html'
+
     url_split = get_s3_bucket_resource_url_split(bucket_id, page)
     return urlparse.urlunsplit(url_split)
 
 
-def get_s3_bucket_privacy_policy_url(bucket_id, lang='en'):
+def get_s3_bucket_privacy_policy_url(bucket_id, language=None):
     """
     Args:
         bucket_id (str): Old- or new-style bucket name.
@@ -273,7 +281,11 @@ def get_s3_bucket_privacy_policy_url(bucket_id, lang='en'):
         URL (str): Absolute URL.
     """
 
-    page = '%s/privacy.html#information-collected' % (lang,)
+    if language:
+        page = '%s/privacy.html#information-collected' % (language,)
+    else:
+        page = 'privacy.html#information-collected'
+
     url_split = get_s3_bucket_resource_url_split(bucket_id, page)
     return urlparse.urlunsplit(url_split)
 
@@ -667,8 +679,8 @@ class Test(unittest.TestCase):
         shutil.rmtree(cls.temp_website_dir)
 
     def setUp(self):
-        from moto import mock_s3
-        self.mock_s3 = mock_s3()
+        from moto import mock_s3_deprecated
+        self.mock_s3 = mock_s3_deprecated()
         self.mock_s3.start()
 
         # Make our fake bucket
@@ -796,9 +808,10 @@ class Test(unittest.TestCase):
 
     def test_get_s3_bucket_download_page_url(self):
         for bucket_id in [self.old_style_bucket_id, self.new_style_bucket_id]:
-            for lang in ['en', 'fa']:
+            for lang in [None, 'en', 'fa']:
                 url = get_s3_bucket_download_page_url(bucket_id, lang)
-                expected_path = '%s/%s/download.html' % (bucket_id, lang)
+                lang = ('/%s' % lang) if lang else ''
+                expected_path = '%s%s/download.html' % (bucket_id, lang)
                 expected_fragment = 'direct'
                 self.assertEqual(url,
                                  urlparse.urlunsplit(
@@ -808,9 +821,10 @@ class Test(unittest.TestCase):
 
     def test_get_s3_bucket_faq_url(self):
         for bucket_id in [self.old_style_bucket_id, self.new_style_bucket_id]:
-            for lang in ['en', 'fa']:
+            for lang in [None, 'en', 'fa']:
                 url = get_s3_bucket_faq_url(bucket_id, lang)
-                expected_path = '%s/%s/faq.html' % (bucket_id, lang)
+                lang = ('/%s' % lang) if lang else ''
+                expected_path = '%s%s/faq.html' % (bucket_id, lang)
                 self.assertEqual(url,
                                  urlparse.urlunsplit(
                                      (DOWNLOAD_SITE_SCHEME,
@@ -819,9 +833,10 @@ class Test(unittest.TestCase):
 
     def test_get_s3_bucket_privacy_policy_url(self):
         for bucket_id in [self.old_style_bucket_id, self.new_style_bucket_id]:
-            for lang in ['en', 'fa']:
+            for lang in [None, 'en', 'fa']:
                 url = get_s3_bucket_privacy_policy_url(bucket_id, lang)
-                expected_path = '%s/%s/faq.html' % (bucket_id, lang)
+                lang = ('/%s' % lang) if lang else ''
+                expected_path = '%s%s/privacy.html' % (bucket_id, lang)
                 expected_fragment = 'information-collected'
                 self.assertEqual(url,
                                  urlparse.urlunsplit(
