@@ -74,7 +74,7 @@ except ImportError as error:
     print error
 
 try:
-    import psi_linode
+    import psi_linode_api4 as psi_linode
 except ImportError as error:
     print error
 
@@ -272,7 +272,7 @@ LinodeAccount = psi_utils.recordtype(
     'api_key, base_id, base_ip_address, base_ssh_port, ' +
     'base_root_password, base_stats_username, base_host_public_key, ' +
     'base_known_hosts_entry, base_rsa_private_key, base_rsa_public_key, ' +
-    'base_tarball_path, tcs_base_root_password, tcs_base_host_public_key',
+    'base_tarball_path, tcs_base_root_password, tcs_base_host_public_key, api_token',
     default=None)
 
 DigitalOceanAccount = psi_utils.recordtype(
@@ -421,7 +421,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.55'
+    class_version = '0.56'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -767,6 +767,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.55')) < 0:
             self.__routes_signing_public_key = None
             self.version = '0.55'
+        if cmp(parse_version(self.version), parse_version('0.56')) < 0:
+            self.__linode_account.api_token = ''
+            self.version = '0.56'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1701,6 +1704,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             raise Exception("not implemented")
 
     def __upgrade_host_datacenter_names(self):
+        #TODO: need to upgrade this function to use new APIv4
         if self.__linode_account.api_key:
             linode_datacenter_names = psi_linode.get_datacenter_names(self.__linode_account)
             for host in self.__hosts.itervalues():
@@ -3477,7 +3481,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def set_linode_account(self, api_key, base_id, base_ip_address, base_ssh_port,
                            base_root_password, base_stats_username, base_host_public_key,
                            base_known_hosts_entry, base_rsa_private_key, base_rsa_public_key,
-                           base_tarball_path):
+                           base_tarball_path, api_token):
         assert(self.is_locked)
         psi_utils.update_recordtype(
             self.__linode_account,
@@ -3485,7 +3489,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             base_ssh_port=base_ssh_port, base_root_password=base_root_password,
             base_stats_username=base_stats_username, base_host_public_key=base_host_public_key,
             base_known_hosts_entry=base_known_hosts_entry, base_rsa_private_key=base_rsa_private_key,
-            base_rsa_public_key=base_rsa_public_key, base_tarball_path=base_tarball_path)
+            base_rsa_public_key=base_rsa_public_key, base_tarball_path=base_tarball_path, api_token=api_token)
 
     def set_digitalocean_account(self, client_id, api_key, base_id, base_size_id, base_region_id, base_ssh_port,
                                  base_stats_username, base_host_public_key,
