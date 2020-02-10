@@ -63,15 +63,18 @@ class PsiLinode:
 
     def get_region(self, region):
         # Get region's country code
-        return region.country.upper()
+        country_code = region.country.upper()
+        if country_code == 'UK':
+            country_code = 'GB'
+        return country_code
 
     def get_datacenter_names(self, region):
         # from linode_api.get_available_regions():
         regions = {
             'ap-northeast': 'Linode Tokyo 2, JP',
-            'ap-west': 'Linode Mumbai, IN',
+            'ap-west': 'Linode Mumbai, India',
             'ap-south': 'Linode Singapore, SG',
-            'ap-southeast': 'Linode Sydney, AU',
+            'ap-southeast': 'Linode Sydney, NSW, Australia',
             'ca-central': 'Linode Toronto, Ontario, CAN',
             'us-central': 'Linode Dallas, TX, USA',
             'us-west': 'Linode Fremont, CA, USA',
