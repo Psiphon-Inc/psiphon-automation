@@ -211,7 +211,12 @@ class TunnelCoreConsoleRunner:
             remote_port = 443
             split_url = url.split('://')
             if len(split_url) >= 2:
-                fqdn = split_url[1].split('/')[0]
+                parts = split_url[1].split('/', 2)
+                fqdn = parts[0]
+                if len(parts) >= 2:
+                    path = parts[1]
+                else:
+                    path = '/'
             
             resolver = dns.resolver.Resolver(configure=False) # Don't use the system resolver settings
             resolver.nameservers = ['10.0.0.2']
@@ -223,11 +228,11 @@ class TunnelCoreConsoleRunner:
                     break
             
             
-            pool = urllib3.HTTPSConnectionPool(host=fqdn, port=remote_port, 
+            pool = urllib3.HTTPSConnectionPool(host=fqdn, port=remote_port,cert_reqs='CERT_NONE',
                                                maxsize=2,
                                                source_address=(self.tun_source_ip_address,
                                                                self.tun_source_port))
-            response = pool.request('GET', '/', release_conn=True)
+            response = pool.request('GET', path, release_conn=True)
             egress_ip_address = response.data.strip()
             is_proxied = (egress_ip_address in expected_egress_ip_addresses)
             if is_proxied:
