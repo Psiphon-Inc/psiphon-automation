@@ -213,10 +213,9 @@ class TunnelCoreConsoleRunner:
             if len(split_url) >= 2:
                 parts = split_url[1].split('/', 2)
                 fqdn = parts[0]
+                path = '/'
                 if len(parts) >= 2:
-                    path = parts[1]
-                else:
-                    path = '/'
+                    path += parts[1]
             
             resolver = dns.resolver.Resolver(configure=False) # Don't use the system resolver settings
             resolver.nameservers = ['10.0.0.2']
@@ -228,7 +227,7 @@ class TunnelCoreConsoleRunner:
                     break
             
             
-            pool = urllib3.HTTPSConnectionPool(host=fqdn, port=remote_port,cert_reqs='CERT_NONE',
+            pool = urllib3.HTTPSConnectionPool(host=fqdn, port=remote_port,
                                                maxsize=2,
                                                source_address=(self.tun_source_ip_address,
                                                                self.tun_source_port))
