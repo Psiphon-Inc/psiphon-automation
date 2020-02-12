@@ -49,6 +49,7 @@ import psi_ops_build_windows
 # Remote service should be in different GeoIP region; remote split tunnel will be in effect (proxied)
 CHECK_IP_ADDRESS_URL_LOCAL = 'http://automation.whatismyip.com/n09230945.asp'
 CHECK_IP_ADDRESS_URL_REMOTE = 'http://automation.whatismyip.com/n09230945.asp'
+USER_AGENT = "Python-urllib/psiphon-tunnel-core"
 
 SOURCE_ROOT = local_repos_config.WINDOWS_REPO_ROOT
 TUNNEL_CORE = os.path.join(SOURCE_ROOT, '3rdParty', 'psiphon-tunnel-core.exe')
@@ -61,9 +62,11 @@ def urlopen(url, timeout):
         nonValidatingSslContext = ssl.create_default_context()
         nonValidatingSslContext.check_hostname = False
         nonValidatingSslContext.verify_mode = ssl.CERT_NONE
-        return urllib2.urlopen(url, timeout=timeout, context=nonValidatingSslContext)
+        request = urllib2.Request(url, headers={"User-Agent": USER_AGENT})
+        return urllib2.urlopen(request, timeout=timeout, context=nonValidatingSslContext)
     else:
-        return urllib2.urlopen(url, timeout=timeout)
+        request = urllib2.Request(url, headers={"User-Agent": USER_AGENT})
+        return urllib2.urlopen(request, timeout=timeout)
 
 
 # if psi_build_config.py exists, load it and use psi_build_config.DATA_ROOT as the data root dir
@@ -72,6 +75,7 @@ if os.path.isfile('psi_data_config.py'):
     import psi_data_config
     CHECK_IP_ADDRESS_URL_LOCAL = psi_data_config.CHECK_IP_ADDRESS_URL_LOCAL
     CHECK_IP_ADDRESS_URL_REMOTE = psi_data_config.CHECK_IP_ADDRESS_URL_REMOTE
+    USER_AGENT = psi_data_config.USER_AGENT
 
 
 REGISTRY_PRODUCT_KEY = 'SOFTWARE\\Psiphon3'
