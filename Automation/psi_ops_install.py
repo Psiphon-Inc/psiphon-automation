@@ -401,17 +401,17 @@ def generate_self_signed_certificate():
     return certificate.as_pem(), rsa.as_pem(cipher=None) # Use rsa for PKCS#1
 
 
-def install_host(host, servers, existing_server_ids, TCS_psiphond_config_values, plugins):
+def install_host(host, servers, existing_server_ids, TCS_psiphond_config_values, ssh_ip_address_whitelist, plugins):
 
     if host.is_TCS:
-        install_TCS_host(host, servers, existing_server_ids, TCS_psiphond_config_values, plugins)
+        install_TCS_host(host, servers, existing_server_ids, TCS_psiphond_config_values, ssh_ip_address_whitelist, plugins)
     else:
         install_legacy_host(host, servers, existing_server_ids, plugins)
 
 
 def install_legacy_host(host, servers, existing_server_ids, plugins):
 
-    install_firewall_rules(host, servers, None, plugins)
+    install_firewall_rules(host, servers, None, None, plugins)
 
     install_psi_limit_load(host, servers)
 
@@ -611,12 +611,12 @@ def install_legacy_host(host, servers, existing_server_ids, plugins):
     # NOTE: call psi_ops_deploy.deploy_host() to complete the install process
 
 
-def install_TCS_host(host, servers, existing_server_ids, TCS_psiphond_config_values, plugins):
+def install_TCS_host(host, servers, existing_server_ids, TCS_psiphond_config_values, ssh_ip_address_whitelist, plugins):
 
     # Limitation: only one server per host currently implemented
     assert(len(servers) == 1)
 
-    install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, True)
+    install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, ssh_ip_address_whitelist, True)
 
     install_TCS_psi_limit_load(host)
 
@@ -672,10 +672,10 @@ def install_TCS_host(host, servers, existing_server_ids, TCS_psiphond_config_val
         if server.ssh_obfuscated_key is None:
             server.ssh_obfuscated_key = binascii.hexlify(os.urandom(SSH_OBFUSCATED_KEY_BYTE_LENGTH))
 
-def install_firewall_rules(host, servers, TCS_psiphond_config_values, plugins, do_blacklist=True):
+def install_firewall_rules(host, servers, TCS_psiphond_config_values, ssh_ip_address_whitelist, plugins, do_blacklist=True):
 
     if host.is_TCS:
-        install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, do_blacklist)
+        install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, ssh_ip_address_whitelist, do_blacklist)
     else:
         install_legacy_firewall_rules(host, servers, plugins, do_blacklist)
 
@@ -924,7 +924,7 @@ iptables-restore < %s
         install_malware_blacklist(host, False)
 
 
-def install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, do_blacklist):
+def install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, ssh_ip_address_whitelist, do_blacklist):
 
     # TODO-TCS: security review
 
@@ -1047,8 +1047,15 @@ def install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, do_bla
             filter_limit_rate='\n'.join(rate_limit_rules),
             filter_forward='\n'.join(limit_rate_forward_rules))
 
-    management_port_rule = textwrap.dedent('''
+    if ssh_ip_address_whitelist:
+        management_port_rule = ''.join([textwrap.dedent('''
+        -A INPUT -s {whitelist_ip_address} -p tcp -m state --state NEW -m tcp --dport {management_port} -j ACCEPT''')
+        .format(whitelist_ip_address=whitelist_ip, management_port=host.ssh_port)
+        for whitelist_ip in ssh_ip_address_whitelist])
+    else:
+        management_port_rule = textwrap.dedent('''
         -A INPUT -p tcp -m state --state NEW -m tcp --dport {management_port} -j ACCEPT''').format(management_port=host.ssh_port)
+
     port_rules = [management_port_rule]
 
     if host.TCS_type == 'NATIVE':

@@ -418,10 +418,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         self.__exchange_obfuscation_key = base64.b64encode(os.urandom(32))
 
+        self.__ssh_ip_address_whitelist = []
+
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.56'
+    class_version = '0.57'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -770,6 +772,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.56')) < 0:
             self.__linode_account.api_token = ''
             self.version = '0.56'
+        if cmp(parse_version(self.version), parse_version('0.57')) < 0:
+            self.__ssh_ip_address_whitelist = []
+            self.version = '0.57'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1679,7 +1684,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if host.is_TCS:
             psi_ops_install.install_TCS_psi_limit_load(host, disable_permanently=True)
         else:
-            psi_ops_install.install_firewall_rules(host, servers, None, plugins, False) # No need to update the malware blacklist
+            psi_ops_install.install_firewall_rules(host, servers, None, self.__ssh_ip_address_whitelist, plugins, False) # No need to update the malware blacklist
         # NOTE: caller is responsible for saving now
         #self.save()
 
@@ -1862,7 +1867,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         existing_servers = [server for server in self.get_servers() if server.host_id == host.id]
         servers_on_host = existing_servers + new_servers
 
-        psi_ops_install.install_host(host, servers_on_host, self.get_existing_server_ids(), self.__TCS_psiphond_config_values, plugins)
+        psi_ops_install.install_host(host, servers_on_host, self.get_existing_server_ids(), self.__TCS_psiphond_config_values, self.__ssh_ip_address_whitelist, plugins)
         host.log('install with new servers')
 
         assert(host.id in self.__hosts)
@@ -1958,7 +1963,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def install_meek_for_host(self, host):
         servers = [s for s in self.__servers.itervalues() if s.host_id == host.id]
-        psi_ops_install.install_firewall_rules(host, servers, self.__TCS_psiphond_config_values, plugins, False) # No need to update the malware blacklist
+        psi_ops_install.install_firewall_rules(host, servers, self.__TCS_psiphond_config_values, self.__ssh_ip_address_whitelist, plugins, False) # No need to update the malware blacklist
         psi_ops_install.install_psi_limit_load(host, servers)
         psi_ops_deploy.deploy_implementation(
                             host,
@@ -1978,7 +1983,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def setup_server(self, host, servers):
         # Install Psiphon 3 and generate configuration values
         # Here, we're assuming one server/IP address per host
-        psi_ops_install.install_host(host, servers, self.get_existing_server_ids(), self.__TCS_psiphond_config_values, plugins)
+        psi_ops_install.install_host(host, servers, self.get_existing_server_ids(), self.__TCS_psiphond_config_values, self.__ssh_ip_address_whitelist, plugins)
         host.log('install')
         psi_ops_install.change_weekly_crontab_runday(host, None)
         # Update database
@@ -2437,7 +2442,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(self.is_locked)
         host = self.__hosts[host_id]
         servers = [server for server in self.__servers.itervalues() if server.host_id == host_id]
-        psi_ops_install.install_host(host, servers, self.get_existing_server_ids(), self.__TCS_psiphond_config_values, plugins)
+        psi_ops_install.install_host(host, servers, self.get_existing_server_ids(), self.__TCS_psiphond_config_values, self.__ssh_ip_address_whitelist, plugins)
         psi_ops_install.change_weekly_crontab_runday(host, None)
         psi_ops_deploy.deploy_implementation(
                             host,
