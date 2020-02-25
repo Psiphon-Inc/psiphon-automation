@@ -4087,68 +4087,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                                     '',  # Omit server ages
                                                                     '')  # Omit server ages
 
-        for host in self.__hosts.itervalues():
-            copy.__hosts[host.id] = Host(
-                                        host.id,
-                                        host.is_TCS,
-                                        '',  # Omit: TCS_type isn't needed
-                                        '',  # Omit: provider isn't needed
-                                        '',  # Omit: provider_id isn't needed
-                                        '',  # Omit: ip_address isn't needed
-                                        '',  # Omit: ssh_port isn't needed
-                                        '',  # Omit: root ssh_username isn't needed
-                                        '',  # Omit: root ssh_password isn't needed
-                                        '',  # Omit: ssh_host_key isn't needed
-                                        '',  # Omit: stats_ssh_username isn't needed
-                                        '',  # Omit: stats_ssh_password isn't needed
-                                        '',  # Omit: datacenter_name isn't needed
-                                        host.region,
-                                        host.meek_server_port,
-                                        host.meek_server_obfuscated_key,
-                                        host.meek_server_fronting_domain,
-                                        host.meek_server_fronting_host,
-                                        [],  # Omit: alternate_meek_server_fronting_hosts isn't needed
-                                        host.meek_cookie_encryption_public_key,
-                                        '',  # Omit: meek_cookie_encryption_private_key isn't needed
-                                        host.tactics_request_public_key,
-                                        '', # Omit: tactics_request_private_key isn't needed
-                                        host.tactics_request_obfuscated_key).todict()
-
-        # Store servers as array instead of map as a method of preprocessing for
-        # tunnel-core-server
-        server_list = []
-        for server in self.__servers.itervalues():
-            if server.discovery_date_range and server.discovery_date_range[1] > discovery_date:
-                s = Server(
-                                                server.id,
-                                                server.host_id,
-                                                server.ip_address,
-                                                server.egress_ip_address,
-                                                server.internal_ip_address,
-                                                server.propagation_channel_id,
-                                                server.is_embedded,
-                                                server.is_permanent,
-                                                server.discovery_date_range,
-                                                server.capabilities,
-                                                server.web_server_port,
-                                                server.web_server_secret,
-                                                server.web_server_certificate,
-                                                server.web_server_private_key,
-                                                str(server.ssh_port), # Some ports are stored as ints, catch this for tunnel-core-server
-                                                server.ssh_username,
-                                                server.ssh_password,
-                                                server.ssh_host_key,
-                                                None,
-                                                int(server.ssh_obfuscated_port), # Some ports are stored as strings, catch this for tunnel-core-server
-                                                int(server.ssh_obfuscated_quic_port) if server.ssh_obfuscated_quic_port else 0,
-                                                int(server.ssh_obfuscated_tapdance_port) if server.ssh_obfuscated_tapdance_port else 0,
-                                                server.ssh_obfuscated_key,
-                                                server.alternate_ssh_obfuscated_ports,
-                                                None,
-                                                None,
-                                                server.configuration_version).todict()
-                server_list.append(s)
-
         for sponsor in self.__sponsors.itervalues():
             sponsor_data = sponsor
             if sponsor.use_data_from_sponsor_id:
@@ -4193,15 +4131,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 client_version.version,
                                                 ''))  # Omit description
 
-        # Alphabetize by host_id
-        server_list.sort(key=lambda k: k['host_id'])
-
         valid_server_entry_tags = {}
         for server in self.__servers.itervalues():
             tag = self.__get_server_tag(server)
             valid_server_entry_tags[tag] = True
-
-        # TODO: "hosts" and "servers" are made obsolete by "discovery_servers" and can be removed in the future
 
         discovery_servers = []
         for server in self.__servers.itervalues():
@@ -4214,8 +4147,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         return json.dumps({
             "client_versions": copy.__client_versions,
-            "hosts": copy.__hosts,
-            "servers": server_list,
             "valid_server_entry_tags": valid_server_entry_tags,
             "discovery_servers": discovery_servers,
             "sponsors": copy.__sponsors,
