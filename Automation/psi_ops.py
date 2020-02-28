@@ -4303,6 +4303,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.stats_ssh_password,
                                             host.datacenter_name,
                                             host.region,
+                                            None, # Omit: fronting_provider_id
                                             host.meek_server_port,
                                             '',  # Omit: host.meek_server_obfuscated_key,
                                             '',  # Omit: host.meek_server_fronting_domain,
