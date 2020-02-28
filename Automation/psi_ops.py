@@ -1493,6 +1493,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     stats_ssh_password,
                     datacenter_name,
                     region,
+                    None, # fronting_provider_id
                     meek_server_port,
                     meek_server_obfuscated_key,
                     meek_server_fronting_domain,
@@ -1561,6 +1562,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.stats_ssh_password,
                         host.datacenter_name,
                         host.region,
+                        host.fronting_provider_id,
                         host.meek_server_port,
                         host.meek_server_obfuscated_key,
                         host.meek_server_fronting_domain,
@@ -2311,6 +2313,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.stats_ssh_password,
                         host.datacenter_name,
                         host.region,
+                        host.fronting_provider_id,
                         host.meek_server_port,
                         host.meek_server_obfuscated_key,
                         host.meek_server_fronting_domain,
@@ -3950,6 +3953,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         '',  # Omit: stats_ssh_password isn't needed
                                         '',  # Omit: datacenter_name isn't needed
                                         host.region,
+                                        host.fronting_provider_id,
                                         host.meek_server_port,
                                         host.meek_server_obfuscated_key,
                                         host.meek_server_fronting_domain,
@@ -4194,6 +4198,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.stats_ssh_password,
                                             host.datacenter_name,
                                             host.region,
+                                            host.fronting_provider_id,
                                             host.meek_server_port,
                                             host.meek_server_obfuscated_key,
                                             host.meek_server_fronting_domain,
