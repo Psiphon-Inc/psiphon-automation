@@ -206,7 +206,7 @@ Host = psi_utils.recordtype(
     'Host',
     'id, is_TCS, TCS_type, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key, ' +
     'stats_ssh_username, stats_ssh_password, ' +
-    'datacenter_name, region, meek_server_port, meek_server_obfuscated_key, meek_server_fronting_domain, ' +
+    'datacenter_name, region, fronting_provider_id, meek_server_port, meek_server_obfuscated_key, meek_server_fronting_domain, ' +
     'meek_server_fronting_host, alternate_meek_server_fronting_hosts, ' +
     'meek_cookie_encryption_public_key, meek_cookie_encryption_private_key, ' +
     'tactics_request_public_key, tactics_request_private_key, tactics_request_obfuscated_key',
@@ -420,10 +420,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         self.__ssh_ip_address_whitelist = []
 
+        self.__fronting_provider_id_aliases = {}
+
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.57'
+    class_version = '0.58'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -775,6 +777,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.57')) < 0:
             self.__ssh_ip_address_whitelist = []
             self.version = '0.57'
+        if cmp(parse_version(self.version), parse_version('0.58')) < 0:
+            for host in self.__hosts.values() + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
+                host.fronting_provider_id = None
+            self.__fronting_provider_id_aliases = {}
+            self.version = '0.58'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1890,10 +1897,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for server in servers_on_host:
             self.test_server(server.id, ['handshake'])
 
-    def setup_fronting_for_server(self, server_id, meek_server_fronting_domain, meek_server_fronting_host):
+    def setup_fronting_for_server(self, server_id, fronting_provider_alias, meek_server_fronting_domain, meek_server_fronting_host):
         server = self.__servers[server_id]
         host = self.__hosts[server.host_id]
         assert(host.meek_server_port == None)
+
+        host.fronting_provider_id = self.__fronting_provider_id_aliases[fronting_provider_alias]
 
         server.capabilities['FRONTED-MEEK'] = True
         host.meek_server_fronting_domain = meek_server_fronting_domain
@@ -3661,6 +3670,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             extended_config['meekFrontingHosts'] = alternate_meek_server_fronting_hosts[:3]
             if server_capabilities['FRONTED-MEEK']:
                 server_capabilities['FRONTED-MEEK-HTTP'] = True
+
+        if host.fronting_provider_id:
+            extended_config['frontingProviderID'] = host.fronting_provider_id
 
         extended_config['tacticsRequestPublicKey'] = host.tactics_request_public_key if host.tactics_request_public_key else ''
         extended_config['tacticsRequestObfuscatedKey'] = host.tactics_request_obfuscated_key if host.tactics_request_obfuscated_key else ''
