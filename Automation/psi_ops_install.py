@@ -1502,19 +1502,14 @@ while true; do
 done
 
 if [ $loaded_cpu -eq 1 ] || [ $loaded_mem -eq 1 ] || [ $loaded_net -eq 1 ]; then
-    iptables -D %s -j PSI_LIMIT_LOAD
-    iptables -I %s -j PSI_LIMIT_LOAD
     %s
 else
     %s
-    iptables -D %s -j PSI_LIMIT_LOAD
 fi
 exit 0
 ''' % (syn_sent_check,
-        psi_limit_load_chain_name, psi_limit_load_chain_name,
         psi_ops_deploy.TCS_PSIPHOND_STOP_ESTABLISHING_TUNNELS_SIGNAL_COMMAND,
-        psi_ops_deploy.TCS_PSIPHOND_RESUME_ESTABLISHING_TUNNELS_SIGNAL_COMMAND,
-        psi_limit_load_chain_name)
+        psi_ops_deploy.TCS_PSIPHOND_RESUME_ESTABLISHING_TUNNELS_SIGNAL_COMMAND)
 
     ssh = psi_ssh.SSH(
             host.ip_address, host.ssh_port,
