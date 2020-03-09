@@ -190,7 +190,7 @@ class TunnelCoreConsoleRunner:
         return urllib3.ProxyManager("http://127.0.0.1:{http_port}".format(http_port=self.http_proxy_port), timeout=30.0)
     
     
-    def run_packet_tunnel_tests(self, test_sites, expected_egress_ip_addresses):
+    def run_packet_tunnel_tests(self, test_sites, expected_egress_ip_addresses, user_agent):
         import dns.resolver
         import urllib3
         
@@ -231,7 +231,7 @@ class TunnelCoreConsoleRunner:
                                                maxsize=2,
                                                source_address=(self.tun_source_ip_address,
                                                                self.tun_source_port))
-            response = pool.request('GET', path, release_conn=True)
+            response = pool.request('GET', path, headers={"User-Agent": user_agent}, release_conn=True)
             egress_ip_address = response.data.strip()
             is_proxied = (egress_ip_address in expected_egress_ip_addresses)
             if is_proxied:
@@ -280,7 +280,8 @@ def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, a
         if runner.packet_tunnel_tests:
             output.update(runner.run_packet_tunnel_tests(
                                     runner.test_sites, 
-                                    expected_egress_ip_addresses))
+                                    expected_egress_ip_addresses,
+                                    user_agent))
         
         else:
             
