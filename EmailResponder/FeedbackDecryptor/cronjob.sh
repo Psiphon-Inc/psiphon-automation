@@ -1,6 +1,6 @@
-#!/usr/bin/env python
+#!/bin/bash
 
-# Copyright (c) 2012, Psiphon Inc.
+# Copyright (c) 2020, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -16,32 +16,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import signal
-import sys
-import time
+# Update source
+hg pull -u
 
-import maildecryptor
-import logger
+# Update the local copy of psinet
+cd ../../Automation
+python ./psi_update_stats_dat.py
+cd -
 
-
-def _do_exit(signum, frame):
-    logger.log('Shutting down')
-    sys.exit(0)
-
-
-def main():
-    logger.log('Starting up')
-
-    signal.signal(signal.SIGTERM, _do_exit)
-
-    while True:
-        try:
-            maildecryptor.go()
-        except Exception:
-            logger.exception()
-            time.sleep(60)
-            continue
-
-
-if __name__ == '__main__':
-    main()
+# Restart services to use the new code and psinet
+sudo systemctl restart s3decryptor.service
+sudo systemctl restart mailsender.service
+sudo systemctl restart autoresponder.service
+sudo systemctl restart statschecker.service

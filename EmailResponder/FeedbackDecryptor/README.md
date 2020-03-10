@@ -1,6 +1,6 @@
 # Diagnostic Feedback Decryptor
 
-This is a collection of services that monitor email and a S3 bucket for 
+This is a collection of services that monitor email and a S3 bucket for
 encrypted diagnostic feedback. They then decrypt and store that data, and then
 send an email with the data.
 
@@ -11,6 +11,16 @@ send an email with the data.
 #### Android
 
 + output from uname -a or something that shows information about the kernel version and build
+
+## How it works
+
+There are 4 services:
+* `s3decryptor`: Reads encrypted feedback packages from S3, parses and processes them, and stores the data in mongodb.
+* `autoresponder`: Reads mongodb to check for new feedback where the user should be send an email response.
+* `mailsender`: Reads mongodb to check for new feedback that should be formatted and emailed to the Psiphon team.
+* `statschecker`: Utility service that periodically sends feedback stats in an email to the Psiphon team.
+* `maildecryptor`: Defunct. Feedback used to also come via email attachments, but this method is no longer used.
+
 
 ## Setup
 
@@ -38,12 +48,12 @@ sudo pip install --upgrade M2Crypto
 
 #### pynliner issues
 
-The pynliner library has a [Unicode-related issue that affects us](https://github.com/rennat/pynliner/issues/10). 
+The pynliner library has a [Unicode-related issue that affects us](https://github.com/rennat/pynliner/issues/10).
 Until it is resolved/released, we will need to [manually patch the code](https://github.com/rmgorman/pynliner/commit/f21f7aa44d1077f781a278ccb62f792bc4bec150).
 
 #### M2Crypto issues
 
-Check that M2Crypto installed properly. Open a Python REPL, and then type 
+Check that M2Crypto installed properly. Open a Python REPL, and then type
 `import M2Crypto`. If you receive either of these errors:
 
 ```
@@ -53,10 +63,10 @@ ImportError: /usr/local/lib/python2.7/dist-packages/M2Crypto-0.21.1-py2.7-linux-
 
 Then `sudo pip uninstall M2Crypto`.
 
-...and then pull the source from here:  
+...and then pull the source from here:
 http://chandlerproject.org/Projects/MeTooCrypto
 
-...and follow the instructions for code mods here:  
+...and follow the instructions for code mods here:
 http://code.google.com/p/grr/wiki/M2CryptoFromSource
 
 #### Create limited-privilege user
@@ -70,7 +80,7 @@ sudo useradd -s /bin/false maildecryptor
 ### Get source files
 
 Use Mercurial to get the source files. Also acquire the necessary
-configuration files from your secure document repository. These files are: 
+configuration files from your secure document repository. These files are:
 `conf.json` and the PEM file (the latter can be extracted from psinet).
 
 ## Installing
