@@ -54,7 +54,7 @@ sudo systemctl stop s3decryptor
 sudo systemctl stop mailsender
 sudo systemctl stop statschecker
 sudo systemctl stop autoresponder
-
+sudo systemctl daemon-reload
 sudo systemctl enable s3decryptor
 sudo systemctl enable mailsender
 sudo systemctl enable statschecker
