@@ -35,6 +35,8 @@ apt-key adv --keyserver keyserver.ubuntu.com:80 --recv 9DA31620334BD75D9DCB49F36
 echo "deb [ arch=amd64 ] https://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/4.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-4.0.list
 sudo apt-get update
 sudo apt-get install mongodb-org
+sudo service mongod enable
+sudo service mongod start
 ```
 
 #### Everything else
