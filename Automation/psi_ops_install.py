@@ -614,7 +614,6 @@ def install_legacy_host(host, servers, existing_server_ids, plugins):
 def install_TCS_host(host, servers, existing_server_ids, TCS_psiphond_config_values, ssh_ip_address_whitelist, plugins):
 
     # Limitation: only one server per host currently implemented
-    assert(len(servers) == 1)
 
     install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, ssh_ip_address_whitelist, True)
 
@@ -934,8 +933,7 @@ def install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, ssh_ip
     # - no egress port rules (these are enforced in psiphond)
 
     # Limitation: only one server per host currently implemented
-    assert(len(servers) == 1)
-    server = servers[0]
+    server = [server for server in servers if server.ip_address == host.ip_address][0]
 
     # Default posture for INPUT is reject. Allow connections to management ports
     # on INPUT.
