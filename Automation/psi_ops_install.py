@@ -1109,7 +1109,7 @@ def install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, ssh_ip
 
     # Default posture for OUTPUT is allow, as psiphond enforces port forward destination rules itself.
 
-    filter_output_rules = TCS_iptables_output_rules if TCS_iptables_output_rules else []
+    filter_output_rules = TCS_iptables_output_rules[:] if TCS_iptables_output_rules else []
     filter_output_rules += [
 
         '-A OUTPUT -j ACCEPT'
