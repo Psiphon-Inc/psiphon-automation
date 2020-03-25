@@ -228,7 +228,7 @@ def launch_new_server(vpsnet_account, is_TCS, _, multi_ip=False, datacenter_city
             (VPS 1GB - 1, VPS 2GB - 2, VPS 4GB - 3, VPS 8GB - 4, VPS 16GB - 5)
         '''
 
-        host_id = 'vn-' + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
+        host_id = 'vn-' + get_region_name(region_template).lower() + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
 
         VPSNetHost.name = str(host_id)
         VPSNetHost.ssd_vps_plan = vpsnet_account.base_ssd_plan
