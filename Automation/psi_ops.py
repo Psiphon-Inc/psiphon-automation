@@ -2133,11 +2133,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         # Don't log this, too much noise
                         #campaign.log('marked for build and publish (new embedded server)')
 
+        new_server_error = ''
         for new_server_number in range(len(server_infos)):
             server_info = server_infos[new_server_number]
             if type(server_info) != tuple:
                 continue
             host = Host(*server_info[:-1])
+
+            if not host.region:
+                new_server_error = "Empty host region"
+                continue
 
             # NOTE: jsonpickle will serialize references to discovery_date_range, which can't be
             # resolved when unpickling, if discovery_date_range is used directly.
@@ -2245,6 +2250,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.run_command_on_host(host, 'shutdown -r')
 
             self.save()
+
+        if new_server_error:
+            raise Exception(new_server_error)
 
         # The save() above ensures new server configuration is saved to CMS before deploying new
         # server info to the network
