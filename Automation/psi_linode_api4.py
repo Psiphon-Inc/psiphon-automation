@@ -326,6 +326,7 @@ def launch_new_server(linode_account, is_TCS, plugins, multi_ip=False):
         egress_ip_address = None
 
         linode_rdns_name = linode_ip_details[0].rdns.split('.', 1)[0]
+        host_id = 'li-' + region.lower() + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
 
         if not is_TCS:
             # Lagecy psiphon servers, NOT TESTED
@@ -340,7 +341,7 @@ def launch_new_server(linode_account, is_TCS, plugins, multi_ip=False):
             print(linode.label)
             # Linodes created by an image keep the image's hostname.  Override this
             set_host_name(linode_account, linode_ip_address, root_password,
-                          host_public_key, linode_rdns_name)
+                          host_public_key, host_id)
             stats_username = psi_utils.generate_stats_username()
             set_allowed_users(linode_account, linode_ip_address, root_password,
                               host_public_key, stats_username)

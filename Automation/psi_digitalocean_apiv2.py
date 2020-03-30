@@ -544,9 +544,6 @@ def launch_new_server(digitalocean_account, is_TCS, _, multi_ip=False):
             raise Exception("Base image with ID: %s is not found" % (base_id))
         Droplet.image = base_image.id
 
-        Droplet.name = str('do-' +
-                           ''.join(random.choice(string.ascii_lowercase) for x in range(8)))
-
         # Set the default size
         droplet_sizes = do_mgr.get_all_sizes()
         if not unicode(digitalocean_account.base_size_slug) in [unicode(s.slug) for s in droplet_sizes]:
@@ -559,6 +556,10 @@ def launch_new_server(digitalocean_account, is_TCS, _, multi_ip=False):
                               .intersection(base_image.regions))
 
         Droplet.region = random.choice(common_regions)
+
+        # Use new host_id standard   
+        Droplet.name = str('do-' + get_datacenter_region(Droplet.region).lower() +
+                           ''.join(random.choice(string.ascii_lowercase) for x in range(8)))
 
         sshkeys = do_mgr.get_all_sshkeys()
         # treat sshkey id as unique
