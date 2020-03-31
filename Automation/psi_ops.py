@@ -3717,7 +3717,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if host.passthrough_address is not None and len(host.passthrough_address) > 0:
             masked_capabilities = []
             for capability in extended_config['capabilities']:
-                if psi_ops_deploy.tunnel_protocol_capability_supports_passthrough(capability):
+                if psi_ops_deploy.server_entry_capability_supports_passthrough(capability):
                     capability += '-PASSTHROUGH'
                 masked_capabilities.append(capability)
             extended_config['capabilities'] = masked_capabilities
