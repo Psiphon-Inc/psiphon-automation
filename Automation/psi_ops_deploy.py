@@ -368,6 +368,12 @@ def make_psiphond_config(host, server, own_encoded_server_entries, TCS_psiphond_
     else:
         raise 'Unhandled host.TCS_type: ' + host.TCS_type
 
+    if host.passthrough_address is not None and len(host.passthrough_address) > 0:
+        config['TunnelProtocolPassthroughAddresses'] = {}
+        for protocol, port in config['TunnelProtocolPorts'].iteritems():
+            if tunnel_protocol_supports_passthrough(protocol):
+                config['TunnelProtocolPassthroughAddresses'][protocol] = host.passthrough_address
+
     config['WebServerSecret'] = server.web_server_secret
     config['WebServerCertificate'] = server.web_server_certificate
     config['WebServerPrivateKey'] = server.web_server_private_key
@@ -491,6 +497,18 @@ def get_supported_protocol_ports(host, server, **kwargs):
                 supported_protocol_ports[protocol] = 443 if external_ports else docker_port
 
     return supported_protocol_ports
+
+
+def server_supports_passthrough(server, host):
+    return server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] or (server.capabilities['UNFRONTED-MEEK'] and int(host.meek_server_port) == 443)
+
+
+def server_entry_capability_supports_passthrough(capability):
+    return capability in ['UNFRONTED-MEEK-HTTPS', 'UNFRONTED-MEEK-SESSION-TICKET']
+
+
+def tunnel_protocol_supports_passthrough(protocol):
+    return protocol in ['UNFRONTED-MEEK-HTTPS-OSSH', 'UNFRONTED-MEEK-SESSION-TICKET-OSSH']
 
 
 # hosts_and_servers is a list of tuples: [(host, [server, ...]), ...]

@@ -206,7 +206,9 @@ Host = psi_utils.recordtype(
     'Host',
     'id, is_TCS, TCS_type, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key, ' +
     'stats_ssh_username, stats_ssh_password, ' +
-    'datacenter_name, region, fronting_provider_id, meek_server_port, meek_server_obfuscated_key, meek_server_fronting_domain, ' +
+    'datacenter_name, region, ' +
+    'fronting_provider_id, passthrough_address, ' +
+    'meek_server_port, meek_server_obfuscated_key, meek_server_fronting_domain, ' +
     'meek_server_fronting_host, alternate_meek_server_fronting_hosts, ' +
     'meek_cookie_encryption_public_key, meek_cookie_encryption_private_key, ' +
     'tactics_request_public_key, tactics_request_private_key, tactics_request_obfuscated_key',
@@ -423,10 +425,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         self.__fronting_provider_id_aliases = {}
 
+        self.__passthrough_addresses = []
+
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.59'
+    class_version = '0.60'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -786,6 +790,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.59')) < 0:
             self.__TCS_iptables_output_rules = []
             self.version = '0.59'
+        if cmp(parse_version(self.version), parse_version('0.60')) < 0:
+            for host in self.__hosts.values() + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
+                host.passthrough_address = None
+            self.__passthrough_addresses = []
+            self.version = '0.60'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1498,6 +1507,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     datacenter_name,
                     region,
                     None, # fronting_provider_id
+                    None, # passthrough_address
                     meek_server_port,
                     meek_server_obfuscated_key,
                     meek_server_fronting_domain,
@@ -1567,6 +1577,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.datacenter_name,
                         host.region,
                         host.fronting_provider_id,
+                        host.passthrough_address,
                         host.meek_server_port,
                         host.meek_server_obfuscated_key,
                         host.meek_server_fronting_domain,
@@ -2199,6 +2210,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     capabilities['UNFRONTED-MEEK-SESSION-TICKET'] = True
                     self.setup_meek_parameters_for_host(host, 443)
 
+            supports_passthrough = False
+            for capability in capabilities:
+                if psi_ops_deploy.server_supports_passthrough(server, host):
+                    supports_passthrough = True
+                    break
+            if supports_passthrough and len(self.__passthrough_addresses) > 0 and random.random() >= 0.5:
+                host.passthrough_address = random.choice(self.__passthrough_addresses)
+
             # All and only TCS servers support SSH API requests
             capabilities['ssh-api-requests'] = host.is_TCS
 
@@ -2326,6 +2345,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.datacenter_name,
                         host.region,
                         host.fronting_provider_id,
+                        host.passthrough_address,
                         host.meek_server_port,
                         host.meek_server_obfuscated_key,
                         host.meek_server_fronting_domain,
@@ -3694,6 +3714,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         extended_config['capabilities'] = [capability for capability, enabled in server_capabilities.iteritems() if enabled] if server_capabilities else []
 
+        if host.passthrough_address is not None and len(host.passthrough_address) > 0:
+            masked_capabilities = []
+            for capability in extended_config['capabilities']:
+                if psi_ops_deploy.tunnel_protocol_capability_supports_passthrough(capability):
+                    capability += '-PASSTHROUGH'
+                masked_capabilities.append(capability)
+            extended_config['capabilities'] = masked_capabilities
+
         extended_config['configurationVersion'] = server.configuration_version
 
         encoded_server_entry = binascii.hexlify('%s %s %s %s %s' % (
@@ -3966,6 +3994,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         '',  # Omit: datacenter_name isn't needed
                                         host.region,
                                         host.fronting_provider_id,
+                                        None, # Omit: passthrough_address isn't needed
                                         host.meek_server_port,
                                         host.meek_server_obfuscated_key,
                                         host.meek_server_fronting_domain,
@@ -4211,6 +4240,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.datacenter_name,
                                             host.region,
                                             host.fronting_provider_id,
+                                            host.passthrough_address,
                                             host.meek_server_port,
                                             host.meek_server_obfuscated_key,
                                             host.meek_server_fronting_domain,
@@ -4316,6 +4346,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.datacenter_name,
                                             host.region,
                                             None, # Omit: fronting_provider_id
+                                            None, # Omit: passthrough_address
                                             host.meek_server_port,
                                             '',  # Omit: host.meek_server_obfuscated_key,
                                             '',  # Omit: host.meek_server_fronting_domain,
