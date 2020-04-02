@@ -1,0 +1,51 @@
+#! /bin/sh
+
+### BEGIN INIT INFO
+# Provides:          psiphonv
+# Required-Start:    $network $syslog $remote_fs
+# Required-Stop:     $network $syslog $remote_fs
+# Should-Start:      
+# Should-Stop:       
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Starts the psiphonv web server
+# Description:       The psiphonv web server provides ipsec PSKs to
+#                    clients, and other functionality.
+### END INIT INFO
+
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+DAEMON_ROOT=/opt/PsiphonV/Server
+DAEMON=$DAEMON_ROOT/psi_web.py
+NAME=psiphonv
+DESC="psiphonv web server"
+test -x $DAEMON || exit 0
+
+PIDFILE=/var/run/$NAME.pid
+
+set -e
+
+case "$1" in
+  start)
+	echo -n "Starting $DESC: "
+	start-stop-daemon -S -q -p $PIDFILE -x $DAEMON -d $DAEMON_ROOT -b -m -c www-data
+	echo "$NAME."
+	;;
+  stop)
+	echo -n "Stopping $DESC: "
+	start-stop-daemon -K -q -p $PIDFILE --oknodo
+	echo "$NAME."
+	;;
+  restart)
+	$0 stop
+	sleep 1
+	$0 start
+	;;
+  *)
+	N=/etc/init.d/$NAME
+	echo "Usage: $N {start|stop|restart}" >&2
+	exit 1
+	;;
+esac
+
+exit 0
+

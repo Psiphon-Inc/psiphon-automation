@@ -1,0 +1,51 @@
+#! /bin/sh
+
+### BEGIN INIT INFO
+# Provides:          badvpn-udpgw
+# Required-Start:    $network
+# Required-Stop:     $network
+# Should-Start:      
+# Should-Stop:       
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Starts the badvpn udpgw
+# Description:       The badvpn udpgw tunnels UDP inside of TCP.
+### END INIT INFO
+
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+DAEMON_ROOT=/usr/local/bin
+DAEMON=$DAEMON_ROOT/badvpn-udpgw
+NAME=badvpn-udpgw
+DESC="badvpn-udpgw"
+test -x $DAEMON || exit 0
+
+PIDFILE=/var/run/$NAME.pid
+
+set -e
+
+case "$1" in
+  start)
+	echo -n "Starting $DESC: "
+	ulimit -n 64000
+	start-stop-daemon -S -q -p $PIDFILE -x $DAEMON -d $DAEMON_ROOT -b -m -c sshd -- --listen-addr 127.0.0.1:7300 --max-clients 10000 --max-connections-for-client 32
+	echo "$NAME."
+	;;
+  stop)
+	echo -n "Stopping $DESC: "
+	start-stop-daemon -K -q -p $PIDFILE --oknodo
+	echo "$NAME."
+	;;
+  restart)
+	$0 stop
+	sleep 1
+	$0 start
+	;;
+  *)
+	N=/etc/init.d/$NAME
+	echo "Usage: $N {start|stop|restart}" >&2
+	exit 1
+	;;
+esac
+
+exit 0
+

@@ -1,0 +1,73 @@
+#!/bin/bash
+
+# NOTE: At times we want to ensure that the service is stopped (see psi_ops_deploy.deploy_data)
+if [ ! -f /var/lock/psiphonv.stopped ]; then
+    if ! pgrep psi_web.py > /dev/null; then
+        # Check again in 5 seconds in case it was in the middle of a restart
+        sleep 5
+        if ! pgrep psi_web.py > /dev/null; then
+            /etc/init.d/psiphonv restart
+        fi
+    fi
+fi
+
+process_name_pattern=badvpn-udpgw
+cpu_usage_threshold=20
+file_descriptors_threshold=15000
+if ! pgrep -f $process_name_pattern > /dev/null; then
+    /etc/init.d/badvpn-udpgw restart
+else
+    pid=`pgrep -f $process_name_pattern`
+    if [ -f /proc/${pid}/stat ]; then
+        process_time_1=`cat /proc/${pid}/stat | awk '{time = $14 + $15; print time}'`
+        system_time_1=`cat /proc/uptime | cut -f1 -d " " | sed 's/\.//'`
+        sleep 5
+        process_time_2=`cat /proc/${pid}/stat | awk '{time = $14 + $15; print time}'`
+        system_time_2=`cat /proc/uptime | cut -f1 -d " " | sed 's/\.//'`
+        cpu_usage=$((($process_time_2-$process_time_1)*100/($system_time_2-$system_time_1)))
+        if [ $cpu_usage -ge $cpu_usage_threshold ]; then
+            killall -9 badvpn-udpgw
+            /etc/init.d/badvpn-udpgw restart
+        else
+            if [ -d /proc/${pid}/fd ]; then
+                file_descriptors=`ls /proc/${pid}/fd | wc -l`
+                if [ $file_descriptors -ge $file_descriptors_threshold ]; then
+                    killall -9 badvpn-udpgw
+                    /etc/init.d/badvpn-udpgw restart
+                fi
+            fi
+        fi
+    fi
+fi
+
+if ! pgrep xinetd > /dev/null; then
+    /etc/init.d/xinetd restart
+fi
+
+if ! pgrep redis-server > /dev/null; then
+    /etc/init.d/redis-server restart
+fi
+
+if ! pgrep xl2tpd > /dev/null; then
+    /etc/init.d/xl2tpd restart
+fi
+
+process_name_pattern=ipsec/pluto
+cpu_usage_threshold=90
+if ! pgrep -f $process_name_pattern > /dev/null; then
+    /etc/init.d/ipsec restart
+else
+    pid=`pgrep -f $process_name_pattern`
+    if [ -f /proc/${pid}/stat ]; then    
+        process_time_1=`cat /proc/${pid}/stat | awk '{time = $14 + $15; print time}'`
+        system_time_1=`cat /proc/uptime | cut -f1 -d " " | sed 's/\.//'`
+        sleep 5
+        process_time_2=`cat /proc/${pid}/stat | awk '{time = $14 + $15; print time}'`
+        system_time_2=`cat /proc/uptime | cut -f1 -d " " | sed 's/\.//'`
+        cpu_usage=$((($process_time_2-$process_time_1)*100/($system_time_2-$system_time_1)))
+        if [ $cpu_usage -ge $cpu_usage_threshold ]; then
+            killall -9 pluto
+            /etc/init.d/ipsec restart
+        fi
+    fi
+fi

@@ -1,0 +1,4 @@
+#!/bin/sh
+
+/usr/sbin/wondershaper $1 64 512
+
