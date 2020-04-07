@@ -34,7 +34,11 @@ import random
 import psi_ops_deploy
 
 sys.path.insert(0, os.path.abspath(os.path.join('..', 'Server')))
-import psi_config
+try:
+    # For Legacy servers
+    import psi_config
+except ImportError as error:
+    print "Missing Legacy Server support: " + str(error)
 
 
 #==== Configuration ============================================================
