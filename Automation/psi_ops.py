@@ -4468,18 +4468,32 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def __test_server(self, server, test_cases, version, test_propagation_channel_id, executable_path):
 
-        return psi_ops_test_windows.test_server(
-                                server,
-                                self.__hosts[server.host_id],
-                                self.__get_encoded_server_entry(server),
-                                self.__split_tunnel_url_format(),
-                                self.__split_tunnel_signature_public_key(),
-                                self.__split_tunnel_dns_server(),
-                                version,
-                                [server.egress_ip_address],
-                                test_propagation_channel_id,
-                                test_cases,
-                                executable_path)
+        if sys.platform in ['win32', 'cygwin']:
+            return psi_ops_test_windows.test_server(
+                                    server,
+                                    self.__hosts[server.host_id],
+                                    self.__get_encoded_server_entry(server),
+                                    self.__split_tunnel_url_format(),
+                                    self.__split_tunnel_signature_public_key(),
+                                    self.__split_tunnel_dns_server(),
+                                    version,
+                                    [server.egress_ip_address],
+                                    test_propagation_channel_id,
+                                    test_cases,
+                                    executable_path)
+        else:
+            import psi_ops_test_tunnel_core
+            return psi_ops_test_tunnel_core.test_server(
+                                    server,
+                                    self.__hosts[server.host_id],
+                                    self.__get_encoded_server_entry(server),
+                                    self.__split_tunnel_url_format(),
+                                    self.__split_tunnel_signature_public_key(),
+                                    self.__split_tunnel_dns_server(),
+                                    [server.egress_ip_address],
+                                    test_propagation_channel_id,
+                                    test_cases=test_cases,
+                                    test_sponsor_id='Testing'.encode('hex'))
 
     def __test_servers(self, servers, test_cases, build_with_embedded_servers=False):
         results = {}
