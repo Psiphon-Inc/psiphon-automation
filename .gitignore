@@ -1,0 +1,16 @@
+*.pyc
+
+domain_name_generator.py
+GeoIP.conf
+psi_data_config.py
+test_build.py
+
+Automation/Builds
+Automation/ca.psiphon.PsiphonTunnel.tunnel-core
+Automation/website-out
+Data/GeoData
+
+# CipherShare files
+CipherShare*.exe
+kcce.dll
+

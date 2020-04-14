@@ -33,7 +33,11 @@ from functools import wraps
 from time import sleep
 
 sys.path.insert(0, os.path.abspath(os.path.join('..', 'Server')))
-import psi_config
+try:
+    # For Legacy servers
+    import psi_config
+except ImportError as error:
+    print "Missing Legacy Server support: " + str(error)
 
 
 #==== Legacy Deploy File Locations  ===========================================
