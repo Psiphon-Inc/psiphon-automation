@@ -2210,14 +2210,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     capabilities['UNFRONTED-MEEK-SESSION-TICKET'] = True
                     self.setup_meek_parameters_for_host(host, 443)
 
-            supports_passthrough = False
-            for capability in capabilities:
-                if psi_ops_deploy.server_supports_passthrough(server, host):
-                    supports_passthrough = True
-                    break
-            if supports_passthrough and len(self.__passthrough_addresses) > 0 and random.random() >= 0.5:
-                host.passthrough_address = random.choice(self.__passthrough_addresses)
-
             # All and only TCS servers support SSH API requests
             capabilities['ssh-api-requests'] = host.is_TCS
 
@@ -2263,6 +2255,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             server.osl_ids = list(osl_ids) if osl_ids else None
             server.osl_discovery_date_range = osl_discovery
+
+            supports_passthrough = False
+            for capability in capabilities:
+                if psi_ops_deploy.server_supports_passthrough(server, host):
+                    supports_passthrough = True
+                    break
+            if supports_passthrough and len(self.__passthrough_addresses) > 0 and random.random() >= 0.5:
+                host.passthrough_address = random.choice(self.__passthrough_addresses)
 
             self.setup_server(host, [server])
 
