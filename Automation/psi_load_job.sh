@@ -20,8 +20,6 @@ fi
 
 touch $lockfile
 
-hg pull && hg up
-
 ulimit -n 10000
 
 python ./load.py
