@@ -43,7 +43,7 @@ sudo cp s3decryptor.service.configured /etc/systemd/system/s3decryptor.service
 sudo cp mailsender.service.configured /etc/systemd/system/mailsender.service
 sudo cp statschecker.service.configured /etc/systemd/system/statschecker.service
 sudo cp autoresponder.service.configured /etc/systemd/system/autoresponder.service
-rm *.conf.configured
+rm *.service.configured
 
 sudo chmod 0400 *.pem conf.json
 sudo chown $MAILDECRYPTOR_USER:$MAILDECRYPTOR_USER *.pem conf.json

@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # Update source
-hg pull -u
+git pull
 
 # Update the local copy of psinet
 cd ../../Automation

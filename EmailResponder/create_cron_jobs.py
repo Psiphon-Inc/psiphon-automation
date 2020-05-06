@@ -71,14 +71,9 @@ class CronCreator(object):
         cron.minute.every(5)
 
         # Update source
-        # It's inefficient to do hg incoming followed by hg pull, since there
-        # will be two downloads done. But our release branch doesn't change
-        # enough for this to be a big deal.
-        # More efficient/complex methods here: http://stackoverflow.com/questions/8922787/mercurial-check-whether-last-pull-update-introduced-changes
-        branch = 'default'
-
+        branch = 'master'
         command_id = 'Psiphon: pull and update code'
-        command = "cd /home/ubuntu/psiphon-circumvention-system/EmailResponder && /usr/bin/hg incoming && /usr/bin/hg pull && /usr/bin/hg up %s && /bin/sh install.sh &>/dev/null" % (branch,)
+        command = "cd /home/ubuntu/psiphon-automation/EmailResponder && /bin/sh update_code.sh %s && /bin/sh install.sh &>/dev/null" % (branch,)
 
         self._delete_commands(self.normal_tab, command_id)
 

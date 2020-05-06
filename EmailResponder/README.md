@@ -6,9 +6,9 @@
 
 Our supported domains have MX records configured to point to mail responder server (specifically, the load balancer in front of the server).
 
-On the server, Postfix is configured to use [virtual domains and aliases](http://www.postfix.org/VIRTUAL_README.html#virtual_alias). These aliases all point to a local, limited-privilege `mail_responder` user. 
+On the server, Postfix is configured to use [virtual domains and aliases](http://www.postfix.org/VIRTUAL_README.html#virtual_alias). These aliases all point to a local, limited-privilege `mail_responder` user.
 
-In the home directory for this user, there is a [`.forward` file](https://bitbucket.org/psiphon/psiphon-circumvention-system/src/tip/EmailResponder/forward?at=default) that points to our [`mail_process.py` file](https://bitbucket.org/psiphon/psiphon-circumvention-system/src/tip/EmailResponder/mail_process.py?at=default) using Postfix's [pipe](http://www.postfix.org/pipe.8.html) functionality.
+In the home directory for this user, there is a [`.forward` file](https://github.com/Psiphon-Inc/psiphon-automation/blob/master/EmailResponder/forward) that points to our [`mail_process.py` file](https://github.com/Psiphon-Inc/psiphon-automation/blob/master/EmailResponder/mail_process.py) using Postfix's [pipe](http://www.postfix.org/pipe.8.html) functionality.
 
 So, when a Postfix receives an email, it checks that it's for a valid domain and address, and then passes it off to `mail_process.py`. That code processes the request, generates the proper responses, and sends them.
 
@@ -151,7 +151,7 @@ allowed to access the SSH port.
        support: forwarder@localhost
        ```
 
-   * Reload aliases map: 
+   * Reload aliases map:
 
        ```
        sudo newaliases
@@ -179,7 +179,7 @@ allowed to access the SSH port.
 
 5. When sending mail via our local Postfix we don't want to have to make a TLS
    connection. So we'll run an instance of `stmpd` on `localhost` on a different
-   port and use that for sending. Add these two lines to `master.cf`. NOTE: The 
+   port and use that for sending. Add these two lines to `master.cf`. NOTE: The
    port specified must match the one in `settings.LOCAL_SMTP_SEND_PORT`.
    (I don't think it matters where in the file you add it. I put it before the `pickup` line.)
 
@@ -208,7 +208,7 @@ allowed to access the SSH port.
 6. Add [`postgrey`](http://postgrey.schweikert.ch/) for "[greylisting](http://projects.puremagic.com/greylisting/)":
 
    ```
-   sudo apt-get install postgrey   
+   sudo apt-get install postgrey
    ```
 
    Actually using postgrey is handled in our example `main.cf` config.
@@ -311,7 +311,7 @@ Optional, but if logwatch is not present then the stats processing code will nee
    - Download current version from: http://logreporters.sourceforge.net/
 
    - Extract the archive, enter the new directory, and execute:
-     
+
      ```
      sudo make install-logwatch
      ```
@@ -320,7 +320,7 @@ Optional, but if logwatch is not present then the stats processing code will nee
 ### Amazon AWS services
 
 1. Install boto
-   
+
    ```
    sudo pip install --upgrade boto
    ```
@@ -329,7 +329,7 @@ Optional, but if logwatch is not present then the stats processing code will nee
    interface and has only the necessary privileges. See the appendix for
    permission policies.
 
-3. Put AWS credentials into boto config file. Info here: 
+3. Put AWS credentials into boto config file. Info here:
    <http://code.google.com/p/boto/wiki/BotoConfig>
 
    We've found that using `~/.boto` doesn't work, so create `/etc/boto.cfg` and
@@ -349,13 +349,13 @@ Optional, but if logwatch is not present then the stats processing code will nee
 In the `ubuntu` user home directory, get the Psiphon source:
 
 ```
-hg clone https://bitbucket.org/psiphon/psiphon-circumvention-system
+git clone https://github.com/Psiphon-Inc/psiphon-automation.git
 ```
 
 Go into the email responder source directory:
 
 ```
-cd psiphon-circumvention-system/EmailResponder
+cd psiphon-automation/EmailResponder
 ```
 
 The `settings.py` file must be edited. See the comment at the top of that
@@ -428,15 +428,15 @@ sh install.sh
   sudo service rsyslog restart
   ```
 
-**TODO**: Describe remote logstash setup. 
+**TODO**: Describe remote logstash setup.
 
 
 ## Stats
 
 * Stats will be derived from the contents of `/var/log/mail_responder.log`
 
-* `mail_stats.py` can be executed periodically to email basic statisitics to a 
-  desired email address. The sender and recipient addresses can be found (and 
+* `mail_stats.py` can be executed periodically to email basic statisitics to a
+  desired email address. The sender and recipient addresses can be found (and
   modified) in `settings.py`.
 
   * `mail_stats.py` is run from `psiphon-log-rotate.conf`. This makes sense
@@ -473,9 +473,7 @@ GRANT ALL ON <DB name in settings.py>.* TO '<username in settings.py>'@'localhos
 NOTE: In the past we have occasionally turned off DKIM support. We found that
 it was by far the most time- consuming step in replying to an email, and of
 questionable value. To disable, change [this
-function](https://bitbucket.org/psiphon/psiphon-circumvention-system/src/7baa67
-1232d8164de8e7a8f0beb4ff7e38e9530c/EmailResponder/mail_process.py?at=default#cl
--311) to just `return raw_email`.
+function](https://github.com/Psiphon-Inc/psiphon-automation/blob/0bd64e4801f4ae85a237f4c5ea356744248d657e/EmailResponder/mail_process.py#L436) to just `return raw_email`.
 
 For information about DKIM (DomainKeys Identified Mail) see dkim.org, RFC-4871,
 and do some googling.
@@ -504,8 +502,8 @@ Add this DNS TXT record on the domain you will be sending from:
 
 ## Email Responder Configuration
 
-The configuration file contains the addresses that the responder will respond 
-to, and the message bodies that will sent back to those addresses. The 
+The configuration file contains the addresses that the responder will respond
+to, and the message bodies that will sent back to those addresses. The
 configuration file is stored in a S3 bucket so that all instances of the
 mail responder can access it. This bucket and key are specific in `settings.py`.
 
@@ -614,7 +612,7 @@ Things to notice about the format:
     association (since we don't want anyone accidentally double-clicking and
     trying to open it before renaming it).
 
-* Once upon a time, Amazon SES had a whitelist of attachment types that it 
+* Once upon a time, Amazon SES had a whitelist of attachment types that it
     would send, which did not include executables (even renamed ones). So our
     responder is configured up to use SES for email without attachments, and
     SMTP for email with attachments. It appears that SES's policy may have
@@ -677,7 +675,7 @@ smtp_tls_CAfile=/etc/ssl/certs/ca-certificates.crt
 
 # These two can be set to 'may' to use encryption oppotunistically, but not require it.
 # Note that this level of security will mean that connections to and from some
-# mail servers will fail. It works with all of the major webmail providers, 
+# mail servers will fail. It works with all of the major webmail providers,
 # though. It's probably best to not reply at all than to reply unencrypted to
 # a sketchy mail provider that might be in-country.
 smtpd_tls_security_level=encrypt
@@ -703,7 +701,7 @@ smtp_tls_mandatory_ciphers = $smtpd_tls_mandatory_ciphers
 smtpd_tls_ciphers = $smtpd_tls_mandatory_ciphers
 smtp_tls_ciphers = $smtp_tls_mandatory_ciphers
 
-# Use a custom 2048-bit DH group (anti-Logjam-ish). 
+# Use a custom 2048-bit DH group (anti-Logjam-ish).
 # The params file should be generated with:
 # mkdir -p /etc/ssl/private
 # chmod 710 /etc/ssl/private
@@ -872,7 +870,7 @@ virtual_alias_maps = hash:/home/mail_responder/postfix_address_maps
 
 #### Additional CloudWatch metrics
 
-Created by `mon-put-instance-data.pl`. Run as a cron job installed by 
+Created by `mon-put-instance-data.pl`. Run as a cron job installed by
 `create_cron_jobs.py`.
 
 
@@ -962,8 +960,8 @@ conn.get_all_activities(ag)  # should spit out info about instances spinning up
 
 # Create the scaling policies
 
-# Cooldown is the wait time after taking a scaling action before allowing 
-# another scaling action. We'll make it long enough to properly observe the 
+# Cooldown is the wait time after taking a scaling action before allowing
+# another scaling action. We'll make it long enough to properly observe the
 # change resulting from the scaling action.
 
 # Because we sometimes have major sudden traffic spikes, we're going to scale
@@ -1018,7 +1016,7 @@ cloudwatch.create_alarm(scale_down_alarm)
 
 # Disk usage
 
-disk_alarm_dimensions = dict(alarm_dimensions, 
+disk_alarm_dimensions = dict(alarm_dimensions,
                              **{'Filesystem': '/dev/xvda1', 'MountPath': '/'})
 
 scale_up_alarm = MetricAlarm(
@@ -1081,7 +1079,7 @@ cloudwatch.create_alarm(scale_down_alarm)
 
 #
 # Destroying the setup
-# 
+#
 
 ag.shutdown_instances()
 # Then wait for instances to shut down
