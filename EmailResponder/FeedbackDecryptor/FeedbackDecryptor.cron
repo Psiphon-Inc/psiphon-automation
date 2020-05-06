@@ -20,4 +20,4 @@
 
 SHELL=/bin/sh
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-0 * * * *   ubuntu    cd /opt/psiphon/psiphon-circumvention-system/EmailResponder/FeedbackDecryptor && /bin/bash cronjob.sh
+0 * * * *   ubuntu    cd /opt/psiphon/psiphon-automation/EmailResponder/FeedbackDecryptor && /bin/bash cronjob.sh
