@@ -133,7 +133,7 @@ PSIPHON_CIRCUMVENTION_SYSTEM_RESOURCES = \
      'email-template-strings', 'feedback-template-strings',
      'android-library-strings', 'feedback-auto-responses', 'website-strings',
      'store-assets', 'windows-client-strings']
-PSIPHON_CIRCUMVENTION_SYSTEM_DIR = 'psiphon-circumvention-system'
+PSIPHON_CIRCUMVENTION_SYSTEM_DIR = 'psiphon-automation'
 
 
 def process_android_app_strings():
