@@ -2171,7 +2171,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 # Discovery servers will either be OSSH-only or UNFRONTED-MEEK-only
                 capabilities['handshake'] = False
                 capabilities['VPN'] = False
-                capabilities['SSH'] = True
+                if random.random() < 0.5:
+                    capabilities['SSH'] = False
                 if random.random() < 0.5:
                     capabilities['OSSH'] = False
                     capabilities['UNFRONTED-MEEK'] = True
