@@ -2261,7 +2261,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 if psi_ops_deploy.server_supports_passthrough(server, host):
                     supports_passthrough = True
                     break
-            if supports_passthrough and len(self.__passthrough_addresses) > 0 and random.random() >= 0.8:
+            if supports_passthrough and len(self.__passthrough_addresses) > 0 and random.random() >= 0.5:
                 host.passthrough_address = random.choice(self.__passthrough_addresses)
 
             self.setup_server(host, [server])
