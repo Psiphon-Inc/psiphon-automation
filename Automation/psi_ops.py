@@ -2548,6 +2548,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             orphans = self.list_orphans(provider)
             sys.stderr.write(provider + ' orphans:\n' + str(orphans) + '\n\n')
 
+    def delete_orphans(self, provider, hosts_provider_id_list):
+        provider_controller = globals()["psi_()".format(provider)]
+        provider_account = vars(self)["_PsiphonNetwork__()_account".format(provider)]
+
+        for host_provider_id in hosts_provider_id_list:
+            # TODO: safety check to avoid delete production servers
+            provider_controller.remove_server(provider_account, host_provider_id) # method delete server through API
+
+
     def __copy_date_range(self, date_range):
         return (datetime.datetime(date_range[0].year,
                                   date_range[0].month,
