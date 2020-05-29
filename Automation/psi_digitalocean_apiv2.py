@@ -347,6 +347,14 @@ def get_servers(digitalocean_account):
 
     return [(str(droplet.id), droplet.name) for droplet in droplets if droplet.tags == []]
 
+def get_server(digitalocean_account, droplet_id):
+    try:
+        do_mgr = digitalocean.Manager(token=digitalocean_account.oauth_token)
+        droplet = do_mgr.get_droplet(droplet_id)
+        return droplet
+    except Exception as e:
+        raise e
+
 def remove_server(digitalocean_account, droplet_id):
     """
         Destroys a digitalocean droplet.
