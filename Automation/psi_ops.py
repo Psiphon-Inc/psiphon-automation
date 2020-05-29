@@ -2549,12 +2549,35 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             sys.stderr.write(provider + ' orphans:\n' + str(orphans) + '\n\n')
 
     def delete_orphans(self, provider, hosts_provider_id_list):
-        provider_controller = globals()["psi_()".format(provider)]
-        provider_account = vars(self)["_PsiphonNetwork__()_account".format(provider)]
+        provider_controller = globals()["psi_{}".format(provider)]
+        provider_account = vars(self)["_PsiphonNetwork__{}_account".format(provider)]
 
-        for host_provider_id in hosts_provider_id_list:
+        for host_provider_id, host_name in hosts_provider_id_list:
             # TODO: safety check to avoid delete production servers
-            provider_controller.remove_server(provider_account, host_provider_id) # method delete server through API
+            orphan = provider_controller.get_server(provider_account, host_provider_id)
+            print textwrap.dedent('''
+                  Provider ID:             %s
+                  Host Name/Labe:          %s
+                  Status:                  %s
+                  Created At:              %s
+                  IP Address:              %s
+                  Region:                  %s
+                  Tags:                    %s
+                  ''') % (
+                                str(orphan.id),
+                                orphan.name if provider=='digitalocean' else orphan.label,
+                                orphan.status,
+                                orphan.created_at if provider=='digitalocean' else orphan.created.strftime('%Y-%m-%dT%H:%M:%S'),
+                                orphan.networks['v4'][0]['ip_address'] if provider=='digitalocean' else orphan.ipv4[0],
+                                orphan.region['slug'] if provider=='digitalocean' else orphan.region.id,
+                                str(orphan.tags)
+                                  )
+            user_response = raw_input("Do you want to delete this orphan host? ")
+            if user_response in ['yes', 'y', 'Y', 'Yes']:
+                print('Deleting the host: {}'.format(host_name))
+                provider_controller.remove_server(provider_account, host_provider_id) # method delete server through API
+            else:
+                print("Do Nothing")
 
 
     def __copy_date_range(self, date_range):
