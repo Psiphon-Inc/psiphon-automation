@@ -2565,12 +2565,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                   Tags:                    %s
                   ''') % (
                                 str(orphan.id),
-                                orphan.name if provider=='digitalocean' else orphan.label,
-                                orphan.status,
-                                orphan.created_at if provider=='digitalocean' else orphan.created.strftime('%Y-%m-%dT%H:%M:%S'),
-                                orphan.networks['v4'][0]['ip_address'] if provider=='digitalocean' else orphan.ipv4[0],
-                                orphan.region['slug'] if provider=='digitalocean' else orphan.region.id,
-                                str(orphan.tags)
+                                orphan.name if provider=='digitalocean' or provider=='vpsnet' else orphan.label,
+                                orphan.state if provider=='vpsnet' else orphan.status,
+                                orphan.created_at if provider=='digitalocean' else orphan.public_ips[0]['ip_address']['created_at'] if provider=='vpsnet' else orphan.created.strftime('%Y-%m-%dT%H:%M:%S'),
+                                orphan.networks['v4'][0]['ip_address'] if provider=='digitalocean' else orphan.public_ips[0]['ip_address']['ip_address'] if provider=='vpsnet' else orphan.ipv4[0],
+                                orphan.region['slug'] if provider=='digitalocean' else orphan.region.id if provider=='linode' else 'No Region infomation',
+                                str(orphan.tags) if provider!='vpsnet' else 'VPS.net node has no tags'
                                   )
             user_response = raw_input("Do you want to delete this orphan host? ")
             if user_response in ['yes', 'y', 'Y', 'Yes']:
