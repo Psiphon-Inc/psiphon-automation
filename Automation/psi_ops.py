@@ -2549,6 +2549,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             sys.stderr.write(provider + ' orphans:\n' + str(orphans) + '\n\n')
 
     def delete_orphans(self, provider, hosts_provider_id_list):
+        pending_deletion = []
         provider_controller = globals()["psi_{}".format(provider)]
         provider_account = vars(self)["_PsiphonNetwork__{}_account".format(provider)]
 
@@ -2574,10 +2575,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                   )
             user_response = raw_input("Do you want to delete this orphan host? ")
             if user_response in ['yes', 'y', 'Y', 'Yes']:
-                print('Deleting the host: {}'.format(host_name))
-                provider_controller.remove_server(provider_account, host_provider_id) # method delete server through API
+                print('Adding host to deletion list - the host: {}'.format(host_name))
+                pending_deletion.append(orphan.id)
+                #provider_controller.remove_server(provider_account, host_provider_id) # method delete server through API
             else:
                 print("Do Nothing")
+
+        user_confirm = raw_input('Start deleting following orphan hosts: \n{}\nDo you want to procee? '.format(pending_deletion))
+        if user_confirm in ['yes', 'y', 'Y', 'Yes']:
+            for i in pending_deletion:
+                print("Deleting: {}".format(i))
+                proddvider_controller.remove_server(provider_account, i) # method delete server through API
+        else:
+            print("Abort the delete orphans job.")
 
 
     def __copy_date_range(self, date_range):
