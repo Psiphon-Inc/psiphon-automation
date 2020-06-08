@@ -2581,11 +2581,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             else:
                 print("Do Nothing")
 
-        user_confirm = raw_input('Start deleting following orphan hosts: \n{}\nDo you want to procee? '.format(pending_deletion))
+        user_confirm = raw_input('Start deleting following orphan hosts: \n{}\nDo you want to process? '.format(pending_deletion))
         if user_confirm in ['yes', 'y', 'Y', 'Yes']:
             for i in pending_deletion:
                 print("Deleting: {}".format(i))
-                proddvider_controller.remove_server(provider_account, i) # method delete server through API
+                provider_controller.remove_server(provider_account, i) # method delete server through API
         else:
             print("Abort the delete orphans job.")
 
