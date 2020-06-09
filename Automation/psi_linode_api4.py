@@ -282,6 +282,11 @@ def get_servers(linode_account):
     linodes = linode_api.list_linodes()
     return [(str(li.id), li.label) for li in linodes if not li.tags]
 
+def get_server(linode_account, linode_id):
+    linode_api = PsiLinode(linode_account)
+    linode =linode_api.linode_list(linode_id)
+    return linode
+
 def remove_server(linode_account, linode_id):
     linode_api = PsiLinode(linode_account)
     try:

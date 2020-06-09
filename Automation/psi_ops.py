@@ -2549,6 +2549,48 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             orphans = self.list_orphans(provider)
             sys.stderr.write(provider + ' orphans:\n' + str(orphans) + '\n\n')
 
+    def delete_orphans(self, provider, hosts_provider_id_list):
+        pending_deletion = []
+        provider_controller = globals()["psi_{}".format(provider)]
+        provider_account = vars(self)["_PsiphonNetwork__{}_account".format(provider)]
+
+        for host_provider_id, host_name in hosts_provider_id_list:
+            # TODO: safety check to avoid delete production servers
+            orphan = provider_controller.get_server(provider_account, host_provider_id)
+            print textwrap.dedent('''
+                  Provider ID:             %s
+                  Host Name/Labe:          %s
+                  Status:                  %s
+                  Created At:              %s
+                  IP Address:              %s
+                  Region:                  %s
+                  Tags:                    %s
+                  ''') % (
+                                str(orphan.id),
+                                orphan.name if provider=='digitalocean' or provider=='vpsnet' else orphan.label,
+                                orphan.state if provider=='vpsnet' else orphan.status,
+                                orphan.created_at if provider=='digitalocean' else orphan.public_ips[0]['ip_address']['created_at'] if provider=='vpsnet' else orphan.created.strftime('%Y-%m-%dT%H:%M:%S'),
+                                orphan.networks['v4'][0]['ip_address'] if provider=='digitalocean' else orphan.public_ips[0]['ip_address']['ip_address'] if provider=='vpsnet' else orphan.ipv4[0],
+                                orphan.region['slug'] if provider=='digitalocean' else orphan.region.id if provider=='linode' else 'No Region infomation',
+                                str(orphan.tags) if provider!='vpsnet' else 'VPS.net node has no tags'
+                                  )
+            user_response = raw_input("Do you want to delete this orphan host? ")
+            if user_response in ['yes', 'y', 'Y', 'Yes']:
+                print('Adding host to deletion list - the host: {}'.format(host_name))
+                pending_deletion.append(orphan.id)
+                #provider_controller.remove_server(provider_account, host_provider_id) # method delete server through API
+            else:
+                print("Do Nothing")
+
+        user_confirm = raw_input('Start deleting following orphan hosts: \n{}\nDo you want to process? '.format(pending_deletion))
+        if user_confirm in ['yes', 'y', 'Y', 'Yes']:
+            for i in pending_deletion:
+                print("Deleting: {}".format(i))
+                provider_controller.remove_server(provider_account, i) # method delete server through API
+        else:
+            print("Abort the delete orphans job.")
+
+
     def __copy_date_range(self, date_range):
         return (datetime.datetime(date_range[0].year,
                                   date_range[0].month,
