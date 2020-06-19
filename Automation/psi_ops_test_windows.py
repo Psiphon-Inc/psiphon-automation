@@ -213,6 +213,7 @@ class TunnelCoreRunner:
             "ConnectionWorkerPoolSize" : 1,
             "PortForwardFailureThreshold" : 5,
             "EmitDiagnosticNotices": True,
+            "DisableReplay": True,
             "SplitTunnelRoutesUrlFormat" : self.split_tunnel_url_format,
             "SplitTunnelRoutesSignaturePublicKey" : self.split_tunnel_signature_public_key,
             "SplitTunnelDnsServer" : self.split_tunnel_dns_server
