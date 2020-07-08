@@ -97,6 +97,7 @@ def write_embedded_values(propagation_channel_id,
                           remote_server_list_url_split,
                           remote_server_list_urls_json,
                           OSL_root_urls_json,
+                          server_entry_signature_public_key,
                           feedback_encryption_public_key,
                           feedback_upload_server,
                           feedback_upload_path,
@@ -136,6 +137,7 @@ def write_embedded_values(propagation_channel_id,
         static const char* REMOTE_SERVER_LIST_REQUEST_PATH = "%s";
         static const char* REMOTE_SERVER_LIST_URLS_JSON = "%s";
         static const char* OBFUSCATED_SERVER_LIST_ROOT_URLS_JSON = "%s";
+        static const char* SERVER_ENTRY_SIGNATURE_PUBLIC_KEY = "%s";
 
         // These values are used when uploading diagnostic info
         static const char* FEEDBACK_ENCRYPTION_PUBLIC_KEY = "%s";
@@ -175,6 +177,7 @@ def write_embedded_values(propagation_channel_id,
                                ),
                                remote_server_list_urls_json,
                                OSL_root_urls_json,
+                               server_entry_signature_public_key,
                                feedback_encryption_public_key,
                                feedback_upload_server,
                                feedback_upload_path,
@@ -250,6 +253,7 @@ def build_client(
             remote_server_list_url_split,
             remote_server_list_urls_json,
             OSL_root_urls_json,
+            server_entry_signature_public_key,
             feedback_encryption_public_key,
             feedback_upload_server,
             feedback_upload_path,
