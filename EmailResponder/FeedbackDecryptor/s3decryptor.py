@@ -127,6 +127,9 @@ def go():
                 continue
 
             # Modifies diagnostic_info
+            utils.redact_sensitive_values(diagnostic_info)
+
+            # Modifies diagnostic_info
             datatransformer.transform(diagnostic_info)
 
             # Store the diagnostic info
