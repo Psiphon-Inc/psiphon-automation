@@ -266,7 +266,7 @@ def redact_sensitive_values(obj):
         except KeyError:
             return
 
-        if isinstance(client_version, str):
+        if isinstance(client_version, string_types):
             try:
                 client_version = int(client_version)
             except ValueError:
