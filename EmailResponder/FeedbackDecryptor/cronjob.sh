@@ -21,7 +21,7 @@ git pull
 
 # Update the local copy of psinet
 cd ../../Automation
-python ./psi_update_stats_dat.py
+python2 psi_update_stats_dat.py
 cd -
 
 # Restart services to use the new code and psinet
