@@ -48,7 +48,7 @@ rm *.service.configured
 sudo chmod 0400 *.pem conf.json
 sudo chown $MAILDECRYPTOR_USER:$MAILDECRYPTOR_USER *.pem conf.json
 
-sudo cp FeedbackDecryptor.cron /etc/cron.d
+sudo cp FeedbackDecryptorCron /etc/cron.d
 
 sudo systemctl stop s3decryptor
 sudo systemctl stop mailsender
