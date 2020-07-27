@@ -25,14 +25,19 @@ if [ ! -f ./s3decryptor.service ]; then
   exit 1
 fi
 
+if [ "$(whoami)" != "ubuntu" ]; then
+  echo "This script must be run as the 'ubuntu' user."
+  exit 1
+fi
+
 cut -d: -f1 /etc/passwd | grep $MAILDECRYPTOR_USER > /dev/null
 if [ "$?" -ne "0" ]; then
-    echo "You must already have created the user $MAILDECRYPTOR_USER, otherwise this script will fail. See the README for details."
-    exit 1
+  echo "You must already have created the user $MAILDECRYPTOR_USER, otherwise this script will fail. See the README for details."
+  exit 1
 fi
 
 # Create the diagnostic data SQL DB.
-mysql -u root --socket=/var/run/mysqld/mysqld.sock < sql_diagnostic_feedback_schema.sql
+sudo mysql -u root --socket=/var/run/mysqld/mysqld.sock < sql_diagnostic_feedback_schema.sql
 
 sed "s|fill-in-with-path-to-source|\"`pwd`\"|" s3decryptor.service > s3decryptor.service.configured
 sed "s|fill-in-with-path-to-source|\"`pwd`\"|" mailsender.service > mailsender.service.configured
@@ -47,6 +52,8 @@ rm *.service.configured
 
 sudo chmod 0400 *.pem conf.json
 sudo chown $MAILDECRYPTOR_USER:$MAILDECRYPTOR_USER *.pem conf.json
+
+chmod 400 ../../Automation/psi_ops_stats_credentials.py
 
 sudo cp FeedbackDecryptorCron /etc/cron.d
 
