@@ -291,8 +291,10 @@ def remove_server(linode_account, linode_id):
     linode_api = PsiLinode(linode_account)
     try:
         linode_api.remove_linode(int(linode_id))
-    except Exception as ex:
-        raise ex
+    except linode_api4.ApiError as ex:
+        # 'Not found' means this server has already been removed
+        if 'Not found' not in ex.errors:
+            raise ex
 
 def launch_new_server(linode_account, is_TCS, plugins, multi_ip=False):
 
