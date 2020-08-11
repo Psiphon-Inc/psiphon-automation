@@ -19,6 +19,7 @@ import sys
 import types
 import re
 import urllib
+import json
 
 import logger
 import psi_ops_helpers
@@ -243,6 +244,203 @@ def is_diagnostic_info_sane_test():
     print 'is_diagnostic_info_sane test okay'
 
 is_diagnostic_info_sane.test = is_diagnostic_info_sane_test
+
+
+def redact_sensitive_values(obj):
+    '''
+    Redacts sensitive values in the YAML. Modifies the YAML directly.
+    '''
+
+    if isinstance(obj, string_types) or not isinstance(obj, types.DictType):
+        return
+
+    try:
+        platform = obj["Metadata"]["platform"]
+        sys_info = obj["DiagnosticInfo"]["SystemInformation"]
+    except KeyError:
+        return
+
+    if platform == "ios-vpn":
+        try:
+            client_version = sys_info["PsiphonInfo"]["CLIENT_VERSION"]
+        except KeyError:
+            return
+
+        if isinstance(client_version, string_types):
+            try:
+                client_version = int(client_version)
+            except ValueError:
+                return
+
+        if client_version >= 160:
+            
+            _ios_vpn_redact_start_tunnel_with_options(obj)
+
+
+def redact_sensitive_values_test():
+
+    # Test where a sensitive value is redacted
+
+    diagnostic_info_gen = lambda x, y, z: {
+        "Metadata": {
+            "platform": y
+        },
+        "DiagnosticInfo": {
+            "SystemInformation": {
+                "PsiphonInfo": {
+                    "CLIENT_VERSION": z
+                },
+            },
+            "DiagnosticHistory": [
+                {
+                    "data": {
+                        "msg": x,
+                    },
+                    "msg": x,
+                    "timestamp": "",
+                }
+            ],
+        },
+    }
+
+    log = 'ExtensionInfo: {"PacketTunnelProvider":{"Event":"Start","StartMethod":"Container","ExpectFieldToBeRedacted":{"ExpectFieldToBeRedacted":"ExpectValueToBeRedacted"}}}'
+
+    obj = diagnostic_info_gen(log, "ios-vpn", 171)
+    redact_sensitive_values(obj)
+
+    # The order of fields in the JSON string may change due to reserialization # during redaction.
+    expectedOutputOrdering1 = diagnostic_info_gen('ExtensionInfo: {"PacketTunnelProvider": {"Event": "Start", "StartMethod": "Container"}}', "ios-vpn", 171)
+    expectedOutputOrdering2 = diagnostic_info_gen('ExtensionInfo: {"PacketTunnelProvider": {"StartMethod": "Container", "Event": "Start"}}', "ios-vpn", 171)
+
+    assert(obj == expectedOutputOrdering1 or
+           obj == expectedOutputOrdering2)
+    
+    # Test where no redaction attempts are made based on the client version
+
+    obj = diagnostic_info_gen(log, "ios-vpn", 1)
+    obj_copy = diagnostic_info_gen(log, "ios-vpn", 1)
+    redact_sensitive_values(obj)
+    assert(obj == obj_copy)
+
+    # Test where no redaction attempts are made based on the client platform
+
+    obj = diagnostic_info_gen(log, "android", 171)
+    obj_copy = diagnostic_info_gen(log, "android", 171)
+    redact_sensitive_values(obj)
+    assert(obj == obj_copy)
+
+    print 'redact_sensitive_values_test okay'
+
+redact_sensitive_values.test = redact_sensitive_values_test
+
+
+def _ios_vpn_redact_start_tunnel_with_options(obj):
+
+    '''
+    Redact target fields from startTunnelWithOptions log.
+    See `_redact_sensitive_values_test()` for examples.
+    '''
+    
+    for path, val in objwalk(obj):
+       
+        if isinstance(val, string_types):
+
+            extensionInfoPrefix = "ExtensionInfo: "
+
+            if val.find(extensionInfoPrefix) == 0:
+
+                try:
+                    j = json.loads(val[len(extensionInfoPrefix):])
+                except ValueError:
+                    continue
+
+                try:
+                    event = j["PacketTunnelProvider"]["Event"]
+
+                    if event == "Start":
+
+                        redacted = _redact_start_tunnel_with_options(j["PacketTunnelProvider"])
+
+                        if not _validate_start_tunnel_with_options(redacted):
+                            # Invalid log, redact for safe measure.
+                            assign_value_to_obj_at_path(obj, path, "[REDACTED]")
+
+                        else:
+                            redacted_val = extensionInfoPrefix + json.dumps({"PacketTunnelProvider":redacted})
+                            assign_value_to_obj_at_path(obj, path, redacted_val)
+                        
+                except KeyError:
+                    continue
+
+
+def _redact_start_tunnel_with_options(obj):
+    '''
+    Returns redacted dictionary which only contains non-sensitive fields.
+    '''
+
+    if not isinstance(obj, types.DictType):
+        return None
+
+    redacted = {}
+    target_fields = ["Event", "StartMethod"]
+    for field in target_fields:
+        try:
+            redacted[field] = obj[field]
+        except KeyError:
+            pass
+
+    return redacted
+
+
+def _redact_start_tunnel_with_options_test():
+
+    assert(_redact_start_tunnel_with_options({'Event':'a'}) 
+           == {'Event':'a'})
+    assert(_redact_start_tunnel_with_options({'StartMethod':'b'})
+           == {'StartMethod':'b'})
+    assert(_redact_start_tunnel_with_options({'Event':'a', 'StartMethod':'b'}) 
+           == {'Event':'a', 'StartMethod':'b'})
+    assert(_redact_start_tunnel_with_options({'Event':'a',
+                                              'StartMethod':'b', 'ExpectFieldToBeRedacted':'c'}) 
+           == {'Event':'a', 'StartMethod':'b'})
+
+    print '_redact_start_tunnel_with_options_test okay'
+
+_redact_start_tunnel_with_options.test = _redact_start_tunnel_with_options_test
+
+
+def _validate_start_tunnel_with_options(obj):
+    '''
+    Validate each key-value pair in the dictionary.
+    '''
+
+    if set(obj.keys()) != set(['Event', 'StartMethod']):
+        return False
+
+    exemplar = {
+        'Event': lambda val: val == "Start",
+        'StartMethod': lambda val: val in ['Container', 'Boot', 'Crash', 'Other']
+    }
+
+    return _check_exemplar(obj, exemplar)
+
+
+def _validate_start_tunnel_with_options_test():
+    
+    assert(_validate_start_tunnel_with_options({'a':'b'}) == False)
+    assert(_validate_start_tunnel_with_options({'Event':'Start'}) == False)
+    assert(_validate_start_tunnel_with_options({'StartMethod':'Container'}) == False)
+    assert(_validate_start_tunnel_with_options({'Event':'Stop', 'StartMethod':'Container'}) == False)
+    assert(_validate_start_tunnel_with_options({'Event':'Start', 'StartMethod':'a'}) == False)
+    assert(_validate_start_tunnel_with_options({'Event':'Start', 'StartMethod':'Container'}) == True)
+    assert(_validate_start_tunnel_with_options({'Event':'Start', 'StartMethod':'Boot'}) == True)
+    assert(_validate_start_tunnel_with_options({'Event':'Start', 'StartMethod':'Crash'}) == True)
+    assert(_validate_start_tunnel_with_options({'Event':'Start', 'StartMethod':'Other'}) == True)
+    assert(_validate_start_tunnel_with_options({'Event':'Start', 'StartMethod':'Container', 'UnexpectedField':'UnexpectedValue'}) == False)
+
+    print '_validate_start_tunnel_with_test okay'
+
+_validate_start_tunnel_with_options.test = _validate_start_tunnel_with_options_test
 
 
 def _check_exemplar(check, exemplar):

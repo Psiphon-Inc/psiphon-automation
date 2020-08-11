@@ -99,6 +99,8 @@ def go():
     for encrypted_info_json in _bucket_iterator(bucket):
         logger.debug_log('s3decryptor.go: processing item')
 
+        diagnostic_info = None
+
         # In theory, all bucket items should be usable by us, but there's
         # always the possibility that a user (or attacker) is messing with us.
         try:
@@ -125,6 +127,9 @@ def go():
             if not utils.is_diagnostic_info_sane(diagnostic_info):
                 # Something is wrong. Skip and continue.
                 continue
+
+            # Modifies diagnostic_info
+            utils.redact_sensitive_values(diagnostic_info)
 
             # Modifies diagnostic_info
             datatransformer.transform(diagnostic_info)
