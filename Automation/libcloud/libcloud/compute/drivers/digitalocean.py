@@ -27,6 +27,7 @@ from libcloud.common.types import InvalidCredsError
 from libcloud.compute.types import Provider, NodeState
 from libcloud.compute.base import NodeImage, NodeSize, NodeLocation, KeyPair
 from libcloud.compute.base import Node, NodeDriver
+from libcloud.compute.base import StorageVolume
 
 __all__ = [
     'DigitalOceanNodeDriver',
@@ -352,6 +353,10 @@ class DigitalOcean_v2_NodeDriver(DigitalOcean_v2_BaseDriver,
         data = self._paginated_request('/v2/sizes', 'sizes')
         return list(map(self._to_size, data))
 
+    def list_volumes(self):
+        data = self._paginated_request('/v2/volumes', 'volumes')
+        return list(map(self._to_volume, data))
+
     def create_node(self, name, size, image, location, ex_create_attr=None,
                     ex_ssh_key_ids=None, ex_user_data=None):
         """
@@ -531,6 +536,98 @@ class DigitalOcean_v2_NodeDriver(DigitalOcean_v2_BaseDriver,
                                        qkey.extra['id']).object['ssh_key']
         return self._to_key_pair(data=data)
 
+    def create_volume(self, size, name, location=None, snapshot=None):
+        """
+        Create a new volume.
+
+        :param size: Size of volume in gigabytes (required)
+        :type size: ``int``
+
+        :param name: Name of the volume to be created
+        :type name: ``str``
+
+        :param location: Which data center to create a volume in. If
+                               empty, undefined behavior will be selected.
+                               (optional)
+        :type location: :class:`.NodeLocation`
+
+        :param snapshot:  Snapshot from which to create the new
+                          volume.  (optional)
+        :type snapshot: :class:`.VolumeSnapshot`
+
+        :return: The newly created volume.
+        :rtype: :class:`StorageVolume`
+        """
+        attr = {'name': name, 'size_gigabytes': size, 'region': location.id}
+
+        res = self.connection.request('/v2/volumes', data=json.dumps(attr),
+                                      method='POST')
+        data = res.object['volume']
+        status = res.object.get('status', 'OK')
+        if status == 'ERROR':
+            message = res.object.get('message', None)
+            error_message = res.object.get('error_message', message)
+            raise ValueError('Failed to create volume: %s' % (error_message))
+
+        return self._to_volume(data=data)
+
+    def destroy_volume(self, volume):
+        """
+        Destroys a storage volume.
+
+        :param volume: Volume to be destroyed
+        :type volume: :class:`StorageVolume`
+
+        :rtype: ``bool``
+        """
+        res = self.connection.request('/v2/volumes/%s' % volume.id,
+                                      method='DELETE')
+        return res.status == httplib.NO_CONTENT
+
+    def attach_volume(self, node, volume, device=None):
+        """
+        Attaches volume to node.
+
+        :param node: Node to attach volume to.
+        :type node: :class:`.Node`
+
+        :param volume: Volume to attach.
+        :type volume: :class:`.StorageVolume`
+
+        :param device: Where the device is exposed, e.g. '/dev/sdb'
+        :type device: ``str``
+
+        :rytpe: ``bool``
+        """
+        attr = {'type': 'attach', 'droplet_id': node.id,
+                'volume_id': volume.id, 'region': volume.extra['region_slug']}
+
+        res = self.connection.request('/v2/volumes/actions',
+                                      data=json.dumps(attr), method='POST')
+
+        return res.status == httplib.ACCEPTED
+
+    def detach_volume(self, volume):
+        """
+        Detaches a volume from a node.
+
+        :param volume: Volume to be detached
+        :type volume: :class:`.StorageVolume`
+
+        :rtype: ``bool``
+        """
+        attr = {'type': 'detach', 'volume_id': volume.id,
+                'region': volume.extra['region_slug']}
+
+        responses = []
+        for droplet_id in volume.extra['droplet_ids']:
+            attr['droplet_id'] = droplet_id
+            res = self.connection.request('/v2/volumes/actions',
+                                          data=json.dumps(attr), method='POST')
+            responses.append(res)
+
+        return all([r.status == httplib.ACCEPTED for r in responses])
+
     def _to_node(self, data):
         extra_keys = ['memory', 'vcpus', 'disk', 'region', 'image',
                       'size_slug', 'locked', 'created_at', 'networks',
@@ -570,6 +667,16 @@ class DigitalOcean_v2_NodeDriver(DigitalOcean_v2_BaseDriver,
                  'created_at': data['created_at']}
         return NodeImage(id=data['id'], name=data['name'], driver=self,
                          extra=extra)
+
+    def _to_volume(self, data):
+        extra = {'created_at': data['created_at'],
+                 'droplet_ids': data['droplet_ids'],
+                 'region': data['region'],
+                 'region_slug': data['region']['slug']}
+
+        return StorageVolume(id=data['id'], name=data['name'],
+                             size=data['size_gigabytes'], driver=self,
+                             extra=extra)
 
     def _to_location(self, data):
         return NodeLocation(id=data['slug'], name=data['name'], country=None,
