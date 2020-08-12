@@ -2297,8 +2297,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if host.provider == 'digitalocean':
                 provider_remove_host = psi_digitalocean.remove_server
                 provider_account = self.__digitalocean_account
-            # TODO: re-enable when vps.net api is fixed
-            if host.provider == 'xxvpsnet':
+            if host.provider == 'vpsnet':
                 provider_remove_host = psi_vpsnet.remove_server
                 provider_account = self.__vpsnet_account
             if provider_remove_host:
