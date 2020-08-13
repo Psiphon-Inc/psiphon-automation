@@ -427,10 +427,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         self.__passthrough_addresses = []
 
+        self.__standard_ossh_ports = set()
+
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.60'
+    class_version = '0.61'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -795,6 +797,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 host.passthrough_address = None
             self.__passthrough_addresses = []
             self.version = '0.60'
+        if cmp(parse_version(self.version), parse_version('0.61')) < 0:
+            self.__standard_ossh_ports = set()
+            self.__standard_ossh_ports.add(443)
+            self.version = '0.61'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -2162,7 +2168,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             osl_discovery = self.__copy_date_range(osl_discovery_date_range) if osl_discovery_date_range else None
 
             ssh_port = '22'
-            ossh_port = random.choice([53, 443, 554])
+            assert(self.__standard_ossh_ports)
+            ossh_port = random.choice(list(self.__standard_ossh_ports))
             capabilities = ServerCapabilities()
 
             if server_capabilities:
