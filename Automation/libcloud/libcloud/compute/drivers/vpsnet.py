@@ -206,6 +206,15 @@ class VPSNetNodeDriver(NodeDriver):
         
         return [self._to_ssd_node(i['virtual_machine']) for i in res.object]
     
+    def list_ssd_nodes_basic(self, location=None):
+        res = self.connection.request(
+            '/ssd_virtual_machines.%s' % (API_VERSION,),
+            params={'basic': True})
+        if 'errors' in res.object:
+            raise 'Error returning list of nodes: %s' % (res.object['errors'])
+
+        return [self._to_ssd_node_basic(i['virtual_machine']) for i in res.object]
+
     def get_node(self, node_id):
         res = self.connection.request(
             '/virtual_machines/%s.%s' % (node_id,
@@ -315,6 +324,26 @@ class VPSNetNodeDriver(NodeDriver):
                  driver=self.connection.driver)
         return n
     
+    def _to_ssd_node_basic(self, vm):
+        if vm.has_key('running'):
+            if vm['running']:
+                state = NodeState.RUNNING
+            else:
+                state = NodeState.PENDING
+        else:
+            # Assume vm is running
+            state = NodeState.RUNNING
+
+        n = Node(id=vm['id'],
+                 name=vm['hostname'],
+                 state=state,
+                 public_ips=[vm.get('primary_ip_address', None)],
+                 private_ips=[],
+                 extra={
+                    'cloud_id': vm['cloud_id']},
+                 driver=self.connection.driver)
+        return n
+
     def get_system_templates(self):
         res = self.connection.request(
             '/system_templates.%s' % (API_VERSION),
