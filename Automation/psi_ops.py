@@ -427,10 +427,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         self.__passthrough_addresses = []
 
+        self.__standard_ossh_ports = set()
+
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.60'
+    class_version = '0.61'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -795,6 +797,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 host.passthrough_address = None
             self.__passthrough_addresses = []
             self.version = '0.60'
+        if cmp(parse_version(self.version), parse_version('0.61')) < 0:
+            self.__standard_ossh_ports = set()
+            self.__standard_ossh_ports.add(443)
+            self.version = '0.61'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -2162,7 +2168,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             osl_discovery = self.__copy_date_range(osl_discovery_date_range) if osl_discovery_date_range else None
 
             ssh_port = '22'
-            ossh_port = random.choice([53, 443, 554])
+            assert(self.__standard_ossh_ports)
+            ossh_port = random.choice(list(self.__standard_ossh_ports))
             capabilities = ServerCapabilities()
 
             if server_capabilities:
@@ -2297,8 +2304,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if host.provider == 'digitalocean':
                 provider_remove_host = psi_digitalocean.remove_server
                 provider_account = self.__digitalocean_account
-            # TODO: re-enable when vps.net api is fixed
-            if host.provider == 'xxvpsnet':
+            if host.provider == 'vpsnet':
                 provider_remove_host = psi_vpsnet.remove_server
                 provider_account = self.__vpsnet_account
             if provider_remove_host:
@@ -2901,6 +2907,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # - Publish, tweet
         # - Email and stats server config
         # - Remove hosts from providers that are marked for removal
+        # - Websites
+        # - OSLs
         # - Data to all hosts
         #
         # NOTE: Order is important. Hosts get new implementation before
@@ -3077,19 +3085,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         self.remove_hosts_from_providers()
 
-        # Host data
-
-        if self.__deploy_data_required_for_all:
-            psi_ops_deploy.deploy_data_to_hosts(
-                self.get_hosts(),
-                self.__compartmentalize_data_for_host,
-                self.__TCS_traffic_rules_set,
-                self.__TCS_OSL_config,
-                self.__TCS_tactics_config_template,
-                self.__TCS_blocklist_csv)
-            self.__deploy_data_required_for_all = False
-            self.save()
-
         #
         # Website
         #
@@ -3117,6 +3112,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if len(self.__deploy_pave_osls_required_for_propagation_channels) > 0:
             self.pave_OSLs(self.__deploy_pave_osls_required_for_propagation_channels)
             self.__deploy_pave_osls_required_for_propagation_channels.clear()
+            self.save()
+
+        # Host data
+
+        if self.__deploy_data_required_for_all:
+            psi_ops_deploy.deploy_data_to_hosts(
+                self.get_hosts(),
+                self.__compartmentalize_data_for_host,
+                self.__TCS_traffic_rules_set,
+                self.__TCS_OSL_config,
+                self.__TCS_tactics_config_template,
+                self.__TCS_blocklist_csv)
+            self.__deploy_data_required_for_all = False
             self.save()
 
 
