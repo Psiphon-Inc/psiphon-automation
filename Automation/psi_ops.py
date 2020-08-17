@@ -2907,6 +2907,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # - Publish, tweet
         # - Email and stats server config
         # - Remove hosts from providers that are marked for removal
+        # - Websites
+        # - OSLs
         # - Data to all hosts
         #
         # NOTE: Order is important. Hosts get new implementation before
@@ -3083,19 +3085,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         self.remove_hosts_from_providers()
 
-        # Host data
-
-        if self.__deploy_data_required_for_all:
-            psi_ops_deploy.deploy_data_to_hosts(
-                self.get_hosts(),
-                self.__compartmentalize_data_for_host,
-                self.__TCS_traffic_rules_set,
-                self.__TCS_OSL_config,
-                self.__TCS_tactics_config_template,
-                self.__TCS_blocklist_csv)
-            self.__deploy_data_required_for_all = False
-            self.save()
-
         #
         # Website
         #
@@ -3123,6 +3112,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if len(self.__deploy_pave_osls_required_for_propagation_channels) > 0:
             self.pave_OSLs(self.__deploy_pave_osls_required_for_propagation_channels)
             self.__deploy_pave_osls_required_for_propagation_channels.clear()
+            self.save()
+
+        # Host data
+
+        if self.__deploy_data_required_for_all:
+            psi_ops_deploy.deploy_data_to_hosts(
+                self.get_hosts(),
+                self.__compartmentalize_data_for_host,
+                self.__TCS_traffic_rules_set,
+                self.__TCS_OSL_config,
+                self.__TCS_tactics_config_template,
+                self.__TCS_blocklist_csv)
+            self.__deploy_data_required_for_all = False
             self.save()
 
 
