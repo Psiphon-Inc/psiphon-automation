@@ -372,6 +372,9 @@ def _ios_vpn_redact_start_tunnel_with_options(obj):
                 except KeyError:
                     continue
 
+                except TypeError:
+                    continue
+
 
 def _redact_start_tunnel_with_options(obj):
     '''
