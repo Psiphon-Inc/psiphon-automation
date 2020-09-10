@@ -162,7 +162,8 @@ class MailResponder(object):
                 # If sending via SES, we'll use its DKIM facility -- so don't do it here.
                 try:
                     if not sendmail.send_raw_email_amazonses(raw_response,
-                                                             self._response_from_addr):
+                                                             self._response_from_addr,
+                                                             self._requester_addr):
                         return False
                 except BotoServerError as ex:
                     if ex.error_message == 'Address blacklisted.':

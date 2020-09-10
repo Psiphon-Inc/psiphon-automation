@@ -37,7 +37,7 @@ We could probably use Postfix's [virtual mailbox](http://www.postfix.org/VIRTUAL
     ```
     sudo apt-get update
     sudo apt-get upgrade
-    sudo apt-get install mercurial python-pip libwww-perl libdatetime-perl rsyslog-gnutls
+    sudo apt-get install mercurial python-pip libwww-perl libdatetime-perl rsyslog-gnutls awscli
     sudo reboot
     ```
 
@@ -319,17 +319,19 @@ Optional, but if logwatch is not present then the stats processing code will nee
 
 ### Amazon AWS services
 
+We're slowly transitioning from boto (v2) to boto3 and currently use both.
+
 1. Install boto
 
    ```
-   sudo pip install --upgrade boto
+   sudo pip install --upgrade boto boto3
    ```
 
 2. It's best if the AWS user being used is created through the AWS IAM
    interface and has only the necessary privileges. See the appendix for
    permission policies.
 
-3. Put AWS credentials into boto config file. Info here:
+3. Put AWS credentials into boto2 config file. Info here:
    <http://code.google.com/p/boto/wiki/BotoConfig>
 
    We've found that using `~/.boto` doesn't work, so create `/etc/boto.cfg` and
@@ -343,6 +345,19 @@ Optional, but if logwatch is not present then the stats processing code will nee
 
    Ensure that the file is readable by the `mail_responder` user.
 
+4. Use the standard AWS credential store for boto3 (as the `mail_responder` user).
+
+```
+$ aws configure
+
+AWS Access Key ID [None]: <key ID>
+AWS Secret Access Key [None]: <secret key>
+Default region name [None]: us-east-1
+Default output format [None]:
+
+$ sudo cp -R ~/.aws /home/mail_responder
+$ sudo chown mail_responder:mail_responder /home/mail_responder/.aws
+```
 
 ### Source files and cron jobs
 
