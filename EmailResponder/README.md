@@ -347,17 +347,17 @@ We're slowly transitioning from boto (v2) to boto3 and currently use both.
 
 4. Use the standard AWS credential store for boto3 (as the `mail_responder` user).
 
-```
-$ aws configure
+   ```
+   $ aws configure
 
-AWS Access Key ID [None]: <key ID>
-AWS Secret Access Key [None]: <secret key>
-Default region name [None]: us-east-1
-Default output format [None]:
+   AWS Access Key ID [None]: <key ID>
+   AWS Secret Access Key [None]: <secret key>
+   Default region name [None]: us-east-1
+   Default output format [None]:
 
-$ sudo cp -R ~/.aws /home/mail_responder
-$ sudo chown mail_responder:mail_responder /home/mail_responder/.aws
-```
+   $ sudo cp -R ~/.aws /home/mail_responder
+   $ sudo chown -R mail_responder:mail_responder /home/mail_responder/.aws
+   ```
 
 ### Source files and cron jobs
 
