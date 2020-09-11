@@ -30,8 +30,17 @@ import psi_utils
 import openstack
 
 # VARIABLE
-tcs_image_id = ''
+tcs_image_id = {
+    'NYC': '4d207ea9-8e1e-4cff-af94-29f93f7a90ad',
+    'SEA': '',
+    'NL': '',
+    'LA': '',
+    'ATL': ''
+}
 
+#2GB SKVM - 9c6425e1-d36e-4b9a-bdb2-4e64f811280a
+#4GB SKVM - 33920162-e6bd-4d48-9daa-2509beb913cb
+size_flavor = '9c6425e1-d36e-4b9a-bdb2-4e64f811280a'
 #==============================================================================
 
 ###
@@ -74,9 +83,9 @@ class PsiRamnode:
 
     def get_region(self, region):
         # Get region's country code
-        if region.id in ['SEA','NYC','LA','ATL']:
+        if region in ['SEA','NYC','LA','ATL']:
             country_code = 'US'
-        elif region.id in ['NL']:
+        elif region in ['NL']:
             country_code = 'NL'
         return country_code
 
@@ -89,7 +98,7 @@ class PsiRamnode:
             'ATL': 'Ramnode Cloud Atlanta, US',
             'NL': 'Ramnode Cloud Amsterdam, Netherland'
         }
-        return regions.get(region.id, "")
+        return regions.get(region, "")
 
     def list_ramnodes(self):
         # return all linodes in the account.
@@ -125,13 +134,13 @@ class PsiRamnode:
     def remove_ramnode(self, ramnode_id):
         return self.client.compute.delete_server(ramnode_id)
     
-    def create_ramnode(self):
+    def create_ramnode(self, host_id):
         choice_region = self.region
         datacenter_name = self.get_datacenter_names(choice_region)
 
-        # We are using Linode 4G: u'g6-standard-2'
+        # We are using 2G: u'2GB SKVM'
         # TODO: Need to finish the server object
-        ramnode = self.client.compute.create_server()
+        ramnode = self.client.compute.create_server(name=host_id, flavorRef=size_flavor, networks=[], imageRef=tcs_image_id)
         
         # Wait for job completion
         self.client.compute.wait_for_server(ramnode, status='ACTIVE', interval=5, wait=60)
@@ -226,14 +235,14 @@ def launch_new_server(ramnode_account, is_TCS, plugins, multi_ip=False):
         host_public_key = ramnode_account.tcs_base_host_public_key #TODO: Double check if host_public key stay same
 
     try:
+        hostname = 'rn-' + ramnode_api.region.lower() + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
+
         # Create a new linode
         new_root_password = psi_utils.generate_password()
-        ramnode, datacenter_name, region = ramnode_api.create_ramnode()
+        ramnode, datacenter_name, region = ramnode_api.create_ramnode(hostname)
         
         ramnode_ip_address = ramnode.addresses['Public'][0]['addr']
         egress_ip_address = None
-
-        hostname = 'rn-' + region.lower() + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
 
         if is_TCS:
             # Ramnodes created by an image keep the image's hostname.  Override this
@@ -258,7 +267,7 @@ def launch_new_server(ramnode_account, is_TCS, plugins, multi_ip=False):
         # New: we'll leave this on now due to parallelization
         pass
 
-    return (hostname, is_TCS, 'NATIVE' if is_TCS else None, None, str(ramnode.id), linode_ip_address,
+    return (hostname, is_TCS, 'NATIVE' if is_TCS else None, None, str(ramnode.id), ramnode_ip_address,
             ramnode_account.base_ssh_port, 'root', new_root_password,
             ' '.join(new_host_public_key.split(' ')[:2]),
             stats_username, new_stats_password,
