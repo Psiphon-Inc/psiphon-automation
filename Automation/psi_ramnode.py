@@ -203,7 +203,7 @@ def set_host_name(ramnode_account, ip_address, password, host_public_key, new_ho
 def get_servers(ramnode_account):
     ramnode_api = PsiRamnode(ramnode_account)
     ramnodes = ramnode_api.list_ramnodes()
-    return [(str(rn.id), rn.hostname) for rn in ramnodes]
+    return [(str(rn.id), rn.name) for rn in ramnodes]
 
 def get_server(ramnode_account, ramnode_id):
     ramnode_api = PsiRamnode(ramnode_account)
@@ -213,7 +213,7 @@ def get_server(ramnode_account, ramnode_id):
 def remove_server(ramnode_account, ramnode_id):
     ramnode_api = PsiRamnode(ramnode_account)
     try:
-        ramnode_api.remove_ramnode(int(ramnode_id))
+        ramnode_api.remove_ramnode(ramnode_id)
     except Exception as ex:
         raise ex
 
