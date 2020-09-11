@@ -29,17 +29,11 @@ import psi_utils
 import openstack
 
 # VARIABLE
-tcs_image_id = {
-    'NYC': '4d207ea9-8e1e-4cff-af94-29f93f7a90ad',
-    'SEA': '1cc1bdef-d851-4bae-8f3b-5797053c5707',
-    'NL': 'ef2e53f2-6cb8-4eac-9c81-889792214858',
-    'LA': '7dda0478-5453-4aef-b09c-858b873b4af5',
-    'ATL': '150b34ab-b9c5-4b8f-be9a-015f996b3bbe'
-}
+tcs_image_target = 'Psiphon 3 TCS Native V8.6 - 20200910'
 
-#2GB SKVM - 9c6425e1-d36e-4b9a-bdb2-4e64f811280a
-#4GB SKVM - 33920162-e6bd-4d48-9daa-2509beb913cb
-size_flavor = '9c6425e1-d36e-4b9a-bdb2-4e64f811280a'
+#2GB SKVM
+#4GB SKVM
+size_flavor_target = '2GB SKVM'
 #==============================================================================
 
 ###
@@ -49,14 +43,12 @@ size_flavor = '9c6425e1-d36e-4b9a-bdb2-4e64f811280a'
 # https://docs.openstack.org/openstacksdk/latest/user/proxies/compute.html
 #
 ###
-def wait_while_condition(condition, max_wait_seconds, description):
-    total_wait_seconds = 0
-    wait_seconds = 5
-    while condition() == True:
-        if total_wait_seconds > max_wait_seconds:
-            raise Exception('Took more than %d seconds to %s' % (max_wait_seconds, description))
-        time.sleep(wait_seconds)
-        total_wait_seconds = total_wait_seconds + wait_seconds
+def get_psiphon_target_resource(resources, target_name):
+    # This is helper function that use to find target resource from API
+    for resource in resources:
+        if resource.name == target_name:
+            return resource.id
+    return None
 
 ###
 #
@@ -134,12 +126,15 @@ class PsiRamnode:
         choice_region = self.region
         datacenter_name = self.get_datacenter_names(choice_region)
 
-        # We are using 2G: u'2GB SKVM'
-        # TODO: Need to finish the server object
-        ramnode = self.client.compute.create_server(name=host_id, flavorRef=size_flavor, networks=[], imageRef=tcs_image_id[self.region])
+        flavors = self.client.compute.flavors() 
+        images = self.client.compute.images()
         
+        flavor_id = get_psiphon_target_resource(flavors, size_flavor_target)
+        image_id = get_psiphon_target_resource(images, tcs_image_target)
+        ramnode = self.client.compute.create_server(name=host_id, flavorRef=flavor_id, networks=[], imageRef=image_id)
+
         # Wait for job completion
-        self.client.compute.wait_for_server(ramnode, status='ACTIVE', interval=10, wait=120)
+        self.client.compute.wait_for_server(ramnode, status='ACTIVE', interval=10, wait=240)
 
         return ramnode, datacenter_name, self.get_region(choice_region)
 
