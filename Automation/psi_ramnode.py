@@ -25,17 +25,16 @@ import time
 import psi_ssh
 import psi_utils
 
-# Import Linode APIv4 Official Library
 # COMMENT: need pip install openstack to install dependency
 import openstack
 
 # VARIABLE
 tcs_image_id = {
     'NYC': '4d207ea9-8e1e-4cff-af94-29f93f7a90ad',
-    'SEA': '',
-    'NL': '',
-    'LA': '',
-    'ATL': ''
+    'SEA': '1cc1bdef-d851-4bae-8f3b-5797053c5707',
+    'NL': 'ef2e53f2-6cb8-4eac-9c81-889792214858',
+    'LA': '7dda0478-5453-4aef-b09c-858b873b4af5',
+    'ATL': '150b34ab-b9c5-4b8f-be9a-015f996b3bbe'
 }
 
 #2GB SKVM - 9c6425e1-d36e-4b9a-bdb2-4e64f811280a
@@ -90,7 +89,6 @@ class PsiRamnode:
         return country_code
 
     def get_datacenter_names(self, region):
-        # from linode_api.get_available_regions():
         regions = {
             'NYC': 'Ramnode Cloud New York, US',
             'SEA': 'Ramnode Cloud Seattle, US',
@@ -101,11 +99,9 @@ class PsiRamnode:
         return regions.get(region, "")
 
     def list_ramnodes(self):
-        # return all linodes in the account.
         return self.client.compute.servers()
 
     def ramnode_list(self, ramnode_id):
-        # List single linode by searching its id
         return self.client.compute.get_server(ramnode_id)
 
     def ramnode_status(self, ramnode_id):
@@ -140,36 +136,34 @@ class PsiRamnode:
 
         # We are using 2G: u'2GB SKVM'
         # TODO: Need to finish the server object
-        ramnode = self.client.compute.create_server(name=host_id, flavorRef=size_flavor, networks=[], imageRef=tcs_image_id)
+        ramnode = self.client.compute.create_server(name=host_id, flavorRef=size_flavor, networks=[], imageRef=tcs_image_id[self.region])
         
         # Wait for job completion
-        self.client.compute.wait_for_server(ramnode, status='ACTIVE', interval=5, wait=60)
+        self.client.compute.wait_for_server(ramnode, status='ACTIVE', interval=10, wait=120)
 
         return ramnode, datacenter_name, self.get_region(choice_region)
 
     def start_ramnode(self, ramnode_id, config=None):
-        # Boot linode from API
         ramnode = self.ramnode_list(ramnode_id)
         self.client.compute.start_server(ramnode)
 
         # Wait for job completion
-        self.client.compute.wait_for_server(ramnode, status='ACTIVE', interval=5, wait=60)
+        self.client.compute.wait_for_server(ramnode, status='ACTIVE', interval=10, wait=120)
 
-    def stop_linode(self, linode_id):        
-        # Shutdown linode from API
+    def stop_ramnode(self, ramnode_id):        
         ramnode = self.ramnode_list(ramnode_id)
         self.client.compute.stop_server(ramnode)
 
         # Wait for job completion
-        self.client.compute.wait_for_server(ramnode, status='SHUTOFF', interval=5, wait=60)
+        self.client.compute.wait_for_server(ramnode, status='SHUTOFF', interval=10, wait=120)
     
-    def restart_linode(self, linode_id):
+    def restart_ramnode(self, ramnode_id):
         # Restart from API
         ramnode = self.ramnode_list(ramnode_id)
         self.client.compute.reboot_server(ramnode, reboot_type='HARD')
 
         # Wait for job completion
-        self.client.compute.wait_for_server(ramnode, status='ACTIVE', interval=5, wait=60)
+        self.client.compute.wait_for_server(ramnode, status='ACTIVE', interval=10, wait=120)
 
 ###
 #
@@ -237,7 +231,7 @@ def launch_new_server(ramnode_account, is_TCS, plugins, multi_ip=False):
     try:
         hostname = 'rn-' + ramnode_api.region.lower() + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
 
-        # Create a new linode
+        # Create a new node
         new_root_password = psi_utils.generate_password()
         ramnode, datacenter_name, region = ramnode_api.create_ramnode(hostname)
         
@@ -252,7 +246,7 @@ def launch_new_server(ramnode_account, is_TCS, plugins, multi_ip=False):
             set_allowed_users(ramnode_account, ramnode_ip_address, root_password,
                               host_public_key, stats_username)
         
-        # Change the new linode's credentials
+        # Change the new node's credentials
         new_stats_password = psi_utils.generate_password()
         new_host_public_key = refresh_credentials(ramnode_account, ramnode_ip_address,
                                                   root_password, host_public_key,
