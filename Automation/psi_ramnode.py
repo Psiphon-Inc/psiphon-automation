@@ -97,7 +97,10 @@ class PsiRamnode:
         return self.client.compute.servers()
 
     def ramnode_list(self, ramnode_id):
-        return self.client.compute.get_server(ramnode_id)
+        try:
+            return self.client.compute.get_server(ramnode_id)
+        except:
+            return None
 
     def ramnode_status(self, ramnode_id):
         # Return Ramnode status
@@ -216,7 +219,7 @@ def get_server(ramnode_account, ramnode_id):
 def remove_server(ramnode_account, ramnode_id):
     for region in ramnode_account.available_regions:
         ramnode_api = PsiRamnode(ramnode_account, region)
-        if ramnode_api.ramnode_list(ramnde_id):
+        if ramnode_api.ramnode_list(ramnode_id):
             break
     try:
         ramnode_api.remove_ramnode(ramnode_id)
