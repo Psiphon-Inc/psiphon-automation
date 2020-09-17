@@ -56,8 +56,11 @@ def get_psiphon_target_resource(resources, target_name):
 #
 ###
 class PsiRamnode:
-    def __init__(self, ramnode_account):
-        self.region = random.choice(ramnode_account.available_regions)
+    def __init__(self, ramnode_account, region=None):
+        if region:
+            self.region = region
+        else:
+            self.region = random.choice(ramnode_account.available_regions)
         ramnode_api_credentials = {}
         ramnode_api_credentials['project_id'] = ramnode_account.project_id
         ramnode_api_credentials['username'] = ramnode_account.api_username
@@ -196,17 +199,25 @@ def set_host_name(ramnode_account, ip_address, password, host_public_key, new_ho
 #
 ###
 def get_servers(ramnode_account):
-    ramnode_api = PsiRamnode(ramnode_account)
-    ramnodes = ramnode_api.list_ramnodes()
-    return [(str(rn.id), rn.name) for rn in ramnodes]
+    servers = []
+    for region in ramnode_account.available_regions:
+        ramnode_api = PsiRamnode(ramnode_account, region)
+        ramnodes = ramnode_api.list_ramnodes()
+        servers += [(str(rn.id), rn.name) for rn in ramnodes]
+    return servers
 
 def get_server(ramnode_account, ramnode_id):
-    ramnode_api = PsiRamnode(ramnode_account)
-    ramnode =ramnode_api.ramnode_list(ramnode_id)
-    return ramnode
+    for region in ramnode_account.available_regions:
+        ramnode_api = PsiRamnode(ramnode_account, region)
+        ramnode =ramnode_api.ramnode_list(ramnode_id)
+        if ramnode:
+            return ramnode
 
 def remove_server(ramnode_account, ramnode_id):
-    ramnode_api = PsiRamnode(ramnode_account)
+    for region in ramnode_account.available_regions:
+        ramnode_api = PsiRamnode(ramnode_account, region)
+        if ramnode_api.ramnode_list(ramnde_id):
+            break
     try:
         ramnode_api.remove_ramnode(ramnode_id)
     except Exception as ex:
