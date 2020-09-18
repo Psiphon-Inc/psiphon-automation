@@ -32,6 +32,7 @@ import decryptor
 import datastore
 import sender
 import datatransformer
+import redactor
 
 
 _SLEEP_TIME_SECS = 60
@@ -129,7 +130,7 @@ def go():
                 continue
 
             # Modifies diagnostic_info
-            utils.redact_sensitive_values(diagnostic_info)
+            redactor.redact_sensitive_values(diagnostic_info)
 
             # Modifies diagnostic_info
             datatransformer.transform(diagnostic_info)
