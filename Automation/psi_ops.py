@@ -211,7 +211,8 @@ Host = psi_utils.recordtype(
     'meek_server_port, meek_server_obfuscated_key, meek_server_fronting_domain, ' +
     'meek_server_fronting_host, alternate_meek_server_fronting_hosts, ' +
     'meek_cookie_encryption_public_key, meek_cookie_encryption_private_key, ' +
-    'tactics_request_public_key, tactics_request_private_key, tactics_request_obfuscated_key',
+    'tactics_request_public_key, tactics_request_private_key, tactics_request_obfuscated_key, ' +
+    'run_packet_manipulator',
     default=None)
 
 Server = psi_utils.recordtype(
@@ -432,7 +433,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.61'
+    class_version = '0.62'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -801,6 +802,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__standard_ossh_ports = set()
             self.__standard_ossh_ports.add(443)
             self.version = '0.61'
+        if cmp(parse_version(self.version), parse_version('0.62')) < 0:
+            for host in self.__hosts.values() + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
+                host.run_packet_manipulator = None
+            self.version = '0.62'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1497,7 +1502,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         meek_server_obfuscated_key, meek_server_fronting_domain, meek_server_fronting_host,
                         alternate_meek_server_fronting_hosts, meek_cookie_encryption_public_key,
                         meek_cookie_encryption_private_key,
-                        tactics_request_public_key, tactics_request_private_key, tactics_request_obfuscated_key):
+                        tactics_request_public_key, tactics_request_private_key, tactics_request_obfuscated_key,
+                        run_packet_manipulator):
         return Host(id,
                     is_TCS,
                     TCS_type,
@@ -1523,7 +1529,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     meek_cookie_encryption_private_key,
                     tactics_request_public_key,
                     tactics_request_private_key,
-                    tactics_request_obfuscated_key
+                    tactics_request_obfuscated_key,
+                    run_packet_manipulator
                     )
 
     def get_server_object(self, id, host_id, ip_address, egress_ip_address, internal_ip_address, propagation_channel_id,
@@ -4056,7 +4063,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         '',  # Omit: meek_cookie_encryption_private_key isn't needed
                                         host.tactics_request_public_key,
                                         '', # Omit: tactics_request_private_key isn't needed
-                                        host.tactics_request_obfuscated_key)
+                                        host.tactics_request_obfuscated_key,
+                                        None # Omit: run_packet_manipulator isn't needed
+                                        )
 
         for server in self.__servers.itervalues():
             if ((server.discovery_date_range and server.host_id != host_id and server.discovery_date_range[1] <= discovery_date) or
@@ -4300,7 +4309,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.alternate_meek_server_fronting_hosts,
                                             host.meek_cookie_encryption_public_key,
                                             '',  # Omit: meek_cookie_encryption_private_key
-                                            '', '', '') # Omit: tactics fields
+                                            '', '', '', # Omit: tactics fields
+                                            host.run_packet_manipulator
+                                            )
             copy.__hosts[host.id].logs = host.logs
 
         for server in self.__servers.itervalues():
@@ -4406,7 +4417,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             [],  # Omit: alternate_meek_server_fronting_hosts
                                             '',  # Omit: meek_cookie_encryption_public_key
                                             '',  # Omit: meek_cookie_encryption_private_key
-                                            '', '', '') # Omit: tactics fields
+                                            '', '', '', # Omit: tactics fields
+                                            host.run_packet_manipulator
+                                            )
             copy.__hosts[host.id].logs = host.logs
 
         for server in self.__servers.itervalues():
