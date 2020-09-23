@@ -39,7 +39,6 @@ size_flavor_target = '2GB SKVM'
 ###
 #
 # Helper functions
-# TODO: This can be changed to OpenStack build in function client.compute.wait_for_server()
 # https://docs.openstack.org/openstacksdk/latest/user/proxies/compute.html
 #
 ###
@@ -73,6 +72,8 @@ class PsiRamnode:
 
     def get_available_regions(self):
         # Get all available regions
+        # TODO: It's' not in use right now. Plan to try to get regions from their API
+        # This will be implement later.
         return self.client.identity.regions()
 
     def get_region(self, region):
@@ -81,6 +82,8 @@ class PsiRamnode:
             country_code = 'US'
         elif region in ['NL']:
             country_code = 'NL'
+        else:
+            raise ValueError("Inpput region isn't available or is invalid")
         return country_code
 
     def get_datacenter_names(self, region):
@@ -91,7 +94,10 @@ class PsiRamnode:
             'ATL': 'Ramnode Cloud Atlanta, US',
             'NL': 'Ramnode Cloud Amsterdam, Netherland'
         }
-        return regions.get(region, "")
+        try:
+            return regions[region]
+        except Exception as e:
+            raise KeyError("Region code is invalid..")
 
     def list_ramnodes(self):
         return self.client.compute.servers()
@@ -101,29 +107,6 @@ class PsiRamnode:
             return self.client.compute.get_server(ramnode_id)
         except:
             return None
-
-    def ramnode_status(self, ramnode_id):
-        # Return Ramnode status
-        # Status:
-        # ACTIVE, 
-        # BUILDING, 
-        # DELETED, 
-        # ERROR, 
-        # HARD_REBOOT, 
-        # PASSWORD, 
-        # PAUSED, 
-        # REBOOT, 
-        # REBUILD, 
-        # RESCUED, 
-        # RESIZED, 
-        # REVERT_RESIZE, 
-        # SHUTOFF, 
-        # SOFT_DELETED, 
-        # STOPPED, 
-        # SUSPENDED, 
-        # UNKNOWN, 
-        # VERIFY_RESIZE.
-        return self.ramnode_list(ramnode_id).status
 
     def remove_ramnode(self, ramnode_id):
         return self.client.compute.delete_server(ramnode_id)
@@ -215,12 +198,18 @@ def get_server(ramnode_account, ramnode_id):
         ramnode =ramnode_api.ramnode_list(ramnode_id)
         if ramnode:
             return ramnode
+    if not ramnode:
+        raise ValueError("No available ramnode found in all regions")
 
 def remove_server(ramnode_account, ramnode_id):
     for region in ramnode_account.available_regions:
         ramnode_api = PsiRamnode(ramnode_account, region)
-        if ramnode_api.ramnode_list(ramnode_id):
+        ramnode = ramnode_api.ramnode_list(ramnode_id)
+        if ramnode:
             break
+    if not ramnode:
+        raise ValueError("No available ramnode found in all regions")
+
     try:
         ramnode_api.remove_ramnode(ramnode_id)
     except Exception as ex:
@@ -235,10 +224,10 @@ def launch_new_server(ramnode_account, is_TCS, plugins, multi_ip=False):
     if is_TCS:
         # New APIv4 require root_pass when create disk from image
         root_password = ramnode_account.tcs_base_root_password
-        host_public_key = ramnode_account.tcs_base_host_public_key #TODO: Double check if host_public key stay same
+        host_public_key = ramnode_account.tcs_base_host_public_key
 
     try:
-        hostname = 'rn-' + ramnode_api.region.lower() + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
+        hostname = 'rn-' + ramnode_api.get_region(ramnode_api.region).lower() + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
 
         # Create a new node
         new_root_password = psi_utils.generate_password()
@@ -266,9 +255,6 @@ def launch_new_server(ramnode_account, is_TCS, plugins, multi_ip=False):
         if ramnode:
             ramnode_api.remove_ramnode(ramnode.id)
         raise ex
-    finally:
-        # New: we'll leave this on now due to parallelization
-        pass
 
     return (hostname, is_TCS, 'NATIVE' if is_TCS else None, None, str(ramnode.id), ramnode_ip_address,
             ramnode_account.base_ssh_port, 'root', new_root_password,
