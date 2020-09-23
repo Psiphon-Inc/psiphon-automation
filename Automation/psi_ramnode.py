@@ -198,8 +198,7 @@ def get_server(ramnode_account, ramnode_id):
         ramnode =ramnode_api.ramnode_list(ramnode_id)
         if ramnode:
             return ramnode
-    if not ramnode:
-        raise ValueError("No available ramnode found in all regions")
+    raise ValueError("No available ramnode found in all regions")
 
 def remove_server(ramnode_account, ramnode_id):
     for region in ramnode_account.available_regions:
@@ -208,7 +207,7 @@ def remove_server(ramnode_account, ramnode_id):
         if ramnode:
             break
     if not ramnode:
-        raise ValueError("No available ramnode found in all regions")
+        return
 
     try:
         ramnode_api.remove_ramnode(ramnode_id)
