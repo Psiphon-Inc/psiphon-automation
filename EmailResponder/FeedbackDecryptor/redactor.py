@@ -41,11 +41,11 @@ def redact_sensitive_values(obj):
     except KeyError:
         return
     
-    if isinstance(client_version, utils.string_types):
-            try:
-                client_version = int(client_version)
-            except ValueError:
-                return
+    if not isinstance(client_version, int):
+        try:
+            client_version = int(client_version)
+        except ValueError:
+            return
 
     redactors_to_run = redactors(client_platform, client_version)
     run_redactors(obj, redactors_to_run)
@@ -185,11 +185,31 @@ diagnostic_msg_regex = re.compile(r'([a-zA-Z]+): ({.*})')
 def _redact_upstream_proxy_errors(obj, path, val):
     '''
     Redacts any text which follows the target upstream proxy error string.
+
+    If the diagnostic message is of the format "<prefix>: <json object>",
+    as defined by `diagnostic_msg_regex`, then the JSON is deserialized
+    and an attempt is made to preserve the JSON structure by traversing
+    the values of the dictionary and performing the redaction in place.
+    Instead of truncating the text following the upstream proxy error 
+    string and breaking the JSON structure. 
     '''
     if isinstance(val, utils.string_types):
 
         target = "upstreamproxy error: proxyURI url.Parse: parse "
 
+        # An optimization to avoid deserializing the JSON string contained
+        # within the diagnostic message if there is no match.
+        #
+        # Warnings: 
+        # - This search will fail if the target string is contained 
+        #   within the inner JSON, but represented with escaped unicode 
+        #   characters -- ref. https://tools.ietf.org/html/rfc8259#section-8.3. 
+        #   There is no attempt to address this because we do not currently 
+        #   expect our clients to generate any diagnostic logs with escaped
+        #   unicode characters.
+        # - Structural JSON characters will be escaped in the inner JSON and
+        #   the target string should reflect this if it is updated to include
+        #   any -- ref. https://tools.ietf.org/html/rfc8259#section-7.
         index = val.find(target)
         if index == -1:
             return
@@ -198,8 +218,8 @@ def _redact_upstream_proxy_errors(obj, path, val):
         if result is not None:
             try:
                 j = json.loads(result.group(2))
-                found = _redact_target_from_dict(target, j)
-                if found is True:
+                redacted = _redact_text_proceeding_target_from_dict(target, j)
+                if redacted:
                     redacted_val = result.group(1) + ": " + json.dumps(j)
                     utils.assign_value_to_obj_at_path(obj, path, redacted_val)
                     return
@@ -211,15 +231,20 @@ def _redact_upstream_proxy_errors(obj, path, val):
         utils.assign_value_to_obj_at_path(obj, path, redacted_val)
 
 
-def _redact_target_from_dict(target, d):
+def _redact_text_proceeding_target_from_dict(target, d):
     '''
-    Redact the target string from any values in the dictionary.
+    Redacts text which proceeds the first occurrence of the target string from 
+    each string value in dictionary.
+
+    E.g. target="abc", d={"k1": {"k1.1": "abcdefg"}}
+         results in    d={"k1": {"k1.1": "abc"}}
+
     Returns True if any values were redacted; otherwise, returns False.
     '''
-    if isinstance(target, utils.string_types) is False:
-        return False
+    if not isinstance(target, utils.string_types):
+        raise ValueError("`target` must be a string type, got {}".format(type(target)))
 
-    found = False
+    redacted = False
 
     for k, v in d.iteritems():
         if isinstance(v, utils.string_types):
@@ -227,12 +252,12 @@ def _redact_target_from_dict(target, d):
             if index != -1:
                 redacted_v = v[:index + len(target)] + "<redacted>"
                 d[k] = redacted_v
-                found = True
+                redacted = True
         elif isinstance(v, dict):
-            if _redact_target_from_dict(target, v) is True:
-                found = True
+            if _redact_text_proceeding_target_from_dict(target, v):
+                redacted = True
     
-    return found
+    return redacted
 
 
 def _ios_vpn_redact_start_tunnel_with_options(obj, path, val):
