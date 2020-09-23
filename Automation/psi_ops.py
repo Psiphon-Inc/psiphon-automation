@@ -211,7 +211,8 @@ Host = psi_utils.recordtype(
     'meek_server_port, meek_server_obfuscated_key, meek_server_fronting_domain, ' +
     'meek_server_fronting_host, alternate_meek_server_fronting_hosts, ' +
     'meek_cookie_encryption_public_key, meek_cookie_encryption_private_key, ' +
-    'tactics_request_public_key, tactics_request_private_key, tactics_request_obfuscated_key',
+    'tactics_request_public_key, tactics_request_private_key, tactics_request_obfuscated_key, ' +
+    'run_packet_manipulator',
     default=None)
 
 Server = psi_utils.recordtype(
@@ -427,10 +428,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         self.__passthrough_addresses = []
 
+        self.__standard_ossh_ports = set()
+
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.60'
+    class_version = '0.62'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -795,6 +798,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 host.passthrough_address = None
             self.__passthrough_addresses = []
             self.version = '0.60'
+        if cmp(parse_version(self.version), parse_version('0.61')) < 0:
+            self.__standard_ossh_ports = set()
+            self.__standard_ossh_ports.add(443)
+            self.version = '0.61'
+        if cmp(parse_version(self.version), parse_version('0.62')) < 0:
+            for host in self.__hosts.values() + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
+                host.run_packet_manipulator = None
+            self.version = '0.62'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1491,7 +1502,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         meek_server_obfuscated_key, meek_server_fronting_domain, meek_server_fronting_host,
                         alternate_meek_server_fronting_hosts, meek_cookie_encryption_public_key,
                         meek_cookie_encryption_private_key,
-                        tactics_request_public_key, tactics_request_private_key, tactics_request_obfuscated_key):
+                        tactics_request_public_key, tactics_request_private_key, tactics_request_obfuscated_key,
+                        run_packet_manipulator):
         return Host(id,
                     is_TCS,
                     TCS_type,
@@ -1517,7 +1529,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     meek_cookie_encryption_private_key,
                     tactics_request_public_key,
                     tactics_request_private_key,
-                    tactics_request_obfuscated_key
+                    tactics_request_obfuscated_key,
+                    run_packet_manipulator
                     )
 
     def get_server_object(self, id, host_id, ip_address, egress_ip_address, internal_ip_address, propagation_channel_id,
@@ -2162,7 +2175,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             osl_discovery = self.__copy_date_range(osl_discovery_date_range) if osl_discovery_date_range else None
 
             ssh_port = '22'
-            ossh_port = random.choice([53, 443, 554])
+            assert(self.__standard_ossh_ports)
+            ossh_port = random.choice(list(self.__standard_ossh_ports))
             capabilities = ServerCapabilities()
 
             if server_capabilities:
@@ -2900,6 +2914,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # - Publish, tweet
         # - Email and stats server config
         # - Remove hosts from providers that are marked for removal
+        # - Websites
+        # - OSLs
         # - Data to all hosts
         #
         # NOTE: Order is important. Hosts get new implementation before
@@ -3076,19 +3092,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         self.remove_hosts_from_providers()
 
-        # Host data
-
-        if self.__deploy_data_required_for_all:
-            psi_ops_deploy.deploy_data_to_hosts(
-                self.get_hosts(),
-                self.__compartmentalize_data_for_host,
-                self.__TCS_traffic_rules_set,
-                self.__TCS_OSL_config,
-                self.__TCS_tactics_config_template,
-                self.__TCS_blocklist_csv)
-            self.__deploy_data_required_for_all = False
-            self.save()
-
         #
         # Website
         #
@@ -3116,6 +3119,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if len(self.__deploy_pave_osls_required_for_propagation_channels) > 0:
             self.pave_OSLs(self.__deploy_pave_osls_required_for_propagation_channels)
             self.__deploy_pave_osls_required_for_propagation_channels.clear()
+            self.save()
+
+        # Host data
+
+        if self.__deploy_data_required_for_all:
+            psi_ops_deploy.deploy_data_to_hosts(
+                self.get_hosts(),
+                self.__compartmentalize_data_for_host,
+                self.__TCS_traffic_rules_set,
+                self.__TCS_OSL_config,
+                self.__TCS_tactics_config_template,
+                self.__TCS_blocklist_csv)
+            self.__deploy_data_required_for_all = False
             self.save()
 
 
@@ -4047,7 +4063,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         '',  # Omit: meek_cookie_encryption_private_key isn't needed
                                         host.tactics_request_public_key,
                                         '', # Omit: tactics_request_private_key isn't needed
-                                        host.tactics_request_obfuscated_key)
+                                        host.tactics_request_obfuscated_key,
+                                        None # Omit: run_packet_manipulator isn't needed
+                                        )
 
         for server in self.__servers.itervalues():
             if ((server.discovery_date_range and server.host_id != host_id and server.discovery_date_range[1] <= discovery_date) or
@@ -4291,7 +4309,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.alternate_meek_server_fronting_hosts,
                                             host.meek_cookie_encryption_public_key,
                                             '',  # Omit: meek_cookie_encryption_private_key
-                                            '', '', '') # Omit: tactics fields
+                                            '', '', '', # Omit: tactics fields
+                                            host.run_packet_manipulator
+                                            )
             copy.__hosts[host.id].logs = host.logs
 
         for server in self.__servers.itervalues():
@@ -4397,7 +4417,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             [],  # Omit: alternate_meek_server_fronting_hosts
                                             '',  # Omit: meek_cookie_encryption_public_key
                                             '',  # Omit: meek_cookie_encryption_private_key
-                                            '', '', '') # Omit: tactics fields
+                                            '', '', '', # Omit: tactics fields
+                                            host.run_packet_manipulator
+                                            )
             copy.__hosts[host.id].logs = host.logs
 
         for server in self.__servers.itervalues():

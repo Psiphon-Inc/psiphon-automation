@@ -111,6 +111,6 @@ def send_response(recipient, from_address,
         return
 
     try:
-        sendmail.send_raw_email_amazonses(raw_email, from_address)
+        sendmail.send_raw_email_amazonses(raw_email, from_address, recipient)
     except:
         raise

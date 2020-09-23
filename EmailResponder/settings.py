@@ -70,9 +70,10 @@ ADMIN_FORWARD_ADDRESSES = ['mick@example.com', 'keith@example.com']
 # Will appear at the start of subject of administrative email sent by this server
 ADMIN_FORWARD_SUBJECT_TAG = '[MailResponder]'
 
-
 # This must match the local send service specified in /etc/postfix/master.cf
 LOCAL_SMTP_SEND_PORT = 2525
+
+AWS_SES_REGION = 'us-east-1'
 
 
 #

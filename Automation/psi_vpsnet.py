@@ -150,7 +150,7 @@ def get_servers(account):
     nodes = list()
     try:
         vpsnet_conn = get_vpsnet_connection(account)
-        nodes = vpsnet_conn.list_ssd_nodes()
+        nodes = vpsnet_conn.list_ssd_nodes_basic()
     except Exception as e:
         raise e
     return [(str(node.id), node.name) for node in nodes]

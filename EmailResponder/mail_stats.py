@@ -33,8 +33,9 @@ import textwrap
 import datetime
 import collections
 import httplib
-from boto.ses.connection import SESConnection
+import dateutil.tz
 from boto.ec2.cloudwatch import CloudWatchConnection
+import boto3
 
 import settings
 import sendmail
@@ -45,12 +46,10 @@ def get_ses_quota():
     '''
     Returns the simple Amazon SES quota info, in text.
     '''
+
     # Open the connection. Uses creds from boto conf or env vars.
-    conn = SESConnection()
-
-    quota = conn.get_send_quota()
-
-    conn.close()
+    ses = boto3.client('ses', region_name=settings.AWS_SES_REGION)
+    quota = ses.get_send_quota()
 
     return json.dumps(quota, indent=2)
 
@@ -62,31 +61,29 @@ def get_ses_send_stats():
     """
 
     # Open the connection. Uses creds from boto conf or env vars.
-    conn = SESConnection()
+    ses = boto3.client('ses', region_name=settings.AWS_SES_REGION)
+    stats = ses.get_send_statistics()
 
-    stats = conn.get_send_statistics()
-
-    conn.close()
-
-    one_day_ago = datetime.datetime.now() - datetime.timedelta(1)
-    one_week_ago = datetime.datetime.now() - datetime.timedelta(7)
+    one_day_ago = datetime.datetime.now(dateutil.tz.tzlocal()) - datetime.timedelta(1)
+    one_week_ago = datetime.datetime.now(dateutil.tz.tzlocal()) - datetime.timedelta(7)
 
     one_day_ago_counter = collections.Counter()
     one_week_ago_counter = collections.Counter()
     two_weeks_ago_counter = collections.Counter()
 
-    for dp in stats['GetSendStatisticsResponse']['GetSendStatisticsResult']['SendDataPoints']:
-        dt = datetime.datetime.strptime(str(dp['Timestamp']).translate(None, ':-'), "%Y%m%dT%H%M%SZ")
+    for dp in stats['SendDataPoints']:
+        # The integer values in the dp dictionary work well with Counter, but
+        # we need to remove the timestamp.
+        ts = dp['Timestamp']
+        del dp['Timestamp']
 
-        dp_count = {k: int(v) for k, v in dp.items() if v.isdigit()}
+        if ts > one_day_ago:
+            one_day_ago_counter.update(dp)
 
-        if dt > one_day_ago:
-            one_day_ago_counter.update(dp_count)
-
-        if dt > one_week_ago:
-            one_week_ago_counter.update(dp_count)
+        if ts > one_week_ago:
+            one_week_ago_counter.update(dp)
         else:
-            two_weeks_ago_counter.update(dp_count)
+            two_weeks_ago_counter.update(dp)
 
     res = 'SES Send Stats\n====================================='
     for title, data in (('Last Day', one_day_ago_counter), ('Last Week', one_week_ago_counter), ('Two Weeks Ago', two_weeks_ago_counter)):

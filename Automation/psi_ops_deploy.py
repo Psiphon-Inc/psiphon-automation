@@ -264,7 +264,10 @@ def deploy_TCS_implementation(ssh, host, servers, own_encoded_server_entries, TC
         ssh.exec_command('chmod +x %s' % (TCS_NATIVE_PSIPHOND_BINARY_FILE_NAME))
 
         # Setup kernel caps to allow psiphond to bind to a privileged service port
-        ssh.exec_command('setcap CAP_NET_ADMIN,CAP_NET_BIND_SERVICE=+eip %s' % (TCS_NATIVE_PSIPHOND_BINARY_FILE_NAME))
+        caps = "CAP_NET_ADMIN,CAP_NET_BIND_SERVICE"
+        if host.run_packet_manipulator:
+            caps += ",CAP_NET_RAW"
+        ssh.exec_command('setcap %s=+eip %s' % (caps, TCS_NATIVE_PSIPHOND_BINARY_FILE_NAME))
 
         # Set madvdontneed environment variable for psiphond
         ssh.exec_command('mkdir -p /etc/systemd/system/psiphond.service.d')
@@ -335,6 +338,9 @@ def make_psiphond_config(host, server, own_encoded_server_entries, TCS_psiphond_
         config['PacketTunnelSudoNetworkConfigCommands'] = False
     else:
         raise 'Unhandled host.TCS_type: ' + host.TCS_type
+
+    if host.run_packet_manipulator:
+        config['RunPacketManipulator'] = True
 
     config['DiscoveryValueHMACKey'] = TCS_psiphond_config_values['DiscoveryValueHMACKey']
 

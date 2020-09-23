@@ -272,7 +272,7 @@ def redact_sensitive_values(obj):
             except ValueError:
                 return
 
-        if client_version in range(160, 173):
+        if client_version >= 160:
             
             _ios_vpn_redact_start_tunnel_with_options(obj)
 
@@ -370,6 +370,9 @@ def _ios_vpn_redact_start_tunnel_with_options(obj):
                             assign_value_to_obj_at_path(obj, path, redacted_val)
                         
                 except KeyError:
+                    continue
+
+                except TypeError:
                     continue
 
 
