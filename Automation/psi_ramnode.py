@@ -117,10 +117,12 @@ class PsiRamnode:
 
         flavors = self.client.compute.flavors() 
         images = self.client.compute.images()
-        
+
         flavor_id = get_psiphon_target_resource(flavors, size_flavor_target)
         image_id = get_psiphon_target_resource(images, tcs_image_target)
-        ramnode = self.client.compute.create_server(name=host_id, flavorRef=flavor_id, networks=[], imageRef=image_id)
+        ramnode = self.client.compute.create_server(name=host_id, flavorRef=flavor_id, \
+                                                    networks=[], security_groups=[{"name": "PsiDefault"}], \
+                                                    imageRef=image_id)
 
         # Wait for job completion
         self.client.compute.wait_for_server(ramnode, status='ACTIVE', interval=10, wait=240)
