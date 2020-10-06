@@ -393,6 +393,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__remote_server_list_signing_key_pair = None
         self.__feedback_encryption_key_pair = None
         self.__feedback_upload_info = None
+        self.__alternate_feedback_upload_urls = set()
         self.__upgrade_package_signing_key_pair = None
         self.__default_email_autoresponder_account = None
         self.__deploy_website_required_for_sponsors = set()
@@ -433,7 +434,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.62'
+    class_version = '0.63'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -806,6 +807,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for host in self.__hosts.values() + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
                 host.run_packet_manipulator = None
             self.version = '0.62'
+        if cmp(parse_version(self.version), parse_version('0.63')) < 0:
+            self.__alternate_feedback_upload_urls = set()
+            self.version = '0.63'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -2742,6 +2746,30 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__feedback_upload_info.upload_path = upload_path
             self.__feedback_upload_info.upload_server_headers = upload_server_headers
             self.__feedback_upload_info.log('FeedbackUploadInfo modified to: "%s", "%s", "%s"' % (upload_server, upload_path, upload_server_headers))
+
+    def get_feedback_upload_urls(self):
+        feedback_upload_info = self.get_feedback_upload_info()
+
+        feedback_upload_urls = []
+        feedback_upload_urls.append({'URL': base64.b64encode('https://' + feedback_upload_info.upload_server + feedback_upload_info.upload_path),
+                                     'RequestHeaders': dict(header.split(':') for header in feedback_upload_info.upload_server_headers.splitlines()),
+                                     'OnlyAfterAttempts': 0,
+                                     'SkipVerify': False})
+
+        number_of_alternate_feedback_upload_urls = 3
+        if self.__alternate_feedback_upload_urls:
+            if len(self.__alternate_feedback_upload_urls) > number_of_alternate_feedback_upload_urls:
+                alternate_feedback_upload_urls = random.sample(self.__alternate_feedback_upload_urls, number_of_alternate_feedback_upload_urls)
+            else:
+                alternate_feedback_upload_urls = self.__alternate_feedback_upload_urls
+
+            for url in alternate_feedback_upload_urls:
+                feedback_upload_urls.append({'URL': base64.b64encode(url),
+                                             'RequestHeaders': dict(header.split(':') for header in feedback_upload_info.upload_server_headers.splitlines()),
+                                             'OnlyAfterAttempts': 2,
+                                             'SkipVerify': True})
+
+        return feedback_upload_urls
 
     def __get_upgrade_package_signing_key_pair(self):
         if not self.__upgrade_package_signing_key_pair:
