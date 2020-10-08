@@ -2276,12 +2276,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             server.osl_ids = list(osl_ids) if osl_ids else None
             server.osl_discovery_date_range = osl_discovery
 
-            supports_passthrough = False
-            for capability in capabilities:
-                if psi_ops_deploy.server_supports_passthrough(server, host):
-                    supports_passthrough = True
-                    break
-            if supports_passthrough and len(self.__passthrough_addresses) > 0 and random.random() >= 0.5:
+            supports_passthrough = psi_ops_deploy.server_supports_passthrough(server, host)
+            if supports_passthrough and len(self.__passthrough_addresses) > 0:
                 host.passthrough_address = random.choice(self.__passthrough_addresses)
 
             self.setup_server(host, [server])
