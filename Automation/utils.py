@@ -27,6 +27,7 @@ def set_embedded_values(client_version,
                         feedback_upload_server,
                         feedback_upload_path,
                         feedback_upload_server_headers,
+                        feedback_upload_urls_json,
                         info_link_url,
                         proxied_web_app_http_auth_username,
                         proxied_web_app_http_auth_password,
@@ -53,6 +54,7 @@ def set_embedded_values(client_version,
     embedded_values['FEEDBACK_DIAGNOSTIC_INFO_UPLOAD_SERVER'] = feedback_upload_server
     embedded_values['FEEDBACK_DIAGNOSTIC_INFO_UPLOAD_PATH'] = feedback_upload_path
     embedded_values['FEEDBACK_DIAGNOSTIC_INFO_UPLOAD_SERVER_HEADERS'] = feedback_upload_server_headers
+    embedded_values['FEEDBACK_DIAGNOSTIC_INFO_UPLOAD_URLS_JSON'] = feedback_upload_urls_json
     embedded_values['INFO_LINK_URL'] = info_link_url
     embedded_values['PROXIED_WEB_APP_HTTP_AUTH_USERNAME'] = proxied_web_app_http_auth_username
     embedded_values['PROXIED_WEB_APP_HTTP_AUTH_PASSWORD'] = proxied_web_app_http_auth_password

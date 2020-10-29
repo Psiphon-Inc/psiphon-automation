@@ -215,6 +215,7 @@ def build_client(
         feedback_upload_server,
         feedback_upload_path,
         feedback_upload_server_headers,
+        feedback_upload_urls_json,
         info_link_url,
         upgrade_signature_public_key,
         upgrade_url_split,

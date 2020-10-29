@@ -2890,6 +2890,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         feedback_upload_info.upload_server,
                         feedback_upload_info.upload_path,
                         feedback_upload_info.upload_server_headers,
+                        json.dumps(self.get_feedback_upload_urls()).replace('"', '\\"'),
                         info_link_url,
                         upgrade_signature_public_key,
                         upgrade_url_split,
