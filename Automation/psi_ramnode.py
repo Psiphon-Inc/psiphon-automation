@@ -110,7 +110,19 @@ class PsiRamnode:
 
     def remove_ramnode(self, ramnode_id):
         return self.client.compute.delete_server(ramnode_id)
-    
+ 
+    def resize_ramnode(self, ramnode_id, target_flavors_name):
+        try:
+            flavors = self.client.compute.flavors()
+            flavors_id = get_psiphon_target_resource(flavors, target_flavors_name)
+
+            ramnode = self.client.compute.get_server(ramnode_id)
+            print("Reszing {}".format(ramnode.name))
+            if ramnode.status == 'ACTIVE' and ramnode.flavor['original_name'] != target_flavors_name:
+                self.client.compute.resize_server(ramnode, flavors_id)
+        except Exception as e:
+            print("Failed resizing {}".format(ramnode.name))
+
     def create_ramnode(self, host_id):
         choice_region = self.region
         datacenter_name = self.get_datacenter_names(choice_region)
