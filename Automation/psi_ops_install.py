@@ -1025,7 +1025,7 @@ def install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, ssh_ip
                 accept_recent_rate_limit=accept_recent_rate_limit,
                 proto="udp",
                 port=str(port))
-        elif 'TAPDANCE' in protocol:
+        elif ('TAPDANCE' in protocol) or ('CONJURE' in protocol):
             protocol_port_rule = accept_with_fronted_limit_rate_template.format(
                 port=str(port))
         else:
