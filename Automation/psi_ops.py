@@ -221,7 +221,7 @@ Server = psi_utils.recordtype(
     'propagation_channel_id, is_embedded, is_permanent, discovery_date_range, capabilities, ' +
     'web_server_port, web_server_secret, web_server_certificate, web_server_private_key, ' +
     'ssh_port, ssh_username, ssh_password, ssh_host_key, TCS_ssh_private_key, ' +
-    'ssh_obfuscated_port, ssh_obfuscated_quic_port, ssh_obfuscated_tapdance_port, ' +
+    'ssh_obfuscated_port, ssh_obfuscated_quic_port, ssh_obfuscated_tapdance_port,  ssh_obfuscated_conjure_port,' +
     'ssh_obfuscated_key, alternate_ssh_obfuscated_ports, osl_ids, osl_discovery_date_range, ' +
     'configuration_version',
     default=None)
@@ -243,14 +243,14 @@ def ServerCapabilities():
     for capability in ('handshake', 'VPN', 'SSH', 'OSSH'):
         capabilities[capability] = True
     # These are disabled by default
-    for capability in ('ssh-api-requests', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'FRONTED-MEEK-TACTICS', 'QUIC', 'TAPDANCE', 'FRONTED-MEEK-QUIC'):
+    for capability in ('ssh-api-requests', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'FRONTED-MEEK-TACTICS', 'QUIC', 'TAPDANCE', 'CONJURE', 'FRONTED-MEEK-QUIC'):
         capabilities[capability] = False
     return capabilities
 
 
 def copy_server_capabilities(caps):
     capabilities = {}
-    for capability in ('handshake', 'ssh-api-requests', 'VPN', 'SSH', 'OSSH', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'FRONTED-MEEK-TACTICS', 'QUIC', 'TAPDANCE', 'FRONTED-MEEK-QUIC'):
+    for capability in ('handshake', 'ssh-api-requests', 'VPN', 'SSH', 'OSSH', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'FRONTED-MEEK-TACTICS', 'QUIC', 'TAPDANCE', 'CONJURE', 'FRONTED-MEEK-QUIC'):
         capabilities[capability] = caps[capability]
     return capabilities
 
@@ -434,7 +434,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.63'
+    class_version = '0.64'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -810,6 +810,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.63')) < 0:
             self.__alternate_feedback_upload_urls = set()
             self.version = '0.63'
+        if cmp(parse_version(self.version), parse_version('0.64')) < 0:
+            for server in self.__servers.values() + self.__deleted_servers.values():
+                server.capabilities['CONJURE'] = False
+                server.ssh_obfuscated_conjure_port = None
+            self.version = '0.64'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1540,7 +1545,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def get_server_object(self, id, host_id, ip_address, egress_ip_address, internal_ip_address, propagation_channel_id,
                         is_embedded, is_permanent, discovery_date_range, capabilities, web_server_port, web_server_secret,
                         web_server_certificate, web_server_private_key, ssh_port, ssh_username, ssh_password,
-                        ssh_host_key, TCS_ssh_private_key, ssh_obfuscated_port, ssh_obfuscated_quic_port, ssh_obfuscated_tapdance_port,
+                        ssh_host_key, TCS_ssh_private_key, ssh_obfuscated_port, ssh_obfuscated_quic_port,
+                        ssh_obfuscated_tapdance_port, ssh_obfuscated_conjure_port,
                         ssh_obfuscated_key, alternate_ssh_obfuscated_ports, osl_ids, osl_discovery_date_range, configuration_version):
         return Server(id,
                     host_id,
@@ -1564,6 +1570,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     ssh_obfuscated_port,
                     ssh_obfuscated_quic_port,
                     ssh_obfuscated_tapdance_port,
+                    ssh_obfuscated_conjure_port,
                     ssh_obfuscated_key,
                     alternate_ssh_obfuscated_ports,
                     osl_ids,
@@ -1628,6 +1635,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             server.ssh_obfuscated_port,
                             server.ssh_obfuscated_quic_port,
                             server.ssh_obfuscated_tapdance_port,
+                            server.ssh_obfuscated_conjure_port,
                             server.ssh_obfuscated_key,
                             server.alternate_ssh_obfuscated_ports,
                             server.osl_ids,
@@ -3757,6 +3765,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             extended_config['sshObfuscatedPort'] = int(server.alternate_ssh_obfuscated_ports[-1])
         extended_config['sshObfuscatedQUICPort'] = int(server.ssh_obfuscated_quic_port) if server.ssh_obfuscated_quic_port else 0
         extended_config['sshObfuscatedTapdancePort'] = int(server.ssh_obfuscated_tapdance_port) if server.ssh_obfuscated_tapdance_port else 0
+        extended_config['sshObfuscatedConjurePort'] = int(server.ssh_obfuscated_conjure_port) if server.ssh_obfuscated_conjure_port else 0
         extended_config['sshObfuscatedKey'] = server.ssh_obfuscated_key if server.ssh_obfuscated_key else ''
 
         host = self.__hosts[server.host_id]
@@ -4121,6 +4130,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 server.ssh_obfuscated_port,
                                                 server.ssh_obfuscated_quic_port,
                                                 server.ssh_obfuscated_tapdance_port,
+                                                server.ssh_obfuscated_conjure_port,
                                                 server.ssh_obfuscated_key,
                                                 server.alternate_ssh_obfuscated_ports,
                                                 None,
@@ -4364,6 +4374,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             server.ssh_obfuscated_port,
                                             server.ssh_obfuscated_quic_port,
                                             server.ssh_obfuscated_tapdance_port,
+                                            server.ssh_obfuscated_conjure_port,
                                             server.ssh_obfuscated_key,
                                             server.alternate_ssh_obfuscated_ports)
                                             # Omit: propagation, web server, ssh info, version
