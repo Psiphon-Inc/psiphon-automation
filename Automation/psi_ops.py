@@ -221,7 +221,7 @@ Server = psi_utils.recordtype(
     'propagation_channel_id, is_embedded, is_permanent, discovery_date_range, capabilities, ' +
     'web_server_port, web_server_secret, web_server_certificate, web_server_private_key, ' +
     'ssh_port, ssh_username, ssh_password, ssh_host_key, TCS_ssh_private_key, ' +
-    'ssh_obfuscated_port, ssh_obfuscated_quic_port, ssh_obfuscated_tapdance_port, ' +
+    'ssh_obfuscated_port, ssh_obfuscated_quic_port, ssh_obfuscated_tapdance_port,  ssh_obfuscated_conjure_port,' +
     'ssh_obfuscated_key, alternate_ssh_obfuscated_ports, osl_ids, osl_discovery_date_range, ' +
     'configuration_version',
     default=None)
@@ -243,14 +243,14 @@ def ServerCapabilities():
     for capability in ('handshake', 'VPN', 'SSH', 'OSSH'):
         capabilities[capability] = True
     # These are disabled by default
-    for capability in ('ssh-api-requests', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'FRONTED-MEEK-TACTICS', 'QUIC', 'TAPDANCE', 'FRONTED-MEEK-QUIC'):
+    for capability in ('ssh-api-requests', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'FRONTED-MEEK-TACTICS', 'QUIC', 'TAPDANCE', 'CONJURE', 'FRONTED-MEEK-QUIC'):
         capabilities[capability] = False
     return capabilities
 
 
 def copy_server_capabilities(caps):
     capabilities = {}
-    for capability in ('handshake', 'ssh-api-requests', 'VPN', 'SSH', 'OSSH', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'FRONTED-MEEK-TACTICS', 'QUIC', 'TAPDANCE', 'FRONTED-MEEK-QUIC'):
+    for capability in ('handshake', 'ssh-api-requests', 'VPN', 'SSH', 'OSSH', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'FRONTED-MEEK-TACTICS', 'QUIC', 'TAPDANCE', 'CONJURE', 'FRONTED-MEEK-QUIC'):
         capabilities[capability] = caps[capability]
     return capabilities
 
@@ -434,7 +434,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.63'
+    class_version = '0.64'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -810,6 +810,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.63')) < 0:
             self.__alternate_feedback_upload_urls = set()
             self.version = '0.63'
+        if cmp(parse_version(self.version), parse_version('0.64')) < 0:
+            for server in self.__servers.values() + self.__deleted_servers.values():
+                server.capabilities['CONJURE'] = False
+                server.ssh_obfuscated_conjure_port = None
+            self.version = '0.64'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1540,7 +1545,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def get_server_object(self, id, host_id, ip_address, egress_ip_address, internal_ip_address, propagation_channel_id,
                         is_embedded, is_permanent, discovery_date_range, capabilities, web_server_port, web_server_secret,
                         web_server_certificate, web_server_private_key, ssh_port, ssh_username, ssh_password,
-                        ssh_host_key, TCS_ssh_private_key, ssh_obfuscated_port, ssh_obfuscated_quic_port, ssh_obfuscated_tapdance_port,
+                        ssh_host_key, TCS_ssh_private_key, ssh_obfuscated_port, ssh_obfuscated_quic_port,
+                        ssh_obfuscated_tapdance_port, ssh_obfuscated_conjure_port,
                         ssh_obfuscated_key, alternate_ssh_obfuscated_ports, osl_ids, osl_discovery_date_range, configuration_version):
         return Server(id,
                     host_id,
@@ -1564,6 +1570,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     ssh_obfuscated_port,
                     ssh_obfuscated_quic_port,
                     ssh_obfuscated_tapdance_port,
+                    ssh_obfuscated_conjure_port,
                     ssh_obfuscated_key,
                     alternate_ssh_obfuscated_ports,
                     osl_ids,
@@ -1628,6 +1635,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             server.ssh_obfuscated_port,
                             server.ssh_obfuscated_quic_port,
                             server.ssh_obfuscated_tapdance_port,
+                            server.ssh_obfuscated_conjure_port,
                             server.ssh_obfuscated_key,
                             server.alternate_ssh_obfuscated_ports,
                             server.osl_ids,
@@ -2266,6 +2274,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         None,
                         ossh_port,
                         quic_port,
+                        None,
                         None,
                         None,
                         None,
@@ -3755,9 +3764,34 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Use the latest alternate port unless tunneling through meek
         if server.alternate_ssh_obfuscated_ports and not (server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET']):
             extended_config['sshObfuscatedPort'] = int(server.alternate_ssh_obfuscated_ports[-1])
-        extended_config['sshObfuscatedQUICPort'] = int(server.ssh_obfuscated_quic_port) if server.ssh_obfuscated_quic_port else 0
-        extended_config['sshObfuscatedTapdancePort'] = int(server.ssh_obfuscated_tapdance_port) if server.ssh_obfuscated_tapdance_port else 0
         extended_config['sshObfuscatedKey'] = server.ssh_obfuscated_key if server.ssh_obfuscated_key else ''
+
+        # To minimize server entry size, unused fields are now omitted. (The
+        # size savings is relatively small for now, until we retire the
+        # web_server_certificate field -- the two copies of which dominate the
+        # server entry size.)
+        #
+        # Previously, unused meek fields were populated with blank values.
+        # Tunnel-core clients will automatically provide zero values for
+        # omitted fields. Legacy clients do not reference these meek fields
+        # unless the server entry has a meek capability; and legacy clients
+        # predate QUIC, TapDance, and Conjure-bsed protocols.
+        #
+        # Certain potentially unused fields _are_ referenced by legacy code, for
+        # example sshPort, so we still populate these with blank values.
+        #
+        # Windows legacy: https://github.com/Psiphon-Inc/psiphon-windows/blob/master/src/serverlist.cpp#L639-L676
+        #
+        # Android legacy: https://github.com/Psiphon-Inc/psiphon-android-historical/blob/1820ddf294c26e0f32b8bbeca6285f38f8449243/PsiphonAndroidLibrary/src/com/psiphon3/psiphonlibrary/ServerInterface.java#L1931-L1968
+
+        if server.ssh_obfuscated_quic_port:
+            extended_config['sshObfuscatedQUICPort'] = int(server.ssh_obfuscated_quic_port)
+
+        if server.ssh_obfuscated_tapdance_port:
+            extended_config['sshObfuscatedTapdancePort'] = int(server.ssh_obfuscated_tapdance_port)
+
+        if server.ssh_obfuscated_conjure_port:
+            extended_config['sshObfuscatedConjurePort'] = int(server.ssh_obfuscated_conjure_port)
 
         host = self.__hosts[server.host_id]
         extended_config['region'] = host.region
@@ -3767,11 +3801,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             server_capabilities['UNFRONTED-MEEK'] = False
             server_capabilities['UNFRONTED-MEEK-HTTPS'] = True
 
-        extended_config['meekServerPort'] = int(host.meek_server_port) if host.meek_server_port else 0
-        extended_config['meekObfuscatedKey'] = host.meek_server_obfuscated_key if host.meek_server_obfuscated_key else ''
-        extended_config['meekFrontingDomain'] = host.meek_server_fronting_domain if host.meek_server_fronting_domain else ''
-        extended_config['meekFrontingHost'] = host.meek_server_fronting_host if host.meek_server_fronting_host else ''
-        extended_config['meekCookieEncryptionPublicKey'] = host.meek_cookie_encryption_public_key if host.meek_cookie_encryption_public_key else ''
+        if host.meek_server_port:
+            extended_config['meekServerPort'] = int(host.meek_server_port)
+        if host.meek_server_obfuscated_key:
+            extended_config['meekObfuscatedKey'] = host.meek_server_obfuscated_key
+        if host.meek_server_fronting_domain:
+            extended_config['meekFrontingDomain'] = host.meek_server_fronting_domain
+        if host.meek_server_fronting_host:
+            extended_config['meekFrontingHost'] = host.meek_server_fronting_host
+        if host.meek_cookie_encryption_public_key:
+            extended_config['meekCookieEncryptionPublicKey'] = host.meek_cookie_encryption_public_key
 
         if host.meek_server_fronting_domain:
             # Copy the set to avoid shuffling the original
@@ -3794,8 +3833,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if host.fronting_provider_id:
             extended_config['frontingProviderID'] = host.fronting_provider_id
 
-        extended_config['tacticsRequestPublicKey'] = host.tactics_request_public_key if host.tactics_request_public_key else ''
-        extended_config['tacticsRequestObfuscatedKey'] = host.tactics_request_obfuscated_key if host.tactics_request_obfuscated_key else ''
+        if host.tactics_request_public_key:
+            extended_config['tacticsRequestPublicKey'] = host.tactics_request_public_key
+        if host.tactics_request_obfuscated_key:
+            extended_config['tacticsRequestObfuscatedKey'] = host.tactics_request_obfuscated_key
 
         extended_config['capabilities'] = [capability for capability, enabled in server_capabilities.iteritems() if enabled] if server_capabilities else []
 
@@ -3817,7 +3858,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     json.dumps(extended_config)))
 
         # The following server entries will be signed, once server_entry_signing_key_pair is initialzed:
-        # entries mbedded in client builds; entries paved into remote and obfuscated server lists; entries
+        # entries embedded in client builds; entries paved into remote and obfuscated server lists; entries
         # used in test_server; discovery entries paved into psinet for psiphond.
         #
         # The following will _not_ be signed: discovery entries issued by legacy, psi_web-based servers.
@@ -4121,6 +4162,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 server.ssh_obfuscated_port,
                                                 server.ssh_obfuscated_quic_port,
                                                 server.ssh_obfuscated_tapdance_port,
+                                                server.ssh_obfuscated_conjure_port,
                                                 server.ssh_obfuscated_key,
                                                 server.alternate_ssh_obfuscated_ports,
                                                 None,
@@ -4364,6 +4406,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             server.ssh_obfuscated_port,
                                             server.ssh_obfuscated_quic_port,
                                             server.ssh_obfuscated_tapdance_port,
+                                            server.ssh_obfuscated_conjure_port,
                                             server.ssh_obfuscated_key,
                                             server.alternate_ssh_obfuscated_ports)
                                             # Omit: propagation, web server, ssh info, version
