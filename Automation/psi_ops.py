@@ -3224,6 +3224,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                  "-payload", osl_payload_filename,
                  "-key", signing_key_filename,
                  "-omit-md5sums", "0",
+                 "-offset", "2880", # 120 days
                  "-output", output_dir]
 
             if offset:
