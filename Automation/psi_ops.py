@@ -3229,7 +3229,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if offset:
                 paver_command_line += ["-offset", str(offset)]
             else:
-                paver_command_line += ["-offset", "2880"] # 120 days
+                paver_command_line += ["-offset", "2880h"] # 120 days
 
             if period:
                 paver_command_line += ["-period", str(period)]
