@@ -3859,7 +3859,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     web_server_certificate,
                                     json.dumps(extended_config)))
 
-        # The following server entries will be signed, once server_entry_signing_key_pair is initialzed:
+        # The following server entries will be signed, once server_entry_signing_key_pair is initialized:
         # entries embedded in client builds; entries paved into remote and obfuscated server lists; entries
         # used in test_server; discovery entries paved into psinet for psiphond.
         #
