@@ -102,6 +102,7 @@ def write_embedded_values(propagation_channel_id,
                           feedback_upload_server,
                           feedback_upload_path,
                           feedback_upload_server_headers,
+                          feedback_upload_urls_json,
                           info_link_url,
                           upgrade_signature_public_key,
                           upgrade_url_split,
@@ -144,6 +145,7 @@ def write_embedded_values(propagation_channel_id,
         static const char* FEEDBACK_DIAGNOSTIC_INFO_UPLOAD_SERVER = "%s";
         static const char* FEEDBACK_DIAGNOSTIC_INFO_UPLOAD_PATH = "%s";
         static const char* FEEDBACK_DIAGNOSTIC_INFO_UPLOAD_SERVER_HEADERS = "%s";
+        static const char* FEEDBACK_UPLOAD_URLS_JSON = "%s";
 
         // NOTE: Info link may be opened when not tunneled
         static const TCHAR* INFO_LINK_URL
@@ -182,6 +184,7 @@ def write_embedded_values(propagation_channel_id,
                                feedback_upload_server,
                                feedback_upload_path,
                                feedback_upload_server_headers,
+                               feedback_upload_urls_json,
                                info_link_url,
                                upgrade_signature_public_key,
                                upgrade_url_split[1],
@@ -259,6 +262,7 @@ def build_client(
             feedback_upload_server,
             feedback_upload_path,
             feedback_upload_server_headers,
+            feedback_upload_urls_json,
             info_link_url,
             upgrade_signature_public_key,
             upgrade_url_split,
