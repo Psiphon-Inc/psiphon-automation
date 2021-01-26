@@ -128,6 +128,42 @@ def _generate_feedback_scheme1(client_platform, client_version, msg):
     }
 
 
+# Windows feedback with a single status history entry.
+def _generate_windows_feedback(client_version, msg):
+    return {
+        "Metadata": {
+            "platform": "windows"
+        },
+        "DiagnosticInfo": {
+            "SystemInformation": {
+                "PsiphonInfo": {
+                    "CLIENT_VERSION": client_version
+                },
+            },
+            "DiagnosticHistory": [
+                {
+                    "msg": "",
+                    "timestamp": "",
+                    "data": {
+                        "timestamp": "",
+                        "noticeType": "",
+                        "data": {
+                            "msg": ""
+                        },
+                    },
+                }
+            ],
+            "StatusHistory": [
+                {
+                    "debug": True,
+                    "timestamp": "",
+                    "message": msg,
+                }
+            ],
+        },
+    }
+
+
 def _redact_sensitive_values_ios_vpn_test():
 
     # Test where a sensitive value is redacted
@@ -168,6 +204,8 @@ def redactors(client_platform, client_version):
     redactors = [_redact_upstream_proxy_errors]
     if client_platform == "ios-vpn" and client_version >= 160:
         redactors.append(_ios_vpn_redact_start_tunnel_with_options)
+    elif client_platform == "windows" and client_version == 160:
+        redactors.append(_windows_redact_panic_logs)
     return redactors
 
 
@@ -366,6 +404,40 @@ def _validate_start_tunnel_with_options_test():
     print '_validate_start_tunnel_with_test okay'
 
 _validate_start_tunnel_with_options.test = _validate_start_tunnel_with_options_test
+
+
+def _windows_redact_panic_logs(obj, path, val):
+    '''
+    Redact all panic lines.
+    See `_windows_redact_panic_logs_test()` for examples.
+    '''
+    if isinstance(val, utils.string_types):
+
+        panicLinePrefix = "core panic: "
+
+        if val.find(panicLinePrefix) == 0:
+
+            utils.assign_value_to_obj_at_path(obj, path, panicLinePrefix + "[REDACTED]")
+
+
+def _windows_redact_panic_logs_test():
+    log = "core panic: <should be redacted>"
+
+    # Test where a sensitive value is redacted
+    obj = _generate_windows_feedback(160, log)
+    expected_redacted_obj = _generate_windows_feedback(160, "core panic: [REDACTED]")
+    redact_sensitive_values(obj)
+    assert(obj == expected_redacted_obj)
+
+    # Test where no redaction attempts are made based on the client version
+    obj = _generate_windows_feedback(161, log)
+    obj_copy = _generate_windows_feedback(161, log)
+    redact_sensitive_values(obj)
+    assert(obj == obj_copy)
+
+    print '_windows_redact_panic_logs_test okay'
+
+_windows_redact_panic_logs.test = _windows_redact_panic_logs_test
 
 
 # TODO: proper unit test framework
