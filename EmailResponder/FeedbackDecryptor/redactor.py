@@ -307,7 +307,7 @@ def _ios_vpn_redact_start_tunnel_with_options(obj, path, val):
 
         extensionInfoPrefix = "ExtensionInfo: "
 
-        if val.find(extensionInfoPrefix) == 0:
+        if val.startswith(extensionInfoPrefix):
 
             try:
                 j = json.loads(val[len(extensionInfoPrefix):])
@@ -412,11 +412,8 @@ def _windows_redact_panic_logs(obj, path, val):
     See `_windows_redact_panic_logs_test()` for examples.
     '''
     if isinstance(val, utils.string_types):
-
         panicLinePrefix = "core panic: "
-
-        if val.find(panicLinePrefix) == 0:
-
+        if val.startswith(panicLinePrefix):
             utils.assign_value_to_obj_at_path(obj, path, panicLinePrefix + "[REDACTED]")
 
 
