@@ -318,6 +318,9 @@ def objwalk(obj, path=(), memo=None):
     Note: DO NOT modify the object's keys while iterating, or the iteration will be messed
     up. Instead, save the keys into a list, which you can then iterate and modify.
     """
+    if obj is None:
+        return
+
     if memo is None:
         memo = set()
     iterator = None
