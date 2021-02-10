@@ -38,6 +38,8 @@ from pymongo import MongoClient
 import numpy
 import pytz
 
+import logger
+
 
 _connection = MongoClient()
 _db = _connection.maildecryptor
@@ -107,6 +109,21 @@ _diagnostic_info_store.ensure_index('Metadata.version')
 #
 
 def insert_diagnostic_info(obj):
+    '''
+    Returns _id of inserted document if successful; otherwise returns None if an
+    error occurs, or the provided diagnostic info has the same id as a
+    pre-existing document.
+    '''
+    feedback_id = obj.get("Metadata", {}).get("id", None)
+    if feedback_id is None:
+        logger.error("insert_diagnostic_info: missing id")
+        return None
+    
+    doc = _diagnostic_info_store.find_one({"Metadata.id": feedback_id}, {"Metadata.id": 1, "_id": 0})
+    if doc is not None:
+        logger.error("insert_diagnostic_info: duplicate id {}".format(feedback_id))
+        return None
+
     obj['datetime'] = datetime.datetime.now()
     return _diagnostic_info_store.insert(obj)
 
