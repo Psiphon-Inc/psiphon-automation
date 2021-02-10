@@ -99,9 +99,10 @@ _errors_store.ensure_index('datetime', expireAfterSeconds=_ERRORS_LIFETIME_SECS)
 _EMAIL_DIAGNOSTIC_INFO_LIFETIME_SECS = 60*60  # one hour
 _email_diagnostic_info_store.ensure_index('datetime', expireAfterSeconds=_EMAIL_DIAGNOSTIC_INFO_LIFETIME_SECS)
 
-# More loookup indexes
+# More lookup indexes
 _diagnostic_info_store.ensure_index('Metadata.platform')
 _diagnostic_info_store.ensure_index('Metadata.version')
+_diagnostic_info_store.ensure_index('Metadata.id')
 
 
 #
