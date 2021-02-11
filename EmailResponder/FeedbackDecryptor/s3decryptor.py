@@ -150,6 +150,9 @@ def go():
 
             # Store the diagnostic info
             record_id = datastore.insert_diagnostic_info(diagnostic_info)
+            if record_id is None:
+                # An error occurred or diagnostic info was a duplicate.
+                continue
 
             if _should_email_data(diagnostic_info):
                 logger.debug_log('s3decryptor.go: should email')
