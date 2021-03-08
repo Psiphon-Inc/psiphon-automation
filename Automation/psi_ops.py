@@ -3744,14 +3744,29 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(len(server.web_server_secret) > 1)
         assert(len(web_server_certificate) > 1)
 
+        # Except for legacy VPN servers, we now exclude the fields required
+        # for using the legacy "web" API. All tunnel-core clients with the
+        # following code support and prefer the "ssh" API, and all but legacy
+        # VPN servers support the ssh API:
+        #
+        # https://github.com/Psiphon-Labs/psiphon-tunnel-core/commit/521681930a08ae6672429fce9445bd4925adf263
+        #
+        # Omitting the web server certificate value significantly reduces the
+        # size of server entries.
+        #
+        # web_server_secret is still required in the ssh API.
+
+        include_web_api_fields = (server.capabilities['handshake'] and server.capabilities['VPN'])
+
         # Extended (i.e., new) entry fields are in a JSON string
         extended_config = {}
 
         # NOTE: also putting original values in extended config for easier parsing for new clients
         extended_config['ipAddress'] = server.ip_address
-        extended_config['webServerPort'] = server.web_server_port
         extended_config['webServerSecret'] = server.web_server_secret
-        extended_config['webServerCertificate'] = web_server_certificate
+        if include_web_api_fields:
+            extended_config['webServerPort'] = server.web_server_port
+            extended_config['webServerCertificate'] = web_server_certificate
 
         extended_config['sshPort'] = int(server.ssh_port) if server.ssh_port else 0
         extended_config['sshUsername'] = server.ssh_username if server.ssh_username else ''
@@ -3852,11 +3867,29 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         extended_config['configurationVersion'] = server.configuration_version
 
+        # To minimize server entry size, we now stub in minimal placeholders
+        # for the legacy prefix of space-delimited field values. Only legacy
+        # VPN Windows clients use these values. All tunnel-core clients still
+        # expect a prefix of 5 space delimited fields when parsing server
+        # entries. It is sufficient to use single character placeholders as
+        # values, which will be ignored.
+
+        prefix_ip_address = '0'
+        prefix_web_server_port = '0'
+        prefix_web_server_secret = '0'
+        prefix_web_server_certificate = '0'
+
+        if include_web_api_fields:
+            prefix_ip_address = server.ip_address
+            prefix_web_server_port = server.web_server_port
+            prefix_web_server_secret = server.web_server_secret
+            prefix_web_server_certificate = web_server_certificate
+
         encoded_server_entry = binascii.hexlify('%s %s %s %s %s' % (
-                                    server.ip_address,
-                                    server.web_server_port,
-                                    server.web_server_secret,
-                                    web_server_certificate,
+                                    prefix_ip_address,
+                                    prefix_web_server_port,
+                                    prefix_web_server_secret,
+                                    prefix_web_server_certificate,
                                     json.dumps(extended_config)))
 
         # The following server entries will be signed, once server_entry_signing_key_pair is initialized:
