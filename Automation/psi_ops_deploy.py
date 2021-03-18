@@ -253,6 +253,10 @@ def deploy_TCS_implementation(ssh, host, servers, own_encoded_server_entries, TC
 
     ssh.exec_command('touch %s' % (TCS_BLOCKLIST_CSV_FILE_NAME,))
 
+    # Create the log file, since psiphond no longer does that to avoid a race condition with logrotate
+    ssh.exec_command('touch %s' % (TCS_PSIPHOND_LOG_FILE_NAME,))
+    ssh.exec_command('chown psiphond:psiphond %s' % (TCS_PSIPHOND_LOG_FILE_NAME,))
+
     if host.TCS_type == 'NATIVE':
         # Upload psiphond, restart service
         # Push psiphond from bitbucket repo (Server/psiphond/psiphond) to host.
