@@ -30,7 +30,7 @@ import psi_utils
 from scaleway.scaleway import apis as ScalewayApis
 
 # VARIABLE
-tcs_image_name = 'Debian Buster'
+tcs_image_name = 'Psiphon-TCS-V8-20210410'
 tcs_instance_size = 'DEV1-M'
 
 #==============================================================================
