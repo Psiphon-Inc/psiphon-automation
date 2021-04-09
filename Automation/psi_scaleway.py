@@ -178,6 +178,15 @@ def remove_server(scaleway_account, scaleway_id):
     except Exception as e:
         raise e
 
+def get_server_ip_addresses(scaleway_account, scaleway_id):
+    scaleway_api = PsiScaleway(scaleway_account)
+    scaleway = scaleway_api.scaleway_list(scaleway_id)
+
+    public_ip = scaleway['public_ip']['address']
+    private_ip = scaleway['private_ip']
+
+    return (public_ip, private_ip)
+
 def launch_new_server(scaleway_account, is_TCS, plugins, multi_ip=False):
 
     scaleway = None
