@@ -19,6 +19,7 @@
 
 import os
 import sys
+import json
 import random
 import string
 import time
@@ -28,10 +29,35 @@ import psi_utils
 # Import scaleway APIv4 Official Library
 # Requirement: pip install slumber cachetools
 from scaleway.scaleway import apis as ScalewayApis
+from slumber import exceptions as slexc
 
 # VARIABLE
 tcs_image_name = 'Psiphon-TCS-V8-20210410'
 tcs_instance_size = 'DEV1-M'
+
+###
+#
+# Helper functions
+#
+###
+def reload_proper_api_client(scaleway_api, scaleway_id):
+    scaleway_id_list = scaleway_id.split('_')
+    scaleway_api_region = scaleway_id_list[0]
+    scaleway_instance_id = scaleway_id_list[1]
+
+    scaleway_api.region = scaleway_api_region
+    scaleway_api.reload()
+
+    return scaleway_api, scaleway_instance_id
+
+def wait_while_condition(condition, max_wait_seconds, description):
+    total_wait_seconds = 0
+    wait_seconds = 5
+    while condition() == True:
+        if total_wait_seconds > max_wait_seconds:
+            raise Exception('Took more than %d seconds to %s' % (max_wait_seconds, description))
+        time.sleep(wait_seconds)
+        total_wait_seconds = total_wait_seconds + wait_seconds
 
 #==============================================================================
 ###
@@ -46,10 +72,16 @@ class PsiScaleway:
         self.client = ScalewayApis.ComputeAPI(auth_token=self.api_token, region=self.region)
         self.organizations = ScalewayApis.AccountAPI(auth_token=self.api_token).query().organizations.get()['organizations'][0]['id']
 
-    def get_image(self):
-        images = self.client.query().images.get()['images']
+    def reload(self):
+        self.client = ScalewayApis.ComputeAPI(auth_token=self.api_token, region=self.region)
 
-        return [image for image in images if image['name'] == tcs_image_name and image['root_volume']['volume_type'] == 'l_ssd'][0]
+    def get_image(self):
+        try:
+            images = self.client.query().images.get()['images']
+
+            return [image for image in images if image['name'] == tcs_image_name and image['root_volume']['volume_type'] == 'l_ssd'][0]
+        except slexc.HttpClientError as exc:
+            print(json.dumps(exc.response.json(), indent=2))
 
     def get_region(self):
         # 'fr-par-1',
@@ -77,44 +109,77 @@ class PsiScaleway:
         }
         return regions.get(self.region, '')
 
+    def check_task_status(self, task_id):
+        try:
+            task = self.client.query().tasks(task_id).get()
+            return task['task']['status']
+        except slexc.HttpClientError as exc:
+            print(json.dumps(exc.response.json(), indent=2))
+
     def list_scaleways(self):
-        # return all scaleways in the account.
-        return self.client.query().servers.get()['servers']
+        try:
+            # return all scaleways in the account.
+            return self.client.query().servers.get()['servers']
+        except slexc.HttpClientError as exc:
+            print(json.dumps(exc.response.json(), indent=2))
 
     def scaleway_list(self, scaleway_id):
-        # List single scaleway by searching its id
-        return self.client.query().servers(scaleway_id).get()['server']
+        try:
+            # List single scaleway by searching its id
+            return self.client.query().servers(scaleway_id).get()['server']
+        except slexc.HttpClientError as exc:
+            print(json.dumps(exc.response.json(), indent=2))
 
     def remove_scaleway(self, scaleway_id):
-        scaleway = self.client.query().servers(scaleway_id).get()['server']
-        # Poweroff instance first
-        self.client.query().servers(scaleway['id']).action.post({'action': 'poweroff'})
-        time.sleep(5)
-        # Delete instance
-        self.client.query().servers(scaleway['id']).delete()
-        time.sleep(5)
-        # Delete volumes
-        self.client.query().volumes(scaleway['volumes']['0']['id']).delete()
+        try:
+            scaleway = self.client.query().servers(scaleway_id).get()['server']
+            if scaleway['state'] == 'running':
+                # Poweroff instance first
+                off_res = self.client.query().servers(scaleway['id']).action.post({'action': 'poweroff'})
+                # Wait for job completion
+                wait_while_condition(lambda: self.scaleway_list(scaleway['id'])['state'] != 'stopped',
+                                    60,
+                                    'Creating Scalleway Instance')
+
+            # Delete instance
+            del_res = self.client.query().servers(scaleway['id']).delete()
+
+            # Delete volumes
+            vol_res = self.client.query().volumes(scaleway['volumes']['0']['id']).delete()
+        except slexc.HttpClientError as exc:
+            print(json.dumps(exc.response.json(), indent=2))
 
     def start_scaleway(self, scaleway_id):
-        # Boot scaleway from API
-        return self.client.query().servers(scaleway_id).action.post({'action': 'poweron'})
+        try:
+            # Boot scaleway from API
+            self.client.query().servers(scaleway_id).action.post({'action': 'poweron'})
+        except slexc.HttpClientError as exc:
+            print(json.dumps(exc.response.json(), indent=2))
 
     def stop_scaleway(self, scaleway_id):        
         # Shutdown scaleway from API
-        return self.client.query().servers(scaleway_id).action.post({'action': 'poweroff'})
+        try:
+            self.client.query().servers(scaleway_id).action.post({'action': 'poweroff'})
+        except slexc.HttpClientError as exc:
+            print(json.dumps(exc.response.json(), indent=2))
 
     def restart_scaleway(self, scaleway_id):
-        # New method: restart scaleway from API
-        return self.client.query().servers(scaleway_id).action.post({'action': 'reboot'})
+        try:
+            # New method: restart scaleway from API
+            self.client.query().servers(scaleway_id).action.post({'action': 'reboot'})
+        except slexc.HttpClientError as exc:
+            print(json.dumps(exc.response.json(), indent=2))
 
     def create_scaleway(self, host_id):
-        # We are using Scaleway 3 vCPUs 4 GB: u'DEV1-M'
-        scaleway = self.client.query().servers.post({'project': self.organizations, 'name': host_id, 'commercial_type': tcs_instance_size, 'image': self.get_image()['id']})
-        time.sleep(5)
-        res = self.start_scaleway(scaleway['server']['id'])
-        time.sleep(5)
-        return self.scaleway_list(scaleway['server']['id']), self.get_datacenter_names(), self.get_region()
+        try:
+            # We are using Scaleway 3 vCPUs 4 GB: u'DEV1-M'
+            scaleway = self.client.query().servers.post({'project': self.organizations, 'name': host_id, 'commercial_type': tcs_instance_size, 'image': self.get_image()['id']})
+
+            res = self.start_scaleway(scaleway['server']['id'])
+
+            return self.scaleway_list(scaleway['server']['id']), self.get_datacenter_names(), self.get_region()
+        except slexc.HttpClientError as exc:
+            print(json.dumps(exc.response.json(), indent=2))
 
 ###
 #
@@ -163,16 +228,26 @@ def set_host_name(scaleway_account, ip_address, new_hostname):
 ###
 def get_servers(scaleway_account):
     scaleway_api = PsiScaleway(scaleway_account)
-    scaleways = scaleway_api.list_scaleways()
+    scaleways = []
+
+    for region in scaleway_account.regions:
+        scaleway_api.region = region
+        scaleway_api.reload()
+
+        instances = scaleway_api.list_scaleways()
+        scaleways += instances
+
     return [(s['id'], s['name']) for s in scaleways]
 
 def get_server(scaleway_account, scaleway_id):
     scaleway_api = PsiScaleway(scaleway_account)
+    scaleway_api, scaleway_id = reload_proper_api_client(scaleway_api, scaleway_id)
     scaleway = scaleway_api.scaleway_list(scaleway_id)
     return scaleway
 
 def remove_server(scaleway_account, scaleway_id):
     scaleway_api = PsiScaleway(scaleway_account)
+    scaleway_api, scaleway_id = reload_proper_api_client(scaleway_api, scaleway_id)
     try:
         scaleway_api.remove_scaleway(scaleway_id)
     except Exception as e:
@@ -180,6 +255,7 @@ def remove_server(scaleway_account, scaleway_id):
 
 def get_server_ip_addresses(scaleway_account, scaleway_id):
     scaleway_api = PsiScaleway(scaleway_account)
+    scaleway_api, scaleway_id = reload_proper_api_client(scaleway_api, scaleway_id)
     scaleway = scaleway_api.scaleway_list(scaleway_id)
 
     public_ip = scaleway['public_ip']['address']
@@ -217,7 +293,8 @@ def launch_new_server(scaleway_account, is_TCS, plugins, multi_ip=False):
             scaleway_api.remove_scaleway(scaleway['id'])
         raise ex
 
-    return (host_id, is_TCS, 'NATIVE' if is_TCS else None, None, scaleway['id'], scaleway_ip_address,
+    return (host_id, is_TCS, 'NATIVE' if is_TCS else None, None,
+            scaleway_api.region + '_' + scaleway['id'], scaleway_ip_address,
             scaleway_account.base_ssh_port, 'root', new_root_password,
             ' '.join(new_host_public_key.split(' ')[:2]),
             new_stats_username, new_stats_password,
