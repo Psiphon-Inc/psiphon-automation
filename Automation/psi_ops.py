@@ -2184,7 +2184,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             server_info = server_infos[new_server_number]
             if type(server_info) != tuple:
                 continue
-            host = Host(*server_info[:-1])
+            internal_ip = server_info[-1]
+            egress_ip = server_info[-2]
+            host = Host(*server_info[:-2])
 
             if not host.region:
                 new_server_error = "Empty host region"
@@ -2266,8 +2268,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         None,
                         host.id,
                         host.ip_address,
-                        server_info[-1] if server_info[-1] else host.ip_address,
-                        host.ip_address,
+                        egress_ip if egress_ip else host.ip_address,
+                        internal_ip if internal_ip else host.ip_address,
                         propagation_channel.id,
                         is_embedded_server,
                         False,

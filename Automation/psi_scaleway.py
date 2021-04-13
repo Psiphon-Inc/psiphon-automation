@@ -275,6 +275,7 @@ def launch_new_server(scaleway_account, is_TCS, plugins, multi_ip=False):
         scaleway, datacenter_name, region = scaleway_api.create_scaleway(host_id)
 
         scaleway_ip_address = scaleway['public_ip']['address']
+        scaleway_internal_ip_address = scaleway['private_ip']
 
         new_stats_username = psi_utils.generate_stats_username()
         # scaleways created by an image keep the image's hostname.  Override this
@@ -298,7 +299,7 @@ def launch_new_server(scaleway_account, is_TCS, plugins, multi_ip=False):
             scaleway_account.base_ssh_port, 'root', new_root_password,
             ' '.join(new_host_public_key.split(' ')[:2]),
             new_stats_username, new_stats_password,
-            datacenter_name, region, None, None, None, None, None)
+            datacenter_name, region, None, None, None, None, None, scaleway_internal_ip_address)
 
 if __name__ == '__main__':
     print launch_new_server()

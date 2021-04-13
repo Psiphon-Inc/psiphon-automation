@@ -381,7 +381,7 @@ def launch_new_server(linode_account, is_TCS, plugins, multi_ip=False):
             linode_account.base_ssh_port, 'root', new_root_password,
             ' '.join(new_host_public_key.split(' ')[:2]),
             stats_username, new_stats_password,
-            datacenter_name, region, None, None, None, None, egress_ip_address)
+            datacenter_name, region, None, None, None, None, egress_ip_address, None)
 
 if __name__ == "__main__":
     print launch_new_server()
