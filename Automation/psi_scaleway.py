@@ -70,7 +70,7 @@ class PsiScaleway:
         self.api_token = scaleway_account.api_token
         self.region = random.choice(scaleway_account.regions)
         self.client = ScalewayApis.ComputeAPI(auth_token=self.api_token, region=self.region)
-        self.organizations = ScalewayApis.AccountAPI(auth_token=self.api_token).query().organizations.get()['organizations'][0]['id']
+        self.organizations = ScalewayApis.AccountAPI(auth_token=self.api_token).query().tokens.get()['tokens'][0]['organization_id']
 
     def reload(self):
         self.client = ScalewayApis.ComputeAPI(auth_token=self.api_token, region=self.region)
@@ -133,13 +133,13 @@ class PsiScaleway:
     def remove_scaleway(self, scaleway_id):
         try:
             scaleway = self.client.query().servers(scaleway_id).get()['server']
-            if scaleway['state'] == 'running':
+            if scaleway['state'] != 'poweroff':
                 # Poweroff instance first
                 off_res = self.client.query().servers(scaleway['id']).action.post({'action': 'poweroff'})
                 # Wait for job completion
                 wait_while_condition(lambda: self.scaleway_list(scaleway['id'])['state'] != 'stopped',
                                     60,
-                                    'Creating Scalleway Instance')
+                                    'Stopping Scaleway Instance')
 
             # Delete instance
             del_res = self.client.query().servers(scaleway['id']).delete()
@@ -176,6 +176,9 @@ class PsiScaleway:
             scaleway = self.client.query().servers.post({'project': self.organizations, 'name': host_id, 'commercial_type': tcs_instance_size, 'image': self.get_image()['id']})
 
             res = self.start_scaleway(scaleway['server']['id'])
+            wait_while_condition(lambda: self.scaleway_list(scaleway['server']['id'])['state'] != 'running',
+                                 60,
+                                 'Starting Scaleway Instance')
 
             return self.scaleway_list(scaleway['server']['id']), self.get_datacenter_names(), self.get_region()
         except slexc.HttpClientError as exc:
@@ -275,6 +278,7 @@ def launch_new_server(scaleway_account, is_TCS, plugins, multi_ip=False):
         scaleway, datacenter_name, region = scaleway_api.create_scaleway(host_id)
 
         scaleway_ip_address = scaleway['public_ip']['address']
+        print(scaleway)
         scaleway_internal_ip_address = scaleway['private_ip']
 
         new_stats_username = psi_utils.generate_stats_username()
