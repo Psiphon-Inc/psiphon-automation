@@ -278,7 +278,6 @@ def launch_new_server(scaleway_account, is_TCS, plugins, multi_ip=False):
         scaleway, datacenter_name, region = scaleway_api.create_scaleway(host_id)
 
         scaleway_ip_address = scaleway['public_ip']['address']
-        print(scaleway)
         scaleway_internal_ip_address = scaleway['private_ip']
 
         new_stats_username = psi_utils.generate_stats_username()
