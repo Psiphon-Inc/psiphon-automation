@@ -71,6 +71,11 @@ class Api:
         response = self._get_request('/virtual_machines/' + id)
         return response
 
+    # Get VM
+    def get_vms(self):
+        response = self._get_request('/virtual_machines')
+        return response
+
     # Delete_VM !!!DO NOT USE THIS FUNCTION!!!
     def delete_vm(self, id):
         vm = self._get_request('/virtual_machines/' + id)

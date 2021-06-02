@@ -29,7 +29,7 @@ def add_swap_file(vps247_account, ip_address):
 def generate_host_id():
     return 'v247-' + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
 
-def random_pick_ragion(regions):
+def random_pick_region(regions):
     return random.choice(regions)
 
 def get_region_id(region):
@@ -55,10 +55,12 @@ def install_tcs(vps247_account, ip_address):
 
 def upload_certs(vps247_account, ip_address):
     ssh = psi_ssh.make_ssh_session(ip_address, vps247_account.base_ssh_port, 'root', vps247_account.base_root_password, None)
-    ssh.put_file(AUTOMATION_DIR + "/ssl/logs.cert.pem", "/opt/psiphon/certs/logs.cert.pem")
-    ssh.put_file(AUTOMATION_DIR + "/ssl/beats.psiphon3.com.cert.pem", "/opt/psiphon/certs/beats.psiphon3.com.cert.pem")
-    ssh.put_file(AUTOMATION_DIR + "/ssl/beats.psiphon3.com.key.pem", "/opt/psiphon/certs/beats.psiphon3.com.key.pem")
+    ssh.put_file(AUTOMATION_DIR + "/ssl/old-ca.pem", "/opt/psiphon/certs/old-ca.pem")
+    ssh.put_file(AUTOMATION_DIR + "/ssl/new-ca.pem", "/opt/psiphon/certs/new-ca.pem")
+    ssh.put_file(AUTOMATION_DIR + "/ssl/client-psiphon3.pem", "/opt/psiphon/certs/client-psiphon3.pem")
+    ssh.put_file(AUTOMATION_DIR + "/ssl/client-psiphon3-key.pem", "/opt/psiphon/certs/client-psiphon3-key.pem")
 
+    ssh.exec_command("chmod 400 /opt/psiphon/certs/*")
     ssh.close()
     return
 
@@ -91,7 +93,7 @@ def launch_new_server(vps247_account, is_TCS, _, multi_ip=False):
         if vps247_account.base_region_id != 0:
             region_id = vps247_account.base_region_id
         else:
-            region_id = get_region_id(random_pick_ragion(v247_api.get_all_regions()))
+            region_id = get_region_id(random_pick_region(v247_api.get_all_regions()))
 
         # Get preset default package id
         package_id = vps247_account.base_package_id
@@ -103,7 +105,7 @@ def launch_new_server(vps247_account, is_TCS, _, multi_ip=False):
         instance_id = v247_api.create_vm(hostname, region_id, package_id)
               
         print 'Waiting for the instance to power on and get instance information'
-        time.sleep(30)
+        time.sleep(60)
 
         instance = v247_api.get_vm(str(instance_id))
 

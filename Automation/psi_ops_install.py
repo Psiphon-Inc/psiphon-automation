@@ -1025,7 +1025,7 @@ def install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, ssh_ip
                 accept_recent_rate_limit=accept_recent_rate_limit,
                 proto="udp",
                 port=str(port))
-        elif 'TAPDANCE' in protocol:
+        elif ('TAPDANCE' in protocol) or ('CONJURE' in protocol):
             protocol_port_rule = accept_with_fronted_limit_rate_template.format(
                 port=str(port))
         else:
@@ -1276,7 +1276,7 @@ def install_geoip_database(ssh, is_TCS):
 def install_second_ip_address(host, new_ip_addresses_list):
     interfaces_path = '/etc/network/interfaces.d/multi_ip_interfaces'
     nat_routing_path = '/etc/network/if-up.d/nat_routing'
-    interface_dev = 'eth0'
+    interface_dev = 'eth0' #Default interface devicename
 
     if type(new_ip_addresses_list) != list:
         print("New IP Address has to be a list.")
@@ -1287,13 +1287,14 @@ def install_second_ip_address(host, new_ip_addresses_list):
         host.ssh_username, host.ssh_password,
         host.ssh_host_key)
 
+    interface_dev = ssh.exec_command("ip addr show | awk '/inet.*brd/{print $NF}'")[:-1]
     interface_up = ssh.exec_command('cat /sys/class/net/' + interface_dev + '/operstate')
     nat_routing_exist = ssh.exec_command('[ -f ' + nat_routing_path  + ' ] && echo "found" || echo "no"')
 
     if 'up' in interface_up:
-        print("Checked eth0 is up, using eth0 as default virtual interfaces")
+        print("Checked {} is up, using it as default virtual interfaces".format(interface_dev))
     elif 'down' in interface_up:
-        print("Checked eth0 is down, using eth1 as default virtual interfaces")
+        print("Checked {} is down, using eth1 as default virtual interfaces".format(interface_dev))
         interface_dev = 'eth1'
 
     interfaces_contents_list = []

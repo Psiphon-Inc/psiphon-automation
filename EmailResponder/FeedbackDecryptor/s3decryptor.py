@@ -108,8 +108,16 @@ def go():
             encrypted_info = json.loads(encrypted_info_json)
 
             diagnostic_info = decryptor.decrypt(encrypted_info)
+            if not diagnostic_info:
+                logger.error('diagnostic_info decrypted empty')
+                # Also throw, so we get an email about it
+                raise Exception('diagnostic_info decrypted empty')
 
             diagnostic_info = diagnostic_info.strip()
+            if not diagnostic_info:
+                logger.error('diagnostic_info stripped empty')
+                # Also throw, so we get an email about it
+                raise Exception('diagnostic_info stripped empty')
 
             # HACK: PyYaml only supports YAML 1.1, which is not a true superset
             # of JSON. Therefore it can (and does) throw errors on some Android
@@ -121,6 +129,11 @@ def go():
             except:
                 diagnostic_info = yaml.safe_load(diagnostic_info)
                 logger.debug_log('s3decryptor.go: loaded YAML')
+
+            if not diagnostic_info:
+                logger.error('diagnostic_info unmarshalled empty')
+                # Also throw, so we get an email about it
+                raise Exception('diagnostic_info unmarshalled empty')
 
             # Modifies diagnostic_info
             utils.convert_psinet_values(config, diagnostic_info)
@@ -137,6 +150,9 @@ def go():
 
             # Store the diagnostic info
             record_id = datastore.insert_diagnostic_info(diagnostic_info)
+            if record_id is None:
+                # An error occurred or diagnostic info was a duplicate.
+                continue
 
             if _should_email_data(diagnostic_info):
                 logger.debug_log('s3decryptor.go: should email')

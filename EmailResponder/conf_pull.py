@@ -91,7 +91,9 @@ if __name__ == '__main__':
     parser.add_argument('--cron', action='store_true', default=False, help='calling from cron; suppress output')
     args = parser.parse_args()
 
-    go()
+    success = go()
 
-    if not args.cron:
+    if success and not args.cron:
         print('Mail responder config pull successful')
+    else:
+        print('Mail responder config pull failed')

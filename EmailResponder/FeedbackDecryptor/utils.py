@@ -213,7 +213,7 @@ def is_diagnostic_info_sane(obj):
 
     exemplar = {
                 'Metadata': {
-                             'platform': lambda val: val in ['android', 'ios', 'ios-browser', 'ios-vpn', 'windows'],
+                             'platform': lambda val: val in ['android', 'ios', 'ios-browser', 'ios-vpn', 'ios-vpn-on-mac', 'windows'],
                              'version': lambda val: val in range(1, 5),
                              'id': lambda val: re.match(r'^[a-fA-F0-9]{16}', str(val)) is not None
                              },
@@ -318,6 +318,9 @@ def objwalk(obj, path=(), memo=None):
     Note: DO NOT modify the object's keys while iterating, or the iteration will be messed
     up. Instead, save the keys into a list, which you can then iterate and modify.
     """
+    if obj is None:
+        return
+
     if memo is None:
         memo = set()
     iterator = None

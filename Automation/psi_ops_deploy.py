@@ -99,6 +99,7 @@ TCS_UNFRONTED_MEEK_SESSION_TICKET_OSSH_DOCKER_PORT = 1032
 TCS_QUIC_OSSH_DOCKER_PORT = 1033
 TCS_TAPDANCE_OSSH_DOCKER_PORT = 1034
 TCS_FRONTED_MEEK_QUIC_OSSH_DOCKER_PORT = 1035
+TCS_CONJURE_OSSH_DOCKER_PORT = 1036
 
 TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND = 'systemctl kill --signal=USR1 psiphond'
 TCS_PSIPHOND_STOP_ESTABLISHING_TUNNELS_SIGNAL_COMMAND = 'systemctl kill --signal=TSTP psiphond'
@@ -252,6 +253,10 @@ def deploy_TCS_implementation(ssh, host, servers, own_encoded_server_entries, TC
 
     ssh.exec_command('touch %s' % (TCS_BLOCKLIST_CSV_FILE_NAME,))
 
+    # Create the log file, since psiphond no longer does that to avoid a race condition with logrotate
+    ssh.exec_command('touch %s' % (TCS_PSIPHOND_LOG_FILE_NAME,))
+    ssh.exec_command('chown psiphond:psiphond %s' % (TCS_PSIPHOND_LOG_FILE_NAME,))
+
     if host.TCS_type == 'NATIVE':
         # Upload psiphond, restart service
         # Push psiphond from bitbucket repo (Server/psiphond/psiphond) to host.
@@ -403,7 +408,7 @@ def make_psiphond_config(host, server, own_encoded_server_entries, TCS_psiphond_
     config['SSHUserName'] = server.ssh_username
     config['SSHPassword'] = server.ssh_password
 
-    if server.capabilities['SSH'] or server.capabilities['OSSH'] or server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] or server.capabilities['QUIC'] or server.capabilities['TAPDANCE']:
+    if server.capabilities['SSH'] or server.capabilities['OSSH'] or server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] or server.capabilities['QUIC'] or server.capabilities['TAPDANCE'] or server.capabilities['CONJURE']:
         config['ObfuscatedSSHKey'] = server.ssh_obfuscated_key
 
     if server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET']:
@@ -451,7 +456,8 @@ def get_supported_protocol_ports(host, server, **kwargs):
     TCS_protocols = [
         ('SSH', TCS_SSH_DOCKER_PORT),
         ('OSSH', TCS_OSSH_DOCKER_PORT),
-        ('TAPDANCE-OSSH', TCS_TAPDANCE_OSSH_DOCKER_PORT)
+        ('TAPDANCE-OSSH', TCS_TAPDANCE_OSSH_DOCKER_PORT),
+        ('CONJURE-OSSH', TCS_CONJURE_OSSH_DOCKER_PORT)
     ]
 
     if quic_ports:
@@ -487,6 +493,9 @@ def get_supported_protocol_ports(host, server, **kwargs):
 
         if protocol == 'TAPDANCE-OSSH' and server.capabilities['TAPDANCE']:
                 supported_protocol_ports[protocol] = int(server.ssh_obfuscated_tapdance_port) if external_ports else docker_port
+
+        if protocol == 'CONJURE-OSSH' and server.capabilities['CONJURE']:
+                supported_protocol_ports[protocol] = int(server.ssh_obfuscated_conjure_port) if external_ports else docker_port
 
         if protocol == 'FRONTED-MEEK-OSSH' and server.capabilities['FRONTED-MEEK']:
                 supported_protocol_ports[protocol] = 443 if external_ports else docker_port

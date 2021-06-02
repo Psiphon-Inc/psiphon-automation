@@ -49,6 +49,11 @@ try:
 except AttributeError:
     raise ImportError("psi_vpsnet requires ssl.PROTOCOL_TLSv1_2")
 
+def get_datacenter_name(datacenter, region):
+    datacenter_split = datacenter.split('-')
+    datacenter_name = 'VPS.net {}-{}, {}'.format(datacenter_split[-3].strip(), datacenter_split[-2], region)
+
+    return datacenter_name
 
 def get_vpsnet_connection(vpsnet_account):
     '''
@@ -302,7 +307,7 @@ def launch_new_server(vpsnet_account, is_TCS, _, multi_ip=False, datacenter_city
         ' '.join(node_public_key.split(' ')[:2]),
         stats_username,
         new_stats_password,
-        region_template['cloud_label'],
+        get_datacenter_name(region_template['cloud_label'], get_region_name(region_template)),
         get_region_name(region_template),
         None, None, None, None, None, None, None, None
         )
