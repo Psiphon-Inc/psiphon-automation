@@ -58,7 +58,7 @@ def upload_certs(vps247_account, ip_address):
     ssh.put_file(AUTOMATION_DIR + "/ssl/old-ca.pem", "/opt/psiphon/certs/old-ca.pem")
     ssh.put_file(AUTOMATION_DIR + "/ssl/new-ca.pem", "/opt/psiphon/certs/new-ca.pem")
     ssh.put_file(AUTOMATION_DIR + "/ssl/client-psiphon3.pem", "/opt/psiphon/certs/client-psiphon3.pem")
-    ssh.put_file(AUTOMATION_DIR + "/ssl/client-psiphon3-key.pem", "/opt/psiphon/certs/client-psiphon3key.pem")
+    ssh.put_file(AUTOMATION_DIR + "/ssl/client-psiphon3-key.pem", "/opt/psiphon/certs/client-psiphon3-key.pem")
 
     ssh.exec_command("chmod 400 /opt/psiphon/certs/*")
     ssh.close()
