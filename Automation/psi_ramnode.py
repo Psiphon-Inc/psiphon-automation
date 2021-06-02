@@ -33,7 +33,8 @@ tcs_image_target = 'Psiphon 3 TCS Native V8.6 - 20200910'
 
 #2GB SKVM
 #4GB SKVM
-size_flavor_target = '2GB SKVM'
+#size_flavor_target = '2GB SKVM'
+size_flavor_target = '8GB VDS'
 #==============================================================================
 
 ###
@@ -213,6 +214,13 @@ def get_server(ramnode_account, ramnode_id):
         if ramnode:
             return ramnode
     raise ValueError("No available ramnode found in all regions")
+
+def resize_server(ramnode_account, ramnode_id, target_flavors_name='8GB VDS'):
+    for region in ramnode_account.available_regions:
+        ramnode_api = PsiRamnode(ramnode_account, region)
+        ramnode =ramnode_api.ramnode_list(ramnode_id)
+        if ramnode:
+            ramnode_api.resize_ramnode(ramnode_id, target_flavors_name)
 
 def remove_server(ramnode_account, ramnode_id):
     for region in ramnode_account.available_regions:
