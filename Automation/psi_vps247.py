@@ -147,4 +147,4 @@ def launch_new_server(vps247_account, is_TCS, _, multi_ip=False):
             vps247_account.base_ssh_port, 'root', new_root_password,
             ' '.join(new_host_public_key.split(' ')[:2]),
             new_stats_username, new_stats_password,
-            datacenter_name, region_code, None, None, None, None, None)
+            datacenter_name, region_code, None, None, None, None, None, None)

@@ -300,6 +300,12 @@ VPS247Account = psi_utils.recordtype(
     'base_region_id, base_package_id',
     default=None)
 
+ScalewayAccount = psi_utils.recordtype(
+    'ScalewayAccount',
+    'api_token, regions, base_ssh_port, ' +
+    'base_rsa_private_key',
+    default=None)
+
 ElasticHostsAccount = psi_utils.recordtype(
     'ElasticHostsAccount',
     'zone, uuid, api_key, base_drive_id, cpu, mem, base_host_public_key, ' +
@@ -380,6 +386,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__digitalocean_account = DigitalOceanAccount()
         self.__vpsnet_account = VPSNetAccount()
         self.__vps247_account = VPS247Account()
+        self.__scaleway_account = ScalewayAccount()
         self.__elastichosts_accounts = []
         self.__deploy_implementation_required_for_hosts = set()
         self.__deploy_data_required_for_all = False
@@ -434,7 +441,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.64'
+    class_version = '0.65'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -815,6 +822,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 server.capabilities['CONJURE'] = False
                 server.ssh_obfuscated_conjure_port = None
             self.version = '0.64'
+        if cmp(parse_version(self.version), parse_version('0.65')) < 0:
+            self.__scaleway_account = ScalewayAccount()
+            self.version = '0.65'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -2174,7 +2184,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             server_info = server_infos[new_server_number]
             if type(server_info) != tuple:
                 continue
-            host = Host(*server_info[:-1])
+            internal_ip = server_info[-1]
+            egress_ip = server_info[-2]
+            host = Host(*server_info[:-2])
 
             if not host.region:
                 new_server_error = "Empty host region"
@@ -2256,8 +2268,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         None,
                         host.id,
                         host.ip_address,
-                        server_info[-1] if server_info[-1] else host.ip_address,
-                        host.ip_address,
+                        egress_ip if egress_ip else host.ip_address,
+                        internal_ip if internal_ip else host.ip_address,
                         propagation_channel.id,
                         is_embedded_server,
                         False,
