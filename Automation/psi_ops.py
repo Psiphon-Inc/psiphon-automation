@@ -306,6 +306,13 @@ ScalewayAccount = psi_utils.recordtype(
     'base_rsa_private_key',
     default=None)
 
+RamnodeAccount = psi_utils.recordtype(
+    'RamnodeAccount',
+    'available_regions, project_id, api_username, ' +
+    'api_password, api_default, tcs_base_root_password, ' +
+    'tcs_base_host_public_key, base_ssh_port',
+    default=None)
+
 ElasticHostsAccount = psi_utils.recordtype(
     'ElasticHostsAccount',
     'zone, uuid, api_key, base_drive_id, cpu, mem, base_host_public_key, ' +
@@ -387,6 +394,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__vpsnet_account = VPSNetAccount()
         self.__vps247_account = VPS247Account()
         self.__scaleway_account = ScalewayAccount()
+        self.__ramnode_account = RamnodeAccount()
         self.__elastichosts_accounts = []
         self.__deploy_implementation_required_for_hosts = set()
         self.__deploy_data_required_for_all = False
@@ -441,7 +449,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.65'
+    class_version = '0.66'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -825,6 +833,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.65')) < 0:
             self.__scaleway_account = ScalewayAccount()
             self.version = '0.65'
+        if cmp(parse_version(self.version), parse_version('0.66')) < 0:
+            self.__ramnode_account = RamnodeAccount()
+            self.version = '0.66'
 
     def initialize_plugins(self):
         for plugin in plugins:
