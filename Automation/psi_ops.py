@@ -180,7 +180,8 @@ EmailPropagationAccount = psi_utils.recordtype(
 Sponsor = psi_utils.recordtype(
     'Sponsor',
     'id, name, banner, website_banner, website_banner_link, home_pages, mobile_home_pages, ' +
-    'campaigns, page_view_regexes, https_request_regexes, use_data_from_sponsor_id',
+    'alert_action_urls, campaigns, page_view_regexes, https_request_regexes, ' +
+    'use_data_from_sponsor_id',
     default=None)
 
 SponsorHomePage = psi_utils.recordtype(
@@ -429,6 +430,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__default_sponsor_id = None
         self.__alternate_s3_bucket_domains = set()
         self.__global_https_request_regexes = []
+        self.__default_alert_action_urls = {}
 
         # Generate a server entry signing key pair using
         # https://github.com/Psiphon-Labs/psiphon-tunnel-core/tree/master/psiphon/common/protocol/signer
@@ -449,7 +451,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.66'
+    class_version = '0.67'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -836,6 +838,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.66')) < 0:
             self.__ramnode_account = RamnodeAccount()
             self.version = '0.66'
+        if cmp(parse_version(self.version), parse_version('0.67')) < 0:
+            for sponsor in self.__sponsors.itervalues():
+                sponsor.alert_action_urls = {}
+            self.__default_alert_action_urls = {}
+            self.version = '0.67'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1207,7 +1214,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def import_sponsor(self, id, name):
         assert(self.is_locked)
-        sponsor = Sponsor(id, name, None, None, None, {}, {}, [], [], [])
+        sponsor = Sponsor(id, name, None, None, None, {}, {}, {}, [], [], [])
         assert(id not in self.__sponsors)
         assert(not filter(lambda x: x.name == name, self.__sponsors.itervalues()))
         self.__sponsors[id] = sponsor
@@ -4239,6 +4246,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 None,  # Omit website_banner_link
                                 {},
                                 {},
+                                {},
                                 [],  # Omit campaigns
                                 [],
                                 [])
@@ -4343,6 +4351,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 None,  # Omit website_banner_link
                                 {},
                                 {},
+                                {},
                                 [],  # Omit campaigns
                                 [],
                                 [])
@@ -4358,6 +4367,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     copy_sponsor.mobile_home_pages[region].append(SponsorHomePage(
                                                              mobile_home_page.region,
                                                              mobile_home_page.url))
+            for alert_reason, alert_action_urls in sponsor_data.alert_action_urls.iteritems():
+                copy_sponsor.alert_action_urls[alert_reason] = []
+                for alert_action_url in alert_action_urls:
+                    copy_sponsor.alert_action_urls[alert_reason].append(alert_action_url)
             for page_view_regex in sponsor_data.page_view_regexes:
                 copy_sponsor.page_view_regexes.append(SponsorRegex(
                                                              page_view_regex.regex,
@@ -4394,7 +4407,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             "valid_server_entry_tags": valid_server_entry_tags,
             "discovery_servers": discovery_servers,
             "sponsors": copy.__sponsors,
-            "default_sponsor_id": self.__default_sponsor_id
+            "default_sponsor_id": self.__default_sponsor_id,
+            "default_alert_action_urls": self.__default_alert_action_urls
         }, default=self.__json_serializer)
 
     def __get_own_encoded_server_entries_for_host(self, host_id):
@@ -4601,6 +4615,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         None,   # omit website_banner_link
                                         {},     # omit home_pages
                                         {},     # omit mobile_home_pages
+                                        {},     # omit alert_action_urls
                                         sponsor.campaigns,
                                         [],     # omit page_view_regexes
                                         [])     # omit https_request_regexes
