@@ -89,9 +89,15 @@ except ImportError as error:
     print error
 
 try:
+    import psi_scaleway
+except ImportError as error:
+    print error
+
+try:
     import psi_elastichosts
 except ImportError as error:
     print error
+
 try:
     import psi_templates
 except ImportError as error:
@@ -264,12 +270,14 @@ AwsAccount = psi_utils.recordtype(
     'AwsAccount',
     'access_id, secret_key',
     default=None)
+  
+providers = ['linode', 'digitalocean', 'vpsnet', 'scaleway']
 
 ProviderRank = psi_utils.recordtype(
     'ProviderRank',
     'provider, rank',
     default=None)
-ProviderRank.provider_values = ('linode', 'elastichosts', 'digitalocean', 'vpsnet')
+ProviderRank.provider_values = tuple(providers)
 
 LinodeAccount = psi_utils.recordtype(
     'LinodeAccount',
@@ -1829,7 +1837,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 if server.propagation_channel_id == propagation_channel.id
                 and server.osl_discovery_date_range
                 and server.osl_discovery_date_range[1] < (today - datetime.timedelta(days=max_osl_discovery_server_age_in_days))
-                and self.__hosts[server.host_id].provider in ['linode', 'digitalocean', 'vpsnet']]
+                and self.__hosts[server.host_id].provider in providers]
             removed, disabled = self.__prune_servers(old_osl_discovery_servers)
             number_removed += removed
             number_disabled += disabled
@@ -1841,7 +1849,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 if server.propagation_channel_id == propagation_channel.id
                 and server.discovery_date_range
                 and server.discovery_date_range[1] < (today - datetime.timedelta(days=max_discovery_server_age_in_days))
-                and self.__hosts[server.host_id].provider in ['linode', 'digitalocean', 'vpsnet']]
+                and self.__hosts[server.host_id].provider in providers]
             removed, disabled = self.__prune_servers(old_discovery_servers)
             number_removed += removed
             number_disabled += disabled
@@ -1854,7 +1862,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 and not server.discovery_date_range
                 and not server.is_embedded
                 and server.logs[0][0] < (today - datetime.timedelta(days=max_propagation_server_age_in_days))
-                and self.__hosts[server.host_id].provider in ['linode', 'digitalocean', 'vpsnet']]
+                and self.__hosts[server.host_id].provider in providers]
             removed, disabled = self.__prune_servers(old_propagation_servers)
             number_removed += removed
             number_disabled += disabled
@@ -2109,24 +2117,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if provider == None:
             provider = self._weighted_random_choice(self.__provider_ranks).provider
 
-        # This is pretty dirty. We should use some proper OO technique.
-        provider_launch_new_server = None
-        provider_account = None
-        if provider.lower() == 'linode':
-            provider_launch_new_server = psi_linode.launch_new_server
-            provider_account = self.__linode_account
-        elif provider.lower() == 'digitalocean':
-            provider_launch_new_server = psi_digitalocean.launch_new_server
-            provider_account = self.__digitalocean_account
-        elif provider.lower() == 'vpsnet':
-            provider_launch_new_server = psi_vpsnet.launch_new_server
-            provider_account = self.__vpsnet_account
-        elif provider.lower() == 'vps247':
-            provider_launch_new_server = psi_vps247.launch_new_server
-            provider_account = self.__vps247_account
-        elif provider.lower() == 'elastichosts':
-            provider_launch_new_server = psi_elastichosts.ElasticHosts().launch_new_server
-            provider_account = self._weighted_random_choice(self.__elastichosts_accounts)
+        if provider.lower() in providers:
+            provider_controller = globals()["psi_{}".format(provider.lower())]
+            provider_account = vars(self)["_PsiphonNetwork__{}_account".format(provider.lower())]
+            provider_launch_new_server = provider_controller.launch_new_server
         else:
             raise ValueError('bad provider value: %s' % provider)
 
@@ -2345,15 +2339,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # Only hosts that can be removed via an API are removed here.
             # Others must be manually removed.
             provider_remove_host = None
-            if host.provider == 'linode':
-                provider_remove_host = psi_linode.remove_server
-                provider_account = self.__linode_account
-            if host.provider == 'digitalocean':
-                provider_remove_host = psi_digitalocean.remove_server
-                provider_account = self.__digitalocean_account
-            if host.provider == 'vpsnet':
-                provider_remove_host = psi_vpsnet.remove_server
-                provider_account = self.__vpsnet_account
+            if host.provider in providers:
+                provider_controller = globals()["psi_{}".format(provider)]
+                provider_account = vars(self)["_PsiphonNetwork__{}_account".format(provider)]
+                provider_remove_host = provider_controller.remove_server
             if provider_remove_host:
                 params_list.append((provider_remove_host, provider_account, host))
                 self.__hosts_to_remove_from_providers.remove(host)
@@ -2599,7 +2588,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return orphans
 
     def find_orphans(self):
-        for provider in ['linode', 'digitalocean', 'vpsnet']:
+        for provider in providers:
             orphans = self.list_orphans(provider)
             sys.stderr.write(provider + ' orphans:\n' + str(orphans) + '\n\n')
 
