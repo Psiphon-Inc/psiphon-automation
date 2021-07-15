@@ -240,7 +240,8 @@ def get_servers(scaleway_account):
         instances = scaleway_api.list_scaleways()
         scaleways += instances
 
-    return [(s['id'], s['name']) for s in scaleways]
+    # return id in the same format that we store it in Host.provider_id (see launch_new_server below)
+    return [(s['zone'] + '_' + s['id'], s['name']) for s in scaleways]
 
 def get_server(scaleway_account, scaleway_id):
     scaleway_api = PsiScaleway(scaleway_account)

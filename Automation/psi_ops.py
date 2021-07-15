@@ -2600,6 +2600,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for host_provider_id, host_name in hosts_provider_id_list:
             # TODO: safety check to avoid delete production servers
             orphan = provider_controller.get_server(provider_account, host_provider_id)
+            orphan_id = orphan['zone'] + '_' + orphan['id'] if provider == 'scaleway' else orphan.id
             print textwrap.dedent('''
                   Provider ID:             %s
                   Host Name/Labe:          %s
@@ -2609,7 +2610,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                   Region:                  %s
                   Tags:                    %s
                   ''') % (
-                                str(orphan.id),
+                      orphan_id,
+                      orphan['name'],
+                      orphan['state'],
+                      orphan['creation_date'],
+                      orphan['public_ip']['address'],
+                      orphan['zone'],
+                      str(orphan['tags'])
+                  ) if provider == 'scaleway' else (
+                                str(orphan_id),
                                 orphan.name if provider=='digitalocean' or provider=='vpsnet' else orphan.label,
                                 orphan.state if provider=='vpsnet' else orphan.status,
                                 orphan.created_at if provider=='digitalocean' else orphan.public_ips[0]['ip_address']['created_at'] if provider=='vpsnet' else orphan.created.strftime('%Y-%m-%dT%H:%M:%S'),
@@ -2620,7 +2629,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             user_response = raw_input("Do you want to delete this orphan host? ")
             if user_response in ['yes', 'y', 'Y', 'Yes']:
                 print('Adding host to deletion list - the host: {}'.format(host_name))
-                pending_deletion.append(orphan.id)
+                pending_deletion.append(orphan_id)
                 #provider_controller.remove_server(provider_account, host_provider_id) # method delete server through API
             else:
                 print("Do Nothing")
