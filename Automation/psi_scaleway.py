@@ -224,6 +224,14 @@ def set_host_name(scaleway_account, ip_address, new_hostname):
                                    host_auth_key=scaleway_account.base_rsa_private_key)
     ssh.exec_command('hostnamectl set-hostname %s' % new_hostname)
 
+def add_swap_file(scaleway_account, ip_address):
+    ssh = psi_ssh.make_ssh_session(ip_address, scaleway_account.base_ssh_port, 'root', None, None, host_auth_key=scaleway_account.base_rsa_private_key)
+    ssh.exec_command('dd if=/dev/zero of=/swapfile bs=1024 count=1048576 && mkswap /swapfile && chown root:root /swapfile && chmod 0600 /swapfile')
+    ssh.exec_command('echo "/swapfile swap swap defaults 0 0" >> /etc/fstab')
+    ssh.exec_command('swapon -a')
+
+    ssh.close()
+    return
 ###
 #
 # Main function
@@ -240,7 +248,8 @@ def get_servers(scaleway_account):
         instances = scaleway_api.list_scaleways()
         scaleways += instances
 
-    return [(s['id'], s['name']) for s in scaleways]
+    # return id in the same format that we store it in Host.provider_id (see launch_new_server below)
+    return [(s['zone'] + '_' + s['id'], s['name']) for s in scaleways]
 
 def get_server(scaleway_account, scaleway_id):
     scaleway_api = PsiScaleway(scaleway_account)
@@ -284,6 +293,7 @@ def launch_new_server(scaleway_account, is_TCS, plugins, multi_ip=False):
         # scaleways created by an image keep the image's hostname.  Override this
         set_host_name(scaleway_account, scaleway_ip_address, host_id)
         set_allowed_users(scaleway_account, scaleway_ip_address, new_stats_username)
+        add_swap_file(scaleway_account, scaleway_ip_address)
 
         # Change the new scaleway's credentials
         new_root_password = psi_utils.generate_password()
