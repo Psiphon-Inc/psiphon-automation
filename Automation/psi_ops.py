@@ -54,6 +54,11 @@ import psi_ops_discovery
 # Modules available only on the automation server
 
 try:
+    from collections import Counter
+except ImportError as error:
+    print error
+
+try:
     from PIL import Image
 except ImportError as error:
     print error
@@ -868,6 +873,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             Hosts:                  %d (VPN: %d, TCS: %d)
             Servers:                %d
             Providers:              %d
+            Regions:                %d
             Automation Bucket:      %s
             Stats Server:           %s
             Windows Client Version: %s %s
@@ -899,6 +905,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 len(self.__hosts), len([s for s in self.__servers.itervalues() if s.capabilities['VPN'] == True]), len([h for h in self.__hosts.itervalues() if h.is_TCS == True and h.TCS_type == 'NATIVE']),
                 len(self.__servers),
                 len(set([h.provider for h in self.__hosts.itervalues()])),
+                len(set([h.region for h in self.__hosts.itervalues()])),
                 self.__automation_bucket if self.__automation_bucket else 'None',
                 self.__stats_server_account.ip_address if self.__stats_server_account else 'None',
                 self.__client_versions[CLIENT_PLATFORM_WINDOWS][-1].version if self.__client_versions[CLIENT_PLATFORM_WINDOWS] else 'None',
@@ -921,6 +928,34 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 len(self.__deploy_website_required_for_sponsors),
                 len(self.__deploy_pave_osls_required_for_propagation_channels),
                 )
+
+    def show_providers(self):
+        providers_counter = Counter([h.provider for h in self.__hosts.itervalues()]).most_common()
+        print_text = textwrap.dedent('''
+                Total Providers:        %d
+                Servers per Providers:''') % (
+                    len(set([h.provider for h in self.__hosts.itervalues()])),
+                )
+
+        for provider, number in providers_counter:
+            print_text = print_text + '''
+                %s:    %d''' % (provider.capitalize(), number)
+
+        print print_text
+
+    def show_regions(self):
+        regions_counter = Counter([h.region for h in self.__hosts.itervalues()]).most_common()
+        print_text = textwrap.dedent('''
+                Total Regions:          %d
+                Servers per Regions:''') % (
+                    len(set([h.region for h in self.__hosts.itervalues()])),
+                )
+
+        for region, number in regions_counter:
+            print_text = print_text + '''
+                %s:     %d''' % (region, number)
+
+        print print_text
 
     def show_client_versions(self):
         for platform in self.__client_versions.iterkeys():
