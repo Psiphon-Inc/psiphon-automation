@@ -2340,8 +2340,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # Others must be manually removed.
             provider_remove_host = None
             if host.provider in providers:
-                provider_controller = globals()["psi_{}".format(provider)]
-                provider_account = vars(self)["_PsiphonNetwork__{}_account".format(provider)]
+                provider_controller = globals()["psi_{}".format(host.provider)]
+                provider_account = vars(self)["_PsiphonNetwork__{}_account".format(host.provider)]
                 provider_remove_host = provider_controller.remove_server
             if provider_remove_host:
                 params_list.append((provider_remove_host, provider_account, host))
