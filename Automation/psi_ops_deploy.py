@@ -361,6 +361,8 @@ def make_psiphond_config(host, server, own_encoded_server_entries, TCS_psiphond_
 
     config['BlocklistFilename'] = TCS_BLOCKLIST_CSV_FILE_NAME
 
+    config['BlocklistActive'] = True
+
     # TCS_psiphond_config_values['AccessControlVerificationKeyRing'] is a string value, set with psi_ops.set_TCS_psiphond_config_values,
     # containing a JSON-encoded https://godoc.org/github.com/Psiphon-Labs/psiphon-tunnel-core/psiphon/common/accesscontrol#VerificationKeyRing
     config['AccessControlVerificationKeyRing'] = json.loads(TCS_psiphond_config_values['AccessControlVerificationKeyRing'])
