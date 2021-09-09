@@ -133,7 +133,7 @@ class PsiScaleway:
     def remove_scaleway(self, scaleway_id):
         try:
             scaleway = self.client.query().servers(scaleway_id).get()['server']
-            if scaleway['state'] != 'poweroff':
+            if scaleway['state'] not in ['poweroff', 'stopped']:
                 # Poweroff instance first
                 off_res = self.client.query().servers(scaleway['id']).action.post({'action': 'poweroff'})
                 # Wait for job completion
