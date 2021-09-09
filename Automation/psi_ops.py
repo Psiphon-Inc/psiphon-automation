@@ -2644,23 +2644,39 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                   IP Address:              %s
                   Region:                  %s
                   Tags:                    %s
-                  ''') % (
+                  ''') % ((
                       orphan_id,
                       orphan['name'],
                       orphan['state'],
                       orphan['creation_date'],
-                      orphan['public_ip']['address'],
+                      orphan['public_ip']['address'] if orphan['public_ip'] else "-",
                       orphan['zone'],
                       str(orphan['tags'])
                   ) if provider == 'scaleway' else (
-                                str(orphan_id),
-                                orphan.name if provider=='digitalocean' or provider=='vpsnet' else orphan.label,
-                                orphan.state if provider=='vpsnet' else orphan.status,
-                                orphan.created_at if provider=='digitalocean' else orphan.public_ips[0]['ip_address']['created_at'] if provider=='vpsnet' else orphan.created.strftime('%Y-%m-%dT%H:%M:%S'),
-                                orphan.networks['v4'][0]['ip_address'] if provider=='digitalocean' else orphan.public_ips[0]['ip_address']['ip_address'] if provider=='vpsnet' else orphan.ipv4[0],
-                                orphan.region['slug'] if provider=='digitalocean' else orphan.region.id if provider=='linode' else 'No Region infomation',
-                                str(orphan.tags) if provider!='vpsnet' else 'VPS.net node has no tags'
-                                  )
+                      str(orphan_id),
+                      orphan.name,
+                      orphan.state,
+                      orphan.public_ips[0]['ip_address']['created_at'],
+                      orphan.public_ips[0]['ip_address']['ip_address'],
+                      'No Region infomation',
+                      'VPS.net node has no tags'
+                  ) if provider == 'vpsnet' else (
+                      str(orphan_id),
+                      orphan.name,
+                      orphan.status,
+                      orphan.created_at,
+                      orphan.networks['v4'][0]['ip_address'],
+                      orphan.region['slug'],
+                      str(orphan.tags)
+                  ) if provider == 'digitalocean' else (
+                      str(orphan_id),
+                      orphan.label,
+                      orphan.status,
+                      orphan.created.strftime('%Y-%m-%dT%H:%M:%S'),
+                      orphan.ipv4[0],
+                      orphan.region.id,
+                      str(orphan.tags)
+                  ))
             user_response = raw_input("Do you want to delete this orphan host? ")
             if user_response in ['yes', 'y', 'Y', 'Yes']:
                 print('Adding host to deletion list - the host: {}'.format(host_name))
