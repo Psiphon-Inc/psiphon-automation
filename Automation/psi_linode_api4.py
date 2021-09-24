@@ -59,7 +59,13 @@ class PsiLinode:
 
     def get_available_regions(self):
         # Get all available regions
-        return self.client.regions()
+        # excluding AU and IN
+        available_regions = self.client.regions()
+        allowed_regions = []
+        for region in available_regions:
+            if region.country.upper() not in ['AU', 'IN']:
+                allowed_regions.append(region)
+        return allowed_regions
 
     def get_region(self, region):
         # Get region's country code
