@@ -77,7 +77,7 @@ class PsiScaleway:
 
     def get_image(self):
         try:
-            images = self.client.query().images.get()['images']
+            images = self.client.query().images.get(name=tcs_image_name)['images']
 
             return [image for image in images if image['name'] == tcs_image_name and image['root_volume']['volume_type'] == 'l_ssd'][0]
         except slexc.HttpClientError as exc:
