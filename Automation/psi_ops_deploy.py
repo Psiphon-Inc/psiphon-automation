@@ -437,6 +437,9 @@ def make_psiphond_config(host, server, own_encoded_server_entries, TCS_psiphond_
 
     config['OwnEncodedServerEntries'] = own_encoded_server_entries
 
+    config['LegacyPassthrough'] = True
+    config['EnableGQUIC'] = True
+
     return json.dumps(config)
 
 
