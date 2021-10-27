@@ -138,7 +138,7 @@ class PsiScaleway:
                 off_res = self.client.query().servers(scaleway['id']).action.post({'action': 'poweroff'})
                 # Wait for job completion
                 wait_while_condition(lambda: self.scaleway_list(scaleway['id'])['state'] != 'stopped',
-                                    120,
+                                    300,
                                     'Stopping Scaleway Instance')
 
             # Delete instance
