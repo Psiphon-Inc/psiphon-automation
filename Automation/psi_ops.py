@@ -219,7 +219,8 @@ Host = psi_utils.recordtype(
     'id, is_TCS, TCS_type, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key, ' +
     'stats_ssh_username, stats_ssh_password, ' +
     'datacenter_name, region, ' +
-    'fronting_provider_id, passthrough_address, ' +
+    'fronting_provider_id, passthrough_address, passthrough_version, ' +
+    'enable_gquic, limit_quic_versions, ' +
     'meek_server_port, meek_server_obfuscated_key, meek_server_fronting_domain, ' +
     'meek_server_fronting_host, alternate_meek_server_fronting_hosts, ' +
     'meek_cookie_encryption_public_key, meek_cookie_encryption_private_key, ' +
@@ -464,7 +465,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.67'
+    class_version = '0.68'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -856,6 +857,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 sponsor.alert_action_urls = {}
             self.__default_alert_action_urls = {}
             self.version = '0.67'
+        if cmp(parse_version(self.version), parse_version('0.68')) < 0:
+            for host in self.__hosts.values() + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
+                host.passthrough_version = None
+                host.enable_gquic = True
+                host.limit_quic_versions = None
+            self.version = '0.68'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1578,8 +1585,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return None
 
     def get_host_object(self, id, is_TCS, TCS_type, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
-                        stats_ssh_username, stats_ssh_password, datacenter_name, region, meek_server_port,
-                        meek_server_obfuscated_key, meek_server_fronting_domain, meek_server_fronting_host,
+                        stats_ssh_username, stats_ssh_password, datacenter_name, region,
+                        fronting_provider_id, passthrough_address, passthrough_version,
+                        enable_gquic, limit_quic_versions,
+                        meek_server_port, meek_server_obfuscated_key, meek_server_fronting_domain, meek_server_fronting_host,
                         alternate_meek_server_fronting_hosts, meek_cookie_encryption_public_key,
                         meek_cookie_encryption_private_key,
                         tactics_request_public_key, tactics_request_private_key, tactics_request_obfuscated_key,
@@ -1598,8 +1607,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     stats_ssh_password,
                     datacenter_name,
                     region,
-                    None, # fronting_provider_id
-                    None, # passthrough_address
+                    fronting_provider_id,
+                    passthrough_address,
+                    passthrough_version,
+                    enable_gquic,
+                    limit_quic_versions,
                     meek_server_port,
                     meek_server_obfuscated_key,
                     meek_server_fronting_domain,
@@ -1673,6 +1685,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.region,
                         host.fronting_provider_id,
                         host.passthrough_address,
+                        host.passthrough_version,
+                        host.enable_gquic,
+                        host.limit_quic_versions,
                         host.meek_server_port,
                         host.meek_server_obfuscated_key,
                         host.meek_server_fronting_domain,
@@ -1682,7 +1697,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.meek_cookie_encryption_private_key,
                         host.tactics_request_public_key,
                         host.tactics_request_private_key,
-                        host.tactics_request_obfuscated_key)
+                        host.tactics_request_obfuscated_key,
+                        host.run_packet_manipulator)
 
             exp_server = (server.id,
                             server.host_id,
@@ -2310,6 +2326,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             if host.is_TCS:
                 capabilities['QUIC'] = capabilities['OSSH']
+                host.enable_gquic = True
+
+                if capabilities['UNFRONTED-MEEK-SESSION-TICKET'] and not capabilities['OSSH'] and random.random() > 0.33:
+                    capabilities['QUIC'] = True
+                    quic_port = 443
+                    host.passthrough_version = 2
+                    host.enable_gquic = False
+                    host.limit_quic_versions = ['QUICv1', 'RANDOMIZED-QUICv1']
 
             server = Server(
                         None,
@@ -2425,13 +2449,20 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.region,
                         host.fronting_provider_id,
                         host.passthrough_address,
+                        host.passthrough_version,
+                        host.enable_gquic,
+                        host.limit_quic_versions,
                         host.meek_server_port,
                         host.meek_server_obfuscated_key,
                         host.meek_server_fronting_domain,
                         host.meek_server_fronting_host,
                         host.alternate_meek_server_fronting_hosts,
                         host.meek_cookie_encryption_public_key,
-                        host.meek_cookie_encryption_private_key)
+                        host.meek_cookie_encryption_private_key,
+                        host.tactics_request_public_key,
+                        host.tactics_request_private_key,
+                        host.tactics_request_obfuscated_key,
+                        host.run_packet_manipulator)
         self.__hosts_to_remove_from_providers.add(host_copy)
 
         # Mark host and its servers as deleted in the database. We keep the
@@ -4234,12 +4265,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         '',  # Omit: datacenter_name isn't needed
                                         host.region,
                                         host.fronting_provider_id,
-                                        None, # Omit: passthrough_address isn't needed
+                                        host.passthrough_address,
+                                        None, # Omit: passthrough_version isn't needed
+                                        None, # Omit: enable_gquic isn't needed
+                                        host.limit_quic_versions,
                                         host.meek_server_port,
                                         host.meek_server_obfuscated_key,
                                         host.meek_server_fronting_domain,
                                         host.meek_server_fronting_host,
-                                        [],  # Omit: alternate_meek_server_fronting_hosts isn't needed
+                                        host.alternate_meek_server_fronting_hosts,
                                         host.meek_cookie_encryption_public_key,
                                         '',  # Omit: meek_cookie_encryption_private_key isn't needed
                                         host.tactics_request_public_key,
@@ -4491,6 +4525,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.region,
                                             host.fronting_provider_id,
                                             host.passthrough_address,
+                                            host.passthrough_version,
+                                            host.enable_gquic,
+                                            host.limit_quic_versions,
                                             host.meek_server_port,
                                             host.meek_server_obfuscated_key,
                                             host.meek_server_fronting_domain,
@@ -4600,6 +4637,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.region,
                                             None, # Omit: fronting_provider_id
                                             None, # Omit: passthrough_address
+                                            None, # Omit: passthrough_version
+                                            None, # Omit: enable_gquic
+                                            None, # Omit: limit_quic_versions
                                             host.meek_server_port,
                                             '',  # Omit: host.meek_server_obfuscated_key,
                                             '',  # Omit: host.meek_server_fronting_domain,
