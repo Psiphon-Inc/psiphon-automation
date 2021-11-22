@@ -2326,7 +2326,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             if host.is_TCS:
                 capabilities['QUIC'] = capabilities['OSSH']
-                host.enable_gquic = True
+                host.enable_gquic = random.random() > 0.5
 
                 if capabilities['UNFRONTED-MEEK-SESSION-TICKET'] and not capabilities['OSSH'] and random.random() > 0.33:
                     capabilities['QUIC'] = True
