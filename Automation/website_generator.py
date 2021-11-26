@@ -62,7 +62,7 @@ def generate(dest_dir):
             subprocess.check_output('npm ci', shell=True, stderr=subprocess.STDOUT)
             os.chdir(cwd)
 
-        subprocess.check_output('docpad clean --env %s --out "%s"' % (DOCPAD_ENV, dest_dir),
+        subprocess.check_output('npx docpad clean --env %s --out "%s"' % (DOCPAD_ENV, dest_dir),
                                 shell=True, stderr=subprocess.STDOUT)
 
         # An env of `languagesplit_1_3` will split the languages into 3 chunks
@@ -71,7 +71,7 @@ def generate(dest_dir):
             split_env = '%s,languagesplit_%d_%d' % (
                 DOCPAD_ENV, chunk, GENERATE_CHUNKS)
             subprocess.check_output(
-                'docpad generate --cache --offline --env %s --out "%s"' % (
+                'npx docpad generate --cache --offline --env %s --out "%s"' % (
                     split_env, dest_dir),
                 shell=True, stderr=subprocess.STDOUT)
     finally:
