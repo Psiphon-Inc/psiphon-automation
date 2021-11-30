@@ -3977,6 +3977,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 masked_capabilities.append(capability)
             extended_config['capabilities'] = masked_capabilities
 
+        if host.limit_quic_versions:
+            extended_config['limitQUICVersions'] = host.limit_quic_versions
+
         extended_config['configurationVersion'] = server.configuration_version
 
         # To minimize server entry size, we now stub in minimal placeholders
