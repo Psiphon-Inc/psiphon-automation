@@ -118,8 +118,17 @@ class PsiScaleway:
 
     def list_scaleways(self):
         try:
-            # return all scaleways in the account.
-            return self.client.query().servers.get()['servers']
+            # page through results and return all scaleways in the account.
+            page_number = 1
+            servers = self.client.query().servers.get(page=page_number)['servers']
+            while True:
+                page_number += 1
+                next_page = self.client.query().servers.get(page=page_number)['servers']
+                if next_page:
+                    servers += next_page
+                else:
+                    break
+            return servers
         except slexc.HttpClientError as exc:
             print(json.dumps(exc.response.json(), indent=2))
 
