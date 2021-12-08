@@ -398,7 +398,7 @@ def make_psiphond_config(host, server, own_encoded_server_entries, TCS_psiphond_
     else:
         raise 'Invalid host.passthrough_version: ' + host.passthrough_version
 
-    config['EnableGQUIC'] = host.enable_gquic ? True : False
+    config['EnableGQUIC'] = True if host.enable_gquic else False
 
     config['WebServerSecret'] = server.web_server_secret
     config['WebServerCertificate'] = server.web_server_certificate
