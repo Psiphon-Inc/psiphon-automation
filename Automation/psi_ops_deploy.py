@@ -391,6 +391,15 @@ def make_psiphond_config(host, server, own_encoded_server_entries, TCS_psiphond_
             if tunnel_protocol_supports_passthrough(protocol):
                 config['TunnelProtocolPassthroughAddresses'][protocol] = host.passthrough_address
 
+    if not host.passthrough_version:
+        config['LegacyPassthrough'] = True
+    elif host.passthrough_version == 2:
+        config['LegacyPassthrough'] = False
+    else:
+        raise 'Invalid host.passthrough_version: ' + host.passthrough_version
+
+    config['EnableGQUIC'] = host.enable_gquic ? True : False
+
     config['WebServerSecret'] = server.web_server_secret
     config['WebServerCertificate'] = server.web_server_certificate
     config['WebServerPrivateKey'] = server.web_server_private_key
@@ -436,9 +445,6 @@ def make_psiphond_config(host, server, own_encoded_server_entries, TCS_psiphond_
         config['SSHHandshakeTimeoutMilliseconds'] = random.choice(ssh_handshake_timeouts)
 
     config['OwnEncodedServerEntries'] = own_encoded_server_entries
-
-    config['LegacyPassthrough'] = True
-    config['EnableGQUIC'] = True
 
     return json.dumps(config)
 

@@ -321,7 +321,7 @@ def launch_new_server(scaleway_account, is_TCS, plugins, multi_ip=False):
             scaleway_account.base_ssh_port, 'root', new_root_password,
             ' '.join(new_host_public_key.split(' ')[:2]),
             new_stats_username, new_stats_password,
-            datacenter_name, region, None, None, None, None, None, scaleway_internal_ip_address)
+            datacenter_name, region, None, scaleway_internal_ip_address)
 
 if __name__ == '__main__':
     print launch_new_server()
