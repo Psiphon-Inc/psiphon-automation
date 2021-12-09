@@ -4270,7 +4270,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         '',  # Omit: datacenter_name isn't needed
                                         host.region,
                                         host.fronting_provider_id,
-                                        host.passthrough_address,
+                                        None, # Omit: passthrough_address isn't needed
                                         None, # Omit: passthrough_version isn't needed
                                         None, # Omit: enable_gquic isn't needed
                                         host.limit_quic_versions,
