@@ -3973,7 +3973,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             masked_capabilities = []
             for capability in extended_config['capabilities']:
                 if psi_ops_deploy.server_entry_capability_supports_passthrough(capability):
-                    capability += '-PASSTHROUGH'
+                    capability += '-PASSTHROUGH-v2' if host.passthrough_version == 2 else '-PASSTHROUGH'
                 masked_capabilities.append(capability)
             extended_config['capabilities'] = masked_capabilities
 
