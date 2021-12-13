@@ -2327,8 +2327,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if host.is_TCS:
                 capabilities['QUIC'] = capabilities['OSSH']
                 host.enable_gquic = random.random() > 0.5
-                if not host.enable_gquic:
-                    host.limit_quic_versions = ['QUICv1', 'RANDOMIZED-QUICv1', 'OBFUSCATED-QUICv1', 'DECOY-QUICv1']
+                # It would be ineffecient for clients to attempt older gQUIC-based QUIC versions
+                # against servers that no longer support gQUIC. However, since limit_quic_versions
+                # is implemented as an allow-list, versions we may add in the future will not be
+                # automatically added to the allow-list.
+                #if not host.enable_gquic:
+                #    host.limit_quic_versions = ['QUICv1', 'RANDOMIZED-QUICv1', 'OBFUSCATED-QUICv1', 'DECOY-QUICv1']
 
                 if capabilities['UNFRONTED-MEEK-SESSION-TICKET'] and not capabilities['OSSH'] and random.random() > 0.33:
                     capabilities['QUIC'] = True
