@@ -2326,13 +2326,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             if host.is_TCS:
                 capabilities['QUIC'] = capabilities['OSSH']
+
+                # When host.enable_gquic is False, __get_encoded_server_entry
+                # will tweak the capability and render it as "QUICv1" instead
+                # of "QUIC". This masks the capability from older clients so
+                # that they don't attempt to dial the server using gQUIC
+                # versions. Newer clients will recognize the tweaked
+                # capability and only try QUICv1 QUIC versions.
                 host.enable_gquic = random.random() > 0.5
-                # It would be ineffecient for clients to attempt older gQUIC-based QUIC versions
-                # against servers that no longer support gQUIC. However, since limit_quic_versions
-                # is implemented as an allow-list, versions we may add in the future will not be
-                # automatically added to the allow-list.
-                #if not host.enable_gquic:
-                #    host.limit_quic_versions = ['QUICv1', 'RANDOMIZED-QUICv1', 'OBFUSCATED-QUICv1', 'DECOY-QUICv1']
 
                 if capabilities['UNFRONTED-MEEK-SESSION-TICKET'] and not capabilities['OSSH'] and random.random() > 0.33:
                     capabilities['QUIC'] = True
@@ -3985,6 +3986,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         if host.limit_quic_versions:
             extended_config['limitQUICVersions'] = host.limit_quic_versions
+
+        if not host.enable_gquic:
+            extended_config['capabilities'] = ['QUICv1' if capability == 'QUIC' else capability for capability in extended_config['capabilities']]
 
         extended_config['configurationVersion'] = server.configuration_version
 
