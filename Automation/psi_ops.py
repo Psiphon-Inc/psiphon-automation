@@ -4610,6 +4610,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         '')  # Omit server ages
 
         for k,addresses in self.__alternate_meek_fronting_addresses.iteritems():
+            copy.__alternate_meek_fronting_addresses[k] = set()
             for address in addresses:
                 copy.__alternate_meek_fronting_addresses[k].add(address)
 
