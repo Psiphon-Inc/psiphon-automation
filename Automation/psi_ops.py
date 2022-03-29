@@ -56,97 +56,97 @@ import psi_ops_discovery
 try:
     from collections import Counter
 except ImportError as error:
-    print error
+    print(error)
 
 try:
     from PIL import Image
 except ImportError as error:
-    print error
+    print(error)
 
 try:
     import website_generator
 except ImportError as error:
-    print error
+    print(error)
 
 try:
     import psi_ops_crypto_tools
 except ImportError as error:
-    print error
+    print(error)
 
 try:
     import psi_ssh
 except ImportError as error:
-    print error
+    print(error)
 
 try:
     import psi_linode_api4 as psi_linode
 except ImportError as error:
-    print error
+    print(error)
 
 try:
     import psi_digitalocean_apiv2 as psi_digitalocean
 except ImportError as error:
-    print error
+    print(error)
 
 try:
     import psi_vpsnet
 except ImportError as error:
-    print error
+    print(error)
 
 try:
     import psi_scaleway
 except ImportError as error:
-    print error
+    print(error)
 
 try:
     import psi_elastichosts
 except ImportError as error:
-    print error
+    print(error)
 
 try:
     import psi_templates
 except ImportError as error:
-    print error
+    print(error)
 
 try:
     import psi_ops_s3
 except ImportError as error:
-    print error
+    print(error)
 
 try:
     import psi_ops_install
 except ImportError as error:
-    print error
+    print(error)
 
 try:
     import psi_ops_deploy
 except ImportError as error:
-    print error
+    print(error)
 
 try:
     import psi_ops_build_windows
 except ImportError as error:
-    print error
+    print(error)
 
 try:
     import psi_ops_build_android
 except ImportError as error:
-    print error
+    print(error)
 
 try:
     import psi_ops_test_windows
 except ImportError as error:
-    print error
+    print(error)
 
 try:
     import psi_ops_twitter
 except ImportError as error:
-    print error
+    print(error)
 
 try:
     import psi_routes
 except ImportError as error:
-    print error
+    print(error)
 
 plugins = []
 try:
@@ -156,7 +156,7 @@ try:
         sys.path.insert(0, path)
         plugins.append(__import__(plugin))
 except ImportError as error:
-    print error
+    print(error)
 
 
 WEBSITE_GENERATION_DIR = './website-out'
@@ -871,7 +871,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def show_status(self):
         # NOTE: verbose mode prints credentials to stdout
-        print textwrap.dedent('''
+        print(textwrap.dedent('''
             Sponsors:               %d
             Channels:               %d
             Twitter Campaigns:      %d
@@ -934,7 +934,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 'Yes' if self.__deploy_email_config_required else 'No',
                 len(self.__deploy_website_required_for_sponsors),
                 len(self.__deploy_pave_osls_required_for_propagation_channels),
-                )
+                ))
 
     def show_providers(self):
         providers_counter = Counter([h.provider for h in self.__hosts.itervalues()]).most_common()
@@ -948,7 +948,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             print_text = print_text + '''
                 %s:    %d''' % (provider.capitalize(), number)
 
-        print print_text
+        print(print_text)
 
     def show_regions(self):
         regions_counter = Counter([h.region for h in self.__hosts.itervalues()]).most_common()
@@ -962,18 +962,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             print_text = print_text + '''
                 %s:     %d''' % (region, number)
 
-        print print_text
+        print(print_text)
 
     def show_client_versions(self):
         for platform in self.__client_versions.iterkeys():
-            print platform
+            print(platform)
             for client_version in self.__client_versions[platform]:
-                print client_version.logs[0][0], client_version.version, client_version.description
+                print(client_version.logs[0][0], client_version.version, client_version.description)
 
     def __show_logs(self, obj):
         for timestamp, message in obj.get_logs():
-            print '%s: %s' % (timestamp.isoformat(), message)
-        print ''
+            print('%s: %s' % (timestamp.isoformat(), message))
+        print('')
 
     def show_sponsors(self):
         for s in self.__sponsors.itervalues():
@@ -981,7 +981,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def show_sponsor(self, sponsor_name):
         s = self.get_sponsor_by_name(sponsor_name)
-        print textwrap.dedent('''
+        print(textwrap.dedent('''
             ID:                      %(id)s
             Name:                    %(name)s
             Home Pages:              %(home_pages)s
@@ -1008,7 +1008,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                              c.account[0] if c.account else 'None',
                                                              c.s3_bucket_name)
                                             for c in s.campaigns])
-                    }
+                    })
         self.__show_logs(s)
 
     def show_campaigns_on_propagation_channel(self, propagation_channel_name):
@@ -1016,7 +1016,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for sponsor in self.__sponsors.itervalues():
             for campaign in sponsor.campaigns:
                 if campaign.propagation_channel_id == propagation_channel.id:
-                    print textwrap.dedent('''
+                    print(textwrap.dedent('''
                             Sponsor:                %s
                             Propagation Mechanism:  %s
                             Account:                %s
@@ -1024,7 +1024,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 sponsor.name,
                                 campaign.propagation_mechanism_type,
                                 campaign.account[0] if campaign.account else 'None',
-                                campaign.s3_bucket_name)
+                                campaign.s3_bucket_name))
 
     def show_propagation_channels(self, verbose=True):
         for p in self.__propagation_channels.itervalues():
@@ -1061,7 +1061,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     now >= server.discovery_date_range[1]]
         old_discovery_servers.sort()
 
-        print textwrap.dedent('''
+        print(textwrap.dedent('''
             ID:                                  %s
             Name:                                %s
             Propagation Mechanisms:              %s
@@ -1082,10 +1082,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 str(p.new_discovery_servers_count),
                 str(p.max_discovery_server_age_in_days),
                 str(p.new_osl_discovery_servers_count),
-                str(p.max_osl_discovery_server_age_in_days))
+                str(p.max_osl_discovery_server_age_in_days)))
 
         if verbose:
-            print textwrap.dedent('''
+            print(textwrap.dedent('''
                 Embedded Servers:                  %s
                 Discovery Servers:                 %s
                 Future Discovery Servers:          %s
@@ -1096,7 +1096,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     '\n                                   '.join(current_discovery_servers),
                     '\n                                   '.join(future_discovery_servers),
                     '\n                                   '.join(old_propagation_servers),
-                    '\n                                   '.join(old_discovery_servers))
+                    '\n                                   '.join(old_discovery_servers)))
             self.__show_logs(p)
 
     def show_servers(self):
@@ -1110,7 +1110,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def show_server(self, server_id):
         s = self.__servers[server_id]
-        print textwrap.dedent('''
+        print(textwrap.dedent('''
             Server:                   %s
             Host:                     %s%s %s %s / %s
             IP Address:               %s
@@ -1139,7 +1139,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 ('%s - %s' % (s.osl_discovery_date_range[0].isoformat(),
                             s.osl_discovery_date_range[1].isoformat())) if s.osl_discovery_date_range else 'None',
                 ', '.join([capability for capability, enabled in s.capabilities.iteritems() if enabled]),
-                s.configuration_version if s.configuration_version else 0)
+                s.configuration_version if s.configuration_version else 0))
         self.__show_logs(s)
 
     def show_server_by_diagnostic_id(self, diagnostic_id):
@@ -1153,7 +1153,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                    for s in self.__servers
                    if self.__servers[s].host_id == host_id]
 
-        print textwrap.dedent('''
+        print(textwrap.dedent('''
             Host ID:                 %(id)s%(is_TCS)s
             Provider:                %(provider)s (%(provider_id)s)
             Datacenter:              %(datacenter_name)s
@@ -1176,17 +1176,17 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     'stats_ssh_username': host.stats_ssh_username,
                     'stats_ssh_password': host.stats_ssh_password,
                     'servers': '\n                         '.join(servers)
-                    }
+                    })
 
         if show_logs:
             self.__show_logs(host)
 
     def show_provider_ranks(self):
         for r in self.__provider_ranks:
-            print textwrap.dedent('''
+            print(textwrap.dedent('''
                 Provider:   %s
                 Rank:       %s
-                ''') % (r.provider, r.rank)
+                ''') % (r.provider, r.rank))
 
     def __generate_id(self):
         count = 16
@@ -1972,7 +1972,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 self.add_servers(new_servers[:new_osl_discovery_servers_count], propagation_channel_name, new_osl_discovery_date_range, None, False)
             except Exception as ex:
                 for line in traceback.format_exc().split('\n'):
-                    print line
+                    print(line)
                 failure = ex
 
         if new_discovery_servers_count > 0:
@@ -1980,7 +1980,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 self.add_servers(new_servers[new_osl_discovery_servers_count:new_osl_discovery_servers_count + new_discovery_servers_count], propagation_channel_name, None, new_discovery_date_range, False)
             except Exception as ex:
                 for line in traceback.format_exc().split('\n'):
-                    print line
+                    print(line)
                 failure = ex
 
         if new_propagation_servers_count > 0:
@@ -1988,7 +1988,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 self.add_servers(new_servers[new_osl_discovery_servers_count + new_discovery_servers_count:], propagation_channel_name, None, None)
             except Exception as ex:
                 for line in traceback.format_exc().split('\n'):
-                    print line
+                    print(line)
                 failure = ex
 
         if failure:
@@ -2175,7 +2175,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         else:
             raise ValueError('bad provider value: %s' % provider)
 
-        print 'starting %s process (up to 20 minutes)...' % provider
+        print('starting %s process (up to 20 minutes)...' % provider)
 
         # Create a new cloud VPS
         def provider_launch_new_server_with_retries(is_TCS):
@@ -2183,7 +2183,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 try:
                     return provider_launch_new_server(provider_account, is_TCS, plugins, multi_ip)
                 except Exception as ex:
-                    print str(ex)
+                    print(str(ex))
             raise ex
 
         server_info = provider_launch_new_server_with_retries(is_TCS)
@@ -2426,7 +2426,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 # Remove the actual host through the provider's API
                 provider_remove_host(provider_account, host.provider_id)
             except Exception as ex:
-                print str(ex)
+                print(str(ex))
                 return ex
 
         pool = ThreadPool(30)
@@ -2676,7 +2676,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # TODO: safety check to avoid delete production servers
             orphan = provider_controller.get_server(provider_account, host_provider_id)
             orphan_id = orphan['zone'] + '_' + orphan['id'] if provider == 'scaleway' else orphan.id
-            print textwrap.dedent('''
+            print(textwrap.dedent('''
                   Provider ID:             %s
                   Host Name/Labe:          %s
                   Status:                  %s
@@ -2716,10 +2716,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                       orphan.ipv4[0],
                       orphan.region.id,
                       str(orphan.tags)
-                  ))
+                  )))
             user_response = raw_input("Do you want to delete this orphan host? ")
             if user_response in ['yes', 'y', 'Y', 'Yes']:
-                print('Adding host to deletion list - the host: {}'.format(host_name))
+                print(('Adding host to deletion list - the host: {}'.format(host_name)))
                 pending_deletion.append(orphan_id)
                 #provider_controller.remove_server(provider_account, host_provider_id) # method delete server through API
             else:
@@ -3355,7 +3355,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             # Note: raises CalledProcessError when paver fails
             output = subprocess.check_output(paver_command_line, stderr=subprocess.STDOUT)
-            print output
+            print(output)
 
             paved_propagation_channel_ids = set()
             for scheme_index, scheme in enumerate(config['Schemes']):
@@ -3489,7 +3489,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def push_devops_config(self):
         assert(self.is_locked)
-        print 'push devops config...'
+        print('push devops config...')
 
         temp_file = tempfile.NamedTemporaryFile(delete=False)
         try:
@@ -3505,7 +3505,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def push_stats_config(self):
         assert(self.is_locked)
-        print 'push stats config...'
+        print('push stats config...')
 
         temp_file = tempfile.NamedTemporaryFile(delete=False)
         try:
@@ -3526,7 +3526,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Currently, we generate the entire config file for any change.
 
         assert(self.is_locked)
-        print 'push email config...'
+        print('push email config...')
 
         emails = []
         for sponsor in self.__sponsors.itervalues():
@@ -4909,16 +4909,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def test_server(self, server_id, test_cases=None, build_with_embedded_servers=False):
         if not server_id in self.__servers:
-            print 'Server "%s" not found' % (server_id,)
+            print('Server "%s" not found' % (server_id,))
         elif self.__servers[server_id].propagation_channel_id == None:
-            print 'Server "%s" does not have a propagation channel id' % (server_id,)
+            print('Server "%s" does not have a propagation channel id' % (server_id,))
         else:
             servers = [self.__servers[server_id]]
             self.__test_servers(servers, test_cases, build_with_embedded_servers)
 
     def test_host(self, host_id, test_cases=None):
         if not host_id in self.__hosts:
-            print 'Host "%s" not found' % (host_id,)
+            print('Host "%s" not found' % (host_id,))
         else:
             servers = [server for server in self.__servers.itervalues() if server.host_id == host_id and server.propagation_channel_id != None]
             self.__test_servers(servers, test_cases)
@@ -4949,13 +4949,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             total_users += user_count
             users_on_host[host.id] = user_count
         sorted_users_on_host = sorted(users_on_host.iteritems(), key=operator.itemgetter(1))
-        print 'Total users: %d\n' % (total_users,)
+        print('Total users: %d\n' % (total_users,))
         for host_user_count in sorted_users_on_host:
-            print host_user_count[1]
+            print(host_user_count[1])
 
     def save(self):
         assert(self.is_locked)
-        print 'saving...'
+        print('saving...')
         super(PsiphonNetwork, self).save()
 
 
@@ -4984,7 +4984,7 @@ def create():
 
 def interact(lock):
     # Load an existing network object, interact with it, then save changes
-    print 'loading...'
+    print('loading...')
     psinet = PsiphonNetwork.load(lock)
     psinet.show_status()
     import code

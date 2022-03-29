@@ -390,4 +390,4 @@ def launch_new_server(linode_account, is_TCS, plugins, multi_ip=False):
             datacenter_name, region, egress_ip_address, None)
 
 if __name__ == "__main__":
-    print launch_new_server()
+    print(launch_new_server())

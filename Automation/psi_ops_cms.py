@@ -41,7 +41,7 @@ if os.path.isfile('psi_data_config.py'):
         else:
             psi_ops_config = __import__('psi_ops_config')
     except ImportError as error:
-        print error
+        print(error)
 
 
 def unlock_document():

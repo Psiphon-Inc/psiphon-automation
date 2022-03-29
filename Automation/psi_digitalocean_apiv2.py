@@ -131,9 +131,9 @@ def update_kernel(digitalocean_account, do_mgr, droplet):
     if len(droplet_kernel_pkg) > 0:
         for line in droplet_kernel_pkg:
             if 'State: installed' in line:
-                print line
+                print(line)
             if 'Version: ' in line:
-                print line
+                print(line)
                 current_kernel_name = line.split(': ')[1].split('+')[0]
                 break
 
@@ -146,18 +146,18 @@ def update_kernel(digitalocean_account, do_mgr, droplet):
     if current_kernel_name not in droplet.kernel['name']:
         for kernel in droplet_kernels:
             if current_kernel_name in kernel.name and droplet_uname == kernel.version:
-                print 'Kernel found.  ID: %s, Name: %s' % (kernel.id, kernel.name)
+                print('Kernel found.  ID: %s, Name: %s' % (kernel.id, kernel.name))
                 new_kernel = kernel
                 break
 
     if new_kernel:
-        print 'Change to use new kernel.  ID: %s' % (new_kernel.id)
+        print('Change to use new kernel.  ID: %s' % (new_kernel.id))
         result = droplet.change_kernel(new_kernel)
         if not wait_on_action(do_mgr, droplet, result['action']['id'], 30, 'change_kernel', 'completed'):
             raise Exception('Event did not complate on time')
         droplet = droplet.load()
         result = droplet.power_cycle()
-        print result
+        print(result)
         if not wait_on_action(do_mgr, droplet, result['action']['id'], 30, 'power_cycle', 'completed'):
             raise Exception('Event did not complete in time')
         droplet = droplet.load()
@@ -245,7 +245,7 @@ def wait_on_action(do_mgr, droplet, action_id=None, interval=10,
                 action = do_mgr.get_action(action_id)
                 if action.type == action_type and action.status == action_status:
                     return True
-            print '%s. %s - %s not found - trying again in %ss' % (str(attempt), action_type, action_status, interval)
+            print('%s. %s - %s not found - trying again in %ss' % (str(attempt), action_type, action_status, interval))
             time.sleep(int(interval))
     except Exception as e:
         raise e
@@ -395,7 +395,7 @@ def update_base_image(psinet):
         failures = transfer_image_to_region(do_mgr, droplet, droplet.snapshot_ids[-1])
 
     if len(failures) != 0:
-        print 'There were %s' % len(failures)
+        print('There were %s' % len(failures))
     else:
         if psinet.is_locked:
             set_new_base_image(psinet, psinet._PsiphonNetwork__digitalocean_account, droplet)
@@ -469,7 +469,7 @@ def make_base_droplet(psinet, digitalocean_account):
         droplet = droplet.load()
 
     except Exception as e:
-        print type(e), str(e)
+        print(type(e), str(e))
 
     return droplet
 
@@ -505,7 +505,7 @@ def make_psiphon_server(psinet, digitalocean_account, droplet):
         else:
             raise Exception('Error creating server. Remove droplet: %s' % droplet.name)
     except Exception as e:
-        print type(e), str(e)
+        print(type(e), str(e))
 
     return (host, server)
 
@@ -515,7 +515,7 @@ def transfer_server(digitalocean_account, droplet):
     # transfer image
     failures = transfer_image_to_region(do_mgr, droplet, droplet.snapshot_ids[0])
     if len(failures) > 0:
-        print "Failed to transfer image to regions: %s" % (failures)
+        print("Failed to transfer image to regions: %s" % (failures))
 
     return failures
 
@@ -605,11 +605,11 @@ def launch_new_server(digitalocean_account, is_TCS, _, multi_ip=False):
         assert(new_droplet_public_key)
 
     except Exception as e:
-        print type(e), str(e)
+        print(type(e), str(e))
         if droplet is not None:
             droplet.destroy()
         else:
-            print type(e), "No droplet to be destroyed: ", str(droplet)
+            print(type(e), "No droplet to be destroyed: ", str(droplet))
         raise
 
     return (droplet.name, is_TCS, 'NATIVE' if is_TCS else None, None, droplet.id, droplet.ip_address,
