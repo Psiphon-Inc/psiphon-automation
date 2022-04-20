@@ -2321,7 +2321,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 capabilities['VPN'] = False
 
             quic_port = ossh_port
-            if quic_port in [68, 123] or random.random() < 0.1:
+            if random.random() > 0.5:
+                quic_port = 443
+            elif quic_port in [68, 123] or random.random() < 0.1:
                 quic_port = ssh_port
 
             if host.is_TCS:
