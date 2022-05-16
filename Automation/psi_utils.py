@@ -167,9 +167,9 @@ def recordtype(typename, field_names, verbose=False, logs=True, **default_kwds):
     # Execute the template string in a temporary namespace
     namespace = {}
     try:
-        exec template in namespace
-        if verbose: print template
-    except SyntaxError, e:
+        exec(template, namespace)
+        if verbose: print(template)
+    except SyntaxError as e:
         raise SyntaxError(e.message + ':\n' + template)
     cls = namespace[typename]
     cls.__init__.im_func.func_defaults = init_defaults
