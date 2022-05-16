@@ -146,7 +146,7 @@ def write_embedded_values(propagation_channel_id,
     ret_error = Cog().main(cog_args)
 
     if ret_error != 0:
-        print 'Cog failed with error: %d' % ret_error
+        print('Cog failed with error: %d' % ret_error)
         raise
 
 def write_version_properties(client_version):
@@ -248,12 +248,12 @@ def build_client(
                                                              sponsor_id))
         shutil.copyfile(ZIPALIGNED_APK_FILENAME, build_destination_path)
 
-        print 'Build: SUCCESS'
+        print('Build: SUCCESS')
 
         return build_destination_path
 
     except:
-        print 'Build: FAILURE'
+        print('Build: FAILURE')
         raise
 
     finally:

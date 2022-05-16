@@ -35,7 +35,7 @@ from boto.s3.connection import OrdinaryCallingFormat
 try:
     import qrcode
 except ImportError as error:
-    print error
+    print(error)
 
 
 #==== Config  =================================================================

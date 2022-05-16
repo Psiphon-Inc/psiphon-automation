@@ -127,10 +127,10 @@ def make_routes():
     for name in names:
         fileName, fileExtension = os.path.splitext(name)
         if fileExtension == '.csv' and 'Country-Blocks-IPv4' in fileName:
-            print "CSV found: %s" % name
+            print("CSV found: %s" % name)
             country_blocks_filename = name
         if fileExtension == '.csv' and 'Country-Locations-en' in fileName:
-            print "CSV found: %s" % name
+            print("CSV found: %s" % name)
             country_names_filename = name
     
     if not country_blocks_filename:

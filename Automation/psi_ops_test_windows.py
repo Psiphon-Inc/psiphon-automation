@@ -36,8 +36,8 @@ try:
     import _winreg
     REGISTRY_ROOT_KEY = _winreg.HKEY_CURRENT_USER
 except ImportError as error:
-    print error
-    print 'NOTE: Running client tests will not be available.'
+    print(error)
+    print('NOTE: Running client tests will not be available.')
 
 import psi_ops_build_windows
 
@@ -86,7 +86,7 @@ try:
     APPDATA_DIR = os.path.join(os.environ['APPDATA'], 'Psiphon3')
     APPDATA_BACKUP_DIR = os.path.join(os.environ['APPDATA'], 'Psiphon3.bak')
 except:
-    print "Could not set APPDATA_DIR and/or APPDATA_BACKUP_DIR, ignoring"
+    print("Could not set APPDATA_DIR and/or APPDATA_BACKUP_DIR, ignoring")
 
 
 def retry_on_exception_decorator(function):
@@ -98,7 +98,7 @@ def retry_on_exception_decorator(function):
                     time.sleep(20)
                 return function(*args, **kwds)
             except Exception as e:
-                print str(e)
+                print(str(e))
                 pass
         raise e
     return wrapper
@@ -106,7 +106,7 @@ def retry_on_exception_decorator(function):
 
 @retry_on_exception_decorator
 def __test_web_server(ip_address, web_server_port, propagation_channel_id, web_server_secret):
-    print 'Testing web server at %s...' % (ip_address,)
+    print('Testing web server at %s...' % (ip_address,))
     get_request = 'https://%s:%s/handshake?propagation_channel_id=%s&sponsor_id=0&client_version=1&server_secret=%s&relay_protocol=SSH' % (
                     ip_address, web_server_port, propagation_channel_id, web_server_secret)
 
@@ -180,7 +180,7 @@ class PsiphonRunner:
         try:
             win32ui.FindWindow(None, psi_ops_build_windows.APPLICATION_TITLE).PostMessage(win32con.WM_CLOSE)
         except Exception as e:
-            print e
+            print(e)
         if self.proc:
             self.proc.wait()
         # Restore appdata
@@ -242,7 +242,7 @@ class TunnelCoreRunner:
         # Read tunnel-core log file for connection message instead of sleep 25 second
 
         time.sleep(1)
-        print 'Tunnel Core is connecting...'
+        print('Tunnel Core is connecting...')
         start_time = time.time()
 
         # Breaking this loop means the process sent EOF to stderr, or 'tunnels' tunnels were established
@@ -259,7 +259,7 @@ class TunnelCoreRunner:
 
             if time.time() >= start_time + 25:
                 # if the sleep time is 25 second, get out while loop and keep going
-                print 'Not successfully connected after 25 second.'
+                print('Not successfully connected after 25 second.')
                 break
 
     def setup_proxy(self):
@@ -271,7 +271,7 @@ class TunnelCoreRunner:
         try:
             win32ui.FindWindow(None, TUNNEL_CORE).PostMessage(win32con.WM_CLOSE)
         except Exception as e:
-            print e
+            print(e)
         if self.proc:
            self.proc.wait()
         # Remove Config file
@@ -279,7 +279,7 @@ class TunnelCoreRunner:
             os.remove(CONFIG_FILE_NAME)
             time.sleep(1)
         except Exception as e:
-            print "Remove Config/Log File Failed" + str(e)
+            print("Remove Config/Log File Failed" + str(e))
 
 
 @retry_on_exception_decorator
@@ -302,8 +302,8 @@ def __test_server(runner, transport, expected_egress_ip_addresses):
     else:
         split_tunnel_mode = random.choice([True, False])
 
-    print 'Testing egress IP addresses %s in %s mode (split tunnel %s)...' % (
-            ','.join(expected_egress_ip_addresses), transport, 'ENABLED' if split_tunnel_mode else 'DISABLED')
+    print('Testing egress IP addresses %s in %s mode (split tunnel %s)...' % (
+            ','.join(expected_egress_ip_addresses), transport, 'ENABLED' if split_tunnel_mode else 'DISABLED'))
 
     try:
         runner.connect_to_server(transport, split_tunnel_mode)
@@ -365,14 +365,14 @@ def test_server(server, host, encoded_server_entry,
             or (test_case == 'QUIC-OSSH' and not capabilities['QUIC'])
             or (test_case == 'TAPDANCE-OSSH' and not capabilities['TAPDANCE'])
             or (test_case in ['handshake', 'OSSH', 'SSH', 'VPN'] and not capabilities[test_case])):
-            print 'Server does not support %s' % (test_case,)
+            print('Server does not support %s' % (test_case,))
             local_test_cases.remove(test_case)
 
     results = {}
 
     for test_case in local_test_cases:
 
-        print 'test case %s...' % (test_case,)
+        print('test case %s...' % (test_case,))
 
         if test_case == 'handshake':
             try:

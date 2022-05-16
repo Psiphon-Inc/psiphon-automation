@@ -324,4 +324,4 @@ def launch_new_server(scaleway_account, is_TCS, plugins, multi_ip=False):
             datacenter_name, region, None, scaleway_internal_ip_address)
 
 if __name__ == '__main__':
-    print launch_new_server()
+    print(launch_new_server())
