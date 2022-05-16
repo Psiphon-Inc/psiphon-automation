@@ -99,7 +99,9 @@ except ImportError as error:
     print(error)
 
 try:
-    import psi_elastichosts
+    pass
+    # Remove elastichost library
+    #import psi_elastichosts
 except ImportError as error:
     print(error)
 
