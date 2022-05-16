@@ -54,7 +54,7 @@ def recache_geodata(url):
     try:
         url = urllib2.urlopen(request, timeout=5)
         last_modified = url.headers.get('Last-Modified')
-    except urllib2.HTTPError, e:
+    except urllib2.HTTPError as e:
         if e.getcode() != 304:
             raise Exception('HTTP error %i requesting geodata file' % e.getcode())
         # Not-Modified 304 returned
