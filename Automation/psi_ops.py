@@ -38,7 +38,6 @@ import copy
 import subprocess
 import traceback
 import shutil
-import urllib.parse
 import csv
 import hmac
 import hashlib
@@ -50,6 +49,14 @@ import psi_utils
 import psi_ops_cms
 import psi_ops_discovery
 
+# Import library based on version
+try:
+    if sys.version_info < (3, 0):
+        import urlparse
+    else:
+        import urllib.parse as urlparse
+except ImportError as error:
+    print(error)
 
 # Modules available only on the automation server
 
@@ -2992,7 +2999,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         def download_urls(url_split):
             urls = []
-            urls.append({'URL': base64.b64encode(urllib.parse.urlunsplit(url_split)),
+            urls.append({'URL': base64.b64encode(urlparse.urlunsplit(url_split)),
                          'OnlyAfterAttempts': 0,
                          'SkipVerify': False})
             if alternate_download_url_domains and url_split.path.startswith('/psiphon/'):
