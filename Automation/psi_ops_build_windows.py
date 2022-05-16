@@ -46,7 +46,7 @@ SIGN_TOOL_FILENAME = 'C:\\Program Files\\Microsoft SDKs\\Windows\\v7.1\\Bin\\sig
 SIGN_TOOL_FILENAME_ALT = 'C:\\Program Files\\Microsoft SDKs\\Windows\\v7.0A\\Bin\\signtool.exe'
 SIGN_TOOL_FILENAME_x64 = 'C:\\Program Files (x86)\\Microsoft SDKs\\Windows\\v7.1A\\Bin\signtool.exe'
 
-UPX_FILENAME = '.\Tools\upx.exe'
+UPX_FILENAME = '.\\Tools\\upx.exe'
 
 # if psi_build_config.py exists, load it and use psi_build_config.DATA_ROOT as the data root dir
 
@@ -292,13 +292,13 @@ def build_client(
                                                                sponsor_id))
         shutil.copyfile(EXECUTABLE_FILENAME, build_destination_path)
 
-        print 'Build: SUCCESS'
+        print('Build: SUCCESS')
 
         return build_destination_path
 
     except Exception as e:
-        print str(e)
-        print 'Build: FAILURE'
+        print(str(e))
+        print('Build: FAILURE')
         raise
 
     finally:
