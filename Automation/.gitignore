@@ -1,6 +1,11 @@
 .env
 *.pyc
 *.bak
+*.mmdb
+*.dat
 secrets/
-snippets/
-ssl/
+network-health/
+*snippets*
+*ssl*
+deploy.py
+psinet.py
