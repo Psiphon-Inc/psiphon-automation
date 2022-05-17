@@ -21,9 +21,17 @@ import os
 import shutil
 import subprocess
 import textwrap
-import urlparse
 import psi_utils
 import local_repos_config
+
+try:
+    import sys
+    if sys.version_info < (3, 0):
+        import urlparse
+    else:
+        import urllib.parse as urlparse
+except ImportError as error:
+    print(error)
 
 #==== Build File Locations  ===================================================
 

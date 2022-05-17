@@ -18,7 +18,6 @@
 #
 
 import os
-import urllib2
 import ssl
 import subprocess
 import time
@@ -38,6 +37,15 @@ try:
 except ImportError as error:
     print(error)
     print('NOTE: Running client tests will not be available.')
+
+try:
+    import sys
+    if sys.version_info < (3, 0):
+        import urllib2
+    else:
+        import urllib.request as urllib2
+except ImportError as error:
+    print(error)
 
 import psi_ops_build_windows
 

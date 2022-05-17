@@ -21,8 +21,15 @@ import os
 import re
 import subprocess
 import sys
-import urllib
-import urllib2
+
+try:
+    if sys.version_info < (3, 0):
+        import urllib
+        import urllib2
+    else:
+        import urllib.request as urllib2
+except ImportError as error:
+    print(error)
 
 EXECUTABLE = 00744
 BASE_PATH = '/usr/local/share/PsiphonV'
@@ -51,22 +58,25 @@ def build_malware_dictionary(url):
         
     except urllib2.URLError, er:
         if hasattr(er, 'reason'):
-            print 'Failed: ', er.reason
+            print('Failed: ', er.reason)
         elif hasattr(er, 'code'):
-            print 'Error code: ', er.code
+            print('Error code: ', er.code)
     finally:
         return malware_dicts
 
 
 def update_list(tracker):
     """Download the published list and store for processing."""
-    print tracker['url']
+    print(tracker['url'])
     # get the file and save it to the outfile location
     try:
         subprocess.call(['mkdir', '-p', LIST_DIR])
-        urllib.urlretrieve(tracker['url'], os.path.join(LIST_DIR, tracker['rawlist']))
+        if sys.version_info < (3, 0):
+            urllib.urlretrieve(tracker['url'], os.path.join(LIST_DIR, tracker['rawlist']))
+        else:
+            urllib2.urlretrieve(tracker['url'], os.path.join(LIST_DIR, tracker['rawlist']))
     except:
-        print 'Had an issue creating updating the lists'
+        print('Had an issue creating updating the lists')
         sys.exit()
 
 
@@ -163,6 +173,6 @@ if __name__ == "__main__":
                 modify_iptables_insert_tracker(mal_lists[item], chain, iptables_chains[chain])
             
     else:
-        print 'Malware list is empty, exiting'
+        print('Malware list is empty, exiting')
         sys.exit()
         
