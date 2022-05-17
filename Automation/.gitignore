@@ -1,0 +1,6 @@
+.env
+*.pyc
+*.bak
+secrets/
+snippets/
+ssl/

@@ -7,3 +7,7 @@ Pillow==6.2.2
 M2Crypto==0.38.0
 linode_api4==2.2.1
 python-digitalocean==1.14.0
+boto==2.49.0
+slumber==0.7.1
+qrcode==6.1
+cachetools==3.1.1
