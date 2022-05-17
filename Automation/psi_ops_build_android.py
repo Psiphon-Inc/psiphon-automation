@@ -22,12 +22,19 @@ import shutil
 import shlex
 import sys
 import fileinput
-import urlparse
 import psi_utils
 import utils
 from cogapp import Cog
 import local_repos_config
 
+# Import library based on version
+try:
+    if sys.version_info < (3, 0):
+        import urlparse
+    else:
+        import urllib.parse as urlparse
+except ImportError as error:
+    print(error)
 
 #==== Build File Locations  ===================================================
 

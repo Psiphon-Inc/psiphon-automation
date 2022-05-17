@@ -26,7 +26,16 @@ import hashlib
 import mimetypes
 import base64
 import json
-import urlparse
+
+# Import library based on version
+try:
+    if sys.version_info < (3, 0):
+        import urlparse
+    else:
+        import urllib.parse as urlparse
+except ImportError as error:
+    print(error)
+
 
 import boto.s3.connection
 import boto.s3.key
