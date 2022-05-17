@@ -19,12 +19,13 @@
 
 import zipfile
 import os, os.path
-import StringIO 
 import csv
 import zlib
 import tarfile
 import base64
 import psi_ops_crypto_tools
+
+from io import StringIO
 
 try:
     import sys
@@ -146,11 +147,11 @@ def make_routes():
     if not country_names_filename:
         raise Exception('locations CSV not found in the %s' % GEO_ZIP_PATH)
 
-    ip_blocks_data = StringIO.StringIO(zf.read(country_blocks_filename))
+    ip_blocks_data = StringIO(zf.read(country_blocks_filename))
     if not ip_blocks_data:
         raise Exception('Can not read from the %s' % GEO_ZIP_PATH)
     
-    country_names_data = StringIO.StringIO(zf.read(country_names_filename))
+    country_names_data = StringIO(zf.read(country_names_filename))
     if not country_names_data:
         raise Exception('Can not read from the %s' % GEO_ZIP_PATH)
 

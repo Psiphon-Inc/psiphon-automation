@@ -21,11 +21,12 @@ import os
 import sys
 import string
 import random
-import cStringIO
 import hashlib
 import mimetypes
 import base64
 import json
+
+from io import StringIO
 
 # Import library based on version
 try:
@@ -602,7 +603,7 @@ def make_qr_code(url):
     qr.add_data(url)
     qr.make(fit=True)
     image = qr.make_image()
-    stream = cStringIO.StringIO()
+    stream = StringIO()
     image.save(stream, 'PNG')
     return stream.getvalue()
 

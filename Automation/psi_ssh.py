@@ -20,9 +20,10 @@
 import base64
 import os
 import sys
-import StringIO
 import socket
 import time
+
+from io import StringIO
 
 try:
     import paramiko as ssh
@@ -84,7 +85,7 @@ class SSH(object):
                                              ssh.RSAKey(data=base64.b64decode(key_data)))
 
         if ssh_pkey is not None:
-            ssh_pkey = ssh.RSAKey.from_private_key(StringIO.StringIO(ssh_pkey))
+            ssh_pkey = ssh.RSAKey.from_private_key(StringIO(ssh_pkey))
 
         self.ssh.connect(ip_address, ssh_port, ssh_username, ssh_password, pkey=ssh_pkey, timeout=60)
 
