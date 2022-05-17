@@ -25,6 +25,8 @@ import random
 import string
 import tempfile
 
+if sys.version_info >= (3, 0):
+    basestring = str
 
 # Adapted from:
 # http://code.activestate.com/recipes/576555/
@@ -133,7 +135,7 @@ def recordtype(typename, field_names, verbose=False, logs=True, **default_kwds):
             def log(self, message):
                 if not %(logs)s: return
                 self.logs.append((datetime.datetime.now(), message))
-                if %(verbose)s: print '%(typename)s ' + str(self.%(id_field_name)s) + ' ' + message
+                if %(verbose)s: print('%(typename)s ' + str(self.%(id_field_name)s) + ' ' + message)
 
             def get_logs(self):
                 if not %(logs)s: return None
@@ -163,6 +165,9 @@ def recordtype(typename, field_names, verbose=False, logs=True, **default_kwds):
 
             def __ne__(self, other):
                 return not self==other
+
+            def __hash__(self):
+                return hash(object)
     ''') % locals()
     # Execute the template string in a temporary namespace
     namespace = {}
@@ -172,7 +177,10 @@ def recordtype(typename, field_names, verbose=False, logs=True, **default_kwds):
     except SyntaxError as e:
         raise SyntaxError(e.message + ':\n' + template)
     cls = namespace[typename]
-    cls.__init__.im_func.func_defaults = init_defaults
+    if sys.version_info < (3, 0):
+        cls.__init__.__func__.__defaults__ = init_defaults
+    else:
+        cls.__init__.__defaults__ = init_defaults
     # For pickling to work, the __module__ variable needs to be set to the frame
     # where the named tuple is created.  Bypass this step in enviroments where
     # sys._getframe is not defined (Jython for example).
