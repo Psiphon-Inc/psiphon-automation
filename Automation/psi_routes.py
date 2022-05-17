@@ -17,7 +17,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import urllib2
 import zipfile
 import os, os.path
 import StringIO 
@@ -27,6 +26,14 @@ import tarfile
 import base64
 import psi_ops_crypto_tools
 
+try:
+    import sys
+    if sys.version_info < (3, 0):
+        import urllib2
+    else:
+        import urllib.request as urllib2
+except ImportError as error:
+    print(error)
 
 GEO_DATA_ROOT = os.path.join(os.path.abspath('..'), 'Data', 'GeoData')
 GEO_ZIP_FILENAME = 'maxmind_data.zip'
