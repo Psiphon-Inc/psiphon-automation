@@ -818,26 +818,29 @@ def deploy_geoip_database_autoupdates(host):
 
         cron_file_contents = None
 
+        geoipupdate_filename = '/usr/local/bin/geoipupdate'
+
         # For TCS, use hot reload and don't restart service
         if host.is_TCS:
 
             cron_file_contents = textwrap.dedent('''#!/bin/sh
 
-                /usr/local/bin/geoipupdate
-                %s''' % (TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND,))
+                sleep $((RANDOM %% 10000))
+                %s
+                %s''' % (geoipupdate_filename, TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND,))
 
         else:
 
             cron_file_contents = textwrap.dedent('''#!/bin/sh
 
-                    /usr/local/bin/geoipupdate
-                    %s restart''' % (posixpath.join(psi_config.HOST_INIT_DIR, 'psiphonv'),))
+                    %s
+                    %s restart''' % (geoipupdate_filename, posixpath.join(psi_config.HOST_INIT_DIR, 'psiphonv'),))
 
         ssh.exec_command('echo "%s" > %s' % (cron_file_contents, cron_filename))
         ssh.exec_command('chmod +x %s' % (cron_filename,))
 
         # Run the first update
-        ssh.exec_command(cron_filename)
+        ssh.exec_command(geoipupdate_filename)
         ssh.close()
 
         host.log('deploy geoip autoupdates')
