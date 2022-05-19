@@ -186,7 +186,7 @@ class PsiLinode:
 
         # Wait for job completion
         wait_while_condition(lambda: disk.status == 'not ready',
-                         120,
+                         300,
                          'create a disk from base image')
         assert(disk.status == 'ready')
 
