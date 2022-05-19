@@ -4054,7 +4054,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             servers = [server for server in self.__servers.itervalues()
                        if (server.propagation_channel_id == propagation_channel_id and
                            (server.is_permanent or (server.is_embedded and include_propagation_servers)))
-                       or (not test and (server.id in permanent_server_ids[0:200]))]
+                       or (not test and (server.id in permanent_server_ids[0:400]))]
         else:
             # discovery case
             if not discovery_date:
