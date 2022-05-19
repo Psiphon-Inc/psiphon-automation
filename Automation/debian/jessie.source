@@ -1,1 +1,13 @@
-../../psiphon-circumvention-system/Automation/jessie.source
+#------------------------------------------------------------------------------#
+#                   OFFICIAL DEBIAN REPOS                    
+#------------------------------------------------------------------------------#
+
+###### Debian Main Repos
+deb http://deb.debian.org/debian/ jessie main contrib
+deb-src http://deb.debian.org/debian/ jessie main contrib
+
+deb http://deb.debian.org/debian/ jessie-updates main contrib
+deb-src http://deb.debian.org/debian/ jessie-updates main contrib
+
+deb http://deb.debian.org/debian-security jessie/updates main
+deb-src http://deb.debian.org/debian-security jessie/updates main
