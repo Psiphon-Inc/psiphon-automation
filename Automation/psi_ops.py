@@ -61,7 +61,7 @@ except ImportError as error:
 # Import future library for Python 2/3 compatible codebase
 try:
     if sys.version_info >= (3, 0):
-        from builtins import dict
+        from builtins import dict, bytes
 except ImportError as error:
     print(error)
 
@@ -4028,12 +4028,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             prefix_web_server_secret = server.web_server_secret
             prefix_web_server_certificate = web_server_certificate
 
-        encoded_server_entry = binascii.hexlify('%s %s %s %s %s' % (
+        encoded_server_entry = binascii.hexlify('{} {} {} {} {}'.format(
                                     prefix_ip_address,
                                     prefix_web_server_port,
                                     prefix_web_server_secret,
                                     prefix_web_server_certificate,
-                                    json.dumps(extended_config)))
+                                    json.dumps(extended_config)).encode())
 
         # The following server entries will be signed, once server_entry_signing_key_pair is initialized:
         # entries embedded in client builds; entries paved into remote and obfuscated server lists; entries
