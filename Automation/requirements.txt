@@ -5,12 +5,11 @@ pyyaml==5.3.1
 future==0.18.2 
 Pillow==6.2.2 
 linode_api4==2.2.1
-python-digitalocean==1.14.0
+python-digitalocean==1.15.0
 boto==2.49.0
 slumber==0.7.1
 qrcode==6.1
 cachetools==3.1.1
-paramiko==2.4.2
-ssh==1.8.0
+paramiko
+ssh
 #M2Crypto==0.38.0
-#M2CryptoWin64==0.21.1.post3
