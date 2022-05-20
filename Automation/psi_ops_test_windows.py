@@ -210,7 +210,7 @@ class TunnelCoreRunner:
     # Setup and create tunnel core config file.
     def _setup_tunnel_config(self, transport):
         config = {
-            "TargetServerEntry": self.encoded_server_entry, # Single Test Server Parameter
+            "TargetServerEntry": self.encoded_server_entry.decode(), # Single Test Server Parameter
             "TunnelProtocol": transport, # Single or group Test Protocol
             "PropagationChannelId" : self.propagation_channel_id, # Propagation Channel ID = "Testing"
             "SponsorId" : "0",
@@ -323,7 +323,7 @@ def __test_server(runner, transport, expected_egress_ip_addresses):
         if has_local_check:
             # Get egress IP from web site in same GeoIP region; local split tunnel is not proxied
 
-            egress_ip_address = urlopen(CHECK_IP_ADDRESS_URL_LOCAL, 30).read().split('\n')[0]
+            egress_ip_address = urlopen(CHECK_IP_ADDRESS_URL_LOCAL, 30).read().decode().split('\n')[0]
 
             is_proxied = (egress_ip_address in expected_egress_ip_addresses)
 
@@ -338,7 +338,7 @@ def __test_server(runner, transport, expected_egress_ip_addresses):
         if has_remote_check:
             # Get egress IP from web site in different GeoIP region; remote split tunnel is proxied
 
-            egress_ip_address = urlopen(CHECK_IP_ADDRESS_URL_REMOTE, 30).read().split('\n')[0]
+            egress_ip_address = urlopen(CHECK_IP_ADDRESS_URL_REMOTE, 30).read().decode().split('\n')[0]
 
             is_proxied = (egress_ip_address in expected_egress_ip_addresses)
 
