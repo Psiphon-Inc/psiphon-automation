@@ -4053,7 +4053,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         args = [os.path.join('.', server_entry_signer_binary), 'sign']
         env = {'SIGNER_PUBLIC_KEY': str(self.__server_entry_signing_key_pair[0]),
                'SIGNER_PRIVATE_KEY': str(self.__server_entry_signing_key_pair[1]),
-               'SIGNER_SERVER_ENTRY': encoded_server_entry}
+               'SIGNER_SERVER_ENTRY': encoded_server_entry.decode()}
         return subprocess.Popen(args, env=env, stdout=subprocess.PIPE).communicate()[0].strip()
 
     def __get_encoded_server_list(self, propagation_channel_id,
