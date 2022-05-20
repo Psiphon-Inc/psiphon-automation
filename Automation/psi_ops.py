@@ -2871,8 +2871,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # This may be serialized/deserialized into a unicode string, but M2Crypto won't accept that.
         # The key pair should only contain ascii anyways, so encoding to ascii should be safe.
-        self.__routes_signing_key_pair.pem_key_pair = \
-            self.__routes_signing_key_pair.pem_key_pair.encode('ascii', 'ignore')
+        if isinstance(self.__routes_signing_key_pair.pem_key_pair, str):
+            self.__routes_signing_key_pair.pem_key_pair = \
+                self.__routes_signing_key_pair.pem_key_pair.encode(encoding='ascii', errors='ignore')
         return self.__routes_signing_key_pair
 
     def get_feedback_upload_info(self):
