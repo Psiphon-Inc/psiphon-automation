@@ -61,7 +61,7 @@ except ImportError as error:
 # Import future library for Python 2/3 compatible codebase
 try:
     if sys.version_info >= (3, 0):
-        from builtins import dict, bytes
+        from builtins import dict, bytes, str
 except ImportError as error:
     print(error)
 
