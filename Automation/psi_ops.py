@@ -1210,8 +1210,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return ''.join([chars[ord(os.urandom(1)) % len(chars)] for i in range(count)])
 
     def get_propagation_channel_by_name(self, name):
-        matches = filter(lambda x: x.name == name,
-                         self.__propagation_channels.values())
+        matches = list(filter(lambda x: x.name == name,
+                         self.__propagation_channels.values()))
         return matches[0] if matches else None
 
     def get_propagation_channel_by_id(self, id):
@@ -1227,7 +1227,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             assert(type in self.__propagation_mechanisms)
         propagation_channel = PropagationChannel(id, name, propagation_mechanism_types, propagator_managed_upgrades, 0, 0, 0, 0, 0, 0)
         assert(id not in self.__propagation_channels)
-        assert(not filter(lambda x: x.name == name, self.__propagation_channels.values()))
+        assert(not list(filter(lambda x: x.name == name, self.__propagation_channels.values())))
         self.__propagation_channels[id] = propagation_channel
 
     def set_propagation_channel_new_osl_discovery_servers_count(self, propagation_channel_name, count):
@@ -1267,8 +1267,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         propagation_channel.log('Max propagation server age set to %d days' % (age,))
 
     def get_sponsor_by_name(self, name):
-        matches = filter(lambda x: x.name == name,
-                         self.__sponsors.values())
+        matches = list(filter(lambda x: x.name == name,
+                         self.__sponsors.values()))
         return matches[0] if matches else None
 
     def get_sponsor_by_id(self, id):
@@ -1282,7 +1282,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(self.is_locked)
         sponsor = Sponsor(id, name, None, None, None, {}, {}, {}, [], [], [])
         assert(id not in self.__sponsors)
-        assert(not filter(lambda x: x.name == name, self.__sponsors.values()))
+        assert(not list(filter(lambda x: x.name == name, self.__sponsors.values())))
         self.__sponsors[id] = sponsor
 
     def set_sponsor_banner(self, name, banner_filename):
@@ -1544,7 +1544,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def set_sponsor_name(self, sponsor_name, new_sponsor_name):
         assert(self.is_locked)
-        assert(not filter(lambda x: x.name == new_sponsor_name, self.__sponsors.values()))
+        assert(not list(filter(lambda x: x.name == new_sponsor_name, self.__sponsors.values())))
         sponsor = self.get_sponsor_by_name(sponsor_name)
         sponsor.name = (new_sponsor_name)
         self.__deploy_stats_config_required = True
@@ -1565,37 +1565,37 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         sponsor.log('set use data from sponsor \'%s\'' % (use_data_from_sponsor_name))
 
     def get_server_by_ip_address(self, ip_address):
-        servers = filter(lambda x: x.ip_address == ip_address, self.__servers.values())
+        servers = list(filter(lambda x: x.ip_address == ip_address, self.__servers.values()))
         if len(servers) == 1:
             return servers[0]
         return None
 
     def get_server_by_internal_ip_address(self, ip_address):
-        servers = filter(lambda x: x.internal_ip_address == ip_address, self.__servers.values())
+        servers = list(filter(lambda x: x.internal_ip_address == ip_address, self.__servers.values()))
         if len(servers) == 1:
             return servers[0]
         return None
 
     def get_deleted_server_by_ip_address(self, ip_address):
-        servers = filter(lambda x: x.ip_address == ip_address, self.__deleted_servers.values())
+        servers = list(filter(lambda x: x.ip_address == ip_address, self.__deleted_servers.values()))
         if len(servers) == 1:
             return servers[0]
         return None
 
     def get_deleted_server_by_host_id(self, host_id):
-        servers = filter(lambda x: x.host_id == host_id, self.__deleted_servers.values())
+        servers = list(filter(lambda x: x.host_id == host_id, self.__deleted_servers.values()))
         if len(servers) == 1:
             return servers[0]
         return None
 
     def get_deleted_host_by_ip_address(self, ip_address):
-        hosts = filter(lambda x: x.ip_address == ip_address, self.__deleted_hosts)
+        hosts = list(filter(lambda x: x.ip_address == ip_address, self.__deleted_hosts))
         if len(hosts) == 1:
             return hosts[0]
         return None
 
     def get_deleted_host_by_host_id(self, host_id):
-        hosts = filter(lambda x: x.id == host_id, self.__deleted_hosts)
+        hosts = list(filter(lambda x: x.id == host_id, self.__deleted_hosts))
         if len(hosts) == 1:
             return hosts[0]
         return None
@@ -3116,7 +3116,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 propagation_channel = self.__propagation_channels[propagation_channel_id]
                 sponsor = self.__sponsors[sponsor_id]
 
-                for campaign in filter(lambda x: x.propagation_channel_id == propagation_channel_id, sponsor.campaigns):
+                for campaign in list(filter(lambda x: x.propagation_channel_id == propagation_channel_id, sponsor.campaigns)):
 
                     if campaign.platforms != None and not platform in campaign.platforms:
                         continue
@@ -3708,12 +3708,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__deploy_data_required_for_all = True
 
     def get_server_entry(self, server_id):
-        server = filter(lambda x: x.id == server_id, self.__servers.values())[0]
+        server = list(filter(lambda x: x.id == server_id, self.__servers.values()))[0]
         return self.__get_encoded_server_entry(server)
 
     def deploy_implementation_and_data_for_host_with_server(self, server_id):
-        server = filter(lambda x: x.id == server_id, self.__servers.values())[0]
-        host = filter(lambda x: x.id == server.host_id, self.__hosts.values())[0]
+        server = list(filter(lambda x: x.id == server_id, self.__servers.values()))[0]
+        host = list(filter(lambda x: x.id == server.host_id, self.__hosts.values()))[0]
         servers = [server for server in self.__servers.values() if server.host_id == host.id]
         psi_ops_deploy.deploy_implementation(host, servers, self.__discovery_strategy_value_hmac_key, plugins, self.__TCS_psiphond_config_values)
         psi_ops_deploy.deploy_data(
