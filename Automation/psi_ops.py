@@ -42,6 +42,7 @@ import urlparse
 import csv
 import hmac
 import hashlib
+import time
 from pkg_resources import parse_version
 from multiprocessing.pool import ThreadPool
 from collections import defaultdict
@@ -1955,15 +1956,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if new_propagation_servers_count == None:
             new_propagation_servers_count = propagation_channel.new_propagation_servers_count
 
-        def _launch_new_server(_):
+        def _launch_new_server(count):
             try:
                 is_TCS = True
+                time.sleep(count*5)
                 return self.launch_new_server(is_TCS)
             except:
                 return None
 
-        pool = ThreadPool(20)
-        new_servers = pool.map(_launch_new_server, [None for _ in range(new_osl_discovery_servers_count + new_discovery_servers_count + new_propagation_servers_count)])
+        pool = ThreadPool(24)
+        new_servers = pool.map(_launch_new_server, [count for count in range(new_osl_discovery_servers_count + new_discovery_servers_count + new_propagation_servers_count)])
 
         failure = None
 
