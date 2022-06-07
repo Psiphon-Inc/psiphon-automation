@@ -1863,7 +1863,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if users_on_host <= 15:
                 self.remove_host(server.host_id)
                 number_removed += 1
-            elif users_on_host < 50:
+            elif users_on_host < 40:
                 self.__disable_server(server)
                 number_disabled += 1
         return number_removed, number_disabled
@@ -1944,8 +1944,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         today = datetime.datetime(now.year, now.month, now.day)
         tomorrow = today + datetime.timedelta(days=1)
 
-        # Use a default 1 day discovery date range.
-        new_discovery_date_range = (tomorrow, tomorrow + datetime.timedelta(days=1))
+        # Use a default 2 day discovery date range.
+        new_discovery_date_range = (tomorrow, tomorrow + datetime.timedelta(days=2))
         # Use a default 15 day osl discovery date range.
         new_osl_discovery_date_range = (today, today + datetime.timedelta(days=15))
 

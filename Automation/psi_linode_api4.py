@@ -275,7 +275,7 @@ def set_host_name(linode_account, ip_address, password, host_public_key, new_hos
 def get_egress_ip_address(linode_account, ip_address, password, host_public_key):
     ssh = psi_ssh.make_ssh_session(ip_address, linode_account.base_ssh_port,
                                    'root', password, host_public_key)
-    egress_ip = ssh.exec_command("/sbin/ifconfig eth0 | grep 'inet addr' | cut -d: -f2 | awk '{print $1}'")
+    egress_ip = ssh.exec_command("/sbin/ifconfig eth0 | grep 'inet ' | awk '{print $2}'")
     return egress_ip.split("\n")[0]
 
 ###
