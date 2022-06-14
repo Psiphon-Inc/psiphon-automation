@@ -39,6 +39,15 @@ def _email_diagnostic_info_records_iterator():
     Generator for obtaining email_diagnostic_info records.
     '''
     while True:
+        # Every hour or so, pymongo throws a CursorNotFound error. This is due to the
+        # the cursor being idle more than 10 minutes. It generally doesn't take us that
+        # long to send an email, but each time a request to mongodb is made, there's a
+        # batch of records returned. Processing all of the records in that batch _does_
+        # take more than 10 minutes. So when we try to get another batch the cursor is dead.
+        # To address this, we could decrease the batch size or increase the cursor lifetime.
+        # More details: https://stackoverflow.com/a/24200795/729729
+        logger.debug_log('fresh cursor')
+
         for rec in datastore.get_email_diagnostic_info_iterator():
             yield rec
 
@@ -50,10 +59,15 @@ def go():
     # Note that `_email_diagnostic_info_records` throttles itself if/when
     # there are no records immediately available.
     for email_diagnostic_info in _email_diagnostic_info_records_iterator():
+        logger.debug_log('feedback object id: %s' % email_diagnostic_info['diagnostic_info_record_id'])
+
         # Check if there is (yet) a corresponding diagnostic info record
         diagnostic_info = datastore.find_diagnostic_info(email_diagnostic_info['diagnostic_info_record_id'])
         if not diagnostic_info:
+            logger.debug_log('diagnostic_info not found; skipping')
             continue
+
+        logger.debug_log('feedback id: %s' % diagnostic_info.get('Metadata', {}).get('id'))
 
         diagnostic_info_text = pprint.pformat(diagnostic_info, indent=1, width=75)
 

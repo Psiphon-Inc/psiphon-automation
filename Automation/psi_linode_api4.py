@@ -29,7 +29,7 @@ import psi_utils
 import linode_api4
 
 # VARIABLE
-tcs_image_id = 'private/8328933'
+tcs_image_id = 'private/16403043'
 
 #==============================================================================
 
@@ -249,7 +249,7 @@ def refresh_credentials(linode_account, ip_address, password, host_public_key, n
     ssh.exec_command('echo "%s:%s" | chpasswd' % (stats_username, new_stats_password))
     ssh.exec_command('rm /etc/ssh/ssh_host_*')
     ssh.exec_command('rm -rf /root/.ssh')
-    ssh.exec_command('dpkg-reconfigure openssh-server')
+    ssh.exec_command('export DEBIAN_FRONTEND=noninteractive && dpkg-reconfigure openssh-server')
     return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
 
 def set_allowed_users(linode_account, ip_address, password, host_public_key, stats_username):
@@ -275,7 +275,7 @@ def set_host_name(linode_account, ip_address, password, host_public_key, new_hos
 def get_egress_ip_address(linode_account, ip_address, password, host_public_key):
     ssh = psi_ssh.make_ssh_session(ip_address, linode_account.base_ssh_port,
                                    'root', password, host_public_key)
-    egress_ip = ssh.exec_command("/sbin/ifconfig eth0 | grep 'inet addr' | cut -d: -f2 | awk '{print $1}'")
+    egress_ip = ssh.exec_command("/sbin/ifconfig eth0 | grep 'inet ' | awk '{print $2}'")
     return egress_ip.split("\n")[0]
 
 ###

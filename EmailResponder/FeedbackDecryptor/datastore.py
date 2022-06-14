@@ -95,8 +95,10 @@ _response_blacklist_store.ensure_index('datetime', expireAfterSeconds=_BLACKLIST
 _ERRORS_LIFETIME_SECS = 60*60*24*7*26  # half a year
 _errors_store.ensure_index('datetime', expireAfterSeconds=_ERRORS_LIFETIME_SECS)
 
-# Add a TTL index to the errors store.
-_EMAIL_DIAGNOSTIC_INFO_LIFETIME_SECS = 60*60  # one hour
+# Add a TTL index to the email_diagnostic_info store. We don't want queued items to live
+# forever, because a) we don't want to fall so far behind in email that we're only getting
+# old items; and b) eventually the underlying diagnostic data will be purged from the diagnostic_info store.
+_EMAIL_DIAGNOSTIC_INFO_LIFETIME_SECS = 24*60*60  # one day
 _email_diagnostic_info_store.ensure_index('datetime', expireAfterSeconds=_EMAIL_DIAGNOSTIC_INFO_LIFETIME_SECS)
 
 # More lookup indexes
@@ -119,7 +121,7 @@ def insert_diagnostic_info(obj):
     if feedback_id is None:
         logger.error("insert_diagnostic_info: missing id")
         return None
-    
+
     doc = _diagnostic_info_store.find_one({"Metadata.id": feedback_id}, {"Metadata.id": 1, "_id": 0})
     if doc is not None:
         logger.error("insert_diagnostic_info: duplicate id {}".format(feedback_id))
