@@ -113,6 +113,8 @@ def go():
                 # Also throw, so we get an email about it
                 raise Exception('diagnostic_info decrypted empty')
 
+            logger.debug_log('feedback id: %s' % diagnostic_info.get('Metadata', {}).get('id'))
+
             diagnostic_info = diagnostic_info.strip()
             if not diagnostic_info:
                 logger.error('diagnostic_info stripped empty')
