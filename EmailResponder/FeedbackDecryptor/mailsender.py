@@ -20,9 +20,9 @@ diagnostic-info-DB, then response email is formatted and sent; entry is
 deleted from email-ID-DB. Also cleans up expired email-ID-DB entries.
 '''
 
-import smtplib
 import time
 import pprint
+import multiprocessing
 
 from config import config
 import logger
@@ -30,6 +30,9 @@ import datastore
 import sender
 import mailformatter
 
+
+# This should be set by the service manager when it receives SIGTERM
+terminate = False
 
 _SLEEP_TIME_SECS = 60
 
@@ -55,10 +58,51 @@ def _email_diagnostic_info_records_iterator():
 
 
 def go():
+    '''
+    Spawns the worker subprocesses and sends data to them.
+    '''
+    logger.debug_log('go: start')
+
+    # Set up the multiprocessing
+    worker_manager = multiprocessing.Manager()
+    # We only want to pull items out of S3 as we process them, so the queue needs to be
+    # limited to the number of worker processes.
+    work_queue = worker_manager.Queue(maxsize=config['numProcesses'])
+    # Spin up the workers
+    worker_pool = multiprocessing.Pool(processes=config['numProcesses'])
+    [worker_pool.apply_async(_process_work_items, (work_queue,)) for i in range(config['numProcesses'])]
+
     # Retrieve and process email-to-diagnostic-info records.
     # Note that `_email_diagnostic_info_records` throttles itself if/when
     # there are no records immediately available.
     for email_diagnostic_info in _email_diagnostic_info_records_iterator():
+        if terminate:
+            logger.debug_log('go: got terminate; closing work_queue')
+            work_queue.close()
+            break
+
+        logger.debug_log('go: enqueueing work item')
+        # This blocks if the queue is full
+        work_queue.put(email_diagnostic_info)
+        logger.debug_log('go: enqueued work item')
+
+    logger.debug_log('go: done')
+
+
+def _process_work_items(work_queue):
+    '''
+    This runs in the multiprocessing forks to do the actual work. It is a long-lived loop.
+    '''
+    while True:
+        if terminate:
+            logger.debug_log('got terminate; stopping work')
+            break
+
+        logger.debug_log('_process_work_items: dequeueing work item')
+        # This blocks if the queue is empty
+        email_diagnostic_info = work_queue.get()
+        logger.debug_log('_process_work_items: dequeued work item')
+
         logger.debug_log('feedback object id: %s' % email_diagnostic_info['diagnostic_info_record_id'])
 
         # Check if there is (yet) a corresponding diagnostic info record
@@ -67,7 +111,7 @@ def go():
             logger.debug_log('diagnostic_info not found; skipping')
             continue
 
-        logger.debug_log('feedback id: %s' % diagnostic_info.get('Metadata', {}).get('id'))
+        logger.log('feedback id: %s' % diagnostic_info.get('Metadata', {}).get('id'))
 
         diagnostic_info_text = pprint.pformat(diagnostic_info, indent=1, width=75)
 
@@ -84,8 +128,9 @@ def go():
         # If this is not a reply, set a subject
         # If no subject is pre-determined, create one.
         if email_diagnostic_info.get('email_id') is None:
-            subject = u'DiagnosticInfo: %s (%s)' % (diagnostic_info['Metadata'].get('platform', '[NO_PLATFORM]').capitalize(),
-                                                                                   diagnostic_info['Metadata'].get('id', '[NO_ID]'))
+            subject = u'DiagnosticInfo: %s (%s)' % (diagnostic_info['Metadata'].get('platform',
+                                                    '[NO_PLATFORM]').capitalize(),
+                                                    diagnostic_info['Metadata'].get('id', '[NO_ID]'))
         else:
             subject = u'Re: %s' % (email_diagnostic_info['email_subject'] or '')
 

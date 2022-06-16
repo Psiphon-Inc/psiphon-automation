@@ -48,17 +48,16 @@ except:
 # Ref: http://docs.python.org/dev/library/logging.handlers.html#logging.handlers.SysLogHandler.emit
 _main = sys.modules['__main__'].__file__ if hasattr(sys.modules['__main__'], '__file__') else 'feedbackdecryptor_service'
 
-
 def debug_log(s):
-    _my_logger.debug('%s: %s' % (_main, s))
+    _my_logger.debug('%s[%d]: %s' % (_main, os.getpid(), s))
 
 
 def log(s):
-    _my_logger.critical('%s: %s' % (_main, s))
+    _my_logger.critical('%s[%d]: %s' % (_main, os.getpid(), s))
 
 
 def exception(s=''):
-    _my_logger.exception('%s: %s' % (_main, s))
+    _my_logger.exception('%s[%d]: %s' % (_main, os.getpid(), s))
 
 
 def error(s):
