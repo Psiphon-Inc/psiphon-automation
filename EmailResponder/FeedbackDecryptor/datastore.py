@@ -34,47 +34,51 @@ There are currently three tables in our Mongo DB:
 '''
 
 import datetime
+import os
 from pymongo import MongoClient
 import numpy
 import pytz
 
 import logger
 
-
-_connection = MongoClient()
-_db = _connection.maildecryptor
-
-
 #
-# The tables in our DB
+# The collections in our Mongo DB
 #
-
-# Holds diagnostic info sent by users. This typically includes info about
+# `diagnostic_info` holds diagnostic info sent by users. This typically includes info about
 # client version, OS, server response time, etc. Data in this table is
 # permanent. The idea is that we can mine it to find out relationships between
 # Psiphon performance and user environment.
-_diagnostic_info_store = _db.diagnostic_info
-
-# This table indicates that a particlar diagnostic_info record should be
+#
+# `email_diagnostic_info` indicates that a particlar diagnostic_info record should be
 # formatted and emailed. It might also record additional information (like the
 # email ID and subject) about the email that should be sent. Once the
 # diagnostic_info has been sent, the associated record is removed from this
 # table.
-_email_diagnostic_info_store = _db.email_diagnostic_info
-
-# Single-record DB that stores the last time a stats email was sent.
-_stats_store = _db.stats
-
-# Stores info about autoresponses that should be sent.
-_autoresponder_store = _db.autoresponder
-
-# Time-limited store of email address to which responses have been sent. This
+#
+# `stats` is a single-record collection that stores the last time a stats email was sent.
+#
+# `autoresponder` stores info about autoresponses that should be sent.
+#
+# `response_blacklist` is a time-limited store of email address to which responses have been sent. This
 # is used to help us avoid sending responses to the same person more than once
 # per day (or whatever).
-_response_blacklist_store = _db.response_blacklist
+#
+# `errors` is a store of the errors we've seen. Printed into the stats email.
 
-# A store of the errors we've seen. Printed into the stats email.
-_errors_store = _db.errors
+
+# We want to reuse our mongodb connection, but we need to make sure that it doesn't get copied
+# into a fork. So we'll cache the connection but make sure it belongs to the current pid.
+_mongo_db = None
+_mongo_db_pid = None
+def _db():
+    global _mongo_db, _mongo_db_pid
+    pid = os.getpid()
+    if _mongo_db and _mongo_db_pid == pid:
+        return _mongo_db
+    connection = MongoClient()
+    _mongo_db = connection.maildecryptor
+    _mongo_db_pid = pid
+    return _mongo_db
 
 
 #
@@ -85,26 +89,26 @@ _errors_store = _db.errors
 # for stats queries.
 # It's also a TTL index, and purges old records.
 DIAGNOSTIC_DATA_LIFETIME_SECS = 60*60*24*7*26  # half a year
-_diagnostic_info_store.ensure_index('datetime', expireAfterSeconds=DIAGNOSTIC_DATA_LIFETIME_SECS)
+_db().diagnostic_info.ensure_index('datetime', expireAfterSeconds=DIAGNOSTIC_DATA_LIFETIME_SECS)
 
 # We use a TTL index on the response_blacklist collection, to expire records.
 _BLACKLIST_LIFETIME_SECS = 60*60*24  # one day
-_response_blacklist_store.ensure_index('datetime', expireAfterSeconds=_BLACKLIST_LIFETIME_SECS)
+_db().response_blacklist.ensure_index('datetime', expireAfterSeconds=_BLACKLIST_LIFETIME_SECS)
 
 # Add a TTL index to the errors store.
 _ERRORS_LIFETIME_SECS = 60*60*24*7*26  # half a year
-_errors_store.ensure_index('datetime', expireAfterSeconds=_ERRORS_LIFETIME_SECS)
+_db().errors.ensure_index('datetime', expireAfterSeconds=_ERRORS_LIFETIME_SECS)
 
 # Add a TTL index to the email_diagnostic_info store. We don't want queued items to live
 # forever, because a) we don't want to fall so far behind in email that we're only getting
 # old items; and b) eventually the underlying diagnostic data will be purged from the diagnostic_info store.
 _EMAIL_DIAGNOSTIC_INFO_LIFETIME_SECS = 24*60*60  # one day
-_email_diagnostic_info_store.ensure_index('datetime', expireAfterSeconds=_EMAIL_DIAGNOSTIC_INFO_LIFETIME_SECS)
+_db().email_diagnostic_info.ensure_index('datetime', expireAfterSeconds=_EMAIL_DIAGNOSTIC_INFO_LIFETIME_SECS)
 
 # More lookup indexes
-_diagnostic_info_store.ensure_index('Metadata.platform')
-_diagnostic_info_store.ensure_index('Metadata.version')
-_diagnostic_info_store.ensure_index('Metadata.id')
+_db().diagnostic_info.ensure_index('Metadata.platform')
+_db().diagnostic_info.ensure_index('Metadata.version')
+_db().diagnostic_info.ensure_index('Metadata.id')
 
 
 #
@@ -122,13 +126,13 @@ def insert_diagnostic_info(obj):
         logger.error("insert_diagnostic_info: missing id")
         return None
 
-    doc = _diagnostic_info_store.find_one({"Metadata.id": feedback_id}, {"Metadata.id": 1, "_id": 0})
+    doc = _db().diagnostic_info.find_one({"Metadata.id": feedback_id}, {"Metadata.id": 1, "_id": 0})
     if doc is not None:
         logger.error("insert_diagnostic_info: duplicate id {}".format(feedback_id))
         return None
 
     obj['datetime'] = datetime.datetime.now()
-    return _diagnostic_info_store.insert(obj)
+    return _db().diagnostic_info.insert(obj)
 
 
 def insert_email_diagnostic_info(diagnostic_info_record_id,
@@ -139,22 +143,22 @@ def insert_email_diagnostic_info(diagnostic_info_record_id,
            'email_subject': email_subject,
            'datetime': datetime.datetime.now()
            }
-    return _email_diagnostic_info_store.insert(obj)
+    return _db().email_diagnostic_info.insert(obj)
 
 
 def get_email_diagnostic_info_iterator():
-    return _email_diagnostic_info_store.find()
+    return _db().email_diagnostic_info.find()
 
 
 def find_diagnostic_info(diagnostic_info_record_id):
     if not diagnostic_info_record_id:
         return None
 
-    return _diagnostic_info_store.find_one({'_id': diagnostic_info_record_id})
+    return _db().diagnostic_info.find_one({'_id': diagnostic_info_record_id})
 
 
 def remove_email_diagnostic_info(email_diagnostic_info):
-    return _email_diagnostic_info_store.remove({'_id': email_diagnostic_info['_id']})
+    return _db().email_diagnostic_info.remove({'_id': email_diagnostic_info['_id']})
 
 
 #
@@ -169,19 +173,19 @@ def insert_autoresponder_entry(email_info, diagnostic_info_record_id):
            'email_info': email_info,
            'datetime': datetime.datetime.now()
            }
-    return _autoresponder_store.insert(obj)
+    return _db().autoresponder.insert(obj)
 
 
 def get_autoresponder_iterator():
     while True:
-        next_rec = _autoresponder_store.find_and_modify(remove=True)
+        next_rec = _db().autoresponder.find_and_modify(remove=True)
         if not next_rec:
             raise StopIteration()
         yield next_rec
 
 
 def remove_autoresponder_entry(entry):
-    return _autoresponder_store.remove(entry)
+    return _db().autoresponder.remove(entry)
 
 
 #
@@ -195,7 +199,7 @@ def check_and_add_response_address_blacklist(address):
     '''
     now = datetime.datetime.now(pytz.timezone('UTC'))
     # Check and insert with a single command
-    match = _response_blacklist_store.find_and_modify(query={'address': address},
+    match = _db().response_blacklist.find_and_modify(query={'address': address},
                                                       update={'$setOnInsert': {'datetime': now}},
                                                       upsert=True)
 
@@ -210,17 +214,17 @@ def set_stats_last_send_time(timestamp):
     '''
     Sets the last send time to `timestamp`.
     '''
-    _stats_store.update({}, {'$set': {'last_send_time': timestamp}}, upsert=True)
+    _db().stats.update({}, {'$set': {'last_send_time': timestamp}}, upsert=True)
 
 
 def get_stats_last_send_time():
-    rec = _stats_store.find_one()
+    rec = _db().stats.find_one()
     return rec['last_send_time'] if rec else None
 
 
 def get_new_stats_count(since_time):
     assert(since_time)
-    return _diagnostic_info_store.find({'datetime': {'$gt': since_time}}).count()
+    return _db().diagnostic_info.find({'datetime': {'$gt': since_time}}).count()
 
 
 def get_stats(since_time):
@@ -235,17 +239,17 @@ def get_stats(since_time):
     return {
         'since_timestamp': since_time,
         'now_timestamp': datetime.datetime.now(),
-        'new_android_records': _diagnostic_info_store.find({'datetime': {'$gt': since_time}, 'Metadata.platform': 'android'}).count(),
-        'new_windows_records': _diagnostic_info_store.find({'datetime': {'$gt': since_time}, 'Metadata.platform': 'windows'}).count(),
+        'new_android_records': _db().diagnostic_info.find({'datetime': {'$gt': since_time}, 'Metadata.platform': 'android'}).count(),
+        'new_windows_records': _db().diagnostic_info.find({'datetime': {'$gt': since_time}, 'Metadata.platform': 'windows'}).count(),
         'stats': _get_stats_helper(since_time),
 
         # The number of errors is unbounded, so we're going to limit the count.
-        'new_errors': [_clean_record(e) for e in _errors_store.find({'datetime': {'$gt': since_time}}).limit(ERROR_LIMIT)],
+        'new_errors': [_clean_record(e) for e in _db().errors.find({'datetime': {'$gt': since_time}}).limit(ERROR_LIMIT)],
     }
 
 
 def add_error(error):
-    _errors_store.insert({'error': error, 'datetime': datetime.datetime.now()})
+    _db().errors.insert({'error': error, 'datetime': datetime.datetime.now()})
 
 
 def _clean_record(rec):
@@ -264,7 +268,7 @@ def _get_stats_helper(since_time):
     # Different platforms and versions have different structures
     #
 
-    cur = _diagnostic_info_store.find({'datetime': {'$gt': since_time},
+    cur = _db().diagnostic_info.find({'datetime': {'$gt': since_time},
                                        'Metadata.platform': 'android',
                                        'Metadata.version': 1})
     for rec in cur:
@@ -296,7 +300,7 @@ def _get_stats_helper(since_time):
 
     # The structure got more standardized around here.
     for platform, version in (('android', 2), ('windows', 1)):
-        cur = _diagnostic_info_store.find({'datetime': {'$gt': since_time},
+        cur = _db().diagnostic_info.find({'datetime': {'$gt': since_time},
                                            'Metadata.platform': platform,
                                            'Metadata.version': {'$gt': version}})
         for rec in cur:

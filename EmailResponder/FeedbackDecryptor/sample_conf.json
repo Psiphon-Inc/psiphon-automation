@@ -48,5 +48,8 @@
   "defaultPropagationChannelName": "Psiphon - email autoresponder",
 
   // This is the maximum acceptable size for S3 feedback objects.
-  "s3ObjectMaxSize": 4194304 // 4MiB
+  "s3ObjectMaxSize": 4194304, // 4MiB
+
+  // The number of worker processes for each service
+  "numProcesses": 2
 }

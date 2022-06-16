@@ -1,4 +1,6 @@
 *.pyc
+*.bak
+*.py~
 
 domain_name_generator.py
 GeoIP.conf
@@ -9,6 +11,9 @@ Automation/Builds
 Automation/ca.psiphon.PsiphonTunnel.tunnel-core
 Automation/website-out
 Data/GeoData
+
+*.pem
+EmailResponder/FeedbackDecryptor/conf.json
 
 # CipherShare files
 CipherShare*.exe
