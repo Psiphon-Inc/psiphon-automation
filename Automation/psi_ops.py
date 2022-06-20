@@ -2299,6 +2299,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             else:
                 # Regular propagation servers also have UNFRONTED-MEEK
                 capabilities['UNFRONTED-MEEK'] = True
+                if random.random() < 0.33:
+                    host.run_packet_manipulator = True
 
             if capabilities['UNFRONTED-MEEK']:
                 random_number = random.random()
@@ -2345,6 +2347,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     host.passthrough_version = 2
                     host.enable_gquic = False
                     host.limit_quic_versions = ['QUICv1', 'RANDOMIZED-QUICv1']
+                    host.run_packet_manipulator = False
 
             server = Server(
                         None,
