@@ -291,7 +291,7 @@ def launch_new_server(vpsnet_account, is_TCS, _, multi_ip=False, datacenter_city
         if node is not None:
             remove_server(vpsnet_account, node.id)
         else:
-            print(type(e)), "No node to be destoryed: %s", str(node)
+            print(type(e), "No node to be destoryed: %s", str(node))
         raise
 
     return (
