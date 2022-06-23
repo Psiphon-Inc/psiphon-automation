@@ -533,7 +533,7 @@ def launch_new_server(digitalocean_account, is_TCS, _, multi_ip=False):
 
     # None TCS id '25617090' only for VPN + filebeat
     # Old working None TCS id: 17784624
-    base_id = '25617090' if not is_TCS else '59795497'
+    base_id = '25617090' if not is_TCS else '109551591'
     try:
         Droplet = collections.namedtuple('Droplet', ['name', 'region', 'image',
                                                      'size', 'backups'])

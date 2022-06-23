@@ -17,6 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import signal
+import threading
 import sys
 import time
 
@@ -25,7 +26,9 @@ import s3decryptor
 
 
 def _do_exit(signum, frame):
-    logger.log('Shutting down')
+    logger.log('Shutdown signalled')
+    s3decryptor.terminate = True
+    # Give the workers time to shut down cleanly
     sys.exit(0)
 
 
@@ -34,13 +37,12 @@ def main():
 
     signal.signal(signal.SIGTERM, _do_exit)
 
-    while True:
-        try:
-            s3decryptor.go()
-        except Exception:
-            logger.exception()
-            time.sleep(60)
-            continue
+    try:
+        s3decryptor.go()
+    except Exception:
+        logger.exception()
+
+    logger.log('Shutting down')
 
 
 if __name__ == '__main__':

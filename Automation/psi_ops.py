@@ -41,6 +41,7 @@ import shutil
 import csv
 import hmac
 import hashlib
+import time
 from pkg_resources import parse_version
 from multiprocessing.pool import ThreadPool
 from collections import defaultdict
@@ -1878,7 +1879,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if users_on_host <= 15:
                 self.remove_host(server.host_id)
                 number_removed += 1
-            elif users_on_host < 50:
+            elif users_on_host < 40:
                 self.__disable_server(server)
                 number_disabled += 1
         return number_removed, number_disabled
@@ -1959,8 +1960,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         today = datetime.datetime(now.year, now.month, now.day)
         tomorrow = today + datetime.timedelta(days=1)
 
-        # Use a default 1 day discovery date range.
-        new_discovery_date_range = (tomorrow, tomorrow + datetime.timedelta(days=1))
+        # Use a default 2 day discovery date range.
+        new_discovery_date_range = (tomorrow, tomorrow + datetime.timedelta(days=2))
         # Use a default 15 day osl discovery date range.
         new_osl_discovery_date_range = (today, today + datetime.timedelta(days=15))
 
@@ -1971,15 +1972,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if new_propagation_servers_count == None:
             new_propagation_servers_count = propagation_channel.new_propagation_servers_count
 
-        def _launch_new_server(_):
+        def _launch_new_server(count):
             try:
                 is_TCS = True
+                time.sleep(count*5)
                 return self.launch_new_server(is_TCS)
             except:
                 return None
 
-        pool = ThreadPool(20)
-        new_servers = pool.map(_launch_new_server, [None for _ in range(new_osl_discovery_servers_count + new_discovery_servers_count + new_propagation_servers_count)])
+        pool = ThreadPool(24)
+        new_servers = pool.map(_launch_new_server, [count for count in range(new_osl_discovery_servers_count + new_discovery_servers_count + new_propagation_servers_count)])
 
         failure = None
 
@@ -2313,6 +2315,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             else:
                 # Regular propagation servers also have UNFRONTED-MEEK
                 capabilities['UNFRONTED-MEEK'] = True
+                if random.random() < 0.33:
+                    host.run_packet_manipulator = True
 
             if capabilities['UNFRONTED-MEEK']:
                 random_number = random.random()
@@ -2359,6 +2363,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     host.passthrough_version = 2
                     host.enable_gquic = False
                     host.limit_quic_versions = ['QUICv1', 'RANDOMIZED-QUICv1']
+                    host.run_packet_manipulator = False
 
             server = Server(
                         None,

@@ -25,7 +25,9 @@ import mailsender
 
 
 def _do_exit(signum, frame):
-    logger.log('Shutting down')
+    logger.log('Shutdown signalled')
+    mailsender.terminate = True
+    # Give the workers time to shut down cleanly
     sys.exit(0)
 
 
@@ -34,13 +36,12 @@ def main():
 
     signal.signal(signal.SIGTERM, _do_exit)
 
-    while True:
-        try:
-            mailsender.go()
-        except Exception:
-            logger.exception()
-            time.sleep(60)
-            continue
+    try:
+        mailsender.go()
+    except Exception:
+        logger.exception()
+
+    logger.log('Shutting down')
 
 
 if __name__ == '__main__':
