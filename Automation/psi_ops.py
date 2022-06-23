@@ -5009,7 +5009,8 @@ def interact(lock):
     import code
     try:
         code.interact(
-                'Psiphon 3 Console\n' +
+                'Psiphon 3 Console ' +
+                '(Python Version: {}.{}.{})\n'.format(sys.version_info.major, sys.version_info.minor, sys.version_info.micro) +
                 '-----------------\n' +
                 ('%s mode\n' % ('EDIT' if lock else 'READ-ONLY',)) +
                 'Interact with the \'psinet\' object...\n',
