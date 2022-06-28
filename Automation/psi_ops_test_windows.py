@@ -210,7 +210,7 @@ class TunnelCoreRunner:
     # Setup and create tunnel core config file.
     def _setup_tunnel_config(self, transport):
         config = {
-            "TargetServerEntry": self.encoded_server_entry.decode(), # Single Test Server Parameter
+            "TargetServerEntry": self.encoded_server_entry, # Single Test Server Parameter
             "TunnelProtocol": transport, # Single or group Test Protocol
             "PropagationChannelId" : self.propagation_channel_id, # Propagation Channel ID = "Testing"
             "SponsorId" : "0",

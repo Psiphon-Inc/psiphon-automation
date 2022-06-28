@@ -2098,7 +2098,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def generate_obfuscated_key(self, base64_encode=False):
         obfuscated_key = os.urandom(psi_ops_install.SSH_OBFUSCATED_KEY_BYTE_LENGTH)
-        return base64.b64encode(obfuscated_key) if base64_encode else binascii.hexlify(obfuscated_key)
+        return base64.b64encode(obfuscated_key) if base64_encode else binascii.hexlify(obfuscated_key).decode()
 
     def generate_nacl_keypair(self):
         keygenerator_binary = 'keygenerator.exe'
@@ -3378,7 +3378,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 paver_command_line += ["-period", str(period)]
 
             # Note: raises CalledProcessError when paver fails
-            output = subprocess.check_output(paver_command_line, stderr=subprocess.STDOUT)
+            output = subprocess.check_output(paver_command_line, stderr=subprocess.STDOUT).decode()
             print(output)
 
             paved_propagation_channel_ids = set()
@@ -3454,7 +3454,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                  "-list-scheme", str(scheme_id)]
 
             # Note: raises CalledProcessError when paver fails
-            output = subprocess.check_output(paver_command_line, stderr=subprocess.STDOUT)
+            output = subprocess.check_output(paver_command_line, stderr=subprocess.STDOUT).decode()
 
             for line in output.strip().split('\n'):
                 propagation_channel_id, osl_id = line.split()
@@ -4039,7 +4039,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     prefix_web_server_port,
                                     prefix_web_server_secret,
                                     prefix_web_server_certificate,
-                                    json.dumps(extended_config)).encode())
+                                    json.dumps(extended_config)).encode()).decode()
 
         # The following server entries will be signed, once server_entry_signing_key_pair is initialized:
         # entries embedded in client builds; entries paved into remote and obfuscated server lists; entries
@@ -4059,8 +4059,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         args = [os.path.join('.', server_entry_signer_binary), 'sign']
         env = {'SIGNER_PUBLIC_KEY': str(self.__server_entry_signing_key_pair[0]),
                'SIGNER_PRIVATE_KEY': str(self.__server_entry_signing_key_pair[1]),
-               'SIGNER_SERVER_ENTRY': encoded_server_entry.decode()}
-        return subprocess.Popen(args, env=env, stdout=subprocess.PIPE).communicate()[0].strip()
+               'SIGNER_SERVER_ENTRY': encoded_server_entry}
+        return subprocess.Popen(args, env=env, stdout=subprocess.PIPE).communicate()[0].decode().strip()
 
     def __get_encoded_server_list(self, propagation_channel_id,
                                   client_ip_address_strategy_value=None, event_logger=None, discovery_date=None, test=False, include_propagation_servers=True):
@@ -4200,7 +4200,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         config['ssh_password'] = server.ssh_password
         ssh_host_key_type, config['ssh_host_key'] = server.ssh_host_key.split(' ')
         assert(ssh_host_key_type == 'ssh-rsa')
-        config['ssh_session_id'] = binascii.hexlify(os.urandom(8))
+        config['ssh_session_id'] = binascii.hexlify(os.urandom(8)).decode()
         if server.ssh_port:
             config['ssh_port'] = int(server.ssh_port)
         if server.ssh_obfuscated_port:
