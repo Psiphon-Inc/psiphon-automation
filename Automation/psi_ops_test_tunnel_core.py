@@ -183,7 +183,7 @@ class TunnelCoreConsoleRunner:
 
             if time.time() >= start_time + 25:
                 # if the sleep time is 25 second, get out while loop and keep going
-                print 'Not successfully connected after 25 second.'
+                print('Not successfully connected after 25 second.')
                 raise TunnelCoreCouldNotConnectException('Could not connect after 25 seconds')
 
 
@@ -223,7 +223,7 @@ class TunnelCoreConsoleRunner:
             answer = resolver.query(fqdn, source=self.tun_source_ip_address)
             for rr in answer.rrset:
                 if rr.address == expected_ip:
-                    print 'Packet Tunnel DNS Test successful'
+                    print('Packet Tunnel DNS Test successful')
                     output['PT-DNS'] = 'PASS: {0} resolved to {1}'.format(fqdn, rr.address)
                     break
             
