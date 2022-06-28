@@ -2688,7 +2688,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def find_orphans(self):
         for provider in providers:
             orphans = self.list_orphans(provider)
-            sys.stderr.write(provider + ' orphans:\n' + str(orphans) + '\n\n')
+            sys.stderr.write(provider + ' orphans:\n' + pprint.pformat(orphans) + '\n\n')
 
     def delete_orphans(self, provider, hosts_provider_id_list):
         pending_deletion = []
