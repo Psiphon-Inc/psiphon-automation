@@ -2688,7 +2688,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def find_orphans(self):
         for provider in providers:
             orphans = self.list_orphans(provider)
-            sys.stderr.write(provider + ' orphans:\n' + str(orphans) + '\n\n')
+            sys.stderr.write(provider + ' orphans:\n' + pprint.pformat(orphans) + '\n\n')
 
     def delete_orphans(self, provider, hosts_provider_id_list):
         pending_deletion = []
@@ -2742,7 +2742,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                   )))
             user_response = raw_input("Do you want to delete this orphan host? ")
             if user_response in ['yes', 'y', 'Y', 'Yes']:
-                print(('Adding host to deletion list - the host: {}'.format(host_name)))
+                print('Adding host to deletion list - the host: {}'.format(host_name))
                 pending_deletion.append(orphan_id)
                 #provider_controller.remove_server(provider_account, host_provider_id) # method delete server through API
             else:
