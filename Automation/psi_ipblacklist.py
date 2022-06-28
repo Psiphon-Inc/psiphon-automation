@@ -27,6 +27,7 @@ try:
         import urllib
         import urllib2
     else:
+        import urllib.request as urllib
         import urllib.request as urllib2
 except ImportError as error:
     print(error)
@@ -71,10 +72,7 @@ def update_list(tracker):
     # get the file and save it to the outfile location
     try:
         subprocess.call(['mkdir', '-p', LIST_DIR])
-        if sys.version_info < (3, 0):
-            urllib.urlretrieve(tracker['url'], os.path.join(LIST_DIR, tracker['rawlist']))
-        else:
-            urllib2.urlretrieve(tracker['url'], os.path.join(LIST_DIR, tracker['rawlist']))
+        urllib.urlretrieve(tracker['url'], os.path.join(LIST_DIR, tracker['rawlist']))
     except:
         print('Had an issue creating updating the lists')
         sys.exit()
