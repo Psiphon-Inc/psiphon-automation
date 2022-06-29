@@ -2812,10 +2812,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     psi_ops_crypto_tools.generate_key_pair(
                         REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD))
 
-        # This may be serialized/deserialized into a unicode string, but M2Crypto won't accept that.
-        # The key pair should only contain ascii anyways, so encoding to ascii should be safe.
-        self.__remote_server_list_signing_key_pair.pem_key_pair = \
-            self.__remote_server_list_signing_key_pair.pem_key_pair.encode('ascii', 'ignore')
         return self.__remote_server_list_signing_key_pair
 
     def create_feedback_encryption_key_pair(self):
@@ -2845,10 +2841,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if not self.__feedback_encryption_key_pair:
             self.create_feedback_encryption_key_pair()
 
-        # This may be serialized/deserialized into a unicode string, but M2Crypto won't accept that.
-        # The key pair should only contain ascii anyways, so encoding to ascii should be safe.
-        self.__feedback_encryption_key_pair.pem_key_pair = \
-            self.__feedback_encryption_key_pair.pem_key_pair.encode('ascii', 'ignore')
         return self.__feedback_encryption_key_pair
 
     def create_routes_signing_key_pair(self):
@@ -2878,11 +2870,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if not self.__routes_signing_key_pair:
             self.create_routes_signing_key_pair()
 
-        # This may be serialized/deserialized into a unicode string, but M2Crypto won't accept that.
-        # The key pair should only contain ascii anyways, so encoding to ascii should be safe.
-        if isinstance(self.__routes_signing_key_pair.pem_key_pair, str):
-            self.__routes_signing_key_pair.pem_key_pair = \
-                self.__routes_signing_key_pair.pem_key_pair.encode(encoding='ascii', errors='ignore')
         return self.__routes_signing_key_pair
 
     def get_feedback_upload_info(self):
@@ -2932,10 +2919,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     psi_ops_crypto_tools.generate_key_pair(
                         UPGRADE_PACKAGE_SIGNING_KEY_PAIR_PASSWORD))
 
-        # This may be serialized/deserialized into a unicode string, but M2Crypto won't accept that.
-        # The key pair should only contain ascii anyways, so encoding to ascii should be safe.
-        self.__upgrade_package_signing_key_pair.pem_key_pair = \
-            self.__upgrade_package_signing_key_pair.pem_key_pair.encode('ascii', 'ignore')
         return self.__upgrade_package_signing_key_pair
 
     def __split_tunnel_url_format(self):
