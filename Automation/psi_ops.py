@@ -63,6 +63,10 @@ except ImportError as error:
 try:
     if sys.version_info >= (3, 0):
         from builtins import dict, bytes, str
+
+        def cmp(a, b):
+            return (a > b) - (a < b)
+
 except ImportError as error:
     print(error)
 
@@ -787,11 +791,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
               }
             }
             '''
-            for host in self.__hosts.values() + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
+            for host in list(self.__hosts.values()) + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
                 host.tactics_request_public_key = None
                 host.tactics_request_private_key = None
                 host.tactics_request_obfuscated_key = None
-            for server in self.__servers.values() + self.__deleted_servers.values():
+            for server in list(self.__servers.values()) + list(self.__deleted_servers.values()):
                 server.capabilities['FRONTED-MEEK-TACTICS'] = False
                 server.configuration_version = INITIAL_SERVER_CONFIGURATION_VERSION
             for server in self.__servers.values():
@@ -805,12 +809,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     host.tactics_request_obfuscated_key = self.generate_obfuscated_key(base64_encode=True)
             self.version = '0.49'
         if cmp(parse_version(self.version), parse_version('0.50')) < 0:
-            for server in self.__servers.values() + self.__deleted_servers.values():
+            for server in list(self.__servers.values()) + list(self.__deleted_servers.values()):
                 server.capabilities['QUIC'] = False
                 server.ssh_obfuscated_quic_port = None
             self.version = '0.50'
         if cmp(parse_version(self.version), parse_version('0.51')) < 0:
-            for server in self.__servers.values() + self.__deleted_servers.values():
+            for server in list(self.__servers.values()) + list(self.__deleted_servers.values()):
                 server.capabilities['TAPDANCE'] = False
                 server.ssh_obfuscated_tapdance_port = None
             self.version = '0.51'
@@ -818,7 +822,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__TCS_blocklist_csv = ""
             self.version = '0.52'
         if cmp(parse_version(self.version), parse_version('0.53')) < 0:
-            for server in self.__servers.values() + self.__deleted_servers.values():
+            for server in list(self.__servers.values()) + list(self.__deleted_servers.values()):
                 server.capabilities['FRONTED-MEEK-QUIC'] = False
             self.version = '0.53'
         if cmp(parse_version(self.version), parse_version('0.54')) < 0:
@@ -835,7 +839,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__ssh_ip_address_whitelist = []
             self.version = '0.57'
         if cmp(parse_version(self.version), parse_version('0.58')) < 0:
-            for host in self.__hosts.values() + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
+            for host in list(self.__hosts.values()) + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
                 host.fronting_provider_id = None
             self.__fronting_provider_id_aliases = {}
             self.version = '0.58'
@@ -843,7 +847,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__TCS_iptables_output_rules = []
             self.version = '0.59'
         if cmp(parse_version(self.version), parse_version('0.60')) < 0:
-            for host in self.__hosts.values() + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
+            for host in list(self.__hosts.values()) + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
                 host.passthrough_address = None
             self.__passthrough_addresses = []
             self.version = '0.60'
@@ -852,14 +856,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__standard_ossh_ports.add(443)
             self.version = '0.61'
         if cmp(parse_version(self.version), parse_version('0.62')) < 0:
-            for host in self.__hosts.values() + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
+            for host in list(self.__hosts.values()) + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
                 host.run_packet_manipulator = None
             self.version = '0.62'
         if cmp(parse_version(self.version), parse_version('0.63')) < 0:
             self.__alternate_feedback_upload_urls = set()
             self.version = '0.63'
         if cmp(parse_version(self.version), parse_version('0.64')) < 0:
-            for server in self.__servers.values() + self.__deleted_servers.values():
+            for server in list(self.__servers.values()) + list(self.__deleted_servers.values()):
                 server.capabilities['CONJURE'] = False
                 server.ssh_obfuscated_conjure_port = None
             self.version = '0.64'
@@ -875,7 +879,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__default_alert_action_urls = {}
             self.version = '0.67'
         if cmp(parse_version(self.version), parse_version('0.68')) < 0:
-            for host in self.__hosts.values() + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
+            for host in list(self.__hosts.values()) + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
                 host.passthrough_version = None
                 host.enable_gquic = True
                 host.limit_quic_versions = None
