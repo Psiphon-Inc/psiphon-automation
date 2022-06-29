@@ -58,7 +58,7 @@ def generate_key_pair(private_key_password):
     buffer = M2Crypto.BIO.MemoryBuffer()
     assert(1 == rsa_key.save_key_bio(
                     buffer, callback=lambda _: str(private_key_password).encode()))
-    return buffer.read_all()
+    return buffer.read_all().decode()
 
 
 def get_base64_der_public_key(key_pair, private_key_password):
@@ -86,5 +86,5 @@ def make_signed_data(key_pair, private_key_password, data):
 
     return json.dumps(
         {"data": data,
-         "signature": base64.b64encode(signature),
-         "signingPublicKeyDigest": base64.b64encode(public_key_digest)})
+         "signature": base64.b64encode(signature).decode(),
+         "signingPublicKeyDigest": base64.b64encode(public_key_digest).decode()})
