@@ -213,7 +213,7 @@ def generate_password():
     Generates a new password of an appropriate length using a relatively safe 
     random source.
     '''
-    return ''.join([_sysrand.choice(string.letters + string.digits) for i in range(_PASSWORD_LENGTH)])
+    return ''.join([_sysrand.choice(string.ascii_letters + string.digits) for i in range(_PASSWORD_LENGTH)])
 
 
 _STATSUSER_LENGTH = 10
@@ -221,7 +221,7 @@ def generate_stats_username():
     '''
     Generatees a new stats user
     '''
-    return 'stats-' + ''.join([_sysrand.choice(string.letters + string.digits) for i in range(_STATSUSER_LENGTH)])
+    return 'stats-' + ''.join([_sysrand.choice(string.ascii_letters + string.digits) for i in range(_STATSUSER_LENGTH)])
 
 class TemporaryBackup:
     
