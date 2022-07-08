@@ -33,6 +33,10 @@ import random
 
 import psi_ops_deploy
 
+# Library to support python3
+from past.builtins import long
+
+
 sys.path.insert(0, os.path.abspath(os.path.join('..', 'Server')))
 try:
     # For Legacy servers
@@ -324,7 +328,7 @@ def make_xinetd_config_file_command(servers):
 
 
 def generate_web_server_secret():
-    return binascii.hexlify(os.urandom(WEB_SERVER_SECRET_BYTE_LENGTH))
+    return binascii.hexlify(os.urandom(WEB_SERVER_SECRET_BYTE_LENGTH)).decode()
 
 
 def generate_unique_server_id(existing_server_ids):
@@ -402,7 +406,7 @@ def generate_self_signed_certificate():
     assert certificate.verify(private_key)
     assert certificate.verify(public_key)
 
-    return certificate.as_pem(), rsa.as_pem(cipher=None) # Use rsa for PKCS#1
+    return certificate.as_pem().decode(), rsa.as_pem(cipher=None).decode() # Use rsa for PKCS#1
 
 
 def install_host(host, servers, existing_server_ids, TCS_psiphond_config_values, ssh_ip_address_whitelist, TCS_iptables_output_rules, plugins):
@@ -518,7 +522,7 @@ def install_legacy_host(host, servers, existing_server_ids, plugins):
             or server.ssh_password is None):
             server.ssh_username = 'psiphon_ssh_%s' % (
                 binascii.hexlify(os.urandom(SSH_RANDOM_USERNAME_SUFFIX_BYTE_LENGTH)),)
-            server.ssh_password = binascii.hexlify(os.urandom(SSH_PASSWORD_BYTE_LENGTH))
+            server.ssh_password = binascii.hexlify(os.urandom(SSH_PASSWORD_BYTE_LENGTH)).decode()
         if server.ssh_host_key is None:
             ssh.exec_command('rm /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (server.internal_ip_address,))
             ssh.exec_command('ssh-keygen -t rsa -N \"\" -f /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (server.internal_ip_address,))
@@ -540,7 +544,7 @@ def install_legacy_host(host, servers, existing_server_ids, plugins):
         ssh.exec_command(make_sshd_config_file_command(server.internal_ip_address, server.ssh_username))
         if server.ssh_obfuscated_port is not None:
             if server.ssh_obfuscated_key is None:
-                server.ssh_obfuscated_key = binascii.hexlify(os.urandom(SSH_OBFUSCATED_KEY_BYTE_LENGTH))
+                server.ssh_obfuscated_key = binascii.hexlify(os.urandom(SSH_OBFUSCATED_KEY_BYTE_LENGTH)).decode()
             ssh.exec_command(make_obfuscated_sshd_config_file_command(server.internal_ip_address, server.ssh_username,
                                                     server.ssh_obfuscated_port, server.ssh_obfuscated_key))
         # NOTE we do not write the ssh host key back to the server because it is generated
@@ -653,7 +657,7 @@ def install_TCS_host(host, servers, existing_server_ids, TCS_psiphond_config_val
             or server.ssh_password is None):
             server.ssh_username = 'psiphon_ssh_%s' % (
                 binascii.hexlify(os.urandom(SSH_RANDOM_USERNAME_SUFFIX_BYTE_LENGTH)),)
-            server.ssh_password = binascii.hexlify(os.urandom(SSH_PASSWORD_BYTE_LENGTH))
+            server.ssh_password = binascii.hexlify(os.urandom(SSH_PASSWORD_BYTE_LENGTH)).decode()
 
         if server.ssh_host_key is None:
             # For TCS, generate SSH keys directly using M2Crypto.
@@ -664,16 +668,16 @@ def install_TCS_host(host, servers, existing_server_ids, TCS_psiphond_config_val
             # output format for the public key, which is saved in
             # psinet and included in server entries:
             # 'ssh-rsa <base64>', where the base64 portion is the public key encoded according to RFC 4253 section 6.6
-            server.ssh_host_key = 'ssh-rsa ' + base64.b64encode('\x00\x00\x00\x07\x73\x73\x68\x2d\x72\x73\x61' + rsa_key.pub()[0] + rsa_key.pub()[1])
+            server.ssh_host_key = 'ssh-rsa ' + base64.b64encode(b'\x00\x00\x00\x07\x73\x73\x68\x2d\x72\x73\x61' + rsa_key.pub()[0] + rsa_key.pub()[1]).decode()
 
             # store private key in psinet (legacy doesn't do this).
             # Stored in psiphond.config format.
             buf = M2Crypto.BIO.MemoryBuffer()
             rsa_key.save_key_bio(buf, cipher=None)
-            server.TCS_ssh_private_key = buf.read()
+            server.TCS_ssh_private_key = buf.read().decode()
 
         if server.ssh_obfuscated_key is None:
-            server.ssh_obfuscated_key = binascii.hexlify(os.urandom(SSH_OBFUSCATED_KEY_BYTE_LENGTH))
+            server.ssh_obfuscated_key = binascii.hexlify(os.urandom(SSH_OBFUSCATED_KEY_BYTE_LENGTH)).decode()
 
 def install_firewall_rules(host, servers, TCS_psiphond_config_values, ssh_ip_address_whitelist, TCS_iptables_output_rules, plugins, do_blacklist=True):
 
@@ -1011,7 +1015,7 @@ def install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, ssh_ip
     else:
         raise 'Unhandled host.TCS_type: ' + host.TCS_type
 
-    for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, external_ports=use_external_ports).iteritems():
+    for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, external_ports=use_external_ports).items():
         protocol_port_rule = ''
         if 'UNFRONTED-MEEK' in protocol:
             protocol_port_rule = accept_with_unfronted_limit_rate_template.format(
@@ -1424,7 +1428,7 @@ exit 0
     psi_limit_load_host_path = '/usr/local/sbin/psi_limit_load'
 
     file = tempfile.NamedTemporaryFile(delete=False)
-    file.write(script)
+    file.write(script.encode())
     file.close()
     ssh.put_file(file.name, psi_limit_load_host_path)
     os.remove(file.name)
@@ -1525,7 +1529,7 @@ exit 0
     psi_limit_load_host_path = '/usr/local/sbin/psi_limit_load'
 
     file = tempfile.NamedTemporaryFile(delete=False)
-    file.write(script)
+    file.write(script.encode())
     file.close()
     ssh.put_file(file.name, psi_limit_load_host_path)
     os.remove(file.name)
@@ -1556,7 +1560,7 @@ def install_TCS_psi_limit_load_chain(host, server):
     else:
         raise 'Unhandled host.TCS_type: ' + host.TCS_type
 
-    for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, external_ports=use_external_ports, meek_ports=False).iteritems():
+    for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, external_ports=use_external_ports, meek_ports=False).items():
         if 'QUIC' in protocol:
             limit_load_rules += [limit_load_template_udp.format(port=str(port))]
         else:
@@ -1652,7 +1656,7 @@ syslog.syslog(syslog.LOG_INFO, json.dumps(log_record))
     psi_count_users_host_path = '/usr/local/sbin/psi_count_users'
 
     file = tempfile.NamedTemporaryFile(delete=False)
-    file.write(script)
+    file.write(script.encode())
     file.close()
     ssh.put_file(file.name, psi_count_users_host_path)
     os.remove(file.name)
