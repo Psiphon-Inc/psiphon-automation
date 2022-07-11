@@ -295,7 +295,7 @@ Environment=\"GODEBUG=madvdontneed=1\"
             docker_protocol_ports['handshake'] = TCS_DOCKER_WEB_SERVER_PORT
 
         port_mappings = ' '.join(
-            ["-p %s:%s" % (external_port,docker_protocol_ports[protocol],) for (protocol, external_port) in external_protocol_ports.iteritems()])
+            ["-p %s:%s" % (external_port,docker_protocol_ports[protocol],) for (protocol, external_port) in external_protocol_ports.items()])
 
         psiphond_env_content = '''
 DOCKER_CONTENT_TRUST=1
@@ -387,7 +387,7 @@ def make_psiphond_config(host, server, own_encoded_server_entries, TCS_psiphond_
 
     if host.passthrough_address is not None and len(host.passthrough_address) > 0:
         config['TunnelProtocolPassthroughAddresses'] = {}
-        for protocol, port in config['TunnelProtocolPorts'].iteritems():
+        for protocol, port in config['TunnelProtocolPorts'].items():
             if tunnel_protocol_supports_passthrough(protocol):
                 config['TunnelProtocolPassthroughAddresses'][protocol] = host.passthrough_address
 
@@ -594,7 +594,7 @@ def deploy_legacy_data(ssh, host, host_data):
 
     file = tempfile.NamedTemporaryFile(delete=False)
     try:
-        file.write(host_data)
+        file.write(host_data.encode())
         file.close()
         ssh.exec_command('mkdir -p %s' % (
                 posixpath.split(psi_config.DATA_FILE_NAME)[0],))
@@ -664,7 +664,7 @@ def put_file_with_content(ssh, content, destination_path):
 
     file = tempfile.NamedTemporaryFile(delete=False)
     try:
-        file.write(content)
+        file.write(content.encode())
         file.close()
         ssh.put_file(file.name, destination_path)
     finally:

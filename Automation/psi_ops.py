@@ -986,7 +986,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         print(print_text)
 
     def show_client_versions(self):
-        for platform in self.__client_versions.iterkeys():
+        for platform in self.__client_versions:
             print(platform)
             for client_version in self.__client_versions[platform]:
                 print(client_version.logs[0][0], client_version.version, client_version.description)
@@ -1300,7 +1300,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         sponsor.banner = base64.b64encode(banner)
         sponsor.log('set banner')
         for campaign in sponsor.campaigns:
-            for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
+            for platform in self.__deploy_builds_required_for_campaigns:
                 self.__deploy_builds_required_for_campaigns[platform].add(
                     (campaign.propagation_channel_id, sponsor.id))
             campaign.log('marked for build and publish (new banner)')
@@ -1341,7 +1341,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
             sponsor.log('add email campaign %s' % (email_account,))
-            for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
+            for platform in self.__deploy_builds_required_for_campaigns:
                 self.__deploy_builds_required_for_campaigns[platform].add(
                         (campaign.propagation_channel_id, sponsor.id))
             self.__deploy_pave_osls_required_for_propagation_channels.add(propagation_channel.id)
@@ -1396,7 +1396,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
             sponsor.log('add twitter campaign %s' % (twitter_account_name,))
-            for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
+            for platform in self.__deploy_builds_required_for_campaigns:
                 self.__deploy_builds_required_for_campaigns[platform].add(
                         (campaign.propagation_channel_id, sponsor.id))
             self.__deploy_pave_osls_required_for_propagation_channels.add(propagation_channel.id)
@@ -1419,7 +1419,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if campaign not in sponsor.campaigns:
             sponsor.campaigns.append(campaign)
             sponsor.log('add static download campaign')
-            for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
+            for platform in self.__deploy_builds_required_for_campaigns:
                 self.__deploy_builds_required_for_campaigns[platform].add(
                         (campaign.propagation_channel_id, sponsor.id))
             self.__deploy_pave_osls_required_for_propagation_channels.add(propagation_channel.id)
@@ -1436,7 +1436,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 ((campaign.account == None and account == None) or campaign.account[0] == account)):
                     campaign.s3_bucket_name = s3_bucket_name
                     campaign.log('set campaign s3 bucket name to %s' % (s3_bucket_name,))
-                    for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
+                    for platform in self.__deploy_builds_required_for_campaigns:
                         self.__deploy_builds_required_for_campaigns[platform].add(
                             (campaign.propagation_channel_id, sponsor.id))
                     self.__deploy_pave_osls_required_for_propagation_channels.add(propagation_channel.id)
@@ -1561,7 +1561,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         override_sponsor = self.get_sponsor_by_name(use_data_from_sponsor_name)
         sponsor.use_data_from_sponsor_id = override_sponsor.id
         for campaign in sponsor.campaigns:
-            for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
+            for platform in self.__deploy_builds_required_for_campaigns:
                 self.__deploy_builds_required_for_campaigns[platform].add(
                     (campaign.propagation_channel_id, sponsor.id))
             campaign.log('marked for build and publish (new banner override)')
@@ -2258,7 +2258,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for sponsor in self.__sponsors.values():
                 for campaign in sponsor.campaigns:
                     if campaign.propagation_channel_id == propagation_channel.id:
-                        for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
+                        for platform in self.__deploy_builds_required_for_campaigns:
                             self.__deploy_builds_required_for_campaigns[platform].add(
                                     (campaign.propagation_channel_id, sponsor.id))
                         # Don't log this, too much noise
@@ -3100,7 +3100,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # Build
 
-        for platform in self.__deploy_builds_required_for_campaigns.iterkeys():
+        for platform in self.__deploy_builds_required_for_campaigns:
             deployed_builds_for_platform = False
             for target in self.__deploy_builds_required_for_campaigns[platform].copy():
 
@@ -3636,7 +3636,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         self.__deploy_data_required_for_all = True
 
-        for propagation_channel_id in self.__propagation_channels.iterkeys():
+        for propagation_channel_id in self.__propagation_channels:
             self.__deploy_pave_osls_required_for_propagation_channels.add(propagation_channel_id)
 
     def set_TCS_tactics_config_template(self, tactics_config_template):
@@ -4382,7 +4382,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                              https_request_regex.replace))
             copy.__sponsors[copy_sponsor.id] = copy_sponsor
 
-        for platform in self.__client_versions.iterkeys():
+        for platform in self.__client_versions:
             for client_version in self.__client_versions[platform]:
                 copy.__client_versions[platform].append(ClientVersion(
                                                 client_version.version,
@@ -4401,9 +4401,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def __get_server_tag(self, server):
         return base64.b64encode(hmac.new(
-            str(server.web_server_secret),
-            msg=str(server.ip_address),
-            digestmod=hashlib.sha256).digest())
+            str(server.web_server_secret).encode(),
+            msg=str(server.ip_address).encode(),
+            digestmod=hashlib.sha256).digest()).decode()
 
     def __json_serializer(self, obj):
         # JSON serializer for datetime objects
@@ -4491,7 +4491,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                              https_request_regex.replace))
             copy.__sponsors[copy_sponsor.id] = copy_sponsor.todict()
 
-        for platform in self.__client_versions.iterkeys():
+        for platform in self.__client_versions:
             for client_version in self.__client_versions[platform]:
                 copy.__client_versions[platform].append(ClientVersion(
                                                 client_version.version,
