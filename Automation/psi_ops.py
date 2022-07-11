@@ -1749,7 +1749,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             exp_entry.append([exp_host, exp_server])
 
         with open("entries.txt", 'ab') as export_file:
-            pickle.dump(exp_entry, export_file)
+            pickle.dump(exp_entry, export_file, protocol=2)
 
     def import_host_and_server(self):
 
