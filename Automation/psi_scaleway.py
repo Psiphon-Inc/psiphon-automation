@@ -70,7 +70,7 @@ class PsiScaleway:
         self.api_token = scaleway_account.api_token
         self.region = random.choice(scaleway_account.regions)
         self.client = ScalewayApis.ComputeAPI(auth_token=self.api_token, region=self.region)
-        self.organizations = ScalewayApis.AccountAPI(auth_token=self.api_token).query().tokens.get()['tokens'][0]['organization_id']
+        #self.organizations = ScalewayApis.AccountAPI(auth_token=self.api_token).query().tokens.get()['tokens'][0]['organization_id']
 
     def reload(self):
         self.client = ScalewayApis.ComputeAPI(auth_token=self.api_token, region=self.region)
