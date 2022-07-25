@@ -79,8 +79,8 @@ def _sanitize_keys(data):
     paths_to_sanitize = []
 
     for path, _ in utils.objwalk(data):
-        for i in xrange(len(path)):
-            if isinstance(path[i], utils.string_types) and path[i].find('.') >= 0:
+        for i in range(len(path)):
+            if isinstance(path[i], str) and path[i].find('.') >= 0:
                 paths_to_sanitize.append(path[:i+1])
 
     # paths_to_sanitize has the paths that end in keys with dots; e.g.:
@@ -103,7 +103,7 @@ def _shorten_ints(data):
     We have seen this occur with freeVirtualMemoryKB in Windows feedback.
     """
     for path, value in utils.objwalk(data):
-        if (type(value) == int or type(value) == long) and value > sys.maxsize-1:
+        if isinstance(value, int) and value > sys.maxsize-1:
             utils.assign_value_to_obj_at_path(data, path, float(value))
 
 
@@ -157,19 +157,19 @@ def _postprocess_yaml(data):
     #
     # If a hex ID happens to have all numbers, YAML will decode it as an
     # integer rather than a string. This could mess up processing later on.
-    _ensure_field_is_string(str, data, ('Metadata', 'id'))
+    _ensure_field_is_type(str, data, ('Metadata', 'id'))
 
     # Fix data type of other fields.
     # For example, if just a number is entered in the feedback text, it should
     # still be interpreted as a string.
-    _ensure_field_is_string(unicode, data, ('Feedback', 'email'))
-    _ensure_field_is_string(unicode, data, ('Feedback', 'Message', 'text'))
+    _ensure_field_is_type(str, data, ('Feedback', 'email'))
+    _ensure_field_is_type(str, data, ('Feedback', 'Message', 'text'))
 
 
-def _ensure_field_is_string(stringtype, data, fieldpath):
+def _ensure_field_is_type(targettype, data, fieldpath):
     prev_val = utils.coalesce(data, fieldpath)
     if prev_val is not None:
-        utils.assign_value_to_obj_at_path(data, fieldpath, stringtype(prev_val))
+        utils.assign_value_to_obj_at_path(data, fieldpath, targettype(prev_val))
 
 
 def transform(data):
@@ -186,6 +186,6 @@ def transform(data):
     transform_keys.add('%s_%s' % (data['Metadata']['platform'],
                                   data['Metadata']['version']))
 
-    for key in transform_keys.intersection(_transformations.keys()):
+    for key in transform_keys.intersection(list(_transformations.keys())):
         for transformation in _transformations[key]:
             transformation(data)

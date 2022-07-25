@@ -23,7 +23,7 @@ Requires=local-fs.target network.target
 
 [Service]
 Type=simple
-User=maildecryptor
+User=feedback_decryptor
 
 # Allow up to 'TimeoutStartSec' seconds to report as started prior
 # to marking the service as failed. Setting to 0 allows unlimited time
@@ -44,8 +44,11 @@ NotifyAccess=all
 # Execute these commands when stopping the service
 ExecStop=/bin/kill -s SIGINT $MAINPID
 
-Environment=MAILDECRYPTOR_DIR=fill-in-with-path-to-source
-ExecStart= /bin/sh -c "chdir $MAILDECRYPTOR_DIR && exec python service_statschecker.py"
+# Enable for debug logging
+#Environment=DEBUG=1
+
+Environment=FEEDBACK_DECRYPTOR_DIR=fill-in-with-path-to-source
+ExecStart=/bin/sh -c "env -C $FEEDBACK_DECRYPTOR_DIR poetry run python3.9 service_statschecker.py"
 
 [Install]
 # "multi-user.target" refers to the system being at runlevel 3

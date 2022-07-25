@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 
 # Copyright (c) 2011, Psiphon Inc.
@@ -37,31 +36,31 @@ _Base = declarative_base()
 
 class _BlacklistAdhoc(_Base):
     __tablename__ = 'blacklist_adhoc'
-    emailhash = Column(String(40), primary_key=True, nullable=False)
+    emailhash = Column(String(128), primary_key=True, nullable=False)
     count = Column(Integer, default=0, nullable=False)
 
 
 class _BlacklistDomain(_Base):
     __tablename__ = 'blacklist_domain'
-    domainhash = Column(String(40), primary_key=True, nullable=False)
+    domainhash = Column(String(128), primary_key=True, nullable=False)
 
 
 class _BlacklistEmail(_Base):
     __tablename__ = 'blacklist_email'
-    emailhash = Column(String(40), primary_key=True, nullable=False)
+    emailhash = Column(String(128), primary_key=True, nullable=False)
 
 
 class _WhitelistDomain(_Base):
     __tablename__ = 'whitelist_domain'
-    domainhash = Column(String(40), primary_key=True, nullable=False)
+    domainhash = Column(String(128), primary_key=True, nullable=False)
 
 
 class _WhitelistEmail(_Base):
     __tablename__ = 'whitelist_email'
-    emailhash = Column(String(40), primary_key=True, nullable=False)
+    emailhash = Column(String(128), primary_key=True, nullable=False)
 
 
-_dbengine = create_engine('mysql://%s:%s@localhost/%s' % (settings.DB_USERNAME, settings.DB_PASSWORD, settings.DB_DBNAME))
+_dbengine = create_engine('mysql+mysqldb://%s:%s@localhost/%s' % (settings.DB_USERNAME, settings.DB_PASSWORD, settings.DB_DBNAME))
 _Base.metadata.create_all(_dbengine)
 _Session = sessionmaker(bind=_dbengine)
 
@@ -82,7 +81,7 @@ class Blacklist(object):
         _BlacklistAdhoc.__table__.create(bind=_dbengine)
 
     def _hash_addr(self, email_addr):
-        return hashlib.sha1(email_addr.lower()).hexdigest()
+        return hashlib.sha512(email_addr.lower().encode('utf-8')).hexdigest()
 
     def check_and_add(self, email_addr):
         '''
@@ -112,7 +111,7 @@ class Blacklist(object):
            self.is_domain_whitelisted(domain, dbsession):
             return True
 
-        # Is the user or his domain total blacklisted?
+        # Is the user or their domain totally blacklisted?
         if self.is_email_blacklisted(email_addr, dbsession) or \
            self.is_domain_blacklisted(domain, dbsession):
             return False
@@ -156,13 +155,13 @@ class Blacklist(object):
 
         if '@' in email_or_domain:
             if self.is_email_blacklisted(email_or_domain, dbsession):
-                print 'Email already blacklisted'
+                print('Email already blacklisted')
                 return
             newrecord = _BlacklistEmail(emailhash=hashvalue)
             dbsession.add(newrecord)
         else:
             if self.is_domain_blacklisted(email_or_domain, dbsession):
-                print 'Domain already blacklisted'
+                print('Domain already blacklisted')
                 return
             newrecord = _BlacklistDomain(domainhash=hashvalue)
             dbsession.add(newrecord)
@@ -181,7 +180,7 @@ class Blacklist(object):
     def is_email_blacklisted(self, email_addr, dbsession=None):
         '''
         Check if the email address has been perma-blacklisted (doesn't check if
-        it's in the "adhoc" blacklist).
+        it's in the "adhoc" blacklist or belongs to a perma-blacklisted domain).
         '''
 
         if not dbsession:
@@ -203,13 +202,13 @@ class Blacklist(object):
 
         if '@' in email_or_domain:
             if self.is_email_whitelisted(email_or_domain, dbsession):
-                print 'Email already whitelisted'
+                print('Email already whitelisted')
                 return
             newrecord = _WhitelistEmail(emailhash=hashvalue)
             dbsession.add(newrecord)
         else:
             if self.is_domain_whitelisted(email_or_domain, dbsession):
-                print 'Domain already whitelisted'
+                print('Domain already whitelisted')
                 return
             newrecord = _WhitelistDomain(domainhash=hashvalue)
             dbsession.add(newrecord)

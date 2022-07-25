@@ -37,7 +37,7 @@ import datetime
 import os
 from pymongo import MongoClient
 import numpy
-import pytz
+from functools import reduce
 
 import logger
 
@@ -73,10 +73,10 @@ _mongo_db_pid = None
 def _db():
     global _mongo_db, _mongo_db_pid
     pid = os.getpid()
-    if _mongo_db and _mongo_db_pid == pid:
+    if _mongo_db is not None and _mongo_db_pid == pid:
         return _mongo_db
     connection = MongoClient()
-    _mongo_db = connection.maildecryptor
+    _mongo_db = connection.feedback
     _mongo_db_pid = pid
     return _mongo_db
 
@@ -89,26 +89,26 @@ def _db():
 # for stats queries.
 # It's also a TTL index, and purges old records.
 DIAGNOSTIC_DATA_LIFETIME_SECS = 60*60*24*7*26  # half a year
-_db().diagnostic_info.ensure_index('datetime', expireAfterSeconds=DIAGNOSTIC_DATA_LIFETIME_SECS)
+_db().diagnostic_info.create_index('datetime', expireAfterSeconds=DIAGNOSTIC_DATA_LIFETIME_SECS)
 
 # We use a TTL index on the response_blacklist collection, to expire records.
 _BLACKLIST_LIFETIME_SECS = 60*60*24  # one day
-_db().response_blacklist.ensure_index('datetime', expireAfterSeconds=_BLACKLIST_LIFETIME_SECS)
+_db().response_blacklist.create_index('datetime', expireAfterSeconds=_BLACKLIST_LIFETIME_SECS)
 
 # Add a TTL index to the errors store.
 _ERRORS_LIFETIME_SECS = 60*60*24*7*26  # half a year
-_db().errors.ensure_index('datetime', expireAfterSeconds=_ERRORS_LIFETIME_SECS)
+_db().errors.create_index('datetime', expireAfterSeconds=_ERRORS_LIFETIME_SECS)
 
 # Add a TTL index to the email_diagnostic_info store. We don't want queued items to live
 # forever, because a) we don't want to fall so far behind in email that we're only getting
 # old items; and b) eventually the underlying diagnostic data will be purged from the diagnostic_info store.
 _EMAIL_DIAGNOSTIC_INFO_LIFETIME_SECS = 24*60*60  # one day
-_db().email_diagnostic_info.ensure_index('datetime', expireAfterSeconds=_EMAIL_DIAGNOSTIC_INFO_LIFETIME_SECS)
+_db().email_diagnostic_info.create_index('datetime', expireAfterSeconds=_EMAIL_DIAGNOSTIC_INFO_LIFETIME_SECS)
 
 # More lookup indexes
-_db().diagnostic_info.ensure_index('Metadata.platform')
-_db().diagnostic_info.ensure_index('Metadata.version')
-_db().diagnostic_info.ensure_index('Metadata.id')
+_db().diagnostic_info.create_index('Metadata.platform')
+_db().diagnostic_info.create_index('Metadata.version')
+_db().diagnostic_info.create_index('Metadata.id')
 
 
 #
@@ -131,8 +131,8 @@ def insert_diagnostic_info(obj):
         logger.error("insert_diagnostic_info: duplicate id {}".format(feedback_id))
         return None
 
-    obj['datetime'] = datetime.datetime.now()
-    return _db().diagnostic_info.insert(obj)
+    obj['datetime'] = datetime.datetime.utcnow()
+    return _db().diagnostic_info.insert_one(obj).inserted_id
 
 
 def insert_email_diagnostic_info(diagnostic_info_record_id,
@@ -141,9 +141,9 @@ def insert_email_diagnostic_info(diagnostic_info_record_id,
     obj = {'diagnostic_info_record_id': diagnostic_info_record_id,
            'email_id': email_id,
            'email_subject': email_subject,
-           'datetime': datetime.datetime.now()
+           'datetime': datetime.datetime.utcnow()
            }
-    return _db().email_diagnostic_info.insert(obj)
+    return _db().email_diagnostic_info.insert_one(obj).inserted_id
 
 
 def get_email_diagnostic_info_iterator():
@@ -158,7 +158,7 @@ def find_diagnostic_info(diagnostic_info_record_id):
 
 
 def remove_email_diagnostic_info(email_diagnostic_info):
-    return _db().email_diagnostic_info.remove({'_id': email_diagnostic_info['_id']})
+    _db().email_diagnostic_info.find_one_and_delete({'_id': email_diagnostic_info['_id']})
 
 
 #
@@ -171,37 +171,33 @@ def insert_autoresponder_entry(email_info, diagnostic_info_record_id):
 
     obj = {'diagnostic_info_record_id': diagnostic_info_record_id,
            'email_info': email_info,
-           'datetime': datetime.datetime.now()
+           'datetime': datetime.datetime.utcnow()
            }
-    return _db().autoresponder.insert(obj)
+    return _db().autoresponder.insert_one(obj).inserted_id
 
 
 def get_autoresponder_iterator():
     while True:
-        next_rec = _db().autoresponder.find_and_modify(remove=True)
+        next_rec = _db().autoresponder.find_one_and_delete(filter={})
         if not next_rec:
-            raise StopIteration()
+            return None
         yield next_rec
-
-
-def remove_autoresponder_entry(entry):
-    return _db().autoresponder.remove(entry)
 
 
 #
 # Functions related to the email address blacklist
 #
 
-def check_and_add_response_address_blacklist(address):
+def check_and_add_response_address_blacklist(address: str) -> bool:
     '''
     Returns True if the address is blacklisted, otherwise inserts it in the DB
     and returns False.
     '''
-    now = datetime.datetime.now(pytz.timezone('UTC'))
     # Check and insert with a single command
-    match = _db().response_blacklist.find_and_modify(query={'address': address},
-                                                      update={'$setOnInsert': {'datetime': now}},
-                                                      upsert=True)
+    match = _db().response_blacklist.find_one_and_update(
+        filter={'address': address},
+        update={'$setOnInsert': {'datetime': datetime.datetime.utcnow()}},
+        upsert=True)
 
     return bool(match)
 
@@ -214,7 +210,7 @@ def set_stats_last_send_time(timestamp):
     '''
     Sets the last send time to `timestamp`.
     '''
-    _db().stats.update({}, {'$set': {'last_send_time': timestamp}}, upsert=True)
+    _db().stats.update_one({}, {'$set': {'last_send_time': timestamp}}, upsert=True)
 
 
 def get_stats_last_send_time():
@@ -224,32 +220,39 @@ def get_stats_last_send_time():
 
 def get_new_stats_count(since_time):
     assert(since_time)
-    return _db().diagnostic_info.find({'datetime': {'$gt': since_time}}).count()
+    return _db().diagnostic_info.count_documents({'datetime': {'$gt': since_time}})
 
 
 def get_stats(since_time):
     # The "count" queries with large time windows seem very slow, so we're going to cap
     # since_time to 1 day ago.
-    day_ago = datetime.datetime.now() - datetime.timedelta(days=1)
+    day_ago = datetime.datetime.utcnow() - datetime.timedelta(days=1)
     if (not since_time) or (since_time < day_ago):
         since_time = day_ago
 
     ERROR_LIMIT = 500
 
+    # The number of errors is unbounded, so we're going to limit the count.
+    # We're also going to exclude errors (i.e., "duplicate id" errors) that are very
+    # common and not very interesting.
+    new_errors = [_clean_record(e) for e in _db().errors.find(
+        {'$and': [
+            {'datetime': {'$gt': since_time}},
+            {'error.error': {'$not': {'$regex': 'duplicate id'}}}
+        ]}).limit(ERROR_LIMIT)]
+
     return {
         'since_timestamp': since_time,
-        'now_timestamp': datetime.datetime.now(),
-        'new_android_records': _db().diagnostic_info.find({'datetime': {'$gt': since_time}, 'Metadata.platform': 'android'}).count(),
-        'new_windows_records': _db().diagnostic_info.find({'datetime': {'$gt': since_time}, 'Metadata.platform': 'windows'}).count(),
+        'now_timestamp': datetime.datetime.utcnow(),
+        'new_android_records': _db().diagnostic_info.count_documents({'datetime': {'$gt': since_time}, 'Metadata.platform': 'android'}),
+        'new_windows_records': _db().diagnostic_info.count_documents({'datetime': {'$gt': since_time}, 'Metadata.platform': 'windows'}),
         'stats': _get_stats_helper(since_time),
-
-        # The number of errors is unbounded, so we're going to limit the count.
-        'new_errors': [_clean_record(e) for e in _db().errors.find({'datetime': {'$gt': since_time}}).limit(ERROR_LIMIT)],
+        'new_errors': new_errors,
     }
 
 
 def add_error(error):
-    _db().errors.insert({'error': error, 'datetime': datetime.datetime.now()})
+    _db().errors.insert_one({'error': error, 'datetime': datetime.datetime.utcnow()})
 
 
 def _clean_record(rec):
@@ -287,9 +290,9 @@ def _get_stats_helper(since_time):
                              and r.get('data').get('responded') and r.get('data').get('responseTime')]
 
         for r in response_checks:
-            if type(r['responded']) in (str, unicode):
+            if isinstance(r['responded'], str):
                 r['responded'] = (r['responded'] == 'Yes')
-            if type(r['responseTime']) in (str, unicode):
+            if isinstance(r['responseTime'], str):
                 r['responseTime'] = int(r['responseTime'])
 
         if ('android', propagation_channel_id, sponsor_id) not in raw_stats:
@@ -337,7 +340,7 @@ def _get_stats_helper(since_time):
         return accum
 
     stats = []
-    for result_params, results in raw_stats.iteritems():
+    for result_params, results in raw_stats.items():
         response_times = [r['responseTime'] for r in results['response_checks'] if r['responded']]
         mean = float(numpy.mean(response_times)) if len(response_times) else None
         median = float(numpy.median(response_times)) if len(response_times) else None

@@ -15,10 +15,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+from typing import Union, Optional
 import sys
 import types
 import re
-import urllib
+import urllib.parse
+from datetime import datetime
+
 
 import logger
 import psi_ops_helpers
@@ -28,15 +31,22 @@ import psi_ops_helpers
 # Helpers primarily used in templates
 ###########################
 
-def timestamp_display(timestamp):
+def timestamp_display(timestamp: datetime) -> str:
     '''
     To be used to format datetimes
     '''
     return '{:%Y-%m-%dT%H:%M:%S}.{:03}Z'.format(timestamp,
-                                                timestamp.microsecond / 1000)
+                                                int(timestamp.microsecond / 1000))
+
+def timestamp_display_test():
+    assert(timestamp_display(datetime(2014, 1, 1, 12, 11, 22, 333456)) == '2014-01-01T12:11:22.333Z')
+    assert(timestamp_display(datetime(2014, 1, 1, 12, 11, 22, 456)) == '2014-01-01T12:11:22.000Z')
+    print('timestamp_display test okay')
+
+timestamp_display.test = timestamp_display_test
 
 
-def get_timestamp_diff(last_timestamp, timestamp):
+def get_timestamp_diff(last_timestamp: datetime, timestamp: datetime) -> tuple[float, str]:
     '''
     Returns a tuple of (diff_float, diff_display_string). Arguments must be
     datetimes. `last_timestamp` may be None.
@@ -48,20 +58,41 @@ def get_timestamp_diff(last_timestamp, timestamp):
     return (timestamp_diff_secs, timestamp_diff_str)
 
 
-def urlencode(s):
-    return urllib.quote_plus(s)
+def get_timestamp_diff_test():
+    dt1 = datetime(2014, 1, 1, 12, 11, 22, 333456)
+
+    # Ordinary size of diff
+    dt2 = datetime(2014, 1, 1, 12, 11, 23, 123456)
+    assert(get_timestamp_diff(dt1, dt2) == (0.79, '0.790'))
+
+    # Rounds up to 0.001
+    dt2 = datetime(2014, 1, 1, 12, 11, 22, 333956)
+    assert(get_timestamp_diff(dt1, dt2) == (0.0005, '0.001'))
+
+    # Rounds down to 0.000
+    dt2 = datetime(2014, 1, 1, 12, 11, 22, 333856)
+    assert(get_timestamp_diff(dt1, dt2) == (0.0004, '0.000'))
+
+    # Very big difference
+    dt2 = datetime(2015, 1, 1, 12, 11, 22, 333456)
+    assert(get_timestamp_diff(dt1, dt2) == (31536000.0, '31536000.000'))
+
+    print('get_timestamp_diff test okay')
+
+get_timestamp_diff.test = get_timestamp_diff_test
 
 
-def safe_str(ex):
-    '''
-    Intended primarily to be used with exceptions. Calling `str(ex)` (on
-    Linx) will throw an exception if the string representation of `ex` contains
-    Unicode. This function will safely give a UTF-8 representation.
-    '''
-    return unicode(ex).encode('utf8')
+def urlencode(s: str) -> str:
+    return urllib.parse.quote_plus(s)
+
+def urlencode_test():
+    assert(urlencode('abcd!@#$') == 'abcd%21%40%23%24')
+    print('urlencode test okay')
+
+urlencode.test = urlencode_test
 
 
-def coalesce(obj, key_path, default_value=None, required_types=None):
+def coalesce(obj: dict, key_path: Union[str, list], default_value: Optional[any]=None, required_types: Optional[Union[tuple[type],type]]=None):
     '''
     Looks at the chain of dict values of `obj` indicated by `key_path`. If a
     key doesn't exist or a value is None, then `default_value` will be
@@ -114,7 +145,7 @@ def coalesce_test():
     assert(coalesce({'a': 1}, 'a', default_value='nope', required_types=(int, str)) == 1)
     assert(coalesce({'a': 1}, 'a', default_value='nope', required_types=(str,)) == 'nope')
 
-    print 'coalesce test okay'
+    print('coalesce test okay')
 
 coalesce.test = coalesce_test
 
@@ -133,12 +164,12 @@ def convert_psinet_values(config, obj):
     names. Modifies the YAML directly.
     '''
 
-    if isinstance(obj, string_types):
+    if isinstance(obj, str):
         return
 
     for path, val in objwalk(obj):
 
-        if isinstance(val, string_types):
+        if isinstance(val, str):
 
             #
             # Find IP addresses in the value and replace them.
@@ -240,7 +271,7 @@ def is_diagnostic_info_sane_test():
     assert(not is_diagnostic_info_sane({'_id': 1, 'datetime': 1, 'Metadata': {'extra': 1, 'platform': 'windows', 'version': 1, 'id': 'AAAAAAAAAAAAAAAA'}}))
     assert(not is_diagnostic_info_sane({'Metadata': {'platform': 'badplatform', 'version': 1, 'id': 'AAAAAAAAAAAAAAAA'}}))
     assert(is_diagnostic_info_sane({'Metadata': {'_id': 1, 'platform': 'windows', 'version': 1, 'id': 'AAAAAAAAAAAAAAAA'}}))
-    print 'is_diagnostic_info_sane test okay'
+    print('is_diagnostic_info_sane test okay')
 
 is_diagnostic_info_sane.test = is_diagnostic_info_sane_test
 
@@ -251,11 +282,11 @@ def _check_exemplar(check, exemplar):
     in `check`.
     '''
 
-    if isinstance(exemplar, types.DictType):
-        if not isinstance(check, types.DictType):
+    if isinstance(exemplar, dict):
+        if not isinstance(check, dict):
             return False
 
-        for k in exemplar.iterkeys():
+        for k in exemplar.keys():
             if k.startswith('-'):
                 # Special negation key
                 if k[1:] in check:
@@ -295,8 +326,6 @@ def _check_exemplar(check, exemplar):
 
 from collections import Mapping, Set, Sequence
 
-# dual python 2/3 compatability, inspired by the "six" library
-string_types = (str, unicode) if str is bytes else (str, bytes)
 iteritems = lambda mapping: getattr(mapping, 'iteritems', mapping.items)()
 
 
@@ -326,7 +355,7 @@ def objwalk(obj, path=(), memo=None):
     iterator = None
     if isinstance(obj, Mapping):
         iterator = iteritems
-    elif isinstance(obj, (Sequence, Set)) and not isinstance(obj, string_types):
+    elif isinstance(obj, (Sequence, Set)) and not isinstance(obj, str):
         iterator = enumerate
     if iterator:
         if id(obj) not in memo:

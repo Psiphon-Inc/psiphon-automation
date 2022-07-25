@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # Copyright (c) 2014, Psiphon Inc.
@@ -35,7 +34,6 @@ class CronCreator(object):
     def go(self):
         self._maintenance_jobs()
         self._blacklist_jobs()
-        self._instance_initialization_jobs()
         self._conf_update()
         self.normal_tab.write()
         self.mail_tab.write()
@@ -54,7 +52,7 @@ class CronCreator(object):
 
     def _blacklist_jobs(self):
         command_id = 'Psiphon: blacklist clear'
-        command = '/usr/bin/python %s' % os.path.join(self.dir, 'blacklist.py --clear-adhoc')
+        command = '/usr/bin/env poetry run python3 %s' % os.path.join(self.dir, 'blacklist.py --clear-adhoc')
 
         self._delete_commands(self.mail_tab, command_id)
 
@@ -62,14 +60,6 @@ class CronCreator(object):
         self._make_daily(cron)
 
     def _maintenance_jobs(self):
-        command_id = 'Psiphon: put CloudWatch system metrics'
-        command = "cd /home/mail_responder && /usr/bin/perl ./mon-put-instance-data.pl --disk-path=/ --mem-util --mem-used --mem-avail --swap-util --swap-used --disk-space-util --disk-space-used --disk-space-avail --from-cron --auto-scaling --aws-access-key-id=`/bin/sed -n 's/aws_access_key_id = \\(.*\\)/\\1/p' /etc/boto.cfg` --aws-secret-key=`/bin/sed -n 's/aws_secret_access_key = \\(.*\\)/\\1/p' /etc/boto.cfg`"
-
-        self._delete_commands(self.normal_tab, command_id)
-
-        cron = self.normal_tab.new(command=command, comment=command_id)
-        cron.minute.every(5)
-
         # Update source
         branch = 'master'
         command_id = 'Psiphon: pull and update code'
@@ -86,7 +76,7 @@ class CronCreator(object):
 
     def _conf_update(self):
         command_id = 'Pull config'
-        command = 'cd /home/mail_responder && /usr/bin/env python conf_pull.py --cron'
+        command = 'cd /home/mail_responder && /usr/bin/env poetry run python3 conf_pull.py --cron'
 
         self._delete_commands(self.mail_tab, command_id)
 
@@ -107,16 +97,6 @@ class CronCreator(object):
         cron = self.normal_tab.new(command=command, comment=command_id)
         cron.minute.on(0)
         # And on reboot
-        cron = self.normal_tab.new(command=command, comment=command_id)
-        cron.every_reboot()
-
-    def _instance_initialization_jobs(self):
-        # If this directory isn't removed it will mess up metrics reporting
-        command_id = 'Psiphon: delete cached instance info'
-        command = 'sudo rm -rf /var/tmp/aws-mon/'
-
-        self._delete_commands(self.normal_tab, command_id)
-
         cron = self.normal_tab.new(command=command, comment=command_id)
         cron.every_reboot()
 

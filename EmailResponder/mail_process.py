@@ -29,7 +29,6 @@ import tempfile
 import dkim
 import authres
 import errno
-from boto.exception import BotoServerError
 
 from logger import logger, logger_json
 import settings
@@ -74,7 +73,7 @@ class MailResponder(object):
             with open(aws_helpers.get_s3_cached_filepath(
                                     settings.ATTACHMENT_CACHE_DIR,
                                     settings.CONFIG_S3_BUCKET,
-                                    settings.CONFIG_S3_KEY)) as conffile:
+                                    settings.CONFIG_S3_KEY), encoding='utf-8') as conffile:
                 # Note that json.load reads in unicode strings.
                 self._conf = json.load(conffile)
 
@@ -123,7 +122,6 @@ class MailResponder(object):
         # to succeed even if one fails. (I.e., SMTP will succeed even if there's
         # a SES service problem.)
         full_success = True
-        exception_to_raise = None
         for conf in request_conf:
             attachments = None
             if conf['attachments']:
@@ -163,14 +161,11 @@ class MailResponder(object):
                 try:
                     if not sendmail.send_raw_email_amazonses(raw_response,
                                                              self._response_from_addr,
-                                                             self._requester_addr):
+                                                             self._requester_addr,
+                                                             settings.AWS_REGION):
                         return False
-                except BotoServerError as ex:
-                    if ex.error_message == 'Address blacklisted.':
-                        logger.critical('fail: requester address blacklisted by SES')
-                    else:
-                        exception_to_raise = ex
-
+                except sendmail.AddressSESBlacklisted as ex:
+                    logger.critical('fail: requester address blacklisted by SES: %s' % ex)
                     full_success = False
                     continue
             else:
@@ -182,8 +177,6 @@ class MailResponder(object):
                     full_success = False
                     continue
 
-        if exception_to_raise:
-            raise exception_to_raise
         return full_success
 
     def _check_blacklist(self):
@@ -203,6 +196,8 @@ class MailResponder(object):
         self.requested_addr = decode_header(self._email['X-Original-To'])
         if not self.requested_addr:
             logger.info('[fail] no requested address')
+            forward_to_administrator('[fail] no requested address', self._email_string)
+            dump_to_exception_file('[fail] no requested address\n\n%s' % self._email_string)
             return False
 
         # The 'To' field generally looks like this:
@@ -317,7 +312,7 @@ class MailResponder(object):
                 elif auth_result.results[0].result == 'none':
                     # DKIM missing. Unfortunately, this can be due to encoding issues (e.g., with Yahoo emails).
                     # So we're going to re-check the signature here.
-                    if not dkim.verify(email_string):
+                    if not dkim.verify(email_string if type(email_string) == bytes else email_string.encode('utf-8')):
                         # Experience has shown that most email lacking a DKIM sig is garbage.
                         logger.info('[fail] DKIM absent')
                         dump_to_exception_file('[fail] DKIM absent\n\n%s' % self._email_string)
@@ -352,7 +347,7 @@ class MailResponder(object):
             self._subject = ''
 
         # Add 'Re:' to the subject
-        self._subject = u'Re: %s' % self._subject
+        self._subject = 'Re: %s' % self._subject
 
         self._requester_msgid = decode_header(self._email['Message-ID'])
         if not self._requester_msgid:
@@ -427,22 +422,37 @@ def decode_header(header_val):
         if not hdr:
             return None
 
-        return ' '.join([text.decode(PYTHON_ENCODING_NAMES.get(encoding, encoding))
-                         if encoding else text
-                         for text, encoding in hdr])
+        result = ''
+        for (val, enc) in hdr:
+            if type(val) is bytes:
+                # Decode the bytes
+                if enc:
+                    # Try to map the encoding name to a Python encoding name
+                    enc = PYTHON_ENCODING_NAMES.get(enc, enc)
+                    val = val.decode(enc)
+                else:
+                    # No encoding specified. Assume UTF-8.
+                    val = val.decode('utf-8')
+
+            result += val
+
+        return result
     except:
         return None
 
 
-def _dkim_sign_email(raw_email):
+def _dkim_sign_email(raw_email: str) -> str:
     '''
     Signs the raw email according to DKIM standards and returns the resulting
     email (which is the original with extra signature headers).
     '''
 
-    sig = dkim.sign(raw_email, settings.DKIM_SELECTOR, settings.DKIM_DOMAIN,
-                    open(settings.DKIM_PRIVATE_KEY).read())
-    return sig + raw_email
+    sig = dkim.sign(
+        raw_email.encode('utf-8'),
+        settings.DKIM_SELECTOR.encode('utf-8'),
+        settings.DKIM_DOMAIN.encode('utf-8'),
+        open(settings.DKIM_PRIVATE_KEY, 'rb').read())
+    return sig.decode('utf-8') + raw_email
 
 
 _RESTRICTED_ATTACHMENTS_PROVIDERS = (re.compile(r'^(gmail)|(googlemail)\..+$'),
@@ -499,7 +509,10 @@ def dump_to_exception_file(string):
                 raise
 
         temp = tempfile.mkstemp(suffix='.txt', dir=settings.EXCEPTION_DIR)
-        f = os.fdopen(temp[0], 'w')
+        if type(string) == str:
+            f = os.fdopen(temp[0], 'wt')
+        else:
+            f = os.fdopen(temp[0], 'wb')
         f.write(string)
         f.close()
 
@@ -515,7 +528,7 @@ def forward_to_administrator(email_type, email_string):
                                         '%s %s' % (settings.ADMIN_FORWARD_SUBJECT_TAG, email_type),
                                         email_string)
         if not raw:
-            print('create_raw_email failed')
+            print('create_raw_email failed:', email_type)
             return False
 
         raw = _dkim_sign_email(raw)
@@ -524,7 +537,7 @@ def forward_to_administrator(email_type, email_string):
         if not sendmail.send_raw_email_smtp(raw,
                                             settings.RESPONSE_FROM_ADDR,
                                             settings.ADMIN_FORWARD_ADDRESSES):
-            print('send_raw_email_smtp failed')
+            print('send_raw_email_smtp failed:', email_type)
             return False
 
         print('Email sent')
@@ -591,17 +604,20 @@ if __name__ == '__main__':
             aws_helpers.put_cloudwatch_metric_data(settings.CLOUDWATCH_PROCESSING_TIME_METRIC_NAME,
                                                    processing_time,
                                                    'Milliseconds',
-                                                   settings.CLOUDWATCH_NAMESPACE)
+                                                   settings.CLOUDWATCH_NAMESPACE,
+                                                   settings.AWS_REGION)
 
             aws_helpers.put_cloudwatch_metric_data(settings.CLOUDWATCH_TOTAL_SENT_METRIC_NAME,
                                                    1,
                                                    'Count',
-                                                   settings.CLOUDWATCH_NAMESPACE)
+                                                   settings.CLOUDWATCH_NAMESPACE,
+                                                   settings.AWS_REGION)
 
             aws_helpers.put_cloudwatch_metric_data(requested_addr,
                                                    1,
                                                    'Count',
-                                                   settings.CLOUDWATCH_NAMESPACE)
+                                                   settings.CLOUDWATCH_NAMESPACE,
+                                                   settings.AWS_REGION)
         except Exception as ex:
             logger.critical('exception: %s: %s', ex, traceback.format_exc())
 

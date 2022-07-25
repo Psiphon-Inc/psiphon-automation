@@ -99,7 +99,7 @@ def translate(apiServers, apiKey, msg):
 
         return (from_lang, _languages[from_lang], msg_translated)
     except Exception as e:
-        return ('[TRANSLATION_FAIL]', utils.safe_str(e), None)
+        return ('[TRANSLATION_FAIL]', str(e), None)
 
 
 def _load_languages(apiServers, apiKey):
@@ -140,8 +140,8 @@ def _translate_request_helper(apiServers, apiKey, from_lang, msg):
     # this request is a waste of time...?
 
     max_size = _MAX_POST_REQUEST_SIZE if _USE_POST_REQUEST else _MAX_GET_REQUEST_SIZE
-    msg_size_limit = (max_size - 200) / (4 * 3)
-    result_accumulator = u''
+    msg_size_limit = int((max_size - 200) / (4 * 3))
+    result_accumulator = ''
     start_index = 0
     while True:
         msg_fragment = msg[start_index:start_index + msg_size_limit]
@@ -244,10 +244,10 @@ def _make_request(apiServers, apiKey, action, params=None):
         # being flaky.
         except (requests.ConnectionError, requests.Timeout) as ex:
             success = False
-            # logger.error('%s.py: API error; failing over: %s' % (__name__, utils.safe_str(ex)))  # don't log -- not useful
+            # logger.error('%s.py: API error; failing over: %s' % (__name__, str(ex)))  # don't log -- not useful
         except Exception as ex:
             # Unexpected error. Not going to fail over.
-            logger.error('%s.py: request error: %s' % (__name__, utils.safe_str(ex)))
+            logger.error('%s.py: request error: %s' % (__name__, str(ex)))
             raise
 
     if not success:
