@@ -4822,6 +4822,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def __test_server(self, server, test_cases, version, test_propagation_channel_id, executable_path):
 
+        host = self.__hosts[server.host_id]
+        egress_ip_addresses = list(set([server.egress_ip_address] +
+                                        [s.ip_address for s in self.get_servers() if s.host_id == host.id] +
+                                        [host.ip_address]))
+
         return psi_ops_test_windows.test_server(
                                 server,
                                 self.__hosts[server.host_id],
@@ -4830,7 +4835,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 self.__split_tunnel_signature_public_key(),
                                 self.__split_tunnel_dns_server(),
                                 version,
-                                [server.egress_ip_address],
+                                egress_ip_addresses,
                                 test_propagation_channel_id,
                                 test_cases,
                                 executable_path)
