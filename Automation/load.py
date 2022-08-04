@@ -139,10 +139,10 @@ def check_load_on_hosts(psinet, hosts):
     for result in results + new_results:
         loads[result[0]] = result[1:]
 
-    cur_users = sum([load[0] for load in loads.itervalues() if load[0] > 0])
-    unreachable_hosts = len([load for load in loads.itervalues() if load[0] == -1])
+    cur_users = sum([load[0] for load in loads.values() if load[0] > 0])
+    unreachable_hosts = len([load for load in loads.values() if load[0] == -1])
 
-    loads = sorted(loads.iteritems(), key=operator.itemgetter(1), reverse=True)
+    loads = sorted(loads.items(), key=operator.itemgetter(1), reverse=True)
     unreachable = [load for load in loads if load[1][0] == -1]
     process_alerts = [load for load in loads if load[1][5]]
     high_load = [load for load in loads if float(load[1][1]) >= 100.0]
@@ -175,7 +175,7 @@ def log_load():
     results = check_load()
     end_time = datetime.datetime.now()
     results = (str(start_time), str(end_time), (results))
-    print "Run completed at: %s\nTotal run time: %s" % (str(end_time), str(end_time-start_time))
+    print("Run completed at: %s\nTotal run time: %s" % (str(end_time), str(end_time-start_time)))
     with open('psi_host_load_results.log', 'a') as outfile:
         outfile.write(str(results))
         outfile.write('\n')
@@ -255,7 +255,7 @@ def dump_host_reports(fresh_hosts_only=True):
     # Collect data file info to put into the JSON index file
     data_files = []
 
-    for host_file in host_files.itervalues():
+    for host_file in host_files.values():
         host_file[0].close()
         if fresh_hosts_only and datetime.datetime.strptime(host_file[2], '%Y-%m-%d %H:%M:%S.%f') + FRESH_AGE < datetime.datetime.now():
             # Defunct. Delete.

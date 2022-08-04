@@ -1855,7 +1855,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                  'ifconfig | grep ppp | wc -l'))
             ssh_users = int(self.run_command_on_host(host,
                                                  'ps ax | grep ssh | grep psiphon | wc -l')) / 2
-            return vpn_users + ssh_users
+            return int(vpn_users + ssh_users)
 
     def __check_host_is_accepting_tunnels(self, host_id):
         host = self.__hosts[host_id]
