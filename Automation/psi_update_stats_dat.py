@@ -71,7 +71,7 @@ def update_stats_dat():
 
     except Exception as e:
         logging.warning('Exception: %s', str(e)) 
-        print str(e)
+        print(str(e))
 
 if __name__ == "__main__":
     count = 0
@@ -81,7 +81,8 @@ if __name__ == "__main__":
     logging.basicConfig(filename='psi_update_stats_dat.log', format='%(asctime)s %(levelname)s %(message)s', level=logging.DEBUG)
     while count < MAX_RETRIES:
         update_stats_dat()
-        if os.path.getctime(PSI_OPS_DB_FILENAME) > stats_db_ctime: 
+        if os.path.exists(PSI_OPS_DB_FILENAME) and (
+                stats_db_ctime == None or os.path.getctime(PSI_OPS_DB_FILENAME) > stats_db_ctime):
             count = MAX_RETRIES
         else:
             count += 1
