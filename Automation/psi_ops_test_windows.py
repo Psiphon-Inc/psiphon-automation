@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2014, Psiphon Inc.
+# Copyright (c) 2022, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -17,6 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import sys
 import os
 import ssl
 import subprocess
@@ -32,14 +33,16 @@ from functools import wraps
 try:
     import win32ui
     import win32con
-    import _winreg
+    if sys.version_info < (3, 0):
+        import _winreg
+    else:
+        import winreg as _winreg
     REGISTRY_ROOT_KEY = _winreg.HKEY_CURRENT_USER
 except ImportError as error:
     print(error)
     print('NOTE: Running client tests will not be available.')
 
 try:
-    import sys
     if sys.version_info < (3, 0):
         import urllib2
     else:
@@ -100,6 +103,7 @@ except:
 def retry_on_exception_decorator(function):
     @wraps(function)
     def wrapper(*args, **kwds):
+        raised_exception = None
         for i in range(2):
             try:
                 if i > 0:
@@ -107,8 +111,9 @@ def retry_on_exception_decorator(function):
                 return function(*args, **kwds)
             except Exception as e:
                 print(str(e))
+                raised_exception = e
                 pass
-        raise e
+        raise raised_exception
     return wrapper
 
 

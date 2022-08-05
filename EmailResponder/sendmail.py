@@ -14,12 +14,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from cStringIO import StringIO
+from io import StringIO
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email.header import Header
-from email import Charset
+from email import charset
 from email.generator import Generator
 from email import encoders
 import smtplib
@@ -56,7 +56,7 @@ def create_raw_email(recipients,
 
     # We expect body to be an array of mime parts. So make one if that's not
     # what we got.
-    if isinstance(body, str) or isinstance(body, unicode):
+    if isinstance(body, str):
         body = [['plain', body], ]
     if body is None:
         body = []
@@ -65,7 +65,7 @@ def create_raw_email(recipients,
     # base64, and instead use quoted-printable (for both subject and body).  I
     # can't figure out a way to specify QP (quoted-printable) instead of base64 in
     # a way that doesn't modify global state. :-(
-    Charset.add_charset('utf-8', Charset.QP, Charset.QP, 'utf-8')
+    charset.add_charset('utf-8', charset.QP, charset.QP, 'utf-8')
 
     # The root MIME section.
     msgRoot = MIMEMultipart('mixed')
@@ -179,7 +179,7 @@ def send_raw_email_amazonses(raw_email,
 
     ses = boto3.client('ses', aws_access_key_id=aws_key, aws_secret_access_key=aws_secret_key, region_name=aws_region)
 
-    if isinstance(recipients, str) or isinstance(recipients, unicode):
+    if isinstance(recipients, str):
         recipients = [recipients]
 
     ses.send_raw_email(RawMessage={'Data':raw_email}, Source=from_address, Destinations=recipients)

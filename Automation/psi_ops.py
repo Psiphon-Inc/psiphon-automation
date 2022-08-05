@@ -63,6 +63,10 @@ except ImportError as error:
 try:
     if sys.version_info >= (3, 0):
         from builtins import dict, bytes, str
+
+        def cmp(a, b):
+            return (a > b) - (a < b)
+
 except ImportError as error:
     print(error)
 
@@ -787,11 +791,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
               }
             }
             '''
-            for host in self.__hosts.values() + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
+            for host in list(self.__hosts.values()) + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
                 host.tactics_request_public_key = None
                 host.tactics_request_private_key = None
                 host.tactics_request_obfuscated_key = None
-            for server in self.__servers.values() + self.__deleted_servers.values():
+            for server in list(self.__servers.values()) + list(self.__deleted_servers.values()):
                 server.capabilities['FRONTED-MEEK-TACTICS'] = False
                 server.configuration_version = INITIAL_SERVER_CONFIGURATION_VERSION
             for server in self.__servers.values():
@@ -805,12 +809,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     host.tactics_request_obfuscated_key = self.generate_obfuscated_key(base64_encode=True)
             self.version = '0.49'
         if cmp(parse_version(self.version), parse_version('0.50')) < 0:
-            for server in self.__servers.values() + self.__deleted_servers.values():
+            for server in list(self.__servers.values()) + list(self.__deleted_servers.values()):
                 server.capabilities['QUIC'] = False
                 server.ssh_obfuscated_quic_port = None
             self.version = '0.50'
         if cmp(parse_version(self.version), parse_version('0.51')) < 0:
-            for server in self.__servers.values() + self.__deleted_servers.values():
+            for server in list(self.__servers.values()) + list(self.__deleted_servers.values()):
                 server.capabilities['TAPDANCE'] = False
                 server.ssh_obfuscated_tapdance_port = None
             self.version = '0.51'
@@ -818,7 +822,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__TCS_blocklist_csv = ""
             self.version = '0.52'
         if cmp(parse_version(self.version), parse_version('0.53')) < 0:
-            for server in self.__servers.values() + self.__deleted_servers.values():
+            for server in list(self.__servers.values()) + list(self.__deleted_servers.values()):
                 server.capabilities['FRONTED-MEEK-QUIC'] = False
             self.version = '0.53'
         if cmp(parse_version(self.version), parse_version('0.54')) < 0:
@@ -835,7 +839,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__ssh_ip_address_whitelist = []
             self.version = '0.57'
         if cmp(parse_version(self.version), parse_version('0.58')) < 0:
-            for host in self.__hosts.values() + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
+            for host in list(self.__hosts.values()) + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
                 host.fronting_provider_id = None
             self.__fronting_provider_id_aliases = {}
             self.version = '0.58'
@@ -843,7 +847,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__TCS_iptables_output_rules = []
             self.version = '0.59'
         if cmp(parse_version(self.version), parse_version('0.60')) < 0:
-            for host in self.__hosts.values() + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
+            for host in list(self.__hosts.values()) + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
                 host.passthrough_address = None
             self.__passthrough_addresses = []
             self.version = '0.60'
@@ -852,14 +856,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__standard_ossh_ports.add(443)
             self.version = '0.61'
         if cmp(parse_version(self.version), parse_version('0.62')) < 0:
-            for host in self.__hosts.values() + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
+            for host in list(self.__hosts.values()) + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
                 host.run_packet_manipulator = None
             self.version = '0.62'
         if cmp(parse_version(self.version), parse_version('0.63')) < 0:
             self.__alternate_feedback_upload_urls = set()
             self.version = '0.63'
         if cmp(parse_version(self.version), parse_version('0.64')) < 0:
-            for server in self.__servers.values() + self.__deleted_servers.values():
+            for server in list(self.__servers.values()) + list(self.__deleted_servers.values()):
                 server.capabilities['CONJURE'] = False
                 server.ssh_obfuscated_conjure_port = None
             self.version = '0.64'
@@ -875,7 +879,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__default_alert_action_urls = {}
             self.version = '0.67'
         if cmp(parse_version(self.version), parse_version('0.68')) < 0:
-            for host in self.__hosts.values() + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
+            for host in list(self.__hosts.values()) + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
                 host.passthrough_version = None
                 host.enable_gquic = True
                 host.limit_quic_versions = None
@@ -1851,7 +1855,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                  'ifconfig | grep ppp | wc -l'))
             ssh_users = int(self.run_command_on_host(host,
                                                  'ps ax | grep ssh | grep psiphon | wc -l')) / 2
-            return vpn_users + ssh_users
+            return int(vpn_users + ssh_users)
 
     def __check_host_is_accepting_tunnels(self, host_id):
         host = self.__hosts[host_id]
@@ -2808,10 +2812,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     psi_ops_crypto_tools.generate_key_pair(
                         REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD))
 
-        # This may be serialized/deserialized into a unicode string, but M2Crypto won't accept that.
-        # The key pair should only contain ascii anyways, so encoding to ascii should be safe.
-        self.__remote_server_list_signing_key_pair.pem_key_pair = \
-            self.__remote_server_list_signing_key_pair.pem_key_pair.encode('ascii', 'ignore')
         return self.__remote_server_list_signing_key_pair
 
     def create_feedback_encryption_key_pair(self):
@@ -2841,10 +2841,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if not self.__feedback_encryption_key_pair:
             self.create_feedback_encryption_key_pair()
 
-        # This may be serialized/deserialized into a unicode string, but M2Crypto won't accept that.
-        # The key pair should only contain ascii anyways, so encoding to ascii should be safe.
-        self.__feedback_encryption_key_pair.pem_key_pair = \
-            self.__feedback_encryption_key_pair.pem_key_pair.encode('ascii', 'ignore')
         return self.__feedback_encryption_key_pair
 
     def create_routes_signing_key_pair(self):
@@ -2874,11 +2870,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if not self.__routes_signing_key_pair:
             self.create_routes_signing_key_pair()
 
-        # This may be serialized/deserialized into a unicode string, but M2Crypto won't accept that.
-        # The key pair should only contain ascii anyways, so encoding to ascii should be safe.
-        if isinstance(self.__routes_signing_key_pair.pem_key_pair, str):
-            self.__routes_signing_key_pair.pem_key_pair = \
-                self.__routes_signing_key_pair.pem_key_pair.encode(encoding='ascii', errors='ignore')
         return self.__routes_signing_key_pair
 
     def get_feedback_upload_info(self):
@@ -2928,10 +2919,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     psi_ops_crypto_tools.generate_key_pair(
                         UPGRADE_PACKAGE_SIGNING_KEY_PAIR_PASSWORD))
 
-        # This may be serialized/deserialized into a unicode string, but M2Crypto won't accept that.
-        # The key pair should only contain ascii anyways, so encoding to ascii should be safe.
-        self.__upgrade_package_signing_key_pair.pem_key_pair = \
-            self.__upgrade_package_signing_key_pair.pem_key_pair.encode('ascii', 'ignore')
         return self.__upgrade_package_signing_key_pair
 
     def __split_tunnel_url_format(self):
@@ -4835,6 +4822,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def __test_server(self, server, test_cases, version, test_propagation_channel_id, executable_path):
 
+        host = self.__hosts[server.host_id]
+        egress_ip_addresses = list(set([server.egress_ip_address] +
+                                        [s.ip_address for s in self.get_servers() if s.host_id == host.id] +
+                                        [host.ip_address]))
+
         return psi_ops_test_windows.test_server(
                                 server,
                                 self.__hosts[server.host_id],
@@ -4843,7 +4835,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 self.__split_tunnel_signature_public_key(),
                                 self.__split_tunnel_dns_server(),
                                 version,
-                                [server.egress_ip_address],
+                                egress_ip_addresses,
                                 test_propagation_channel_id,
                                 test_cases,
                                 executable_path)

@@ -70,7 +70,7 @@ class PsiScaleway:
         self.api_token = scaleway_account.api_token
         self.region = random.choice(scaleway_account.regions)
         self.client = ScalewayApis.ComputeAPI(auth_token=self.api_token, region=self.region)
-        self.organizations = ScalewayApis.AccountAPI(auth_token=self.api_token).query().tokens.get()['tokens'][0]['organization_id']
+        self.project_id = ScalewayApis.AccountAPI(auth_token=self.api_token).query().tokens(self.api_token).get()['token']['project_id']
 
     def reload(self):
         self.client = ScalewayApis.ComputeAPI(auth_token=self.api_token, region=self.region)
@@ -182,7 +182,7 @@ class PsiScaleway:
     def create_scaleway(self, host_id):
         try:
             # We are using Scaleway 3 vCPUs 4 GB: u'DEV1-M'
-            scaleway = self.client.query().servers.post({'project': self.organizations, 'name': host_id, 'commercial_type': tcs_instance_size, 'image': self.get_image()['id']})
+            scaleway = self.client.query().servers.post({'project': self.project_id, 'name': host_id, 'commercial_type': tcs_instance_size, 'image': self.get_image()['id']})
 
             res = self.start_scaleway(scaleway['server']['id'])
             wait_while_condition(lambda: self.scaleway_list(scaleway['server']['id'])['state'] != 'running',
