@@ -45,6 +45,7 @@ import time
 from pkg_resources import parse_version
 from multiprocessing.pool import ThreadPool
 from collections import defaultdict
+from builtins import input
 
 import psi_utils
 import psi_ops_cms
@@ -2744,7 +2745,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                       orphan.region.id,
                       str(orphan.tags)
                   )))
-            user_response = raw_input("Do you want to delete this orphan host? ")
+            user_response = input("Do you want to delete this orphan host? ")
             if user_response in ['yes', 'y', 'Y', 'Yes']:
                 print('Adding host to deletion list - the host: {}'.format(host_name))
                 pending_deletion.append(orphan_id)
@@ -2752,7 +2753,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             else:
                 print("Do Nothing")
 
-        user_confirm = raw_input('Start deleting following orphan hosts: \n{}\nDo you want to process? '.format(pending_deletion))
+        user_confirm = input('Start deleting following orphan hosts: \n{}\nDo you want to process? '.format(pending_deletion))
         if user_confirm in ['yes', 'y', 'Y', 'Yes']:
             for i in pending_deletion:
                 print("Deleting: {}".format(i))
