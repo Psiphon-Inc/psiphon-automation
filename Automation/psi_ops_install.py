@@ -1291,7 +1291,7 @@ def install_second_ip_address(host, new_ip_addresses_list):
         host.ssh_username, host.ssh_password,
         host.ssh_host_key)
 
-    interface_dev = ssh.exec_command("ip addr show | awk '/inet.*brd/{print $NF}'")[:-1]
+    interface_dev = ssh.exec_command("ip addr show | grep %s | awk '/inet.*brd/{print $NF}'" % (host.ip_address))[:-1]
     interface_up = ssh.exec_command('cat /sys/class/net/' + interface_dev + '/operstate')
     nat_routing_exist = ssh.exec_command('[ -f ' + nat_routing_path  + ' ] && echo "found" || echo "no"')
 
