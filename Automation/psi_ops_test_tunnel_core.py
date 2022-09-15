@@ -116,6 +116,7 @@ class TunnelCoreConsoleRunner:
     # Setup and create tunnel core config file.
     def _setup_tunnel_config(self, transport):
         config = {
+            "DataRootDirectory": os.path.dirname(self.tunnel_core_config),
             "TargetServerEntry": self.encoded_server_entry, # Single Test Server Parameter
             "TunnelProtocol": transport, # Single or group Test Protocol
             "PropagationChannelId" : self.propagation_channel_id, # Propagation Channel ID = "Testing"
@@ -230,6 +231,7 @@ class TunnelCoreConsoleRunner:
             
             pool = urllib3.HTTPSConnectionPool(host=fqdn, port=remote_port,
                                                maxsize=2,
+                                               timeout=30.0,
                                                source_address=(self.tun_source_ip_address,
                                                                self.tun_source_port))
             response = pool.request('GET', path, headers={"User-Agent": user_agent}, release_conn=True)
@@ -244,9 +246,9 @@ class TunnelCoreConsoleRunner:
     def stop_psiphon(self):
         try:
             self.proc.send_signal(signal.SIGINT)
-            (stdin, stderr) = self.proc.communicate()
-        except Exception as e:
-            print(e)
+            (stdin, stderr) = self.proc.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            self.proc.kill()
 
         try:
             #os.remove(self.tunnel_core_config)
