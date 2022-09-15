@@ -307,7 +307,7 @@ def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, a
                         url, 
                         headers={
                             "User-Agent":   user_agent
-                        }).data.split('\n')[0]
+                        }).data.split(b'\n')[0]
                     
                     is_proxied = (egress_ip_address in expected_egress_ip_addresses)
                     
