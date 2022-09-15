@@ -109,7 +109,7 @@ class TunnelCoreConsoleRunner:
             self.packet_tunnel_tests = True
             self.tun_source_ip_address = packet_tunnel_params.pop('tunIPAddress')
             self.test_sites = packet_tunnel_params.pop('test_sites')
-            for k,v in packet_tunnel_params.iteritems():
+            for k,v in packet_tunnel_params.items():
                 self.cmdline_opts += ['-'+k, v]
     
      
