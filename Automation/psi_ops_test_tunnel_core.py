@@ -309,7 +309,7 @@ def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, a
                             "User-Agent":   user_agent
                         }).data.split(b'\n')[0]
                     
-                    is_proxied = (egress_ip_address in expected_egress_ip_addresses)
+                    is_proxied = (egress_ip_address.decode("UTF-8") in expected_egress_ip_addresses)
                     
                     if url.startswith('https'):
                         output['HTTPS'] = 'PASS' if is_proxied else 'FAIL : Connection is not proxied.  Egress IP is: {0}, expected: {1}'.format(egress_ip_address, expected_egress_ip_addresses)
