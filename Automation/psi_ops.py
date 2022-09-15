@@ -1985,7 +1985,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             except:
                 return None
 
-        pool = ThreadPool(24)
+        pool = ThreadPool(20)
         new_servers = pool.map(_launch_new_server, [count for count in range(new_osl_discovery_servers_count + new_discovery_servers_count + new_propagation_servers_count)])
 
         failure = None
