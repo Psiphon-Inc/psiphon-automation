@@ -62,6 +62,7 @@ def load_server_config(server_id):
 def retry_on_exception_decorator(function):
     @wraps(function)
     def wrapper(*args, **kwds):
+        raised_exception = None
         for i in range(2):
             try:
                 if i > 0:
@@ -69,8 +70,9 @@ def retry_on_exception_decorator(function):
                 return function(*args, **kwds)
             except Exception as e:
                 print(str(e))
+                raised_exception = e
                 pass
-        raise e
+        raise raised_exception
     return wrapper
 
 
