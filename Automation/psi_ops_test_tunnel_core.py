@@ -238,7 +238,7 @@ class TunnelCoreConsoleRunner:
                                                                self.tun_source_port))
             response = pool.request('GET', path, headers={"User-Agent": user_agent}, release_conn=True)
             egress_ip_address = response.data.strip()
-            is_proxied = (egress_ip_address in expected_egress_ip_addresses)
+            is_proxied = (egress_ip_address..decode("UTF-8") in expected_egress_ip_addresses)
             if is_proxied:
                 output['PT-HTTPS'] = 'PASS'
         
