@@ -17,6 +17,9 @@ append_dot_mydomain = no
 
 readme_directory = no
 
+# Replace with the SpamHaus Data Query Service ID
+spamhaus_dqs_id = ...
+
 #
 # TLS parameters
 #
@@ -41,7 +44,7 @@ tls_random_source=dev:/dev/urandom
 # Postfix runs in a chroot jail, so it can't access /etc/ssl/certs. Instead use:
 smtp_tls_CAfile=/etc/ssl/certs/ca-certificates.crt
 
-# These two can be set to 'may' to use encryption oppotunistically, but not require it.
+# These two can be set to 'may' to use encryption opportunistically, but not require it.
 # Note that this level of security will mean that connections to and from some
 # mail servers will fail. It works with all of the major webmail providers,
 # though. It's probably best to not reply at all than to reply unencrypted to
@@ -110,7 +113,7 @@ smtpd_junk_command_limit = 2
 smtpd_helo_restrictions =
         reject_non_fqdn_helo_hostname,
         reject_invalid_helo_hostname,
-        reject_rhsbl_helo zen.spamhaus.org
+        reject_rhsbl_helo ${spamhaus_dqs_id}.zen.dq.spamhaus.net
 
 # Block clients that speak too early.
 smtpd_data_restrictions = reject_unauth_pipelining
@@ -122,7 +125,7 @@ smtpd_client_restrictions =
 smtpd_sender_restrictions =
         reject_unknown_sender_domain,
         reject_unknown_address,
-        reject_rhsbl_reverse_client dbl.spamhaus.org,
+        reject_rhsbl_reverse_client ${spamhaus_dqs_id}.dbl.dq.spamhaus.net,
         reject_rbl_client b.barracudacentral.org
 
 # Reject messages that don't meet these criteria
@@ -151,14 +154,14 @@ smtpd_recipient_restrictions =
    # postgrey
    check_policy_service inet:127.0.0.1:10023,
 
-   reject_rhsbl_reverse_client dbl.spamhaus.org,
-   reject_rhsbl_sender dbl.spamhaus.org,
-   reject_rhsbl_client dbl.spamhaus.org,
+   reject_rhsbl_reverse_client ${spamhaus_dqs_id}.dbl.dq.spamhaus.net,
+   reject_rhsbl_sender ${spamhaus_dqs_id}.dbl.dq.spamhaus.net,
+   reject_rhsbl_client ${spamhaus_dqs_id}.dbl.dq.spamhaus.net,
 
    reject_rbl_client b.barracudacentral.org,
-   reject_rbl_client zen.spamhaus.org,
-   reject_rbl_client dnsbl.sorbs.net
-   reject_rbl_client cbl.abuseat.org,
+   reject_rbl_client ${spamhaus_dqs_id}.zen.dq.spamhaus.net,
+   reject_rbl_client ${spamhaus_dqs_id}.xbl.dq.spamhaus.net,
+   reject_rbl_client dnsbl.sorbs.net,
    reject_rbl_client bl.spamcop.net,
 
    permit
@@ -170,7 +173,32 @@ smtpd_recipient_restrictions =
 # Without this, some other rules can be bypassed.
 smtpd_helo_required = yes
 
-smtpd_relay_restrictions = permit_mynetworks, reject_invalid_hostname, reject_non_fqdn_sender, reject_non_fqdn_recipient, reject_unknown_sender_domain, reject_unknown_recipient_domain, reject_unauth_destination, reject_unauth_pipelining, reject_invalid_helo_hostname, reject_unknown_helo_hostname, reject_non_fqdn_helo_hostname, reject_unverified_sender, check_helo_access hash:/home/mail_responder/helo_access, check_sender_access hash:/home/mail_responder/sender_access, permit_dnswl_client list.dnswl.org, check_policy_service inet:127.0.0.1:10023, reject_rhsbl_reverse_client dbl.spamhaus.org, reject_rhsbl_sender dbl.spamhaus.org, reject_rhsbl_client dbl.spamhaus.org, reject_rbl_client b.barracudacentral.org, reject_rbl_client zen.spamhaus.org, reject_rbl_client dnsbl.sorbs.net reject_rbl_client cbl.abuseat.org, reject_rbl_client bl.spamcop.net, permit
+smtpd_relay_restrictions =
+   permit_mynetworks,
+   reject_invalid_hostname,
+   reject_non_fqdn_sender,
+   reject_non_fqdn_recipient,
+   reject_unknown_sender_domain,
+   reject_unknown_recipient_domain,
+   reject_unauth_destination,
+   reject_unauth_pipelining,
+   reject_invalid_helo_hostname,
+   reject_unknown_helo_hostname,
+   reject_non_fqdn_helo_hostname,
+   reject_unverified_sender,
+   check_helo_access hash:/home/mail_responder/helo_access,
+   check_sender_access hash:/home/mail_responder/sender_access,
+   permit_dnswl_client list.dnswl.org,
+   check_policy_service inet:127.0.0.1:10023,
+   reject_rhsbl_reverse_client ${spamhaus_dqs_id}.dbl.dq.spamhaus.net,
+   reject_rhsbl_sender ${spamhaus_dqs_id}.dbl.dq.spamhaus.net,
+   reject_rhsbl_client ${spamhaus_dqs_id}.dbl.dq.spamhaus.net,
+   reject_rbl_client b.barracudacentral.org,
+   reject_rbl_client ${spamhaus_dqs_id}.zen.dq.spamhaus.net,
+   reject_rbl_client ${spamhaus_dqs_id}.xbl.dq.spamhaus.net,
+   reject_rbl_client dnsbl.sorbs.net,
+   reject_rbl_client bl.spamcop.net,
+   permit
 
 #
 # SMTP (sending) config
