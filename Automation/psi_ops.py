@@ -1911,6 +1911,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if max_propagation_server_age_in_days > 0:
             old_propagation_servers = [server for server in self.__servers.itervalues()
                 if server.propagation_channel_id == propagation_channel.id
+                and not server.osl_discovery_date_range
                 and not server.discovery_date_range
                 and not server.is_embedded
                 and server.logs[0][0] < (today - datetime.timedelta(days=max_propagation_server_age_in_days))
@@ -1964,7 +1965,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             except:
                 return None
 
-        pool = ThreadPool(24)
+        pool = ThreadPool(20)
         new_servers = pool.map(_launch_new_server, [count for count in range(new_osl_discovery_servers_count + new_discovery_servers_count + new_propagation_servers_count)])
 
         failure = None

@@ -210,6 +210,9 @@ def launch_new_server(vpsnet_account, is_TCS, _, multi_ip=False, datacenter_city
         print 'Available Regions:\n'
         for region in vpsnet_clouds:
             print '%s -> %s' % (region['cloud']['id'], region['cloud']['label'])
+            if region['cloud']['id'] in [135]:
+                print('\tSkipping region %s' % (region['cloud']['id']))
+                continue
             for template in region['cloud']['system_templates']:
                 if 'tcs' in template['label'].lower() and str(template['id']) == base_image_id:
                     print '\tFound psiphon template id %s in region %s' % (
