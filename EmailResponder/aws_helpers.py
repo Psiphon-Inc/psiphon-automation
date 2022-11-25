@@ -150,12 +150,12 @@ def _get_autoscaling_group(aws_region):
     if _autoscaling_group is None:
         # Get the autoscaling group name
         client = boto3.client('autoscaling', region_name=aws_region)
-        paginator = client.get_paginator('describe_auto_scaling_instances')
-        page_iterator = paginator.paginate(PaginationConfig={'PageSize': 50})
-        filtered_asis = page_iterator.search(
-            'AutoScalingInstances[] | [?InstanceId==`{}`]'.format(_get_instance_id()))
-        asi = next(filtered_asis, None)
-        _autoscaling_group = asi['AutoScalingGroupName'] if asi else ''
+        asi_resp = client.describe_auto_scaling_instances(InstanceIds=[_get_instance_id().decode('utf-8')])
+        if len(asi_resp['AutoScalingInstances']) > 0:
+            _autoscaling_group = asi_resp['AutoScalingInstances'][0]['AutoScalingGroupName']
+        else:
+            # This instance is not in an autoscaling group
+            _autoscaling_group = ''
 
     return _autoscaling_group if _autoscaling_group else None
 
