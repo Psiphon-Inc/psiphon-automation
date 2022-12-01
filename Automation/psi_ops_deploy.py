@@ -839,8 +839,8 @@ def deploy_geoip_database_autoupdates(host):
         ssh.exec_command('echo "%s" > %s' % (cron_file_contents, cron_filename))
         ssh.exec_command('chmod +x %s' % (cron_filename,))
 
-        # Run the first update
-        ssh.exec_command(geoipupdate_filename)
+        # Run the first update in the background
+        ssh.exec_command(geoipupdate_filename + ' > /dev/null 2<&1 &')
         ssh.close()
 
         host.log('deploy geoip autoupdates')

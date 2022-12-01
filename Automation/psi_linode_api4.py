@@ -172,7 +172,7 @@ class PsiLinode:
     def create_linode_disks(self, linode, bootstrap_password, is_TCS, plugins):
         if is_TCS:
             image = linode_api4.linode.Image(self.client, tcs_image_id)
-            disk = linode.disk_create(29500, image=image, filesystem='ext4', root_pass=bootstrap_password)
+            disk = linode.disk_create(79500, image=image, filesystem='ext4', root_pass=bootstrap_password)
         else: # Lagecy psiphon servers, NOT TESTED
             #TODO: THIS ONE ISN'T WORKING SINCE LINODE CHANGED THEIR IMAGE/DISTRIBUTION ID SYSTEM.
             # DistributionID = 130: 'Debian 7.6'
