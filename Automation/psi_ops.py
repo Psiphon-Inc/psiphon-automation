@@ -2391,7 +2391,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             self.setup_server(host, [server])
 
-            self.run_command_on_host(host, 'shutdown -r')
+            self.run_command_on_host(host, 'shutdown -r 5')
 
             self.save()
 
