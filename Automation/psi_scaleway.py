@@ -109,7 +109,7 @@ class PsiScaleway:
             'fr-par-2': 'Scaleway Paris Two, FR',
             'nl-ams-1': 'Scaleway Amsterdam, NL',
             'nl-ams-2': 'Scaleway Amsterdam 2, NL',
-            'pl-waw-1': 'Scaleway Warsaw, PL'
+            'pl-waw-1': 'Scaleway Warsaw, PL',
             'pl-waw-2': 'Scaleway Warsaw 2, PL'
         }
         return regions.get(self.region, '')
