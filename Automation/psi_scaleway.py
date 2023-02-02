@@ -86,8 +86,11 @@ class PsiScaleway:
     def get_region(self):
         # 'fr-par-1',
         # 'fr-par-2',
+        # 'fr-par-3', Not include this AZ
         # 'nl-ams-1',
+        # 'nl-ams-2',
         # 'pl-waw-1',
+        # 'pl-waw-2'
 
         # Get region's country code
         if 'fr' in self.region:
@@ -105,7 +108,9 @@ class PsiScaleway:
             'fr-par-1': 'Scaleway Paris One, FR',
             'fr-par-2': 'Scaleway Paris Two, FR',
             'nl-ams-1': 'Scaleway Amsterdam, NL',
-            'pl-waw-1': 'Scaleway Warsaw, PL'
+            'nl-ams-2': 'Scaleway Amsterdam 2, NL',
+            'pl-waw-1': 'Scaleway Warsaw, PL',
+            'pl-waw-2': 'Scaleway Warsaw 2, PL'
         }
         return regions.get(self.region, '')
 
