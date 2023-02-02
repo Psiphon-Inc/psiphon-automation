@@ -1001,7 +1001,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for s in self.__sponsors.values():
             self.show_sponsor(s.name)
 
-    def show_sponsor(self, sponsor_name):
+    def show_sponsor(self, sponsor_name, verbose=True):
         s = self.get_sponsor_by_name(sponsor_name)
         print(textwrap.dedent('''
             ID:                      %(id)s
@@ -1031,7 +1031,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                              c.s3_bucket_name)
                                             for c in s.campaigns])
                     })
-        self.__show_logs(s)
+        if verbose:
+            self.__show_logs(s)
 
     def show_campaigns_on_propagation_channel(self, propagation_channel_name):
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
