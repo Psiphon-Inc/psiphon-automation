@@ -1001,7 +1001,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for s in self.__sponsors.values():
             self.show_sponsor(s.name)
 
-    def show_sponsor(self, sponsor_name):
+    def show_sponsor(self, sponsor_name, verbose=True):
         s = self.get_sponsor_by_name(sponsor_name)
         print(textwrap.dedent('''
             ID:                      %(id)s
@@ -1031,7 +1031,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                              c.s3_bucket_name)
                                             for c in s.campaigns])
                     })
-        self.__show_logs(s)
+        if verbose:
+            self.__show_logs(s)
 
     def show_campaigns_on_propagation_channel(self, propagation_channel_name):
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
@@ -2956,8 +2957,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
         sponsor = self.get_sponsor_by_name(sponsor_name)
-        encoded_server_list, expected_egress_ip_addresses = \
-                    self.__get_encoded_server_list(propagation_channel.id, test=test, include_propagation_servers=test)
 
         remote_server_list_signature_public_key = \
             psi_ops_crypto_tools.get_base64_der_public_key(
@@ -3019,7 +3018,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         propagation_channel.id,
                         sponsor.id,
                         base64.b64decode(sponsor_banner),
-                        encoded_server_list,
+                        self.__get_encoded_server_list(propagation_channel.id, test=test, include_propagation_servers=test, client_platform=platform)[0],
                         remote_server_list_signature_public_key,
                         remote_server_list_url_split,
                         json.dumps(remote_server_list_urls).replace('"', '\\"'),
@@ -4052,7 +4051,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return subprocess.Popen(args, env=env, stdout=subprocess.PIPE).communicate()[0].decode().strip()
 
     def __get_encoded_server_list(self, propagation_channel_id,
-                                  client_ip_address_strategy_value=None, event_logger=None, discovery_date=None, test=False, include_propagation_servers=True):
+                                  client_ip_address_strategy_value=None, event_logger=None, discovery_date=None, test=False, include_propagation_servers=True, client_platform=None):
         if not client_ip_address_strategy_value:
             # embedded (propagation) server list
             # output all servers for propagation channel ID with no discovery date
@@ -4061,11 +4060,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     if server.propagation_channel_id != propagation_channel_id
                                     and server.is_permanent]
             random.shuffle(permanent_server_ids)
+            if client_platform == CLIENT_PLATFORM_WINDOWS:
+                permanent_server_ids = permanent_server_ids[0:100]
+            else:
+                permanent_server_ids = permanent_server_ids[0:400]
 
             servers = [server for server in self.__servers.values()
                        if (server.propagation_channel_id == propagation_channel_id and
                            (server.is_permanent or (server.is_embedded and include_propagation_servers)))
-                       or (not test and (server.id in permanent_server_ids[0:400]))]
+                       or (not test and (server.id in permanent_server_ids))]
         else:
             # discovery case
             if not discovery_date:
