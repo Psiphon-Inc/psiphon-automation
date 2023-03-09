@@ -319,6 +319,7 @@ VPS247Account = psi_utils.recordtype(
 ScalewayAccount = psi_utils.recordtype(
     'ScalewayAccount',
     'api_token, regions, base_ssh_port, ' +
+    'organization_id, project_id, ' +
     'base_rsa_private_key',
     default=None)
 
@@ -864,6 +865,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 host.enable_gquic = True
                 host.limit_quic_versions = None
             self.version = '0.68'
+        if cmp(parse_version(self.version), parse_version('0.69')) < 0:
+            self.__scaleway_account.organization_id = ''
+            self.__scaleway_account.project_id = ''
+            self.version = '0.69'
 
     def initialize_plugins(self):
         for plugin in plugins:
