@@ -9,3 +9,5 @@ network-health/
 *ssl*
 deploy.py
 psinet.py
+*.exe
+*.dll

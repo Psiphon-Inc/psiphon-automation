@@ -8,7 +8,7 @@ linode_api4==2.2.1
 paramiko==2.11.0
 Pillow==6.2.2 
 python-digitalocean==1.15.0
-pywin32==304
+#pywin32==304
 pyyaml==5.3.1 
 qrcode==6.1
 slumber==0.7.1

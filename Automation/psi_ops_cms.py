@@ -23,13 +23,13 @@ import subprocess
 import shlex
 import tempfile
 import jsonpickle
-
+import getpass
 
 #==============================================================================
 
 
 PSI_OPS_ROOT = os.path.abspath(os.path.join('..', 'Data', 'PsiOps'))
-PSI_OPS_DB_FILENAME = os.path.join(PSI_OPS_ROOT, 'psi_ops.dat')
+PSI_OPS_DB_FILENAME = os.path.join(PSI_OPS_ROOT, 'psi_ops_devops.dat')
 
 
 if os.path.isfile('psi_data_config.py'):
@@ -57,10 +57,10 @@ def unlock_document():
             psi_ops_config.CIPHERSHARE_SERVERHOST,
             psi_ops_config.CIPHERSHARE_SERVERPORT,
             psi_ops_config.CIPHERSHARE_PSI_OPS_DOCUMENT_PATH)
-    
+
     proc = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output = proc.communicate()
-    
+
     if proc.returncode != 0:
         raise Exception('CipherShare unlock failed: ' + str(output))
 
@@ -78,7 +78,7 @@ def lock_document():
             psi_ops_config.CIPHERSHARE_SERVERHOST,
             psi_ops_config.CIPHERSHARE_SERVERPORT,
             psi_ops_config.CIPHERSHARE_PSI_OPS_DOCUMENT_PATH)
-    
+
     proc = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output = proc.communicate()
     
@@ -87,21 +87,26 @@ def lock_document():
 
 
 def export_document(dest_filename):
-    cmd = 'CipherShareScriptingClient.exe \
-            ExportDocument \
+    if sys.platform in ['win32','cygwin']:
+        cmd = 'CipherShareScriptingClient.exe'
+    else:
+        cmd = 'wine CipherShareScriptingClient.exe'
+        os.remove(dest_filename)
+    cmd += ' ExportDocument \
             -UserName %s -Password %s \
             -OfficeName %s -DatabasePath "%s" -ServerHost %s -ServerPort %s \
             -SourceDocument "%s" \
             -TargetFile "%s"' \
          % (psi_ops_config.CIPHERSHARE_USERNAME,
-            psi_ops_config.CIPHERSHARE_PASSWORD,
+            getpass.getpass("Please enter Ciphershare password for user " + psi_ops_config.CIPHERSHARE_USERNAME + " :\n") if psi_ops_config.CIPHERSHARE_PASSWORD == "" else psi_ops_config.CIPHERSHARE_PASSWORD,
             psi_ops_config.CIPHERSHARE_OFFICENAME,
             psi_ops_config.CIPHERSHARE_DATABASEPATH,
             psi_ops_config.CIPHERSHARE_SERVERHOST,
             psi_ops_config.CIPHERSHARE_SERVERPORT,
             psi_ops_config.CIPHERSHARE_PSI_OPS_DOCUMENT_PATH,
             dest_filename)
-    
+
+    print("Exporting Document...")
     proc = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output = proc.communicate()
     
