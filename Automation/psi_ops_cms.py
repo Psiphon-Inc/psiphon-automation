@@ -89,10 +89,10 @@ def lock_document():
 def export_document(dest_filename):
     if sys.platform in ['win32','cygwin']:
         cmd = 'CipherShareScriptingClient.exe'
-      # os.remove(dest_filename) is not necessary on windows OS as it will overwrite the psi_ops.db file.
+        # os.remove(dest_filename) is not necessary on windows OS as it will overwrite the psi_ops.db file.
     else:
         cmd = 'wine CipherShareScriptingClient.exe'
-     #  For Linux CS client will create error due to existing file path. so removing previous file (psi_ops.db from relative location $PSI_OPS_DB_FILENAME) is necesary. 
+        # For Linux CS client will create error due to existing file path. so removing previous file (psi_ops.db from relative location $PSI_OPS_DB_FILENAME) is necesary.
         os.remove(dest_filename)
     cmd += ' ExportDocument \
             -UserName %s -Password %s \
