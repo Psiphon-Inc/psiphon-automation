@@ -29,7 +29,7 @@ import getpass
 
 
 PSI_OPS_ROOT = os.path.abspath(os.path.join('..', 'Data', 'PsiOps'))
-PSI_OPS_DB_FILENAME = os.path.join(PSI_OPS_ROOT, 'psi_ops_devops.dat')
+PSI_OPS_DB_FILENAME = os.path.join(PSI_OPS_ROOT, 'psi_ops.dat')
 
 
 if os.path.isfile('psi_data_config.py'):
@@ -81,7 +81,7 @@ def lock_document():
 
     proc = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output = proc.communicate()
-    
+
     if proc.returncode != 0:
         raise Exception('CipherShare lock failed: ' + str(output))
 
@@ -109,7 +109,7 @@ def export_document(dest_filename):
     print("Exporting Document...")
     proc = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output = proc.communicate()
-    
+
     if proc.returncode != 0:
         raise Exception('CipherShare export failed: ' + str(output))
 
@@ -141,10 +141,10 @@ def import_document(source_filename, for_stats=False, for_devops=False):
                 psi_ops_config.CIPHERSHARE_SHAREGROUP,
             psi_ops_config.CIPHERSHARE_PSI_OPS_DOCUMENT_DESCRIPTION,
             '' if for_stats or for_devops else '-KeepLocked')
-    
+
     proc = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output = proc.communicate()
-    
+
     if proc.returncode != 0:
         raise Exception('CipherShare import failed: ' + str(output))
 
@@ -163,10 +163,10 @@ def delete_document(for_stats=False):
             psi_ops_config.CIPHERSHARE_SERVERPORT,
             psi_ops_config.CIPHERSHARE_PSI_OPS_FOR_STATS_DOCUMENT_PATH if for_stats else
                 psi_ops_config.CIPHERSHARE_PSI_OPS_FOR_DEVOPS_DOCUMENT_PATH)
-    
+
     proc = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output = proc.communicate()
-    
+
     if proc.returncode != 0:
         raise Exception('CipherShare delete failed: ' + str(output))
 
@@ -234,7 +234,7 @@ class PersistentObject(object):
         return obj
 
     def upgrade(self):
-        pass 
+        pass
 
     def initialize_plugins(self):
         pass
