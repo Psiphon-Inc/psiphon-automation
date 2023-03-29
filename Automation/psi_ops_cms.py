@@ -108,7 +108,7 @@ def export_document(dest_filename):
             psi_ops_config.CIPHERSHARE_PSI_OPS_DOCUMENT_PATH,
             dest_filename)
 
-    print("Exporting Document...")
+    print("Exporting CipherShare Document...")
     proc = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output = proc.communicate()
 
