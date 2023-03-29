@@ -23,7 +23,7 @@ import subprocess
 import shlex
 import tempfile
 import jsonpickle
-
+import getpass
 
 #==============================================================================
 
@@ -57,10 +57,10 @@ def unlock_document():
             psi_ops_config.CIPHERSHARE_SERVERHOST,
             psi_ops_config.CIPHERSHARE_SERVERPORT,
             psi_ops_config.CIPHERSHARE_PSI_OPS_DOCUMENT_PATH)
-    
+
     proc = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output = proc.communicate()
-    
+
     if proc.returncode != 0:
         raise Exception('CipherShare unlock failed: ' + str(output))
 
@@ -78,33 +78,40 @@ def lock_document():
             psi_ops_config.CIPHERSHARE_SERVERHOST,
             psi_ops_config.CIPHERSHARE_SERVERPORT,
             psi_ops_config.CIPHERSHARE_PSI_OPS_DOCUMENT_PATH)
-    
+
     proc = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output = proc.communicate()
-    
+
     if proc.returncode != 0:
         raise Exception('CipherShare lock failed: ' + str(output))
 
 
 def export_document(dest_filename):
-    cmd = 'CipherShareScriptingClient.exe \
-            ExportDocument \
+    if sys.platform in ['win32','cygwin']:
+        cmd = 'CipherShareScriptingClient.exe'
+        # os.remove(dest_filename) is not necessary on windows OS as it will overwrite the psi_ops.db file.
+    else:
+        cmd = 'wine CipherShareScriptingClient.exe'
+        # For Linux CS client will create error due to existing file path. so removing previous file (psi_ops.db from relative location $PSI_OPS_DB_FILENAME) is necessary.
+        os.remove(dest_filename)
+    cmd += ' ExportDocument \
             -UserName %s -Password %s \
             -OfficeName %s -DatabasePath "%s" -ServerHost %s -ServerPort %s \
             -SourceDocument "%s" \
             -TargetFile "%s"' \
          % (psi_ops_config.CIPHERSHARE_USERNAME,
-            psi_ops_config.CIPHERSHARE_PASSWORD,
+            getpass.getpass("Please enter Ciphershare password for user " + psi_ops_config.CIPHERSHARE_USERNAME + " :\n") if psi_ops_config.CIPHERSHARE_PASSWORD == "" else psi_ops_config.CIPHERSHARE_PASSWORD,
             psi_ops_config.CIPHERSHARE_OFFICENAME,
             psi_ops_config.CIPHERSHARE_DATABASEPATH,
             psi_ops_config.CIPHERSHARE_SERVERHOST,
             psi_ops_config.CIPHERSHARE_SERVERPORT,
             psi_ops_config.CIPHERSHARE_PSI_OPS_DOCUMENT_PATH,
             dest_filename)
-    
+
+    print("Exporting Document...")
     proc = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output = proc.communicate()
-    
+
     if proc.returncode != 0:
         raise Exception('CipherShare export failed: ' + str(output))
 
@@ -136,10 +143,10 @@ def import_document(source_filename, for_stats=False, for_devops=False):
                 psi_ops_config.CIPHERSHARE_SHAREGROUP,
             psi_ops_config.CIPHERSHARE_PSI_OPS_DOCUMENT_DESCRIPTION,
             '' if for_stats or for_devops else '-KeepLocked')
-    
+
     proc = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output = proc.communicate()
-    
+
     if proc.returncode != 0:
         raise Exception('CipherShare import failed: ' + str(output))
 
@@ -158,10 +165,10 @@ def delete_document(for_stats=False):
             psi_ops_config.CIPHERSHARE_SERVERPORT,
             psi_ops_config.CIPHERSHARE_PSI_OPS_FOR_STATS_DOCUMENT_PATH if for_stats else
                 psi_ops_config.CIPHERSHARE_PSI_OPS_FOR_DEVOPS_DOCUMENT_PATH)
-    
+
     proc = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output = proc.communicate()
-    
+
     if proc.returncode != 0:
         raise Exception('CipherShare delete failed: ' + str(output))
 
@@ -229,7 +236,7 @@ class PersistentObject(object):
         return obj
 
     def upgrade(self):
-        pass 
+        pass
 
     def initialize_plugins(self):
         pass
