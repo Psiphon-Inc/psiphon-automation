@@ -29,15 +29,15 @@ if __name__ == '__main__':
     parser.add_argument('--responder_addr', required=True, action='store', help='the address the email will be sent to')
     parser.add_argument('--subject', required=True, action='store', help='the subject of the email that will be sent')
     args = parser.parse_args()
-    
+
     # Create a stub email to send to the email processor
     em = email.message.Message()
     em['To'] = args.responder_addr
     em['X-Original-To'] = args.responder_addr
     em['Return-Path'] = args.recip_addr
     em['Subject'] = args.subject.strip('Re:').strip('re:').strip()
-    
+
     if not mail_process.process_input(em.as_string()):
-        print 'FAILED: check log for details'
+        print('FAILED: check log for details')
     else:
-        print 'SUCCESS'
+        print('SUCCESS')

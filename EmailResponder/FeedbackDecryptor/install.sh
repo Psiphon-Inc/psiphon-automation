@@ -18,7 +18,7 @@
 
 set -e -x
 
-MAILDECRYPTOR_USER="maildecryptor"
+FEEDBACK_USER="feedback_decryptor"
 
 if [ ! -f ./s3decryptor.service ]; then
   echo "This script must be run from the source directory."
@@ -30,11 +30,21 @@ if [ "$(whoami)" != "ubuntu" ]; then
   exit 1
 fi
 
-cut -d: -f1 /etc/passwd | grep $MAILDECRYPTOR_USER > /dev/null
+cut -d: -f1 /etc/passwd | grep $FEEDBACK_USER > /dev/null
 if [ "$?" -ne "0" ]; then
-  echo "You must already have created the user $MAILDECRYPTOR_USER, otherwise this script will fail. See the README for details."
+  echo "You must already have created the user $FEEDBACK_USER, otherwise this script will fail. See the README for details."
   exit 1
 fi
+
+# We're installing poetry as root, globally so that all users have access to it
+sudo pip install --upgrade poetry
+
+# Our poetry.toml has the virtualenvs.create directive set to false, which makes it
+# install packages globally using pip rather than in a venv. This allows it to be used by
+# all users (ubuntu, root, feedback_decryptor).
+# (An alternative approach could be to use virtualenvs.path and set it to a path that's
+# writable by all users. But that seems more dangerous.)
+sudo poetry install
 
 # Create the diagnostic data SQL DB.
 sudo mysql -u root --socket=/var/run/mysqld/mysqld.sock < sql_diagnostic_feedback_schema.sql
@@ -51,7 +61,7 @@ sudo cp autoresponder.service.configured /etc/systemd/system/autoresponder.servi
 rm *.service.configured
 
 sudo chmod 0400 *.pem conf.json
-sudo chown $MAILDECRYPTOR_USER:$MAILDECRYPTOR_USER *.pem conf.json
+sudo chown $FEEDBACK_USER:$FEEDBACK_USER *.pem conf.json
 
 chmod 400 ../../Automation/psi_ops_stats_credentials.py
 

@@ -31,7 +31,7 @@ def redact_sensitive_values(obj):
     are redacted by modifying the dictionary directly.
     '''
 
-    if isinstance(obj, utils.string_types) or not isinstance(obj, types.DictType):
+    if isinstance(obj, str) or not isinstance(obj, dict):
         return
 
     try:
@@ -40,7 +40,7 @@ def redact_sensitive_values(obj):
         client_version = sys_info["PsiphonInfo"]["CLIENT_VERSION"]
     except KeyError:
         return
-    
+
     if not isinstance(client_version, int):
         try:
             client_version = int(client_version)
@@ -55,7 +55,7 @@ def redact_sensitive_values_test():
     _redact_sensitive_values_all_clients_test()
     _redact_sensitive_values_ios_vpn_test()
 
-    print 'redact_sensitive_values_test okay'
+    print('redact_sensitive_values_test okay')
 
 redact_sensitive_values.test = redact_sensitive_values_test
 
@@ -84,13 +84,13 @@ def _redact_sensitive_values_all_clients_test():
           'UpstreamProxyError: "upstreamproxy error: proxyURI url.Parse: parse <redacted>'
     }
 
-    for log, expectedRedactedLog in tests.iteritems():
+    for log, expectedRedactedLog in tests.items():
         obj = _generate_android_feedback(1, log)
         redact_sensitive_values(obj)
         expectedRedactedObj = _generate_android_feedback(1, expectedRedactedLog)
         assert(obj == expectedRedactedObj)
 
-    print 'redact_sensitive_values_all_clients_test okay'
+    print('redact_sensitive_values_all_clients_test okay')
 
 
 def _generate_android_feedback(client_version, msg):
@@ -179,7 +179,7 @@ def _redact_sensitive_values_ios_vpn_test():
 
     assert(obj == expectedOutputOrdering1 or
            obj == expectedOutputOrdering2)
-    
+
     # Test where no redaction attempts are made based on the client version
 
     obj = _generate_ios_vpn_feedback(1, log)
@@ -194,7 +194,7 @@ def _redact_sensitive_values_ios_vpn_test():
     redact_sensitive_values(obj)
     assert(obj == obj_copy)
 
-    print 'redact_sensitive_values_ios_vpn_test okay'
+    print('redact_sensitive_values_ios_vpn_test okay')
 
 
 def redactors(client_platform, client_version):
@@ -228,21 +228,21 @@ def _redact_upstream_proxy_errors(obj, path, val):
     as defined by `diagnostic_msg_regex`, then the JSON is deserialized
     and an attempt is made to preserve the JSON structure by traversing
     the values of the dictionary and performing the redaction in place.
-    Instead of truncating the text following the upstream proxy error 
-    string and breaking the JSON structure. 
+    Instead of truncating the text following the upstream proxy error
+    string and breaking the JSON structure.
     '''
-    if isinstance(val, utils.string_types):
+    if isinstance(val, str):
 
         target = "upstreamproxy error: proxyURI url.Parse: parse "
 
         # An optimization to avoid deserializing the JSON string contained
         # within the diagnostic message if there is no match.
         #
-        # Warnings: 
-        # - This search will fail if the target string is contained 
-        #   within the inner JSON, but represented with escaped unicode 
-        #   characters -- ref. https://tools.ietf.org/html/rfc8259#section-8.3. 
-        #   There is no attempt to address this because we do not currently 
+        # Warnings:
+        # - This search will fail if the target string is contained
+        #   within the inner JSON, but represented with escaped unicode
+        #   characters -- ref. https://tools.ietf.org/html/rfc8259#section-8.3.
+        #   There is no attempt to address this because we do not currently
         #   expect our clients to generate any diagnostic logs with escaped
         #   unicode characters.
         # - Structural JSON characters will be escaped in the inner JSON and
@@ -263,7 +263,7 @@ def _redact_upstream_proxy_errors(obj, path, val):
                     return
             except ValueError:
                 pass
-       
+
         # Fallback on a less finessed redaction
         redacted_val = val[:index+len(target)] + "<redacted>"
         utils.assign_value_to_obj_at_path(obj, path, redacted_val)
@@ -271,7 +271,7 @@ def _redact_upstream_proxy_errors(obj, path, val):
 
 def _redact_text_proceeding_target_from_dict(target, d):
     '''
-    Redacts text which proceeds the first occurrence of the target string from 
+    Redacts text which proceeds the first occurrence of the target string from
     each string value in dictionary.
 
     E.g. target="abc", d={"k1": {"k1.1": "abcdefg"}}
@@ -279,13 +279,13 @@ def _redact_text_proceeding_target_from_dict(target, d):
 
     Returns True if any values were redacted; otherwise, returns False.
     '''
-    if not isinstance(target, utils.string_types):
+    if not isinstance(target, str):
         raise ValueError("`target` must be a string type, got {}".format(type(target)))
 
     redacted = False
 
-    for k, v in d.iteritems():
-        if isinstance(v, utils.string_types):
+    for k, v in d.items():
+        if isinstance(v, str):
             index = v.find(target)
             if index != -1:
                 redacted_v = v[:index + len(target)] + "<redacted>"
@@ -294,7 +294,7 @@ def _redact_text_proceeding_target_from_dict(target, d):
         elif isinstance(v, dict):
             if _redact_text_proceeding_target_from_dict(target, v):
                 redacted = True
-    
+
     return redacted
 
 
@@ -303,7 +303,7 @@ def _ios_vpn_redact_start_tunnel_with_options(obj, path, val):
     Redact target fields from startTunnelWithOptions log.
     See `_redact_sensitive_values_test()` for examples.
     '''
-    if isinstance(val, utils.string_types):
+    if isinstance(val, str):
 
         extensionInfoPrefix = "ExtensionInfo: "
 
@@ -328,7 +328,7 @@ def _ios_vpn_redact_start_tunnel_with_options(obj, path, val):
                     else:
                         redacted_val = extensionInfoPrefix + json.dumps({"PacketTunnelProvider":redacted})
                         utils.assign_value_to_obj_at_path(obj, path, redacted_val)
-                    
+
             except KeyError:
                 return
 
@@ -341,7 +341,7 @@ def _redact_start_tunnel_with_options(obj):
     Returns redacted dictionary which only contains non-sensitive fields.
     '''
 
-    if not isinstance(obj, types.DictType):
+    if not isinstance(obj, dict):
         return None
 
     redacted = {}
@@ -357,17 +357,17 @@ def _redact_start_tunnel_with_options(obj):
 
 def _redact_start_tunnel_with_options_test():
 
-    assert(_redact_start_tunnel_with_options({'Event':'a'}) 
+    assert(_redact_start_tunnel_with_options({'Event':'a'})
            == {'Event':'a'})
     assert(_redact_start_tunnel_with_options({'StartMethod':'b'})
            == {'StartMethod':'b'})
-    assert(_redact_start_tunnel_with_options({'Event':'a', 'StartMethod':'b'}) 
+    assert(_redact_start_tunnel_with_options({'Event':'a', 'StartMethod':'b'})
            == {'Event':'a', 'StartMethod':'b'})
     assert(_redact_start_tunnel_with_options({'Event':'a',
-                                              'StartMethod':'b', 'ExpectFieldToBeRedacted':'c'}) 
+                                              'StartMethod':'b', 'ExpectFieldToBeRedacted':'c'})
            == {'Event':'a', 'StartMethod':'b'})
 
-    print '_redact_start_tunnel_with_options_test okay'
+    print('_redact_start_tunnel_with_options_test okay')
 
 _redact_start_tunnel_with_options.test = _redact_start_tunnel_with_options_test
 
@@ -389,7 +389,7 @@ def _validate_start_tunnel_with_options(obj):
 
 
 def _validate_start_tunnel_with_options_test():
-    
+
     assert(_validate_start_tunnel_with_options({'a':'b'}) == False)
     assert(_validate_start_tunnel_with_options({'Event':'Start'}) == False)
     assert(_validate_start_tunnel_with_options({'StartMethod':'Container'}) == False)
@@ -401,7 +401,7 @@ def _validate_start_tunnel_with_options_test():
     assert(_validate_start_tunnel_with_options({'Event':'Start', 'StartMethod':'Other'}) == True)
     assert(_validate_start_tunnel_with_options({'Event':'Start', 'StartMethod':'Container', 'UnexpectedField':'UnexpectedValue'}) == False)
 
-    print '_validate_start_tunnel_with_test okay'
+    print('_validate_start_tunnel_with_test okay')
 
 _validate_start_tunnel_with_options.test = _validate_start_tunnel_with_options_test
 
@@ -411,7 +411,7 @@ def _windows_redact_panic_logs(obj, path, val):
     Redact all panic lines.
     See `_windows_redact_panic_logs_test()` for examples.
     '''
-    if isinstance(val, utils.string_types):
+    if isinstance(val, str):
         panicLinePrefix = "core panic: "
         if val.startswith(panicLinePrefix):
             utils.assign_value_to_obj_at_path(obj, path, panicLinePrefix + "[REDACTED]")
@@ -432,7 +432,7 @@ def _windows_redact_panic_logs_test():
     redact_sensitive_values(obj)
     assert(obj == obj_copy)
 
-    print '_windows_redact_panic_logs_test okay'
+    print('_windows_redact_panic_logs_test okay')
 
 _windows_redact_panic_logs.test = _windows_redact_panic_logs_test
 

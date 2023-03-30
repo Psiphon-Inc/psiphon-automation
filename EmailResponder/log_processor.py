@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 # Copyright (c) 2015, Psiphon Inc.
 # All rights reserved.
 #
@@ -67,7 +65,7 @@ class MailError(Base):
     ip = Column(String(256))
 
 
-dbengine = create_engine('mysql://%s:%s@localhost/%s' % (settings.DB_USERNAME, settings.DB_PASSWORD, settings.DB_DBNAME))
+dbengine = create_engine('mysql+mysqldb://%s:%s@localhost/%s' % (settings.DB_USERNAME, settings.DB_PASSWORD, settings.DB_DBNAME))
 Base.metadata.create_all(dbengine)
 Session = sessionmaker(bind=dbengine)
 
@@ -539,19 +537,19 @@ class LogHandlers(object):
 
         error = MailError()
 
-        if msgdict.has_key('error'):
+        if 'error' in msgdict:
             error_msg = msgdict['error']
 
         if error_msg:
             error.error_msg = error_msg[:MailError.error_msg.property.columns[0].type.length];
 
-        if msgdict.has_key('mail_host'):
+        if 'mail_host' in msgdict:
             mail_host = msgdict['mail_host']
 
         if mail_host:
             error.hostname = mail_host[:MailError.hostname.property.columns[0].type.length]
 
-        if msgdict.has_key('mail_ip'):
+        if 'mail_ip' in msgdict:
             mail_ip = msgdict['mail_ip']
 
         if mail_ip:

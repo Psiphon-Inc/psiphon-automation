@@ -133,7 +133,7 @@
 
 <h2>Build Info</h2>
 <table>
-  % for k, v in sorted(sys_info['Build'].iteritems()):
+  % for k, v in sorted(sys_info['Build'].items()):
     ${sys_info_row(k, v)}
   % endfor
   ${sys_info_row('isRooted', sys_info['isRooted'])}
@@ -141,7 +141,7 @@
 
 <h2>Psiphon Info</h2>
 <table>
-  % for k, v in sorted(sys_info['psiphonEmbeddedValues'].iteritems()):
+  % for k, v in sorted(sys_info['psiphonEmbeddedValues'].items()):
     ${sys_info_row(k, v)}
   % endfor
 </table>

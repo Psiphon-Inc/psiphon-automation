@@ -1,16 +1,9 @@
 # Diagnostic Feedback Decryptor
 
-This is a collection of services that monitor email and a S3 bucket for
+This is a collection of services that monitor email and an S3 bucket for
 encrypted diagnostic feedback. They then decrypt and store that data, and then
 send an email with the data.
 
-## TODO
-
-### Additional items to include in feedback
-
-#### Android
-
-+ output from uname -a or something that shows information about the kernel version and build
 
 ## How it works
 
@@ -19,71 +12,79 @@ There are 4 services:
 * `autoresponder`: Reads mongodb to check for new feedback where the user should be send an email response.
 * `mailsender`: Reads mongodb to check for new feedback that should be formatted and emailed to the Psiphon team.
 * `statschecker`: Utility service that periodically sends feedback stats in an email to the Psiphon team.
-* `maildecryptor`: Defunct. Feedback used to also come via email attachments, but this method is no longer used.
+* `maildecryptor`: _Defunct_. Feedback used to also come via email attachments, but this method is no longer used.
 
 
 ## Setup
 
 ### System Configuration
 
-#### Mongodb
+#### Instance
 
-From the instructions [here](http://docs.mongodb.org/manual/tutorial/install-mongodb-on-ubuntu/):
+At this time, the latest version of Ubuntu supported by MongoDB is 20.04, so we're stuck
+with that. The default version of Python on 20.04 is 3.8, but 3.9 is available as
+`python3.9`, so we'll use that. If/when we upgrade the OS, look for instances of
+"python3.9" and change them to "python3".
 
+Additionally, this should not be necessary, but seems to be required before running `install.sh`:
 ```
-apt-key adv --keyserver keyserver.ubuntu.com:80 --recv 9DA31620334BD75D9DCB49F368818C72E52529D4
-echo "deb [ arch=amd64 ] https://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/4.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-4.0.list
-sudo apt-get update
-sudo apt-get install mongodb-org
-sudo service mongod enable
-sudo service mongod start
+sudo python3.9 -m pip install cryptography
 ```
 
-#### Everything else
+The EC2 instance should use an IAM role with the following policy:
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject",
+                "s3:ListBucket",
+                "s3:DeleteObject"
+            ],
+            "Resource": [
+                "arn:aws:s3:::<from config[s3BucketName]>",
+                "arn:aws:s3:::<from config[s3BucketName]>/*"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ses:SendEmail",
+                "ses:SendRawEmail"
+            ],
+            "Resource": [
+                "arn:aws:ses:<arn for SES address that is being sent from>"
+            ]
+        }
+    ]
+}
+```
+
+#### Packages
 
 ```shell
-# Prereqs
-sudo apt-get install -y python-pip python-dev libssl-dev swig
-sudo pip install --upgrade rfc6266 pynliner cssutils BeautifulSoup mako pymongo boto requests numpy html2text pytz pydns sqlalchemy
-sudo pip install --upgrade M2Crypto
+sudo apt install -y python3-pip python3-testresources mysql-server
 ```
 
-#### pynliner issues
-
-The pynliner library has a [Unicode-related issue that affects us](https://github.com/rennat/pynliner/issues/10).
-Until it is resolved/released, we will need to [manually patch the code](https://github.com/rmgorman/pynliner/commit/f21f7aa44d1077f781a278ccb62f792bc4bec150).
-
-#### M2Crypto issues
-
-Check that M2Crypto installed properly. Open a Python REPL, and then type
-`import M2Crypto`. If you receive either of these errors:
-
-```
-ImportError: No module named __m2crypto
-ImportError: /usr/local/lib/python2.7/dist-packages/M2Crypto-0.21.1-py2.7-linux-x86_64.exx/__m2crypto.so: undefined symbol: SSLv2_method
-```
-
-Then `sudo pip uninstall M2Crypto`.
-
-...and then pull the source from here:
-http://chandlerproject.org/Projects/MeTooCrypto
-
-...and follow the instructions for code mods here:
-http://code.google.com/p/grr/wiki/M2CryptoFromSource
+From the [official MongoDB instructions](http://docs.mongodb.org/manual/tutorial/install-mongodb-on-ubuntu/).
 
 #### Create limited-privilege user
 
 The daemon will run as this user.
 
 ```shell
-sudo useradd -s /bin/false maildecryptor
+sudo useradd -s /bin/false feedback_decryptor
 ```
 
 ### Get source files
 
-Use Mercurial to get the source files. Also acquire the necessary
-configuration files from your secure document repository. These files are:
-`conf.json` and the PEM file (the latter can be extracted from psinet).
+Clone this repo. Also acquire the necessary configuration files from your secure document
+repository. These files are: `conf.json` and the PEM file (the latter can be extracted
+from psinet).
+
+`Automation/psi_ops_stats_credentials.py` will need to be created. TODO: Details.
 
 ## Installing
 
@@ -137,13 +138,29 @@ Create a bucket in S3 with the following bucket policy:
 `sample_conf.json` must be renamed (or copied) to `conf.json` and all values
 must be filled in.
 
+## Psiphon server database
+
+To ensure that Psiphon server IP addresses don't end up stored in email, MySQL, etc., we check for IPs in feedback and replace them with pseudonyms (so that we can still tell what server is being referenced). This requires a copy of the Psiphon server database (or a lightweight version of it). It is periodically updated from CipherShare.
+
+Install `wine` using [the official instructions](https://wiki.winehq.org/Ubuntu). Obtain `CipherShareScriptingClient.exe`.
+
 ## Running
 
 Use the systemd utilities. For example:
 
 ```shell
-sudo systemctl restart maildecryptor
 sudo systemctl restart s3decryptor
 sudo systemctl restart mailsender
 sudo systemctl restart statschecker
 ```
+
+## Nagios monitoring
+
+Install NCPA by following the instructions [here](https://repo.nagios.com/?repo=deb-ubuntu).
+
+`/usr/local/ncpa/etc/ncpa.cfg.d/psiphon.cfg`
+`/usr/local/ncpa/plugins/*`
+https://github.com/Psiphon-Inc/psi-nagios/blob/master/objects/psiphon/ec2/ec2-linux-services.cfg
+https://github.com/Psiphon-Inc/psi-nagios/blob/master/objects/psiphon/ec2/ec2-hosts.cfg
+
+TODO: Expand.

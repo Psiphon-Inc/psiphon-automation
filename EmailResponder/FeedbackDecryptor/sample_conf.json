@@ -10,15 +10,11 @@
   "privateKeyPassword": "password2",
   "decryptedEmailRecipient": "user-talk@example.com",
 
-  // Should belong to an IAM user with only necessary permissions:
-  //  - list keys in upload bucket
-  //  - get objects in upload bucket
-  //  - delete objects in upload bucket
-  "aws_access_key_id": "...",
-  "aws_secret_access_key": "...",
+  // The AWS region where our resources are located.
+  "awsRegion": "us-east-1",
 
   // S3 bucket where some clients upload diagnostic data and feedback
-  "s3_bucket_name": "...",
+  "s3BucketName": "...",
 
   // Directory where the psi_ops.py file can be found.
   "psiOpsPath": "../../Automation",

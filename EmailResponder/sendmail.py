@@ -19,11 +19,11 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email.header import Header
-from email import charset
+import email.charset
 from email.generator import Generator
 from email import encoders
 import smtplib
-import boto3
+import boto3, botocore
 
 
 # Adapted from http://radix.twistedmatrix.com/2010/07/how-to-send-good-unicode-email-with.html
@@ -65,7 +65,7 @@ def create_raw_email(recipients,
     # base64, and instead use quoted-printable (for both subject and body).  I
     # can't figure out a way to specify QP (quoted-printable) instead of base64 in
     # a way that doesn't modify global state. :-(
-    charset.add_charset('utf-8', charset.QP, charset.QP, 'utf-8')
+    email.charset.add_charset('utf-8', email.charset.QP, email.charset.QP, 'utf-8')
 
     # The root MIME section.
     msgRoot = MIMEMultipart('mixed')
@@ -91,7 +91,7 @@ def create_raw_email(recipients,
     msgRoot['Subject'] = Header(subject.encode('utf-8'), 'UTF-8').encode()
 
     if extra_headers:
-        for header_name, header_value in extra_headers.iteritems():
+        for header_name, header_value in extra_headers.items():
             # We need a special case for the Reply-To header. Like To and From,
             # it needs to be ASCII encoded.
             encoding = 'UTF-8'
@@ -163,25 +163,38 @@ def send_raw_email_smtp(raw_email,
     return True
 
 
+class AddressSESBlacklisted(Exception):
+    pass
+
+class EmailTooLong(Exception):
+    pass
+
+
 def send_raw_email_amazonses(raw_email,
                              from_address,
                              recipients,
+                             aws_region,
                              aws_key=None,
-                             aws_secret_key=None,
-                             aws_region='us-east-1'):
+                             aws_secret_key=None):
     '''
     Send the raw email via Amazon SES.
     If the region and credential arguments are None, boto will attempt to retrieve the
     values from environment variables and config files.
-    Note that for Python 2 it seems that we must provide the region to the boto3.client
-    call -- it does not get picked up from ~/.aws/config.
+    Returns True on success. Raises AddressSESBlacklisted if the recipient is blacklisted.
     '''
 
-    ses = boto3.client('ses', aws_access_key_id=aws_key, aws_secret_access_key=aws_secret_key, region_name=aws_region)
+    ses = boto3.client('ses', region_name=aws_region, aws_access_key_id=aws_key, aws_secret_access_key=aws_secret_key)
 
     if isinstance(recipients, str):
         recipients = [recipients]
 
-    ses.send_raw_email(RawMessage={'Data':raw_email}, Source=from_address, Destinations=recipients)
+    try:
+        ses.send_raw_email(RawMessage={'Data':raw_email}, Source=from_address, Destinations=recipients)
+    except botocore.exceptions.ClientError as error:
+        if error.response['Error']['Code'] == 'MessageRejected' and error.response['Error']['Message'].startswith('Address blacklisted'):
+            raise(AddressSESBlacklisted('%s: %s' % (error.response['Error']['Code'], error.response['Error']['Message'])))
+        elif error.response['Error']['Code'] == 'InvalidParameterValue' and error.response['Error']['Message'].startswith('Message length is more than'):
+            raise(EmailTooLong('%s: %s' % (error.response['Error']['Code'], error.response['Error']['Message'])))
+        raise
 
     return True

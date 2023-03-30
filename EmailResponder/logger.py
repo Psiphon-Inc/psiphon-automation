@@ -46,6 +46,7 @@ _main = _main.split(os.path.sep)[-1]
 # Ref:
 # http://docs.python.org/dev/library/logging.handlers.html#logging.handlers.SysLogHandler.emit
 # http://stackoverflow.com/a/19611291/729729
+# TODO: Update this for modern Python versions.
 class MySysLogHandler(logging.handlers.SysLogHandler):
     def __init__(self, facility):
         super(MySysLogHandler, self).__init__(address='/dev/log', facility=facility)
@@ -58,7 +59,7 @@ class MySysLogHandler(logging.handlers.SysLogHandler):
         super(MySysLogHandler, self).emit(record)
 
 _handler = MySysLogHandler(logging.handlers.SysLogHandler.LOG_LOCAL0)
-_handler.formatter = logging.Formatter(fmt='%(ident)s[%(process)d][%(facility)s]: %(levelname)s: %(message)s')
+_handler.formatter = logging.Formatter(fmt='[%(process)d][%(facility)s]: %(levelname)s: %(message)s')
 logger = logging.getLogger(_main)
 logger.setLevel(logging.DEBUG if _DEBUG else logging.INFO)
 logger.addHandler(_handler)
@@ -66,7 +67,7 @@ logger.addHandler(_handler)
 # We are using the LOCAL1 facility to output JSON
 _handler_json = MySysLogHandler(logging.handlers.SysLogHandler.LOG_LOCAL1)
 # Hack the message into a JSON string.
-_handler_json.formatter = logging.Formatter(fmt='%(ident)s[%(process)d][%(facility)s]: %(message)s')
+_handler_json.formatter = logging.Formatter(fmt='[%(process)d][%(facility)s]: %(message)s')
 # The JSON handler is not a child of the main handler, so it won't also be
 # logged there.
 logger_json = logging.getLogger(_main+'-json')

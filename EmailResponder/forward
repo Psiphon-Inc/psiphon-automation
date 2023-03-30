@@ -1,1 +1,1 @@
-"|python /home/mail_responder/mail_process.py"
+"|/usr/bin/env -C %MAIL_HOME% /usr/local/bin/poetry run python3 mail_process.py"
