@@ -2209,12 +2209,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # Create a new cloud VPS
         def provider_launch_new_server_with_retries(is_TCS):
+            raised_exception = None
             for _ in range(3):
                 try:
                     return provider_launch_new_server(provider_account, is_TCS, plugins, multi_ip)
                 except Exception as ex:
                     print(str(ex))
-            raise ex
+                    raised_exception = ex
+            raise raised_exception
 
         server_info = provider_launch_new_server_with_retries(is_TCS)
         return server_info[0:3] + (provider.lower(),) + server_info[4:]

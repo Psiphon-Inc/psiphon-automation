@@ -114,13 +114,15 @@ TCS_PSIPHOND_SAFE_RESTART_COMMAND = '/opt/psiphon/psiphond_safe_start.sh restart
 def retry_decorator_returning_exception(function):
     @wraps(function)
     def wrapper(*args, **kwds):
+        raised_exception = None
         for i in range(5):
             try:
                 function(*args, **kwds)
                 return None
             except Exception as e:
                 print(str(e))
-        return e
+                raised_exception = e
+        return raised_exception
     return wrapper
 
 
