@@ -4642,6 +4642,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         copy.__routes_signing_public_key = self.__split_tunnel_signature_public_key()
 
+        for alias,id in self.__fronting_provider_id_aliases.items():
+            copy.__fronting_provider_id_aliases[alias] = id
+
         return jsonpickle.encode(copy)
 
     def __compartmentalize_data_for_stats_server(self):
@@ -4667,7 +4670,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.stats_ssh_password,
                                             host.datacenter_name,
                                             host.region,
-                                            None, # Omit: fronting_provider_id
+                                            host.fronting_provider_id,
                                             None, # Omit: passthrough_address
                                             None, # Omit: passthrough_version
                                             None, # Omit: enable_gquic
@@ -4691,12 +4694,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             server.ip_address,
                                             None, # Omit: egress_ip_address
                                             '',   # Omit: server.internal_ip_address,
-                                            None, # Omit: propagation_channel_id
-                                            '',   # Omit: server.is_embedded,
-                                            '',   # Omit: server.is_permanent,
-                                            '',   # Omit: server.discovery_date_range,
+                                            server.propagation_channel_id,
+                                            server.is_embedded,
+                                            server.is_permanent,
+                                            server.discovery_date_range,
                                             server.capabilities)
                                             # Omit: propagation, web server, ssh info, version
+            copy.__servers[server.id].osl_discovery_date_range = server.osl_discovery_date_range
             copy.__servers[server.id].logs = server.logs
 
         for deleted_server in self.__deleted_servers.itervalues():
@@ -4740,6 +4744,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         sponsor.campaigns,
                                         [],     # omit page_view_regexes
                                         [])     # omit https_request_regexes
+
+        for alias,id in self.__fronting_provider_id_aliases.items():
+            copy.__fronting_provider_id_aliases[alias] = id
 
         return jsonpickle.encode(copy)
 
