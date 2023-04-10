@@ -2423,12 +2423,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.run_command_on_host(host, 'shutdown -r 10')
 
             self.save()
+            self.deploy_stats_config_if_required()
 
         if new_server_error:
             raise Exception(new_server_error)
 
         # The save() above ensures new server configuration is saved to CMS before deploying new
         # server info to the network
+        # self.deploy_stats_config_if_required() ensures new server configuration is saved to stats and devops DB
 
         # This deploy will broadcast server info, propagate builds, and update
         # the stats and email server
