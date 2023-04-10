@@ -2422,7 +2422,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             self.run_command_on_host(host, 'shutdown -r 10')
 
-            self.save()
             self.deploy_stats_config_if_required()
 
         if new_server_error:
