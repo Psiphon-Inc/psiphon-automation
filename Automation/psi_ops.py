@@ -5075,6 +5075,12 @@ def replace_propagation_channel_servers(propagation_channel_name):
     try:
         psinet.replace_propagation_channel_servers(propagation_channel_name)
     finally:
+        # Attempt to update the stats db immediately
+        try:
+            psinet.push_stats_config()
+            psinet.push_devops_config()
+        except:
+            pass
         psinet.show_status()
         psinet.release()
 
