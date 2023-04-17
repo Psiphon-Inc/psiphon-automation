@@ -63,8 +63,6 @@ def _bucket_iterator(bucket: 'boto3.S3.Bucket') -> str:
                 logger.debug_log('got terminate; _bucket_iterator breaking')
                 return
 
-            contents = None
-
             # Do basic sanity checks before trying to download the object
             contents = None
             try:

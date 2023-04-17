@@ -37,7 +37,7 @@ if [ "$?" -ne "0" ]; then
 fi
 
 # We're installing poetry as root, globally so that all users have access to it
-sudo pip install --upgrade poetry
+sudo python3.9 -m pip install --upgrade poetry
 
 # Our poetry.toml has the virtualenvs.create directive set to false, which makes it
 # install packages globally using pip rather than in a venv. This allows it to be used by

@@ -26,7 +26,7 @@ import smtplib
 import boto3, botocore
 
 
-# Adapted from http://radix.twistedmatrix.com/2010/07/how-to-send-good-unicode-email-with.html
+# Adapted from https://web.archive.org/web/20160411202953/http://wordeology.com/computer/how-to-send-good-unicode-email-with-python.html
 def create_raw_email(recipients,
                      from_address,
                      subject,
