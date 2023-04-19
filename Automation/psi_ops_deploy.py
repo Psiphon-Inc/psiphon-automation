@@ -114,13 +114,15 @@ TCS_PSIPHOND_SAFE_RESTART_COMMAND = '/opt/psiphon/psiphond_safe_start.sh restart
 def retry_decorator_returning_exception(function):
     @wraps(function)
     def wrapper(*args, **kwds):
+        raised_exception = None
         for i in range(5):
             try:
                 function(*args, **kwds)
                 return None
             except Exception as e:
                 print(str(e))
-        return e
+                raised_exception = e
+        return raised_exception
     return wrapper
 
 
@@ -419,10 +421,10 @@ def make_psiphond_config(host, server, own_encoded_server_entries, TCS_psiphond_
     config['SSHUserName'] = server.ssh_username
     config['SSHPassword'] = server.ssh_password
 
-    if server.capabilities['SSH'] or server.capabilities['OSSH'] or server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] or server.capabilities['QUIC'] or server.capabilities['TAPDANCE'] or server.capabilities['CONJURE']:
+    if server.capabilities['SSH'] or server.capabilities['OSSH'] or server.capabilities['FRONTED-MEEK'] or server.capabilities['FRONTED-MEEK-QUIC'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] or server.capabilities['QUIC'] or server.capabilities['TAPDANCE'] or server.capabilities['CONJURE']:
         config['ObfuscatedSSHKey'] = server.ssh_obfuscated_key
 
-    if server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET']:
+    if server.capabilities['FRONTED-MEEK'] or server.capabilities['FRONTED-MEEK-QUIC'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET']:
         config['MeekCookieEncryptionPrivateKey'] = host.meek_cookie_encryption_private_key
         config['MeekObfuscatedKey'] = host.meek_server_obfuscated_key
         config['MeekCertificateCommonName'] = TCS_psiphond_config_values['MeekCertificateCommonName']
@@ -508,7 +510,7 @@ def get_supported_protocol_ports(host, server, **kwargs):
         if protocol == 'CONJURE-OSSH' and server.capabilities['CONJURE']:
                 supported_protocol_ports[protocol] = int(server.ssh_obfuscated_conjure_port) if external_ports else docker_port
 
-        if protocol == 'FRONTED-MEEK-OSSH' and server.capabilities['FRONTED-MEEK']:
+        if protocol == 'FRONTED-MEEK-OSSH' and (server.capabilities['FRONTED-MEEK'] or server.capabilities['FRONTED-MEEK-QUIC']):
                 supported_protocol_ports[protocol] = 443 if external_ports else docker_port
 
         if protocol == 'UNFRONTED-MEEK-OSSH' and server.capabilities['UNFRONTED-MEEK'] and not int(host.meek_server_port) == 443:

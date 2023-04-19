@@ -25,7 +25,7 @@ import json
 from mako.template import Template
 from mako.lookup import TemplateLookup
 import pynliner
-from BeautifulSoup import BeautifulSoup
+from bs4 import BeautifulSoup
 
 from config import config
 import logger
@@ -115,16 +115,19 @@ def _get_email_reply_info(autoresponder_info):
     reply_info = None
 
     if email_info:
+        logger.debug_log('_get_email_reply_info: have autoresponder_info.email_info')
         reply_info = _ReplyInfo(email_info.get('address'),
                                 email_info.get('message_id'),
                                 email_info.get('subject'),
                                 email_info.get('to'))
     elif utils.coalesce(diagnostic_info, 'EmailInfo', required_types=dict):
+        logger.debug_log('_get_email_reply_info: have EmailInfo')
         reply_info = _ReplyInfo(diagnostic_info['EmailInfo'].get('address'),
                                 diagnostic_info['EmailInfo'].get('message_id'),
                                 diagnostic_info['EmailInfo'].get('subject'),
                                 diagnostic_info['EmailInfo'].get('to'))
     elif utils.coalesce(diagnostic_info, 'Feedback', required_types=dict):
+        logger.debug_log('_get_email_reply_info: have Feedback.email')
         reply_info = _ReplyInfo(diagnostic_info['Feedback'].get('email'),
                                 None, None, None)
 
@@ -147,8 +150,8 @@ def _get_email_reply_info(autoresponder_info):
     try:
         fixed_address = validator.validate_or_raise(reply_info.address)
         reply_info.address = fixed_address
-    except:
-        logger.debug_log('_get_email_reply_info: address validator raised, exiting')
+    except Exception as e:
+        logger.debug_log('_get_email_reply_info: address validator raised, exiting: %s %s' % (repr(reply_info.address), str(e)))
         return None
 
     logger.debug_log('_get_email_reply_info: exit')
@@ -211,30 +214,30 @@ def _get_lang_id_from_diagnostic_info(diagnostic_info):
     # Windows, with feedback message
     lang_id = lang_id or utils.coalesce(diagnostic_info,
                                         ['Feedback', 'Message', 'text_lang_code'],
-                                        required_types=utils.string_types)
+                                        required_types=str)
     if lang_id and lang_id.find('INDETERMINATE') >= 0:
         lang_id = None
 
     # All Windows feedback
     lang_id = lang_id or utils.coalesce(diagnostic_info,
                                         ['DiagnosticInfo', 'SystemInformation', 'OSInfo', 'LocaleInfo', 'language_code'],
-                                        required_types=utils.string_types)
+                                        required_types=str)
 
     # All Windows feedback
     lang_id = lang_id or utils.coalesce(diagnostic_info,
                                         ['DiagnosticInfo', 'SystemInformation', 'OSInfo', 'LanguageInfo', 'language_code'],
-                                        required_types=utils.string_types)
+                                        required_types=str)
     # Android, from email
     lang_id = lang_id or utils.coalesce(diagnostic_info,
                                         ['EmailInfo', 'body', 'text_lang_code'],
-                                        required_types=utils.string_types)
+                                        required_types=str)
     if lang_id and lang_id.find('INDETERMINATE') >= 0:
         lang_id = None
 
     # Android, from system language
     lang_id = lang_id or utils.coalesce(diagnostic_info,
                                         ['DiagnosticInfo', 'SystemInformation', 'language'],
-                                        required_types=utils.string_types)
+                                        required_types=str)
 
     logger.debug_log('_get_lang_id_from_diagnostic_info: exiting with lang_id=%s' % lang_id)
 
@@ -250,7 +253,7 @@ def _render_email(data):
     global _template
     if not _template:
         _template = Template(filename='templates/feedback_response.mako',
-                             default_filters=['unicode', 'h', 'decode.utf8'],
+                             default_filters=['str', 'h', 'decode.utf8'],
                              input_encoding='utf-8', output_encoding='utf-8',
                               lookup=TemplateLookup(directories=['.']))
         logger.debug_log('_render_email: template loaded')
@@ -258,7 +261,7 @@ def _render_email(data):
     rendered = _template.render(data=data)
 
     # CSS in email HTML must be inline
-    rendered = pynliner.fromString(rendered)
+    rendered = pynliner.fromString(rendered.decode('utf-8'))
 
     logger.debug_log('_render_email: exiting with len(rendered)=%d' % len(rendered))
 
@@ -284,11 +287,11 @@ def _get_response_content(response_id, diagnostic_info):
 
     sponsor_name = utils.coalesce(diagnostic_info,
                                   ['DiagnosticInfo', 'SystemInformation', 'PsiphonInfo', 'SPONSOR_ID'],
-                                  required_types=utils.string_types)
+                                  required_types=str)
 
     prop_channel_name = utils.coalesce(diagnostic_info,
                                        ['DiagnosticInfo', 'SystemInformation', 'PsiphonInfo', 'PROPAGATION_CHANNEL_ID'],
-                                       required_types=utils.string_types)
+                                       required_types=str)
 
     # Use default values if we couldn't get good user-specific values
     sponsor_name = sponsor_name or config['defaultSponsorName']
@@ -308,8 +311,8 @@ def _get_response_content(response_id, diagnostic_info):
             if lang == 'master':
                 lang = 'en'
 
-            with open(os.path.join(root, name)) as translation_file:
-                translation = translation_file.read().decode('utf-8')
+            with open(os.path.join(root, name), encoding='utf-8') as translation_file:
+                translation = translation_file.read()
 
             # Strip leading and trailing whitespace so that we don't get extra
             # text elements in our BeautifulSoup
@@ -354,16 +357,16 @@ def _get_response_content(response_id, diagnostic_info):
     subject = None
     bodies = []
     for lang_id, html in response_translations:
-        soup = BeautifulSoup(html)
+        soup = BeautifulSoup(html, features='html.parser')
         if not subject:
             subject = soup.find(id='default_response_subject')
             if subject:
                 # Strip outer element
-                subject = u''.join(unicode(elem) for elem in subject.contents).strip()
+                subject = ''.join(str(elem) for elem in subject.contents).strip()
         body = soup.find(id=response_id)
         if body:
             # Strip outer element
-            body = u''.join(unicode(elem) for elem in body.contents).strip()
+            body = ''.join(str(elem) for elem in body.contents).strip()
 
             # Available response translation languages may not match the available website
             # languages, so we'll link to the language-redirect pages.
@@ -382,7 +385,7 @@ def _get_response_content(response_id, diagnostic_info):
             }
 
             try:
-                body = unicode(body) % format_dict
+                body = str(body) % format_dict
             except TypeError as e:
                 # This is probably "not enough arguments for format string" and indicates
                 # a problem with a translation.
@@ -468,7 +471,7 @@ def _analyze_diagnostic_info(diagnostic_info, reply_info):
         # E.g., *@psiphon.ca
         responses = ['generic_info']
     elif not reply_info.to and \
-         utils.coalesce(diagnostic_info, ('Metadata', 'platform'), utils.string_types):
+         utils.coalesce(diagnostic_info, ('Metadata', 'platform'), str):
         # Windows S3 feedback
         responses = ['download_new_version_links']
 
@@ -524,7 +527,7 @@ def go():
             # originated from an uploaded data package, in which case we need
             # set our own subject.
             if type(reply_info.subject) is dict:
-                subject = u'Re: %s' % reply_info.subject.get('text', '')
+                subject = 'Re: %s' % reply_info.subject.get('text', '')
             else:
                 subject = response_content['subject']
 

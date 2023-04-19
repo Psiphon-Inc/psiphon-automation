@@ -24,7 +24,7 @@ import smtplib
 import json
 import yaml
 import multiprocessing
-from boto.s3.connection import S3Connection
+import boto3
 
 from config import config
 import logger
@@ -39,40 +39,44 @@ import redactor
 # This should be set by the service manager when it receives SIGTERM
 terminate = False
 
-_SLEEP_TIME_SECS = 60
+_SLEEP_TIME_SECS = 10
 _BUCKET_ITEM_MIN_SIZE = 100
 
 
-def _is_bucket_item_sane(key):
-    if key.size < _BUCKET_ITEM_MIN_SIZE or key.size > int(config['s3ObjectMaxSize']):
-        err = 'item not sane size: %d' % key.size
+def _is_bucket_item_sane(obj: 'boto3.S3.Object') -> bool:
+    if obj.size < _BUCKET_ITEM_MIN_SIZE or obj.size > int(config['s3ObjectMaxSize']):
+        err = 'item not sane size: %d' % obj.size
         logger.error(err)
         return False
 
     return True
 
 
-def _bucket_iterator(bucket):
+def _bucket_iterator(bucket: 'boto3.S3.Bucket') -> str:
     logger.debug_log('_bucket_iterator start')
 
     while True:
-        for key in bucket.list():
-            logger.debug_log('_bucket_iterator: %s' % key)
+        for obj in bucket.objects.all():
+            logger.debug_log('_bucket_iterator: %s' % obj.key)
 
             if terminate:
                 logger.debug_log('got terminate; _bucket_iterator breaking')
                 return
 
-            contents = None
-
             # Do basic sanity checks before trying to download the object
-            if _is_bucket_item_sane(key):
-                logger.debug_log('_bucket_iterator: good item found, yielding')
-                contents = key.get_contents_as_string()
+            contents = None
+            try:
+                if _is_bucket_item_sane(obj):
+                    logger.debug_log('_bucket_iterator: good item found, yielding')
+                    body = obj.get().get('Body')
+                    if body:
+                        contents = body.read().decode('utf-8')
+            except Exception as e:
+                logger.error('_bucket_iterator caught exception: %s' % e)
 
-            # Make sure to delete the key *before* proceeding, so we don't
+            # Make sure to delete the object *before* proceeding, so we don't
             # try to re-process if there's an error.
-            key.delete()
+            obj.delete()
 
             if contents:
                 yield contents
@@ -99,14 +103,15 @@ def go():
     '''
     logger.debug_log('go: start')
 
-    s3_conn = S3Connection(config['aws_access_key_id'], config['aws_secret_access_key'])
-    bucket = s3_conn.get_bucket(config['s3_bucket_name'])
+    s3 = boto3.resource('s3')
+    bucket = s3.Bucket(config['s3BucketName'])
 
     # Set up the multiprocessing
     worker_manager = multiprocessing.Manager()
     # We only want to pull items out of S3 as we process them, so the queue needs to be
-    # limited to the number of worker processes.
-    work_queue = worker_manager.Queue(maxsize=config['numProcesses'])
+    # limited to the number of worker processes. We're doubling the number of workers
+    # because the s3decryptor is the main workhorse of the server.
+    work_queue = worker_manager.Queue(maxsize=config['numProcesses']*2)
     # Spin up the workers
     worker_pool = multiprocessing.Pool(processes=config['numProcesses'])
     [worker_pool.apply_async(_process_work_items, (work_queue,)) for i in range(config['numProcesses'])]
@@ -142,8 +147,6 @@ def _process_work_items(work_queue):
             logger.debug_log('_process_work_items: dequeueing work item')
             # This blocks if the queue is empty
             encrypted_info_json = work_queue.get()
-            logger.debug_log('_process_work_items: dequeued work item')
-
             logger.debug_log('_process_work_items: processing item')
 
             diagnostic_info = None
@@ -185,6 +188,7 @@ def _process_work_items(work_queue):
 
             if not utils.is_diagnostic_info_sane(diagnostic_info):
                 # Something is wrong. Skip and continue.
+                logger.debug_log('_process_work_items: diagnostic_info not sane')
                 continue
 
             # Modifies diagnostic_info
@@ -196,6 +200,7 @@ def _process_work_items(work_queue):
             # Store the diagnostic info
             record_id = datastore.insert_diagnostic_info(diagnostic_info)
             if record_id is None:
+                logger.debug_log('_process_work_items: datastore.insert_diagnostic_info returned None')
                 # An error occurred or diagnostic info was a duplicate.
                 continue
 
@@ -216,7 +221,7 @@ def _process_work_items(work_queue):
                 # Something bad happened while decrypting. Report it via email.
                 sender.send(config['decryptedEmailRecipient'],
                             config['emailUsername'],
-                            u'S3Decryptor: bad object',
+                            'S3Decryptor: bad object',
                             encrypted_info_json,
                             None)  # no html body
             except smtplib.SMTPException as e:
@@ -236,7 +241,7 @@ def _process_work_items(work_queue):
                 # Something bad happened while decrypting. Report it via email.
                 sender.send(config['decryptedEmailRecipient'],
                             config['emailUsername'],
-                            u'S3Decryptor: unhandled exception',
+                            'S3Decryptor: unhandled exception',
                             str(e) + '\n---\n' + str(diagnostic_info),
                             None)  # no html body
             except smtplib.SMTPException as e:

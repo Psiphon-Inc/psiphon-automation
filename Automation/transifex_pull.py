@@ -188,7 +188,7 @@ def process_feedback_auto_responses():
         soup = BeautifulSoup(html)
         divs = soup.findAll('div', 'response-subject')
         divs += soup.findAll('div', 'response-body')
-        result = u'\n\n'.join([unicode(div) for div in divs])
+        result = u'\n\n'.join([str(div) for div in divs])
 
         # For some reason (again), Transifex replaces some "%"" with "&#37;",
         # which wrecks our formatting efforts.

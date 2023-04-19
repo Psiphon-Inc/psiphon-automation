@@ -57,7 +57,7 @@ def format(data):
         # template. Because we're output untrusted user-supplied data, this is
         # essential.
         _cached_templates[template_filename] = Template(filename=template_filename,
-                                                        default_filters=['unicode', 'h'],
+                                                        default_filters=['str', 'h'],
                                                         lookup=template_lookup)
 
     try:

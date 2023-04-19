@@ -1972,8 +1972,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         today = datetime.datetime(now.year, now.month, now.day)
         tomorrow = today + datetime.timedelta(days=1)
 
-        # Use a default 2 day discovery date range.
-        new_discovery_date_range = (tomorrow, tomorrow + datetime.timedelta(days=2))
+        # Use a default 5 day discovery date range.
+        new_discovery_date_range = (tomorrow, tomorrow + datetime.timedelta(days=5))
         # Use a default 15 day osl discovery date range.
         new_osl_discovery_date_range = (today, today + datetime.timedelta(days=15))
 
@@ -2209,12 +2209,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # Create a new cloud VPS
         def provider_launch_new_server_with_retries(is_TCS):
+            raised_exception = None
             for _ in range(3):
                 try:
                     return provider_launch_new_server(provider_account, is_TCS, plugins, multi_ip)
                 except Exception as ex:
                     print(str(ex))
-            raise ex
+                    raised_exception = ex
+            raise raised_exception
 
         server_info = provider_launch_new_server_with_retries(is_TCS)
         return server_info[0:3] + (provider.lower(),) + server_info[4:]
@@ -4647,6 +4649,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         copy.__routes_signing_public_key = self.__split_tunnel_signature_public_key()
 
+        for alias,id in self.__fronting_provider_id_aliases.items():
+            copy.__fronting_provider_id_aliases[alias] = id
+
         return jsonpickle.encode(copy)
 
     def __compartmentalize_data_for_stats_server(self):
@@ -4672,7 +4677,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.stats_ssh_password,
                                             host.datacenter_name,
                                             host.region,
-                                            None, # Omit: fronting_provider_id
+                                            host.fronting_provider_id,
                                             None, # Omit: passthrough_address
                                             None, # Omit: passthrough_version
                                             None, # Omit: enable_gquic
@@ -4696,12 +4701,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             server.ip_address,
                                             None, # Omit: egress_ip_address
                                             '',   # Omit: server.internal_ip_address,
-                                            None, # Omit: propagation_channel_id
-                                            '',   # Omit: server.is_embedded,
-                                            '',   # Omit: server.is_permanent,
-                                            '',   # Omit: server.discovery_date_range,
+                                            server.propagation_channel_id,
+                                            server.is_embedded,
+                                            server.is_permanent,
+                                            server.discovery_date_range,
                                             server.capabilities)
                                             # Omit: propagation, web server, ssh info, version
+            copy.__servers[server.id].osl_discovery_date_range = server.osl_discovery_date_range
             copy.__servers[server.id].logs = server.logs
 
         for deleted_server in self.__deleted_servers.values():
@@ -4746,16 +4752,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         [],     # omit page_view_regexes
                                         [])     # omit https_request_regexes
 
+        for alias,id in self.__fronting_provider_id_aliases.items():
+            copy.__fronting_provider_id_aliases[alias] = id
+
         return jsonpickle.encode(copy)
 
-    def run_command_on_host(self, host, command):
+    def run_command_on_host(self, host, command, muted=False):
         if type(host) == str:
             host = self.__hosts[host]
         ssh = psi_ssh.SSH(
                 host.ip_address, host.ssh_port,
                 host.ssh_username, host.ssh_password,
                 host.ssh_host_key)
-        ssh_output = ssh.exec_command(command)
+        ssh_output = ssh.exec_command(command, muted)
         ssh.close()
         return ssh_output
 
@@ -5074,6 +5083,12 @@ def replace_propagation_channel_servers(propagation_channel_name):
     try:
         psinet.replace_propagation_channel_servers(propagation_channel_name)
     finally:
+        # Attempt to update the stats db immediately
+        try:
+            psinet.push_stats_config()
+            psinet.push_devops_config()
+        except:
+            pass
         psinet.show_status()
         psinet.release()
 

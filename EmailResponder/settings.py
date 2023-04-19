@@ -73,7 +73,7 @@ ADMIN_FORWARD_SUBJECT_TAG = '[MailResponder]'
 # This must match the local send service specified in /etc/postfix/master.cf
 LOCAL_SMTP_SEND_PORT = 2525
 
-AWS_SES_REGION = 'us-east-1'
+AWS_REGION = 'us-east-1'
 
 
 #
@@ -108,7 +108,7 @@ STATS_SENDER_ADDRESS = 'Example Responder <%s>' % STATS_SENDER_ADDRESS_BARE
 LOG_FILENAME = '/var/log/mail_responder.log'
 
 # TODO: Use aws_helpers._get_autoscaling_group() instead of this hardcoded value
-CLOUDWATCH_DIMENSIONS = { 'AutoScalingGroupName': 'mailresponder-autoscaling-group-1' }
+CLOUDWATCH_DIMENSIONS = [{'Name':'AutoScalingGroupName', 'Value': 'mailresponder-autoscaling-group-1'}]
 CLOUDWATCH_NAMESPACE = 'Psiphon/MailResponder'
 CLOUDWATCH_TOTAL_SENT_METRIC_NAME = 'response_sent'
 CLOUDWATCH_PROCESSING_TIME_METRIC_NAME = 'processing_time'

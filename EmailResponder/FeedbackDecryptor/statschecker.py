@@ -41,10 +41,10 @@ _SLEEP_TIME_SECS = 300
 # Load the templates at startup
 _templates = {
     'stats': Template(filename='templates/stats.mako',
-                      default_filters=['unicode', 'h'],
+                      default_filters=['str', 'h'],
                       lookup=TemplateLookup(directories=['.'])),
     'warning': Template(filename='templates/stats_warning.mako',
-                        default_filters=['unicode', 'h'],
+                        default_filters=['str', 'h'],
                         lookup=TemplateLookup(directories=['.'])),
 }
 
@@ -64,7 +64,7 @@ def _send(template_name, data):
     try:
         sender.send(config['statsEmailRecipients'],
                     config['emailUsername'],
-                    u'FeedbackDecryptor: ' + template_name.capitalize(),
+                    'FeedbackDecryptor: ' + template_name.capitalize(),
                     yaml.safe_dump(data, default_flow_style=False),
                     rendered)
     except smtplib.SMTPException:
@@ -99,7 +99,9 @@ def go():
         # Should we warn of bad activity?
         new_count = datastore.get_new_stats_count(last_check_time)
         interval_mins = (now - last_check_time).total_seconds() / 60.0
-        recs_per_min = new_count / interval_mins
+        recs_per_min = 0
+        if new_count > 0 and interval_mins > 0:
+            recs_per_min = new_count / interval_mins
         if recs_per_min > config['statsWarningThresholdPerMinute']:
             _send_warning_email({'recs_per_min': recs_per_min,
                                  'interval_mins': interval_mins,

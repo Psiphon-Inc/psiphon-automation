@@ -32,9 +32,7 @@ import shlex
 import textwrap
 import datetime
 import collections
-import httplib
-import dateutil.tz
-from boto.ec2.cloudwatch import CloudWatchConnection
+import http.client
 import boto3
 
 import settings
@@ -48,7 +46,7 @@ def get_ses_quota():
     '''
 
     # Open the connection. Uses creds from boto conf or env vars.
-    ses = boto3.client('ses', region_name=settings.AWS_SES_REGION)
+    ses = boto3.client('ses', region_name=settings.AWS_REGION)
     quota = ses.get_send_quota()
 
     return json.dumps(quota, indent=2)
@@ -61,11 +59,11 @@ def get_ses_send_stats():
     """
 
     # Open the connection. Uses creds from boto conf or env vars.
-    ses = boto3.client('ses', region_name=settings.AWS_SES_REGION)
+    ses = boto3.client('ses', region_name=settings.AWS_REGION)
     stats = ses.get_send_statistics()
 
-    one_day_ago = datetime.datetime.now(dateutil.tz.tzlocal()) - datetime.timedelta(1)
-    one_week_ago = datetime.datetime.now(dateutil.tz.tzlocal()) - datetime.timedelta(7)
+    one_day_ago = datetime.datetime.now().astimezone() - datetime.timedelta(1)
+    one_week_ago = datetime.datetime.now().astimezone() - datetime.timedelta(7)
 
     one_day_ago_counter = collections.Counter()
     one_week_ago_counter = collections.Counter()
@@ -138,7 +136,7 @@ def get_send_info():
     res = log_processor.dbengine.execute('DROP TABLE proctime;')
 
     return textwrap.dedent(
-               u'''
+               '''
                In the past day:
                  Median send time: %(median_sendtime)ds
                  Median process time: %(median_proctime)dms
@@ -223,10 +221,10 @@ def process_log_file(logfile):
 
     text += 'TOTAL: %d\n' % sum(results.values())
 
-    for item in filter(lambda (k,v): v >= 1,
-                       sorted(results.iteritems(),
-                              key=lambda (k,v): (v,k),
-                              reverse=True)):
+    # results is a dict of {email_address: count}. Sort by count, then by email_address.
+    for item in [k_vF for k_vF
+                 in sorted(results.items(), key=lambda k_vS: (k_vS[1],k_vS[0]), reverse=True)
+                 if k_vF[1] >= 1]:
         text += '%s %s\n' % (str(item[1]).rjust(4), item[0])
 
     # Fail logs
@@ -238,10 +236,9 @@ def process_log_file(logfile):
     text += 'TOTAL: %d\n' % sum(results.values())
 
     # Only itemize the entries with a reasonably large count
-    for item in filter(lambda (k,v): v >= 10,
-                       sorted(results.iteritems(),
-                              key=lambda (k,v): (v,k),
-                              reverse=True)):
+    for item in [k_vF for k_vF
+                 in sorted(results.items(), key=lambda k_vS: (k_vS[1],k_vS[0]), reverse=True)
+                 if k_vF[1] >= 10]:
         text += '%s %s\n' % (str(item[1]).rjust(4), item[0])
 
     # Bad addresses
@@ -253,17 +250,16 @@ def process_log_file(logfile):
     text += 'TOTAL: %d\n' % sum(results.values())
 
     # Only itemize the entries with a reasonably large count
-    for item in filter(lambda (k,v): v >= 10,
-                       sorted(results.iteritems(),
-                              key=lambda (k,v): (v,k),
-                              reverse=True)):
+    for item in [k_vF for k_vF
+                 in sorted(results.items(), key=lambda k_vS: (k_vS[1],k_vS[0]), reverse=True)
+                 if k_vF[1] >= 10]:
         text += '%s %s\n' % (str(item[1]).rjust(4), item[0])
 
     # Process the rest of the log types
 
     for logtype_name in ('exception', 'error'):
         text += '\n%s\n----------------------\n\n' % logtype_name
-        for info, count in logtypes[logtype_name]['results'].iteritems():
+        for info, count in logtypes[logtype_name]['results'].items():
             text += '%s\nCOUNT: %d\n\n' % (info, count)
 
     text += '\n\nunmatched lines\n---------------------------\n'
@@ -284,15 +280,15 @@ def get_exception_info():
 
 
 def get_instance_info():
-    httpconn = httplib.HTTPConnection('169.254.169.254')
+    httpconn = http.client.HTTPConnection('169.254.169.254')
     httpconn.request('GET', '/latest/meta-data/instance-id')
-    instance_id = httpconn.getresponse().read()
+    instance_id = httpconn.getresponse().read().decode('utf-8')
     httpconn.request('GET', '/latest/meta-data/instance-type')
-    instance_type = httpconn.getresponse().read()
+    instance_type = httpconn.getresponse().read().decode('utf-8')
     httpconn.request('GET', '/latest/meta-data/ami-id')
-    ami_id = httpconn.getresponse().read()
+    ami_id = httpconn.getresponse().read().decode('utf-8')
     return textwrap.dedent(
-               u'''
+               '''
                  Instance ID:   %(instance_id)s
                  Instance Type: %(instance_type)s
                  AMI ID:        %(ami_id)s
@@ -303,44 +299,30 @@ def get_instance_info():
 
 
 TOP_THRESHOLD_COUNT = 1
-START_DELTA_AGO = datetime.timedelta(1)
+START_DELTA_AGO = datetime.timedelta(1) # 1 day
 
 
 def get_cloudwatch_top_metrics():
-    conn = CloudWatchConnection()
-
-    metrics_names = []
-    next_token = None
-    while True:
-        res = conn.list_metrics(next_token=next_token,
-                                dimensions=settings.CLOUDWATCH_DIMENSIONS,
-                                namespace=settings.CLOUDWATCH_NAMESPACE)
-        metrics_names.extend([m.name for m in res])
-        next_token = res.next_token
-        if next_token is None:
-            break
+    cloudwatch = boto3.resource('cloudwatch', region_name=settings.AWS_REGION)
 
     # List of tuples like [(metric_name, count), ...]
-    metrics = []
+    metrics: tuple[tuple[str, int]] = []
+    for metric in cloudwatch.metrics.filter(Namespace=settings.CLOUDWATCH_NAMESPACE, Dimensions=settings.CLOUDWATCH_DIMENSIONS):
+        stats = metric.get_statistics(
+            StartTime=datetime.datetime.utcnow() - START_DELTA_AGO,
+            EndTime=datetime.datetime.utcnow(),
+            Period=int(START_DELTA_AGO.total_seconds()),
+            Statistics=['Sum'],
+            Unit='Count',
+            Dimensions=settings.CLOUDWATCH_DIMENSIONS)
 
-    for metric_name in metrics_names:
-        res = conn.get_metric_statistics(int(START_DELTA_AGO.total_seconds()),
-                                         datetime.datetime.now() - START_DELTA_AGO,
-                                         datetime.datetime.now(),
-                                         metric_name,
-                                         settings.CLOUDWATCH_NAMESPACE,
-                                         'Sum',
-                                         settings.CLOUDWATCH_DIMENSIONS,
-                                         'Count')
-
-        if not res:
-            # Some metrics will not have (or no longer have) results
+        dp = stats.get('Datapoints', [])
+        if len(dp) == 0:
             continue
 
-        count = int(res[0]['Sum'])
-
+        count = int(dp[0].get('Sum', 0))
         if count >= TOP_THRESHOLD_COUNT:
-            metrics.append((metric_name, count))
+            metrics.append((metric.name, count))
 
     metrics.sort(key=lambda x: x[1], reverse=True)
 
@@ -381,7 +363,7 @@ if __name__ == '__main__':
     email_body += '\n\n'
     email_body += get_ses_send_stats()
     email_body += '\n\n'
-    email_body += 'Postfix queue counts\n----------------------\n' + queue_check
+    email_body += 'Postfix queue counts\n----------------------\n' + queue_check.decode('utf-8')
     email_body += '\n\n'
     email_body += get_send_info()
     email_body += '\n\n'
@@ -391,7 +373,7 @@ if __name__ == '__main__':
     email_body += '\n\n'
     email_body += 'Instance info\n----------------------\n' + get_instance_info()
     email_body += '\n\n'
-    email_body += 'Logwatch Basic\n----------------------\n' + logwatch_basic
+    email_body += 'Logwatch Basic\n----------------------\n' + logwatch_basic.decode('utf-8')
 
     email_body += 'Instance-specific stats'
     email_body += '\n\n'

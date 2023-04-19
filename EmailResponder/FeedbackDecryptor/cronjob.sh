@@ -20,9 +20,7 @@
 git pull
 
 # Update the local copy of psinet
-cd ../../Automation
-python2 psi_update_stats_dat.py
-cd -
+poetry run python3.9 ../../Automation/psi_update_stats_dat.py
 
 # Restart services to use the new code and psinet
 sudo systemctl restart s3decryptor.service

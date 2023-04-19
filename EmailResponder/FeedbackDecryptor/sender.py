@@ -110,7 +110,6 @@ def send_response(recipient, from_address,
     if not raw_email:
         return
 
-    try:
-        sendmail.send_raw_email_amazonses(raw_email, from_address, recipient)
-    except:
-        raise
+    # If the raw_email is still too large, we will get an exception from this call.
+    # There's nothing we can do about it, so we'll let it bubble up and be logged.
+    sendmail.send_raw_email_amazonses(raw_email, from_address, recipient, config['awsRegion'])
