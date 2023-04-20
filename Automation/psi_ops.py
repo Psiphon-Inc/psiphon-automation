@@ -134,6 +134,8 @@ try:
     import psi_ops_s3
 except ImportError as error:
     print(error)
+except TypeError as te:
+    print(te)
 
 try:
     import psi_ops_install

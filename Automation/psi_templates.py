@@ -20,7 +20,13 @@
 
 import os
 import yaml
-import psi_ops_s3
+
+try:
+    import psi_ops_s3
+except ImportError as error:
+    print(error)
+except TypeError as te:
+    print(te)
 
 
 LANGUAGES = [
