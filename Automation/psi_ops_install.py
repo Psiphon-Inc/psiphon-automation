@@ -1516,7 +1516,7 @@ while true; do
             # Getting interface speed
             local interface_speed=$(cat "/sys/class/net/${_interface}/speed")
 
-            if [ $? -eq 0 ]
+            if [ $? -eq 0 ] && [ -f "/sys/class/net/${_interface}/speed" ] && [ $interface_speed -ge 0 ]
             then
                 # convert interface to kilobits
                 local interface_speed_in_kbps=$(( interface_speed * 1000))
