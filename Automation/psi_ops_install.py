@@ -1537,11 +1537,10 @@ while true; do
                 # print the results
                 echo $utilized_percentage_in
             else
-                logger psi_limit_load: "Error: Could not get interface speed"
+                echo 0
             fi
         else
-            logger psi_limit_load: "Error: Could not get primary interface"
-            exit 1
+            echo 0
         fi
     }
 
