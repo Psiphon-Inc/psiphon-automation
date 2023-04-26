@@ -1473,7 +1473,7 @@ exit 0
 threshold_load_per_cpu=1
 threshold_mem=25
 threshold_syn_sent=1000
-threshold_network_bandwidth_percent=95.00 #Has to be a float value (used for accuracy in the comparison)
+threshold_network_bandwidth_percent=94.00 #Has to be a float value (used for accuracy in the comparison)
 
 while true; do
 
