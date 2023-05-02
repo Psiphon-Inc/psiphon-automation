@@ -61,12 +61,12 @@ class PsiOCI:
             "fingerprint": oracle_account.oci_user_ssh_key_fingerprint,
             "tenancy": oracle_account.oci_tenancy_id,
             "compartment": oracle_account.oci_compartment_id,
-            "region": random.choice(oracle_account_account.regions),
+            "region": random.choice(oracle_account.regions),
             "log_requests": True
         }
 
         self.image_source_uri=oracle_account.oci_bucket_image_url
-        self.base_image_ssh_authorized_keys = oracle_acount.base_image_ssh_public_keys
+        self.base_image_ssh_authorized_keys = oracle_account.base_image_ssh_public_keys
         
         self.compute_api = oci.core.ComputeClient(self.config)
         self.vcn_api = oci.core.VirtualNetworkClient(self.config)
@@ -78,7 +78,7 @@ class PsiOCI:
         self.identity_api = oci.identity.IdentityClient(self.config)
 
     def get_image(self):
-        return compute_api.list_images(compartment_id=self.config["compartment"], display_name=TCS_BASE_IMAGE_NAME).data[0]
+        return self.compute_api.list_images(compartment_id=self.config["compartment"], display_name=TCS_BASE_IMAGE_NAME).data[0]
 
     def get_regions_from_api(self):
         return self.identity_api.list_region_subscriptions(tenancy_id=self.config["tenancy"]).data
@@ -112,7 +112,7 @@ class PsiOCI:
                    "uk-cardiff-1": "OCI Cardiff, GB",
                    "us-phoenix-1": "OCI Phoenix, US"}
 
-        return datacenters.get(self.region, '')
+        return datacenters.get(self.config["region"], '')
 
     def list_instances(self):
         # TODO
@@ -135,7 +135,7 @@ class PsiOCI:
         pass
 
     def create_image(self):
-        image = compute_api.create_image(
+        image = self.compute_api.create_image(
             create_image_details=oci.core.models.CreateImageDetails(
                 compartment_id=self.config["compartment"],
                 display_name=TCS_BASE_IMAGE_NAME,
@@ -152,7 +152,7 @@ class PsiOCI:
         return image
     
     def create_instance(self, host_id):
-        instance = compute_api.launch_instance(
+        instance = self.compute_api.launch_instance(
             launch_instance_details=oci.core.models.LaunchInstanceDetails(
                 display_name=host_id,
                 availability_domain=random.choice(self.get_availability_domains()).name,
@@ -160,7 +160,7 @@ class PsiOCI:
                 image_id=self.get_image().id,
                 create_vnic_details=oci.core.models.CreateVnicDetails(
                     assign_public_ip=True,
-                    subnet_id=vcn_api.list_subnets(compartment_id=self.config["compartment"], display_name="public subnet-Psiphon 3 Hosts").data[0].id
+                    subnet_id=self.vcn_api.list_subnets(compartment_id=self.config["compartment"], display_name="public subnet-Psiphon 3 Hosts").data[0].id
                 ),
                 shape="VM.Standard.E4.Flex",
                 shape_config=oci.core.models.LaunchInstanceShapeConfigDetails(
@@ -244,7 +244,7 @@ def get_server_ip_addresses(oracle_account, instance_id):
     oci_api = PsiOCI(oracle_account) # Use new API interface
 
     instance_network = oci_api.vcn_api.get_vnic(
-        compute_api.list_vnic_attachments(
+        oci_api.compute_api.list_vnic_attachments(
             compartment_id=oci_api.config["compartment"], instance_id=instance_id
         ).data[0].vnic_id
     ).data
@@ -262,6 +262,11 @@ def launch_new_server(oracle_account, is_TCS, plugins, multi_ip=False):
         datacenter = oci_api.get_datacenter_names()
         host_id = 'oci' + '-' + region.lower() + datacenter[4:7].lower() + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
         instance, datacenter_name, region = oci_api.create_instance(host_id)
+
+        # Wait for job completion
+        wait_while_condition(lambda: oci_api.compute_api.get_instance(instance.id).data.lifecycle_state != 'RUNNING',
+                         30,
+                         'Create OCI Instance')
 
         instance_ip_address, instance_internal_ip_address = get_server_ip_addresses(oracle_account, instance.id)
 
