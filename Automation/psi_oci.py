@@ -160,7 +160,7 @@ class PsiOCI:
                 image_id=self.get_image().id,
                 create_vnic_details=oci.core.models.CreateVnicDetails(
                     assign_public_ip=True,
-                    subnet_id=self.vcn_api.list_subnets(compartment_id=self.config["compartment"], display_name="public subnet-Psiphon 3 Hosts").data[0].id
+                    subnet_id=self.vcn_api.list_subnets(compartment_id=self.config["compartment"], display_name="Psiphon 3 Hosts Public Subnet").data[0].id
                 ),
                 shape="VM.Standard.E4.Flex",
                 shape_config=oci.core.models.LaunchInstanceShapeConfigDetails(
