@@ -5,6 +5,7 @@
 *.dat
 secrets/
 network-health/
+CipherShare/
 *snippets*
 *ssl*
 deploy.py
