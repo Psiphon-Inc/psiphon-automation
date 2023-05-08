@@ -38,6 +38,14 @@ TCS_BASE_IMAGE_NAME = 'Psiphon-TCS-V9.1-20230504'
 # Helper functions
 #
 ###
+def reload_api_client(oci_api, instance_id):
+    oci_api_region = instance_id.split('.')[3]
+
+    oci_api.config["region"] = oci_api_region
+    oci_api.reload()
+
+    return oci_api, instance_id
+
 def wait_while_condition(condition, max_wait_seconds, description):
     total_wait_seconds = 0
     wait_seconds = 5
@@ -71,11 +79,13 @@ class PsiOCI:
         self.compute_api = oci.core.ComputeClient(self.config)
         self.vcn_api = oci.core.VirtualNetworkClient(self.config)
         self.identity_api = oci.identity.IdentityClient(self.config)
+        self.storage_api = oci.core.BlockstorageClient(self.config)
 
     def reload(self):
         self.compute_api = oci.core.ComputeClient(self.config)
         self.vcn_api = oci.core.VirtualNetworkClient(self.config)
         self.identity_api = oci.identity.IdentityClient(self.config)
+        self.storage_api = oci.core.BlockstorageClient(self.config)
 
     def get_image(self):
         return self.compute_api.list_images(compartment_id=self.config["compartment"], display_name=TCS_BASE_IMAGE_NAME).data[0]
@@ -118,21 +128,41 @@ class PsiOCI:
         # TODO
         pass
 
+    def get_instance(self, instance_id):
+        instance = self.compute_api.get_instance(instance_id).data
+
+        return instance
+
     def remove_instance(self, instance_id):
-        # TODO
-        pass
+        instance = self.compute_api.get_instance(instance_id).data
+        self.compute_api.terminate_instance(instance.id)
 
     def start_instance(self, instance_id):
         # TODO
         pass
 
-    def stop_instance(self, instance_id):        
+    def stop_instance(self, instance_id):
         # TODO
         pass
 
     def restart_instance(self, instance_id):
         # TODO
         pass
+
+    def resize_boot_volume(self, instance_id, resize_to=200):
+        instance = self.compute_api.get_instance(instance_id).data
+
+        boot_volume_attachments = self.compute_api.list_boot_volume_attachments(availability_domain=instance.availability_domain, compartment_id=instance.compartment_id, instance_id=instance.id).data
+
+        boot_volume = self.storage_api.get_boot_volume(boot_volume_id=boot_volume_attachments[0].boot_volume_id).data
+
+        if boot_volume.size_in_gbs < resize_to:
+            updated_boot_volume = self.storage_api.update_boot_volume(
+                boot_volume_id=boot_volume.id,
+                update_boot_volume_details=oci.core.models.UpdateBootVolumeDetails(
+                    size_in_gbs=resize_to
+                )
+            ).data
 
     def create_image(self):
         image = self.compute_api.create_image(
@@ -238,12 +268,21 @@ def get_servers(oracle_account):
     pass
 
 def get_server(oracle_account, instance_id):
-    # TODO
-    pass
+    oci_api = PsiOCI(oracle_account)
+    oci_api, instance_id = reload_api_client(oci_api, instance_id)
+    try:
+        oci_api.get_instance(instance_id)
+    except Exception as e:
+        raise e
+
 
 def remove_server(oracle_account, instance_id):
-    # TODO
-    pass
+    oci_api = PsiOCI(oracle_account)
+    oci_api, instance_id = reload_api_client(oci_api, instance_id)
+    try:
+        oci_api.remove_instance(instance_id)
+    except Exception as e:
+        raise e
 
 def get_server_ip_addresses(oracle_account, instance_id):
     oci_api = PsiOCI(oracle_account) # Use new API interface
