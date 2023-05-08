@@ -284,6 +284,14 @@ def remove_server(oracle_account, instance_id):
     except Exception as e:
         raise e
 
+def resize_volume(oracle_account, instance_id, resize_to=200):
+    oci_api = PsiOCI(oracle_account)
+    oci_api, instance_id = reload_api_client(oci_api, instance_id)
+    try:
+        oci_api.resize_boot_volume(instance_id, resize_to)
+    except Exception as e:
+        raise e
+
 def get_server_ip_addresses(oracle_account, instance_id):
     oci_api = PsiOCI(oracle_account) # Use new API interface
 
