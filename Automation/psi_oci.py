@@ -167,6 +167,11 @@ class PsiOCI:
                     memory_in_gbs=16,
                     ocpus=4
                 ),
+                source_details=oci.core.models.InstanceSourceViaImageDetails(
+                    source_type="image",
+                    image_id=self.get_image().id,
+                    boot_volume_size_in_gbs=200
+                ),
                 metadata={
                     "quake_bot_level" : "Severe", \
                     "ssh_authorized_keys" : self.base_image_ssh_authorized_keys
