@@ -993,6 +993,62 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         print(print_text)
 
+    def show_providers_per_region(self, region_p='ALL'):
+        if region_p == 'ALL':
+            hosts = [(h.region, h.provider) for h in self.__hosts.values()]
+        else:
+            hosts = [(h.region, h.provider) for h in self.__hosts.values() if h.region == region_p]
+        providers_per_region = dict()
+
+        for region, provider in hosts:
+            if region not in providers_per_region:
+                providers_per_region[region] = {}
+
+            if provider not in providers_per_region[region]:
+                providers_per_region[region][provider] = 0
+
+            providers_per_region[region][provider] += 1
+
+        print_text = textwrap.dedent('''
+            Servers per Providers per region:''')
+
+        for region in providers_per_region:
+            print_text = print_text + '''
+                %s:''' % (region)
+            for provider in providers_per_region[region]:
+                print_text = print_text + '''
+                    %s: %d''' % (provider.capitalize(), providers_per_region[region][provider])
+
+        print(print_text)
+
+    def show_regions_per_provider(self, provider_p='ALL'):
+        if provider_p == 'ALL':
+            hosts = [(h.provider, h.region) for h in self.__hosts.values()]
+        else:
+            hosts = [(h.provider, h.region) for h in self.__hosts.values() if h.provider == provider_p]
+        providers_per_region = dict()
+
+        for provider, region in hosts:
+            if provider not in providers_per_region:
+                providers_per_region[provider] = {}
+
+            if region not in providers_per_region[provider]:
+                providers_per_region[provider][region] = 0
+
+            providers_per_region[provider][region] += 1
+
+        print_text = textwrap.dedent('''
+            Servers per Providers per region:''')
+
+        for provider in providers_per_region:
+            print_text = print_text + '''
+                %s:''' % (provider.capitalize())
+            for region in providers_per_region[provider]:
+                print_text = print_text + '''
+                    %s: %d''' % (region, providers_per_region[provider][region])
+
+        print(print_text)
+
     def show_client_versions(self):
         for platform in self.__client_versions:
             print(platform)
