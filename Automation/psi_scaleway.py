@@ -160,6 +160,9 @@ class PsiScaleway:
 
             # Delete volumes
             vol_res = self.client.query().volumes(scaleway['volumes']['0']['id']).delete()
+
+            # Delete Flexible IP
+            ips_res = self.client.query().ips(scaleway['public_ip']['id']).delete()
         except slexc.HttpClientError as exc:
             print(json.dumps(exc.response.json(), indent=2))
 
@@ -186,8 +189,10 @@ class PsiScaleway:
 
     def create_scaleway(self, host_id):
         try:
+            # Create Flexible IP Before instance
+            flexible_ip = self.client.query().ips.post({'project': self.project_id, 'tags': ['psiphon3']})['ip']
             # We are using Scaleway 3 vCPUs 4 GB: u'DEV1-M'
-            scaleway = self.client.query().servers.post({'project': self.project_id, 'name': host_id, 'commercial_type': tcs_instance_size, 'image': self.get_image()['id']})
+            scaleway = self.client.query().servers.post({'project': self.project_id, 'name': host_id, 'commercial_type': tcs_instance_size, 'image': self.get_image()['id'], 'public_ip': flexible_ip['id']})
 
             res = self.start_scaleway(scaleway['server']['id'])
             wait_while_condition(lambda: self.scaleway_list(scaleway['server']['id'])['state'] != 'running',
