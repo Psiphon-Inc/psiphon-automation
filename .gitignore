@@ -8,6 +8,7 @@ psi_data_config.py
 test_build.py
 
 Automation/Builds
+Automation/secrets
 Automation/ca.psiphon.PsiphonTunnel.tunnel-core
 Automation/website-out
 Data/GeoData

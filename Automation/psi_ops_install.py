@@ -1473,6 +1473,7 @@ exit 0
 threshold_load_per_cpu=1
 threshold_mem=25
 threshold_syn_sent=1000
+threshold_network_bandwidth_percent=94.00 #Has to be a float value (used for accuracy in the comparison)
 
 while true; do
 
@@ -1490,6 +1491,7 @@ while true; do
     if [ -z "$free" ]; then
         free=$(free | grep "Mem" | awk '{print $7/$2 * 100.0}')
     fi
+    
     loaded_mem=$(echo "$free<$threshold_mem" | bc)
     if [ $loaded_mem -eq 1 ]; then
         logger psi_limit_load: Free memory load threshold reached.
@@ -1502,10 +1504,56 @@ while true; do
         logger psi_limit_load: SYN_SENT threshold reached.
     fi
 
+    loaded_bandwidth=0
+
+    # Define the function to get the interface bandwidth
+    get_interface_speed() {
+        # Get the primary interface
+        local _interface=$(ip route get 1.2.3.4 | awk '{print $5}')
+
+        if [ $? -eq 0 ]
+        then
+            # Getting interface speed
+            local interface_speed=$(cat "/sys/class/net/${_interface}/speed")
+
+            if [ $? -eq 0 ] && [ -f "/sys/class/net/${_interface}/speed" ] && [ $interface_speed -ge 0 ]
+            then
+                # convert interface to kilobits
+                local interface_speed_in_kbps=$(( interface_speed * 1000))
+
+                # Record old bytes
+                local interface_bytes_in_old=$(cat "/sys/class/net/${_interface}/statistics/rx_bytes")
+
+                # Record new bytes after 10 seconds
+                sleep 10
+                local interface_bytes_in_new=$(cat "/sys/class/net/${_interface}/statistics/rx_bytes")
+
+                # Calculate average kilobytes/sec
+                local average_kilobits_in=$(( (interface_bytes_in_new - interface_bytes_in_old) * 8 / 1000 / 10 ))
+
+                #Calculate utilized percentage of interface speed
+                local utilized_percentage_in=$(echo "scale=2; (($average_kilobits_in * 100) / ($interface_speed_in_kbps))" | bc)
+
+                # print the results
+                echo $utilized_percentage_in
+            else
+                echo 0
+            fi
+        else
+            echo 0
+        fi
+    }
+
+    current_bandwidth=$(get_interface_speed)
+    if [ $(echo "$current_bandwidth > $threshold_network_bandwidth_percent" | bc) -eq 1 ]; then
+        loaded_bandwidth=1
+        logger psi_limit_load: Network bandwidth threshold reached. Current Network utilization in Percent: $current_bandwidth
+    fi
+
     break
 done
 
-if [ $loaded_cpu -eq 1 ] || [ $loaded_mem -eq 1 ] || [ $loaded_net -eq 1 ]; then
+if [ $loaded_cpu -eq 1 ] || [ $loaded_mem -eq 1 ] || [ $loaded_net -eq 1 ] || [ $loaded_bandwidth -eq 1 ]; then
     %s
 else
     %s
