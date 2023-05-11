@@ -4645,6 +4645,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for alias,id in self.__fronting_provider_id_aliases.items():
             copy.__fronting_provider_id_aliases[alias] = id
 
+        for provider in providers:
+            vars(copy)["_PsiphonNetwork__{}_account".format(provider.lower())] = vars(self)["_PsiphonNetwork__{}_account".format(provider.lower())]
+
         return jsonpickle.encode(copy)
 
     def __compartmentalize_data_for_stats_server(self):
