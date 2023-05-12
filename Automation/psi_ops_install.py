@@ -1439,7 +1439,7 @@ exit 0
     ssh.exec_command('echo "SHELL=/bin/sh" > %s;' % (cron_file,) +
                      'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
                      'echo "* * * * * root %s" >> %s' % (psi_limit_load_host_path, cron_file))
-
+    ssh.close()
 
 def install_TCS_psi_limit_load(host, disable_permanently=False):
 
@@ -1588,6 +1588,7 @@ exit 0
     ssh.exec_command('echo "SHELL=/bin/sh" > %s;' % (cron_file,) +
                      'echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> %s;' % (cron_file,) +
                      'echo "* * * * * root %s" >> %s' % (psi_limit_load_host_path, cron_file))
+    ssh.close()
 
 def install_TCS_psi_limit_load_chain(host, server):
 
