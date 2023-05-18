@@ -125,8 +125,9 @@ class PsiOCI:
         return datacenters.get(self.config["region"], '')
 
     def list_instances(self):
-        # TODO
-        pass
+        instances = self.compute_api.list_instances(self.config["compartment"]).data
+
+        return instances
 
     def get_instance(self, instance_id):
         instance = self.compute_api.get_instance(instance_id).data
@@ -264,8 +265,17 @@ def add_swap_file(oracle_account, ip_address):
 #
 ###
 def get_servers(oracle_account):
-    # TODO
-    pass
+    oci_api = PsiOCI(oracle_account)
+    instances = []
+
+    for region in oracle_account.regions:
+        oci_api.config['regions'] = region
+        oci_api.reload()
+
+        oci_instances = oci_api.list_instances()
+        instances += oci_instances
+
+    return [(instance.id, instance.display_name) for instance in instances]
 
 def get_server(oracle_account, instance_id):
     oci_api = PsiOCI(oracle_account)
@@ -274,7 +284,6 @@ def get_server(oracle_account, instance_id):
         oci_api.get_instance(instance_id)
     except Exception as e:
         raise e
-
 
 def remove_server(oracle_account, instance_id):
     oci_api = PsiOCI(oracle_account)
