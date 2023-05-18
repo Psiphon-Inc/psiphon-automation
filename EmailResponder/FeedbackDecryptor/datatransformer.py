@@ -121,6 +121,8 @@ _transformations = {
                                        _shorten_ints),
                     'windows': (_translate_feedback, _parse_survey_results,
                                 _convert_locale_info, _sanitize_keys, _shorten_ints),
+                    'inproxy': (_translate_feedback, _parse_survey_results,
+                                _convert_locale_info, _sanitize_keys, _shorten_ints),
                     }
 
 

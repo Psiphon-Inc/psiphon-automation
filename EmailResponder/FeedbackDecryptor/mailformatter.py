@@ -42,6 +42,8 @@ def format(data):
         platform = 'ios'
     elif data['Metadata']['platform'] == 'ios-vpn-on-mac':
         platform = 'ios-app-on-mac'
+    elif data['Metadata']['platform'] == 'inproxy':
+        platform = 'inproxy'
     else:
         platform = 'android'
 
