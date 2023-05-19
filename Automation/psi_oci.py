@@ -269,7 +269,7 @@ def get_servers(oracle_account):
     instances = []
 
     for region in oracle_account.regions:
-        oci_api.config['regions'] = region
+        oci_api.config['region'] = region
         oci_api.reload()
 
         oci_instances = oci_api.list_instances()
@@ -281,7 +281,7 @@ def get_server(oracle_account, instance_id):
     oci_api = PsiOCI(oracle_account)
     oci_api, instance_id = reload_api_client(oci_api, instance_id)
     try:
-        oci_api.get_instance(instance_id)
+        return oci_api.get_instance(instance_id)
     except Exception as e:
         raise e
 
@@ -303,7 +303,7 @@ def resize_volume(oracle_account, instance_id, resize_to=200):
 
 def get_server_ip_addresses(oracle_account, instance_id):
     oci_api = PsiOCI(oracle_account) # Use new API interface
-
+    oci_api, instance_id = reload_api_client(oci_api, instance_id)
     instance_network = oci_api.vcn_api.get_vnic(
         oci_api.compute_api.list_vnic_attachments(
             compartment_id=oci_api.config["compartment"], instance_id=instance_id
@@ -346,8 +346,7 @@ def launch_new_server(oracle_account, is_TCS, plugins, multi_ip=False):
 
     except Exception as ex:
         if instance:
-            # TODO: Remove instance if failure
-            pass
+            oci_api.remove_instance(instance.id)
         raise ex
 
     return (host_id, is_TCS, 'NATIVE' if is_TCS else None, None,
