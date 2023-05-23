@@ -195,8 +195,8 @@ class PsiOCI:
                 ),
                 shape="VM.Standard.E4.Flex",
                 shape_config=oci.core.models.LaunchInstanceShapeConfigDetails(
-                    memory_in_gbs=16,
-                    ocpus=4
+                    memory_in_gbs=4,
+                    ocpus=1
                 ),
                 source_details=oci.core.models.InstanceSourceViaImageDetails(
                     source_type="image",
@@ -275,7 +275,7 @@ def get_servers(oracle_account):
         oci_instances = oci_api.list_instances()
         instances += oci_instances
 
-    return [(instance.id, instance.display_name) for instance in instances]
+    return [(instance.id, instance.display_name) for instance in instances if instance.lifecycle_state!='TERMINATED']
 
 def get_server(oracle_account, instance_id):
     oci_api = PsiOCI(oracle_account)
@@ -326,7 +326,7 @@ def launch_new_server(oracle_account, is_TCS, plugins, multi_ip=False):
 
         # Wait for job completion
         wait_while_condition(lambda: oci_api.compute_api.get_instance(instance.id).data.lifecycle_state != 'RUNNING',
-                         30,
+                         60,
                          'Create OCI Instance')
 
         instance_ip_address, instance_internal_ip_address = get_server_ip_addresses(oracle_account, instance.id)
