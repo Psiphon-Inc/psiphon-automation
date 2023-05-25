@@ -31,7 +31,7 @@ import psi_utils
 import oci
 
 # VARIABLE
-TCS_BASE_IMAGE_NAME = 'Psiphon-TCS-V9.1-20230504'
+TCS_BASE_IMAGE_NAME = 'Psiphon-TCS-V10-20230524'
 
 ###
 #
@@ -264,6 +264,15 @@ def add_swap_file(oracle_account, ip_address):
 # Main function
 #
 ###
+def import_images_to_all_regions(oracle_account):
+    oci_api = PsiOCI(oracle_account)
+
+    for region in oracle_account.regions:
+        oci_api.config['region'] = region
+        oci_api.reload()
+
+        oci_api.create_image()
+
 def get_servers(oracle_account):
     oci_api = PsiOCI(oracle_account)
     instances = []
