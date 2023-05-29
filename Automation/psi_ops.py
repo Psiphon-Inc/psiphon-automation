@@ -119,6 +119,11 @@ except ImportError as error:
     print(error)
 
 try:
+    import psi_oci
+except ImportError as error:
+    print(error)
+
+try:
     pass
     # Remove elastichost library
     #import psi_elastichosts
@@ -301,7 +306,7 @@ AwsAccount = psi_utils.recordtype(
     'access_id, secret_key',
     default=None)
   
-providers = ['linode', 'digitalocean', 'vpsnet', 'scaleway']
+providers = ['linode', 'digitalocean', 'vpsnet', 'scaleway', 'oci']
 
 ProviderRank = psi_utils.recordtype(
     'ProviderRank',
@@ -353,6 +358,15 @@ RamnodeAccount = psi_utils.recordtype(
     'tcs_base_host_public_key, base_ssh_port',
     default=None)
 
+OracleAccount = psi_utils.recordtype(
+    'OracleAccount',
+    'oci_user, oci_user_ssh_key, oci_user_ssh_key_fingerprint, ' +
+    'oci_tenancy_id, oci_compartment_id, ' +
+    'regions, oci_bucket_image_url, ' +
+    'base_image_root_password, base_image_ssh_port, ' +
+    'base_image_ssh_public_keys, base_image_rsa_private_key',
+    default=None)
+    
 ElasticHostsAccount = psi_utils.recordtype(
     'ElasticHostsAccount',
     'zone, uuid, api_key, base_drive_id, cpu, mem, base_host_public_key, ' +
@@ -435,6 +449,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__vps247_account = VPS247Account()
         self.__scaleway_account = ScalewayAccount()
         self.__ramnode_account = RamnodeAccount()
+        self.__oci_account = OracleAccount()
         self.__elastichosts_accounts = []
         self.__deploy_implementation_required_for_hosts = set()
         self.__deploy_data_required_for_all = False
@@ -490,7 +505,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.69'
+    class_version = '0.70'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -892,6 +907,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__scaleway_account.organization_id = ''
             self.__scaleway_account.project_id = ''
             self.version = '0.69'
+        if cmp(parse_version(self.version), parse_version('0.70')) < 0:
+            self.__oci_account = OracleAccount()
+            self.version = '0.70'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -2788,6 +2806,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                       orphan['zone'],
                       str(orphan['tags'])
                   ) if provider == 'scaleway' else (
+                      str(orphan_id),
+                      orphan.display_name,
+                      orphan.lifecycle_state,
+                      orphan.time_created.strftime('%Y-%m-%dT%H:%M:%S'),
+                      provider_controller.get_server_ip_addresses(provider_account, orphan.id)[0],
+                      orphan.region,
+                      orphan.freeform_tags
+                  ) if provider == 'oci' else (
                       str(orphan_id),
                       orphan.name,
                       orphan.state,
