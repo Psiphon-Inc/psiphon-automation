@@ -2490,8 +2490,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             supports_passthrough = psi_ops_deploy.server_supports_passthrough(server, host)
             if supports_passthrough and len(self.__passthrough_addresses) > 0:
-                host.passthrough_address = random.choice(self.__passthrough_addresses)
-                if not host.passthrough_version and random.random() > 0.5:
+                host.passthrough_address = random.choice(self.__passthrough_addresses) + ':' + str(host.meek_server_port)
+                if int(host.meek_server_port) == 443 and not host.passthrough_version and random.random() > 0.25:
                     host.passthrough_version = 2
 
             self.setup_server(host, [server])

@@ -374,6 +374,7 @@ def make_psiphond_config(host, server, own_encoded_server_entries, TCS_psiphond_
     config['UDPInterceptUdpgwServerAddress'] = '127.0.0.1:7300'
 
     config['HostID'] = host.id
+    config['HostProvider'] = host.provider
 
     if host.TCS_type == 'NATIVE':    
         config['ServerIPAddress'] = server.internal_ip_address
@@ -532,7 +533,7 @@ def get_supported_protocol_ports(host, server, **kwargs):
 
 
 def server_supports_passthrough(server, host):
-    return server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] or (server.capabilities['UNFRONTED-MEEK'] and int(host.meek_server_port) == 443)
+    return server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET']
 
 
 def server_entry_capability_supports_passthrough(capability):
@@ -540,7 +541,7 @@ def server_entry_capability_supports_passthrough(capability):
 
 
 def tunnel_protocol_supports_passthrough(protocol):
-    return protocol in ['UNFRONTED-MEEK-HTTPS-OSSH', 'UNFRONTED-MEEK-SESSION-TICKET-OSSH']
+    return protocol in ['UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH', 'UNFRONTED-MEEK-SESSION-TICKET-OSSH']
 
 
 # hosts_and_servers is a list of tuples: [(host, [server, ...]), ...]
