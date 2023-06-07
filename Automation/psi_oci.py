@@ -97,30 +97,42 @@ class PsiOCI:
         return self.identity_api.list_availability_domains(compartment_id=self.config["compartment"]).data
 
     def get_region(self):
-        regions = {"ca-toronto-1": "CA",
-                   "eu-marseille-1": "FR",
-                   "eu-frankfurt-1": "DE",
-                   "eu-milan-1": "IT",
+        regions = {"ca-montreal-1": "CA",
+                   "ca-toronto-1": "CA",
                    "eu-amsterdam-1": "NL",
+                   "eu-frankfurt-1": "DE",
                    "eu-madrid-1": "ES",
+                   "eu-marseille-1": "FR",
+                   "eu-milan-1": "IT",
+                   "eu-paris-1": "FR",
                    "eu-stockholm-1": "SE",
                    "eu-zurich-1": "CH",
                    "uk-cardiff-1": "GB",
-                   "us-phoenix-1": "US"}
+                   "uk-london-1": "GB",
+                   "us-ashburn-1": "US",
+                   "us-chicago-1": "US",
+                   "us-phoenix-1": "US",
+                   "us-sanjose-1": "US"}
 
         return regions.get(self.config["region"], '')
 
     def get_datacenter_names(self):
-        datacenters = {"ca-toronto-1": "OCI Toronto, CA",
-                   "eu-marseille-1": "OCI Marseille, FR",
-                   "eu-frankfurt-1": "OCI Frankfurt, DE",
-                   "eu-milan-1": "OCI Milan, IT",
+        datacenters = {"ca-montreal-1": "OCI Montreal, CA",
+                   "ca-toronto-1": "OCI Toronto, CA",
                    "eu-amsterdam-1": "OCI Amsterdam, NL",
+                   "eu-frankfurt-1": "OCI Frankfurt, DE",
                    "eu-madrid-1": "OCI Madrid, ES",
+                   "eu-marseille-1": "OCI Marseille, FR",
+                   "eu-milan-1": "OCI Milan, IT",
+                   "eu-paris-1": "OCI Paris, FR",
                    "eu-stockholm-1": "OCI Stockholm, SE",
                    "eu-zurich-1": "OCI Zurich, CH",
                    "uk-cardiff-1": "OCI Cardiff, GB",
-                   "us-phoenix-1": "OCI Phoenix, US"}
+                   "uk-london-1": "OCI London, GB",
+                   "us-ashburn-1": "OCI Ashburn, US",
+                   "us-chicago-1": "OCI Chicago, US",
+                   "us-phoenix-1": "OCI Phoenix, US",
+                   "us-sanjose-1": "OCI San Jose, US"}
 
         return datacenters.get(self.config["region"], '')
 
