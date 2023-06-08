@@ -6,7 +6,6 @@ jsonpickle==2.0.0
 linode_api4==2.2.1
 #M2Crypto==0.35.2
 paramiko==2.11.0
-Pillow==6.2.2 
 python-digitalocean==1.15.0
 pyyaml==5.3.1 
 qrcode==6.1
