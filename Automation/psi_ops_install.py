@@ -1470,7 +1470,7 @@ exit 0
         script = '''
 #!/bin/bash
 
-threshold_load_per_cpu=0.90 #Percentage of Total CPU load. 1.00 = 100%
+threshold_load_per_cpu=0.80 #Percentage of Total CPU load.
 threshold_mem=25
 threshold_syn_sent=1000
 threshold_network_bandwidth_percent=94.00 #Has to be a float value (used for accuracy in the comparison)
@@ -1485,9 +1485,7 @@ while true; do
         loaded_cpu=1
         logger psi_limit_load: CPU load threshold reached.
         logger LOADED. Current Load: $load_cpu Threshold: $threshold_cpu Num CPU: $num_cpu
-    else
-        logger NOT LOADED. Current Load: $load_cpu Threshold: $threshold_cpu Num CPU: $num_cpu
-    fi
+        break
 
     free=$(free | grep "buffers/cache" | awk '{print $4/($3+$4) * 100.0}')
     if [ -z "$free" ]; then
