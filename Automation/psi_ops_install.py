@@ -1483,9 +1483,9 @@ while true; do
     load_cpu=`uptime | cut -d , -f 4 | cut -d : -f 2`
     if [ $(echo "$load_cpu > $threshold_cpu" | bc) -eq 1 ]; then
         loaded_cpu=1
-        logger psi_limit_load: CPU load threshold reached.
-        logger LOADED. Current Load: $load_cpu Threshold: $threshold_cpu Num CPU: $num_cpu
+        logger psi_limit_load: CPU load threshold reached. Current Load: $load_cpu Threshold: $threshold_cpu Num CPU: $num_cpu
         break
+    fi
 
     free=$(free | grep "buffers/cache" | awk '{print $4/($3+$4) * 100.0}')
     if [ -z "$free" ]; then
