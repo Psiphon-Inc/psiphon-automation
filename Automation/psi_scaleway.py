@@ -32,7 +32,7 @@ from scaleway.scaleway import apis as ScalewayApis
 from slumber import exceptions as slexc
 
 # VARIABLE
-tcs_image_name = 'Psiphon-TCS-V9-20220601'
+tcs_image_name = 'Psiphon-TCS-V10-20230608'
 tcs_instance_size = 'DEV1-M'
 
 ###
