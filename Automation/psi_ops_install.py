@@ -409,7 +409,7 @@ def generate_self_signed_certificate():
     #assert certificate.verify(private_key)
     #assert certificate.verify(public_key)
 
-    return certificate.public_bytes(serialization.Encoding.PEM), rsa_private_key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption())
+    return certificate.public_bytes(serialization.Encoding.PEM), rsa_private_key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.TraditionalOpenSSL, serialization.NoEncryption())
 
 def install_host(host, servers, existing_server_ids, TCS_psiphond_config_values, ssh_ip_address_whitelist, TCS_iptables_output_rules, plugins):
 
