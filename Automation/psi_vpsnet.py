@@ -288,6 +288,7 @@ def launch_new_server(vpsnet_account, is_TCS, _, multi_ip=False, datacenter_city
         node_public_key = refresh_credentials(vpsnet_account, public_ip_address,
                                               generated_root_password,
                                               new_root_password, new_stats_password, stats_username)
+        assert(node_public_key)
         set_allowed_users(vpsnet_account, public_ip_address, new_root_password, stats_username)
     except Exception as e:
         print type(e), str(e)

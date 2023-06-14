@@ -365,6 +365,8 @@ def launch_new_server(oracle_account, is_TCS, plugins, multi_ip=False):
                                                   new_root_password, new_stats_password,
                                                   new_stats_username)
 
+        assert(new_host_public_key)
+
     except Exception as ex:
         if instance:
             oci_api.remove_instance(instance.id)
