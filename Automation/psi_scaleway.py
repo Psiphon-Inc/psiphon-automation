@@ -317,6 +317,8 @@ def launch_new_server(scaleway_account, is_TCS, plugins, multi_ip=False):
                                                   new_root_password, new_stats_password,
                                                   new_stats_username)
 
+        assert(new_host_public_key)
+
     except Exception as ex:
         if scaleway:
             scaleway_api.remove_scaleway(scaleway['id'])
