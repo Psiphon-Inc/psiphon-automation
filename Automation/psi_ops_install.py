@@ -1470,7 +1470,7 @@ exit 0
         script = '''
 #!/bin/bash
 
-threshold_load_per_cpu=0.80 #Percentage of Total CPU load.
+threshold_load_per_cpu=0.90 #Percentage of Total CPU load.
 threshold_mem=25
 threshold_syn_sent=1000
 threshold_network_bandwidth_percent=94.00 #Has to be a float value (used for accuracy in the comparison)
