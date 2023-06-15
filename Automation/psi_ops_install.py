@@ -670,11 +670,8 @@ def install_TCS_host(host, servers, existing_server_ids, TCS_psiphond_config_val
             # output format for the public key, which is saved in
             # psinet and included in server entries:
             # 'ssh-rsa <base64>', where the base64 portion is the public key encoded according to RFC 4253 section 6.6
-            rsa_key_e = rsa_key.private_numbers().public_numbers.e
-            rsa_key_n = rsa_key.private_numbers().public_numbers.n
-            number_e = rsa_key_e.to_bytes((rsa_key_e.bit_length() + 7) // 8, byteorder='little')
-            number_n = rsa_key_n.to_bytes((rsa_key_n.bit_length() + 7) // 8, byteorder='little')
-            server.ssh_host_key = 'ssh-rsa ' + base64.b64encode(b'\x00\x00\x00\x07\x73\x73\x68\x2d\x72\x73\x61' + number_e + number_n).decode()
+            # Use cryptography build in OpenSSH encoding and format for OpenSSH public key
+            server.ssh_host_key = rsa_key.public_key().public_bytes(serialization.Encoding.OpenSSH, serialization.PublicFormat.OpenSSH).decode()
 
             # store private key in psinet (legacy doesn't do this).
             # Stored in psiphond.config format.
