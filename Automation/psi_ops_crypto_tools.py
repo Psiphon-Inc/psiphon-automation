@@ -80,7 +80,7 @@ def make_signed_data(key_pair, private_key_password, data):
     private_key = serialization.load_pem_private_key(key_pair.encode(), password=bytes(private_key_password, 'utf-8'))
     signature = private_key.sign(
             data_digest,
-            padding.PSS(mgf=padding.MGF1(hashes.SHA256()),salt_length=padding.PSS.MAX_LENGTH),
+            padding.PKCS1v15(),
             utils.Prehashed(chosen_hash)
     )
 
