@@ -340,9 +340,9 @@ GRANT ALL ON <DB name in settings.py>.* TO '<username in settings.py>'@'localhos
 
 ## Filebeat
 
-We use Filebeat to send logs to our ELK stack. At this time we are limited to version 6.8.6 (check with the stats team for updates). It can be installed like:
+We use Filebeat to send logs to our ELK stack. At this time we are limited to version 7.17.8 (check with the stats team for updates). It can be installed like:
 ```
-curl -L -O https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-6.8.6-amd64.deb && yes | sudo dpkg -i filebeat-6.8.6-amd64.deb
+curl -L -O https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-7.17.8-amd64.deb && yes | sudo dpkg -i filebeat-7.17.8-amd64.deb
 ```
 
 The config file to use can be found at <https://github.com/Psiphon-Inc/elk/blob/main/beats/filebeat/mailresponder.yml>. It should be copied to `/etc/filebeat/filebeat.yml`. Ensure that file is world-readable.

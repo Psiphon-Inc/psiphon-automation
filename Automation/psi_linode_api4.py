@@ -363,6 +363,8 @@ def launch_new_server(linode_account, is_TCS, plugins, multi_ip=False):
                                                   new_root_password, new_stats_password,
                                                   stats_username)
 
+        assert(new_host_public_key)
+
         if multi_ip:
             egress_ip_address = get_egress_ip_address(linode_account, linode_ip_address, new_root_password, new_host_public_key)
             linode_ip_address = linode_ip_details[1].address if linode_ip_address == egress_ip_address else linode_ip_address

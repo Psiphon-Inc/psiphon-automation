@@ -32,7 +32,7 @@ from scaleway.scaleway import apis as ScalewayApis
 from slumber import exceptions as slexc
 
 # VARIABLE
-tcs_image_name = 'Psiphon-TCS-V9-20220601'
+tcs_image_name = 'Psiphon-TCS-V10-20230608'
 tcs_instance_size = 'DEV1-M'
 
 ###
@@ -316,6 +316,8 @@ def launch_new_server(scaleway_account, is_TCS, plugins, multi_ip=False):
         new_host_public_key = refresh_credentials(scaleway_account, scaleway_ip_address,
                                                   new_root_password, new_stats_password,
                                                   new_stats_username)
+
+        assert(new_host_public_key)
 
     except Exception as ex:
         if scaleway:

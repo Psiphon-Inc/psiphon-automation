@@ -62,7 +62,7 @@ def wait_while_condition(condition, max_wait_seconds, description):
 #
 ###
 class PsiOCI:
-    def __init__(self, oracle_account):
+    def __init__(self, oracle_account, debug=False):
         self.config = {
             "user": oracle_account.oci_user,
             "key_content": oracle_account.oci_user_ssh_key,
@@ -70,7 +70,7 @@ class PsiOCI:
             "tenancy": oracle_account.oci_tenancy_id,
             "compartment": oracle_account.oci_compartment_id,
             "region": random.choice(oracle_account.regions),
-            "log_requests": True
+            "log_requests": debug
         }
 
         self.image_source_uri=oracle_account.oci_bucket_image_url
@@ -364,6 +364,8 @@ def launch_new_server(oracle_account, is_TCS, plugins, multi_ip=False):
         new_host_public_key = refresh_credentials(oracle_account, instance_ip_address,
                                                   new_root_password, new_stats_password,
                                                   new_stats_username)
+
+        assert(new_host_public_key)
 
     except Exception as ex:
         if instance:
