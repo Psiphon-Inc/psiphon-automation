@@ -69,6 +69,9 @@ def get_base64_der_public_key(key_pair, private_key_password):
 def make_signed_data(key_pair, private_key_password, data):
     chosen_hash = hashes.SHA256()
 
+    if type(data) == str:
+        data = data.encode()
+
     sha = hashes.Hash(chosen_hash)
     sha.update(data)
     data_digest = sha.finalize()
