@@ -1470,7 +1470,7 @@ exit 0
         script = '''
 #!/bin/bash
 
-threshold_load_per_cpu=1
+threshold_load_per_cpu=0.90 #Percentage of Total CPU load.
 threshold_mem=25
 threshold_syn_sent=1000
 threshold_network_bandwidth_percent=94.00 #Has to be a float value (used for accuracy in the comparison)
@@ -1479,11 +1479,11 @@ while true; do
 
     loaded_cpu=0
     num_cpu=`grep 'model name' /proc/cpuinfo | wc -l`
-    threshold_cpu=$(($threshold_load_per_cpu * $num_cpu))
-    load_cpu=`uptime | cut -d , -f 4 | cut -d : -f 2 | awk -F \. '{print $1}'`
-    if [ "$load_cpu" -ge "$threshold_cpu" ]; then
+    threshold_cpu=$(echo "$threshold_load_per_cpu * $num_cpu" | bc)
+    load_cpu=`uptime | cut -d , -f 4 | cut -d : -f 2`
+    if [ $(echo "$load_cpu > $threshold_cpu" | bc) -eq 1 ]; then
         loaded_cpu=1
-        logger psi_limit_load: CPU load threshold reached.
+        logger psi_limit_load: CPU load threshold reached. Current Load: $load_cpu Threshold: $threshold_cpu Num CPU: $num_cpu
         break
     fi
 
