@@ -271,6 +271,13 @@ def add_swap_file(oracle_account, ip_address):
 
     ssh.close()
     return
+
+def resize_sda1(oracle_account, ip_address):
+    ssh = psi_ssh.make_ssh_session(ip_address, oracle_account.base_image_ssh_port, 'root', None, None, host_auth_key=oracle_account.base_image_rsa_private_key)
+    ssh.exec_command('resize2fs /dev/sda1')
+    ssh.close()
+    return
+
 ###
 #
 # Main function
@@ -357,7 +364,8 @@ def launch_new_server(oracle_account, is_TCS, plugins, multi_ip=False):
         set_host_name(oracle_account, instance_ip_address, host_id)
         set_allowed_users(oracle_account, instance_ip_address, new_stats_username)
         add_swap_file(oracle_account, instance_ip_address)
-
+        resize_sda1(oracle_account, instance_ip_address)
+        
         # Change the new oci instance's credentials
         new_root_password = psi_utils.generate_password()
         new_stats_password = psi_utils.generate_password()
