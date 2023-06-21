@@ -46,7 +46,7 @@ class AtmosTests(unittest.TestCase):
         AtmosMockHttp.type = None
         AtmosMockHttp.upload_created = False
         AtmosMockRawResponse.type = None
-        self.driver = AtmosDriver('dummy', base64.b64encode(b('dummy')))
+        self.driver = AtmosDriver('dummy', base64.b64encode(b'dummy').decode('utf-8'))
         self._remove_test_file()
 
     def tearDown(self):
