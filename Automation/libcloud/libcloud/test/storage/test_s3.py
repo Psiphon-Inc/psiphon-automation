@@ -484,7 +484,7 @@ class S3Tests(unittest.TestCase):
         )
         string_to_sign = 'GET\n\nTYPE!\n\nx-aws-test:test_value\n/'
         b64_hmac = base64.b64encode(
-            hmac.new(b(secret_key), b(string_to_sign), digestmod=sha1).digest()
+            hmac.new(secret_key.encode('utf-8'), string_to_sign.encode('utf-8'), digestmod=sha1).digest()
         )
         expected_sig = b64_hmac.decode('utf-8')
         self.assertEqual(sig, expected_sig)
