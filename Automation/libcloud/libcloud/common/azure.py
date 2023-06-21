@@ -226,7 +226,7 @@ class AzureConnection(ConnectionUserAndKey):
         secret_key = b(secret_key)
         b64_hmac = base64.b64encode(
             hmac.new(secret_key, string_to_sign, digestmod=sha256).digest()
-        )
+        ).decode('utf-8')
 
         return 'SharedKey %s:%s' % (self.user_id, b64_hmac.decode('utf-8'))
 
