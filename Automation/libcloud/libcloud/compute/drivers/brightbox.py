@@ -162,8 +162,8 @@ class BrightboxNodeDriver(NodeDriver):
         }
 
         if 'ex_userdata' in kwargs:
-            data['user_data'] = base64.b64encode(b(kwargs['ex_userdata'])) \
-                                      .decode('ascii')
+            data['user_data'] = base64.b64encode(kwargs['ex_userdata'].encode('utf-8')) \
+                                 .decode('ascii')
 
         if 'location' in kwargs:
             data['zone'] = kwargs['location'].id
