@@ -72,7 +72,7 @@ class VPSNetConnection(ConnectionUserAndKey):
     allow_insecure = False
 
     def add_default_headers(self, headers):
-        user_b64 = base64.b64encode(b('%s:%s' % (self.user_id, self.key)))
+        user_b64 = base64.b64encode(('%s:%s' % (self.user_id, self.key)).encode('utf-8'))
         headers['Authorization'] = 'Basic %s' % (user_b64.decode('utf-8'))
         return headers
 
