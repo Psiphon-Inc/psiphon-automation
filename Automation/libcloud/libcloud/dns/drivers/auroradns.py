@@ -199,9 +199,9 @@ class AuroraDNSConnection(ConnectionUserAndKey):
 
     def calculate_auth_signature(self, secret_key, method, url, timestamp):
         b64_hmac = base64.b64encode(
-            hmac.new(b(secret_key),
-                     b(method) + b(url) + b(timestamp),
-                     digestmod=sha256).digest()
+            hmac.new(secret_key.encode('utf-8'),
+                 (method + url + timestamp).encode('utf-8'),
+                 digestmod=hashlib.sha256).digest()
         )
 
         return b64_hmac.decode('utf-8')
@@ -210,7 +210,7 @@ class AuroraDNSConnection(ConnectionUserAndKey):
         signature = self.calculate_auth_signature(secret_key, method, url,
                                                   timestamp)
 
-        auth_b64 = base64.b64encode(b('%s:%s' % (api_key, signature)))
+        auth_b64 = base64.b64encode(('%s:%s' % (api_key, signature)).encode('utf-8'))
         return 'AuroraDNSv1 %s' % (auth_b64.decode('utf-8'))
 
     def request(self, action, params=None, data='', headers=None,
