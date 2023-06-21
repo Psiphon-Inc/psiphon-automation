@@ -80,7 +80,8 @@ class KubernetesConnection(ConnectionUserAndKey):
         """
         headers['Content-Type'] = 'application/json'
         if self.key and self.secret:
-            user_b64 = base64.b64encode(b('%s:%s' % (self.key, self.secret)))
+            user_b64 = base64.b64encode(('%s:%s' % (self.key, self.secret)).encode('utf-8'))
+
             headers['Authorization'] = 'Basic %s' % (user_b64.decode('utf-8'))
         return headers
 
