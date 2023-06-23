@@ -23,7 +23,7 @@
 <%
   metadata = data['Metadata']
   diagnostic_info = data.get('DiagnosticInfo', {})
-  sys_info = diagnostic_info.get('SystemInformation')
+  sys_info = diagnostic_info.get('SystemInformation', {})
   status_history = diagnostic_info.get('StatusHistory', [])
   diagnostic_history = diagnostic_info.get('DiagnosticHistory', [])
   feedback = data.get('Feedback')
@@ -124,7 +124,7 @@
 
 ## Survey and feedback message, original and translation
 
-% if feedback and feedback.get('Message') and feedback['Message'].get('text'):
+% if feedback is not None and feedback.get('Message', {}).get('text') is not None:
 <%
   # Through experimentation, we have found that the maximum number of urlencoded
   # UTF-8 characters that can successfully be put into a Google Translate URL
@@ -184,22 +184,27 @@
   </table>
 % endif
 
-
-## Start of diagnostic info
-% if diagnostic_info:
+<%def name="sys_info_row_emoticon(key, is_happy)">
+  <tr>
+    <th>${sys_info_key_map(key)}</th>
+    <td class="emoticon">
+      % if is_happy:
+        &#9786;
+      % else:
+        &#9785;
+      % endif
+    </td>
+  </tr>
+</%def>
 
 ## Display more human-friendly field names
 <%def name="sys_info_key_map(key)">
   <%
   map = {
-          'CLIENT_VERSION': 'Client Version',
-          'PROPAGATION_CHANNEL_ID': 'Prop. Channel',
-          'SPONSOR_ID': 'Sponsor',
           'language': '<a href="http://msdn.microsoft.com/en-ca/goglobal/bb964664.aspx">language</a>',
           'locale': '<a href="http://msdn.microsoft.com/en-ca/goglobal/bb964664.aspx">locale</a>',
-          'codeSet': '<a href="http://msdn.microsoft.com/en-us/library/windows/desktop/dd317756%28v=vs.85%29.aspx">codeSet</a>',
+          'CodeSet': '<a href="http://msdn.microsoft.com/en-us/library/windows/desktop/dd317756%28v=vs.85%29.aspx">codeSet</a>',
           'productState': '<a href="http://neophob.com/2010/03/wmi-query-windows-securitycenter2/">productState</a>',
-          'flags': '<a href="http://msdn.microsoft.com/en-us/library/windows/desktop/aa385145%28v=vs.85%29.aspx">flags</a>',
           'countryCode': '<a href="http://en.wikipedia.org/wiki/List_of_country_calling_codes">countryCode</a>',
         }
   %>
@@ -217,19 +222,9 @@
     <td>${val}</td>
   </tr>
 </%def>
-<%def name="sys_info_row_emoticon(key, is_happy)">
-  <tr>
-    <th>${sys_info_key_map(key)}</th>
-    <td class="emoticon">
-      % if is_happy:
-        &#9786;
-      % else:
-        &#9785;
-      % endif
-    </td>
-  </tr>
-</%def>
 
+## Start of diagnostic info
+% if diagnostic_info:
 
 ##
 ## Brief System Info
@@ -237,13 +232,27 @@
 
 <h2>System Brief</h2>
 
+<%
+    security_info = sys_info.get('SecurityInfo', {})
+
+    av_info = security_info.get('AntiVirusInfo', [])
+    fw_info = security_info.get('FirewallInfo', [])
+    as_info = security_info.get('AntiSpywareInfo', [])
+
+    av_enabled = [av['DisplayName'] for av in av_info if av['Enabled']]
+    countries = [c['display'] for c in utils.coalesce(sys_info, ['OSInfo', 'CountryCodeInfo'], [])]
+%>
+
 <table>
 
-  ${sys_info_row('OS', sys_info['OSInfo']['name'])}
+  ${sys_info_row('OS', sys_info['OSInfo']['Os'])}
   ${sys_info_row('User is', ', '.join([k for (k,v) in sys_info['UserInfo'].items() if v]))}
-  ${sys_info_row('AV', ', '.join([av['displayName'] for av in sys_info['SecurityInfo']['AntiVirusInfo'] if av[av['version']]['enabled']]))}
-  ${sys_info_row('Uses proxy', 'yes' if [proxy for proxy in sys_info['NetworkInfo']['Original']['Proxy'] if proxy['flags'] != 'PROXY_TYPE_DIRECT'] else 'no')}
-  ${sys_info_row('~Country', ', '.join([c['display'] for c in utils.coalesce(sys_info, ['OSInfo', 'CountryCodeInfo'], [])]))}
+  % if len(av_enabled) > 0:
+  ${sys_info_row('AV', ', '.join(av_enabled))}
+  % endif
+  % if len(countries) > 0:
+  ${sys_info_row('~Country', ', '.join(countries))}
+  % endif
   ${sys_info_row('~Locale', utils.coalesce(sys_info, ['OSInfo', 'LocaleInfo', 'display'], ''))}
 </table>
 
@@ -351,41 +360,29 @@
 
 ## Network Info
 
+<%
+  network_info = sys_info.get('NetworkInfo')
+%>
+
+% if network_info is not None:
 <h3>Network Info</h3>
-
-<h4>Original Proxy</h4>
-% for connection in sys_info['NetworkInfo']['Original']['Proxy']:
-  <table>
-    % for k, v in sorted(connection.items()):
-      <% if k == 'connectionName' and not v: v = '[default]' %>
-      ${sys_info_row(k, v)}
-    % endfor
-  </table>
-% endfor
-
-<h4>Original Internet</h4>
 <table>
-  % for k, v in sorted(sys_info['NetworkInfo']['Original']['Internet'].items()):
+  % for k, v in sorted(network_info.items()):
     ${sys_info_row(k, v)}
   % endfor
 </table>
-
-<h4>Current Internet</h4>
-<table>
-  % for k, v in sorted(sys_info['NetworkInfo']['Current']['Internet'].items()):
-    ${sys_info_row(k, v)}
-  % endfor
-</table>
+% endif ## network_info is not None
 
 ## Security Info
-
+% if security_info:
 <h3>Security Info</h3>
+
+% if len(av_info) > 0:
 <h4>Anti-Virus</h4>
-% for item in sys_info['SecurityInfo']['AntiVirusInfo']:
+% for item in av_info:
   <table>
-    ${sys_info_row('', item['displayName'])}
-    % for k, v in sorted(item[item['version']].items()):
-        % if k == 'productState' and v:
+    % for k, v in sorted(item.items()):
+        % if k == 'ProductState' and v:
           ${sys_info_row(k, hex(v))}
         % else:
           ${sys_info_row(k, v)}
@@ -393,16 +390,16 @@
     % endfor
   </table>
 % endfor
+% endif ## len(av_info) > 0
 
 ## The anti-spyware info seems to often be identical to the anti-virus info,
 ## in which case we won't output it.
-% if sys_info['SecurityInfo']['AntiSpywareInfo'] != sys_info['SecurityInfo']['AntiVirusInfo']:
+% if len(as_info) > 0 and as_info != av_info:
   <h4>Anti-Spyware</h4>
-  % for item in sys_info['SecurityInfo']['AntiSpywareInfo']:
+  % for item in as_info:
     <table>
-      ${sys_info_row('', item['displayName'])}
-      % for k, v in sorted(item[item['version']].items()):
-        % if k == 'productState' and v:
+      % for k, v in sorted(item.items()):
+        % if k == 'ProductState' and v:
           ${sys_info_row(k, hex(v))}
         % else:
           ${sys_info_row(k, v)}
@@ -410,19 +407,19 @@
       % endfor
     </table>
   % endfor
-% endif
+% endif ## len(as_info) > 0 and as_info != av_info
 
-% if sys_info['SecurityInfo']['FirewallInfo']:
+% if len(fw_info) > 0:
   <h4>Firewall</h4>
-  % for item in sys_info['SecurityInfo']['FirewallInfo']:
+  % for item in fw_info:
     <table>
-      ${sys_info_row('', item['displayName'])}
-      % for k, v in sorted(item[item['version']].items()):
+      % for k, v in sorted(item.items()):
         ${sys_info_row(k, v)}
       % endfor
     </table>
   % endfor
-% endif
+% endif ## len(fw_info) > 0
+% endif ## security_info
 
 ## Psiphon Info
 
