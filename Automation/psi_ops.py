@@ -2993,7 +2993,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         number_of_alternate_feedback_upload_urls = 3
         if self.__alternate_feedback_upload_urls:
             if len(self.__alternate_feedback_upload_urls) > number_of_alternate_feedback_upload_urls:
-                alternate_feedback_upload_urls = random.sample(self.__alternate_feedback_upload_urls, number_of_alternate_feedback_upload_urls)
+                alternate_feedback_upload_urls = random.sample(sorted(self.__alternate_feedback_upload_urls), number_of_alternate_feedback_upload_urls)
             else:
                 alternate_feedback_upload_urls = self.__alternate_feedback_upload_urls
 
@@ -3085,7 +3085,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         number_of_alternate_download_url_domains = 3
         if self.__alternate_s3_bucket_domains:
             if len(self.__alternate_s3_bucket_domains) > number_of_alternate_download_url_domains:
-                alternate_download_url_domains = random.sample(self.__alternate_s3_bucket_domains, number_of_alternate_download_url_domains)
+                alternate_download_url_domains = random.sample(sorted(self.__alternate_s3_bucket_domains), number_of_alternate_download_url_domains)
             else:
                 alternate_download_url_domains = self.__alternate_s3_bucket_domains
 
