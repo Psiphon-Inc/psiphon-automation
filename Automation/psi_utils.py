@@ -239,7 +239,7 @@ class TemporaryBackup:
         self.files[filename] = temporary_file
 
     def restore_all(self):
-        for filename, temporary_file in self.files.iteritems():
+        for filename, temporary_file in self.files.items():
             with open(filename, 'wb') as file:
                 temporary_file.seek(0)
                 file.write(temporary_file.read())
