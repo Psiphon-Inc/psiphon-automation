@@ -95,6 +95,8 @@ class BackblazeB2AuthConnection(ConnectionUserAndKey):
         headers = {}
         action = 'b2_authorize_account'
         auth_b64 = base64.b64encode(b('%s:%s' % (self.user_id, self.key)))
+        auth_b64 = base64.b64encode(('%s:%s' % (self.user_id, self.key)).encode('utf-8'))
+
         headers['Authorization'] = 'Basic %s' % (auth_b64.decode('utf-8'))
 
         action = API_PATH + 'b2_authorize_account'

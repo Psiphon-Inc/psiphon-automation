@@ -165,7 +165,8 @@ class AliyunRequestSignerAlgorithmV1_0(AliyunRequestSigner):
         qs = urlquote('&'.join(pairs), safe='-_.~')
         string_to_sign = '&'.join((method, urlquote(path, safe=''), qs))
         b64_hmac = base64.b64encode(
-            hmac.new(b(self._get_access_secret()), b(string_to_sign),
+            hmac.new(self._get_access_secret().encode('utf-8'),
+                     string_to_sign.encode('utf-8'),
                      digestmod=hashlib.sha1).digest()
         )
 

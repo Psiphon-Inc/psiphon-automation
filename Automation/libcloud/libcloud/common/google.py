@@ -499,7 +499,7 @@ class GoogleServiceAcctAuthConnection(GoogleBaseAuthConnection):
         """
         # The header is always the same
         header = {'alg': 'RS256', 'typ': 'JWT'}
-        header_enc = base64.urlsafe_b64encode(b(json.dumps(header)))
+        header_enc = base64.urlsafe_b64encode(json.dumps(header).encode('utf-8'))
 
         # Construct a claim set
         claim_set = {'iss': self.user_id,
@@ -507,7 +507,7 @@ class GoogleServiceAcctAuthConnection(GoogleBaseAuthConnection):
                      'aud': 'https://accounts.google.com/o/oauth2/token',
                      'exp': int(time.time()) + 3600,
                      'iat': int(time.time())}
-        claim_set_enc = base64.urlsafe_b64encode(b(json.dumps(claim_set)))
+        claim_set_enc = base64.urlsafe_b64encode(json.dumps(claim_set).encode('utf-8'))
 
         # The message contains both the header and claim set
         message = b'.'.join((header_enc, claim_set_enc))

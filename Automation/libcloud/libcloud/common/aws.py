@@ -235,7 +235,7 @@ class AWSRequestSignerAlgorithmV2(AWSRequestSigner):
         string_to_sign = '\n'.join(('GET', hostname, path, qs))
 
         b64_hmac = base64.b64encode(
-            hmac.new(b(secret_key), b(string_to_sign),
+            hmac.new(secret_key.encode('utf-8'), string_to_sign.encode('utf-8'),
                      digestmod=sha256).digest()
         )
 

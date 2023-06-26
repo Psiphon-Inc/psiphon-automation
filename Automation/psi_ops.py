@@ -2985,7 +2985,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         feedback_upload_info = self.get_feedback_upload_info()
 
         feedback_upload_urls = []
-        feedback_upload_urls.append({'URL': base64.b64encode('https://' + feedback_upload_info.upload_server + feedback_upload_info.upload_path),
+        feedback_upload_urls.append({'URL': base64.b64encode(('https://' + feedback_upload_info.upload_server + feedback_upload_info.upload_path).encode()).decode(),
                                      'RequestHeaders': dict(header.split(':') for header in feedback_upload_info.upload_server_headers.splitlines()),
                                      'OnlyAfterAttempts': 0,
                                      'SkipVerify': False})

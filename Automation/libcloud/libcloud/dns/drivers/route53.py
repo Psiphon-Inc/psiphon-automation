@@ -90,7 +90,7 @@ class Route53Connection(ConnectionUserAndKey):
 
     def _get_aws_auth_b64(self, secret_key, time_string):
         b64_hmac = base64.b64encode(
-            hmac.new(b(secret_key), b(time_string), digestmod=sha1).digest()
+            hmac.new(secret_key.encode('utf-8'), time_string.encode('utf-8'), digestmod=sha1).digest()
         )
 
         return b64_hmac.decode('utf-8')

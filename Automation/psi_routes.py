@@ -206,11 +206,12 @@ def make_signed_routes(pem_key_pair, private_key_password):
             if(name.endswith(GEO_ROUTES_EXTENSION)):
                 path = os.path.join(root, name)
                 with open(path, 'rb') as file:
-                    data = file.read()
+                    data = file.read().decode('utf-8')
+                    encoded_data = base64.b64encode(data.encode('utf-8')).decode('utf-8')
                 signed_routes_data  =  psi_ops_crypto_tools.make_signed_data(
                         pem_key_pair,
                         private_key_password,
-                        base64.b64encode(data))
+                        encoded_data
 
                 signed_routes_filename = path + GEO_ROUTES_SIGNED_EXTENSION
                 with open(signed_routes_filename, 'w') as f:

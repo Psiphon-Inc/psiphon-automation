@@ -45,7 +45,7 @@ class LuadnsConnection(ConnectionUserAndKey):
     responseCls = LuadnsResponse
 
     def add_default_headers(self, headers):
-        b64string = b('%s:%s' % (self.user_id, self.key))
+        b64string = ('%s:%s' % (self.user_id, self.key)).encode('utf-8')
         encoded = base64.b64encode(b64string).decode('utf-8')
         authorization = 'Basic ' + encoded
 

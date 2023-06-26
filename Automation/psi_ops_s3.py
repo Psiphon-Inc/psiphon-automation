@@ -1190,7 +1190,7 @@ class Test(unittest.TestCase):
         # All special files
         #
 
-        website_banner_base64 = base64.b64encode('test'.encode('utf-8'))
+        website_banner_base64 = base64.b64encode(b'test').decode('utf-8')
         website_banner_link = 'https://example.com'
         website_email_address = 'test@example.com'
 

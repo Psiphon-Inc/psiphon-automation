@@ -133,8 +133,7 @@ class CloudSigma_1_0_Connection(ConnectionUserAndKey):
         headers['Accept'] = 'application/json'
         headers['Content-Type'] = 'application/json'
 
-        headers['Authorization'] = 'Basic %s' % (base64.b64encode(
-            b('%s:%s' % (self.user_id, self.key))).decode('utf-8'))
+        headers['Authorization'] = 'Basic %s' % base64.b64encode(('%s:%s' % (self.user_id, self.key)).encode('utf-8')).decode('utf-8')
         return headers
 
 
@@ -941,8 +940,7 @@ class CloudSigma_2_0_Connection(ConnectionUserAndKey):
         headers['Accept'] = 'application/json'
         headers['Content-Type'] = 'application/json'
 
-        headers['Authorization'] = 'Basic %s' % (base64.b64encode(
-            b('%s:%s' % (self.user_id, self.key))).decode('utf-8'))
+        headers['Authorization'] = 'Basic %s' % base64.b64encode(('%s:%s' % (self.user_id, self.key)).encode('utf-8')).decode('utf-8')
         return headers
 
     def encode_data(self, data):

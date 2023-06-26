@@ -265,7 +265,7 @@ class BrightboxMockHttp(MockHttp):
             return self.response(httplib.OK, self.fixtures.load('list_servers.json'))
         elif method == 'POST':
             body = json.loads(body)
-            encoded = base64.b64encode(b(USER_DATA)).decode('ascii')
+            encoded = base64.b64encode(USER_DATA.encode('utf-8')).decode('ascii')
 
             if 'user_data' in body and body['user_data'] != encoded:
                 data = '{"error_name":"dodgy user data", "errors": ["User data not encoded properly"]}'
