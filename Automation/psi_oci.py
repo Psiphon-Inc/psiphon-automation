@@ -265,9 +265,11 @@ def set_host_name(oracle_account, ip_address, new_hostname):
 
 def add_swap_file(oracle_account, ip_address):
     ssh = psi_ssh.make_ssh_session(ip_address, oracle_account.base_image_ssh_port, 'root', None, None, host_auth_key=oracle_account.base_image_rsa_private_key)
-    ssh.exec_command('dd if=/dev/zero of=/swapfile bs=1024 count=1048576 && mkswap /swapfile && chown root:root /swapfile && chmod 0600 /swapfile')
-    ssh.exec_command('echo "/swapfile swap swap defaults 0 0" >> /etc/fstab')
-    ssh.exec_command('swapon -a')
+    has_swap = ssh.exec_command('grep swap /etc/fstab')
+    if not has_swap:
+        ssh.exec_command('dd if=/dev/zero of=/swapfile bs=1024 count=1048576 && mkswap /swapfile && chown root:root /swapfile && chmod 0600 /swapfile')
+        ssh.exec_command('echo "/swapfile swap swap defaults 0 0" >> /etc/fstab')
+        ssh.exec_command('swapon -a')
 
     ssh.close()
     return
