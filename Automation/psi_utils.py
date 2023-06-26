@@ -193,7 +193,7 @@ def make_recordtype_diff_log(rcd, **kwargs):
     diff = []
     rcddict = rcd.todict()
     for key in rcddict:
-        if not kwargs.has_key(key): continue
+        if not key in kwargs: continue
         if rcddict[key] != kwargs[key]:
             diff.append('%s:%s' % (key, kwargs[key]))
     return '; '.join(diff)
