@@ -31,7 +31,7 @@ import psi_utils
 import oci
 
 # VARIABLE
-TCS_BASE_IMAGE_NAME = 'Psiphon-TCS-V10-20230524'
+TCS_BASE_IMAGE_NAME = 'Psiphon-TCS-V10-20230623'
 
 ###
 #
