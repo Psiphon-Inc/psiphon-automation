@@ -2985,7 +2985,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         feedback_upload_info = self.get_feedback_upload_info()
 
         feedback_upload_urls = []
-        feedback_upload_urls.append({'URL': base64.b64encode('https://' + feedback_upload_info.upload_server + feedback_upload_info.upload_path),
+        feedback_upload_urls.append({'URL': base64.b64encode(('https://' + feedback_upload_info.upload_server + feedback_upload_info.upload_path).encode()).decode(),
                                      'RequestHeaders': dict(header.split(':') for header in feedback_upload_info.upload_server_headers.splitlines()),
                                      'OnlyAfterAttempts': 0,
                                      'SkipVerify': False})
@@ -2998,7 +2998,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 alternate_feedback_upload_urls = self.__alternate_feedback_upload_urls
 
             for url in alternate_feedback_upload_urls:
-                feedback_upload_urls.append({'URL': base64.b64encode(url),
+                feedback_upload_urls.append({'URL': base64.b64encode(url.encode('utf-8')),
                                              'RequestHeaders': dict(header.split(':') for header in feedback_upload_info.upload_server_headers.splitlines()),
                                              'OnlyAfterAttempts': 2,
                                              'SkipVerify': True})
@@ -3091,12 +3091,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         def download_urls(url_split):
             urls = []
-            urls.append({'URL': base64.b64encode(urlparse.urlunsplit(url_split)),
+            urls.append({'URL': base64.b64encode(urlparse.urlunsplit(url_split).encode('utf-8')),
                          'OnlyAfterAttempts': 0,
                          'SkipVerify': False})
             if alternate_download_url_domains and url_split.path.startswith('/psiphon/'):
                 for domain in alternate_download_url_domains:
-                    urls.append({'URL': base64.b64encode('https://' + domain + url_split.path.split('/psiphon')[1]),
+                    urls.append({'URL': base64.b64encode('https://' + domain + url_split.path.split('/psiphon')[1].encode()).decode(),
                                  'OnlyAfterAttempts': 2,
                                  'SkipVerify': True})
             return urls
@@ -3488,7 +3488,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             empty_osl_registry = zlib.compress(psi_ops_crypto_tools.make_signed_data(
                     self.__get_remote_server_list_signing_key_pair().pem_key_pair,
                     REMOTE_SERVER_SIGNING_KEY_PAIR_PASSWORD,
-                    base64.b64encode('{"FileSpecs" : []}')))
+                    base64.b64encode('{"FileSpecs" : []}').encode('utf-8')))
 
             for sponsor in self.__sponsors.values():
                 for campaign in sponsor.campaigns:
