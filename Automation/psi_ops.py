@@ -491,7 +491,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # and store as a tuple (<public-key>, <private-key>)
         self.__server_entry_signing_key_pair = None
 
-        self.__exchange_obfuscation_key = base64.b64encode(os.urandom(32))
+        self.__exchange_obfuscation_key = base64.b64encode(os.urandom(32)).decode()
 
         self.__ssh_ip_address_whitelist = []
         self.__TCS_iptables_output_rules = []
@@ -694,7 +694,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     try:
                         pngdata = io.BytesIO()
                         Image.open(io.BytesIO(base64.b64decode(sponsor.banner))).save(pngdata, 'png')
-                        sponsor.banner = base64.b64encode(pngdata.getvalue())
+                        sponsor.banner = base64.b64encode(pngdata.getvalue()).decode()
                     except Exception as e:
                         print('Corrupt banner image found for sponsor %s; unable to convert' % sponsor.id)
             self.version = '0.34'
@@ -846,7 +846,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.version = '0.53'
         if cmp(parse_version(self.version), parse_version('0.54')) < 0:
             self.__server_entry_signing_key_pair = None
-            self.__exchange_obfuscation_key = base64.b64encode(os.urandom(32))
+            self.__exchange_obfuscation_key = base64.b64encode(os.urandom(32)).decode()
             self.version = '0.54'
         if cmp(parse_version(self.version), parse_version('0.55')) < 0:
             self.__routes_signing_public_key = None
@@ -1380,7 +1380,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Ensure that the banner is a PNG
         assert(banner[:8] == '\x89PNG\r\n\x1a\n')
         sponsor = self.get_sponsor_by_name(name)
-        sponsor.banner = base64.b64encode(banner)
+        sponsor.banner = base64.b64encode(banner).decode()
         sponsor.log('set banner')
         for campaign in sponsor.campaigns:
             for platform in self.__deploy_builds_required_for_campaigns:
@@ -1395,7 +1395,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Ensure that the banner is a PNG
         assert(website_banner[:8] == '\x89PNG\r\n\x1a\n')
         sponsor = self.get_sponsor_by_name(name)
-        sponsor.website_banner = base64.b64encode(website_banner)
+        sponsor.website_banner = base64.b64encode(website_banner).decode()
         sponsor.website_banner_link = website_banner_link
         self.__deploy_website_required_for_sponsors.add(sponsor.id)
         sponsor.log('set website_banner, marked for publish')
@@ -2186,7 +2186,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def generate_obfuscated_key(self, base64_encode=False):
         obfuscated_key = os.urandom(psi_ops_install.SSH_OBFUSCATED_KEY_BYTE_LENGTH)
-        return base64.b64encode(obfuscated_key) if base64_encode else binascii.hexlify(obfuscated_key).decode()
+        return base64.b64encode(obfuscated_key).decode() if base64_encode else binascii.hexlify(obfuscated_key).decode()
 
     def generate_nacl_keypair(self):
         keygenerator_binary = 'keygenerator.exe'
