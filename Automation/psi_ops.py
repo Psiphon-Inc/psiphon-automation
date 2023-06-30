@@ -3149,7 +3149,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         upgrade_filename = build_filename + psi_ops_s3.DOWNLOAD_SITE_UPGRADE_SUFFIX
         f = gzip.open(upgrade_filename, 'wb')
         try:
-            f.write(authenticated_data_package)
+            f.write(authenticated_data_package.encode())
         finally:
             f.close()
         return upgrade_filename
