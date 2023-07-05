@@ -2390,7 +2390,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 capabilities['handshake'] = False
                 capabilities['VPN'] = False
                 capabilities['SSH'] = False
-                ossh_ports = range(1,1023)
+                ossh_ports = list(range(1,1023))
                 ossh_ports.remove(15)
                 ossh_ports.remove(25)
                 ossh_ports.remove(80)
