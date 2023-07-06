@@ -446,8 +446,8 @@ def make_base_droplet(psinet, digitalocean_account):
 
         sshkeys = do_mgr.get_all_sshkeys()
         # treat sshkey id as unique
-        if not unicode(digitalocean_account.ssh_key_template_id) in [unicode(k.id) for k in sshkeys]:
-            raise 'No SSHKey found'
+        if not int(digitalocean_account.ssh_key_template_id) in [k.id for k in sshkeys]:
+            raise Exception('No SSHKey found')
 
         droplet = digitalocean.Droplet(token=digitalocean_account.oauth_token,
                                        name=Droplet.name,
@@ -537,6 +537,7 @@ def launch_new_server(digitalocean_account, is_TCS, _, multi_ip=False):
     # None TCS id '25617090' only for VPN + filebeat
     # Old working None TCS id: 17784624
     base_id = '25617090' if not is_TCS else '122941626'
+    droplet = None
     try:
         Droplet = collections.namedtuple('Droplet', ['name', 'region', 'image',
                                                      'size', 'backups'])
@@ -556,8 +557,8 @@ def launch_new_server(digitalocean_account, is_TCS, _, multi_ip=False):
 
         # Set the default size
         droplet_sizes = do_mgr.get_all_sizes()
-        if not unicode(digitalocean_account.base_size_slug) in [unicode(s.slug) for s in droplet_sizes]:
-            raise 'Size slug not found'
+        if not digitalocean_account.base_size_slug in [s.slug for s in droplet_sizes]:
+            raise Exception('Size slug not found')
 
         Droplet.size = 's-2vcpu-4gb'
 
@@ -573,8 +574,8 @@ def launch_new_server(digitalocean_account, is_TCS, _, multi_ip=False):
 
         sshkeys = do_mgr.get_all_sshkeys()
         # treat sshkey id as unique
-        if not unicode(digitalocean_account.ssh_key_template_id) in [unicode(k.id) for k in sshkeys]:
-            raise 'No SSHKey found'
+        if not int(digitalocean_account.ssh_key_template_id) in [k.id for k in sshkeys]:
+            raise Exception('No SSHKey found')
 
         droplet = digitalocean.Droplet(token=digitalocean_account.oauth_token,
                                        name=Droplet.name,
