@@ -49,25 +49,42 @@ def _parse_survey_results(data):
 def _convert_locale_info(data):
     # Map numeric locale and country values to more human-usable values.
     os_info = data.get('DiagnosticInfo', {}).get('SystemInformation', {}).get('OSInfo')
-    if os_info:
-        if os_info.get('locale'):
+
+    if os_info is None:
+        return
+
+    is_posix = 'OS' in os_info and (os_info['OS'] == 'darwin' or os_info['OS'] == 'linux')
+
+    if os_info.get('locale'):
+        if is_posix:
+            # en_US -> en-us
+            locale_string = os_info['locale'].replace('_', '-').lower()
+            locale_match = [m for m in _locale_codes if m['lcid_string'] == locale_string]
+
+            if len(locale_match) == 0:
+                # ja_JP is listed as just ja
+                locale_string = locale_string.split('-')[0]
+                locale_match = [m for m in _locale_codes if m['lcid_string'] == locale_string]
+
+        else:
             locale_hex = int(str(os_info['locale']), 16)
             locale_match = [m for m in _locale_codes if m['lcid_number'] == locale_hex]
-            os_info['LocaleInfo'] = locale_match[0] if locale_match else None
 
-        if os_info.get('language'):
-            language_match = [m for m in _locale_codes if m['lcid_number'] == os_info['language']]
-            os_info['LanguageInfo'] = language_match[0] if language_match else None
+        os_info['LocaleInfo'] = locale_match[0] if locale_match else None
 
-        if os_info.get('countryCode'):
-            # Multiple countries can have the same dialing code (like Canada and
-            # the US with 1), so CountryCodeInfo will be an array.
-            country_match = [m for m in _country_dialing_codes if str(m['dialing_code']) == str(os_info['countryCode'])]
-            # Sometimes the countryCode has an additional digit. If we didn't get a
-            # match, search again without the last digit.
-            if not country_match:
-                country_match = [m for m in _country_dialing_codes if str(m['dialing_code']) == str(os_info['countryCode'])[:-1]]
-            os_info['CountryCodeInfo'] = country_match if country_match else None
+    if os_info.get('language'):
+        language_match = [m for m in _locale_codes if m['lcid_number'] == os_info['language']]
+        os_info['LanguageInfo'] = language_match[0] if language_match else None
+
+    if os_info.get('countryCode'):
+        # Multiple countries can have the same dialing code (like Canada and
+        # the US with 1), so CountryCodeInfo will be an array.
+        country_match = [m for m in _country_dialing_codes if str(m['dialing_code']) == str(os_info['countryCode'])]
+        # Sometimes the countryCode has an additional digit. If we didn't get a
+        # match, search again without the last digit.
+        if not country_match:
+            country_match = [m for m in _country_dialing_codes if str(m['dialing_code']) == str(os_info['countryCode'])[:-1]]
+        os_info['CountryCodeInfo'] = country_match if country_match else None
 
 
 def _sanitize_keys(data):
