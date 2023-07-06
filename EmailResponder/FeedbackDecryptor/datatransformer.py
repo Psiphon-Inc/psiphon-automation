@@ -53,7 +53,7 @@ def _convert_locale_info(data):
     if os_info is None:
         return
 
-    is_posix = 'Os' in os_info and (os_info['Os'] == 'darwin' or os_info['Os'] == 'linux')
+    is_posix = 'OS' in os_info and (os_info['OS'] == 'darwin' or os_info['OS'] == 'linux')
 
     if os_info.get('locale'):
         if is_posix:

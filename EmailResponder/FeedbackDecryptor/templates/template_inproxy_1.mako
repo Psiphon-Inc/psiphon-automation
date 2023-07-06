@@ -245,7 +245,7 @@
 
 <table>
 
-  ${sys_info_row('OS', sys_info['OSInfo']['Os'])}
+  ${sys_info_row('OS', sys_info['OSInfo']['OS'])}
   ${sys_info_row('User is', ', '.join([k for (k,v) in sys_info['UserInfo'].items() if v]))}
   % if len(av_enabled) > 0:
   ${sys_info_row('AV', ', '.join(av_enabled))}
