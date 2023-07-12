@@ -223,6 +223,7 @@ SponsorRegex = psi_utils.recordtype(
 Host = psi_utils.recordtype(
     'Host',
     'id, is_TCS, TCS_type, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key, ' +
+    'ipmi_ip_address, ipmi_username, ipmi_password, ipmi_vpn_profile_location, ' +
     'stats_ssh_username, stats_ssh_password, ' +
     'datacenter_name, region, ' +
     'fronting_provider_id, passthrough_address, passthrough_version, ' +
@@ -482,7 +483,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.70'
+    class_version = '0.71'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -887,6 +888,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.70')) < 0:
             self.__oci_account = OracleAccount()
             self.version = '0.70'
+        if cmp(parse_version(self.version), parse_version('0.71')) < 0:
+            for host in self.__hosts.itervalues():
+                host.ipmi_ip_address = ""
+                host.ipmi_username = ""
+                host.ipmi_password = ""
+                host.ipmi_vpn_profile_location = None
+            self.version = '0.71'
 
     def initialize_plugins(self):
         for plugin in plugins:
