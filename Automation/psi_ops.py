@@ -1193,6 +1193,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             IP Address:              %(ip_address)s
             Region:                  %(region)s
             SSH:                     %(ssh_port)s %(ssh_username)s / %(ssh_password)s
+            IPMI:                    %(ipmi_ip_address)s / %(ipmi_username)s / %(ipmi_password)s / $ipmi_vpn_profile_location) 
             Stats User:              %(stats_ssh_username)s / %(stats_ssh_password)s
             Servers:                 %(servers)s
             ''') % {
@@ -1206,6 +1207,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     'ssh_port': host.ssh_port,
                     'ssh_username': host.ssh_username,
                     'ssh_password': host.ssh_password,
+                    'ipmi_ip_address': host.ipmi_ip_address,
+                    'ipmi_username': host.ipmi_username,
+                    'ipmi_password': host.ipmi_password,
+                    'ipmi_vpn_profile_location': host.ipmi_vpn_profile_location if host.ipmi_vpn_profile_location else 'No VPN Needed',
                     'stats_ssh_username': host.stats_ssh_username,
                     'stats_ssh_password': host.stats_ssh_password,
                     'servers': '\n                         '.join(servers)
