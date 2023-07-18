@@ -555,12 +555,13 @@ def put_string_to_key(bucket: 'boto3.S3.Bucket', key_name: str, metadata: Option
 
     metadata = metadata or {}
     mimetype = mimetypes.guess_type(key_name)[0]
-    if mimetype:
-        metadata['Content-Type'] = mimetype
-
     acl = 'public-read' if is_public else 'private'
 
-    res = obj.put(Body=content, ACL=acl, Metadata=metadata)
+    if mimetype:
+        res = obj.put(Body=content, ACL=acl, Metadata=metadata, ContentType=mimetype)
+    else:
+        res = obj.put(Body=content, ACL=acl, Metadata=metadata)
+
     if res['ETag'].strip('"').lower() != local_etag:
         # our data was corrupted in transit
         raise Exception('S3 object corruption detected')
@@ -584,9 +585,6 @@ def put_file_to_key(bucket: 'boto3.S3.Bucket', key_name: str, metadata: dict[str
     else:
         # We got a file object
         content = content_file.read()
-
-    if isinstance(content, bytes):
-        content = content.decode('utf-8')
 
     put_string_to_key(bucket, key_name, metadata, content, is_public)
 
