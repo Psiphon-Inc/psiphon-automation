@@ -147,11 +147,11 @@ def make_routes():
     if not country_names_filename:
         raise Exception('locations CSV not found in the %s' % GEO_ZIP_PATH)
 
-    ip_blocks_data = StringIO(zf.read(country_blocks_filename))
+    ip_blocks_data = StringIO(zf.read(country_blocks_filename).decode())
     if not ip_blocks_data:
         raise Exception('Can not read from the %s' % GEO_ZIP_PATH)
     
-    country_names_data = StringIO(zf.read(country_names_filename))
+    country_names_data = StringIO(zf.read(country_names_filename).decode())
     if not country_names_data:
         raise Exception('Can not read from the %s' % GEO_ZIP_PATH)
 
@@ -189,13 +189,13 @@ def make_routes():
     # Using zlib format to compress data, which client expects and
     # handles; note, this isn't .zip or .gz format.
     tar = tarfile.open(name=GEO_ROUTES_ARCHIVE_PATH, mode='w:gz')
-    for path, file in files.iteritems():
+    for path, file in files.items():
         file.close()
         with open(path, 'r') as file:
             data = file.read()
         zlib_path = path + GEO_ROUTES_EXTENSION
         with open(zlib_path, 'wb') as zlib_file:
-            zlib_file.write(zlib.compress(data))
+            zlib_file.write(zlib.compress(data.encode()))
         tar.add(zlib_path, arcname=os.path.split(zlib_path)[1], recursive=False)
     tar.close()
 
