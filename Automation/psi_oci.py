@@ -223,6 +223,20 @@ class PsiOCI:
         ).data
 
         return instance, self.get_datacenter_names(), self.get_region()
+    
+    def create_secondary_vnic(self, instance_id):        
+        secondary_vnic = self.compute_api.attach_vnic(
+            attach_vnic_details=oci.core.models.AttachVnicDetails(
+                create_vnic_details=oci.core.models.CreateVnicDetails(
+                    assign_public_ip=True,
+                    subnet_id=self.vcn_api.list_subnets(compartment_id=self.config["compartment"], display_name="Psiphon 3 Hosts Public Subnet").data[0].id
+                ),
+                instance_id=instance_id
+                ),
+            ).data
+        
+        return secondary_vnic
+
 ###
 #
 # Server side SSH Interaction functions (Migrated from old code)
@@ -342,6 +356,17 @@ def get_server_ip_addresses(oracle_account, instance_id):
 
     return (instance_network.public_ip, instance_network.private_ip)
 
+def get_secondary_ip_addresses(oracle_account, instance_id):
+    oci_api = PsiOCI(oracle_account) # Use new API interface
+    oci_api, instance_id = reload_api_client(oci_api, instance_id)
+    secondary_instance_network = oci_api.vcn_api.get_vnic(
+        oci_api.compute_api.list_vnic_attachments(
+            compartment_id=oci_api.config["compartment"], instance_id=instance_id
+        ).data[1].vnic_id
+    ).data
+
+    return (secondary_instance_network.public_ip, secondary_instance_network.private_ip)
+
 def launch_new_server(oracle_account, is_TCS, plugins, multi_ip=False):
 
     instance = None
@@ -367,7 +392,18 @@ def launch_new_server(oracle_account, is_TCS, plugins, multi_ip=False):
         set_allowed_users(oracle_account, instance_ip_address, new_stats_username)
         add_swap_file(oracle_account, instance_ip_address)
         resize_sda1(oracle_account, instance_ip_address)
-        
+
+        if multi_ip:
+            secondary_vnic = oci_api.create_secondary_vnic(instance.id)
+            # TO DO: Put appropriate wait condition here. Getting Vnic lifecycle state needs vnic_id which is not available until lifecycle is "Attached".
+            time.sleep(20) # Waiting for secondary VNIC to be attached.
+            ssh = psi_ssh.make_ssh_session(instance_ip_address, oracle_account.base_image_ssh_port, 'root', None, None, host_auth_key=oracle_account.base_image_rsa_private_key)
+            # TO DO: Put the script in Image and execute it from there.
+            ssh.exec_command('wget -O /opt/egress_ip.sh https://docs.oracle.com/en-us/iaas/Content/Resources/Assets/secondary_vnic_all_configure.sh')
+            ssh.exec_command('bash /opt/egress_ip.sh -c')
+            ssh.close()
+            egress_ip_address, egress_internal_ip_address = get_secondary_ip_addresses(oracle_account, instance.id)
+
         # Change the new oci instance's credentials
         new_root_password = psi_utils.generate_password()
         new_stats_password = psi_utils.generate_password()
@@ -387,7 +423,7 @@ def launch_new_server(oracle_account, is_TCS, plugins, multi_ip=False):
             oracle_account.base_image_ssh_port, 'root', new_root_password,
             ' '.join(new_host_public_key.split(' ')[:2]),
             new_stats_username, new_stats_password,
-            datacenter_name, region, None, instance_internal_ip_address)
+            datacenter_name, region, egress_ip_address, instance_internal_ip_address)
 
 if __name__ == '__main__':
     print(launch_new_server())
