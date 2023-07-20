@@ -396,12 +396,13 @@ def launch_new_server(oracle_account, is_TCS, plugins, multi_ip=False):
             wait_while_condition(lambda: oci_api.compute_api.get_vnic_attachment(vnic_attachment_id=secondary_vnic.id).data.lifecycle_state != 'ATTACHED',
                             60,
                             'Attach secondary VNIC')
+            time.sleep(15) # This is for the secondary VNIC metadata to be ready
+
             # Activating secondary Vnic
             ssh = psi_ssh.make_ssh_session(instance_ip_address, oracle_account.base_image_ssh_port, 'root', None, None, host_auth_key=oracle_account.base_image_rsa_private_key)
-            # ssh.exec_command('wget -O /opt/egress_ip.sh https://docs.oracle.com/en-us/iaas/Content/Resources/Assets/secondary_vnic_all_configure.sh')
             ssh.exec_command('bash /opt/egress_ip.sh -c', muted=False)
-            ssh.exec_command('ip addr', muted=False)
             ssh.close()
+
             egress_ip_address, egress_internal_ip_address = get_secondary_ip_addresses(oracle_account, instance.id)
 
         # Change the new oci instance's credentials
