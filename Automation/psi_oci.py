@@ -349,19 +349,11 @@ def get_server_ip_addresses(oracle_account, instance_id, is_primary=True):
     oci_api = PsiOCI(oracle_account) # Use new API interface
     oci_api, instance_id = reload_api_client(oci_api, instance_id)
     vnic_ids = [attachment.vnic_id for attachment in oci_api.compute_api.list_vnic_attachments(compartment_id=oci_api.config["compartment"], instance_id=instance_id).data]
-    if is_primary:
-        instance_network = oci_api.vcn_api.get_vnic(
-            vnic_id = [vnic_id for vnic_id in vnic_ids if oci_api.vcn_api.get_vnic(vnic_id).data.is_primary == True]
-            ).data
+    instance_network = oci_api.vcn_api.get_vnic(
+        vnic_id = [vnic_id for vnic_id in vnic_ids if oci_api.vcn_api.get_vnic(vnic_id).data.is_primary == is_primary]
+        ).data
 
-        return (instance_network.public_ip, instance_network.private_ip)
-
-    else:
-        instance_network = oci_api.vcn_api.get_vnic(
-            vnic_id = [vnic_id for vnic_id in vnic_ids if oci_api.vcn_api.get_vnic(vnic_id).data.is_primary == False]
-            ).data
-
-        return (instance_network.public_ip, instance_network.private_ip)
+    return (instance_network.public_ip, instance_network.private_ip)
 
 def launch_new_server(oracle_account, is_TCS, plugins, multi_ip=False):
 
