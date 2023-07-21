@@ -345,25 +345,23 @@ def resize_volume(oracle_account, instance_id, resize_to=200):
     except Exception as e:
         raise e
 
-def get_server_ip_addresses(oracle_account, instance_id):
+def get_server_ip_addresses(oracle_account, instance_id, is_primary=True):
     oci_api = PsiOCI(oracle_account) # Use new API interface
     oci_api, instance_id = reload_api_client(oci_api, instance_id)
     vnic_ids = [attachment.vnic_id for attachment in oci_api.compute_api.list_vnic_attachments(compartment_id=oci_api.config["compartment"], instance_id=instance_id).data]
-    instance_network = oci_api.vcn_api.get_vnic(
-        vnic_id = [vnic_id for vnic_id in vnic_ids if oci_api.vcn_api.get_vnic(vnic_id).data.is_primary == True]
-    ).data
+    if is_primary:
+        instance_network = oci_api.vcn_api.get_vnic(
+            vnic_id = [vnic_id for vnic_id in vnic_ids if oci_api.vcn_api.get_vnic(vnic_id).data.is_primary == True]
+            ).data
 
-    return (instance_network.public_ip, instance_network.private_ip)
+        return (instance_network.public_ip, instance_network.private_ip)
 
-def get_secondary_ip_addresses(oracle_account, instance_id):
-    oci_api = PsiOCI(oracle_account) # Use new API interface
-    oci_api, instance_id = reload_api_client(oci_api, instance_id)
-    vnic_ids = [attachment.vnic_id for attachment in oci_api.compute_api.list_vnic_attachments(compartment_id=oci_api.config["compartment"], instance_id=instance_id).data]
-    secondary_instance_network = oci_api.vcn_api.get_vnic(
-        vnic_id = [vnic_id for vnic_id in vnic_ids if oci_api.vcn_api.get_vnic(vnic_id).data.is_primary == False]
-    ).data
+    else:
+        instance_network = oci_api.vcn_api.get_vnic(
+            vnic_id = [vnic_id for vnic_id in vnic_ids if oci_api.vcn_api.get_vnic(vnic_id).data.is_primary == False]
+            ).data
 
-    return (secondary_instance_network.public_ip, secondary_instance_network.private_ip)
+        return (instance_network.public_ip, instance_network.private_ip)
 
 def launch_new_server(oracle_account, is_TCS, plugins, multi_ip=False):
 
@@ -383,7 +381,7 @@ def launch_new_server(oracle_account, is_TCS, plugins, multi_ip=False):
                          'Create OCI Instance')
 
         if multi_ip:
-            egress_ip_address, egress_internal_ip_address = get_server_ip_addresses(oracle_account, instance.id)
+            egress_ip_address, egress_internal_ip_address = get_server_ip_addresses(oracle_account, instance.id, is_primary=True)
             secondary_vnic = oci_api.create_secondary_vnic(instance.id)
             wait_while_condition(lambda: oci_api.compute_api.get_vnic_attachment(vnic_attachment_id=secondary_vnic.id).data.lifecycle_state != 'ATTACHED',
                             60,
@@ -392,13 +390,13 @@ def launch_new_server(oracle_account, is_TCS, plugins, multi_ip=False):
             # Activating secondary Vnic
             ssh = psi_ssh.make_ssh_session(egress_ip_address, oracle_account.base_image_ssh_port, 'root', None, None, host_auth_key=oracle_account.base_image_rsa_private_key)
             ssh.exec_command('bash /opt/egress_ip.sh -c')
-            ssh.exec_command('sed -i "/exit 0/i \\bash /opt/egress_ip.sh -c" /etc/rc.local')
+            ssh.exec_command('sed -i "/^exit 0/i \\bash /opt/egress_ip.sh -c" /etc/rc.local')
             ssh.close()
 
-            instance_ip_address, instance_internal_ip_address = get_secondary_ip_addresses(oracle_account, instance.id)
+            instance_ip_address, instance_internal_ip_address = get_server_ip_addresses(oracle_account, instance.id, is_primary=False)
             
         else:
-            instance_ip_address, instance_internal_ip_address = get_server_ip_addresses(oracle_account, instance.id)
+            instance_ip_address, instance_internal_ip_address = get_server_ip_addresses(oracle_account, instance.id, is_primary=True)
 
         new_stats_username = psi_utils.generate_stats_username()
         
