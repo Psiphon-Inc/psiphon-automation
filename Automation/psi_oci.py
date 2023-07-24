@@ -31,7 +31,7 @@ import psi_utils
 import oci
 
 # VARIABLE
-TCS_BASE_IMAGE_NAME = 'Psiphon-TCS-V10.1-20230627'
+TCS_BASE_IMAGE_NAME = 'Psiphon-TCS-V10.2-20230720'
 
 ###
 #
@@ -223,6 +223,20 @@ class PsiOCI:
         ).data
 
         return instance, self.get_datacenter_names(), self.get_region()
+    
+    def create_secondary_vnic(self, instance_id):        
+        secondary_vnic = self.compute_api.attach_vnic(
+            attach_vnic_details=oci.core.models.AttachVnicDetails(
+                create_vnic_details=oci.core.models.CreateVnicDetails(
+                    assign_public_ip=True,
+                    subnet_id=self.vcn_api.list_subnets(compartment_id=self.config["compartment"], display_name="Psiphon 3 Hosts Public Subnet").data[0].id
+                ),
+                instance_id=instance_id
+                ),
+            ).data
+        
+        return secondary_vnic
+
 ###
 #
 # Server side SSH Interaction functions (Migrated from old code)
@@ -331,14 +345,13 @@ def resize_volume(oracle_account, instance_id, resize_to=200):
     except Exception as e:
         raise e
 
-def get_server_ip_addresses(oracle_account, instance_id):
+def get_server_ip_addresses(oracle_account, instance_id, is_primary=True):
     oci_api = PsiOCI(oracle_account) # Use new API interface
     oci_api, instance_id = reload_api_client(oci_api, instance_id)
+    vnic_ids = [attachment.vnic_id for attachment in oci_api.compute_api.list_vnic_attachments(compartment_id=oci_api.config["compartment"], instance_id=instance_id).data]
     instance_network = oci_api.vcn_api.get_vnic(
-        oci_api.compute_api.list_vnic_attachments(
-            compartment_id=oci_api.config["compartment"], instance_id=instance_id
-        ).data[0].vnic_id
-    ).data
+        vnic_id = [vnic_id for vnic_id in vnic_ids if oci_api.vcn_api.get_vnic(vnic_id).data.is_primary == is_primary]
+        ).data
 
     return (instance_network.public_ip, instance_network.private_ip)
 
@@ -359,7 +372,23 @@ def launch_new_server(oracle_account, is_TCS, plugins, multi_ip=False):
                          60,
                          'Create OCI Instance')
 
-        instance_ip_address, instance_internal_ip_address = get_server_ip_addresses(oracle_account, instance.id)
+        if multi_ip:
+            egress_ip_address, egress_internal_ip_address = get_server_ip_addresses(oracle_account, instance.id, is_primary=True)
+            secondary_vnic = oci_api.create_secondary_vnic(instance.id)
+            wait_while_condition(lambda: oci_api.compute_api.get_vnic_attachment(vnic_attachment_id=secondary_vnic.id).data.lifecycle_state != 'ATTACHED',
+                            60,
+                            'Attach secondary VNIC')
+            time.sleep(15) # This is for the secondary VNIC metadata to be ready
+            # Activating secondary Vnic
+            ssh = psi_ssh.make_ssh_session(egress_ip_address, oracle_account.base_image_ssh_port, 'root', None, None, host_auth_key=oracle_account.base_image_rsa_private_key)
+            ssh.exec_command('bash /opt/egress_ip.sh -c')
+            ssh.exec_command('sed -i "/^exit 0/i \\bash /opt/egress_ip.sh -c" /etc/rc.local')
+            ssh.close()
+
+            instance_ip_address, instance_internal_ip_address = get_server_ip_addresses(oracle_account, instance.id, is_primary=False)
+            
+        else:
+            instance_ip_address, instance_internal_ip_address = get_server_ip_addresses(oracle_account, instance.id, is_primary=True)
 
         new_stats_username = psi_utils.generate_stats_username()
         
@@ -367,7 +396,7 @@ def launch_new_server(oracle_account, is_TCS, plugins, multi_ip=False):
         set_allowed_users(oracle_account, instance_ip_address, new_stats_username)
         add_swap_file(oracle_account, instance_ip_address)
         resize_sda1(oracle_account, instance_ip_address)
-        
+
         # Change the new oci instance's credentials
         new_root_password = psi_utils.generate_password()
         new_stats_password = psi_utils.generate_password()
@@ -387,7 +416,7 @@ def launch_new_server(oracle_account, is_TCS, plugins, multi_ip=False):
             oracle_account.base_image_ssh_port, 'root', new_root_password,
             ' '.join(new_host_public_key.split(' ')[:2]),
             new_stats_username, new_stats_password,
-            datacenter_name, region, None, instance_internal_ip_address)
+            datacenter_name, region, egress_ip_address if multi_ip else None, instance_internal_ip_address)
 
 if __name__ == '__main__':
     print(launch_new_server())
