@@ -79,8 +79,8 @@ def get_language_string(language, key):
     """Returns None if key not found for language.
     """
     path = os.path.join('.', 'TemplateStrings', language + '.yaml')
-    with open(path) as lang_file:
-        lang_dict = yaml.load(lang_file.read())
+    with open(path, encoding='utf-8') as lang_file:
+        lang_dict = yaml.safe_load(lang_file.read())
 
     string = lang_dict.get(language, {}).get(key)
 
