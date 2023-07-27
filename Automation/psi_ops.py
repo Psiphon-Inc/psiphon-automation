@@ -889,7 +889,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__oci_account = OracleAccount()
             self.version = '0.70'
         if cmp(parse_version(self.version), parse_version('0.71')) < 0:
-            for host in self.__hosts.itervalues():
+            for host in self.__hosts.values() + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
                 host.ipmi_ip_address = ""
                 host.ipmi_username = ""
                 host.ipmi_password = ""
