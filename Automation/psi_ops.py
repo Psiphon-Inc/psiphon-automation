@@ -1717,6 +1717,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.ssh_username,
                         host.ssh_password,
                         host.ssh_host_key,
+                        host.ipmi_ip_address,
+                        host.ipmi_username,
+                        host.ipmi_password,
+                        host.ipmi_vpn_profile_location,
                         host.stats_ssh_username,
                         host.stats_ssh_password,
                         host.datacenter_name,
@@ -2497,6 +2501,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.ssh_username,
                         host.ssh_password,
                         host.ssh_host_key,
+                        host.ipmi_ip_address,
+                        host.ipmi_username,
+                        host.ipmi_password,
+                        host.ipmi_vpn_profile_location,
                         host.stats_ssh_username,
                         host.stats_ssh_password,
                         host.datacenter_name,
@@ -4330,6 +4338,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         '',  # Omit: root ssh_username isn't needed
                                         '',  # Omit: root ssh_password isn't needed
                                         '',  # Omit: ssh_host_key isn't needed
+                                        '',  # Omit: host.ipmi_ip_address,
+                                        '',  # Omit: host.ipmi_username,
+                                        '',  # Omit: host.ipmi_password,
+                                        '',  # Omit: host.ipmi_vpn_profile_location,
                                         '',  # Omit: stats_ssh_username isn't needed
                                         '',  # Omit: stats_ssh_password isn't needed
                                         '',  # Omit: datacenter_name isn't needed
@@ -4589,6 +4601,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.ssh_username,
                                             host.ssh_password,
                                             host.ssh_host_key,
+                                            host.ipmi_ip_address,
+                                            host.ipmi_username,
+                                            host.ipmi_password,
+                                            host.ipmi_vpn_profile_location,
                                             host.stats_ssh_username,
                                             host.stats_ssh_password,
                                             host.datacenter_name,
@@ -4708,6 +4724,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             '',  # Omit: root ssh username
                                             '',  # Omit: root ssh password
                                             host.ssh_host_key,
+                                            '',  # Omit: host.ipmi_ip_address,
+                                            '',  # Omit: host.ipmi_username,
+                                            '',  # Omit: host.ipmi_password,
+                                            '',  # Omit: host.ipmi_vpn_profile_location,
                                             host.stats_ssh_username,
                                             host.stats_ssh_password,
                                             host.datacenter_name,
