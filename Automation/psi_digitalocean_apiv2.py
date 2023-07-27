@@ -520,7 +520,7 @@ def make_psiphon_server(psinet, digitalocean_account, droplet):
 def create_floating_ips(digitalocean_account, droplet_id):
     floating_ip = digitalocean.FloatingIP(droplet_id=droplet_id, token=digitalocean_account.oauth_token)
 
-    return floating_ip.create()
+    return floating_ip.create().ip
 
 def delete_floating_ips(digitalocean_account, ip_address):
     floating_ip = digitalocean.FloatingIP(ip=ip_address, token=digitalocean_account.oauth_token)
