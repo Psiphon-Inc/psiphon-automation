@@ -5015,6 +5015,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         print 'saving...'
         super(PsiphonNetwork, self).save()
 
+    def reload(self):
+        print('reloading...')
+        super(PsiphonNetwork, self).load(self.is_locked)
+
 
 def unit_test():
     psinet = PsiphonNetwork()
