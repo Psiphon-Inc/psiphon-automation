@@ -44,15 +44,18 @@ def refresh_credentials(digitalocean_account, ip_address, new_root_password, new
     # Note: using auto-add-policy for host's SSH public key here since we can't get it through the API.
     # There's a risk of man-in-the-middle.
     ssh = psi_ssh.make_ssh_session(ip_address, digitalocean_account.base_ssh_port, 'root', None, None, digitalocean_account.base_rsa_private_key)
-    ssh.exec_command('echo "root:%s" | chpasswd' % (new_root_password,))
-    ssh.exec_command('useradd -M -d /var/log -s /bin/sh -g adm %s' % (stats_username))
-    ssh.exec_command('echo "%s:%s" | chpasswd' % (stats_username, new_stats_password))
-    ssh.exec_command('rm /etc/ssh/ssh_host_*')
-    ssh.exec_command('rm -rf /root/.ssh')
-    ssh.exec_command('export DEBIAN_FRONTEND=noninteractive && dpkg-reconfigure openssh-server')
-    ssh.exec_command('sed -i -e "/^PasswordAuthentication no/s/^.*$/PasswordAuthentication yes/" /etc/ssh/sshd_config')
-    ssh.exec_command('service ssh restart')
-    return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
+    try:
+        ssh.exec_command('echo "root:%s" | chpasswd' % (new_root_password,))
+        ssh.exec_command('useradd -M -d /var/log -s /bin/sh -g adm %s' % (stats_username))
+        ssh.exec_command('echo "%s:%s" | chpasswd' % (stats_username, new_stats_password))
+        ssh.exec_command('rm /etc/ssh/ssh_host_*')
+        ssh.exec_command('rm -rf /root/.ssh')
+        ssh.exec_command('export DEBIAN_FRONTEND=noninteractive && dpkg-reconfigure openssh-server')
+        ssh.exec_command('sed -i -e "/^PasswordAuthentication no/s/^.*$/PasswordAuthentication yes/" /etc/ssh/sshd_config')
+        ssh.exec_command('service ssh restart')
+        return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
+    finally:
+        ssh.close()
 
 
 def set_allowed_users(digitalocean_account, ip_address, password, stats_username):
@@ -67,16 +70,22 @@ def set_allowed_users(digitalocean_account, ip_address, password, stats_username
     """
     ssh = psi_ssh.make_ssh_session(ip_address, digitalocean_account.base_ssh_port,
                                    'root', None, None, digitalocean_account.base_rsa_private_key)
-    user_exists = ssh.exec_command('grep %s /etc/ssh/sshd_config' % stats_username)
-    if not user_exists:
-        ssh.exec_command('sed -i "s/^AllowUsers.*/& %s/" /etc/ssh/sshd_config' % stats_username)
-        ssh.exec_command('service ssh restart')
+    try:
+        user_exists = ssh.exec_command('grep %s /etc/ssh/sshd_config' % stats_username)
+        if not user_exists:
+            ssh.exec_command('sed -i "s/^AllowUsers.*/& %s/" /etc/ssh/sshd_config' % stats_username)
+            ssh.exec_command('service ssh restart')
+    finally:
+        ssh.close()
 
 def set_host_name(digitalocean_account, ip_address, password, new_hostname):
     # Note: hostnamectl is for systemd servers
     ssh = psi_ssh.make_ssh_session(ip_address, digitalocean_account.base_ssh_port,
                                    'root', None, None, digitalocean_account.base_rsa_private_key)
-    ssh.exec_command('hostnamectl set-hostname %s' % new_hostname)
+    try:
+        ssh.exec_command('hostnamectl set-hostname %s' % new_hostname)
+    finally:
+        ssh.close()
 
 
 def update_system_packages(digitalocean_account, ip_address):
@@ -88,8 +97,10 @@ def update_system_packages(digitalocean_account, ip_address):
         ip_address              :   droplet.ip_address
     """
     ssh = psi_ssh.make_ssh_session(ip_address, digitalocean_account.base_ssh_port, 'root', None, None, digitalocean_account.base_rsa_private_key)
-    ssh.exec_command('export DEBIAN_FRONTEND=noninteractive && aptitude update -q && aptitude safe-upgrade -y -o Dpkg::Options::="--force-confdef"')
-    ssh.close()
+    try:
+        ssh.exec_command('export DEBIAN_FRONTEND=noninteractive && aptitude update -q && aptitude safe-upgrade -y -o Dpkg::Options::="--force-confdef"')
+    finally:
+        ssh.close()
 
 
 def upgrade_debian_distro(digitalocean_account, ip_address, old_version, new_version):
@@ -102,13 +113,15 @@ def upgrade_debian_distro(digitalocean_account, ip_address, old_version, new_ver
                                    None,
                                    None,
                                    digitalocean_account.base_rsa_private_key)
-    ssh.exec_command("cp /etc/apt/sources.list{,.old}")
-    ssh.exec_command("sed -i 's/%s/%s/g' /etc/apt/sources.list" % (old_version, new_version))
-    ssh.exec_command("sed -i 's/%s/%s/g' /etc/apt/sources.list" % (old_version, new_version))
-    ssh.exec_command('export DEBIAN_FRONTEND=noninteractive && apt-get update -q && apt-get dist-upgrade -y -f -o Dpkg::Options::="--force-confdef"')
-    ssh.exec_command('apt-get update && apt-get autoremove -y -f')
-    ssh.exec_command('shutdown -r now')
-    ssh.close()
+    try:
+        ssh.exec_command("cp /etc/apt/sources.list{,.old}")
+        ssh.exec_command("sed -i 's/%s/%s/g' /etc/apt/sources.list" % (old_version, new_version))
+        ssh.exec_command("sed -i 's/%s/%s/g' /etc/apt/sources.list" % (old_version, new_version))
+        ssh.exec_command('export DEBIAN_FRONTEND=noninteractive && apt-get update -q && apt-get dist-upgrade -y -f -o Dpkg::Options::="--force-confdef"')
+        ssh.exec_command('apt-get update && apt-get autoremove -y -f')
+        ssh.exec_command('shutdown -r now')
+    finally:
+        ssh.close()
 
 
 def update_kernel(digitalocean_account, do_mgr, droplet):
@@ -126,16 +139,19 @@ def update_kernel(digitalocean_account, do_mgr, droplet):
     current_kernel_name = None
     ssh = psi_ssh.make_ssh_session(droplet.ip_address, digitalocean_account.base_ssh_port,
                                    'root', None, None, digitalocean_account.base_rsa_private_key)
-    droplet_kernel_pkg = ssh.exec_command('aptitude show linux-image-`uname -r`').split('\n')
-    droplet_uname = ssh.exec_command('uname -r').strip()
-    if len(droplet_kernel_pkg) > 0:
-        for line in droplet_kernel_pkg:
-            if 'State: installed' in line:
-                print line
-            if 'Version: ' in line:
-                print line
-                current_kernel_name = line.split(': ')[1].split('+')[0]
-                break
+    try:
+        droplet_kernel_pkg = ssh.exec_command('aptitude show linux-image-`uname -r`').split('\n')
+        droplet_uname = ssh.exec_command('uname -r').strip()
+        if len(droplet_kernel_pkg) > 0:
+            for line in droplet_kernel_pkg:
+                if 'State: installed' in line:
+                    print line
+                if 'Version: ' in line:
+                    print line
+                    current_kernel_name = line.split(': ')[1].split('+')[0]
+                    break
+    finally:
+        ssh.close()
 
     if not current_kernel_name:
         raise Exception('Current Kernel version is not found')
