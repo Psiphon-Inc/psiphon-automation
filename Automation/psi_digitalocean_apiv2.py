@@ -545,7 +545,10 @@ def delete_floating_ips(digitalocean_account, ip_address):
 
 def get_floating_ips_private_internal_ip(digitalocean_account, ip_address):
     ssh = psi_ssh.make_ssh_session(ip_address, digitalocean_account.base_ssh_port, 'root', None, None, digitalocean_account.base_rsa_private_key)
-    return ssh.exec_command("ifconfig eth0:1 | awk '/inet/ {print $2}'").split('\n')[0]
+    try:
+        return ssh.exec_command("ifconfig eth0:1 | awk '/inet/ {print $2}'").split('\n')[0]
+    finally:
+        ssh.close()
 
 def transfer_server(digitalocean_account, droplet):
     do_mgr = digitalocean.Manager(token=digitalocean_account.oauth_token)
