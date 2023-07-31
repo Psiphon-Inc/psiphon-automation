@@ -385,6 +385,11 @@ def remove_server(digitalocean_account, droplet_id):
     try:
         do_mgr = digitalocean.Manager(token=digitalocean_account.oauth_token)
         droplet = do_mgr.get_droplet(droplet_id)
+        try:
+            floating_ip = do_mgr.get_floating_ip(droplet.ip_address)
+            floating_ip.destroy()
+        except digitalocean.baseapi.NotFoundError as e:
+            print("No Floating IP Address to be deleted")
         result = droplet.destroy()
         if not result:
             raise Exception('Could not destroy droplet: %s' % str(droplet_id))
@@ -528,6 +533,22 @@ def make_psiphon_server(psinet, digitalocean_account, droplet):
 
     return (host, server)
 
+def create_floating_ips(digitalocean_account, droplet_id):
+    floating_ip = digitalocean.FloatingIP(droplet_id=droplet_id, token=digitalocean_account.oauth_token)
+
+    return floating_ip.create().ip
+
+def delete_floating_ips(digitalocean_account, ip_address):
+    floating_ip = digitalocean.FloatingIP(ip=ip_address, token=digitalocean_account.oauth_token)
+
+    return floating_ip.destroy()
+
+def get_floating_ips_private_internal_ip(digitalocean_account, ip_address):
+    ssh = psi_ssh.make_ssh_session(ip_address, digitalocean_account.base_ssh_port, 'root', None, None, digitalocean_account.base_rsa_private_key)
+    try:
+        return ssh.exec_command("ifconfig eth0:1 | awk '/inet/ {print $2}'").split('\n')[0]
+    finally:
+        ssh.close()
 
 def transfer_server(digitalocean_account, droplet):
     do_mgr = digitalocean.Manager(token=digitalocean_account.oauth_token)
@@ -564,6 +585,10 @@ def launch_new_server(digitalocean_account, is_TCS, _, multi_ip=False):
         stats_username = digitalocean_account.base_stats_username
 
         do_mgr = digitalocean.Manager(token=digitalocean_account.oauth_token)
+
+        ingress_ip_address = None
+        egress_ip_address = None
+        internal_ip_address = None
 
         # Get the base image
         base_image = do_mgr.get_image(base_id)
@@ -607,6 +632,13 @@ def launch_new_server(digitalocean_account, is_TCS, _, multi_ip=False):
 
         droplet = do_mgr.get_droplet(droplet.id)
 
+        if multi_ip:
+            egress_ip_address = droplet.ip_address
+            ingress_ip_address = create_floating_ips(digitalocean_account, droplet.id)
+            internal_ip_address = get_floating_ips_private_internal_ip(digitalocean_account, droplet.ip_address) 
+        else:
+            ingress_ip_address = droplet.ip_address
+
         region = get_datacenter_region(droplet.region['slug'])
         datacenter_name = 'Digital Ocean ' + droplet.region['name']
 
@@ -632,11 +664,11 @@ def launch_new_server(digitalocean_account, is_TCS, _, multi_ip=False):
             print type(e), "No droplet to be destroyed: ", str(droplet)
         raise
 
-    return (droplet.name, is_TCS, 'NATIVE' if is_TCS else None, None, droplet.id, droplet.ip_address,
+    return (droplet.name, is_TCS, 'NATIVE' if is_TCS else None, None, droplet.id, ingress_ip_address,
             digitalocean_account.base_ssh_port, 'root', new_root_password,
             ' '.join(new_droplet_public_key.split(' ')[:2]),
             stats_username, new_stats_password,
-            datacenter_name, region, None, None)
+            datacenter_name, region, egress_ip_address, internal_ip_address)
 
 if __name__ == "__main__":
     parser = optparse.OptionParser('usage: %prog [options]')
