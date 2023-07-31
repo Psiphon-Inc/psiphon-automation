@@ -207,46 +207,60 @@ def refresh_credentials(scaleway_account, ip_address, new_root_password, new_sta
     ssh = psi_ssh.make_ssh_session(ip_address, scaleway_account.base_ssh_port,
                                    'root', None, None,
                                    host_auth_key=scaleway_account.base_rsa_private_key)
-    ssh.exec_command('echo "root:%s" | chpasswd' % (new_root_password,))
-    ssh.exec_command('useradd -M -d /var/log -s /bin/sh -g adm %s' % (stats_username))
-    ssh.exec_command('echo "%s:%s" | chpasswd' % (stats_username, new_stats_password))
-    ssh.exec_command('rm /etc/ssh/ssh_host_*')
-    ssh.exec_command('rm -rf /root/.ssh')
-    ssh.exec_command('export DEBIAN_FRONTEND=noninteractive && dpkg-reconfigure openssh-server')
-    return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
+    try:
+        ssh.exec_command('echo "root:%s" | chpasswd' % (new_root_password,))
+        ssh.exec_command('useradd -M -d /var/log -s /bin/sh -g adm %s' % (stats_username))
+        ssh.exec_command('echo "%s:%s" | chpasswd' % (stats_username, new_stats_password))
+        ssh.exec_command('rm /etc/ssh/ssh_host_*')
+        ssh.exec_command('rm -rf /root/.ssh')
+        ssh.exec_command('export DEBIAN_FRONTEND=noninteractive && dpkg-reconfigure openssh-server')
+        return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
+    finally:
+        ssh.close()
 
 def set_allowed_users(scaleway_account, ip_address, stats_username):
     ssh = psi_ssh.make_ssh_session(ip_address, scaleway_account.base_ssh_port,
                                    'root', None, None,
                                    host_auth_key=scaleway_account.base_rsa_private_key)
-    user_exists = ssh.exec_command('grep %s /etc/ssh/sshd_config' % stats_username)
-    if not user_exists:
-        ssh.exec_command('sed -i "s/^AllowUsers.*/& %s/" /etc/ssh/sshd_config' % stats_username)
-        ssh.exec_command('service ssh restart')
+    try:
+        user_exists = ssh.exec_command('grep %s /etc/ssh/sshd_config' % stats_username)
+        if not user_exists:
+            ssh.exec_command('sed -i "s/^AllowUsers.*/& %s/" /etc/ssh/sshd_config' % stats_username)
+            ssh.exec_command('service ssh restart')
+    finally:
+        ssh.close()
 
 def get_host_name(scaleway_account, ip_address):
     # Note: using base image credentials; call before changing credentials
     ssh = psi_ssh.make_ssh_session(ip_address, scaleway_account.base_ssh_port,
                                    'root',None, None,
                                    host_auth_key=scaleway_account.base_rsa_private_key)
-    return ssh.exec_command('hostname').strip()
+    try:
+        return ssh.exec_command('hostname').strip()
+    finally:
+        ssh.close()
 
 def set_host_name(scaleway_account, ip_address, new_hostname):
     # Note: hostnamectl is for systemd servers
     ssh = psi_ssh.make_ssh_session(ip_address, scaleway_account.base_ssh_port,
                                    'root', None, None,
                                    host_auth_key=scaleway_account.base_rsa_private_key)
-    ssh.exec_command('hostnamectl set-hostname %s' % new_hostname)
+    try:
+        ssh.exec_command('hostnamectl set-hostname %s' % new_hostname)
+    finally:
+        ssh.close()
 
 def add_swap_file(scaleway_account, ip_address):
     ssh = psi_ssh.make_ssh_session(ip_address, scaleway_account.base_ssh_port, 'root', None, None, host_auth_key=scaleway_account.base_rsa_private_key)
-    has_swap = ssh.exec_command("cat /etc/fstab |grep swap|wc -l", muted=True).strip()
-    if has_swap == 0:
-        ssh.exec_command('dd if=/dev/zero of=/swapfile bs=1024 count=1048576 && mkswap /swapfile && chown root:root /swapfile && chmod 0600 /swapfile')
-        ssh.exec_command('echo "/swapfile swap swap defaults 0 0" >> /etc/fstab')
-        ssh.exec_command('swapon -a')     
-    ssh.close()
-    return
+    try:
+        has_swap = ssh.exec_command("cat /etc/fstab |grep swap|wc -l", muted=True).strip()
+        if has_swap == 0:
+            ssh.exec_command('dd if=/dev/zero of=/swapfile bs=1024 count=1048576 && mkswap /swapfile && chown root:root /swapfile && chmod 0600 /swapfile')
+            ssh.exec_command('echo "/swapfile swap swap defaults 0 0" >> /etc/fstab')
+            ssh.exec_command('swapon -a')
+    finally:
+        ssh.close()
+
 ###
 #
 # Main function

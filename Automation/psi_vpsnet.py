@@ -72,20 +72,26 @@ def refresh_credentials(vpsnet_account, ip_address, generated_root_password,
         ip_address, vpsnet_account.base_ssh_port,
         'root', generated_root_password, None, None,
         )
-    ssh.exec_command('echo "root:%s" | chpasswd' % (new_root_password,))
-    ssh.exec_command('useradd -M -d /var/log -s /bin/sh -g adm %s' % (stats_username))
-    ssh.exec_command('echo "%s:%s" | chpasswd' % (stats_username, new_stats_password))
-    ssh.exec_command('rm /etc/ssh/ssh_host_*')
-    ssh.exec_command('rm -rf /root/.ssh')
-    ssh.exec_command('export DEBIAN_FRONTEND=noninteractive && dpkg-reconfigure openssh-server')
-    return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
+    try:
+        ssh.exec_command('echo "root:%s" | chpasswd' % (new_root_password,))
+        ssh.exec_command('useradd -M -d /var/log -s /bin/sh -g adm %s' % (stats_username))
+        ssh.exec_command('echo "%s:%s" | chpasswd' % (stats_username, new_stats_password))
+        ssh.exec_command('rm /etc/ssh/ssh_host_*')
+        ssh.exec_command('rm -rf /root/.ssh')
+        ssh.exec_command('export DEBIAN_FRONTEND=noninteractive && dpkg-reconfigure openssh-server')
+        return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
+    finally:
+        ssh.close()
 
 def set_allowed_users(vpsnet_account, ip_address, password, stats_username):
     ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_ssh_port, 'root', password, None, None)
-    user_exists = ssh.exec_command('grep %s /etc/ssh/sshd_config' % stats_username)
-    if not user_exists:
-        ssh.exec_command('sed -i "s/^AllowUsers.*/& %s/" /etc/ssh/sshd_config' % stats_username)
-        ssh.exec_command('service ssh restart')
+    try:
+        user_exists = ssh.exec_command('grep %s /etc/ssh/sshd_config' % stats_username)
+        if not user_exists:
+            ssh.exec_command('sed -i "s/^AllowUsers.*/& %s/" /etc/ssh/sshd_config' % stats_username)
+            ssh.exec_command('service ssh restart')
+    finally:
+        ssh.close()
 
 def wait_on_action(vpsnet_conn, node, interval=30):
     for attempt in range(10):
