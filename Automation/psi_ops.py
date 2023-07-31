@@ -248,6 +248,7 @@ Host = psi_utils.recordtype(
     'id, is_TCS, TCS_type, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key, ' +
     'stats_ssh_username, stats_ssh_password, ' +
     'datacenter_name, region, ' +
+    'ipmi_ip_address, ipmi_username, ipmi_password, ipmi_vpn_profile_location, ' +
     'fronting_provider_id, passthrough_address, passthrough_version, ' +
     'enable_gquic, limit_quic_versions, ' +
     'meek_server_port, meek_server_obfuscated_key, meek_server_fronting_domain, ' +
@@ -505,7 +506,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.70'
+    class_version = '0.71'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -910,6 +911,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.70')) < 0:
             self.__oci_account = OracleAccount()
             self.version = '0.70'
+        if cmp(parse_version(self.version), parse_version('0.71')) < 0:
+            for host in self.__hosts.values() + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
+                host.ipmi_ip_address = ""
+                host.ipmi_username = ""
+                host.ipmi_password = ""
+                host.ipmi_vpn_profile_location = None
+            self.version = '0.71'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1264,6 +1272,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             IP Address:              %(ip_address)s
             Region:                  %(region)s
             SSH:                     %(ssh_port)s %(ssh_username)s / %(ssh_password)s
+            IPMI:                    %(ipmi_ip_address)s / %(ipmi_username)s / %(ipmi_password)s / %(ipmi_vpn_profile_location)s
             Stats User:              %(stats_ssh_username)s / %(stats_ssh_password)s
             Servers:                 %(servers)s
             ''') % {
@@ -1277,6 +1286,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     'ssh_port': host.ssh_port,
                     'ssh_username': host.ssh_username,
                     'ssh_password': host.ssh_password,
+                    'ipmi_ip_address': host.ipmi_ip_address,
+                    'ipmi_username': host.ipmi_username,
+                    'ipmi_password': host.ipmi_password,
+                    'ipmi_vpn_profile_location': host.ipmi_vpn_profile_location if host.ipmi_vpn_profile_location else 'No VPN Needed',
                     'stats_ssh_username': host.stats_ssh_username,
                     'stats_ssh_password': host.stats_ssh_password,
                     'servers': '\n                         '.join(servers)
@@ -1690,6 +1703,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def get_host_object(self, id, is_TCS, TCS_type, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
                         stats_ssh_username, stats_ssh_password, datacenter_name, region,
+                        ipmi_ip_address, ipmi_username, ipmi_password, ipmi_vpn_profile_location,
                         fronting_provider_id, passthrough_address, passthrough_version,
                         enable_gquic, limit_quic_versions,
                         meek_server_port, meek_server_obfuscated_key, meek_server_fronting_domain, meek_server_fronting_host,
@@ -1711,6 +1725,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     stats_ssh_password,
                     datacenter_name,
                     region,
+                    ipmi_ip_address,
+                    ipmi_username,
+                    ipmi_password,
+                    ipmi_vpn_profile_location,
                     fronting_provider_id,
                     passthrough_address,
                     passthrough_version,
@@ -1787,6 +1805,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.stats_ssh_password,
                         host.datacenter_name,
                         host.region,
+                        host.ipmi_ip_address,
+                        host.ipmi_username,
+                        host.ipmi_password,
+                        host.ipmi_vpn_profile_location,
                         host.fronting_provider_id,
                         host.passthrough_address,
                         host.passthrough_version,
@@ -2569,6 +2591,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.stats_ssh_password,
                         host.datacenter_name,
                         host.region,
+                        host.ipmi_ip_address,
+                        host.ipmi_username,
+                        host.ipmi_password,
+                        host.ipmi_vpn_profile_location,
                         host.fronting_provider_id,
                         host.passthrough_address,
                         host.passthrough_version,
@@ -4386,6 +4412,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         '',  # Omit: stats_ssh_password isn't needed
                                         '',  # Omit: datacenter_name isn't needed
                                         host.region,
+                                        '',  # Omit: host.ipmi_ip_address,
+                                        '',  # Omit: host.ipmi_username,
+                                        '',  # Omit: host.ipmi_password,
+                                        '',  # Omit: host.ipmi_vpn_profile_location,
                                         host.fronting_provider_id,
                                         None, # Omit: passthrough_address isn't needed
                                         None, # Omit: passthrough_version isn't needed
@@ -4645,6 +4675,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.stats_ssh_password,
                                             host.datacenter_name,
                                             host.region,
+                                            host.ipmi_ip_address,
+                                            host.ipmi_username,
+                                            host.ipmi_password,
+                                            host.ipmi_vpn_profile_location,
                                             host.fronting_provider_id,
                                             host.passthrough_address,
                                             host.passthrough_version,
@@ -4764,6 +4798,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.stats_ssh_password,
                                             host.datacenter_name,
                                             host.region,
+                                            '',  # Omit: host.ipmi_ip_address,
+                                            '',  # Omit: host.ipmi_username,
+                                            '',  # Omit: host.ipmi_password,
+                                            '',  # Omit: host.ipmi_vpn_profile_location,
                                             host.fronting_provider_id,
                                             None, # Omit: passthrough_address
                                             None, # Omit: passthrough_version
