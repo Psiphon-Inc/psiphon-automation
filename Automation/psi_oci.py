@@ -246,53 +246,66 @@ def refresh_credentials(oracle_account, ip_address, new_root_password, new_stats
     ssh = psi_ssh.make_ssh_session(ip_address, oracle_account.base_image_ssh_port,
                                    'root', None, None,
                                    host_auth_key=oracle_account.base_image_rsa_private_key)
-    ssh.exec_command('echo "root:%s" | chpasswd' % (new_root_password,))
-    ssh.exec_command('useradd -M -d /var/log -s /bin/sh -g adm %s' % (stats_username))
-    ssh.exec_command('echo "%s:%s" | chpasswd' % (stats_username, new_stats_password))
-    ssh.exec_command('rm /etc/ssh/ssh_host_*')
-    ssh.exec_command('rm -rf /root/.ssh')
-    ssh.exec_command('export DEBIAN_FRONTEND=noninteractive && dpkg-reconfigure openssh-server')
-    return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
+    try:
+        ssh.exec_command('echo "root:%s" | chpasswd' % (new_root_password,))
+        ssh.exec_command('useradd -M -d /var/log -s /bin/sh -g adm %s' % (stats_username))
+        ssh.exec_command('echo "%s:%s" | chpasswd' % (stats_username, new_stats_password))
+        ssh.exec_command('rm /etc/ssh/ssh_host_*')
+        ssh.exec_command('rm -rf /root/.ssh')
+        ssh.exec_command('export DEBIAN_FRONTEND=noninteractive && dpkg-reconfigure openssh-server')
+        return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
+    finally:
+        ssh.close()
 
 def set_allowed_users(oracle_account, ip_address, stats_username):
     ssh = psi_ssh.make_ssh_session(ip_address, oracle_account.base_image_ssh_port,
                                    'root', None, None,
                                    host_auth_key=oracle_account.base_image_rsa_private_key)
-    user_exists = ssh.exec_command('grep %s /etc/ssh/sshd_config' % stats_username)
-    if not user_exists:
-        ssh.exec_command('sed -i "s/^AllowUsers.*/& %s/" /etc/ssh/sshd_config' % stats_username)
-        ssh.exec_command('service ssh restart')
+    try:
+        user_exists = ssh.exec_command('grep %s /etc/ssh/sshd_config' % stats_username)
+        if not user_exists:
+            ssh.exec_command('sed -i "s/^AllowUsers.*/& %s/" /etc/ssh/sshd_config' % stats_username)
+            ssh.exec_command('service ssh restart')
+    finally:
+        ssh.close()
 
 def get_host_name(oracle_account, ip_address):
     # Note: using base image credentials; call before changing credentials
     ssh = psi_ssh.make_ssh_session(ip_address, oracle_account.base_image_ssh_port,
                                    'root',None, None,
                                    host_auth_key=oracle_account.base_image_rsa_private_key)
-    return ssh.exec_command('hostname').strip()
+    try:
+        return ssh.exec_command('hostname').strip()
+    finally:
+        ssh.close()
 
 def set_host_name(oracle_account, ip_address, new_hostname):
     # Note: hostnamectl is for systemd servers
     ssh = psi_ssh.make_ssh_session(ip_address, oracle_account.base_image_ssh_port,
                                    'root', None, None,
                                    host_auth_key=oracle_account.base_image_rsa_private_key)
-    ssh.exec_command('hostnamectl set-hostname %s' % new_hostname)
+    try:
+        ssh.exec_command('hostnamectl set-hostname %s' % new_hostname)
+    finally:
+        ssh.close()
 
 def add_swap_file(oracle_account, ip_address):
     ssh = psi_ssh.make_ssh_session(ip_address, oracle_account.base_image_ssh_port, 'root', None, None, host_auth_key=oracle_account.base_image_rsa_private_key)
-    has_swap = ssh.exec_command('grep swap /etc/fstab')
-    if not has_swap:
-        ssh.exec_command('dd if=/dev/zero of=/swapfile bs=1024 count=1048576 && mkswap /swapfile && chown root:root /swapfile && chmod 0600 /swapfile')
-        ssh.exec_command('echo "/swapfile swap swap defaults 0 0" >> /etc/fstab')
-        ssh.exec_command('swapon -a')
-
-    ssh.close()
-    return
+    try:
+        has_swap = ssh.exec_command('grep swap /etc/fstab')
+        if not has_swap:
+            ssh.exec_command('dd if=/dev/zero of=/swapfile bs=1024 count=1048576 && mkswap /swapfile && chown root:root /swapfile && chmod 0600 /swapfile')
+            ssh.exec_command('echo "/swapfile swap swap defaults 0 0" >> /etc/fstab')
+            ssh.exec_command('swapon -a')
+    finally:
+        ssh.close()
 
 def resize_sda1(oracle_account, ip_address):
     ssh = psi_ssh.make_ssh_session(ip_address, oracle_account.base_image_ssh_port, 'root', None, None, host_auth_key=oracle_account.base_image_rsa_private_key)
-    ssh.exec_command('resize2fs /dev/sda1')
-    ssh.close()
-    return
+    try:
+        ssh.exec_command('resize2fs /dev/sda1')
+    finally:
+        ssh.close()
 
 ###
 #
@@ -381,9 +394,11 @@ def launch_new_server(oracle_account, is_TCS, plugins, multi_ip=False):
             time.sleep(15) # This is for the secondary VNIC metadata to be ready
             # Activating secondary Vnic
             ssh = psi_ssh.make_ssh_session(egress_ip_address, oracle_account.base_image_ssh_port, 'root', None, None, host_auth_key=oracle_account.base_image_rsa_private_key)
-            ssh.exec_command('bash /opt/egress_ip.sh -c')
-            ssh.exec_command('sed -i "/^exit 0/i \\bash /opt/egress_ip.sh -c" /etc/rc.local')
-            ssh.close()
+            try:
+                ssh.exec_command('bash /opt/egress_ip.sh -c')
+                ssh.exec_command('sed -i "/^exit 0/i \\bash /opt/egress_ip.sh -c" /etc/rc.local')
+            finally:
+                ssh.close()
 
             instance_ip_address, instance_internal_ip_address = get_server_ip_addresses(oracle_account, instance.id, is_primary=False)
             
