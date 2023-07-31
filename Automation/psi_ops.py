@@ -1193,7 +1193,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             IP Address:              %(ip_address)s
             Region:                  %(region)s
             SSH:                     %(ssh_port)s %(ssh_username)s / %(ssh_password)s
-            IPMI:                    %(ipmi_ip_address)s / %(ipmi_username)s / %(ipmi_password)s / $ipmi_vpn_profile_location) 
+            IPMI:                    %(ipmi_ip_address)s / %(ipmi_username)s / %(ipmi_password)s / %(ipmi_vpn_profile_location)s
             Stats User:              %(stats_ssh_username)s / %(stats_ssh_password)s
             Servers:                 %(servers)s
             ''') % {
