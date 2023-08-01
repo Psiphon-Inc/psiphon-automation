@@ -160,6 +160,27 @@ class PsiScaleway:
 
             # Delete volumes
             vol_res = self.client.query().volumes(scaleway['volumes']['0']['id']).delete()
+
+            # Delete IPs
+            if scaleway['public_ip']['dynamic'] == False:
+                ip_res = self.client.query().ips(scaleway['public_ip']['id']).delete()
+        except slexc.HttpClientError as exc:
+            print(json.dumps(exc.response.json(), indent=2))
+
+    def create_flexible_ip(self):
+        try:
+            flexible_ip = self.client.query().ips.post({'project': self.project_id, 'tags': ['psiphon3-hosts']})
+
+            flexible_ip_address = flexible_ip['ip']['address']
+            flexible_ip_id = flexible_ip['ip']['id']
+
+            return flexible_ip_address, flexible_ip_id
+        except slexc.HttpClientError as exc:
+            print(json.dumps(exc.response.json(), indent=2))
+
+    def remove_flexible_ip(self, ip_address):
+        try:
+            del_res = self.client.query().ips(ip_address).delete()
         except slexc.HttpClientError as exc:
             print(json.dumps(exc.response.json(), indent=2))
 
@@ -184,10 +205,21 @@ class PsiScaleway:
         except slexc.HttpClientError as exc:
             print(json.dumps(exc.response.json(), indent=2))
 
-    def create_scaleway(self, host_id):
+    def create_scaleway(self, host_id, reserved_ip=False):
         try:
+            # IF reserved_ip
+            req = {
+                    'project': self.project_id,
+                    'name': host_id,
+                    'commercial_type': tcs_instance_size,
+                    'image': self.get_image()['id']
+            }
+
+            if reserved_ip:
+                flexible_ip_address, flexible_ip_id = self.create_flexible_ip()
+                req['public_ip'] = flexible_ip_id
             # We are using Scaleway 3 vCPUs 4 GB: u'DEV1-M'
-            scaleway = self.client.query().servers.post({'project': self.project_id, 'name': host_id, 'commercial_type': tcs_instance_size, 'image': self.get_image()['id']})
+            scaleway = self.client.query().servers.post(req) 
 
             res = self.start_scaleway(scaleway['server']['id'])
             wait_while_condition(lambda: self.scaleway_list(scaleway['server']['id'])['state'] != 'running',
