@@ -2319,8 +2319,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server_info = provider_launch_new_server_with_retries(is_TCS)
         return server_info[0:3] + (provider.lower(),) + server_info[4:]
 
-    def add_servers(self, server_infos, propagation_channel_name, osl_discovery_date_range, discovery_date_range, replace_others=True, server_capabilities=None):
-        assert(self.is_locked)
+    def add_servers(self, server_infos, propagation_channel_name, osl_discovery_date_range, discovery_date_range, replace_others=True, server_capabilities=None, manual_deploy=False):
+        if manual_deploy != True:
+            assert(self.is_locked)
 
         propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
 
@@ -2520,7 +2521,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             self.run_command_on_host(host, 'shutdown -r 10')
 
-            self.save()
+            if manual_deploy != True:
+                self.save()
 
         if new_server_error:
             raise Exception(new_server_error)
