@@ -1789,6 +1789,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         assert(self.is_locked)
 
+        host_id_list = list()
         with open("entries.txt", "rb") as import_file:
             entries_list = pickle.load(import_file)
 
@@ -1797,11 +1798,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 host = Host(*imp_entry[0])
                 assert(host.id not in self.__hosts)
                 self.__hosts[host.id] = host
+                host_id_list.append(host.id)
 
                 for imp_server in imp_entry[1]:
                     server = Server(*imp_server)
                     assert(server.id not in self.__servers)
                     self.__servers[server.id] = server
+
+        return host_id_list
 
     # obsolete
     def import_host(self, id, is_TCS, TCS_type, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
