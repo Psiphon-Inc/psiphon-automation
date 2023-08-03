@@ -84,7 +84,9 @@ class PsiLinode:
             'eu-central': 'Linode Frankfurt, DE',
             'us-iad': 'Linode Washington, DC, USA',
             'us-ord': 'Linode Chicago, IL, USA',
-            'fr-par': 'Linode Paris, FR'
+            'fr-par': 'Linode Paris, FR',
+            'in-maa': 'Linode Chennai, IN',
+            'se-sto': 'Linode Stockholm, SE'
         }
         return regions.get(region.id, "")
 
