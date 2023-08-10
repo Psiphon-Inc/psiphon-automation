@@ -386,7 +386,7 @@ def remove_server(digitalocean_account, droplet_id):
         do_mgr = digitalocean.Manager(token=digitalocean_account.oauth_token)
         droplet = do_mgr.get_droplet(droplet_id)
         try:
-            floating_ips = [floating_ip for floating_ip in do_mgr.get_all_floating_ips() if floating.ip.droplet and floating_ip.droplet['id'] == droplet.id]
+            floating_ips = [floating_ip for floating_ip in do_mgr.get_all_floating_ips() if floating_ip.droplet and floating_ip.droplet['id'] == droplet.id]
             for floating_ip in floating_ips:
                 floating_ip.destroy()
         except digitalocean.baseapi.NotFoundError as e:
