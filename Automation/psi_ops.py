@@ -3630,7 +3630,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         temp_file = tempfile.NamedTemporaryFile(delete=False)
         try:
-            temp_file.write(self.__compartmentalize_data_for_devops_server())
+            temp_file.write(self.__compartmentalize_data_for_devops_server().encode())
             temp_file.close()
             psi_ops_cms.delete_document(for_stats=False)
             psi_ops_cms.import_document(temp_file.name, False, True)
@@ -3646,7 +3646,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         temp_file = tempfile.NamedTemporaryFile(delete=False)
         try:
-            temp_file.write(self.__compartmentalize_data_for_stats_server())
+            temp_file.write(self.__compartmentalize_data_for_stats_server().encode())
             temp_file.close()
             psi_ops_cms.delete_document(for_stats=True)
             psi_ops_cms.import_document(temp_file.name, True, False)

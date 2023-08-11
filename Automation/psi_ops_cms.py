@@ -202,7 +202,7 @@ class PersistentObject(object):
         self.is_locked = None
         try:
             with tempfile.NamedTemporaryFile(delete=False) as file:
-                file.write(jsonpickle.encode(self))
+                file.write(jsonpickle.encode(self).encode())
         finally:
             self.is_locked = is_locked
         import_document(file.name)
