@@ -72,21 +72,24 @@ class PsiLinode:
         # from linode_api.get_available_regions():
         regions = {
             'ap-northeast': 'Linode Tokyo 2, JP',
-            'ap-west': 'Linode Mumbai, India',
             'ap-south': 'Linode Singapore, SG',
             'ap-southeast': 'Linode Sydney, NSW, Australia',
+            'ap-west': 'Linode Mumbai, India',
             'ca-central': 'Linode Toronto, Ontario, CAN',
-            'us-central': 'Linode Dallas, TX, USA',
-            'us-west': 'Linode Fremont, CA, USA',
-            'us-southeast': 'Linode Atlanta, GA, USA',
-            'us-east': 'Linode Newark, NJ, USA',
-            'eu-west': 'Linode London, England, UK',
             'eu-central': 'Linode Frankfurt, DE',
-            'us-iad': 'Linode Washington, DC, USA',
-            'us-ord': 'Linode Chicago, IL, USA',
+            'eu-west': 'Linode London, England, UK',
             'fr-par': 'Linode Paris, FR',
             'in-maa': 'Linode Chennai, IN',
-            'se-sto': 'Linode Stockholm, SE'
+            'it-mil': 'Linode Milan, IT',
+            'jp-osa': 'Linode Osaka, JP',
+            'se-sto': 'Linode Stockholm, SE',
+            'us-central': 'Linode Dallas, TX, USA',
+            'us-east': 'Linode Newark, NJ, USA',
+            'us-iad': 'Linode Washington, DC, USA',
+            'us-ord': 'Linode Chicago, IL, USA',
+            'us-sea': 'Linode Seattle, WA, USA',
+            'us-southeast': 'Linode Atlanta, GA, USA',
+            'us-west': 'Linode Fremont, CA, USA'
         }
         return regions.get(region.id, "")
 
