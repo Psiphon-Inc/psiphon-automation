@@ -348,7 +348,8 @@ def remove_server(oracle_account, instance_id):
     try:
         oci_api.remove_instance(instance_id)
     except Exception as e:
-        raise e
+        if 'not found' not in e.message:
+            raise e
 
 def resize_volume(oracle_account, instance_id, resize_to=200):
     oci_api = PsiOCI(oracle_account)
