@@ -82,6 +82,7 @@ class PsiLinode:
             'in-maa': 'Linode Chennai, IN',
             'it-mil': 'Linode Milan, IT',
             'jp-osa': 'Linode Osaka, JP',
+            'nl-ams': 'Linode Amsterdam, NL',
             'se-sto': 'Linode Stockholm, SE',
             'us-central': 'Linode Dallas, TX, USA',
             'us-east': 'Linode Newark, NJ, USA',
