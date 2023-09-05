@@ -248,6 +248,25 @@ class TunnelCoreConsoleRunner:
             if is_proxied:
                 output['PT-HTTPS'] = 'PASS'
         
+        return output
+    
+    def run_speed_test(self, speed_test_params):
+        import requests
+        import subprocess
+        download_url = speed_test_params["download_url"]
+        
+        if download_url == "":
+            output = {'SPEED-TEST' : 'FAIL: No download url provided'}
+        
+        else:
+            response = requests.head(download_url)
+
+            if response.status_code == 200:
+                bash_script = 'wget -O /dev/null {url} 2>&1 | grep -o "[0-9.]\+ [KM]*B/s"'.format(url=download_url)
+                grep_output = subprocess.run(['bash', '-c', bash_script], stdout=subprocess.PIPE, text=True)
+                output = {'SPEED-TEST' : grep_output.stdout.strip()}
+            else:
+                output = {'SPEED-TEST' : 'FAIL: HTTP request did not return a 200 OK status code. Download cannot proceed.'}
         
         return output
 
@@ -266,11 +285,12 @@ class TunnelCoreConsoleRunner:
 
 
 @retry_on_exception_decorator
-def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, additional_test_sites, user_agent, split_tunnel_mode):
+def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, additional_test_sites, user_agent, split_tunnel_mode, speed_test_params):
     # test:
     # - spawn client process, which starts the VPN
     # - sleep 5 seconds, which allows time to establish connection
     # - determine egress IP address and assert it matches host IP address
+    # - test network speed if enabled in speed_test_params
     
     output_str = ''
     output = {}
@@ -294,6 +314,9 @@ def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, a
                                     expected_egress_ip_addresses,
                                     user_agent))
         
+            if speed_test_params['enabled']:
+                output.update(runner.run_speed_test(speed_test_params))
+
         else:
             
             http_proxy = runner.setup_proxy()
@@ -407,7 +430,7 @@ def test_server(server, host, encoded_server_entry, split_tunnel_url_format,
                 use_indistinguishable_tls=True, test_cases = None, 
                 ip_test_sites = [], additional_test_sites = [], user_agent=USER_AGENT,
                 executable_path = None, config_file = None, 
-                packet_tunnel_params=dict()):
+                packet_tunnel_params=dict(), speed_test_params=dict()):
     
     if len(ip_test_sites) == 0:
         ip_test_sites = CHECK_IP_ADDRESS_URL_LOCAL
@@ -442,7 +465,7 @@ def test_server(server, host, encoded_server_entry, split_tunnel_url_format,
         try:
             results[test_case] = __test_server(tunnel_core_runner, test_case, 
                                                expected_egress_ip_addresses, 
-                                               ip_test_sites, additional_test_sites, user_agent, False)
+                                               ip_test_sites, additional_test_sites, user_agent, False, speed_test_params)
             #for split_tunnel in [True, False]:
             #    results[test_case]['SPLIT TUNNEL {0}'.format(split_tunnel)] = __test_server(tunnel_core_runner, test_case, expected_egress_ip_addresses, split_tunnel)
             #results[test_case] = 'PASS'
