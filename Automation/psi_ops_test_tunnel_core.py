@@ -250,24 +250,44 @@ class TunnelCoreConsoleRunner:
         
         return output
     
-    def run_speed_test(self, speed_test_params):
-        import requests
-        import subprocess
-        download_url = speed_test_params["download_url"]
-        
+    def run_speed_test(self, download_url):
         if download_url == "":
-            output = {'SPEED-TEST' : 'FAIL: No download url provided'}
-        
+            output = {'SPEED-TEST': 'FAIL: No download URL provided'}
         else:
-            response = requests.head(download_url)
+            http_proxy = self.setup_proxy()
+            
+            try:
+                # print("Downloading {0}...".format(download_url))
+                urllib3.disable_warnings()
 
-            if response.status_code == 200:
-                bash_script = 'wget -O /dev/null {url} 2>&1 | grep -o "[0-9.]\+ [KM]*B/s"'.format(url=download_url)
-                grep_output = subprocess.run(['bash', '-c', bash_script], stdout=subprocess.PIPE, text=True)
-                output = {'SPEED-TEST' : grep_output.stdout.strip()}
-            else:
-                output = {'SPEED-TEST' : 'FAIL: HTTP request did not return a 200 OK status code. Download cannot proceed.'}
-        
+                response = http_proxy.request('GET', download_url, headers={"User-Agent": USER_AGENT}, preload_content=False)
+                if response.status == 200:
+                    file_size = int(response.headers.get('content-length', 0))
+                    downloaded_bytes = 0
+                    chunk_size = 1024  # You can adjust the chunk size as needed
+                    start_time = time.time()
+
+                    with open("/dev/null", 'wb') as _:
+                        for chunk in response.stream(chunk_size):
+                            downloaded_bytes += len(chunk)
+
+                            # Calculate and print the download progress
+                            progress = (downloaded_bytes / file_size) * 100
+                            sys.stdout.write(f"\rProgress: {progress:.2f}%")
+                            sys.stdout.flush()
+
+                    end_time = time.time()
+                    download_time = end_time - start_time
+                    file_size_mb = file_size / (1024 * 1024)  # Convert to MB
+                    download_speed = file_size_mb / download_time  # MB/s
+
+                    # print(f"\nDownloaded {file_size_mb:.2f} MB in {download_time:.2f} seconds.")
+                    output = {'SPEED-TEST': f"{download_speed:.2f} MB/s"}
+                else:
+                    output = {'SPEED-TEST': f'FAIL: HTTP request did not return a 200 OK status code. Status code: {response.status}'}
+            except urllib3.exceptions.RequestError as e:
+                output = {'SPEED-TEST': f'FAIL: An error occurred during download: {str(e)}'}
+
         return output
 
     def stop_psiphon(self):
@@ -285,17 +305,16 @@ class TunnelCoreConsoleRunner:
 
 
 @retry_on_exception_decorator
-def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, additional_test_sites, user_agent, split_tunnel_mode, speed_test_params):
+def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, additional_test_sites, user_agent, split_tunnel_mode, download_url):
     # test:
     # - spawn client process, which starts the VPN
     # - sleep 5 seconds, which allows time to establish connection
     # - determine egress IP address and assert it matches host IP address
-    # - test network speed if enabled in speed_test_params
+    # - test network speed if speed_test is True in psi_ops_monitoring.py
     
     output_str = ''
     output = {}
     url = ''
-    packet_tunnel_test_results = {}
     # Split tunnelling is not implemented for VPN.
     # Also, if there is no remote check, don't use split tunnel mode because we always want
     # to test at least one proxied case.
@@ -314,8 +333,8 @@ def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, a
                                     expected_egress_ip_addresses,
                                     user_agent))
         
-            if speed_test_params['enabled']:
-                output.update(runner.run_speed_test(speed_test_params))
+        elif download_url != None:
+            output.update(runner.run_speed_test(download_url))
 
         else:
             
@@ -430,7 +449,7 @@ def test_server(server, host, encoded_server_entry, split_tunnel_url_format,
                 use_indistinguishable_tls=True, test_cases = None, 
                 ip_test_sites = [], additional_test_sites = [], user_agent=USER_AGENT,
                 executable_path = None, config_file = None, 
-                packet_tunnel_params=dict(), speed_test_params=dict()):
+                packet_tunnel_params=dict(), download_url=str()):
     
     if len(ip_test_sites) == 0:
         ip_test_sites = CHECK_IP_ADDRESS_URL_LOCAL
@@ -465,7 +484,7 @@ def test_server(server, host, encoded_server_entry, split_tunnel_url_format,
         try:
             results[test_case] = __test_server(tunnel_core_runner, test_case, 
                                                expected_egress_ip_addresses, 
-                                               ip_test_sites, additional_test_sites, user_agent, False, speed_test_params)
+                                               ip_test_sites, additional_test_sites, user_agent, False, download_url)
             #for split_tunnel in [True, False]:
             #    results[test_case]['SPLIT TUNNEL {0}'.format(split_tunnel)] = __test_server(tunnel_core_runner, test_case, expected_egress_ip_addresses, split_tunnel)
             #results[test_case] = 'PASS'
