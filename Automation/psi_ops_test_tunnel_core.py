@@ -257,32 +257,34 @@ class TunnelCoreConsoleRunner:
             http_proxy = self.setup_proxy()
             
             try:
-                # print("Downloading {0}...".format(download_url))
                 urllib3.disable_warnings()
 
-                response = http_proxy.request('GET', download_url, headers={"User-Agent": USER_AGENT}, preload_content=False)
+                response = http_proxy.request('GET', download_url, preload_content=False)
                 if response.status == 200:
                     file_size = int(response.headers.get('content-length', 0))
                     downloaded_bytes = 0
                     chunk_size = 1024  # You can adjust the chunk size as needed
                     start_time = time.time()
 
-                    with open("/dev/null", 'wb') as _:
-                        for chunk in response.stream(chunk_size):
-                            downloaded_bytes += len(chunk)
+                    for chunk in response.stream(chunk_size):
+                        downloaded_bytes += len(chunk)
 
-                            # Calculate and print the download progress
-                            progress = (downloaded_bytes / file_size) * 100
-                            sys.stdout.write(f"\rProgress: {progress:.2f}%")
-                            sys.stdout.flush()
+                        # Calculate and print the download progress
+                        progress = (downloaded_bytes / file_size) * 100
+                        sys.stdout.write(f"\rProgress: {progress:.2f}%")
+                        sys.stdout.flush()
 
                     end_time = time.time()
                     download_time = end_time - start_time
-                    file_size_mb = file_size / (1024 * 1024)  # Convert to MB
-                    download_speed = file_size_mb / download_time  # MB/s
+                    file_size_kb = file_size * 8 / 1000  # Convert to kilobits
+                    download_speed = file_size_kb / download_time  # Kbps
 
-                    # print(f"\nDownloaded {file_size_mb:.2f} MB in {download_time:.2f} seconds.")
-                    output = {'SPEED-TEST': f"{download_speed:.2f} MB/s"}
+                    # print(f"\nDownloaded {file_size_kb:.2f} kb in {download_time:.2f} seconds.")
+                    is_below_threshold = download_speed < 1000 # 1000 Kbps
+                    if is_below_threshold:
+                        output = {'SPEED-TEST': f'FAIL: Speed: {download_speed:.2f} Kbps'}
+                    else:
+                        output = {'SPEED-TEST': f'PASS: Speed: {download_speed:.2f} Kbps'}
                 else:
                     output = {'SPEED-TEST': f'FAIL: HTTP request did not return a 200 OK status code. Status code: {response.status}'}
             except urllib3.exceptions.RequestError as e:
@@ -449,7 +451,7 @@ def test_server(server, host, encoded_server_entry, split_tunnel_url_format,
                 use_indistinguishable_tls=True, test_cases = None, 
                 ip_test_sites = [], additional_test_sites = [], user_agent=USER_AGENT,
                 executable_path = None, config_file = None, 
-                packet_tunnel_params=dict(), download_url=str()):
+                packet_tunnel_params=dict(), download_url= None):
     
     if len(ip_test_sites) == 0:
         ip_test_sites = CHECK_IP_ADDRESS_URL_LOCAL
