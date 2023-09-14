@@ -1960,7 +1960,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         host = self.__hosts[host_id]
         if host.is_TCS:
             return int(self.run_command_on_host(host,
-                'tac /var/log/psiphond/psiphond.log | grep -m1 \\"establish_tunnels\\": | python -c \'import sys, json; print json.loads(sys.stdin.read())["ALL"]["established_clients"]\''))
+                'tac /var/log/psiphond/psiphond.log | grep -m1 \\"establish_tunnels\\": | python -c \'import sys, json; print (json.loads(sys.stdin.read())["ALL"]["established_clients"])\''))
         else:
             vpn_users = int(self.run_command_on_host(host,
                                                  'ifconfig | grep ppp | wc -l'))
@@ -1972,7 +1972,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         host = self.__hosts[host_id]
         if host.is_TCS:
             return 'True' == self.run_command_on_host(host,
-                'tac /var/log/psiphond/psiphond.log | grep -m1 \\"establish_tunnels\\": | python -c \'import sys, json; print json.loads(sys.stdin.read())["establish_tunnels"]\'').strip()
+                'tac /var/log/psiphond/psiphond.log | grep -m1 \\"establish_tunnels\\": | python -c \'import sys, json; print (json.loads(sys.stdin.read())["establish_tunnels"])\'').strip()
         else:
             raise Exception("not implemented")
 

@@ -87,6 +87,8 @@ class PsiLinode:
             'us-central': 'Linode Dallas, TX, USA',
             'us-east': 'Linode Newark, NJ, USA',
             'us-iad': 'Linode Washington, DC, USA',
+            'us-lax': 'Linode Los Angeles, CA, USA',
+            'us-mia': 'Linode Miami, FL, USA',
             'us-ord': 'Linode Chicago, IL, USA',
             'us-sea': 'Linode Seattle, WA, USA',
             'us-southeast': 'Linode Atlanta, GA, USA',
