@@ -168,6 +168,11 @@ except ImportError as error:
     print(error)
 
 try:
+    import psi_ops_test_tunnel_core
+except ImportError as error:
+    print(error)
+
+try:
     import psi_ops_twitter
 except ImportError as error:
     print(error)
@@ -4979,18 +4984,37 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         [s.ip_address for s in self.get_servers() if s.host_id == host.id] +
                                         [host.ip_address]))
 
-        return psi_ops_test_windows.test_server(
-                                server,
-                                self.__hosts[server.host_id],
-                                self.__get_encoded_server_entry(server),
-                                self.__split_tunnel_url_format(),
-                                self.__split_tunnel_signature_public_key(),
-                                self.__split_tunnel_dns_server(),
-                                version,
-                                egress_ip_addresses,
-                                test_propagation_channel_id,
-                                test_cases,
-                                executable_path)
+        if sys.platform in ['win32', 'cygwin']:
+            return psi_ops_test_windows.test_server(
+                                    server,
+                                    self.__hosts[server.host_id],
+                                    self.__get_encoded_server_entry(server),
+                                    self.__split_tunnel_url_format(),
+                                    self.__split_tunnel_signature_public_key(),
+                                    self.__split_tunnel_dns_server(),
+                                    version,
+                                    egress_ip_addresses,
+                                    test_propagation_channel_id,
+                                    test_cases,
+                                    executable_path)
+        else:
+            return psi_ops_test_tunnel_core.test_server(
+                                    server,
+                                    self.__hosts[server.host_id],
+                                    self.__get_encoded_server_entry(server),
+                                    self.__split_tunnel_url_format(),
+                                    self.__split_tunnel_signature_public_key(),
+                                    self.__split_tunnel_dns_server(),
+                                    egress_ip_addresses,
+                                    test_propagation_channel_id,
+                                    test_sponsor_id='Testing'.encode('UTF-8').hex(),
+                                    client_platform='',
+                                    client_version='',
+                                    use_indistinguishable_tls=True,
+                                    test_cases=test_cases,
+                                    ip_test_sites=['http://ip.sb'],
+                                    executable_path=os.path.join(os.path.abspath('.'), 'secrets', 'tunnel-core', 'psiphon-tunnel-core'),
+                                    config_file=os.path.join(os.path.abspath('.'), 'secrets', 'tunnel-core', 'psiphon-tunnel-core.config'))
 
     def __test_servers(self, servers, test_cases, build_with_embedded_servers=False):
         results = {}
