@@ -47,7 +47,7 @@ def build_malware_dictionary(url):
     malware_dicts = {}
     try:
         resp = urllib2.urlopen(url).read()
-        malware_lists = re.findall('\w+\.list', resp)
+        malware_lists = re.findall('\w+\.list', resp.decode())
         for item in malware_lists:
             name = item.split('.')
             malware_dicts[name[0]] = {'url': ''.join([url, item]),
@@ -131,7 +131,7 @@ def modify_iptables_insert_tracker(tracker, chain, rules):
         if it already exists as it creates duplicate entries
     """
     add_tracker = True
-    for line in rules.split('\n'):
+    for line in rules.decode().split('\n'):
         if tracker['set_name'] in line:       # return if we see the tracker
             add_tracker = False
             break
