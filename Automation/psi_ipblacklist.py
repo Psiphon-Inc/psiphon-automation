@@ -32,7 +32,7 @@ try:
 except ImportError as error:
     print(error)
 
-EXECUTABLE = 00744
+EXECUTABLE = 0o744
 BASE_PATH = '/usr/local/share/PsiphonV'
 BLACKLIST_DIR = 'malware_blacklist'
 IPSET_DIR = os.path.abspath(os.path.join(BASE_PATH, BLACKLIST_DIR, 'ipset'))
@@ -57,7 +57,7 @@ def build_malware_dictionary(url):
                                      'set_name': name[0],
                                     }
         
-    except urllib2.URLError, er:
+    except urllib2.URLError as er:
         if hasattr(er, 'reason'):
             print('Failed: ', er.reason)
         elif hasattr(er, 'code'):
