@@ -58,6 +58,12 @@ def load_server_config(server_id):
     return os.path.join(os.path.abspath('.'), 'network-health', 'conf', 
         'tunnel-core-config-{id}.config'.format(id=server_id.replace(' ', '_')))
 
+if os.path.isfile('psi_data_config.py'):
+    import psi_data_config
+    CHECK_IP_ADDRESS_URL_LOCAL = psi_data_config.CHECK_IP_ADDRESS_URL_LOCAL
+    CHECK_IP_ADDRESS_URL_REMOTE = psi_data_config.CHECK_IP_ADDRESS_URL_REMOTE
+    USER_AGENT = psi_data_config.USER_AGENT
+
 
 def retry_on_exception_decorator(function):
     @wraps(function)
@@ -403,7 +409,7 @@ def test_server(server, host, encoded_server_entry, split_tunnel_url_format,
                 executable_path = None, config_file = None, 
                 packet_tunnel_params=dict()):
     
-    if len(ip_test_sites) is 0:
+    if len(ip_test_sites) == 0:
         ip_test_sites = CHECK_IP_ADDRESS_URL_LOCAL
     
     if executable_path is None:

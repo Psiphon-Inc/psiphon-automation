@@ -5012,7 +5012,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     client_version='',
                                     use_indistinguishable_tls=True,
                                     test_cases=test_cases,
-                                    ip_test_sites=['http://ip.sb'],
                                     executable_path=os.path.join(os.path.abspath('.'), 'secrets', 'tunnel-core', 'psiphon-tunnel-core'),
                                     config_file=os.path.join(os.path.abspath('.'), 'secrets', 'tunnel-core', 'psiphon-tunnel-core.config'))
 
