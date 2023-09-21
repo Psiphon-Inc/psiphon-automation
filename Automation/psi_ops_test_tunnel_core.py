@@ -411,6 +411,8 @@ def test_server(server, host, encoded_server_entry, split_tunnel_url_format,
     
     if len(ip_test_sites) == 0:
         ip_test_sites = CHECK_IP_ADDRESS_URL_LOCAL
+        if isinstance(it_test_sites, str):
+            ip_test_sites = [ip_test_sites]
     
     if executable_path is None:
         executable_path = load_default_tunnel_core()
