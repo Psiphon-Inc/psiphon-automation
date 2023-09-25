@@ -114,6 +114,7 @@ def write_embedded_values(propagation_channel_id,
                           split_tunnel_url_format,
                           split_tunnel_signature_public_key,
                           split_tunnel_dns_server,
+                          additional_parameters,
                           ignore_system_server_list=False):
     template = textwrap.dedent('''
         #pragma once
@@ -164,6 +165,8 @@ def write_embedded_values(propagation_channel_id,
         static const char* SPLIT_TUNNEL_ROUTES_URL_FORMAT = "%s";
         static const char* SPLIT_TUNNEL_ROUTES_SIGNATURE_PUBLIC_KEY = "%s";
         static const char* SPLIT_TUNNEL_DNS_SERVER = "%s";
+                               
+        static const char* ADDITIONAL_PARAMETERS = "%s";
         ''')
     with open(EMBEDDED_VALUES_FILENAME, 'w') as file:
         file.write(template % (propagation_channel_id,
@@ -199,7 +202,8 @@ def write_embedded_values(propagation_channel_id,
                                privacy_policy_url,
                                split_tunnel_url_format,
                                split_tunnel_signature_public_key,
-                               split_tunnel_dns_server))
+                               split_tunnel_dns_server,
+                               additional_parameters))
 
 
 def build_client(
@@ -231,7 +235,8 @@ def build_client(
         split_tunnel_signature_public_key,
         split_tunnel_dns_server,
         version,
-        propagator_managed_upgrades,
+        propagator_managed_upgrades, # unused
+        additional_parameters,
         test=False,
         _=None):
 
@@ -274,6 +279,7 @@ def build_client(
             split_tunnel_url_format,
             split_tunnel_signature_public_key,
             split_tunnel_dns_server,
+            additional_parameters,
             ignore_system_server_list=test)
 
         # build
