@@ -1518,6 +1518,13 @@ while true; do
                 # convert interface to kilobits
                 local interface_speed_in_kbps=$(( interface_speed * 1000))
 
+                # Limit the interface speed to 1 Gbps globally
+                if [ $interface_speed_in_kbps -gt $((1000 * 1000)) ]
+                then
+                    # Todo: Add a check for host.interface_speeed_cap in future if required for specific hosts
+                    interface_speed_in_kbps=$((1000 * 1000))
+                fi
+
                 # Record old bytes
                 local interface_bytes_in_old=$(cat "/sys/class/net/${_interface}/statistics/rx_bytes")
 
