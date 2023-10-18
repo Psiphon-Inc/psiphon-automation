@@ -231,7 +231,7 @@ def get_servers(vultr_account):
 
 def get_server(vultr_account, vultr_id):
     # TODO
-    return vultr_api.get_instance(self, vultr_id, 
+    return vultr_api.get_instance(self, vultr_id) 
     pass
 
 def remove_server(vultr_account, vultr_id):
