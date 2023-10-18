@@ -34,6 +34,20 @@ from vultr import vultr
 TCS_BASE_IMAGE_ID = '5eaa342e-8b40-4236-b7d1-2fb5a7a34635'
 TCS_VULTR_DEFAULT_PLAN = 'vc2-2c-4gb' # default 2vCore 4G RAM 'vc2-2c-4gb', Sao Paulo 'vc2-2c-4gb-sc1'
 
+###
+#
+# Helper functions
+#
+###
+def wait_while_condition(condition, max_wait_seconds, description):
+    total_wait_seconds = 0
+    wait_seconds = 5
+    while condition() == True:
+        if total_wait_seconds > max_wait_seconds:
+            raise Exception('Took more than %d seconds to %s' % (max_wait_seconds, description))
+        time.sleep(wait_seconds)
+        total_wait_seconds = total_wait_seconds + wait_seconds
+
 #==============================================================================
 ###
 #
