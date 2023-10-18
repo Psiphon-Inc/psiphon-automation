@@ -115,26 +115,16 @@ class PsiVultr:
         return datacenters.get(select_datacenter, '')
 
     def list_instances(self):
-        # TODO
         all_instances = self.client.list_instances()
-        #pass
         return all_instances
 
+    def get_instance(self, instance_id):
+        instance = self.client.get_instance(instance_id)
+        return instance
+
     def remove_instance(self, instance_id):
-        # TODO
-        pass
-
-    def start_instance(self, instance_id):
-        # TODO
-        pass
-
-    def stop_instance(self, instance_id):
-        # TODO
-        pass
-
-    def restart_instance(self, instance_id):
-        # TODO
-        pass
+        print("Deleting Instances: {}".format(instance_id))
+        self.client.delete_instance(instance_id)
 
     def create_instance(self, host_id, datacenter_code):
         # Launch Instnace
@@ -150,10 +140,6 @@ class PsiVultr:
         )
 
         return instance, self.get_datacenter_names(instance['region']), self.get_region(instance['region'])
-
-    def remove_instance(self, instance_id):
-        # Delete instance
-        pass
 
 ###
 #
@@ -225,27 +211,18 @@ def add_swap_file(vultr_account, ip_address):
 #
 ###
 def get_servers(vultr_account):
-    # TODO
-    vultrs = []
-
-    for region in vultr_account.regions:
-        vultr_api.region = region
-        vultr_api.reload()
-
-        instances = vultr_api.list_instances()
-        vultrs += instances
-
-    # return id in the same format that we store it in Host.provider_id (see launch_new_server below)
-    return [(v['region'] + '_' + v['id'], v['label']) for v in vultrs]
-    pass
+    vultr_api = PsiVultr(vultr_account)
+    instances = vultr_api.list_instances()
+    #return [(v['region'] + '_' + v['id'], v['label']) for v in vultrs]
+    return instances
 
 def get_server(vultr_account, vultr_id):
     vultr_api = PsiVultr(vultr_account)
-    return vultr_api.get_instance(self, vultr_id) 
+    return vultr_api.get_instance(vultr_id) 
 
 def remove_server(vultr_account, vultr_id):
-    # TODO
-    pass
+    vultr_api = PsiVultr(vultr_account)
+    vultr_api.remove_instance(vultr_id)
 
 def launch_new_server(vultr_account, is_TCS, plugins, multi_ip=False):
 
@@ -294,5 +271,3 @@ def launch_new_server(vultr_account, is_TCS, plugins, multi_ip=False):
 
 if __name__ == '__main__':
     print(launch_new_server)
-
-
