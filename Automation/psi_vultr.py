@@ -100,7 +100,7 @@ class PsiVultr:
             "itm" : "VULT Osaka, JP",
             "man" : "VULT Manchester, GB",
             "hnl" : "VULT Honolulu, US", #hnl and sao does not have vc2-2c-4gb available.
-            "sao" : "VULT S\u00e3o Paulo, BR" # this is a mistake/error as per their api: https://api.vultr.com/v2/regions; should be: Sao Paulo
+            "sao" : "VULT Sao Paulo, BR" # this is a mistake/error as per their api: https://api.vultr.com/v2/regions; should be: Sao Paulo
             }
 
         return datacenters.get(self.client["region"], '')
