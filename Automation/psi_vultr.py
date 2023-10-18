@@ -57,7 +57,7 @@ class PsiVultr:
         else:
             regions = all_regions
 
-        region = random>choice(regions)
+        region = random.choice(regions)
 
         return region['country'], region['id']
 
@@ -224,9 +224,8 @@ def get_servers(vultr_account):
     pass
 
 def get_server(vultr_account, vultr_id):
-    # TODO
+    vultr_api = PsiVultr(vultr_account)
     return vultr_api.get_instance(self, vultr_id) 
-    pass
 
 def remove_server(vultr_account, vultr_id):
     # TODO
@@ -252,12 +251,17 @@ def launch_new_server(vultr_account, is_TCS, plugins, multi_ip=False):
         #Create a new Vultr instance
         region, datacenter_code = vultr_api.get_region()
         host_id = "vt" + '-' + region.lower() + datacenter_code.lower() + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
-        instance, datacenter_name, region = vultr_api.create_instance(host_id)
+        instance, datacenter_name, region = vultr_api.create_instance(host_id, datacenter_code)
 
         # Wait for job completion
         wait_while_condition(lambda: vultr_api.compute_api.get_instance(instance.id).data.lifecycle_state != 'RUNNING',
                          30,
                          'Creating VULTR Instance')
+
+        print(instance)
+        print(datacenter_name)
+        print(region)
+        return
 
         instance_ip_address = instance["main_ip"]
         instance_internal_ip_address = instance["internal_ip"]
