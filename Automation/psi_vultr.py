@@ -60,6 +60,7 @@ class PsiVultr:
         self.regions = vultr_account.regions
         self.plan = TCS_VULTR_DEFAULT_PLAN
         self.base_image_id = TCS_BASE_IMAGE_ID
+        self.ssh_key_id = vultr_account.base_image_ssh_key_id
         self.client = vultr.Vultr(api_key=self.api_key)
 
     def get_region(self, select_region=None):
@@ -144,6 +145,7 @@ class PsiVultr:
   		    hostname=host_id,
   		    backups="disabled",
             snapshot_id=self.base_image_id,
+            sshkey_id=[self.ssh_key_id],
   		    tags=["psiphond"]
         )
 
@@ -161,7 +163,7 @@ class PsiVultr:
 def refresh_credentials(vultr_account, ip_address, new_root_password, new_stats_password, stats_username):
     ssh = psi_ssh.make_ssh_session(ip_address, vultr_account.base_image_ssh_port,
                                    'root', None, None,
-                                   host_auth_key=vultr_account.base_image_rsa_private_key)
+                                   host_auth_key=vultr_account.base_image_ssh_private_key)
     try:
         ssh.exec_command('echo "root:%s" | chpasswd' % (new_root_password,))
         ssh.exec_command('useradd -M -d /var/log -s /bin/sh -g adm %s' % (stats_username))
@@ -176,7 +178,7 @@ def refresh_credentials(vultr_account, ip_address, new_root_password, new_stats_
 def set_allowed_users(vultr_account, ip_address, stats_username):
     ssh = psi_ssh.make_ssh_session(ip_address, vultr_account.base_image_ssh_port,
                                    'root', None, None,
-                                   host_auth_key=vultr_account.base_image_rsa_private_key)
+                                   host_auth_key=vultr_account.base_image_ssh_private_key)
     try:
         user_exists = ssh.exec_command('grep %s /etc/ssh/sshd_config' % stats_username)
         if not user_exists:
@@ -189,7 +191,7 @@ def get_host_name(vultr_account, ip_address):
     # Note: using base image credentials; call before changing credentials
     ssh = psi_ssh.make_ssh_session(ip_address, vultr_account.base_image_ssh_port,
                                    'root',None, None,
-                                   host_auth_key=vultr_account.base_image_rsa_private_key)
+                                   host_auth_key=vultr_account.base_image_ssh_private_key)
     try:
         return ssh.exec_command('hostname').strip()
     finally:
@@ -199,14 +201,14 @@ def set_host_name(vultr_account, ip_address, new_hostname):
     # Note: hostnamectl is for systemd servers
     ssh = psi_ssh.make_ssh_session(ip_address, vultr_account.base_image_ssh_port,
                                    'root', None, None,
-                                   host_auth_key=vultr_account.base_image_rsa_private_key)
+                                   host_auth_key=vultr_account.base_image_ssh_private_key)
     try:
         ssh.exec_command('hostnamectl set-hostname %s' % new_hostname)
     finally:
         ssh.close()
 
 def add_swap_file(vultr_account, ip_address):
-    ssh = psi_ssh.make_ssh_session(ip_address, vultr_account.base_image_ssh_port, 'root', None, None, host_auth_key=vultr_account.base_image_rsa_private_key)
+    ssh = psi_ssh.make_ssh_session(ip_address, vultr_account.base_image_ssh_port, 'root', None, None, host_auth_key=vultr_account.base_image_ssh_private_key)
     try:
         has_swap = ssh.exec_command('grep swap /etc/fstab')
 
@@ -245,17 +247,6 @@ def remove_server(vultr_account, vultr_id):
     # TODO
     pass
 
-def get_server_ip_addresses(vultr_account, vultr_id): #probably not needed?
-    vultr_api = PsiVultr(vultr_account)
-    vultr_api, vultr_id = reload_proper_api_client(vultr_api, vultr_id)
-    vultr = vultr_api.vultr_list(vultr_id)
-
-    public_ip = vultr['main_ip']
-    private_ip = vultr['internal_ip']
-
-    return (public_ip, private_ip)
-
-
 def launch_new_server(vultr_account, is_TCS, plugins, multi_ip=False):
 
     instance = None
@@ -265,20 +256,17 @@ def launch_new_server(vultr_account, is_TCS, plugins, multi_ip=False):
         #Create a new Vultr instance
         region, datacenter_code = vultr_api.get_region()
         host_id = "vt" + '-' + region.lower() + datacenter_code.lower() + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
-        instance, datacenter_name, region = vultr_api.create_instance(host_id, datacenter_code)
+        instance_info, datacenter_name, region_info = vultr_api.create_instance(host_id, datacenter_code)
 
         # Wait for job completion
-        wait_while_condition(lambda: vultr_api.compute_api.get_instance(instance.id).data.lifecycle_state != 'RUNNING',
+        wait_while_condition(lambda: vultr_api.client.get_instance(instance_info['id'])['power_status'] != 'running',
                          30,
                          'Creating VULTR Instance')
-
-        print(instance)
-        print(datacenter_name)
-        print(region)
-        return
+        # Wait for Restorying fron snapshot
+        time.sleep(30)
+        instance = vultr_api.client.get_instance(instance_info['id'])
 
         instance_ip_address = instance["main_ip"]
-        instance_internal_ip_address = instance["internal_ip"]
 
         new_stats_username = psi_utils.generate_stats_username()
         set_host_name(vultr_account, instance_ip_address, host_id)
@@ -292,19 +280,17 @@ def launch_new_server(vultr_account, is_TCS, plugins, multi_ip=False):
                                                   new_root_password, new_stats_password,
                                                   new_stats_username)
 
-###
-
     except Exception as ex:
         if instance:
-            vultr_api.remove_instance(instance.id)
+            vultr_api.remove_instance(instance['id'])
         raise ex
 
     return (host_id, is_TCS, 'NATIVE' if is_TCS else None, None,
-            instance.id, instance_ip_address,
+            instance['id'], instance_ip_address,
             vultr_account.base_image_ssh_port, 'root', new_root_password,
             ' '.join(new_host_public_key.split(' ')[:2]),
             new_stats_username, new_stats_password,
-            datacenter_name, region, egress_ip_address if multi_ip else None, instance_internal_ip_address)
+            datacenter_name, region, egress_ip_address if multi_ip else None, None)
 
 if __name__ == '__main__':
     print(launch_new_server)
