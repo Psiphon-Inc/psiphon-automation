@@ -3,7 +3,7 @@ import typing
 import requests
 
 class Vultr(object):
-    API_URL = 'https://api.vultr.com/v2/'
+    API_URL = 'https://api.vultr.com/v2'
 
     def __init__(self, api_key: typing.Union[str, None]):
         """

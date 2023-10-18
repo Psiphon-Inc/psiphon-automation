@@ -31,7 +31,7 @@ import psi_utils
 from vultr import vultr
 
 # VARIABLE
-TCS_BASE_IMAGE_NAME = ''
+TCS_BASE_IMAGE_ID = '5eaa342e-8b40-4236-b7d1-2fb5a7a34635'
 TCS_VULTR_DEFAULT_PLAN = 'vc2-2c-4gb' # default 2vCore 4G RAM 'vc2-2c-4gb', Sao Paulo 'vc2-2c-4gb-sc1'
 
 #==============================================================================
@@ -42,32 +42,26 @@ TCS_VULTR_DEFAULT_PLAN = 'vc2-2c-4gb' # default 2vCore 4G RAM 'vc2-2c-4gb', Sao 
 ###
 class PsiVultr:
     def __init__(self, vultr_account, debug=False):
-        self.config = {
-            # ??
-        }
         self.api_key = vultr_account.api_key
+        self.regions = vultr_account.regions
         self.plan = TCS_VULTR_DEFAULT_PLAN
-        self.client = vultr.Vultr(api_key=self.api_key)
-
-    def reload(self):
-        self.api_key = vultr_account.api_key
-        self.plan = TCS_VULTR_DEFAULT_PLAN
+        self.base_image_id = TCS_BASE_IMAGE_ID
         self.client = vultr.Vultr(api_key=self.api_key)
 
     def get_region(self, select_region=None):
         # Load region from API
         # region_id required for create_instance
         all_regions = self.client.list_regions()
-        if select_region == None:
-            regions = [r for r in all_regions if r['country'] == select_region]
+        if select_region != None:
+            regions = [r for r in all_regions if r['id'] == select_region]
         else:
             regions = all_regions
 
-        region = random.choice(regions)
+        region = random>choice(regions)
 
-        return region['id'], region['country'], region['city']
+        return region['country'], region['id']
 
-    def get_datacenter_names(self) :
+    def get_datacenter_names(self, select_datacenter):
         datacenters = {
             "ewr" : "VULT New Jersey, US",
             "ord" : "VULT Chicago, US",
@@ -103,7 +97,7 @@ class PsiVultr:
             "sao" : "VULT Sao Paulo, BR" # this is a mistake/error as per their api: https://api.vultr.com/v2/regions; should be: Sao Paulo
             }
 
-        return datacenters.get(self.client["region"], '')
+        return datacenters.get(select_datacenter, '')
 
     def list_instances(self):
         # TODO
@@ -127,19 +121,19 @@ class PsiVultr:
         # TODO
         pass
 
-    def create_instance(self, host_id):
+    def create_instance(self, host_id, datacenter_code):
         # Launch Instnace
         instance = self.client.create_instance(
-		region=region,
-		plan=self.plan,
- 	 	label="Psiphon 3 Hosts Public Subnet", #host_id?
-  		os_id=352, #352 -> Debian 10 x64 (buster) || 477 -> Debian 11 x64 (bullseye)"
-  		user_data="QmFzZTY0IEV4YW1wbGUgRGF0YQ==", #The user-supplied, base64 encoded user data to attach to this instance. -> random.choice(string.ascii_lowercase) for x in range(24)
-  		backups="disabled",
-  		hostname=host_id,
-  		tags = ["Psiphon 3 Hosts Public Subnet"])
+		    region=datacenter_code,
+		    plan=self.plan,
+ 	 	    label=host_id,
+  		    hostname=host_id,
+  		    backups="disabled",
+            snapshot_id=self.base_image_id,
+  		    tags=["psiphond"]
+        )
 
-	return instance, self.get_datacenter_names(), self.get_region()
+        return instance, self.get_datacenter_names(instance['region']), self.get_region(instance['region'])
 
     def remove_instance(self, instance_id):
         # Delete instance
@@ -256,13 +250,10 @@ def launch_new_server(vultr_account, is_TCS, plugins, multi_ip=False):
 
     try:
         #Create a new Vultr instance
-        region = vultr_api.get_region()
-        datacenter = vultr_api.get_datacenter_names()
-        # Is it vt or vl or ???
-        host_id = "vt" + '-' + region.lower() + datacenter[0:3].lower() + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
+        region, datacenter_code = vultr_api.get_region()
+        host_id = "vt" + '-' + region.lower() + datacenter_code.lower() + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
         instance, datacenter_name, region = vultr_api.create_instance(host_id)
 
-###
         # Wait for job completion
         wait_while_condition(lambda: vultr_api.compute_api.get_instance(instance.id).data.lifecycle_state != 'RUNNING',
                          30,
