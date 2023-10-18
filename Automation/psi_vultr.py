@@ -299,3 +299,5 @@ def launch_new_server(vultr_account, is_TCS, plugins, multi_ip=False):
 
 if __name__ == '__main__':
     print(launch_new_server)
+
+
