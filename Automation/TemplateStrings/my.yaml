@@ -1,21 +1,23 @@
 my:
   plaintext_email_no_attachment: |
-      Psiphon ကိုဤတွင် ဒေါင်းလုပ်လုပ်ရန် : {{0}}/{0}/download.html#direct
+    Psiphon ကိုဤတွင် ဒေါင်းလုပ်လုပ်ရန် : {{0}}/{0}/download.html#direct
   html_email_no_attachment: |
-      <div style="direction: ltr;">
-      Psiphon ကိုဤတွင် ဒေါင်းလုပ်လုပ်ရန် : {{0}}/{0}/download.html#direct<a href="{{0}}/{0}/download.html#direct"><br>
-      </a>
+    <div style="direction: ltr;">
+    Psiphon ကိုဤတွင် ဒေါင်းလုပ်လုပ်ရန် : {{0}}/{0}/download.html#direct<a href="{{0}}/{0}/download.html#direct"><br>
+    </a>
   plaintext_email_with_attachment: |+
-      Windows တွင် Psiphon 3 ကိုအသုံးပြုရန်အတွက် ပူးတွဲပေးပို့ထားသော ".exe" extension ပါသည့်ဖိုင် {{1}} ကိုသိမ်းပါ။
-      Android တွင် Psiphon 3 ကိုအသုံးပြုရန်အတွက် ပူးတွဲပေးပို့ထားသော {{2}} ကိုသွင်းပါ။
-      နောက်ထပ်သတင်းအချက်အလက်များအတွက် သို့မဟုတ် နောက်တစ်ကြိမ်ဖိုင်များ ဒေါင်းလုပ်လုပ်ရန်အတွက် အောက်ပါလင့်ကိုနှိပ်ပါ။
-      {{0}}/{0}/download.html#direct
+    Windows အတွက် Psiphon 3 ကိုအသုံးပြုရန်၊ "psiphon3" ဖြင့် စသော ပူးတွဲဖိုင်ကို သိမ်းပါ။ နောက်ပြီး လိုအပ်ပါက .exe extension ရရှိရန် (rename) အမည်ကို ပြောင်းပါ။ ပြီးလျှင် install လုပ်ပြီး run ပါ။
+
+    Android အတွက် Psiphon 3 ကိုအသုံးပြုရန်၊ "PsiphonAndroid" ဖြင့် စသော ပူးတွဲဖိုင်ကို သိမ်းပါ။ နောက်ပြီး လိုအပ်ပါက .apk extension ရရှိရန် (rename) အမည်ကို ပြောင်းပါ။ ပြီးလျှင် install လုပ်ပြီး run ပါ။
+
+    ပိုမိုသိရှိလိုပါက သို့မဟုတ် ဖိုင်များကို ပြန်လည် ဒေါင်းလုတ်လုပ်ရန် အောက်ပါလင့်ခ်ကို နှိပ်ပါ။
+    {{0}}/{0}/download.html#direct
 
   html_email_with_attachment: |
-      <div style="direction: ltr;">
-      Windows တွင် Psiphon 3 ကိုအသုံးပြုရန်အတွက် ပူးတွဲပေးပို့ထားသော ".exe" extension ပါသည့်ဖိုင် {{1}} ကိုသိမ်းပါ။<br>
-      Android တွင် Psiphon 3 ကိုအသုံးပြုရန်အတွက် ပူးတွဲပေးပို့ထားသော {{2}} ကိုသွင်းပါ။<br>
-      နောက်ထပ်သတင်းအချက်အလက်များအတွက် သို့မဟုတ် နောက်တစ်ကြိမ်ဖိုင်များ ဒေါင်းလုပ်လုပ်ရန်အတွက် အောက်ပါလင့်ကိုနှိပ်ပါ။<br>
-      <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
-      </div>
-      <br>
+    1
+    Psiphon 3 ကို Windows အတွက် သုံးရန် "psiphon3" မှ စတင်သော ပူးတွဲဖိုင်ကို သိမ်းဆည်းပြီး လိုအပ်ပါက ".exe" တိုးချဲ့ရန်အမည်ပြောင်းပါ။ ပြီးရင် run လိုက်ပါ။ 2
+    Psiphon 3 ကို Android အတွက် အသုံးပြုရန် "PsiphonAndroid" မှ စတင်သော ပူးတွဲဖိုင်ကို သိမ်းဆည်းပြီး လိုအပ်ပါက ".apk" တိုးချဲ့ရန်အမည်ပြောင်းပါ။ ပြီးလျှင် install လုပ်ပြီး run ပါ။ 3
+    ပိုမိုသိရှိလိုပါက သို့မဟုတ် ဖိုင်များကို ပြန်လည် ဒေါင်းလုတ်လုပ်ရန် အောက်ပါလင့်ခ်ကို နှိပ်ပါ။ 4
+    5 {{0}} / {0} /download.html#direct 5 6
+    1
+    7

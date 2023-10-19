@@ -1,0 +1,20 @@
+ha:
+  plaintext_email_no_attachment: |
+    Sauke manhajar Psiphon anan: {{0}}/{0}/download.html#direct
+  html_email_no_attachment: |
+    <div style="direction: ltr;"> Sauke manhajar Psiphon a nan: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/Sauke.html#direct</a><br>
+    </div>
+  plaintext_email_with_attachment: |+
+    Domin amfani da Psiphon 3 a Windows, adana wannan kundin aikin da ya fara da kalaman "psiphon3", sai a sake masa suna da zai samu ƙarin suna ".exe" idan ana buƙatar hakan. Sai a sake gwadawa.
+    Domin amfani da Psiphon 3 a Android, adana kumdin aikin da ya fara da sunan "PsiphonAndroid", sai a canja sunan ya koma mai ƙarin suna ".apk" a gaba, idan ana buƙatan haka. sai a sake gwadawa.
+    Domin ƙarin bayani, kokuma akan sauke kundin aiki, latsa nan.
+    {{0}}/{0}/download.html#direct
+
+  html_email_with_attachment: |
+    <div style="direction: ltr;">
+    Domin amfani da Psiphon 3 a Windows, adana wannan kundin aikin da sunansa ya fara da "psiphon3", sai a sake masa suna ya samu ƙarin ".exe" a gaba, idan ana buƙatan hakan. sai a sake gwadawa.<br>
+    Domin amfani da Psiphon 3 a Android, adana kundin aikin da sunansa ya fara da "PsiphonAndroid", sai a canza sunan ya samu ƙarin ".apk" a  gaba, idan ana buƙatan hakan. Sai a adana a sake gwadawa.<br>
+    Domin ƙarin bayani, latsa nan.<br>
+    <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/sauke.html#direct</a><br>
+    </div>
+    <br>
