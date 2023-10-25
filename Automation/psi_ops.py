@@ -154,6 +154,11 @@ try:
 except ImportError as error:
     print error
 
+try:
+    import psi_ops_additional_parameters
+except ImportError as error:
+    print error
+
 plugins = []
 try:
     sys.path.insert(0, os.path.abspath('../../Plugins'))
@@ -463,6 +468,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__alternate_s3_bucket_domains = set()
         self.__global_https_request_regexes = []
         self.__default_alert_action_urls = {}
+        self.__s3_download_fronting_specs = []
+        self.__s3_upload_fronting_specs = []
 
         # Generate a server entry signing key pair using
         # https://github.com/Psiphon-Labs/psiphon-tunnel-core/tree/master/psiphon/common/protocol/signer
@@ -483,7 +490,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.71'
+    class_version = '0.72'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -895,6 +902,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 host.ipmi_password = ""
                 host.ipmi_vpn_profile_location = None
             self.version = '0.71'
+        if cmp(parse_version(self.version), parse_version('0.72')) < 0:
+            self.__s3_download_fronting_specs = []
+            self.__s3_upload_fronting_specs = []
+            self.version = '0.72'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -2946,13 +2957,21 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__feedback_upload_info.upload_server_headers = upload_server_headers
             self.__feedback_upload_info.log('FeedbackUploadInfo modified to: "%s", "%s", "%s"' % (upload_server, upload_path, upload_server_headers))
 
-    def get_feedback_upload_urls(self):
+    def get_feedback_upload_urls(self, include_fronting_specs=False):
         feedback_upload_info = self.get_feedback_upload_info()
 
         feedback_upload_urls = []
+
+        if include_fronting_specs and len(self.get_s3_upload_fronting_specs()) > 0:
+            feedback_upload_urls.append({'URL': base64.b64encode('https://' + feedback_upload_info.upload_server),
+                                         'RequestHeaders': dict(header.split(':') for header in feedback_upload_info.upload_server_headers.splitlines()),
+                                         'OnlyAfterAttempts': 0,
+                                         'SkipVerify': False,
+                                         'FrontingSpecs': self.get_s3_upload_fronting_specs()})
+
         feedback_upload_urls.append({'URL': base64.b64encode('https://' + feedback_upload_info.upload_server + feedback_upload_info.upload_path),
                                      'RequestHeaders': dict(header.split(':') for header in feedback_upload_info.upload_server_headers.splitlines()),
-                                     'OnlyAfterAttempts': 0,
+                                     'OnlyAfterAttempts': 1 if len(feedback_upload_urls) > 0 else 0,
                                      'SkipVerify': False})
 
         number_of_alternate_feedback_upload_urls = 3
@@ -2969,6 +2988,83 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                              'SkipVerify': True})
 
         return feedback_upload_urls
+
+    def download_urls(self, url_split, alternate_download_url_domains, 
+                      include_fronting_specs=False, 
+                      skipVerifyFirstDownloadURL=False):
+        urls = []
+
+        if include_fronting_specs and len(self.get_s3_download_fronting_specs()) > 0 and url_split.path.startswith('/psiphon/'):
+            urls.append({
+                'URL': base64.b64encode(urlparse.urlunsplit(url_split._replace(path=url_split.path.split('/psiphon/')[1]))),
+                'OnlyAfterAttempts': 0,
+                'SkipVerify': skipVerifyFirstDownloadURL,
+                'FrontingSpecs': self.get_s3_download_fronting_specs()
+            })
+
+        urls.append({'URL': base64.b64encode(urlparse.urlunsplit(url_split)),
+                     'OnlyAfterAttempts': 1 if len(urls) > 0 else 0,
+                     'SkipVerify': skipVerifyFirstDownloadURL})
+        if alternate_download_url_domains and url_split.path.startswith('/psiphon/'):
+            for domain in alternate_download_url_domains:
+                urls.append({'URL': base64.b64encode('https://' + domain + url_split.path.split('/psiphon')[1]),
+                             'OnlyAfterAttempts': 2,
+                             'SkipVerify': True})
+        return urls
+
+    def make_fronting_spec(self, fronting_provider_id, addresses, disable_sni, 
+                           verify_server_name, verify_pins, host):
+        assert(isinstance(fronting_provider_id, str))
+        assert(isinstance(addresses, list))
+        assert(isinstance(disable_sni, bool))
+        assert(isinstance(verify_server_name, str))
+        assert(isinstance(verify_pins, list))
+        assert(isinstance(host, str))
+
+        fronting_spec = {
+            'FrontingProviderID': fronting_provider_id,
+            'Addresses': addresses,
+            'DisableSNI': disable_sni,
+            'VerifyServerName': verify_server_name,
+            'VerifyPins': verify_pins,
+            'Host': host
+        }
+
+        return fronting_spec
+
+    def add_s3_download_fronting_spec(self, fronting_provider_id, addresses, 
+                                      disable_sni, verify_server_name, 
+                                      verify_pins, host):
+        assert(self.is_locked)
+        assert(isinstance(self.__s3_download_fronting_specs, list))
+
+        fronting_spec = self.make_fronting_spec(fronting_provider_id, 
+                                                addresses, disable_sni, 
+                                                verify_server_name, 
+                                                verify_pins, host)
+
+        self.__s3_download_fronting_specs.append(fronting_spec)
+
+    def get_s3_download_fronting_specs(self):
+        assert(isinstance(self.__s3_download_fronting_specs, list))
+        return self.__s3_download_fronting_specs
+
+    def add_s3_upload_fronting_spec(self, fronting_provider_id, addresses, 
+                                    disable_sni, verify_server_name, 
+                                    verify_pins, host):
+        assert(self.is_locked)
+        assert(isinstance(self.__s3_upload_fronting_specs, list))
+
+        fronting_spec = self.make_fronting_spec(fronting_provider_id, 
+                                                addresses, disable_sni, 
+                                                verify_server_name, 
+                                                verify_pins, host)
+
+        self.__s3_upload_fronting_specs.append(fronting_spec)
+
+    def get_s3_upload_fronting_specs(self):
+        assert(isinstance(self.__s3_upload_fronting_specs, list))
+        return self.__s3_upload_fronting_specs
 
     def __get_upgrade_package_signing_key_pair(self):
         if not self.__upgrade_package_signing_key_pair:
@@ -3058,21 +3154,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             else:
                 alternate_download_url_domains = self.__alternate_s3_bucket_domains
 
-        def download_urls(url_split):
-            urls = []
-            urls.append({'URL': base64.b64encode(urlparse.urlunsplit(url_split)),
-                         'OnlyAfterAttempts': 0,
-                         'SkipVerify': False})
-            if alternate_download_url_domains and url_split.path.startswith('/psiphon/'):
-                for domain in alternate_download_url_domains:
-                    urls.append({'URL': base64.b64encode('https://' + domain + url_split.path.split('/psiphon')[1]),
-                                 'OnlyAfterAttempts': 2,
-                                 'SkipVerify': True})
-            return urls
+        remote_server_list_urls = self.download_urls(remote_server_list_url_split, alternate_download_url_domains)
+        OSL_root_urls = self.download_urls(OSL_root_url_split, alternate_download_url_domains)
+        upgrade_urls = self.download_urls(upgrade_url_split, alternate_download_url_domains)
 
-        remote_server_list_urls = download_urls(remote_server_list_url_split)
-        OSL_root_urls = download_urls(OSL_root_url_split)
-        upgrade_urls = download_urls(upgrade_url_split)
+        additional_parameters = {
+            'RemoteServerListURLs': self.download_urls(remote_server_list_url_split, alternate_download_url_domains, True),
+            'ObfuscatedServerListRootURLs': self.download_urls(OSL_root_url_split, alternate_download_url_domains, True),
+            'UpgradeDownloadURLs': self.download_urls(upgrade_url_split, alternate_download_url_domains, True),
+            'FeedbackUploadURLs': self.get_feedback_upload_urls(True)
+        }
 
         return [builders[platform](
                         propagation_channel.id,
@@ -3104,6 +3195,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         self.__split_tunnel_dns_server(),
                         self.__client_versions[platform][-1].version if self.__client_versions[platform] else 0,
                         propagation_channel.propagator_managed_upgrades,
+                        psi_ops_additional_parameters.encode_additional_parameters(json.dumps(additional_parameters)),
                         test,
                         list(self.__android_home_tab_url_exclusions)) for platform in platforms]
 
@@ -4951,9 +5043,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     test_propagation_channel_id,
                                     '0',        # sponsor_id
                                     None,       # banner
-                                    [],
+                                    [],         # encoded_server_list
                                     '',         # remote_server_list_signature_public_key
-                                    ('','','','',''), # remote_server_list_url
+                                    ('','','','',''), # remote_server_list_url_split
                                     ('[{}]'), # remote_server_list_urls_json
                                     '', # OSL_root_url_split
                                     ('[{}]'), # OSL_root_urls_json
@@ -4963,9 +5055,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     '',         # feedback_upload_server
                                     '',         # feedback_upload_path
                                     '',         # feedback_upload_server_headers
+                                    '',         # feedback_upload_urls_json
                                     '',         # info_link_url
                                     '',         # upgrade_signature_public_key
-                                    ('','','','',''), # upgrade_url
+                                    ('','','','',''), # upgrade_url_split
                                     ('[{}]'), #upgrade_urls_json
                                     '',         # get_new_version_url
                                     '',         # get_new_version_email
@@ -4975,8 +5068,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     self.__split_tunnel_signature_public_key(),
                                     self.__split_tunnel_dns_server(),
                                     version,
-                                    False,
-                                    False)
+                                    False,      # propagator_managed_upgrades
+                                    '',         # additional_parameters
+                                    False)      # test
 
         for server in servers:
             result = self.__test_server(server, test_cases, version, test_propagation_channel_id, executable_path)
