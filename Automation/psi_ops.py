@@ -185,7 +185,7 @@ except ImportError as error:
 try:
     import psi_ops_additional_parameters
 except ImportError as error:
-    print error
+    print(error)
 
 plugins = []
 try:
