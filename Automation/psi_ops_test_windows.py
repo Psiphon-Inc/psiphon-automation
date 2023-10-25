@@ -406,7 +406,7 @@ def test_server(server, host, encoded_server_entry,
                                     None,       # banner
                                     [encoded_server_entry],
                                     '',         # remote_server_list_signature_public_key
-                                    ('','','','',''), # remote_server_list_url
+                                    ('','','','',''), # remote_server_list_url_split
                                     ('[{}]'), # remote_server_list_urls_json
                                     '', # OSL_root_url_split
                                     ('[{}]'), # OSL_root_urls_json
@@ -416,10 +416,11 @@ def test_server(server, host, encoded_server_entry,
                                     '',         # feedback_upload_server
                                     '',         # feedback_upload_path
                                     '',         # feedback_upload_server_headers
+                                    '',         # feedback_upload_urls_json
                                     '',         # info_link_url
                                     '',         # upgrade_signature_public_key
-                                    ('','','','',''), # upgrade_url
-                                    ('[{}]'), #upgrade_urls_json
+                                    ('','','','',''), # upgrade_url_split
+                                    ('[{}]'), # upgrade_urls_json
                                     '',         # get_new_version_url
                                     '',         # get_new_version_email
                                     '',         # faq_url
@@ -428,8 +429,9 @@ def test_server(server, host, encoded_server_entry,
                                     split_tunnel_signature_public_key,
                                     split_tunnel_dns_server,
                                     version,
-                                    False,
-                                    True)
+                                    False,      # propagator_managed_upgrades
+                                    '',         # additional_parameters
+                                    True)      # test
 
             psiphon_runner = PsiphonRunner(encoded_server_entry, executable_path)
 
