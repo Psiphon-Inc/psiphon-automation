@@ -167,23 +167,6 @@ class PsiScaleway:
         except slexc.HttpClientError as exc:
             print(json.dumps(exc.response.json(), indent=2))
 
-    def create_flexible_ip(self):
-        try:
-            flexible_ip = self.client.query().ips.post({'project': self.project_id, "type": "routed_ipv4", 'tags': ['psiphon3-hosts']})
-
-            flexible_ip_address = flexible_ip['ip']['address']
-            flexible_ip_id = flexible_ip['ip']['id']
-
-            return flexible_ip_address, flexible_ip_id
-        except slexc.HttpClientError as exc:
-            print(json.dumps(exc.response.json(), indent=2))
-
-    def remove_flexible_ip(self, ip_address):
-        try:
-            del_res = self.client.query().ips(ip_address).delete()
-        except slexc.HttpClientError as exc:
-            print(json.dumps(exc.response.json(), indent=2))
-
     def start_scaleway(self, scaleway_id):
         try:
             # Boot scaleway from API
@@ -205,9 +188,8 @@ class PsiScaleway:
         except slexc.HttpClientError as exc:
             print(json.dumps(exc.response.json(), indent=2))
 
-    def create_scaleway(self, host_id, reserved_ip=False):
+    def create_scaleway(self, host_id):
         try:
-            # IF reserved_ip
             req = {
                     'project': self.project_id,
                     'name': host_id,
@@ -216,9 +198,6 @@ class PsiScaleway:
                     'routed_ip_enabled': True
             }
 
-            if reserved_ip:
-                flexible_ip_address, flexible_ip_id = self.create_flexible_ip()
-                req['public_ip'] = flexible_ip_id
             # We are using Scaleway 3 vCPUs 4 GB: u'DEV1-M'
             scaleway = self.client.query().servers.post(req) 
 
