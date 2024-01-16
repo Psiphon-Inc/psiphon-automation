@@ -169,7 +169,7 @@ class PsiScaleway:
 
     def create_flexible_ip(self):
         try:
-            flexible_ip = self.client.query().ips.post({'project': self.project_id, 'tags': ['psiphon3-hosts']})
+            flexible_ip = self.client.query().ips.post({'project': self.project_id, "type": "routed_ipv4", 'tags': ['psiphon3-hosts']})
 
             flexible_ip_address = flexible_ip['ip']['address']
             flexible_ip_id = flexible_ip['ip']['id']
@@ -212,7 +212,8 @@ class PsiScaleway:
                     'project': self.project_id,
                     'name': host_id,
                     'commercial_type': tcs_instance_size,
-                    'image': self.get_image()['id']
+                    'image': self.get_image()['id'],
+                    'routed_ip_enabled': True
             }
 
             if reserved_ip:
@@ -332,7 +333,7 @@ def get_server_ip_addresses(scaleway_account, scaleway_id):
     scaleway = scaleway_api.scaleway_list(scaleway_id)
 
     public_ip = scaleway['public_ip']['address']
-    private_ip = scaleway['private_ip']
+    private_ip = scaleway['private_ip'] # This is kept for old server (one without routed_ipv4) compatibility
 
     return (public_ip, private_ip)
 
@@ -348,7 +349,6 @@ def launch_new_server(scaleway_account, is_TCS, plugins, multi_ip=False):
         scaleway, datacenter_name, region = scaleway_api.create_scaleway(host_id)
 
         scaleway_ip_address = scaleway['public_ip']['address']
-        scaleway_internal_ip_address = scaleway['private_ip']
 
         new_stats_username = psi_utils.generate_stats_username()
         # scaleways created by an image keep the image's hostname.  Override this
@@ -375,7 +375,7 @@ def launch_new_server(scaleway_account, is_TCS, plugins, multi_ip=False):
             scaleway_account.base_ssh_port, 'root', new_root_password,
             ' '.join(new_host_public_key.split(' ')[:2]),
             new_stats_username, new_stats_password,
-            datacenter_name, region, None, scaleway_internal_ip_address)
+            datacenter_name, region, None, None)
 
 if __name__ == '__main__':
     print launch_new_server()
