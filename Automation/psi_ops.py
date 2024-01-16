@@ -3265,7 +3265,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         self.__split_tunnel_dns_server(),
                         self.__client_versions[platform][-1].version if self.__client_versions[platform] else 0,
                         propagation_channel.propagator_managed_upgrades,
-                        psi_ops_additional_parameters.encode_additional_parameters(json.dumps(additional_parameters)),
+                        psi_ops_additional_parameters.encode_additional_parameters(json.dumps(additional_parameters).encode()),
                         test,
                         list(self.__android_home_tab_url_exclusions)) for platform in platforms]
 
