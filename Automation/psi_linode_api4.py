@@ -77,6 +77,7 @@ class PsiLinode:
             'ap-west': 'Linode Mumbai, India',
             'br-gru': 'Linode Sao Paulo, BR',
             'ca-central': 'Linode Toronto, Ontario, CAN',
+            'es-mad': 'Linode Madrid, ES',
             'eu-central': 'Linode Frankfurt, DE',
             'eu-west': 'Linode London, England, UK',
             'fr-par': 'Linode Paris, FR',
