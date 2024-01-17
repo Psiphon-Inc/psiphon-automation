@@ -167,6 +167,23 @@ class PsiScaleway:
         except slexc.HttpClientError as exc:
             print(json.dumps(exc.response.json(), indent=2))
 
+    def create_flexible_ip(self):
+        try:
+            flexible_ip = self.client.query().ips.post({'project': self.project_id, "type": "routed_ipv4", 'tags': ['psiphon3-hosts']})
+
+            flexible_ip_address = flexible_ip['ip']['address']
+            flexible_ip_id = flexible_ip['ip']['id']
+
+            return flexible_ip_address, flexible_ip_id
+        except slexc.HttpClientError as exc:
+            print(json.dumps(exc.response.json(), indent=2))
+
+    def remove_flexible_ip(self, ip_address):
+        try:
+            del_res = self.client.query().ips(ip_address).delete()
+        except slexc.HttpClientError as exc:
+            print(json.dumps(exc.response.json(), indent=2))
+            
     def start_scaleway(self, scaleway_id):
         try:
             # Boot scaleway from API
