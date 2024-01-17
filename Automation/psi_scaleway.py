@@ -190,12 +190,14 @@ class PsiScaleway:
 
     def create_scaleway(self, host_id):
         try:
+            _, flexible_ip_id = self.create_flexible_ip()
             req = {
                     'project': self.project_id,
                     'name': host_id,
                     'commercial_type': tcs_instance_size,
                     'image': self.get_image()['id'],
-                    'routed_ip_enabled': True
+                    'routed_ip_enabled': True,
+                    'public_ip': flexible_ip_id
             }
 
             # We are using Scaleway 3 vCPUs 4 GB: u'DEV1-M'
