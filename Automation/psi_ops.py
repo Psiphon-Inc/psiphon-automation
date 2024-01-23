@@ -2103,7 +2103,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.test_server(server.id, ['handshake'])
 
     def add_server_entry_provider_id_to_host(self, host):
-        assert(self.is_locked)
         assert(host.provider != None)
         server_entry_provider_id_alias = host.provider.lower()
 
