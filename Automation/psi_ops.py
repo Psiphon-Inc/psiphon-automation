@@ -231,7 +231,7 @@ Host = psi_utils.recordtype(
     'stats_ssh_username, stats_ssh_password, ' +
     'datacenter_name, region, ' +
     'ipmi_ip_address, ipmi_username, ipmi_password, ipmi_vpn_profile_location, ' +
-    'fronting_provider_id, passthrough_address, passthrough_version, ' +
+    'server_entry_provider_id, fronting_provider_id, passthrough_address, passthrough_version, ' +
     'enable_gquic, limit_quic_versions, ' +
     'meek_server_port, meek_server_obfuscated_key, meek_server_fronting_domain, ' +
     'meek_server_fronting_host, alternate_meek_server_fronting_hosts, ' +
@@ -481,6 +481,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__ssh_ip_address_whitelist = []
         self.__TCS_iptables_output_rules = []
 
+        self.__server_entry_provider_id_aliases = {}
+
         self.__fronting_provider_id_aliases = {}
 
         self.__passthrough_addresses = []
@@ -490,7 +492,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.72'
+    class_version = '0.73'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -906,6 +908,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__s3_download_fronting_specs = []
             self.__s3_upload_fronting_specs = []
             self.version = '0.72'
+        if cmp(parse_version(self.version), parse_version('0.73')) < 0:
+            self.__server_entry_provider_id_aliases = {}
+            for host in self.__hosts.values() + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
+                self.add_server_entry_provider_id_to_host(host)
+            self.version = '0.73'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1636,6 +1643,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def get_host_object(self, id, is_TCS, TCS_type, provider, provider_id, ip_address, ssh_port, ssh_username, ssh_password, ssh_host_key,
                         stats_ssh_username, stats_ssh_password, datacenter_name, region,
                         ipmi_ip_address, ipmi_username, ipmi_password, ipmi_vpn_profile_location,
+                        server_entry_provider_id,
                         fronting_provider_id, passthrough_address, passthrough_version,
                         enable_gquic, limit_quic_versions,
                         meek_server_port, meek_server_obfuscated_key, meek_server_fronting_domain, meek_server_fronting_host,
@@ -1661,6 +1669,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     ipmi_username,
                     ipmi_password,
                     ipmi_vpn_profile_location,
+                    server_entry_provider_id,
                     fronting_provider_id,
                     passthrough_address,
                     passthrough_version,
@@ -1742,6 +1751,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.ipmi_username,
                         host.ipmi_password,
                         host.ipmi_vpn_profile_location,
+                        host.server_entry_provider_id,
                         host.fronting_provider_id,
                         host.passthrough_address,
                         host.passthrough_version,
@@ -2092,6 +2102,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for server in servers_on_host:
             self.test_server(server.id, ['handshake'])
 
+    def add_server_entry_provider_id_to_host(self, host):
+        assert(self.is_locked)
+        assert(host.provider != None)
+        server_entry_provider_id_alias = host.provider.lower()
+
+        if server_entry_provider_id_alias not in self.__server_entry_provider_id_aliases:
+            self.__server_entry_provider_id_aliases[server_entry_provider_id_alias] = self.__generate_id()
+
+        host.server_entry_provider_id = self.__server_entry_provider_id_aliases[server_entry_provider_id_alias]
+
     def setup_fronting_for_server(self, server_id, fronting_provider_alias, meek_server_fronting_domain, meek_server_fronting_host):
         server = self.__servers[server_id]
         host = self.__hosts[server.host_id]
@@ -2322,6 +2342,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 new_server_error = "Empty host region"
                 continue
 
+            self.add_server_entry_provider_id_to_host(host)
+
             # NOTE: jsonpickle will serialize references to discovery_date_range, which can't be
             # resolved when unpickling, if discovery_date_range is used directly.
             # So create a copy instead.
@@ -2533,6 +2555,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.ipmi_username,
                         host.ipmi_password,
                         host.ipmi_vpn_profile_location,
+                        host.server_entry_provider_id,
                         host.fronting_provider_id,
                         host.passthrough_address,
                         host.passthrough_version,
@@ -4130,6 +4153,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if server_capabilities['FRONTED-MEEK']:
                 server_capabilities['FRONTED-MEEK-HTTP'] = True
 
+        if host.server_entry_provider_id:
+            extended_config['providerID'] = host.server_entry_provider_id
+
         if host.fronting_provider_id:
             extended_config['frontingProviderID'] = host.fronting_provider_id
 
@@ -4451,6 +4477,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         '',  # Omit: host.ipmi_username,
                                         '',  # Omit: host.ipmi_password,
                                         '',  # Omit: host.ipmi_vpn_profile_location,
+                                        host.server_entry_provider_id,
                                         host.fronting_provider_id,
                                         None, # Omit: passthrough_address isn't needed
                                         None, # Omit: passthrough_version isn't needed
@@ -4714,6 +4741,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.ipmi_username,
                                             host.ipmi_password,
                                             host.ipmi_vpn_profile_location,
+                                            host.server_entry_provider_id,
                                             host.fronting_provider_id,
                                             host.passthrough_address,
                                             host.passthrough_version,
@@ -4802,6 +4830,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         copy.__routes_signing_public_key = self.__split_tunnel_signature_public_key()
 
+        for alias,id in self.__server_entry_provider_id_aliases.items():
+            copy.__server_entry_provider_id_aliases[alias] = id
+
         for alias,id in self.__fronting_provider_id_aliases.items():
             copy.__fronting_provider_id_aliases[alias] = id
 
@@ -4837,6 +4868,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             '',  # Omit: host.ipmi_username,
                                             '',  # Omit: host.ipmi_password,
                                             '',  # Omit: host.ipmi_vpn_profile_location,
+                                            host.server_entry_provider_id,
                                             host.fronting_provider_id,
                                             None, # Omit: passthrough_address
                                             None, # Omit: passthrough_version
@@ -4911,6 +4943,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         sponsor.campaigns,
                                         [],     # omit page_view_regexes
                                         [])     # omit https_request_regexes
+
+        for alias,id in self.__server_entry_provider_id_aliases.items():
+            copy.__server_entry_provider_id_aliases[alias] = id
 
         for alias,id in self.__fronting_provider_id_aliases.items():
             copy.__fronting_provider_id_aliases[alias] = id
