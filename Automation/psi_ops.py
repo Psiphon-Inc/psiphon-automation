@@ -910,7 +910,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.version = '0.72'
         if cmp(parse_version(self.version), parse_version('0.73')) < 0:
             self.__server_entry_provider_id_aliases = {}
-            for host in self.__hosts.values() + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
+            for host in list(self.__hosts.values()) + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
                 self.add_server_entry_provider_id_to_host(host)
             self.version = '0.73'
 
