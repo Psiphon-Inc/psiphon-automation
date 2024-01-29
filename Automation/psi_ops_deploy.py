@@ -583,7 +583,7 @@ def deploy_data(host, host_data, TCS_traffic_rules_set, TCS_OSL_config, TCS_tact
 
 def deploy_legacy_data(ssh, host, host_data):
 
-    raise Exception("deploy_legacy_data is no longer supported)
+    raise Exception('deploy_legacy_data is no longer supported')
 
     # Stop server, if running, before replacing data file (command may fail)
     # Disable restarting the server through psi-check-services first
