@@ -3531,11 +3531,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__deploy_pave_osls_required_for_propagation_channels.clear()
             self.save()
 
-        # Host data
+        # Host data (only TCS hosts)
 
         if self.__deploy_data_required_for_all:
             psi_ops_deploy.deploy_data_to_hosts(
-                self.get_hosts(),
+                [host for host in self.get_hosts() if host.is_TCS],
                 self.__compartmentalize_data_for_host,
                 self.__TCS_traffic_rules_set,
                 self.__TCS_OSL_config,
