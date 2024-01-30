@@ -162,7 +162,7 @@ class PsiScaleway:
             vol_res = self.client.query().volumes(scaleway['volumes']['0']['id']).delete()
 
             # Delete IPs
-            if scaleway['public_ip']['dynamic'] == False:
+            if scaleway['public_ip'] != None and scaleway['public_ip']['dynamic'] == False:
                 ip_res = self.client.query().ips(scaleway['public_ip']['id']).delete()
         except slexc.HttpClientError as exc:
             print(json.dumps(exc.response.json(), indent=2))
