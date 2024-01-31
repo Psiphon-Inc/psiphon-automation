@@ -37,7 +37,7 @@ try:
     # For Legacy servers
     import psi_config
 except ImportError as error:
-    print "Missing Legacy Server support: " + str(error)
+    print("Missing Legacy Server support: " + str(error))
 
 
 #==== Legacy Deploy File Locations  ===========================================
@@ -114,13 +114,15 @@ TCS_PSIPHOND_SAFE_RESTART_COMMAND = '/opt/psiphon/psiphond_safe_start.sh restart
 def retry_decorator_returning_exception(function):
     @wraps(function)
     def wrapper(*args, **kwds):
+        raised_exception = None
         for i in range(5):
             try:
                 function(*args, **kwds)
                 return None
             except Exception as e:
-                print str(e)
-        return e
+                print(str(e))
+                raised_exception = e
+        return raised_exception
     return wrapper
 
 
@@ -134,7 +136,7 @@ def run_in_parallel(thread_pool_size, function, arguments):
 
 def deploy_implementation(host, servers, own_encoded_server_entries, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
 
-    print 'deploy implementation to host %s%s...' % (host.id, " (TCS) " if host.is_TCS else "", )
+    print('deploy implementation to host %s%s...' % (host.id, " (TCS) " if host.is_TCS else "", ))
 
     ssh = psi_ssh.SSH(
                     host.ip_address, host.ssh_port,
@@ -295,7 +297,7 @@ Environment=\"GODEBUG=madvdontneed=1\"
             docker_protocol_ports['handshake'] = TCS_DOCKER_WEB_SERVER_PORT
 
         port_mappings = ' '.join(
-            ["-p %s:%s" % (external_port,docker_protocol_ports[protocol],) for (protocol, external_port) in external_protocol_ports.iteritems()])
+            ["-p %s:%s" % (external_port,docker_protocol_ports[protocol],) for (protocol, external_port) in external_protocol_ports.items()])
 
         psiphond_env_content = '''
 DOCKER_CONTENT_TRUST=1
@@ -388,7 +390,7 @@ def make_psiphond_config(host, server, own_encoded_server_entries, TCS_psiphond_
 
     if host.passthrough_address is not None and len(host.passthrough_address) > 0:
         config['TunnelProtocolPassthroughAddresses'] = {}
-        for protocol, port in config['TunnelProtocolPorts'].iteritems():
+        for protocol, port in config['TunnelProtocolPorts'].items():
             if tunnel_protocol_supports_passthrough(protocol):
                 config['TunnelProtocolPassthroughAddresses'][protocol] = host.passthrough_address
 
@@ -553,7 +555,7 @@ def deploy_implementation_to_hosts(hosts_and_servers, own_encoded_server_entries
             own_encoded_server_entries = own_encoded_server_entries_generator(host.id)
             deploy_implementation(host, servers, own_encoded_server_entries, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values)
         except:
-            print 'Error deploying implementation to host %s' % (host.id,)
+            print('Error deploying implementation to host %s' % (host.id,))
             raise
         host.log('deploy implementation')
 
@@ -564,7 +566,7 @@ def deploy_implementation_to_hosts(hosts_and_servers, own_encoded_server_entries
 
 def deploy_data(host, host_data, TCS_traffic_rules_set, TCS_OSL_config, TCS_tactics_config_template, TCS_blocklist_csv):
 
-    print 'deploy data to host %s%s...' % (host.id, " (TCS) " if host.is_TCS else "", )
+    print('deploy data to host %s%s...' % (host.id, " (TCS) " if host.is_TCS else "", ))
 
     ssh = psi_ssh.SSH(
                     host.ip_address, host.ssh_port,
@@ -581,6 +583,8 @@ def deploy_data(host, host_data, TCS_traffic_rules_set, TCS_OSL_config, TCS_tact
 
 def deploy_legacy_data(ssh, host, host_data):
 
+    raise Exception('deploy_legacy_data is no longer supported')
+
     # Stop server, if running, before replacing data file (command may fail)
     # Disable restarting the server through psi-check-services first
 
@@ -595,7 +599,7 @@ def deploy_legacy_data(ssh, host, host_data):
 
     file = tempfile.NamedTemporaryFile(delete=False)
     try:
-        file.write(host_data)
+        file.write(host_data.encode())
         file.close()
         ssh.exec_command('mkdir -p %s' % (
                 posixpath.split(psi_config.DATA_FILE_NAME)[0],))
@@ -665,7 +669,7 @@ def put_file_with_content(ssh, content, destination_path):
 
     file = tempfile.NamedTemporaryFile(delete=False)
     try:
-        file.write(content)
+        file.write(content.encode())
         file.close()
         ssh.put_file(file.name, destination_path)
     finally:
@@ -690,7 +694,7 @@ def deploy_data_to_hosts(hosts, data_generator, TCS_traffic_rules_set, TCS_OSL_c
         try:
             deploy_data(host, host_data, TCS_traffic_rules_set, TCS_OSL_config, TCS_tactics_config_template, TCS_blocklist_csv)
         except:
-            print 'Error deploying data to host %s' % (host.id,)
+            print('Error deploying data to host %s' % (host.id,))
             raise
 
     run_in_parallel(30, do_deploy_data, [(host, data_generator) for host in hosts])
@@ -702,7 +706,7 @@ def deploy_build(host, build_filename):
         # This is obsolete
         return
 
-    print 'deploy %s build to host %s...' % (build_filename, host.id,)
+    print('deploy %s build to host %s...' % (build_filename, host.id,))
 
     ssh = psi_ssh.SSH(
                     host.ip_address, host.ssh_port,
@@ -726,7 +730,7 @@ def deploy_build_to_hosts(hosts, build_filename):
         try:
             deploy_build(host, build_filename)
         except:
-            print 'Error deploying build to host %s' % (host.id,)
+            print('Error deploying build to host %s' % (host.id,))
             raise
 
     run_in_parallel(10, do_deploy_build, hosts)
@@ -767,7 +771,7 @@ def deploy_routes(host):
         # This is obsolete
         return
 
-    print 'deploy routes to host %s...' % (host.id,)
+    print('deploy routes to host %s...' % (host.id,))
 
     ssh = psi_ssh.SSH(
                     host.ip_address, host.ssh_port,
@@ -793,7 +797,7 @@ def deploy_routes_to_hosts(hosts):
         try:
             deploy_routes(host)
         except:
-            print 'Error deploying routes to host %s' % (host.id,)
+            print('Error deploying routes to host %s' % (host.id,))
             raise
 
     run_in_parallel(10, do_deploy_routes, hosts)
@@ -804,7 +808,7 @@ def deploy_geoip_database_autoupdates(host):
     geo_ip_config_file = 'GeoIP.conf'
     if os.path.isfile(geo_ip_config_file):
 
-        print 'deploy geoip database autoupdates to host %s...' % (host.id)
+        print('deploy geoip database autoupdates to host %s...' % (host.id))
 
         ssh = psi_ssh.SSH(
                 host.ip_address, host.ssh_port,
@@ -854,7 +858,7 @@ def deploy_geoip_database_autoupdates_to_hosts(hosts):
         try:
             deploy_geoip_database_autoupdates(host)
         except:
-            print 'Error deploying geoip database autoupdates to host %s' % (host.id,)
+            print('Error deploying geoip database autoupdates to host %s' % (host.id,))
             raise
 
     run_in_parallel(10, do_deploy_geoip_database_autoupdates, hosts)

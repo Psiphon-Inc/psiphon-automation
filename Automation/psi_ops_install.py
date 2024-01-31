@@ -26,19 +26,26 @@ import binascii
 import psi_ssh
 import posixpath
 import time
-import M2Crypto
 import datetime
 import base64
 import random
 
 import psi_ops_deploy
 
+# Library to support python3
+from past.builtins import long
+
+from cryptography import x509
+from cryptography.x509.oid import AttributeOID, NameOID
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import rsa, padding, utils
+
 sys.path.insert(0, os.path.abspath(os.path.join('..', 'Server')))
 try:
     # For Legacy servers
     import psi_config
 except ImportError as error:
-    print "Missing Legacy Server support: " + str(error)
+    print("Missing Legacy Server support: " + str(error))
 
 
 #==== Configuration ============================================================
@@ -48,8 +55,9 @@ SERVER_ID_WORD_LENGTH = 3
 
 SSL_CERTIFICATE_RSA_EXPONENT = 3
 SSL_CERTIFICATE_RSA_KEY_LENGTH_BITS = 2048
-SSL_CERTIFICATE_DIGEST_TYPE = 'sha1'
+SSL_CERTIFICATE_DIGEST_TYPE = hashes.SHA256()
 SSL_CERTIFICATE_VALIDITY_SECONDS = (60*60*24*365*10) # 10 years
+SSL_CERTIFICATE_VALIDITY_DAYS = (datetime.timedelta(1, 0, 0)*365*10) # 10 years
 
 SSH_RANDOM_USERNAME_SUFFIX_BYTE_LENGTH = 8
 SSH_PASSWORD_BYTE_LENGTH = 32
@@ -324,7 +332,7 @@ def make_xinetd_config_file_command(servers):
 
 
 def generate_web_server_secret():
-    return binascii.hexlify(os.urandom(WEB_SERVER_SECRET_BYTE_LENGTH))
+    return binascii.hexlify(os.urandom(WEB_SERVER_SECRET_BYTE_LENGTH)).decode()
 
 
 def generate_unique_server_id(existing_server_ids):
@@ -362,19 +370,18 @@ morer              applory            pyte               mareshat
 
 
 def generate_self_signed_certificate():
+    rsa_private_key = rsa.generate_private_key(public_exponent=SSL_CERTIFICATE_RSA_EXPONENT, key_size=SSL_CERTIFICATE_RSA_KEY_LENGTH_BITS)
+    rsa_public_key = rsa_private_key.public_key()
 
-    # Based on http://svn.osafoundation.org/m2crypto/trunk/tests/test_x509.py
+    request_builder = x509.CertificateSigningRequestBuilder()
+    # Subject name is required, need to decide a public name
+    request_builder = request_builder.subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, u'cryptography')]))
 
-    private_key = M2Crypto.EVP.PKey()
-    request = M2Crypto.X509.Request()
-    rsa = M2Crypto.RSA.gen_key(
-        SSL_CERTIFICATE_RSA_KEY_LENGTH_BITS, SSL_CERTIFICATE_RSA_EXPONENT, lambda _: None)
-    private_key.assign_rsa(rsa)
-    request.set_pubkey(private_key)
-    request.sign(private_key, SSL_CERTIFICATE_DIGEST_TYPE)
-    assert request.verify(private_key)
-    public_key = request.get_pubkey()
-    assert request.verify(public_key)
+    request = request_builder.sign(private_key=rsa_private_key, algorithm=SSL_CERTIFICATE_DIGEST_TYPE)
+
+    # TODO: Verify private and public key
+    #assert request.verify(private_key)
+    #assert request.verify(public_key)
 
     #
     # TODO: generate a random, yet plausible DN
@@ -383,27 +390,26 @@ def generate_self_signed_certificate():
     # for (key, value) in subject_pairs.items():
     #    setattr(subject, key, value)
     #
-    certificate = M2Crypto.X509.X509()
+    certificate_builder = x509.CertificateBuilder()
 
-    certificate.set_serial_number(0)
-    certificate.set_version(2)
+    certificate_builder = certificate_builder.serial_number(x509.random_serial_number())
 
-    now = long(time.time())
-    notBefore = M2Crypto.ASN1.ASN1_UTCTIME()
-    notBefore.set_time(now)
-    notAfter = M2Crypto.ASN1.ASN1_UTCTIME()
-    notAfter.set_time(now + SSL_CERTIFICATE_VALIDITY_SECONDS)
-    certificate.set_not_before(notBefore)
-    certificate.set_not_after(notAfter)
+    certificate_builder = certificate_builder.subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, u'cryptography')]))
+    certificate_builder = certificate_builder.issuer_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, u'cryptography')]))
 
-    certificate.set_pubkey(public_key)
-    certificate.sign(private_key, SSL_CERTIFICATE_DIGEST_TYPE)
-    assert certificate.verify()
-    assert certificate.verify(private_key)
-    assert certificate.verify(public_key)
+    now = datetime.datetime.today()
+    certificate_builder = certificate_builder.not_valid_before(now)
+    certificate_builder = certificate_builder.not_valid_after(now + SSL_CERTIFICATE_VALIDITY_DAYS)
+    certificate_builder = certificate_builder.public_key(rsa_public_key)
 
-    return certificate.as_pem(), rsa.as_pem(cipher=None) # Use rsa for PKCS#1
+    certificate = certificate_builder.sign(private_key=rsa_private_key, algorithm=SSL_CERTIFICATE_DIGEST_TYPE)
 
+    # TODO: verify certificate
+    #assert certificate.verify()
+    #assert certificate.verify(private_key)
+    #assert certificate.verify(public_key)
+
+    return certificate.public_bytes(serialization.Encoding.PEM).decode(), rsa_private_key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.TraditionalOpenSSL, serialization.NoEncryption()).decode()
 
 def install_host(host, servers, existing_server_ids, TCS_psiphond_config_values, ssh_ip_address_whitelist, TCS_iptables_output_rules, plugins):
 
@@ -518,7 +524,7 @@ def install_legacy_host(host, servers, existing_server_ids, plugins):
             or server.ssh_password is None):
             server.ssh_username = 'psiphon_ssh_%s' % (
                 binascii.hexlify(os.urandom(SSH_RANDOM_USERNAME_SUFFIX_BYTE_LENGTH)),)
-            server.ssh_password = binascii.hexlify(os.urandom(SSH_PASSWORD_BYTE_LENGTH))
+            server.ssh_password = binascii.hexlify(os.urandom(SSH_PASSWORD_BYTE_LENGTH)).decode()
         if server.ssh_host_key is None:
             ssh.exec_command('rm /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (server.internal_ip_address,))
             ssh.exec_command('ssh-keygen -t rsa -N \"\" -f /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (server.internal_ip_address,))
@@ -540,7 +546,7 @@ def install_legacy_host(host, servers, existing_server_ids, plugins):
         ssh.exec_command(make_sshd_config_file_command(server.internal_ip_address, server.ssh_username))
         if server.ssh_obfuscated_port is not None:
             if server.ssh_obfuscated_key is None:
-                server.ssh_obfuscated_key = binascii.hexlify(os.urandom(SSH_OBFUSCATED_KEY_BYTE_LENGTH))
+                server.ssh_obfuscated_key = binascii.hexlify(os.urandom(SSH_OBFUSCATED_KEY_BYTE_LENGTH)).decode()
             ssh.exec_command(make_obfuscated_sshd_config_file_command(server.internal_ip_address, server.ssh_username,
                                                     server.ssh_obfuscated_port, server.ssh_obfuscated_key))
         # NOTE we do not write the ssh host key back to the server because it is generated
@@ -653,27 +659,26 @@ def install_TCS_host(host, servers, existing_server_ids, TCS_psiphond_config_val
             or server.ssh_password is None):
             server.ssh_username = 'psiphon_ssh_%s' % (
                 binascii.hexlify(os.urandom(SSH_RANDOM_USERNAME_SUFFIX_BYTE_LENGTH)),)
-            server.ssh_password = binascii.hexlify(os.urandom(SSH_PASSWORD_BYTE_LENGTH))
+            server.ssh_password = binascii.hexlify(os.urandom(SSH_PASSWORD_BYTE_LENGTH)).decode()
 
         if server.ssh_host_key is None:
             # For TCS, generate SSH keys directly using M2Crypto.
             # Legacy servers use the host key generated by OpenSSH.
             # We attempt to generate keys with similar parameters.
-            rsa_key = M2Crypto.RSA.gen_key(TCS_SSH_RSA_KEY_LENGTH_BITS, TCS_SSH_RSA_KEY_EXPONENT)
+            rsa_key = rsa.generate_private_key(public_exponent=TCS_SSH_RSA_KEY_EXPONENT, key_size=TCS_SSH_RSA_KEY_LENGTH_BITS)
 
             # output format for the public key, which is saved in
             # psinet and included in server entries:
             # 'ssh-rsa <base64>', where the base64 portion is the public key encoded according to RFC 4253 section 6.6
-            server.ssh_host_key = 'ssh-rsa ' + base64.b64encode('\x00\x00\x00\x07\x73\x73\x68\x2d\x72\x73\x61' + rsa_key.pub()[0] + rsa_key.pub()[1])
+            # Use cryptography build in OpenSSH encoding and format for OpenSSH public key
+            server.ssh_host_key = rsa_key.public_key().public_bytes(serialization.Encoding.OpenSSH, serialization.PublicFormat.OpenSSH).decode()
 
             # store private key in psinet (legacy doesn't do this).
             # Stored in psiphond.config format.
-            buf = M2Crypto.BIO.MemoryBuffer()
-            rsa_key.save_key_bio(buf, cipher=None)
-            server.TCS_ssh_private_key = buf.read()
+            server.TCS_ssh_private_key = rsa_key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.TraditionalOpenSSL, serialization.NoEncryption()).decode()
 
         if server.ssh_obfuscated_key is None:
-            server.ssh_obfuscated_key = binascii.hexlify(os.urandom(SSH_OBFUSCATED_KEY_BYTE_LENGTH))
+            server.ssh_obfuscated_key = binascii.hexlify(os.urandom(SSH_OBFUSCATED_KEY_BYTE_LENGTH)).decode()
 
 def install_firewall_rules(host, servers, TCS_psiphond_config_values, ssh_ip_address_whitelist, TCS_iptables_output_rules, plugins, do_blacklist=True):
 
@@ -1011,7 +1016,7 @@ def install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, ssh_ip
     else:
         raise 'Unhandled host.TCS_type: ' + host.TCS_type
 
-    for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, external_ports=use_external_ports).iteritems():
+    for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, external_ports=use_external_ports).items():
         protocol_port_rule = ''
         if 'UNFRONTED-MEEK' in protocol:
             protocol_port_rule = accept_with_unfronted_limit_rate_template.format(
@@ -1274,8 +1279,10 @@ def install_geoip_database(ssh, is_TCS):
                          posixpath.join(REMOTE_GEOIP_DIRECTORY, geo_ip_file))
 
 def install_second_ip_address(host, new_ip_addresses_list):
-    interfaces_path = '/etc/network/interfaces.d/multi_ip_interfaces'
-    nat_routing_path = '/etc/network/if-up.d/nat_routing'
+    
+    interface_alias = datetime.datetime.now().strftime('%m%d')
+
+    interfaces_path = '/etc/network/interfaces.d/multi_ip_interfaces.{}'.format(interface_alias)
     interface_dev = 'eth0' #Default interface devicename
 
     if type(new_ip_addresses_list) != list:
@@ -1287,9 +1294,8 @@ def install_second_ip_address(host, new_ip_addresses_list):
         host.ssh_username, host.ssh_password,
         host.ssh_host_key)
 
-    interface_dev = ssh.exec_command("ip addr show | grep %s | awk '/inet.*brd/{print $NF}'" % (host.ip_address))[:-1]
+    interface_dev = ssh.exec_command("ip addr show | grep %s | awk '/inet.*brd/{print $NF}'" % (host.ip_address)).strip().split("\n")[0]
     interface_up = ssh.exec_command('cat /sys/class/net/' + interface_dev + '/operstate')
-    nat_routing_exist = ssh.exec_command('[ -f ' + nat_routing_path  + ' ] && echo "found" || echo "no"')
 
     if 'up' in interface_up:
         print("Checked {} is up, using it as default virtual interfaces".format(interface_dev))
@@ -1299,33 +1305,24 @@ def install_second_ip_address(host, new_ip_addresses_list):
 
     interfaces_contents_list = []
 
+    interfaces_contents_header = textwrap.dedent('''auto {interface_dev}:{virtual_interface_alias}
+    allow-hotplug {interface_dev}:{virtual_interface_alias}
+    ''').format(interface_dev=interface_dev, virtual_interface_alias=interface_alias)
+    
+    interfaces_contents_list.append(interfaces_contents_header)
+
     for i in range(0, len(new_ip_addresses_list)):
         new_ip_address = new_ip_addresses_list[i]
-        interfaces_contents = textwrap.dedent('''auto {interface_dev}:{virtual_interface_number}
-        allow-hotplug {interface_dev}:{virtual_interface_number}
-        iface {interface_dev}:{virtual_interface_number} inet static
-            address {ip_address}
-            netmask 255.255.255.0
-        ''').format(interface_dev=interface_dev, virtual_interface_number=i+1, ip_address=new_ip_address)
+        interfaces_contents = textwrap.dedent('''iface {interface_dev}:{virtual_interface_number} inet static
+        address {ip_address}
+        up /sbin/iptables -t nat -I PREROUTING -j DNAT -d {ip_address} --to-destination {host_ip_address}
+        down /sbin/iptables -t nat -D PREROUTING -j DNAT -d {ip_address} --to-destination {host_ip_address}
+        ''').format(interface_dev=interface_dev, virtual_interface_number=interface_alias, ip_address=new_ip_address, host_ip_address=host.ip_address)
         interfaces_contents_list.append(interfaces_contents)
     new_interfaces_contents = '\n'.join(interfaces_contents_list)
 
-    if 'no' in nat_routing_exist:
-        print("Nat routing iptables rule not found, creating a new one with header.")
-        new_nat_routing_header = textwrap.dedent('''#!/bin/sh''')
-        ssh.exec_command('echo "{new_nat_routing_header}" > {nat_routing_path}'.format(
-            new_nat_routing_header=new_nat_routing_header, nat_routing_path=nat_routing_path))
-
-    new_nat_routing_contents = textwrap.dedent('''/sbin/iptables -t nat -I PREROUTING -j DNAT -d {new_ip_addresses} --to-destination {host_ip_address}
-    ''').format(new_ip_addresses=','.join(new_ip_addresses_list), host_ip_address=host.ip_address)
-
     ssh.exec_command('echo "{second_interfaces_contents}" >> {interfaces_path}'.format(
         second_interfaces_contents=new_interfaces_contents, interfaces_path=interfaces_path))
-
-    ssh.exec_command('echo "{new_nat_routing_contents}" >> {nat_routing_path}'.format(
-        new_nat_routing_contents=new_nat_routing_contents, nat_routing_path=nat_routing_path))
-
-    ssh.exec_command('chmod +x {nat_routing_path}'.format(nat_routing_path=nat_routing_path))
 
     ssh.close()
 
@@ -1424,7 +1421,7 @@ exit 0
     psi_limit_load_host_path = '/usr/local/sbin/psi_limit_load'
 
     file = tempfile.NamedTemporaryFile(delete=False)
-    file.write(script)
+    file.write(script.encode())
     file.close()
     ssh.put_file(file.name, psi_limit_load_host_path)
     os.remove(file.name)
@@ -1580,7 +1577,7 @@ exit 0
     psi_limit_load_host_path = '/usr/local/sbin/psi_limit_load'
 
     file = tempfile.NamedTemporaryFile(delete=False)
-    file.write(script)
+    file.write(script.encode())
     file.close()
     ssh.put_file(file.name, psi_limit_load_host_path)
     os.remove(file.name)
@@ -1612,7 +1609,7 @@ def install_TCS_psi_limit_load_chain(host, server):
     else:
         raise 'Unhandled host.TCS_type: ' + host.TCS_type
 
-    for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, external_ports=use_external_ports, meek_ports=False).iteritems():
+    for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, external_ports=use_external_ports, meek_ports=False).items():
         if 'QUIC' in protocol:
             limit_load_rules += [limit_load_template_udp.format(port=str(port))]
         else:
@@ -1708,7 +1705,7 @@ syslog.syslog(syslog.LOG_INFO, json.dumps(log_record))
     psi_count_users_host_path = '/usr/local/sbin/psi_count_users'
 
     file = tempfile.NamedTemporaryFile(delete=False)
-    file.write(script)
+    file.write(script.encode())
     file.close()
     ssh.put_file(file.name, psi_count_users_host_path)
     os.remove(file.name)

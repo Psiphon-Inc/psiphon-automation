@@ -1,0 +1,21 @@
+hu:
+  plaintext_email_no_attachment: |
+    Töltse le a Psiphon-t itt: {{0}}/{0}/download.html#direct
+  html_email_no_attachment: |
+    <div style="direction: ltr;">
+    Töltse le a Psiphon-t itt: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
+  plaintext_email_with_attachment: |+
+    A Psiphon 3 Windows használatához mentse le a csatolt  psiphon3 kezdetű fájlt, és nevezze ".exe" kiterjesztésre, ha szükséges. Ezután futtassa.
+    A Psiphon 3 Android használatához mentse le a csatolt PsiphonAndroid kezdetű fájlt, és nevezze ".apk" kiterjesztésre, ha szükséges. Ezután telepítse és futtassa.
+    További információért vagy a fájlok újra letöltéséhez kattintson az alábbi linkre.
+    {{0}}/{0}/download.html#direct
+
+  html_email_with_attachment: |
+    <div style="direction: ltr;">
+    A Psiphon 3 Windows használatához mentse le a csatolt  psiphon3 kezdetű fájlt, és nevezze ".exe" kiterjesztésre, ha szükséges. Ezután futtassa.<br>
+    A Psiphon 3 Android használatához mentse le a csatolt PsiphonAndroid kezdetű fájlt, és nevezze ".apk" kiterjesztésre, ha szükséges. Ezután telepítse és futtassa.<br>
+    További információért vagy a fájlok újra letöltéséhez kattintson az alábbi linkre.<br>
+    <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
+    <br>

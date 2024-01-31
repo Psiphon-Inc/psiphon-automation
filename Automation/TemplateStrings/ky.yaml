@@ -1,21 +1,21 @@
 ky:
   plaintext_email_no_attachment: |
-      Psiphon-ду бул жерден жүктөп алыңыз:  {{0}}/{0}/download.html#direct
+    Psiphon-ду бул жерден жүктөп алыңыз:  {{0}}/{0}/download.html#direct
   html_email_no_attachment: |
-      <div style="direction: ltr;">
-      Psiphon-ду бул жерден жүктөп алыңыз: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
-      </div>
+    <div style="direction: ltr;">
+    Psiphon-ду бул жерден жүктөп алыңыз: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
   plaintext_email_with_attachment: |+
-      Windows үчүн Psiphon 3тү до колдонуу үчүн ".exe" кеңейтүүсү менен тиркелген {{1}} файлды сактаңыз.
-      Android үчүн Psiphon 3тү  колдонуу үчүн тиркелген {{2}} файлды орнотуңуз.
-      Толук маалымат алууже болбосо файлдарды кайрадан жүктөп алуу үчүн төмөнкү шилтемени басыңыз.
-      {{0}}/{0}/download.html#direct
+    Windows үчүн Psiphon 3тү до колдонуу үчүн ".exe" кеңейтүүсү менен тиркелген {{1}} файлды сактаңыз.
+    Android үчүн Psiphon 3тү  колдонуу үчүн тиркелген {{2}} файлды орнотуңуз.
+    Толук маалымат алууже болбосо файлдарды кайрадан жүктөп алуу үчүн төмөнкү шилтемени басыңыз.
+    {{0}}/{0}/download.html#direct
 
   html_email_with_attachment: |
-      <div style="direction: ltr;">
-      Windows үчүн Psiphon 3тү до колдонуу үчүн ".exe" кеңейтүүсүндөгү тиркелген {{1}} файлды сактаңыз.<br>
-      Android үчүн Psiphon 3тү колдонуу үчүн тиркелген {{2}} файлды орнотуңуз.<br>
-      Толук маалымат алуу же болбосо файлдарды кайрадан жүктөп алуу үчүн төмөнкү шилтемени басыңыз. <br>
-      <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
-      </div>
-      <br>
+    <div style="direction: ltr;">
+    Windows үчүн Psiphon 3тү до колдонуу үчүн ".exe" кеңейтүүсүндөгү тиркелген {{1}} файлды сактаңыз.<br>
+    Android үчүн Psiphon 3тү колдонуу үчүн тиркелген {{2}} файлды орнотуңуз.<br>
+    Толук маалымат алуу же болбосо файлдарды кайрадан жүктөп алуу үчүн төмөнкү шилтемени басыңыз. <br>
+    <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
+    <br>

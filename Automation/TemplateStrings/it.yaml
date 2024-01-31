@@ -1,21 +1,23 @@
 it:
   plaintext_email_no_attachment: |
-      Scaricare Psiphon da: {{0}}/{0}/download.html#direct
+    Scaricare Psiphon da: {{0}}/{0}/download.html#direct
   html_email_no_attachment: |+
-      <div style="direction: ltr;">
-      Scaricare Psiphon da: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
-      </div>
+    <div style="direction: ltr;">
+    Scaricare Psiphon da: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
 
-  plaintext_email_with_attachment: |
-      Per usare Psiphon 3 per Windows, salvare il file {{1}} allegato  con estensione ".exe".
-      Per usare Psiphon 3 per Android, installare il file {{2}} allegato.
-      Per maggiori informazioni o per scaricare di nuovi questi file cliccare il collegamento.
-      {{0}}/{0}/download.html#direct
+  plaintext_email_with_attachment: |+
+    Per utilizzare Psiphon 3 per Windows, salvare il file allegato denominato "psiphon3" e rinominarlo con un'estensione ".exe", se necessario, quindi eseguirlo procedendo all'installazione.
+    Per utilizzare Psiphon 3 per Android, salva il file allegato denominato "PsiphonAndroid" e rinominalo con estensione ".apk", se necessario. Quindi eseguirlo procedendo all'installazione.
+    Per ulteriori informazioni o per scaricare nuovamente i file, fare clic sul collegamento sottostante:
+    {{0}}/{0}/download.html#direct
+
   html_email_with_attachment: |
-      <div style="direction: ltr;">
-      Per usare Psiphon 3 per Windows, salvare il file {{1}} allegato con estensione ".exe".<br>
-      Per usare Psiphon 3 per Android, installare il file {{2}} allegato.<br>
-      Per maggiori informazioni o per scaricare di nuovi questi file cliccare il collegamento.<br>
-      <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
-      </div>
-      <br>
+    <div style="direction: ltr;">
+    Per utilizzare Psiphon 3 per Windows, salvare il file allegato denominato "psiphon3" e rinominarlo con un'estensione ".exe", se necessario, quindi eseguirlo procedendo all'installazione.<br>
+    Per utilizzare Psiphon 3 per Android, salva il file allegato denominato "PsiphonAndroid" e rinominalo con estensione ".apk", se necessario, quindi eseguirlo procedendo all'installazione.<br>
+    Per ulteriori informazioni o per scaricare nuovamente i file, fare clic sul collegamento sottostante:<br>
+
+    <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
+    <br>

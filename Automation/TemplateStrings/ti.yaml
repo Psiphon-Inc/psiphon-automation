@@ -1,21 +1,19 @@
 ti:
   plaintext_email_no_attachment: |
-      ሳይፎን (Psiphon) ኣብ`ዚ ኣውርድ: {{0}}/{0}/download.html#direct
+    ሳይፎን (Psiphon) ኣብ`ዚ ኣውርድ: {{0}}/{0}/download.html#direct
   html_email_no_attachment: |
-      <div style="direction: ltr;">
-      ሳይፎን (Psiphon) ኣብዚ ኣውርድ: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
-      </div>
+    <div style="direction: ltr;">
+    ሳይፎን (Psiphon) ኣብዚ ኣውርድ: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
   plaintext_email_with_attachment: |+
-      ሳይፎን (Psiphon) 3 ንዊንዶውስ ንምጥቃም ተተሓሒዙ ዘሎ ፋይል {{1}} ምስ ናይ ".exe" ኤክስቴንሽን ኸዝን::
-      ሳይፎን (Psiphon) 3 ንኣንድሮይድ ንምጥቃም ተተሓሒዙ ዘሎ ፋይል ጽዓን {{2}}::
-      ንተወሳኺ ሓበረታ ወይ ፋይላት እንደገና ንምውራድ ኣብዚ ዝስዕብ ጠውቕ፡፡
-      {{0}}/{0}/download.html#direct
+    ን ሳይፎን 3 ብዊንዶውስ መጥቃም ንዛ ሰነድ ሳይፈን 3 ብምጽዓን ብትወሳኺ ነዛ ሰነድ ብ(.exe) ዳጊም ምስማይን ኪትነጥፍ ትኸል።
+    ንሳይፎን 3 ብኣንድሮይድ ተጠቀምቲ ነዛ ብሳይፈን ኣንድሮይድ አትሊልለ ሰነድ ብምጽዓንን ብ(.apk) ዳጊም ብምስማይን ክትነጥፍ ትኽአል።
+    ንተወሳኺ ሓበረታ ንዝተደለየ ሰነዳት ንምጽዓን ኣብዛ መስመር ኽትውከሱና ትኽአሉ።
+    {{0}}/{0}/download.html#direct
 
   html_email_with_attachment: |
-      <div style="direction: ltr;">
-      ሳይፎን (Psiphon) 3 ንዊንዶውስ ንምጥቃም ተተሓሒዙ ዘሎ ፋይል {{1}} ምስ ናይ ".exe" ኤክስቴንሽን ኸዝን:: <br>
-      ሳይፎን (Psiphon) 3 ንኣንድሮይድ ንምጥቃም ተተሓሒዙ ዘሎ ፋይል ኣውርድ {{2}}.<br>
-      ንተወሳኺ ሓበሬታ ወይ ነዚ ፋይል እንደገና ንምውራድ ኣብ`ዚ ዝስዕብ መላግቦ ጠውቕ፡፡<br>
-      <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
-      </div>
-      <br>
+    ንሳይፈን 3  ብዊንዳውስ መጥቅም ነታ ሰነድ ሳይፈን 3 ብምጽዓንን  ዳጊም ብ (.exe) ምስማይን ክነጥፍ ይኸአል።
+    ንሳይፎን 3 ብኣንድሮይድ ተጠቀምቲ ነዛ ብሳይፈን ኣንድሮይድ አትሊልለ ሰነድ ብምጽዓንን ብ(.apk) ዳጊም ብምስማይን ክትነጥፍ ትኽአል።3
+    ንተወሳኺ ሓበረታ ንዝተደለየ ሰነዳት ንምጽዓን ኣብዛ መስመር ኽትውከሱና ትኽአሉ።
+    4 5 {{0}}/{0}/download.html#direct56
+    6 1 7

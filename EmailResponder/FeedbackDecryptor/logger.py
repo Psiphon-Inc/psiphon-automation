@@ -29,7 +29,7 @@ try:
     import datastore
     datastore_log = datastore.add_error
 except Exception as e:
-    print 'datastore import failed: %s' % str(e)
+    print('datastore import failed:', e)
 
 
 _DEBUG = os.environ.get('DEBUG', False)
@@ -47,6 +47,7 @@ except:
 # entries. So we'll hack it in manually.
 # Ref: http://docs.python.org/dev/library/logging.handlers.html#logging.handlers.SysLogHandler.emit
 _main = sys.modules['__main__'].__file__ if hasattr(sys.modules['__main__'], '__file__') else 'feedbackdecryptor_service'
+_main = os.path.basename(_main)
 
 def debug_log(s):
     _my_logger.debug('%s[%d]: %s' % (_main, os.getpid(), s))

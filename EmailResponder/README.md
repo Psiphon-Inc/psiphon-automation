@@ -1,4 +1,3 @@
-
 # Psiphon Email Autoresponder README
 
 
@@ -19,120 +18,67 @@ Typically two responses are send: one via Amazon SES that has links to the downl
 
 In the current implementation, `mail_process.py` is run for each email that is processed. This is suboptimal. It would be better if the mail processor were a service that ran continuously.
 
-We could probably use Postfix's [virtual mailbox](http://www.postfix.org/VIRTUAL_README.html#virtual_mailbox) configuration to write incoming email to disk and then processing the mail files.
+We could probably use Postfix's [virtual mailbox](http://www.postfix.org/VIRTUAL_README.html#virtual_mailbox) configuration to write incoming email to disk and then process the mail files.
 
 
 ## Setup
 
 ### OS
 
-1. Used Ubuntu 11.10 Server 64-bit. AMI IDs can be found via here: <https://help.ubuntu.com/community/EC2StartersGuide>
-    * Security Group must allow port 25 (SMTP) through (and SSH, so
-      configuration is possible.)
-    * Assign a static IP ("Elastic IP") to the instance. (Note that this will
-      change the public DNS name you SSH into.)
+1. Used Ubuntu 22.04 Server 64-bit.
+    * Put behind appropriate load balancer, which must forward port 25 (SMTP).
+    * Use an IAM role that allows appropriate access. See the appendix for an example.
 
 2. OS updates
 
     ```
-    sudo apt-get update
-    sudo apt-get upgrade
-    sudo apt-get install mercurial python-pip libwww-perl libdatetime-perl rsyslog-gnutls awscli
+    sudo apt update
+    sudo apt upgrade
+    sudo apt install default-libmysqlclient-dev python3-pip python3-dev
     sudo reboot
     ```
 
+    It is recommended that you create root cronjob for regular updates. Like so:
+    ```
+    @daily /usr/bin/env unattended-upgrade
+    ```
+    (But be warned: This can install/update packages that break things.)
+
 3. Create a limited-privilege user that will do most of the mail processing.
 
-    Ref: <http://www.cyberciti.biz/tips/howto-linux-shell-restricting-access.html>
+    Ref: <https://www.cyberciti.biz/tips/howto-linux-shell-restricting-access.html>
 
     Add `/usr/sbin/nologin` to `/etc/shells`:
+    ```
+    sudo -s
+    echo "/usr/sbin/nologin" >> /etc/shells
+    exit
+    ```
 
+    Create our user:
     ```
     sudo useradd -s /usr/sbin/nologin mail_responder
     ```
 
     Also create a home directory for the user:
-
     ```
     sudo mkdir /home/mail_responder
     sudo chown mail_responder:mail_responder /home/mail_responder
     ```
 
-4. Create a stub user that will be used for forwarding `support@` emails.
-
+    As a convenience, create an alias to run commands as the user:
     ```
-    sudo useradd -s /usr/sbin/nologin forwarder
-    sudo mkdir /home/forwarder
-    sudo chown forwarder:forwarder /home/forwarder
-    sudo -uforwarder sh -c 'echo "oursupportaddress@example.com" > /home/forwarder/.forward'
+    echo "alias smr='sudo -umail_responder'" >> ~/.bash_aliases
+    . ~/.bash_aliases
     ```
-
-5. Install NTP, otherwise it's possible for the clock to drift and SES requests
-   to be rejected. (This has happened.)
-
-   ```
-   sudo apt-get install ntp
-   ```
-
-
-### SSH, fail2ban
-
-NOTE: This hasn't been updated since the change to "elastic" mail responders.
-
-For extra security, we'll have SSH listen on a non-standard port and use
-fail2ban to prevent brute-force login attempts on SSH. Alternatively/additionally,
-EC2 security groups or OS firewall policies can restrict the incoming IPs
-allowed to access the SSH port.
-
-1. Change SSH port number.
-
-   ```
-   sudo nano /etc/ssh/sshd_config
-   ```
-
-   Change 'Port' value to something random. Make sure EC2 security group allows
-   this port through for TCP.
-
-2. Install fail2ban.
-
-   ```
-   sudo apt-get install fail2ban
-   ```
-
-3. Configure fail2ban to use non-standard SSH port. Create or edit `/etc/fail2ban/jail.local`:
-
-   ```
-   [ssh]
-   port = ssh,<port#>
-   [ssh-ddos]
-   port = ssh,<port#>
-   ```
-
-4. Edit `/etc/fail2ban/filter.d/sshd.conf`, and add the following line to the
-   failregex list:
-
-   ```
-   ^%(__prefix_line)spam_unix\(sshd:auth\): authentication failure; logname=\S* uid=\S* euid=\S* tty=\S* ruser=\S* rhost=<HOST>(?:\s+user=.*)?\s*$
-   ```
-
-   (We found with the Psiphon 3 servers that fail2ban wasn't detecting all the
-   relevant auth.log entries without adding this regex. It looks like a [bug in fail2ban](https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=648020) before v0.8.7.)
-
-5. Restart ssh and fail2ban:
-
-   ```
-   sudo service ssh restart
-   sudo service fail2ban restart
-   ```
 
 
 ### Postfix
 
-
 1. Install postfix:
 
    ```
-   sudo apt-get install postfix
+   sudo apt install postfix
    ```
 
    During installation:
@@ -145,90 +91,47 @@ allowed to access the SSH port.
 
    * Edit `/etc/aliases` so that it looks like this:
 
-       ```
-       postmaster: ubuntu
-       root: ubuntu
-       support: forwarder@localhost
-       ```
+     ```
+     postmaster: ubuntu
+     root: ubuntu
+     support: forwarder@localhost
+     ```
 
    * Reload aliases map:
 
-       ```
-       sudo newaliases
-       ```
+     ```
+     sudo newaliases
+     ```
 
-3. Generate a unique 2048-bit Diffie-Hellman group. This helps mitigate crypto threats such as [Logjam](https://weakdh.org/). Go get a coffee while it's generating.
+3. Edit `/etc/postfix/main.cf` and `/etc/postfix/master.cf`.
 
-    ```
-    sudo su
-    mkdir -p /etc/ssl/private
-    chmod 710 /etc/ssl/private
-    openssl dhparam -out /etc/ssl/private/dhparams.pem 2048
-    chmod 600 /etc/ssl/private/dhparams.pem
-    exit
-    ```
+   See `main.cf.sample` and `master.cf.sample` in this repo for exemplars.
 
-4. Edit `/etc/postfix/main.cf`
+   Note: If too much error email is being sent to the postmaster, we can also add this line to `main.cf`:
+   `notify_classes =`
 
-    * See the bottom of this README for a sample `main.cf` file.
-
-    (Note: If too much error email is being sent to the postmaster, we can also
-    add this line:
-    `notify_classes =`
-    )
-
-5. When sending mail via our local Postfix we don't want to have to make a TLS
-   connection. So we'll run an instance of `stmpd` on `localhost` on a different
-   port and use that for sending. Add these two lines to `master.cf`. NOTE: The
+4. When sending mail via our local Postfix we don't want to have to make a TLS
+   connection. So we'll run an instance of `smtpd` on `localhost` on a different
+   port and use that for sending. Update `/etc/postfix/master.cf` to match `master.cf.example`. NOTE: The
    port specified must match the one in `settings.LOCAL_SMTP_SEND_PORT`.
-   (I don't think it matters where in the file you add it. I put it before the `pickup` line.)
 
-    ```
-    # Local-only STMPD used for sending processed email
-    127.0.0.1:2525      inet  n       -       -       -       -       smtpd
-      -o syslog_name=postfix2
-      -o smtpd_tls_security_level=none
-      -o smtpd_banner=localhost
-      -o myhostname=localhost
-      -o smtpd_recipient_restrictions=permit_mynetworks,reject_unauth_destination
-      -o virtual_alias_domains=
-      -o virtual_alias_maps=
-      -o smtpd_helo_restrictions=permit
-      -o smtpd_data_restrictions=permit
-      -o smtpd_client_restrictions=permit
-      -o smtpd_sender_restrictions=permit
-      -o smtpd_milters=
-      -o non_smtpd_milters=
-      -o content_filter=
-      -o receive_override_options=no_unknown_recipient_checks,no_header_body_checks,no_milters
-      -o mynetworks=127.0.0.0/8
-      -o smtpd_authorized_xforward_hosts=127.0.0.0/8
-    ```
-
-6. Add [`postgrey`](http://postgrey.schweikert.ch/) for "[greylisting](http://projects.puremagic.com/greylisting/)":
+5. Add [`postgrey`](http://postgrey.schweikert.ch/) for "[greylisting](http://projects.puremagic.com/greylisting/)":
 
    ```
-   sudo apt-get install postgrey
+   sudo apt install postgrey
    ```
 
    Actually using postgrey is handled in our example `main.cf` config.
 
-7. Install SpamAssassin.
-
-   Follow [these instructions](https://www.digitalocean.com/community/tutorials/how-to-install-and-setup-spamassassin-on-ubuntu-12-04).
-
-   Also install this package:
-   ```
-   sudo apt-get install libmail-dkim-perl
-   ```
-
-   Also add a `receive_override_options` option to the `smtpd` command in `master.cf`:
+6. Install SpamAssassin.
 
    ```
-   smtp      inet  n       -       -       -       -       smtpd
-       -o content_filter=spamassassin
-       -o receive_override_options=no_address_mappings
+   sudo apt install spamassassin spamc libmail-dkim-perl
    ```
+
+   Edit `/etc/default/spamassassin` to set `CRON=1`.
+
+   Some spamassassin configuration is already present in `master.cf.example`.
 
    Our non-default values in `/etc/spamassassin/local.cf` are as follows:
    ```
@@ -238,17 +141,24 @@ allowed to access the SSH port.
 
    Note that `install.sh` also copies our custom score values in `50_scores.cf` to `/etc/spamassassin/`.
 
-8. DKIM verification:
+   Enable and run:
+   ```
+   sudo update-rc.d spamassassin enable
+   sudo service spamassassin start
+   ```
+
+7. DKIM verification:
 
    Install OpenDKIM, using [these instructions](https://www.digitalocean.com/community/tutorials/how-to-install-and-configure-dkim-with-postfix-on-debian-wheezy), but skipping the signing stuff.
 
    When editing `/etc/opendkim.conf`, just paste this at the bottom:
    ```
    ### PSIPHON
+
    AutoRestart             Yes
    AutoRestartRate         10/1h
    UMask                   002
-   Syslog                  yes
+   Syslog                  Yes
    SyslogSuccess           Yes
    LogWhy                  Yes
 
@@ -256,29 +166,22 @@ allowed to access the SSH port.
 
    ExternalIgnoreList      refile:/etc/opendkim/TrustedHosts
    InternalHosts           refile:/etc/opendkim/TrustedHosts
-   KeyTable                refile:/etc/opendkim/KeyTable
-   SigningTable            refile:/etc/opendkim/SigningTable
 
-   # Verify only
    Mode                    v
-   PidFile                 /var/run/opendkim/opendkim.pid
    SignatureAlgorithm      rsa-sha256
-
-   UserID                  opendkim:opendkim
 
    Socket                  inet:12301@localhost
 
-   X-Header                yes
+   SoftwareHeader          yes
    AlwaysAddARHeader       yes
-
-   MinimumKeyBits          1024
    ```
 
    `/etc/opendkim/TrustedHosts` should contain this:
    ```
    127.0.0.1
    localhost
-   192.168.11.0/24
+   # depends what subnet we're in
+   192.168.12.0/24
 
    # TODO: Derive from settings.py (or something)
    mx.psiphon3.com
@@ -289,75 +192,30 @@ allowed to access the SSH port.
 
    Note: With the configuration described here, DKIM will be verified twice -- once before SpamAssassin and once after SA delivers it back to Postfix. I think we either need to use dovecot instead of sendmail for re-delivery from SA, or (better) switch from SA to Amavis.
 
-9. Reload postfix conf and restart:
-
    ```
-   sudo postfix reload
+   sudo service opendkim restart
+   ```
+
+8. Obtain SSL certificate for incoming STARTTLS connections. TODO: details.
+
+   File paths for the key, cert, and CA bundle can be found/set in `main.cf` under `smtpd_tls_key_file`, `smtpd_tls_cert_file`, `smtpd_tls_CAfile`. The key file permissions should be 0400; the other two should be like 0644. They should be owned by `root`.
+
+9. Restart Postfix:
+   ```
    sudo service postfix restart
    ```
 
 ### Logwatch and Postfix-Logwatch
 
+TODO: Still needed?
+
 Optional, but if logwatch is not present then the stats processing code will need to be changed.
 
-1. Install `logwatch` and `build-essential`
+Install `logwatch` and `build-essential`:
+```
+sudo apt install logwatch build-essential
+```
 
-   ```
-   sudo apt-get install logwatch build-essential
-   ```
-
-2. Install `postfix-logwatch`.
-
-   - Download current version from: http://logreporters.sourceforge.net/
-
-   - Extract the archive, enter the new directory, and execute:
-
-     ```
-     sudo make install-logwatch
-     ```
-
-
-### Amazon AWS services
-
-We're slowly transitioning from boto (v2) to boto3 and currently use both.
-
-1. Install boto
-
-   ```
-   sudo pip install --upgrade boto boto3
-   ```
-
-2. It's best if the AWS user being used is created through the AWS IAM
-   interface and has only the necessary privileges. See the appendix for
-   permission policies.
-
-3. Put AWS credentials into boto2 config file. Info here:
-   <http://code.google.com/p/boto/wiki/BotoConfig>
-
-   We've found that using `~/.boto` doesn't work, so create `/etc/boto.cfg` and
-   put these lines into it:
-
-   ```
-   [Credentials]
-   aws_access_key_id = <your access key>
-   aws_secret_access_key = <your secret key>
-   ```
-
-   Ensure that the file is readable by the `mail_responder` user.
-
-4. Use the standard AWS credential store for boto3 (as the `mail_responder` user).
-
-   ```
-   $ aws configure
-
-   AWS Access Key ID [None]: <key ID>
-   AWS Secret Access Key [None]: <secret key>
-   Default region name [None]: us-east-1
-   Default output format [None]:
-
-   $ sudo cp -R ~/.aws /home/mail_responder
-   $ sudo chown -R mail_responder:mail_responder /home/mail_responder/.aws
-   ```
 
 ### Source files and cron jobs
 
@@ -386,12 +244,6 @@ The `install.sh` script does the following:
 
    - create the cron jobs needed for the running of the system
 
-The script requires the `crontab` python package:
-
-```
-sudo pip install --upgrade python-dateutil python-crontab qrcode
-```
-
 (TODO: Mention that "Email Responder Configuration" steps below need to be taken before installing.)
 
 To run the install script:
@@ -400,15 +252,16 @@ To run the install script:
 sh install.sh
 ```
 
+(On the very first run, expect the error `postmap: fatal: open postfix_address_maps: No such file or directory`. That file gets created by the first call.)
 
 ### Logging
 
 * The install script copies the file `20-psiphon-logging.conf` to `/etc/rsyslog.d/`.
 
   * This copies the mail responder logs to a dedicated log file that will be
-    processed to get statisitics about use.
+    processed to get statistics about use.
 
-  * It also sends postfix logs to the Psiphon log processor.
+  * It also sends postfix logs to the Psiphon log processor. (Currently disabled.)
 
 * Enable RFC 3339 compatible high resolution timestamp logging format (required
   for stats processing).
@@ -423,17 +276,7 @@ sh install.sh
   "last message repeated X times" instead of repeated logs). For our stats, we
   need a line per event, not a compressed view.
 
-  In `/etc/rsyslog.conf`, change this:
-
-  ```
-  $RepeatedMsgReduction on
-  ```
-
-  to this:
-
-  ```
-  $RepeatedMsgReduction off
-  ```
+  In `/etc/rsyslog.conf`, change this `$RepeatedMsgReduction on` to `off`.
 
   (TODO: Can this be turned off for only `mail_responder.log`?)
 
@@ -443,14 +286,26 @@ sh install.sh
   sudo service rsyslog restart
   ```
 
-**TODO**: Describe remote logstash setup.
+
+### Nagios
+
+## Nagios monitoring
+
+Install NCPA by following the instructions [here](https://repo.nagios.com/?repo=deb-ubuntu).
+
+`/usr/local/ncpa/etc/ncpa.cfg.d/psiphon.cfg`
+`/usr/local/ncpa/plugins/*`
+https://github.com/Psiphon-Inc/psi-nagios/blob/master/objects/psiphon/ec2/ec2-linux-services.cfg
+https://github.com/Psiphon-Inc/psi-nagios/blob/master/objects/psiphon/ec2/ec2-hosts.cfg
+
+TODO: Expand.
 
 
 ## Stats
 
 * Stats will be derived from the contents of `/var/log/mail_responder.log`
 
-* `mail_stats.py` can be executed periodically to email basic statisitics to a
+* `mail_stats.py` can be executed periodically to email basic statistics to a
   desired email address. The sender and recipient addresses can be found (and
   modified) in `settings.py`.
 
@@ -469,13 +324,13 @@ after which they are "blacklisted". The blacklist is cleared once a day
 The blacklist code requires the following package be installed:
 
 ```
-sudo apt-get install mysql-server python-mysqldb python-sqlalchemy
+sudo apt install mysql-server
 ```
 
 Create the DB and user. TODO: Move this into `install.sh`.
 
 ```
-mysql -uroot
+sudo mysql -uroot
 CREATE USER '<username in settings.py>'@'localhost' IDENTIFIED BY '<password in settings.py>';
 CREATE DATABASE <DB name in settings.py>;
 GRANT ALL ON <DB name in settings.py>.* TO '<username in settings.py>'@'localhost';
@@ -483,10 +338,28 @@ GRANT ALL ON <DB name in settings.py>.* TO '<username in settings.py>'@'localhos
 ```
 
 
+## Filebeat
+
+We use Filebeat to send logs to our ELK stack. At this time we are limited to version 7.17.8 (check with the stats team for updates). It can be installed like:
+```
+curl -L -O https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-7.17.8-amd64.deb && yes | sudo dpkg -i filebeat-7.17.8-amd64.deb
+```
+
+The config file to use can be found at <https://github.com/Psiphon-Inc/elk/blob/main/beats/filebeat/mailresponder.yml>. It should be copied to `/etc/filebeat/filebeat.yml`. Ensure that file is world-readable.
+
+The CA and client certs and keys can be found in CipherShare at `PsiphonV/Cloud/EmailResponder/filebeat`. Copy those to the location indicated in the config file. (Or anywhere else, but then update `filebeat.yml`.)
+
+Enable and start the service:
+```
+sudo systemctl enable filebeat.service
+sudo service filebeat start
+```
+
+
 ## DKIM signing
 
 NOTE: In the past we have occasionally turned off DKIM support. We found that
-it was by far the most time- consuming step in replying to an email, and of
+it was by far the most time-consuming step in replying to an email, and of
 questionable value. To disable, change [this
 function](https://github.com/Psiphon-Inc/psiphon-automation/blob/0bd64e4801f4ae85a237f4c5ea356744248d657e/EmailResponder/mail_process.py#L436) to just `return raw_email`.
 
@@ -495,12 +368,6 @@ and do some googling.
 
 A handy DKIM DNS record generator can be found here:
 <http://www.dnswatch.info/dkim/create-dns-record>
-
-A couple of python packages are required:
-
-```
-sudo pip install --upgrade dnspython dkimpy authres
-```
 
 See the DKIM section of `settings.py` for more values that must be set/changed.
 
@@ -645,251 +512,11 @@ Things to notice about the format:
 * Be sure to peruse the `settings.py` file.
 
 
-### Sample `main.cf`
-
-```
-myhostname = mx.example.com
-my_ec2_publicname = ec2-11-22-33-44.compute-1.amazonaws.com
-
-smtpd_banner = ESMTP $mail_name $myhostname $my_ec2_publicname
-
-# Disable local mail notifications
-biff = no
-
-# appending .domain is the MUA's job.
-append_dot_mydomain = no
-
-# Uncomment the next line to generate "delayed mail" warnings
-#delay_warning_time = 4h
-
-readme_directory = no
-
-#
-# TLS parameters
-#
-# See: http://www.postfix.org/TLS_README.html
-
-# Set these always
-smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
-smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
-
-# If you don't want to use TLS, use these lines:
-#smtpd_tls_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
-#smtpd_tls_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
-#smtpd_use_tls=no
-
-# To use TLS, use these lines:
-smtpd_tls_cert_file=/etc/postfix/mx.psiphon3.com.crt
-smtpd_tls_key_file=/etc/postfix/mx.psiphon3.com.key
-smtpd_tls_CAfile=/etc/postfix/mx.psiphon3.com-bundle
-smtpd_tls_received_header=yes
-tls_random_source=dev:/dev/urandom
-
-# Postfix runs in a chroot jail, so it can't access /etc/ssl/certs. Instead use:
-smtp_tls_CAfile=/etc/ssl/certs/ca-certificates.crt
-
-# These two can be set to 'may' to use encryption oppotunistically, but not require it.
-# Note that this level of security will mean that connections to and from some
-# mail servers will fail. It works with all of the major webmail providers,
-# though. It's probably best to not reply at all than to reply unencrypted to
-# a sketchy mail provider that might be in-country.
-smtpd_tls_security_level=encrypt
-smtp_tls_security_level=verify
-
-# Handy for debugging:
-#smtp_tls_loglevel=2
-
-# Avoid POODLE (etc.) vulnerabilities by forbidding SSLv2 and SSLv3
-smtpd_tls_mandatory_protocols = !SSLv2, !SSLv3
-smtpd_tls_protocols = !SSLv2, !SSLv3
-smtp_tls_mandatory_protocols = $smtpd_tls_mandatory_protocols
-smtp_tls_protocols = $smtpd_tls_protocols
-
-# Prevent weak cipher use
-smtpd_tls_mandatory_exclude_ciphers = aNULL, eNULL, EXPORT, DES, RC4, MD5, PSK, aECDH, EDH-DSS-DES-CBC3-SHA, EDH-RSA-DES-CDC3-SHA, KRB5-DE5, CBC3-SHA
-smtpd_tls_exclude_ciphers = $smtpd_tls_mandatory_exclude_ciphers
-
-# Use "high"-security cipherss, and use our preference order, rather than the client's
-tls_preempt_cipherlist = yes
-smtpd_tls_mandatory_ciphers = high
-smtp_tls_mandatory_ciphers = $smtpd_tls_mandatory_ciphers
-smtpd_tls_ciphers = $smtpd_tls_mandatory_ciphers
-smtp_tls_ciphers = $smtp_tls_mandatory_ciphers
-
-# Use a custom 2048-bit DH group (anti-Logjam-ish).
-# The params file should be generated with:
-# mkdir -p /etc/ssl/private
-# chmod 710 /etc/ssl/private
-# openssl dhparam -out /etc/ssl/private/dhparams.pem 2048
-# chmod 600 /etc/ssl/private/dhparams.pem
-smtpd_tls_dh1024_param_file = /etc/ssl/private/dhparams.pem
-
-# /TLS
-
-alias_maps = hash:/etc/aliases
-alias_database = hash:/etc/aliases
-
-mydestination = localhost.$mydomain localhost
-relayhost =
-mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
-mailbox_size_limit = 0
-recipient_delimiter = +
-inet_interfaces = all
-
-# Prevent attempts to use IPv6. Avoids unnecessary failed attempts.
-inet_protocols = ipv4
-
-# Notify postmaster of all errors
-# Note that if this results in too much pointless mail, we can just remove these values.
-#notify_classes = bounce, 2bounce, delay, policy, protocol, resource, software
-#notify_classes = delay, policy, resource, software
-notify_classes =
-
-
-#
-# SMTPD (receiving) config
-#
-
-# Tarpit those bots/clients/spammers who send errors or scan for accounts
-smtpd_error_sleep_time = 20s
-smtpd_soft_error_limit = 1
-smtpd_hard_error_limit = 3
-smtpd_junk_command_limit = 2
-
-#
-# Anti-spam rules
-# See, e.g., http://www.normyee.net/blog/2012/12/28/postfix-anti-spam-configuration-december-2012/
-#
-
-smtpd_helo_restrictions =
-        reject_non_fqdn_helo_hostname,
-        reject_invalid_helo_hostname,
-        reject_rhsbl_helo zen.spamhaus.org
-
-# Block clients that speak too early.
-smtpd_data_restrictions = reject_unauth_pipelining
-
-smtpd_client_restrictions =
-        reject_rbl_client b.barracudacentral.org
-# Can't use reject_unknown_client_hostname because our load balancer hides incoming IP.
-
-smtpd_sender_restrictions =
-        reject_unknown_sender_domain,
-        reject_unknown_address,
-        reject_rhsbl_reverse_client dbl.spamhaus.org,
-        reject_rbl_client b.barracudacentral.org
-
-# Reject messages that don't meet these criteria
-# The `10023` is the postgrey greylisting service.
-smtpd_recipient_restrictions =
-   permit_mynetworks,
-   reject_invalid_hostname,
-   reject_non_fqdn_sender,
-   reject_non_fqdn_recipient,
-   reject_unknown_sender_domain,
-   reject_unknown_recipient_domain,
-   reject_unauth_destination,
-   reject_unauth_pipelining,
-   reject_invalid_helo_hostname,
-   reject_unknown_helo_hostname,
-   reject_non_fqdn_helo_hostname,
-# Maybe include this...? It forces a request to the incoming server to validate $
-#   reject_unverified_sender,
-
-   check_helo_access hash:/home/mail_responder/helo_access,
-   check_sender_access hash:/home/mail_responder/sender_access,
-
-   permit_dnswl_client list.dnswl.org,
-
-   check_policy_service inet:127.0.0.1:10023,
-
-   reject_rhsbl_reverse_client dbl.spamhaus.org,
-   reject_rhsbl_sender dbl.spamhaus.org,
-   reject_rhsbl_client dbl.spamhaus.org,
-
-   reject_rbl_client b.barracudacentral.org,
-   reject_rbl_client zen.spamhaus.org,
-   reject_rbl_client dnsbl.sorbs.net
-   reject_rbl_client cbl.abuseat.org,
-   reject_rbl_client bl.spamcop.net,
-
-   permit
-
-# Only used in Postfix 2.10+
-smtpd_relay_restrictions =
-   permit_mynetworks
-   reject_unauth_destination
-
-# Note: It would be nice to do a SPF check above, but because we're behind a loa$
-# we can't actually see the remote IP (and we're doing TCP forwarding, so there'$
-# fancy added header or anything).
-
-# Without this, some other rules can be bypassed.
-smtpd_helo_required = yes
-
-
-#
-# SMTP (sending) config
-#
-
-smtp_tls_note_starttls_offer = yes
-
-# Use different sending TLS policies for different peers.
-#smtp_tls_policy_maps = hash:/home/mail_responder/client_tls_policy
-
-
-#
-# Message and queue limits
-#
-
-# Reduce the message size limit. There's no reason for large messages to be coming in.
-message_size_limit = 8192000
-
-# Setting this to 0 indicates that "mail delivery should be tried only once"
-# http://www.postfix.org/postconf.5.html#bounce_queue_lifetime
-bounce_queue_lifetime = 0
-# Consider a message undeliverable when it hits this time limit
-# http://www.postfix.org/postconf.5.html#maximal_queue_lifetime
-maximal_queue_lifetime = 1h
-
-#
-# Remove sensitive headers
-#
-mime_header_checks = regexp:/home/mail_responder/header_checks
-header_checks = regexp:/home/mail_responder/header_checks
-
-#
-# DKIM verification
-#
-# https://www.digitalocean.com/community/tutorials/how-to-install-and-configure-$
-milter_protocol = 2
-milter_default_action = accept
-smtpd_milters = inet:localhost:12301
-non_smtpd_milters = inet:localhost:12301
-
-
-#
-# Supported addresses
-#
-
-# This file contains the domains we support. Its contents will replace this path.
-# We rely on an external command (cron job) to reload the postfix config when
-# this file changes.
-# NOTE: the user home path here might differ with your particular setup.
-virtual_alias_domains = /home/mail_responder/postfix_responder_domains
-virtual_alias_maps = hash:/home/mail_responder/postfix_address_maps
-```
-
-
 ### Elastic Mail Responder
 
-#### Additional CloudWatch metrics
-
-Created by `mon-put-instance-data.pl`. Run as a cron job installed by
-`create_cron_jobs.py`.
-
-
 #### Setup
+
+**NOTE: This section is very old.**
 
 Derived from this: <http://boto.readthedocs.org/en/latest/autoscale_tut.html>
 
@@ -1133,73 +760,77 @@ conn.delete_launch_configuration(old_lc.name)
 ```
 
 
-### AWS user IAM policies
+### AWS IAM role policies
 
-These are the policies that you should create for the IAM user under which all
-AWS activities are run.
+The EC2 instance should be given a role that gives needed access.
 
-(These can all be combined, but ours are separate right now, so...)
-
-`EmailResponderCloudWatchGet`:
-
-```
+For example (note that there are values to fill in):
+```json
 {
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "Stmt1393018224000",
-      "Effect": "Allow",
-      "Action": [
-        "cloudwatch:GetMetricStatistics",
-        "cloudwatch:ListMetrics"
-      ],
-      "Resource": [
-        "*"
-      ]
-    }
-  ]
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "Stmt1433875609000",
+            "Effect": "Allow",
+            "Action": [
+                "cloudwatch:GetMetricStatistics",
+                "cloudwatch:ListMetrics",
+                "cloudwatch:PutMetricData"
+            ],
+            "Resource": [
+                "*"
+            ]
+        },
+        {
+            "Sid": "Stmt1433875643000",
+            "Effect": "Allow",
+            "Action": [
+                "autoscaling:DescribeAutoScalingInstances"
+            ],
+            "Resource": [
+                "*"
+            ]
+        },
+        {
+            "Sid": "Stmt1433875688000",
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListBucket"
+            ],
+            "Condition": {
+                "StringLike": {
+                    "s3:prefix": "<your settings.CONFIG_S3_KEY value>/*"
+                }
+            },
+            "Resource": [
+                "arn:aws:s3:::<your settings.CONFIG_S3_BUCKET value>"
+            ]
+        },
+        {
+            "Sid": "Stmt1433875777000",
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject",
+                "s3:PutObject"
+            ],
+            "Resource": [
+                "arn:aws:s3:::<your settings.CONFIG_S3_BUCKET value>/<your settings.CONFIG_S3_KEY value>/*"
+            ]
+        },
+        {
+            "Sid": "Stmt1433875819000",
+            "Effect": "Allow",
+            "Action": [
+                "ses:*"
+            ],
+            "Resource": [
+                "*"
+            ]
+        }
+    ]
 }
 ```
 
-`EmailResponderCloudWatchPut`:
-
-```
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Action": [
-        "cloudwatch:PutMetricData"
-      ],
-      "Sid": "Stmt1382640894000",
-      "Resource": [
-        "*"
-      ],
-      "Effect": "Allow"
-    }
-  ]
-}
-```
-
-`EmailResponderEC2DescribeTags`:
-
-```
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Action": [
-        "ec2:DescribeTags"
-      ],
-      "Sid": "Stmt1382730333000",
-      "Resource": [
-        "*"
-      ],
-      "Effect": "Allow"
-    }
-  ]
-}
-```
 
 `EmailResponderS3Config`:
 

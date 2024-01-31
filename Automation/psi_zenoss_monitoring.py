@@ -24,8 +24,17 @@ import multiprocessing
 import time
 import datetime
 import GeoIP
-import urllib
-import urllib2
+
+try:
+    import sys
+    if sys.version_info < (3, 0):
+        import urllib
+        import urllib2
+    else:
+        import urllib.request as urllib2
+        import urllib.parse as urllib
+except ImportError as error:
+    print(error)
 
 import zenoss_credentials
 

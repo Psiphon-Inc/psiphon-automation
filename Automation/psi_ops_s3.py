@@ -17,25 +17,25 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+from typing import Optional, BinaryIO, Union
 import os
-import sys
 import string
 import random
-import cStringIO
 import hashlib
 import mimetypes
 import base64
 import json
-import urlparse
+import urllib.parse
+import io
 
-import boto.s3.connection
-import boto.s3.key
-from boto.s3.connection import OrdinaryCallingFormat
+import boto3
+import botocore
 
 try:
+    # pip install qrcode[pil]
     import qrcode
 except ImportError as error:
-    print error
+    print(error)
 
 
 #==== Config  =================================================================
@@ -108,12 +108,7 @@ _IGNORE_FILENAMES = ('Thumbs.db',)
 # putting the email responder configuration in the automation bucket.)
 
 
-def _progress(complete, total):
-    sys.stdout.write('.')
-    sys.stdout.flush()
-
-
-def _get_s3_bucket_and_prefix(aws_account, bucket_id):
+def _get_s3_bucket_and_prefix(aws_account, bucket_id: str) -> tuple['boto3.S3.Bucket', str]:
     """Based on the bucket_id, gets the actual bucket object and the key prefix
     to use.
     Returns:
@@ -121,45 +116,48 @@ def _get_s3_bucket_and_prefix(aws_account, bucket_id):
             string.
     """
 
-    s3 = boto.connect_s3(
-                aws_account.access_id,
-                aws_account.secret_key,
-                calling_format=OrdinaryCallingFormat())
+    s3 = boto3.resource('s3',
+            aws_access_key_id=aws_account.access_id,
+            aws_secret_access_key=aws_account.secret_key)
+
+    # TODO: In order to use our subdomain buckets do we need this?
+    # config = Config(s3={'addressing_style': 'path'})
 
     bucket_name, key_prefix = split_bucket_id(bucket_id)
 
-    bucket = s3.get_bucket(bucket_name)
+    bucket = s3.Bucket(bucket_name)
 
     return (bucket, key_prefix)
 
 
-def _delete_key(bucket, key_name):
+def _delete_key(bucket: 'boto3.S3.Bucket', key_name: str) -> None:
     """A "safe" S3 key delete helper.
     Fails silently if there is no such key.
+    As of boto3, this helper is no longer necessary.
     Args:
         bucket (S3 bucket object)
         key_name (str)
     """
-    key = bucket.get_key(key_name)
-    if key:
-        key.delete()
+    bucket.Object(key_name).delete()
 
 
-def _make_full_key_name(key_prefix, key_name):
+def join_key_name(*args: tuple[str]) -> str:
     """Helper to create full key name with optional prefix.
     Args:
-        key_prefix (str): May be empty string.
-        key_name (str)
+        args: key name parts to join; any may be empty
     Returns:
         str
     """
-    if key_prefix:
-        return '%s/%s' % (key_prefix, key_name)
-    else:
-        return key_name
+    res = ''
+    for p in args:
+        if not p:
+            continue
+        if res:
+            res += '/'
+        res += p
+    return res
 
-
-def split_bucket_id(bucket_id):
+def split_bucket_id(bucket_id: str) -> tuple[str, str]:
     """Convert old- or new-style bucket_id into (bucket_name, key_prefix).
     Returns:
         tuple of (bucket_name, key_prefix). bucket_name will always be a
@@ -173,7 +171,7 @@ def split_bucket_id(bucket_id):
     return (bucket_name, key_prefix)
 
 
-def get_s3_bucket_site_root(bucket_id):
+def get_s3_bucket_site_root(bucket_id: str) -> str:
     """Get the base of the URL for resources in this bucket's website.
     Args:
         bucket_id (str): Old- or new-style bucket name.
@@ -186,9 +184,9 @@ def get_s3_bucket_site_root(bucket_id):
     return root
 
 
-def get_s3_bucket_resource_url_split(bucket_id, resource_name):
+def get_s3_bucket_resource_url_split(bucket_id: str, resource_name: str) -> tuple[str, str, str, str, str]:
     """Gets S3 URL components for the given `bucket_id` and `resource_name`.
-    Compatible with `urlparse.urlunsplit`.
+    Compatible with `urllib.parse.urlsplit`.
     Args:
         bucket_id (str): Old- or new-style bucket name.
         resource_name (str): Path is assumed to be starting from the root of the
@@ -207,10 +205,10 @@ def get_s3_bucket_resource_url_split(bucket_id, resource_name):
     # construct the URL and then split it.
     url = '%s/%s' % (root, resource_name)
 
-    return urlparse.urlsplit(url)
+    return urllib.parse.urlsplit(url)
 
 
-def get_s3_bucket_home_page_url(bucket_id, language=None):
+def get_s3_bucket_home_page_url(bucket_id: str, language: Optional[str] = None) -> str:
     """Get the URL of the main page for the given `bucket_id`.
     Args:
         bucket_id (str): Old- or new-style bucket name.
@@ -230,10 +228,10 @@ def get_s3_bucket_home_page_url(bucket_id, language=None):
         page = 'index.html'
 
     url_split = get_s3_bucket_resource_url_split(bucket_id, page)
-    return urlparse.urlunsplit(url_split)
+    return urllib.parse.urlunsplit(url_split)
 
 
-def get_s3_bucket_download_page_url(bucket_id, language=None):
+def get_s3_bucket_download_page_url(bucket_id: str, language: Optional[str] = None) -> str:
     """
     Args:
         bucket_id (str): Old- or new-style bucket name.
@@ -249,10 +247,10 @@ def get_s3_bucket_download_page_url(bucket_id, language=None):
         page = 'download.html#direct'
 
     url_split = get_s3_bucket_resource_url_split(bucket_id, page)
-    return urlparse.urlunsplit(url_split)
+    return urllib.parse.urlunsplit(url_split)
 
 
-def get_s3_bucket_faq_url(bucket_id, language=None):
+def get_s3_bucket_faq_url(bucket_id: str, language: Optional[str] = None) -> str:
     """
     Args:
         bucket_id (str): Old- or new-style bucket name.
@@ -268,10 +266,10 @@ def get_s3_bucket_faq_url(bucket_id, language=None):
         page = 'faq.html'
 
     url_split = get_s3_bucket_resource_url_split(bucket_id, page)
-    return urlparse.urlunsplit(url_split)
+    return urllib.parse.urlunsplit(url_split)
 
 
-def get_s3_bucket_privacy_policy_url(bucket_id, language=None):
+def get_s3_bucket_privacy_policy_url(bucket_id: str, language: Optional[str] = None) -> str:
     """
     Args:
         bucket_id (str): Old- or new-style bucket name.
@@ -287,10 +285,10 @@ def get_s3_bucket_privacy_policy_url(bucket_id, language=None):
         page = 'privacy.html#information-collected'
 
     url_split = get_s3_bucket_resource_url_split(bucket_id, page)
-    return urlparse.urlunsplit(url_split)
+    return urllib.parse.urlunsplit(url_split)
 
 
-def create_s3_website_bucket_name():
+def create_s3_website_bucket_name() -> str:
     """Create the bucket+key_prefix value that should be used for a new
     SponsorCampaign website.
 
@@ -307,7 +305,7 @@ def create_s3_website_bucket_name():
     # Format: XXXX-XXXX-XXXX. Each segment has about 20 bits of entropy
     # (http://en.wikipedia.org/wiki/Password_strength#Random_passwords)
     website_id = '-'.join(
-        [''.join([random.choice(string.lowercase + string.digits)
+        [''.join([random.choice(string.ascii_lowercase + string.digits)
                  for j in range(4)])
          for i in range(3)])
 
@@ -321,19 +319,20 @@ def create_s3_website_bucket_name():
     return bucket_and_prefix
 
 
-def update_s3_download_in_buckets(aws_account, builds, remote_server_list, remote_server_list_compressed, bucket_ids):
+def update_s3_download_in_buckets(aws_account, builds: list[tuple[str, str, str]], remote_server_list: str, remote_server_list_compressed: str, bucket_ids: list[str]) -> None:
     for bucket_id in bucket_ids:
         if bucket_id:
             update_s3_download(aws_account, builds, remote_server_list, remote_server_list_compressed, bucket_id)
 
 
-def update_s3_download(aws_account, builds, remote_server_list, remote_server_list_compressed, bucket_id):
+def update_s3_download(aws_account, builds: list[tuple[str, str, str]], remote_server_list: str, remote_server_list_compressed: str, bucket_id: str) -> None:
     """Update the client builds and server list in the given bucket.
     Args:
         aws_account (object): Must have attributes access_id and secret_key.
         builds (iterable): List of tuples of (source_filename, version, target_filename).
             May be None.
         remote_server_list (str): The contents of the server_list file.
+        remote_server_list_compressed (str): The contents of the server_list_compressed file.
         bucket_id (str): The bucket to write the files to. Maybe be old- or
             new-style (bucket+key_prefix).
     Returns:
@@ -344,79 +343,72 @@ def update_s3_download(aws_account, builds, remote_server_list, remote_server_li
 
     if builds:
         for (source_filename, version, target_filename) in builds:
-            target_filename = _make_full_key_name(key_prefix, target_filename)
+            target_filename = join_key_name(key_prefix, target_filename)
             put_file_to_key(bucket,
                             target_filename,
                             {DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME : str(version)},
                             str(source_filename),
-                            True,
-                            _progress)
+                            True)
 
 
     if remote_server_list:
-        target_filename = _make_full_key_name(key_prefix,
+        target_filename = join_key_name(key_prefix,
                                               DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME)
         put_string_to_key(bucket,
                           target_filename,
                           None,
                           remote_server_list,
-                          True,
-                          _progress)
+                          True)
 
     if remote_server_list_compressed:
-        target_filename = _make_full_key_name(key_prefix,
+        target_filename = join_key_name(key_prefix,
                                               DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME_COMPRESSED)
         put_string_to_key(bucket,
                           target_filename,
                           None,
                           remote_server_list_compressed,
-                          True,
-                          _progress)
+                          True)
 
 
-def update_s3_osl_with_files_in_buckets(aws_account, bucket_ids, osl_filenames):
+def update_s3_osl_with_files_in_buckets(aws_account, bucket_ids: list[str], osl_filenames: list[str]) -> None:
     for bucket_id in bucket_ids:
         if bucket_id:
             update_s3_osl_with_files(aws_account, bucket_id, osl_filenames)
 
 
-def update_s3_osl_with_files(aws_account, bucket_id, osl_filenames):
-
+def update_s3_osl_with_files(aws_account, bucket_id: str, osl_filenames: list[str]) -> None:
     bucket, key_prefix = _get_s3_bucket_and_prefix(aws_account, bucket_id)
 
     for osl_filename in osl_filenames:
-        target_key = _make_full_key_name(key_prefix, DOWNLOAD_SITE_OSL_ROOT_PATH)
-        target_key = _make_full_key_name(target_key, os.path.basename(osl_filename))
+        target_key = join_key_name(key_prefix, DOWNLOAD_SITE_OSL_ROOT_PATH)
+        target_key = join_key_name(target_key, os.path.basename(osl_filename))
         put_file_to_key(bucket,
                         target_key,
                         None,
                         str(osl_filename),
-                        True,
-                        _progress)
+                        True)
 
-def update_s3_osl_key_in_buckets(aws_account, bucket_ids, key_name, data):
+def update_s3_osl_key_in_buckets(aws_account, bucket_ids: list[str], key_name: str, data: str) -> None:
     for bucket_id in bucket_ids:
         if bucket_id:
             update_s3_osl_key(aws_account, bucket_id, key_name, data)
 
 
-def update_s3_osl_key(aws_account, bucket_id, key_name, data):
-
+def update_s3_osl_key(aws_account, bucket_id: str, key_name: str, data: str) -> None:
     bucket, key_prefix = _get_s3_bucket_and_prefix(aws_account, bucket_id)
 
-    target_key = _make_full_key_name(key_prefix, DOWNLOAD_SITE_OSL_ROOT_PATH)
-    target_key = _make_full_key_name(target_key, key_name)
+    target_key = join_key_name(key_prefix, DOWNLOAD_SITE_OSL_ROOT_PATH)
+    target_key = join_key_name(target_key, key_name)
     put_string_to_key(bucket,
                       target_key,
                       None,
                       data,
-                      True,
-                      _progress)
+                      True)
 
 
-def update_website_in_buckets(aws_account, bucket_ids, custom_site, website_dir,
-                              website_banner_base64, website_banner_link,
-                              website_email_address):
+def update_website_in_buckets(aws_account, bucket_ids: list[str], custom_site: any, website_dir: str,
+                              website_banner_base64: str, website_banner_link: str,
+                              website_email_address: str) -> None:
     for bucket_id in bucket_ids:
         if bucket_id:
             update_website(aws_account, bucket_id, custom_site, website_dir,
@@ -424,9 +416,9 @@ def update_website_in_buckets(aws_account, bucket_ids, custom_site, website_dir,
                    website_email_address)
 
 
-def update_website(aws_account, bucket_id, custom_site, website_dir,
-                   website_banner_base64, website_banner_link,
-                   website_email_address):
+def update_website(aws_account, bucket_id: str, custom_site: any, website_dir: str,
+                   website_banner_base64: str, website_banner_link: str,
+                   website_email_address: str) -> None:
     if custom_site:
         print('not updating website due to custom site in bucket: https://s3.amazonaws.com/%s/' % bucket_id)
         return
@@ -444,35 +436,33 @@ def update_website(aws_account, bucket_id, custom_site, website_dir,
                 key_name = os.path.relpath(os.path.join(root, name), website_dir)\
                                   .replace('\\', '/')
                 # Add prefix
-                key_name = _make_full_key_name(key_prefix, key_name)
+                key_name = join_key_name(key_prefix, key_name)
 
-                put_file_to_key(bucket, key_name, None, file_path, True, _progress)
+                put_file_to_key(bucket, key_name, None, file_path, True)
 
         # Sponsors have optional custom banner images
-        banner_key_name = _make_full_key_name(key_prefix,
+        banner_key_name = join_key_name(key_prefix,
                                               DOWNLOAD_SITE_SPONSOR_BANNER_KEY_NAME)
         if website_banner_base64:
             put_string_to_key(bucket,
                               banner_key_name,
                               None,
                               base64.b64decode(website_banner_base64),
-                              True,
-                              _progress)
+                              True)
         else:
             # We need to make sure there's no old sponsor banner in the bucket.
             # Fails silently if there's no such key.
             _delete_key(bucket, banner_key_name)
 
         # Sponsor banner can optionally link to somewhere.
-        banner_link_key_name = _make_full_key_name(key_prefix,
+        banner_link_key_name = join_key_name(key_prefix,
                                                    DOWNLOAD_SITE_SPONSOR_BANNER_LINK_KEY_NAME)
         if website_banner_link:
             put_string_to_key(bucket,
                               banner_link_key_name,
                               None,
                               json.dumps(website_banner_link),
-                              True,
-                              _progress)
+                              True)
         else:
             # We need to make sure there's no old sponsor banner link in the bucket.
             # Fails silently if there's no such key.
@@ -480,15 +470,14 @@ def update_website(aws_account, bucket_id, custom_site, website_dir,
 
         # If sponsor/campaign has a specific email request address, we'll store
         # that in the bucket for the site to use.
-        website_email_address_key_name = _make_full_key_name(key_prefix,
+        website_email_address_key_name = join_key_name(key_prefix,
                                                              DOWNLOAD_SITE_EMAIL_ADDRESS_KEY_NAME)
         if website_email_address:
             put_string_to_key(bucket,
                               website_email_address_key_name,
                               None,
                               json.dumps(website_email_address),
-                              True,
-                              _progress)
+                              True)
         else:
             # We need to make sure there's no old campaign email address in the bucket.
             # Fails silently if there's no such key.
@@ -498,20 +487,19 @@ def update_website(aws_account, bucket_id, custom_site, website_dir,
         # point to the Android APK in this bucket. So generate a new one
         # and overwrite.
 
-        android_build_key_name = _make_full_key_name(key_prefix,
+        android_build_key_name = join_key_name(key_prefix,
                                                      DOWNLOAD_SITE_ANDROID_BUILD_FILENAME)
         qr_code_url_split = get_s3_bucket_resource_url_split(bucket.name,
                                                              android_build_key_name)
-        qr_code_url = urlparse.urlunsplit(qr_code_url_split)
+        qr_code_url = urllib.parse.urlunsplit(qr_code_url_split)
         qr_data = make_qr_code(qr_code_url)
-        qr_code_key_name = _make_full_key_name(key_prefix,
+        qr_code_key_name = join_key_name(key_prefix,
                                                DOWNLOAD_SITE_QR_CODE_KEY_NAME)
         put_string_to_key(bucket,
                           qr_code_key_name,
                           None,
                           qr_data,
-                          True,
-                          _progress)
+                          True)
 
     except:
         # TODO: delete all keys
@@ -522,17 +510,30 @@ def update_website(aws_account, bucket_id, custom_site, website_dir,
     print('updated website in bucket: %s' % bucket_id)
 
 
-def put_string_to_key_in_bucket(aws_account, bucket_id, key_name, content, is_public):
+def s3_object_exists(s3_object: 'boto3.S3.Object') -> bool:
+    """Check if an S3 object resource exists.
+    """
+    try:
+        s3_object.load()
+        return True
+    except botocore.exceptions.ClientError as e:
+        if e.response['Error']['Code'] == '404':
+            return False
+        else:
+            raise
+
+
+def put_string_to_key_in_bucket(aws_account, bucket_id: str, key_name: str, content: str, is_public: bool) -> None:
     bucket, key_prefix = _get_s3_bucket_and_prefix(aws_account, bucket_id)
 
     put_string_to_key(bucket,
-                      _make_full_key_name(key_prefix, key_name),
+                      join_key_name(key_prefix, key_name),
                       None,
                       content,
                       is_public)
 
 
-def put_string_to_key(bucket, key_name, metadata, content, is_public, callback=None):
+def put_string_to_key(bucket: 'boto3.S3.Bucket', key_name: str, metadata: Optional[dict[str, str]], content: str, is_public: bool) -> None:
     """Write string to key in S3 bucket. If contents of existing key are
     unchanged, there will be no modification.
     Params:
@@ -541,63 +542,84 @@ def put_string_to_key(bucket, key_name, metadata, content, is_public, callback=N
         metadata (dict[str, str]): Set of metadata to set for key. Only set when key changes.
         content (str): The content to write to the key.
         is_public (bool): Whether the new object should be publicly readable.
-        callback (function): An optional progress callback.
     """
-    key = bucket.get_key(key_name)
-    if key:
-        etag = key.etag.strip('"').lower()
-        local_etag = hashlib.md5(content).hexdigest().lower()
+    if isinstance(content, str):
+        content = content.encode('utf-8')
+    local_etag = hashlib.md5(content).hexdigest().lower()
 
-        if etag == local_etag:
+    obj = bucket.Object(key_name)
+    if s3_object_exists(obj):
+        if obj.e_tag.strip('"').lower() == local_etag:
             # key contents haven't changed
             return
 
-    key = bucket.new_key(key_name)
+    metadata = metadata or {}
     mimetype = mimetypes.guess_type(key_name)[0]
+    acl = 'public-read' if is_public else 'private'
+
     if mimetype:
-        key.set_metadata('Content-Type', mimetype)
+        res = obj.put(Body=content, ACL=acl, Metadata=metadata, ContentType=mimetype)
+    else:
+        res = obj.put(Body=content, ACL=acl, Metadata=metadata)
 
-    if metadata:
-        for name, value in metadata.iteritems():
-            key.set_metadata(name, value)
-
-    policy = 'public-read' if is_public else None
-
-    key.set_contents_from_string(content, policy=policy, cb=callback)
-    key.close()
+    if res['ETag'].strip('"').lower() != local_etag:
+        # our data was corrupted in transit
+        raise Exception('S3 object corruption detected')
 
 
-def put_file_to_key(bucket, key_name, metadata, content_file, is_public, callback=None):
+def put_file_to_key(bucket: 'boto3.S3.Bucket', key_name: str, metadata: dict[str, str], content_file: Union[str,BinaryIO], is_public: bool) -> None:
     """Write file contents to key in S3 bucket.
     Note that file will be read into memory before writing.
     Params:
         bucket (boto.s3 object): The bucket to write to.
         key_name (str): The key to write to (must include any applicable prefix).
         metadata (dict[str, str]): Set of metadata to set for key. Only set when key changes.
-        content_file (str): The content to write to the key; can be a filename
+        content_file (str or file): The content to write to the key; can be a filename
             or a file object.
         is_public (bool): Whether the new object should be publicly readable.
-        callback (function): An optional progress callback.
     """
     if isinstance(content_file, str):
+        # We got a filename
         with open(content_file, 'rb') as f:
           content = f.read()
     else:
+        # We got a file object
         content = content_file.read()
 
-    put_string_to_key(bucket, key_name, metadata, content, is_public, callback)
+    put_string_to_key(bucket, key_name, metadata, content, is_public)
 
 
-def make_qr_code(url):
+def get_string_from_key(bucket: 'boto3.S3.Bucket', key_name: str) -> str:
+    """Get string contents of object in S3 bucket.
+    Params:
+        bucket (boto.s3 object): The bucket to read from.
+        key_name (str): The key to read from (must include any applicable prefix).
+    Returns:
+        str: The contents of the object.
+    """
+    return get_string_from_object(bucket.Object(key_name))
+
+
+def get_string_from_object(obj: 'boto3.S3.Object') -> str:
+    """Get string contents of object in S3 bucket.
+    Params:
+        obj (boto.s3 object): The S3 object to read from.
+    Returns:
+        str: The contents of the object.
+    """
+    return obj.get()['Body'].read().decode('utf-8')
+
+
+def make_qr_code(url: str) -> bytes:
     qr = qrcode.QRCode(version=1, box_size=3, border=4)
     qr.add_data(url)
     qr.make(fit=True)
     image = qr.make_image()
-    stream = cStringIO.StringIO()
+    stream = io.BytesIO()
     image.save(stream, 'PNG')
     return stream.getvalue()
 
-def upload_signed_routes(aws_account, routes_dir, file_extension):
+def upload_signed_routes(aws_account, routes_dir: str, file_extension: str) -> None:
     bucket, key_prefix = _get_s3_bucket_and_prefix(aws_account, ROUTES_BUCKET_ID)
     try:
         for root, dirs, files in os.walk(routes_dir):
@@ -610,9 +632,9 @@ def upload_signed_routes(aws_account, routes_dir, file_extension):
                 key_name = os.path.relpath(os.path.join(root, name), routes_dir)\
                         .replace('\\', '/')
                 # Add prefix
-                key_name = _make_full_key_name(ROUTES_KEY_PREFIX, key_name)
+                key_name = join_key_name(ROUTES_KEY_PREFIX, key_name)
 
-                put_file_to_key(bucket, key_name, None, file_path, True, _progress)
+                put_file_to_key(bucket, key_name, None, file_path, True)
 
     except:
         raise
@@ -679,16 +701,17 @@ class Test(unittest.TestCase):
         shutil.rmtree(cls.temp_website_dir)
 
     def setUp(self):
-        from moto import mock_s3_deprecated
-        self.mock_s3 = mock_s3_deprecated()
+        from moto import mock_s3
+        self.mock_s3 = mock_s3()
         self.mock_s3.start()
 
-        # Make our fake bucket
-        self.s3 = boto.connect_s3(self.aws_creds.access_id,
-                                  self.aws_creds.secret_key,
-                                  calling_format=OrdinaryCallingFormat())
-        self.s3.create_bucket(self.old_style_bucket_id)
-        self.s3.create_bucket(DOWNLOAD_SITE_BUCKET)
+        # Make our fake buckets
+        self.s3 = boto3.resource(
+            's3',
+            aws_access_key_id=self.aws_creds.access_id,
+            aws_secret_access_key=self.aws_creds.secret_key)
+        self.s3.Bucket(self.old_style_bucket_id).create()
+        self.s3.Bucket(DOWNLOAD_SITE_BUCKET).create()
 
     def tearDown(self):
         if self.mock_s3:
@@ -703,7 +726,7 @@ class Test(unittest.TestCase):
 
         bucket_name, key_prefix = split_bucket_id(self.new_style_bucket_id)
         self.assertEqual(bucket_name, DOWNLOAD_SITE_BUCKET)
-        self.assertEqual(key_prefix, _make_full_key_name(DOWNLOAD_SITE_PREFIX,
+        self.assertEqual(key_prefix, join_key_name(DOWNLOAD_SITE_PREFIX,
                                                          self.old_style_bucket_id))
 
     def test_get_s3_bucket_and_prefix(self):
@@ -715,21 +738,21 @@ class Test(unittest.TestCase):
         bucket, key_prefix = _get_s3_bucket_and_prefix(self.aws_creds,
                                                        self.new_style_bucket_id)
         self.assertEqual(bucket.name, DOWNLOAD_SITE_BUCKET)
-        self.assertEqual(key_prefix, _make_full_key_name(DOWNLOAD_SITE_PREFIX,
+        self.assertEqual(key_prefix, join_key_name(DOWNLOAD_SITE_PREFIX,
                                                          self.old_style_bucket_id))
 
     def test_delete_key(self):
-        bucket = self.s3.get_bucket(self.old_style_bucket_id)
-        key = bucket.new_key('testkey')
-        key.set_contents_from_string('test')
-        key.close()
-        self.assertEqual([key.name for key in bucket.get_all_keys()], ['testkey'])
+        bucket = self.s3.Bucket(self.old_style_bucket_id)
+        obj = bucket.Object('testkey')
+        obj.put(Body='test')
+        self.assertEqual([obj.key for obj in bucket.objects.all()], ['testkey'])
         _delete_key(bucket, 'testkey')
-        self.assertEqual([key.name for key in bucket.get_all_keys()], [])
+        self.assertEqual([obj.key for obj in bucket.objects.all()], [])
 
-    def test_make_full_key_name(self):
-        self.assertEqual(_make_full_key_name('', 'keyname'), 'keyname')
-        self.assertEqual(_make_full_key_name('aaa/bbb', 'keyname'), 'aaa/bbb/keyname')
+    def test_join_key_name(self):
+        self.assertEqual(join_key_name('', 'keyname'), 'keyname')
+        self.assertEqual(join_key_name('aaa/bbb', 'keyname'), 'aaa/bbb/keyname')
+        self.assertEqual(join_key_name('aaa/bbb', 'keyname', '', 'xyz'), 'aaa/bbb/keyname/xyz')
 
     def test_get_s3_bucket_site_root(self):
         for bucket_id in [self.old_style_bucket_id, self.new_style_bucket_id]:
@@ -801,7 +824,7 @@ class Test(unittest.TestCase):
                 lang = ('/%s' % lang) if lang else ''
                 expected_path = '%s%s/index.html' % (bucket_id, lang)
                 self.assertEqual(url,
-                                 urlparse.urlunsplit(
+                                 urllib.parse.urlunsplit(
                                      (DOWNLOAD_SITE_SCHEME,
                                       DOWNLOAD_SITE_HOSTNAME,
                                       expected_path, '', '')))
@@ -814,7 +837,7 @@ class Test(unittest.TestCase):
                 expected_path = '%s%s/download.html' % (bucket_id, lang)
                 expected_fragment = 'direct'
                 self.assertEqual(url,
-                                 urlparse.urlunsplit(
+                                 urllib.parse.urlunsplit(
                                      (DOWNLOAD_SITE_SCHEME,
                                       DOWNLOAD_SITE_HOSTNAME,
                                       expected_path, '', expected_fragment)))
@@ -826,7 +849,7 @@ class Test(unittest.TestCase):
                 lang = ('/%s' % lang) if lang else ''
                 expected_path = '%s%s/faq.html' % (bucket_id, lang)
                 self.assertEqual(url,
-                                 urlparse.urlunsplit(
+                                 urllib.parse.urlunsplit(
                                      (DOWNLOAD_SITE_SCHEME,
                                       DOWNLOAD_SITE_HOSTNAME,
                                       expected_path, '', '')))
@@ -839,14 +862,14 @@ class Test(unittest.TestCase):
                 expected_path = '%s%s/privacy.html' % (bucket_id, lang)
                 expected_fragment = 'information-collected'
                 self.assertEqual(url,
-                                 urlparse.urlunsplit(
+                                 urllib.parse.urlunsplit(
                                      (DOWNLOAD_SITE_SCHEME,
                                       DOWNLOAD_SITE_HOSTNAME,
                                       expected_path, '', expected_fragment)))
 
     def test_create_s3_website_bucket_name(self):
         bucket_name = create_s3_website_bucket_name()
-        self.assertRegexpMatches(
+        self.assertRegex(
             bucket_name,
             r'^%s/%s/[a-z0-9-]+$' % (DOWNLOAD_SITE_BUCKET,
                                      DOWNLOAD_SITE_PREFIX))
@@ -859,15 +882,15 @@ class Test(unittest.TestCase):
         # No builds or server_list
         #
         with self.setUpTearDown():
-            update_s3_download(self.aws_creds, None, None, self.old_style_bucket_id)
+            update_s3_download(self.aws_creds, None, None, None, self.old_style_bucket_id)
             self.assertEqual(
-                self.s3.get_bucket(self.old_style_bucket_id).get_all_keys(),
+                list(self.s3.Bucket(self.old_style_bucket_id).objects.all()),
                 [])
 
         with self.setUpTearDown():
-            update_s3_download(self.aws_creds, None, None, self.new_style_bucket_id)
+            update_s3_download(self.aws_creds, None, None, None, self.new_style_bucket_id)
             self.assertEqual(
-                self.s3.get_bucket(DOWNLOAD_SITE_BUCKET).get_all_keys(),
+                list(self.s3.Bucket(DOWNLOAD_SITE_BUCKET).objects.all()),
                 [])
 
         #
@@ -880,26 +903,28 @@ class Test(unittest.TestCase):
                                [(self.temp_file_path, windows_client_version, DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME),
                                 (self.temp_file_path, android_client_version, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME),],
                                None,
+                               None,
                                self.old_style_bucket_id)
             self.assertEqual(
-                set([key.name for key in self.s3.get_bucket(self.old_style_bucket_id).get_all_keys()]),
+                set([obj.key for obj in self.s3.Bucket(self.old_style_bucket_id).objects.all()]),
                 set((DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME)))
-            self.assertEqual(self.s3.get_bucket(self.old_style_bucket_id).get_key(DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME).get_metadata(DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME), str(windows_client_version))
-            self.assertEqual(self.s3.get_bucket(self.old_style_bucket_id).get_key(DOWNLOAD_SITE_ANDROID_BUILD_FILENAME).get_metadata(DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME), str(android_client_version))
+            self.assertEqual(self.s3.Bucket(self.old_style_bucket_id).Object(DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME).metadata[DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME], str(windows_client_version))
+            self.assertEqual(self.s3.Bucket(self.old_style_bucket_id).Object(DOWNLOAD_SITE_ANDROID_BUILD_FILENAME).metadata[DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME], str(android_client_version))
 
         with self.setUpTearDown():
             update_s3_download(self.aws_creds,
                                [(self.temp_file_path, windows_client_version, DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME),
                                 (self.temp_file_path, android_client_version, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME),],
                                None,
+                               None,
                                self.new_style_bucket_id)
             windows_build_key = '%s/%s/%s' % (DOWNLOAD_SITE_PREFIX, self.old_style_bucket_id, DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME)
             android_build_key = '%s/%s/%s' % (DOWNLOAD_SITE_PREFIX, self.old_style_bucket_id, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME)
             self.assertEqual(
-                set([key.name for key in self.s3.get_bucket(DOWNLOAD_SITE_BUCKET).get_all_keys()]),
+                set([obj.key for obj in self.s3.Bucket(DOWNLOAD_SITE_BUCKET).objects.all()]),
                 set((windows_build_key, android_build_key)))
-            self.assertEqual(self.s3.get_bucket(DOWNLOAD_SITE_BUCKET).get_key(windows_build_key).get_metadata(DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME), str(windows_client_version))
-            self.assertEqual(self.s3.get_bucket(DOWNLOAD_SITE_BUCKET).get_key(android_build_key).get_metadata(DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME), str(android_client_version))
+            self.assertEqual(self.s3.Bucket(DOWNLOAD_SITE_BUCKET).Object(windows_build_key).metadata[DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME], str(windows_client_version))
+            self.assertEqual(self.s3.Bucket(DOWNLOAD_SITE_BUCKET).Object(android_build_key).metadata[DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME], str(android_client_version))
 
         #
         # server_list, but no builds
@@ -908,20 +933,20 @@ class Test(unittest.TestCase):
             update_s3_download(self.aws_creds,
                                None,
                                'server list contents',
+                               None,
                                self.old_style_bucket_id)
             self.assertEqual(
-                self.s3.get_bucket(self.old_style_bucket_id).get_key(DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME).get_contents_as_string(),
+                get_string_from_key(self.s3.Bucket(self.old_style_bucket_id), DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME),
                 'server list contents')
 
         with self.setUpTearDown():
             update_s3_download(self.aws_creds,
                                None,
                                'server list contents',
+                               None,
                                self.new_style_bucket_id)
             self.assertEqual(
-                self.s3.get_bucket(DOWNLOAD_SITE_BUCKET)\
-                       .get_key('%s/%s/%s' % (DOWNLOAD_SITE_PREFIX, self.old_style_bucket_id, DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME))\
-                       .get_contents_as_string(),
+                get_string_from_key(self.s3.Bucket(DOWNLOAD_SITE_BUCKET), '%s/%s/%s' % (DOWNLOAD_SITE_PREFIX, self.old_style_bucket_id, DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME)),
                 'server list contents')
 
         #
@@ -932,181 +957,182 @@ class Test(unittest.TestCase):
                                [(self.temp_file_path, windows_client_version, DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME),
                                 (self.temp_file_path, android_client_version, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME),],
                                'server list contents',
+                               None,
                                self.old_style_bucket_id)
             self.assertEqual(
-                {key.name for key in self.s3.get_bucket(self.old_style_bucket_id).get_all_keys()},
+                {obj.key for obj in self.s3.Bucket(self.old_style_bucket_id).objects.all()},
                 set((DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME, DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME)))
-            self.assertEqual(self.s3.get_bucket(self.old_style_bucket_id).get_key(DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME).get_metadata(DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME), str(windows_client_version))
-            self.assertEqual(self.s3.get_bucket(self.old_style_bucket_id).get_key(DOWNLOAD_SITE_ANDROID_BUILD_FILENAME).get_metadata(DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME), str(android_client_version))
+            self.assertEqual(self.s3.Bucket(self.old_style_bucket_id).Object(DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME).metadata[DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME], str(windows_client_version))
+            self.assertEqual(self.s3.Bucket(self.old_style_bucket_id).Object(DOWNLOAD_SITE_ANDROID_BUILD_FILENAME).metadata[DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME], str(android_client_version))
 
         with self.setUpTearDown():
             update_s3_download(self.aws_creds,
                                [(self.temp_file_path, windows_client_version, DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME),
                                 (self.temp_file_path, android_client_version, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME),],
                                'server list contents',
+                               None,
                                self.new_style_bucket_id)
             windows_build_key = '%s/%s/%s' % (DOWNLOAD_SITE_PREFIX, self.old_style_bucket_id, DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME)
             android_build_key = '%s/%s/%s' % (DOWNLOAD_SITE_PREFIX, self.old_style_bucket_id, DOWNLOAD_SITE_ANDROID_BUILD_FILENAME)
             remote_server_list_key = '%s/%s/%s' % (DOWNLOAD_SITE_PREFIX, self.old_style_bucket_id, DOWNLOAD_SITE_REMOTE_SERVER_LIST_FILENAME)
             self.assertEqual(
-                set([key.name for key in self.s3.get_bucket(DOWNLOAD_SITE_BUCKET).get_all_keys()]),
+                set([obj.key for obj in self.s3.Bucket(DOWNLOAD_SITE_BUCKET).objects.all()]),
                 set((windows_build_key, android_build_key, remote_server_list_key)))
-            self.assertEqual(self.s3.get_bucket(DOWNLOAD_SITE_BUCKET).get_key(windows_build_key).get_metadata(DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME), str(windows_client_version))
-            self.assertEqual(self.s3.get_bucket(DOWNLOAD_SITE_BUCKET).get_key(android_build_key).get_metadata(DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME), str(android_client_version))
+            self.assertEqual(self.s3.Bucket(DOWNLOAD_SITE_BUCKET).Object(windows_build_key).metadata[DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME], str(windows_client_version))
+            self.assertEqual(self.s3.Bucket(DOWNLOAD_SITE_BUCKET).Object(android_build_key).metadata[DOWNLOAD_SITE_CLIENT_VERSION_METADATA_NAME], str(android_client_version))
+
+        # TODO: remote_server_list_compressed tests
+
+    def check_object_acl(self, obj: 'boto3.S3.Object', is_public: bool):
+        public = False
+        for grant in obj.Acl().grants:
+            if grant['Grantee'].get('URI', None) == 'http://acs.amazonaws.com/groups/global/AllUsers':
+                if grant['Permission'] == 'READ':
+                    public = True
+        self.assertEqual(public, is_public)
 
     def test_put_string_to_key_in_bucket(self):
         with self.setUpTearDown():
             put_string_to_key_in_bucket(self.aws_creds,
                                         self.old_style_bucket_id,
                                         'testkey', 'testcontent', False)
-            key = self.s3.get_bucket(self.old_style_bucket_id).get_key('testkey')
-            self.assertEqual(key.get_contents_as_string(), 'testcontent')
-            # moto doesn't support ACL stuff
-            # self.s3.get_bucket(self.old_style_bucket_id).get_acl('testkey')
+            bucket = self.s3.Bucket(self.old_style_bucket_id)
+            self.assertEqual(get_string_from_key(bucket, 'testkey'), 'testcontent')
+            self.check_object_acl(bucket.Object('testkey'), False)
 
         with self.setUpTearDown():
             put_string_to_key_in_bucket(self.aws_creds,
                                         self.old_style_bucket_id,
                                         'testkey', 'testcontent', True)
-            key = self.s3.get_bucket(self.old_style_bucket_id).get_key('testkey')
-            self.assertEqual(key.get_contents_as_string(), 'testcontent')
-            # moto doesn't support ACL stuff
-            # self.s3.get_bucket(self.old_style_bucket_id).get_acl('testkey')
+            bucket = self.s3.Bucket(self.old_style_bucket_id)
+            self.assertEqual(get_string_from_key(bucket, 'testkey'), 'testcontent')
+            self.check_object_acl(bucket.Object('testkey'), True)
 
         with self.setUpTearDown():
             put_string_to_key_in_bucket(self.aws_creds,
                                         self.new_style_bucket_id,
                                         'testkey', 'testcontent', False)
-            key = self.s3.get_bucket(DOWNLOAD_SITE_BUCKET)\
-                         .get_key('%s/%s/testkey' % (DOWNLOAD_SITE_PREFIX, self.old_style_bucket_id))
-            self.assertEqual(key.get_contents_as_string(), 'testcontent')
-            # moto doesn't support ACL stuff
-            # self.s3.get_bucket(self.old_style_bucket_id).get_acl('testkey')
+            bucket = self.s3.Bucket(DOWNLOAD_SITE_BUCKET)
+            self.assertEqual(get_string_from_key(bucket, '%s/%s/testkey' % (DOWNLOAD_SITE_PREFIX, self.old_style_bucket_id)), 'testcontent')
+            self.check_object_acl(bucket.Object('%s/%s/testkey' % (DOWNLOAD_SITE_PREFIX, self.old_style_bucket_id)), False)
 
         with self.setUpTearDown():
             put_string_to_key_in_bucket(self.aws_creds,
                                         self.new_style_bucket_id,
                                         'testkey', 'testcontent', True)
-            key = self.s3.get_bucket(DOWNLOAD_SITE_BUCKET)\
-                         .get_key('%s/%s/testkey' % (DOWNLOAD_SITE_PREFIX, self.old_style_bucket_id))
-            self.assertEqual(key.get_contents_as_string(), 'testcontent')
-            # moto doesn't support ACL stuff
-            # self.s3.get_bucket(self.old_style_bucket_id).get_acl('testkey')
+            bucket = self.s3.Bucket(DOWNLOAD_SITE_BUCKET)
+            self.assertEqual(get_string_from_key(bucket, '%s/%s/testkey' % (DOWNLOAD_SITE_PREFIX, self.old_style_bucket_id)), 'testcontent')
+            self.check_object_acl(bucket.Object('%s/%s/testkey' % (DOWNLOAD_SITE_PREFIX, self.old_style_bucket_id)), True)
 
     metadata = {'test-metadata-name' : 'test-metadata-value'}
     metadata_new = {'test-metadata-name' : 'test-metadata-value-new'}
 
-    def check_metadata(self, key, metadata):
-        self.assertEqual(key.get_metadata(metadata.items()[0][0]), metadata.items()[0][1])
+    def check_metadata(self, obj, metadata):
+        for k, v in metadata.items():
+            self.assertEqual(obj.metadata[k], v)
 
     def test_put_string_to_key(self):
         import time
 
-        # TODO: Test callback
         with self.setUpTearDown():
-            bucket = self.s3.get_bucket(DOWNLOAD_SITE_BUCKET)
+            bucket = self.s3.Bucket(DOWNLOAD_SITE_BUCKET)
             put_string_to_key(bucket, 'testkey', Test.metadata, 'testcontent', False)
-            key = bucket.get_key('testkey')
-            self.assertEqual(key.get_contents_as_string(), 'testcontent')
-            self.check_metadata(key, Test.metadata)
-            # moto doesn't support ACL stuff
-            # bucket.get_acl('testkey')
+            obj = bucket.Object('testkey')
+            self.assertEqual(get_string_from_object(obj), 'testcontent')
+            self.check_metadata(obj, Test.metadata)
+            self.check_object_acl(obj, False)
 
         with self.setUpTearDown():
-            bucket = self.s3.get_bucket(DOWNLOAD_SITE_BUCKET)
+            bucket = self.s3.Bucket(DOWNLOAD_SITE_BUCKET)
             put_string_to_key(bucket, 'testkey', Test.metadata, 'testcontent', True)
-            key = bucket.get_key('testkey')
-            self.assertEqual(key.get_contents_as_string(), 'testcontent')
-            self.check_metadata(key, Test.metadata)
-            # moto doesn't support ACL stuff
-            # bucket.get_acl('testkey')
+            obj = bucket.Object('testkey')
+            self.assertEqual(get_string_from_object(obj), 'testcontent')
+            self.check_metadata(obj, Test.metadata)
+            self.check_object_acl(obj, True)
 
         # No metadata
         with self.setUpTearDown():
-            bucket = self.s3.get_bucket(DOWNLOAD_SITE_BUCKET)
+            bucket = self.s3.Bucket(DOWNLOAD_SITE_BUCKET)
             put_string_to_key(bucket, 'testkey', None, 'testcontent', True)
-            key = bucket.get_key('testkey')
-            self.assertEqual(key.get_contents_as_string(), 'testcontent')
-            # moto doesn't support ACL stuff
-            # bucket.get_acl('testkey')
+            obj = bucket.Object('testkey')
+            self.assertEqual(get_string_from_object(obj), 'testcontent')
+            self.assertEqual(len(obj.metadata), 0)
+            self.check_object_acl(obj, True)
 
         #
         # Changed vs. unchanged content
         #
 
         with self.setUpTearDown():
-            bucket = self.s3.get_bucket(DOWNLOAD_SITE_BUCKET)
+            bucket = self.s3.Bucket(DOWNLOAD_SITE_BUCKET)
 
             # Write something
             put_string_to_key(bucket, 'testkey', Test.metadata, 'testcontent', True)
-            key = bucket.get_key('testkey')
-            self.assertEqual(key.get_contents_as_string(), 'testcontent')
-            self.check_metadata(key, Test.metadata)
+            obj = bucket.Object('testkey')
+            self.assertEqual(get_string_from_object(obj), 'testcontent')
+            self.check_metadata(obj, Test.metadata)
             # Record the modified time
-            last_modified_1 = key.last_modified
+            last_modified_1 = obj.last_modified
 
             time.sleep(1)
 
             # Try to write the same thing
             put_string_to_key(bucket, 'testkey', Test.metadata, 'testcontent', True)
-            key = bucket.get_key('testkey')
+            obj.reload()
             # Should be no change
-            self.assertEqual(key.last_modified, last_modified_1)
-            self.check_metadata(key, Test.metadata)
+            self.assertEqual(obj.last_modified, last_modified_1)
+            self.check_metadata(obj, Test.metadata)
 
             time.sleep(1)
 
             # Write a different thing
             put_string_to_key(bucket, 'testkey', Test.metadata_new, 'testcontent new', True)
-            key = bucket.get_key('testkey')
+            obj.reload()
             # Should be changed
-            self.assertNotEqual(key.last_modified, last_modified_1)
-            self.check_metadata(key, Test.metadata_new)
+            self.assertNotEqual(obj.last_modified, last_modified_1)
+            self.check_metadata(obj, Test.metadata_new)
 
     def test_put_file_to_key(self):
-        # TODO: Test callback
-
         #
         # Using filename
         #
 
         with self.setUpTearDown():
-            bucket = self.s3.get_bucket(DOWNLOAD_SITE_BUCKET)
+            bucket = self.s3.Bucket(DOWNLOAD_SITE_BUCKET)
             put_file_to_key(bucket, 'testkey1', Test.metadata, self.temp_file_path, False)
-            key = bucket.get_key('testkey1')
-            self.assertEqual(key.get_contents_as_string(), 'I am a file')
-            self.check_metadata(key, Test.metadata)
+            obj1 = bucket.Object('testkey1')
+            self.assertEqual(get_string_from_object(obj1), 'I am a file')
+            self.check_metadata(obj1, Test.metadata)
+            self.check_object_acl(obj1, False)
+
             put_file_to_key(bucket, 'testkey2', Test.metadata, self.temp_file_path, True)
-            key = bucket.get_key('testkey2')
-            self.assertEqual(key.get_contents_as_string(), 'I am a file')
-            self.check_metadata(key, Test.metadata)
-            # moto doesn't support ACL stuff
-            # bucket.get_acl('testkey')
+            obj2 = bucket.Object('testkey2')
+            self.assertEqual(get_string_from_object(obj2), 'I am a file')
+            self.check_metadata(obj1, Test.metadata)
+            self.check_object_acl(obj2, True)
 
         #
         # Using file object
         #
 
         with self.setUpTearDown(), open(self.temp_file_path, 'r') as file:
-            bucket = self.s3.get_bucket(DOWNLOAD_SITE_BUCKET)
+            bucket = self.s3.Bucket(DOWNLOAD_SITE_BUCKET)
             put_file_to_key(bucket, 'testkey1', Test.metadata, file, False)
-            key = bucket.get_key('testkey1')
-            self.assertEqual(key.get_contents_as_string(), 'I am a file')
-            self.check_metadata(key, Test.metadata)
-            # moto doesn't support ACL stuff
-            # bucket.get_acl('testkey')
+            obj = bucket.Object('testkey1')
+            self.assertEqual(get_string_from_object(obj), 'I am a file')
+            self.check_metadata(obj, Test.metadata)
+            self.check_object_acl(obj, False)
 
         with self.setUpTearDown(), open(self.temp_file_path, 'r') as file:
-            bucket = self.s3.get_bucket(DOWNLOAD_SITE_BUCKET)
+            bucket = self.s3.Bucket(DOWNLOAD_SITE_BUCKET)
             put_file_to_key(bucket, 'testkey2', Test.metadata, file, True)
-            key = bucket.get_key('testkey2')
-            self.assertEqual(key.get_contents_as_string(), 'I am a file')
-            self.check_metadata(key, Test.metadata)
-            # moto doesn't support ACL stuff
-            # bucket.get_acl('testkey')
+            obj = bucket.Object('testkey2')
+            self.assertEqual(get_string_from_object(obj), 'I am a file')
+            self.check_metadata(obj, Test.metadata)
+            self.check_object_acl(obj, True)
 
     def test_make_qr_code(self):
-        self.assertIn('PNG', make_qr_code('https://example.com'))
+        self.assertIn(b'PNG', make_qr_code('https://example.com'))
 
     def test_update_website(self):
         #
@@ -1118,16 +1144,16 @@ class Test(unittest.TestCase):
                            True,
                            self.temp_website_dir,
                            None, None, None)
-            bucket = self.s3.get_bucket(self.old_style_bucket_id)
-            self.assertEqual(bucket.get_all_keys(), [])
+            bucket = self.s3.Bucket(self.old_style_bucket_id)
+            self.assertEqual(list(bucket.objects.all()), [])
 
             update_website(self.aws_creds,
                            self.new_style_bucket_id,
                            True,
                            self.temp_website_dir,
                            None, None, None)
-            bucket = self.s3.get_bucket(DOWNLOAD_SITE_BUCKET)
-            self.assertEqual(bucket.get_all_keys(), [])
+            bucket = self.s3.Bucket(DOWNLOAD_SITE_BUCKET)
+            self.assertEqual(list(bucket.objects.all()), [])
 
         #
         # No special files
@@ -1139,8 +1165,8 @@ class Test(unittest.TestCase):
                            False,
                            self.temp_website_dir,
                            None, None, None)
-            bucket = self.s3.get_bucket(self.old_style_bucket_id)
-            key_set = set([key.name for key in bucket.get_all_keys()])
+            bucket = self.s3.Bucket(self.old_style_bucket_id)
+            key_set = set([obj.key for obj in bucket.objects.all()])
             website_set = set(self.website_files)
             self.assertTrue(key_set.issuperset(website_set))
 
@@ -1150,10 +1176,10 @@ class Test(unittest.TestCase):
                            False,
                            self.temp_website_dir,
                            None, None, None)
-            bucket = self.s3.get_bucket(DOWNLOAD_SITE_BUCKET)
-            key_set = set([key.name for key in bucket.get_all_keys()])
+            bucket = self.s3.Bucket(DOWNLOAD_SITE_BUCKET)
+            key_set = set([obj.key for obj in bucket.objects.all()])
             key_prefix = '%s/%s' % (DOWNLOAD_SITE_PREFIX, self.old_style_bucket_id)
-            website_set = [_make_full_key_name(key_prefix, fname)
+            website_set = [join_key_name(key_prefix, fname)
                            for fname in self.website_files]
             website_set = set(website_set)
             self.assertTrue(key_set.issuperset(website_set))
@@ -1162,7 +1188,7 @@ class Test(unittest.TestCase):
         # All special files
         #
 
-        website_banner_base64 = base64.b64encode('test')
+        website_banner_base64 = base64.b64encode('test'.encode('utf-8'))
         website_banner_link = 'https://example.com'
         website_email_address = 'test@example.com'
 
@@ -1174,8 +1200,8 @@ class Test(unittest.TestCase):
                            website_banner_base64,
                            website_banner_link,
                            website_email_address)
-            bucket = self.s3.get_bucket(self.old_style_bucket_id)
-            key_set = set([key.name for key in bucket.get_all_keys()])
+            bucket = self.s3.Bucket(self.old_style_bucket_id)
+            key_set = set([obj.key for obj in bucket.objects.all()])
 
             website_set = set(self.website_files)
             website_set.update((DOWNLOAD_SITE_SPONSOR_BANNER_KEY_NAME,
@@ -1192,15 +1218,15 @@ class Test(unittest.TestCase):
                            website_banner_base64,
                            website_banner_link,
                            website_email_address)
-            bucket = self.s3.get_bucket(DOWNLOAD_SITE_BUCKET)
-            key_set = set([key.name for key in bucket.get_all_keys()])
+            bucket = self.s3.Bucket(DOWNLOAD_SITE_BUCKET)
+            key_set = set([obj.key for obj in bucket.objects.all()])
 
             key_prefix = '%s/%s' % (DOWNLOAD_SITE_PREFIX, self.old_style_bucket_id)
-            website_set = set([_make_full_key_name(key_prefix, fname)
+            website_set = set([join_key_name(key_prefix, fname)
                                for fname in self.website_files])
-            website_set.update((_make_full_key_name(key_prefix, DOWNLOAD_SITE_SPONSOR_BANNER_KEY_NAME),
-                                _make_full_key_name(key_prefix, DOWNLOAD_SITE_SPONSOR_BANNER_LINK_KEY_NAME),
-                                _make_full_key_name(key_prefix, DOWNLOAD_SITE_EMAIL_ADDRESS_KEY_NAME),))
+            website_set.update((join_key_name(key_prefix, DOWNLOAD_SITE_SPONSOR_BANNER_KEY_NAME),
+                                join_key_name(key_prefix, DOWNLOAD_SITE_SPONSOR_BANNER_LINK_KEY_NAME),
+                                join_key_name(key_prefix, DOWNLOAD_SITE_EMAIL_ADDRESS_KEY_NAME),))
 
             self.assertTrue(key_set.issuperset(website_set))
 

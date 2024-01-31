@@ -39,10 +39,10 @@ except ImportError as error:
 
 libcloud.security.CA_CERTS_PATH = ['./libcloud/cacerts/ca-bundle.crt']
 if not os.path.exists(libcloud.security.CA_CERTS_PATH[0]):
-    print '''
+    print('''
     Could not find valid certificate path.
     See: https://libcloud.readthedocs.org/en/latest/other/ssl-certificate-validation.html
-    '''
+    ''')
 
 try:
     libcloud.security.SSL_VERSION = ssl.PROTOCOL_TLSv1_2
@@ -99,7 +99,7 @@ def wait_on_action(vpsnet_conn, node, interval=30):
         if 'running' in node.state.lower():
             return True
         else:
-            print 'node state : %s.  Trying again in %s' % (node.state, interval)
+            print('node state : %s.  Trying again in %s' % (node.state, interval))
             time.sleep(int(interval))
 
     return False
@@ -178,7 +178,7 @@ def remove_server(vpsnet_account, node_id):
         if not result:
             raise Exception('Could not destroy node: %s' % str(node_id))
     except KeyError as e:
-        if e.message == 'virtual_machine':
+        if 'virtual_machine' in str(e):
             # The server has already been deleted
             pass
         else:
@@ -213,13 +213,13 @@ def launch_new_server(vpsnet_account, is_TCS, _, multi_ip=False, datacenter_city
         # Check each available cloud for a psiphon template to use.
         # Populate a list of templates and the cloud IDs.
         psiphon_templates = list()
-        print 'Available Regions:\n'
+        print('Available Regions:\n')
         for region in vpsnet_clouds:
-            print '%s -> %s' % (region['cloud']['id'], region['cloud']['label'])
+            print('%s -> %s' % (region['cloud']['id'], region['cloud']['label']))
             for template in region['cloud']['system_templates']:
                 if 'tcs' in template['label'].lower() and str(template['id']) == base_image_id:
-                    print '\tFound psiphon template id %s in region %s' % (
-                        template['id'], region['cloud']['id'])
+                    print('\tFound psiphon template id %s in region %s' % (
+                        template['id'], region['cloud']['id']))
                     template['cloud_id'] = region['cloud']['id']
                     template['cloud_label'] = region['cloud']['label']
                     psiphon_templates.append(template)
@@ -231,8 +231,8 @@ def launch_new_server(vpsnet_account, is_TCS, _, multi_ip=False, datacenter_city
         VPSNetHost.cloud_id = region_template['cloud_id']
         VPSNetHost.system_template_id = region_template['id']
 
-        print 'Using template: %s with cloud_id: %s' % (
-            VPSNetHost.system_template_id, VPSNetHost.cloud_id)
+        print('Using template: %s with cloud_id: %s' % (
+            VPSNetHost.system_template_id, VPSNetHost.cloud_id))
 
         '''
             package/plan for the new SSD server.
@@ -294,11 +294,11 @@ def launch_new_server(vpsnet_account, is_TCS, _, multi_ip=False, datacenter_city
         assert(node_public_key)
         set_allowed_users(vpsnet_account, public_ip_address, new_root_password, stats_username)
     except Exception as e:
-        print type(e), str(e)
+        print(type(e), str(e))
         if node is not None:
             remove_server(vpsnet_account, node.id)
         else:
-            print type(e), "No node to be destoryed: %s", str(node)
+            print(type(e), "No node to be destroyed.")
         raise
 
     return (

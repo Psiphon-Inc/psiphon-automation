@@ -17,16 +17,24 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import urllib2
 import zipfile
 import os, os.path
-import StringIO 
 import csv
 import zlib
 import tarfile
 import base64
 import psi_ops_crypto_tools
 
+from io import StringIO
+
+try:
+    import sys
+    if sys.version_info < (3, 0):
+        import urllib2
+    else:
+        import urllib.request as urllib2
+except ImportError as error:
+    print(error)
 
 GEO_DATA_ROOT = os.path.join(os.path.abspath('..'), 'Data', 'GeoData')
 GEO_ZIP_FILENAME = 'maxmind_data.zip'
@@ -54,7 +62,7 @@ def recache_geodata(url):
     try:
         url = urllib2.urlopen(request, timeout=5)
         last_modified = url.headers.get('Last-Modified')
-    except urllib2.HTTPError, e:
+    except urllib2.HTTPError as e:
         if e.getcode() != 304:
             raise Exception('HTTP error %i requesting geodata file' % e.getcode())
         # Not-Modified 304 returned
@@ -127,10 +135,10 @@ def make_routes():
     for name in names:
         fileName, fileExtension = os.path.splitext(name)
         if fileExtension == '.csv' and 'Country-Blocks-IPv4' in fileName:
-            print "CSV found: %s" % name
+            print("CSV found: %s" % name)
             country_blocks_filename = name
         if fileExtension == '.csv' and 'Country-Locations-en' in fileName:
-            print "CSV found: %s" % name
+            print("CSV found: %s" % name)
             country_names_filename = name
     
     if not country_blocks_filename:
@@ -139,11 +147,11 @@ def make_routes():
     if not country_names_filename:
         raise Exception('locations CSV not found in the %s' % GEO_ZIP_PATH)
 
-    ip_blocks_data = StringIO.StringIO(zf.read(country_blocks_filename))
+    ip_blocks_data = StringIO(zf.read(country_blocks_filename).decode())
     if not ip_blocks_data:
         raise Exception('Can not read from the %s' % GEO_ZIP_PATH)
     
-    country_names_data = StringIO.StringIO(zf.read(country_names_filename))
+    country_names_data = StringIO(zf.read(country_names_filename).decode())
     if not country_names_data:
         raise Exception('Can not read from the %s' % GEO_ZIP_PATH)
 
@@ -181,13 +189,13 @@ def make_routes():
     # Using zlib format to compress data, which client expects and
     # handles; note, this isn't .zip or .gz format.
     tar = tarfile.open(name=GEO_ROUTES_ARCHIVE_PATH, mode='w:gz')
-    for path, file in files.iteritems():
+    for path, file in files.items():
         file.close()
         with open(path, 'r') as file:
             data = file.read()
         zlib_path = path + GEO_ROUTES_EXTENSION
         with open(zlib_path, 'wb') as zlib_file:
-            zlib_file.write(zlib.compress(data))
+            zlib_file.write(zlib.compress(data.encode()))
         tar.add(zlib_path, arcname=os.path.split(zlib_path)[1], recursive=False)
     tar.close()
 

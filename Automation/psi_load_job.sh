@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# "python ./load.py" shouldn't run for longer than 60 minutes
+# "python3 ./load.py" shouldn't run for longer than 60 minutes
 max_seconds=3600
-process="$(pgrep -f "python ./load.py")"
+process="$(pgrep -f "python3 ./load.py")"
 if [[ -n "$process" ]]; then
   seconds=$(echo "$(date +%s) - $(stat -c %X /proc/$process)" | bc)
   if [[ "$seconds" -ge "$max_seconds" ]]; then
@@ -22,7 +22,7 @@ touch $lockfile
 
 ulimit -n 10000
 
-python ./load.py
+python3 ./load.py
 
 rm $lockfile
 

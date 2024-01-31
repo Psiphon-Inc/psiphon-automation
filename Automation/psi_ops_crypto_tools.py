@@ -44,47 +44,50 @@ Algorithms:
 
 """
 
-import M2Crypto
 import base64
 import json
 
+
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import rsa, padding, utils
 
 RSA_KEY_LENGTH_BITS = 4096
 RSA_EXPONENT = 3
 
 
 def generate_key_pair(private_key_password):
-    rsa_key = M2Crypto.RSA.gen_key(RSA_KEY_LENGTH_BITS, RSA_EXPONENT)
-    buffer = M2Crypto.BIO.MemoryBuffer()
-    assert(1 == rsa_key.save_key_bio(
-                    buffer, callback=lambda _: str(private_key_password)))
-    return buffer.read_all()
-
+    private_key = rsa.generate_private_key(public_exponent=RSA_EXPONENT, key_size=RSA_KEY_LENGTH_BITS)
+    return private_key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.TraditionalOpenSSL, serialization.BestAvailableEncryption(bytes(private_key_password, 'utf-8'))).decode()
 
 def get_base64_der_public_key(key_pair, private_key_password):
-    rsa_key = M2Crypto.RSA.load_key_string(
-                key_pair, callback=lambda _: str(private_key_password))
-    buffer = M2Crypto.BIO.MemoryBuffer()
-    assert(1 == rsa_key.save_pub_key_bio(buffer))
-    pem = buffer.read_all()
+    private_key = serialization.load_pem_private_key(key_pair.encode(), password=bytes(private_key_password, 'utf-8'))
+    public_key = private_key.public_key()
+    pem = public_key.public_bytes(encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.SubjectPublicKeyInfo)
     # convert to Base64/DER
-    return ''.join(pem.split('\n')[1:-2])
-
+    return ''.join(pem.decode().split('\n')[1:-2])
 
 def make_signed_data(key_pair, private_key_password, data):
-    sha = M2Crypto.EVP.MessageDigest('sha256')
-    assert(1 == sha.update(data))
-    data_digest = sha.digest()
+    chosen_hash = hashes.SHA256()
 
-    sha = M2Crypto.EVP.MessageDigest('sha256')
-    assert(1 == sha.update(get_base64_der_public_key(key_pair, private_key_password)))
-    public_key_digest = sha.digest()
+    if type(data) == str:
+        data = data.encode()
 
-    rsa_key = M2Crypto.RSA.load_key_string(
-                key_pair, callback=lambda _: str(private_key_password))
-    signature = rsa_key.sign(data_digest, algo='sha256')
+    sha = hashes.Hash(chosen_hash)
+    sha.update(data)
+    data_digest = sha.finalize()
+
+    sha = hashes.Hash(chosen_hash)
+    sha.update(get_base64_der_public_key(key_pair, private_key_password).encode())
+    public_key_digest = sha.finalize()
+
+    private_key = serialization.load_pem_private_key(key_pair.encode(), password=bytes(private_key_password, 'utf-8'))
+    signature = private_key.sign(
+            data_digest,
+            padding.PKCS1v15(),
+            utils.Prehashed(chosen_hash)
+    )
 
     return json.dumps(
-        {"data": data,
-         "signature": base64.b64encode(signature),
-         "signingPublicKeyDigest": base64.b64encode(public_key_digest)})
+        {"data": data.decode(),
+         "signature": base64.b64encode(signature).decode(),
+         "signingPublicKeyDigest": base64.b64encode(public_key_digest).decode()})

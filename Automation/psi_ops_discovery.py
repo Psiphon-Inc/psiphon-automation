@@ -136,7 +136,7 @@ def _test_select_servers():
     ]
 
     for (test_name, ip_addresses, times) in tests:
-        print '\n' + test_name + '\n'
+        print('\n' + test_name + '\n')
         for server_count in range (0, 30):
             servers = list(string.letters[:server_count])
     
@@ -152,9 +152,9 @@ def _test_select_servers():
                         frequency[selection[0]] += 1
 
             if len(servers) > 0:
-                print 'servers: %d' % (len(servers),)
-                print 'bucket count: %d' % (_calculate_bucket_count(len(servers)),)
-                print 'frequencies: ' + ','.join(['%d' % frequency[item] for item in servers])
+                print('servers: %d' % (len(servers),))
+                print('bucket count: %d' % (_calculate_bucket_count(len(servers)),))
+                print('frequencies: ' + ','.join(['%d' % frequency[item] for item in servers]))
 
 if __name__ == "__main__":
     _test_select_servers()

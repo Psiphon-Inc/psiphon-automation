@@ -18,11 +18,21 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+# This file processes email autoresponder content templates
+
 import os
 import yaml
-import psi_ops_s3
+
+try:
+    import psi_ops_s3
+except ImportError as error:
+    print(error)
+except TypeError as te:
+    print(te)
 
 
+# This list needs to be kept in sync with the languages in i18n/transifex_pull.py
+# TODO: Use that list as the canonical source
 LANGUAGES = [
     'en',
     'fa',
@@ -41,6 +51,7 @@ LANGUAGES = [
     'fr',
     'hi',
     'hr',
+    'hu',
     'id',
     'it',
     'kk',
@@ -55,13 +66,15 @@ LANGUAGES = [
     'pt_PT',
     'ru',
     'sn',
+    'sw',
     'tg',
     'th',
     'ti',
     'tk',
     'tr',
-    'ug@Latn',
+    # 'ug@Latn',
     'uk',
+    'ur',
     'uz@Cyrl',
     'uz@Latn',
     'vi',
@@ -73,8 +86,8 @@ def get_language_string(language, key):
     """Returns None if key not found for language.
     """
     path = os.path.join('.', 'TemplateStrings', language + '.yaml')
-    with open(path) as lang_file:
-        lang_dict = yaml.load(lang_file.read())
+    with open(path, encoding='utf-8') as lang_file:
+        lang_dict = yaml.safe_load(lang_file.read())
 
     string = lang_dict.get(language, {}).get(key)
 

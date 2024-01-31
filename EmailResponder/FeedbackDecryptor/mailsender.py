@@ -128,11 +128,11 @@ def _process_work_items(work_queue):
         # If this is not a reply, set a subject
         # If no subject is pre-determined, create one.
         if email_diagnostic_info.get('email_id') is None:
-            subject = u'DiagnosticInfo: %s (%s)' % (diagnostic_info['Metadata'].get('platform',
+            subject = 'DiagnosticInfo: %s (%s)' % (diagnostic_info['Metadata'].get('platform',
                                                     '[NO_PLATFORM]').capitalize(),
                                                     diagnostic_info['Metadata'].get('id', '[NO_ID]'))
         else:
-            subject = u'Re: %s' % (email_diagnostic_info['email_subject'] or '')
+            subject = 'Re: %s' % (email_diagnostic_info['email_subject'] or '')
 
         try:
             sender.send_response(config['decryptedEmailRecipient'],

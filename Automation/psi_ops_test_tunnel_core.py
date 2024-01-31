@@ -42,14 +42,14 @@ CONFIG_FILE_NAME = os.path.join(SOURCE_ROOT, 'tunnel-core-config.config')
 
 def load_default_tunnel_core():
     if not os.path.exists(TUNNEL_CORE):
-        print "Psiphon tunnel core binary does not exist in path {0}, exiting".format(SOURCE_ROOT)
+        print("Psiphon tunnel core binary does not exist in path {0}, exiting".format(SOURCE_ROOT))
         sys.exit(1)
     return TUNNEL_CORE
 
 
 def load_default_config():
     if not os.path.exists(CONFIG_FILE_NAME):
-        print "Psiphon tunnel core config does not exist in path {0}, exiting".format(SOURCE_ROOT)
+        print("Psiphon tunnel core config does not exist in path {0}, exiting".format(SOURCE_ROOT))
         sys.exit(1)
     return CONFIG_FILE_NAME
 
@@ -58,19 +58,27 @@ def load_server_config(server_id):
     return os.path.join(os.path.abspath('.'), 'network-health', 'conf', 
         'tunnel-core-config-{id}.config'.format(id=server_id.replace(' ', '_')))
 
+if os.path.isfile('psi_data_config.py'):
+    import psi_data_config
+    CHECK_IP_ADDRESS_URL_LOCAL = psi_data_config.CHECK_IP_ADDRESS_URL_LOCAL
+    CHECK_IP_ADDRESS_URL_REMOTE = psi_data_config.CHECK_IP_ADDRESS_URL_REMOTE
+    USER_AGENT = psi_data_config.USER_AGENT
+
 
 def retry_on_exception_decorator(function):
     @wraps(function)
     def wrapper(*args, **kwds):
+        raised_exception = None
         for i in range(2):
             try:
                 if i > 0:
                     time.sleep(20)
                 return function(*args, **kwds)
             except Exception as e:
-                print str(e)
+                print(str(e))
+                raised_exception = e
                 pass
-        raise e
+        raise raised_exception
     return wrapper
 
 
@@ -109,13 +117,14 @@ class TunnelCoreConsoleRunner:
             self.packet_tunnel_tests = True
             self.tun_source_ip_address = packet_tunnel_params.pop('tunIPAddress')
             self.test_sites = packet_tunnel_params.pop('test_sites')
-            for k,v in packet_tunnel_params.iteritems():
+            for k,v in packet_tunnel_params.items():
                 self.cmdline_opts += ['-'+k, v]
     
      
     # Setup and create tunnel core config file.
     def _setup_tunnel_config(self, transport):
         config = {
+            "DataRootDirectory": os.path.dirname(self.tunnel_core_config),
             "TargetServerEntry": self.encoded_server_entry, # Single Test Server Parameter
             "TunnelProtocol": transport, # Single or group Test Protocol
             "PropagationChannelId" : self.propagation_channel_id, # Propagation Channel ID = "Testing"
@@ -162,7 +171,7 @@ class TunnelCoreConsoleRunner:
         # Read tunnel-core log file for connection message instead of sleep 25 second
 
         time.sleep(1)
-        print 'Tunnel Core is connecting...'
+        print('Tunnel Core is connecting...')
         start_time = time.time()
 
         # Breaking this loop means the process sent EOF to stderr, or 'tunnels' tunnels were established
@@ -183,7 +192,7 @@ class TunnelCoreConsoleRunner:
 
             if time.time() >= start_time + 25:
                 # if the sleep time is 25 second, get out while loop and keep going
-                print 'Not successfully connected after 25 second.'
+                print('Not successfully connected after 25 second.')
                 raise TunnelCoreCouldNotConnectException('Could not connect after 25 seconds')
 
 
@@ -223,18 +232,19 @@ class TunnelCoreConsoleRunner:
             answer = resolver.query(fqdn, source=self.tun_source_ip_address)
             for rr in answer.rrset:
                 if rr.address == expected_ip:
-                    print 'Packet Tunnel DNS Test successful'
+                    print('Packet Tunnel DNS Test successful')
                     output['PT-DNS'] = 'PASS: {0} resolved to {1}'.format(fqdn, rr.address)
                     break
             
             
             pool = urllib3.HTTPSConnectionPool(host=fqdn, port=remote_port,
                                                maxsize=2,
+                                               timeout=30.0,
                                                source_address=(self.tun_source_ip_address,
                                                                self.tun_source_port))
             response = pool.request('GET', path, headers={"User-Agent": user_agent}, release_conn=True)
             egress_ip_address = response.data.strip()
-            is_proxied = (egress_ip_address in expected_egress_ip_addresses)
+            is_proxied = (egress_ip_address.decode("UTF-8") in expected_egress_ip_addresses)
             if is_proxied:
                 output['PT-HTTPS'] = 'PASS'
         
@@ -244,15 +254,15 @@ class TunnelCoreConsoleRunner:
     def stop_psiphon(self):
         try:
             self.proc.send_signal(signal.SIGINT)
-            (stdin, stderr) = self.proc.communicate()
-        except Exception as e:
-            print e
+            (stdin, stderr) = self.proc.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            self.proc.kill()
 
         try:
             #os.remove(self.tunnel_core_config)
             time.sleep(1)
         except Exception as e:
-            print "Remove Config/Log File Failed" + str(e)
+            print("Remove Config/Log File Failed" + str(e))
 
 
 @retry_on_exception_decorator
@@ -270,8 +280,8 @@ def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, a
     # Also, if there is no remote check, don't use split tunnel mode because we always want
     # to test at least one proxied case.
     
-    print 'Testing egress IP addresses %s in %s mode (split tunnel %s)...' % (
-            ','.join(expected_egress_ip_addresses), transport, 'ENABLED' if split_tunnel_mode else 'DISABLED')
+    print('Testing egress IP addresses %s in %s mode (split tunnel %s)...' % (
+            ','.join(expected_egress_ip_addresses), transport, 'ENABLED' if split_tunnel_mode else 'DISABLED'))
     
     try:
         runner.connect_to_server(transport, split_tunnel_mode)
@@ -294,7 +304,7 @@ def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, a
             for url in test_sites:
                 # Get egress IP from web site in same GeoIP region; local split tunnel is not proxied
                 
-                print "Testing site: {0}".format(url)
+                print("Testing site: {0}".format(url)) 
                 
                 if url.startswith('https'):
                     urllib3.disable_warnings()
@@ -305,9 +315,9 @@ def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, a
                         url, 
                         headers={
                             "User-Agent":   user_agent
-                        }).data.split('\n')[0]
+                        }).data.split(b'\n')[0]
                     
-                    is_proxied = (egress_ip_address in expected_egress_ip_addresses)
+                    is_proxied = (egress_ip_address.decode("UTF-8") in expected_egress_ip_addresses)
                     
                     if url.startswith('https'):
                         output['HTTPS'] = 'PASS' if is_proxied else 'FAIL : Connection is not proxied.  Egress IP is: {0}, expected: {1}'.format(egress_ip_address, expected_egress_ip_addresses)
@@ -328,7 +338,7 @@ def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, a
                         if url.startswith('https'):
                             urllib3.disable_warnings()
                         
-                        print 'Testing: {0}'.format(url)
+                        print('Testing: {0}'.format(url))
                         if is_proxied:
                             tunneled_site = http_proxy.request('GET', url)
                             
@@ -356,11 +366,11 @@ def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, a
                         continue 
     
     except Exception as err:
-        print "Could not tunnel to {0}: {1}".format(url, err)
+        print("Could not tunnel to {0}: {1}".format(url, err))
         output['HTTP'] = output['HTTPS'] = 'FAIL : General Exception: {0}'.format(err)
         raise
     finally:
-        print "Stopping tunnel to {ipaddr}".format(ipaddr = expected_egress_ip_addresses)
+        print("Stopping tunnel to {ipaddr}".format(ipaddr = expected_egress_ip_addresses))
         runner.stop_psiphon()
     
     return output
@@ -399,8 +409,10 @@ def test_server(server, host, encoded_server_entry, split_tunnel_url_format,
                 executable_path = None, config_file = None, 
                 packet_tunnel_params=dict()):
     
-    if len(ip_test_sites) is 0:
+    if len(ip_test_sites) == 0:
         ip_test_sites = CHECK_IP_ADDRESS_URL_LOCAL
+        if isinstance(ip_test_sites, str):
+            ip_test_sites = [ip_test_sites]
     
     if executable_path is None:
         executable_path = load_default_tunnel_core()
@@ -416,7 +428,7 @@ def test_server(server, host, encoded_server_entry, split_tunnel_url_format,
     
     if len(packet_tunnel_params) > 0:
         test_cases = [test_cases][0]
-        print 'Testing Packet Tunnel using {}'.format(test_cases[0])
+        print('Testing Packet Tunnel using {}'.format(test_cases[0]))
     
     results = {}
     for test_case in test_cases:

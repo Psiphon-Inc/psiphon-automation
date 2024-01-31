@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 '''This module aims to provide the ultimate functions for:
@@ -60,7 +59,7 @@ For that you can pass a ``lookup_dns='a'`` argument to the constructor, or even
 *lookup_dns='mx'* to verify that the domain actually has e-mail servers.
 To use this feature, you need to install the *pydns* library::
 
-     easy_install -UZ pydns
+     pip install dnspython
 
 How to use
 ==========
@@ -69,7 +68,7 @@ The validating methods return a tuple (email, error_msg).
 *email* is the trimmed and perhaps fixed email.
 *error_msg* is an empty string when the e-mail is valid.
 
-Typical usage is::
+Typical usage is:
 
     v = EmailValidator()  # or EmailValidator(fix=True)
     email = raw_input('Type an email: ')
@@ -88,19 +87,8 @@ Authors: Nando Florestan, Marco Ferreira
 Code written in 2009 and donated to the public domain.
 '''
 
-from __future__ import (absolute_import, division, print_function,
-    unicode_literals)
-
 import re
-try:
-    import DNS
-except ImportError:
-    # If pydns is not available, the domain cannot be verified for existence.
-    pass
-else:
-    DNS.DiscoverNameServers()
-
-# TODO: i18n
+import dns.resolver
 
 
 class ValidationException(ValueError):
@@ -207,37 +195,25 @@ class DomainValidator(BaseValidator):
         result = None
         if lookup_record == "a":
             try:
-                answers = DNS.Request(domain).req().answers
-            except NameError as e:
-                print('To look up DNS records you must install pydns. Try:')
-                print('    easy_install -UZ pydns')
-                import sys
-                sys.exit(1)
-            except DNS.Lib.PackError:
-                # A part of the domain name is longer than 63.
-                return False
-            # print(repr(answers))
-            if answers:
-                result = answers[0]['data']  # This is an IP address
-                if result in self.false_positive_ips:
-                    result = None
-                    # print("Domain '%s' not found" % domain)
-                else:
-                    # print("Domain '%s' found with address: %s" \
-                    #    % (domain, result))
-                    pass
-            else:
-                # print("Domain '%s' not found" % domain)
-                pass
+                answers = dns.resolver.resolve(domain, 'a')
+            except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.YXDOMAIN):
+                # No such domain, or domain exists but has no A record, or query name too long.
+                return None
+            # raise any other kind of error
+
+            result = answers[0].address
+            if result in self.false_positive_ips:
+                return None
         elif lookup_record == "mx":
-            result = DNS.mxlookup(domain)  # this is a list of mx records
-            # if result:
-            #    print("Domain '%s' has MX records: %s" % (domain, result))
-            # else:
-            #    print("Domain '%s' has no MX records." % domain)
+            try:
+                answers = dns.resolver.resolve(domain, 'mx')
+            except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.YXDOMAIN):
+                # No such domain, or domain exists but has no MX record, or query name too long.
+                return None
+            result = answers[0].exchange
         else:
-            raise RuntimeError(
-                "Not a valid lookup_record value: " + lookup_record)
+            raise ValueError("Not a valid lookup_record value: " + lookup_record)
+
         return result
 
 

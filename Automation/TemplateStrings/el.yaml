@@ -1,22 +1,22 @@
 el:
   plaintext_email_no_attachment: |
-      Κατεβάστε το Psiphon εδώ: {{0}}/{0}/download.html#direct
+    Κατεβάστε το Psiphon εδώ: {{0}}/{0}/download.html#direct
   html_email_no_attachment: |
-      <div style="direction: ltr;">
+    <div style="direction: ltr;">
 
-      Κατεβάστε το Psiphon εδώ: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
-      </div>
+    Κατεβάστε το Psiphon εδώ: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
   plaintext_email_with_attachment: |+
-      Για να χρησιμοποιήσετε το Psiphon 3 για Windows, σώστε το συνημμένο αρχείο {{1}} με επέκταση ".exe".
-      Για να χρησιμοποιήσετε το Psiphon 3 για Android, εγκαταστήστε το συνημμένο αρχείο {{2}}.
-      Για περισσότερες πληροφορίες ή για να κάνετε λήψη των αρχείων ξανά, κάντε κλικ στον παρακάτω σύνδεσμο.
-      {{0}}/{0}/download.html#direct
+    Για να χρησιμοποιήσετε το Psiphon 3 για Windows, σώστε το συνημμένο αρχείο {{1}} με επέκταση ".exe".
+    Για να χρησιμοποιήσετε το Psiphon 3 για Android, εγκαταστήστε το συνημμένο αρχείο {{2}}.
+    Για περισσότερες πληροφορίες ή για να κάνετε λήψη των αρχείων ξανά, κάντε κλικ στον παρακάτω σύνδεσμο.
+    {{0}}/{0}/download.html#direct
 
   html_email_with_attachment: |
-      <div style="direction: ltr;">
-      Για να χρησιμοποιήσετε το Psiphon 3 για Windows, σώστε το συνημμένο αρχείο {{1}} με επέκταση ".exe".<br>
-      Για να χρησιμοποιήσετε το Psiphon 3 για Android, εγκαταστήστε το συνημμένο αρχείο {{2}}.<br>
-      Για περισσότερες πληροφορίες ή για να κάνετε λήψη των αρχείων ξανά, κάντε κλικ στον παρακάτω σύνδεσμο.<br>
-      <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
-      </div>
-      <br>
+    <div style="direction: ltr;">
+    Για να χρησιμοποιήσετε το Psiphon 3 για Windows, σώστε το συνημμένο αρχείο {{1}} με επέκταση ".exe".<br>
+    Για να χρησιμοποιήσετε το Psiphon 3 για Android, εγκαταστήστε το συνημμένο αρχείο {{2}}.<br>
+    Για περισσότερες πληροφορίες ή για να κάνετε λήψη των αρχείων ξανά, κάντε κλικ στον παρακάτω σύνδεσμο.<br>
+    <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
+    <br>

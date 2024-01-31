@@ -82,7 +82,7 @@ def generate_ipset_list(psinet, cif_tag, cif_otype, confidence_threshold):
     for host in psinet.get_hosts():
         for cif_host in cif_results:
             if host.ip_address is cif_host['observable']:
-                print 'Found host: %s, %s' % (host.id, host.ip_address)
+                print('Found host: %s, %s' % (host.id, host.ip_address))
                 listed_hosts.append(host)
                 cif_results.remove(cif_host)
     
@@ -100,13 +100,13 @@ def generate_ipset_list(psinet, cif_tag, cif_otype, confidence_threshold):
 def update_malware_lists(psinet):
     """Update malware lists and send to a bucket."""
     for cif_tag in CIF_DEFAULT_MALWARE_TAGS:
-        print 'Updating List: %s' % cif_tag
+        print('Updating List: %s' % cif_tag)
         listed_hosts = generate_ipset_list(psinet, cif_tag=cif_tag,
                                            cif_otype='ipv4',
                                            confidence_threshold='65')
         if len(listed_hosts) > 0:
-            print 'Found %s listed hosts:' % len(listed_hosts)
-            print listed_hosts
+            print('Found %s listed hosts:' % len(listed_hosts))
+            print(listed_hosts)
 
 
 def upload_ipset_list(aws_account, key_name, content_file):

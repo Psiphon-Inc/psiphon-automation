@@ -49,25 +49,42 @@ def _parse_survey_results(data):
 def _convert_locale_info(data):
     # Map numeric locale and country values to more human-usable values.
     os_info = data.get('DiagnosticInfo', {}).get('SystemInformation', {}).get('OSInfo')
-    if os_info:
-        if os_info.get('locale'):
+
+    if os_info is None:
+        return
+
+    is_posix = 'OS' in os_info and (os_info['OS'] == 'darwin' or os_info['OS'] == 'linux')
+
+    if os_info.get('locale'):
+        if is_posix:
+            # en_US -> en-us
+            locale_string = os_info['locale'].replace('_', '-').lower()
+            locale_match = [m for m in _locale_codes if m['lcid_string'] == locale_string]
+
+            if len(locale_match) == 0:
+                # ja_JP is listed as just ja
+                locale_string = locale_string.split('-')[0]
+                locale_match = [m for m in _locale_codes if m['lcid_string'] == locale_string]
+
+        else:
             locale_hex = int(str(os_info['locale']), 16)
             locale_match = [m for m in _locale_codes if m['lcid_number'] == locale_hex]
-            os_info['LocaleInfo'] = locale_match[0] if locale_match else None
 
-        if os_info.get('language'):
-            language_match = [m for m in _locale_codes if m['lcid_number'] == os_info['language']]
-            os_info['LanguageInfo'] = language_match[0] if language_match else None
+        os_info['LocaleInfo'] = locale_match[0] if locale_match else None
 
-        if os_info.get('countryCode'):
-            # Multiple countries can have the same dialing code (like Canada and
-            # the US with 1), so CountryCodeInfo will be an array.
-            country_match = [m for m in _country_dialing_codes if str(m['dialing_code']) == str(os_info['countryCode'])]
-            # Sometimes the countryCode has an additional digit. If we didn't get a
-            # match, search again without the last digit.
-            if not country_match:
-                country_match = [m for m in _country_dialing_codes if str(m['dialing_code']) == str(os_info['countryCode'])[:-1]]
-            os_info['CountryCodeInfo'] = country_match if country_match else None
+    if os_info.get('language'):
+        language_match = [m for m in _locale_codes if m['lcid_number'] == os_info['language']]
+        os_info['LanguageInfo'] = language_match[0] if language_match else None
+
+    if os_info.get('countryCode'):
+        # Multiple countries can have the same dialing code (like Canada and
+        # the US with 1), so CountryCodeInfo will be an array.
+        country_match = [m for m in _country_dialing_codes if str(m['dialing_code']) == str(os_info['countryCode'])]
+        # Sometimes the countryCode has an additional digit. If we didn't get a
+        # match, search again without the last digit.
+        if not country_match:
+            country_match = [m for m in _country_dialing_codes if str(m['dialing_code']) == str(os_info['countryCode'])[:-1]]
+        os_info['CountryCodeInfo'] = country_match if country_match else None
 
 
 def _sanitize_keys(data):
@@ -79,8 +96,8 @@ def _sanitize_keys(data):
     paths_to_sanitize = []
 
     for path, _ in utils.objwalk(data):
-        for i in xrange(len(path)):
-            if isinstance(path[i], utils.string_types) and path[i].find('.') >= 0:
+        for i in range(len(path)):
+            if isinstance(path[i], str) and path[i].find('.') >= 0:
                 paths_to_sanitize.append(path[:i+1])
 
     # paths_to_sanitize has the paths that end in keys with dots; e.g.:
@@ -103,7 +120,7 @@ def _shorten_ints(data):
     We have seen this occur with freeVirtualMemoryKB in Windows feedback.
     """
     for path, value in utils.objwalk(data):
-        if (type(value) == int or type(value) == long) and value > sys.maxsize-1:
+        if isinstance(value, int) and value > sys.maxsize-1:
             utils.assign_value_to_obj_at_path(data, path, float(value))
 
 
@@ -120,6 +137,8 @@ _transformations = {
                                        _convert_locale_info, _sanitize_keys,
                                        _shorten_ints),
                     'windows': (_translate_feedback, _parse_survey_results,
+                                _convert_locale_info, _sanitize_keys, _shorten_ints),
+                    'inproxy': (_translate_feedback, _parse_survey_results,
                                 _convert_locale_info, _sanitize_keys, _shorten_ints),
                     }
 
@@ -157,19 +176,19 @@ def _postprocess_yaml(data):
     #
     # If a hex ID happens to have all numbers, YAML will decode it as an
     # integer rather than a string. This could mess up processing later on.
-    _ensure_field_is_string(str, data, ('Metadata', 'id'))
+    _ensure_field_is_type(str, data, ('Metadata', 'id'))
 
     # Fix data type of other fields.
     # For example, if just a number is entered in the feedback text, it should
     # still be interpreted as a string.
-    _ensure_field_is_string(unicode, data, ('Feedback', 'email'))
-    _ensure_field_is_string(unicode, data, ('Feedback', 'Message', 'text'))
+    _ensure_field_is_type(str, data, ('Feedback', 'email'))
+    _ensure_field_is_type(str, data, ('Feedback', 'Message', 'text'))
 
 
-def _ensure_field_is_string(stringtype, data, fieldpath):
+def _ensure_field_is_type(targettype, data, fieldpath):
     prev_val = utils.coalesce(data, fieldpath)
     if prev_val is not None:
-        utils.assign_value_to_obj_at_path(data, fieldpath, stringtype(prev_val))
+        utils.assign_value_to_obj_at_path(data, fieldpath, targettype(prev_val))
 
 
 def transform(data):
@@ -186,6 +205,6 @@ def transform(data):
     transform_keys.add('%s_%s' % (data['Metadata']['platform'],
                                   data['Metadata']['version']))
 
-    for key in transform_keys.intersection(_transformations.keys()):
+    for key in transform_keys.intersection(list(_transformations.keys())):
         for transformation in _transformations[key]:
             transformation(data)

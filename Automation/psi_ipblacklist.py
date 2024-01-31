@@ -21,10 +21,18 @@ import os
 import re
 import subprocess
 import sys
-import urllib
-import urllib2
 
-EXECUTABLE = 00744
+try:
+    if sys.version_info < (3, 0):
+        import urllib
+        import urllib2
+    else:
+        import urllib.request as urllib
+        import urllib.request as urllib2
+except ImportError as error:
+    print(error)
+
+EXECUTABLE = 0o744
 BASE_PATH = '/usr/local/share/PsiphonV'
 BLACKLIST_DIR = 'malware_blacklist'
 IPSET_DIR = os.path.abspath(os.path.join(BASE_PATH, BLACKLIST_DIR, 'ipset'))
@@ -39,7 +47,7 @@ def build_malware_dictionary(url):
     malware_dicts = {}
     try:
         resp = urllib2.urlopen(url).read()
-        malware_lists = re.findall('\w+\.list', resp)
+        malware_lists = re.findall('\w+\.list', resp.decode())
         for item in malware_lists:
             name = item.split('.')
             malware_dicts[name[0]] = {'url': ''.join([url, item]),
@@ -49,24 +57,24 @@ def build_malware_dictionary(url):
                                      'set_name': name[0],
                                     }
         
-    except urllib2.URLError, er:
+    except urllib2.URLError as er:
         if hasattr(er, 'reason'):
-            print 'Failed: ', er.reason
+            print('Failed: ', er.reason)
         elif hasattr(er, 'code'):
-            print 'Error code: ', er.code
+            print('Error code: ', er.code)
     finally:
         return malware_dicts
 
 
 def update_list(tracker):
     """Download the published list and store for processing."""
-    print tracker['url']
+    print(tracker['url'])
     # get the file and save it to the outfile location
     try:
         subprocess.call(['mkdir', '-p', LIST_DIR])
         urllib.urlretrieve(tracker['url'], os.path.join(LIST_DIR, tracker['rawlist']))
     except:
-        print 'Had an issue creating updating the lists'
+        print('Had an issue creating updating the lists')
         sys.exit()
 
 
@@ -123,7 +131,7 @@ def modify_iptables_insert_tracker(tracker, chain, rules):
         if it already exists as it creates duplicate entries
     """
     add_tracker = True
-    for line in rules.split('\n'):
+    for line in rules.decode().split('\n'):
         if tracker['set_name'] in line:       # return if we see the tracker
             add_tracker = False
             break
@@ -163,6 +171,6 @@ if __name__ == "__main__":
                 modify_iptables_insert_tracker(mal_lists[item], chain, iptables_chains[chain])
             
     else:
-        print 'Malware list is empty, exiting'
+        print('Malware list is empty, exiting')
         sys.exit()
         
