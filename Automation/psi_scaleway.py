@@ -178,6 +178,26 @@ class PsiScaleway:
         except slexc.HttpClientError as exc:
             print(json.dumps(exc.response.json(), indent=2))
 
+    def get_all_flexible_ips(self, scaleway_account):
+        try:
+            # page through results and return all flexible routed IPs in the account.
+            flexible_routed_ips = []
+            for region in scaleway_account.regions:
+                self.region = region
+                self.reload()
+                page_number = 1
+                flexible_routed_ips += self.client.query().ips.get(page=page_number, type='routed_ipv4')['ips']
+                while True:
+                    page_number += 1
+                    next_page = self.client.query().ips.get(page=page_number, type='routed_ipv4')['ips']
+                    if next_page:
+                        flexible_routed_ips += next_page
+                    else:
+                        break
+            return flexible_routed_ips
+        except slexc.HttpClientError as exc:
+            print(json.dumps(exc.response.json(), indent=2))
+
     def remove_flexible_ip(self, ip_address):
         try:
             del_res = self.client.query().ips(ip_address).delete()
@@ -334,6 +354,11 @@ def get_server_ip_addresses(scaleway_account, scaleway_id):
     private_ip = scaleway['private_ip'] # This is kept for old server (one without routed_ipv4) compatibility
 
     return (public_ip, private_ip)
+
+def get_orphan_ips(scaleway_account): # Only for routed_ipv4
+    scaleway_api = PsiScaleway(scaleway_account)
+    orphan_flexible_ips = [flexible_ip["address"] for flexible_ip in scaleway_api.get_all_flexible_ips(scaleway_account) if flexible_ip["state"] == "detached"]
+    return orphan_flexible_ips
 
 def launch_new_server(scaleway_account, is_TCS, plugins, multi_ip=False):
 
