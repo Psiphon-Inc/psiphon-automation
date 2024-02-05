@@ -325,7 +325,7 @@ class VPSNetNodeDriver(NodeDriver):
         return n
     
     def _to_ssd_node_basic(self, vm):
-        if vm.has_key('running'):
+        if 'running' in vm:
             if vm['running']:
                 state = NodeState.RUNNING
             else:
