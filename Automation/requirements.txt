@@ -6,7 +6,7 @@ future==0.18.2
 jsonpickle==3.0.2
 linode_api4==2.2.1
 oci==2.100.0
-paramiko==2.11.0
+paramiko==3.4.0
 pillow==9.5.0
 python-digitalocean==1.15.0
 pywin32==306
