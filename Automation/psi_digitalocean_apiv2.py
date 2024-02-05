@@ -373,6 +373,14 @@ def get_server(digitalocean_account, droplet_id):
         return droplet
     except Exception as e:
         raise e
+    
+def get_orphan_ips(digitalocean_account):
+    try:
+        do_mgr = digitalocean.Manager(token=digitalocean_account.oauth_token)
+        orphan_floating_ips = [floating_ip for floating_ip in do_mgr.get_all_floating_ips() if not floating_ip.droplet]
+        return orphan_floating_ips
+    except Exception as e:
+        raise e
 
 def remove_server(digitalocean_account, droplet_id):
     """

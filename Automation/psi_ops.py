@@ -2846,12 +2846,23 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         orphans = [o for o in running_machines if o[0] not in existing_hosts + to_be_removed_hosts]
         
         return orphans
+    
+    def list_orphan_ips(self, provider):
+        provider_controller = globals()["psi_{}".format(provider)]
+        provider_account = vars(self)["_PsiphonNetwork__{}_account".format(provider)]
+
+        orphan_ips = provider_controller.get_orphan_ips(provider_account)
+        return orphan_ips
 
     def find_orphans(self):
         for provider in providers:
             orphans = self.list_orphans(provider)
             sys.stderr.write(provider + ' orphans:\n' + pprint.pformat(orphans) + '\n\n')
 
+        for provider in ["scaleway", "digitalocean"]:
+            orphan_ips = self.list_orphan_ips(provider)
+            sys.stderr.write(provider + ' orphan IPs:\n' + pprint.pformat(orphan_ips) + '\n\n')
+        
     def delete_orphans(self, provider, hosts_provider_id_list):
         pending_deletion = []
         provider_controller = globals()["psi_{}".format(provider)]
