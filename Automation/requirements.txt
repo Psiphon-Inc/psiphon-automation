@@ -1,7 +1,7 @@
 boto3==1.26.159
 cachetools==3.1.1
 cogapp==3.3.0 
-cryptography==3.3.2
+cryptography==42.0.0
 future==0.18.2 
 jsonpickle==3.0.2
 linode_api4==2.2.1
