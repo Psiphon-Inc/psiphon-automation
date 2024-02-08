@@ -17,7 +17,7 @@ You can install latest development version from our Git repository:
 
 .. sourcecode:: bash
 
-    pip install -e git+https://git-wip-us.apache.org/repos/asf/libcloud.git@trunk#egg=apache-libcloud
+    pip install -e git+https://git.apache.org/repos/asf/libcloud.git@trunk#egg=apache-libcloud
 
 Upgrading
 ---------
@@ -40,10 +40,10 @@ with any of the Libcloud drivers.
 
     from pprint import pprint
 
-    from libcloud.compute.types import Provider
-    from libcloud.compute.providers import get_driver
+    import libcloud
+    
+    cls = libcloud.get_driver(libcloud.DriverType.COMPUTE, libcloud.DriverType.COMPUTE.RACKSPACE)
 
-    cls = get_driver(Provider.RACKSPACE)
 
 2. Instantiate the driver with your provider credentials
 
@@ -70,10 +70,10 @@ see provider-specific documentation and the driver docstrings.
 
     from pprint import pprint
 
-    from libcloud.compute.types import Provider
-    from libcloud.compute.providers import get_driver
-
-    cls = get_driver(Provider.RACKSPACE)
+    import libcloud
+    
+    cls = libcloud.get_driver(libcloud.DriverType.COMPUTE, libcloud.DriverType.COMPUTE.RACKSPACE)
+    
     driver = cls('my username', 'my api key')
 
     pprint(driver.list_sizes())

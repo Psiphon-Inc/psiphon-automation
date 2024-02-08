@@ -16,22 +16,18 @@
 Brightbox Driver
 """
 
-from libcloud.utils.py3 import httplib
-from libcloud.utils.py3 import b
-
-from libcloud.common.brightbox import BrightboxConnection
-from libcloud.compute.types import Provider, NodeState
-from libcloud.compute.base import NodeDriver
-from libcloud.compute.base import Node, NodeImage, NodeSize, NodeLocation
-
 import base64
 
+from libcloud.utils.py3 import b, httplib
+from libcloud.compute.base import Node, NodeSize, NodeImage, NodeDriver, NodeLocation
+from libcloud.compute.types import Provider, NodeState
+from libcloud.common.brightbox import BrightboxConnection
 
-API_VERSION = '1.0'
+API_VERSION = "1.0"
 
 
 def _extract(d, keys):
-    return dict((k, d[k]) for k in keys if k in d and d[k] is not None)
+    return {k: d[k] for k in keys if k in d and d[k] is not None}
 
 
 class BrightboxNodeDriver(NodeDriver):
@@ -42,106 +38,137 @@ class BrightboxNodeDriver(NodeDriver):
     connectionCls = BrightboxConnection
 
     type = Provider.BRIGHTBOX
-    name = 'Brightbox'
-    website = 'http://www.brightbox.co.uk/'
+    name = "Brightbox"
+    website = "http://www.brightbox.co.uk/"
 
-    NODE_STATE_MAP = {'creating': NodeState.PENDING,
-                      'active': NodeState.RUNNING,
-                      'inactive': NodeState.UNKNOWN,
-                      'deleting': NodeState.UNKNOWN,
-                      'deleted': NodeState.TERMINATED,
-                      'failed': NodeState.UNKNOWN,
-                      'unavailable': NodeState.UNKNOWN}
+    NODE_STATE_MAP = {
+        "creating": NodeState.PENDING,
+        "active": NodeState.RUNNING,
+        "inactive": NodeState.UNKNOWN,
+        "deleting": NodeState.UNKNOWN,
+        "deleted": NodeState.TERMINATED,
+        "failed": NodeState.UNKNOWN,
+        "unavailable": NodeState.UNKNOWN,
+    }
 
-    def __init__(self, key, secret=None, secure=True, host=None, port=None,
-                 api_version=API_VERSION, **kwargs):
-        super(BrightboxNodeDriver, self).__init__(key=key, secret=secret,
-                                                  secure=secure,
-                                                  host=host, port=port,
-                                                  api_version=api_version,
-                                                  **kwargs)
+    def __init__(
+        self,
+        key,
+        secret=None,
+        secure=True,
+        host=None,
+        port=None,
+        api_version=API_VERSION,
+        **kwargs,
+    ):
+        super().__init__(
+            key=key,
+            secret=secret,
+            secure=secure,
+            host=host,
+            port=port,
+            api_version=api_version,
+            **kwargs,
+        )
 
     def _to_node(self, data):
-        extra_data = _extract(data, ['fqdn', 'user_data', 'status',
-                                     'interfaces', 'snapshots',
-                                     'server_groups', 'hostname',
-                                     'started_at', 'created_at',
-                                     'deleted_at'])
-        extra_data['zone'] = self._to_location(data['zone'])
+        extra_data = _extract(
+            data,
+            [
+                "fqdn",
+                "user_data",
+                "status",
+                "interfaces",
+                "snapshots",
+                "server_groups",
+                "hostname",
+                "started_at",
+                "created_at",
+                "deleted_at",
+            ],
+        )
+        extra_data["zone"] = self._to_location(data["zone"])
 
-        ipv6_addresses = [interface['ipv6_address'] for interface
-                          in data['interfaces'] if 'ipv6_address' in interface]
+        ipv6_addresses = [
+            interface["ipv6_address"]
+            for interface in data["interfaces"]
+            if "ipv6_address" in interface
+        ]
 
-        private_ips = [interface['ipv4_address']
-                       for interface in data['interfaces']
-                       if 'ipv4_address' in interface]
+        private_ips = [
+            interface["ipv4_address"]
+            for interface in data["interfaces"]
+            if "ipv4_address" in interface
+        ]
 
-        public_ips = [cloud_ip['public_ip'] for cloud_ip in data['cloud_ips']]
+        public_ips = [cloud_ip["public_ip"] for cloud_ip in data["cloud_ips"]]
         public_ips += ipv6_addresses
 
         return Node(
-            id=data['id'],
-            name=data['name'],
-            state=self.NODE_STATE_MAP[data['status']],
+            id=data["id"],
+            name=data["name"],
+            state=self.NODE_STATE_MAP[data["status"]],
             private_ips=private_ips,
             public_ips=public_ips,
             driver=self.connection.driver,
-            size=self._to_size(data['server_type']),
-            image=self._to_image(data['image']),
-            extra=extra_data
+            size=self._to_size(data["server_type"]),
+            image=self._to_image(data["image"]),
+            extra=extra_data,
         )
 
     def _to_image(self, data):
-        extra_data = _extract(data, ['arch', 'compatibility_mode',
-                                     'created_at', 'description',
-                                     'disk_size', 'min_ram', 'official',
-                                     'owner', 'public', 'source',
-                                     'source_type', 'status', 'username',
-                                     'virtual_size', 'licence_name'])
-
-        if data.get('ancestor', None):
-            extra_data['ancestor'] = self._to_image(data['ancestor'])
-
-        return NodeImage(
-            id=data['id'],
-            name=data['name'],
-            driver=self,
-            extra=extra_data
+        extra_data = _extract(
+            data,
+            [
+                "arch",
+                "compatibility_mode",
+                "created_at",
+                "description",
+                "disk_size",
+                "min_ram",
+                "official",
+                "owner",
+                "public",
+                "source",
+                "source_type",
+                "status",
+                "username",
+                "virtual_size",
+                "licence_name",
+            ],
         )
+
+        if data.get("ancestor", None):
+            extra_data["ancestor"] = self._to_image(data["ancestor"])
+
+        return NodeImage(id=data["id"], name=data["name"], driver=self, extra=extra_data)
 
     def _to_size(self, data):
         return NodeSize(
-            id=data['id'],
-            name=data['name'],
-            ram=data['ram'],
-            disk=data['disk_size'],
+            id=data["id"],
+            name=data["name"],
+            ram=data["ram"],
+            disk=data["disk_size"],
             bandwidth=0,
             price=0,
-            driver=self
+            driver=self,
         )
 
     def _to_location(self, data):
         if data:
-            return NodeLocation(
-                id=data['id'],
-                name=data['handle'],
-                country='GB',
-                driver=self
-            )
+            return NodeLocation(id=data["id"], name=data["handle"], country="GB", driver=self)
         else:
             return None
 
     def _post(self, path, data={}):
-        headers = {'Content-Type': 'application/json'}
-        return self.connection.request(path, data=data, headers=headers,
-                                       method='POST')
+        headers = {"Content-Type": "application/json"}
+        return self.connection.request(path, data=data, headers=headers, method="POST")
 
     def _put(self, path, data={}):
-        headers = {'Content-Type': 'application/json'}
-        return self.connection.request(path, data=data, headers=headers,
-                                       method='PUT')
+        headers = {"Content-Type": "application/json"}
+        return self.connection.request(path, data=data, headers=headers, method="PUT")
 
-    def create_node(self, **kwargs):
+    def create_node(self, name, size, image, location=None, ex_userdata=None, ex_servergroup=None):
         """Create a new Brightbox node
 
         Reference: https://api.gb1.brightbox.com/1.0/#server_create_server
@@ -156,47 +183,45 @@ class BrightboxNodeDriver(NodeDriver):
         :type       ex_servergroup: ``str`` or ``list`` of ``str``
         """
         data = {
-            'name': kwargs['name'],
-            'server_type': kwargs['size'].id,
-            'image': kwargs['image'].id,
+            "name": name,
+            "server_type": size.id,
+            "image": image.id,
         }
 
-        if 'ex_userdata' in kwargs:
-            data['user_data'] = base64.b64encode(b(kwargs['ex_userdata'])) \
-                                      .decode('ascii')
+        if ex_userdata:
+            data["user_data"] = base64.b64encode(b(ex_userdata)).decode("ascii")
 
-        if 'location' in kwargs:
-            data['zone'] = kwargs['location'].id
+        if location:
+            data["zone"] = location.id
 
-        if 'ex_servergroup' in kwargs:
-            if not isinstance(kwargs['ex_servergroup'], list):
-                kwargs['ex_servergroup'] = [kwargs['ex_servergroup']]
-            data['server_groups'] = kwargs['ex_servergroup']
+        if ex_servergroup:
+            if not isinstance(ex_servergroup, list):
+                ex_servergroup = [ex_servergroup]
+            data["server_groups"] = ex_servergroup
 
-        data = self._post('/%s/servers' % self.api_version, data).object
+        data = self._post("/%s/servers" % self.api_version, data).object
         return self._to_node(data)
 
     def destroy_node(self, node):
         response = self.connection.request(
-            '/%s/servers/%s' % (self.api_version, node.id),
-            method='DELETE')
+            "/{}/servers/{}".format(self.api_version, node.id), method="DELETE"
+        )
         return response.status == httplib.ACCEPTED
 
     def list_nodes(self):
-        data = self.connection.request('/%s/servers' % self.api_version).object
+        data = self.connection.request("/%s/servers" % self.api_version).object
         return list(map(self._to_node, data))
 
     def list_images(self, location=None):
-        data = self.connection.request('/%s/images' % self.api_version).object
+        data = self.connection.request("/%s/images" % self.api_version).object
         return list(map(self._to_image, data))
 
     def list_sizes(self):
-        data = self.connection.request('/%s/server_types' % self.api_version) \
-                              .object
+        data = self.connection.request("/%s/server_types" % self.api_version).object
         return list(map(self._to_size, data))
 
     def list_locations(self):
-        data = self.connection.request('/%s/zones' % self.api_version).object
+        data = self.connection.request("/%s/zones" % self.api_version).object
         return list(map(self._to_location, data))
 
     def ex_list_cloud_ips(self):
@@ -207,8 +232,7 @@ class BrightboxNodeDriver(NodeDriver):
 
         :rtype: ``list`` of ``dict``
         """
-        return self.connection.request('/%s/cloud_ips' % self.api_version) \
-                              .object
+        return self.connection.request("/%s/cloud_ips" % self.api_version).object
 
     def ex_create_cloud_ip(self, reverse_dns=None):
         """
@@ -224,9 +248,9 @@ class BrightboxNodeDriver(NodeDriver):
         params = {}
 
         if reverse_dns:
-            params['reverse_dns'] = reverse_dns
+            params["reverse_dns"] = reverse_dns
 
-        return self._post('/%s/cloud_ips' % self.api_version, params).object
+        return self._post("/%s/cloud_ips" % self.api_version, params).object
 
     def ex_update_cloud_ip(self, cloud_ip_id, reverse_dns):
         """
@@ -242,9 +266,10 @@ class BrightboxNodeDriver(NodeDriver):
 
         :rtype: ``dict``
         """
-        response = self._put('/%s/cloud_ips/%s' % (self.api_version,
-                                                   cloud_ip_id),
-                             {'reverse_dns': reverse_dns})
+        response = self._put(
+            "/{}/cloud_ips/{}".format(self.api_version, cloud_ip_id),
+            {"reverse_dns": reverse_dns},
+        )
         return response.status == httplib.OK
 
     def ex_map_cloud_ip(self, cloud_ip_id, interface_id):
@@ -264,9 +289,10 @@ class BrightboxNodeDriver(NodeDriver):
         :return: True if the mapping was successful.
         :rtype: ``bool``
         """
-        response = self._post('/%s/cloud_ips/%s/map' % (self.api_version,
-                                                        cloud_ip_id),
-                              {'destination': interface_id})
+        response = self._post(
+            "/{}/cloud_ips/{}/map".format(self.api_version, cloud_ip_id),
+            {"destination": interface_id},
+        )
         return response.status == httplib.ACCEPTED
 
     def ex_unmap_cloud_ip(self, cloud_ip_id):
@@ -283,8 +309,7 @@ class BrightboxNodeDriver(NodeDriver):
         :return: True if the unmap was successful.
         :rtype: ``bool``
         """
-        response = self._post('/%s/cloud_ips/%s/unmap' % (self.api_version,
-                                                          cloud_ip_id))
+        response = self._post("/{}/cloud_ips/{}/unmap".format(self.api_version, cloud_ip_id))
         return response.status == httplib.ACCEPTED
 
     def ex_destroy_cloud_ip(self, cloud_ip_id):
@@ -300,7 +325,6 @@ class BrightboxNodeDriver(NodeDriver):
         :rtype: ``bool``
         """
         response = self.connection.request(
-            '/%s/cloud_ips/%s' % (self.api_version,
-                                  cloud_ip_id),
-            method='DELETE')
+            "/{}/cloud_ips/{}".format(self.api_version, cloud_ip_id), method="DELETE"
+        )
         return response.status == httplib.OK

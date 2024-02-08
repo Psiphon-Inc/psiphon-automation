@@ -12,22 +12,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """
 Base classes for working with xmlrpc APIs
 """
 
-import sys
+from typing import Dict, Type
 
-from libcloud.utils.py3 import xmlrpclib
-from libcloud.utils.py3 import httplib
+from libcloud.utils.py3 import httplib, xmlrpclib
 from libcloud.common.base import Response, Connection
+from libcloud.common.types import LibcloudError
 
 
 class ProtocolError(Exception):
     pass
 
 
-class ErrorCodeMixin(object):
+class ErrorCodeMixin:
     """
     This is a helper for API's that have a well defined collection of error
     codes that are easily parsed out of error messages. It acts as a factory:
@@ -35,7 +36,7 @@ class ErrorCodeMixin(object):
     needs from the context and raises it.
     """
 
-    exceptions = {}
+    exceptions = {}  # type: Dict[str, Type[LibcloudError]]
 
     def raise_exception_for_error(self, error_code, message):
         exceptionCls = self.exceptions.get(error_code, None)
@@ -44,7 +45,7 @@ class ErrorCodeMixin(object):
         context = self.connection.context
         driver = self.connection.driver
         params = {}
-        if hasattr(exceptionCls, 'kwargs'):
+        if hasattr(exceptionCls, "kwargs"):
             for key in exceptionCls.kwargs:
                 if key in context:
                     params[key] = context[key]
@@ -52,8 +53,7 @@ class ErrorCodeMixin(object):
 
 
 class XMLRPCResponse(ErrorCodeMixin, Response):
-
-    defaultExceptionCls = Exception
+    defaultExceptionCls = Exception  # type: Type[Exception]
 
     def success(self):
         return self.status == httplib.OK
@@ -64,14 +64,13 @@ class XMLRPCResponse(ErrorCodeMixin, Response):
             if len(params) == 1:
                 params = params[0]
             return params
-        except xmlrpclib.Fault:
-            e = sys.exc_info()[1]
+        except xmlrpclib.Fault as e:
             self.raise_exception_for_error(e.faultCode, e.faultString)
-            error_string = '%s: %s' % (e.faultCode, e.faultString)
+            error_string = "{}: {}".format(e.faultCode, e.faultString)
             raise self.defaultExceptionCls(error_string)
 
     def parse_error(self):
-        msg = 'Server returned an invalid xmlrpc response (%d)' % (self.status)
+        msg = "Server returned an invalid xmlrpc response (%d)" % (self.status)
         raise ProtocolError(msg)
 
 
@@ -85,10 +84,10 @@ class XMLRPCConnection(Connection):
     """
 
     responseCls = XMLRPCResponse
-    endpoint = None
+    endpoint = None  # type: str
 
     def add_default_headers(self, headers):
-        headers['Content-Type'] = 'text/xml'
+        headers["Content-Type"] = "text/xml"
         return headers
 
     def request(self, method_name, *args, **kwargs):
@@ -102,8 +101,6 @@ class XMLRPCConnection(Connection):
         :type args: ``tuple``
         :param args: Arguments to invoke with method with.
         """
-        endpoint = kwargs.get('endpoint', self.endpoint)
+        endpoint = kwargs.get("endpoint", self.endpoint)
         data = xmlrpclib.dumps(args, methodname=method_name, allow_none=True)
-        return super(XMLRPCConnection, self).request(endpoint,
-                                                     data=data,
-                                                     method='POST')
+        return super().request(endpoint, data=data, method="POST")

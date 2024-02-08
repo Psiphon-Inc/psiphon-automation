@@ -13,24 +13,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import base64
 import hashlib
 
-from libcloud.utils.py3 import hexadigits
-from libcloud.utils.py3 import bchr
+from libcloud.utils.py3 import b, hexadigits, base64_decode_string
 
 __all__ = [
-    'get_pubkey_openssh_fingerprint',
-    'get_pubkey_ssh2_fingerprint',
-    'get_pubkey_comment'
+    "get_pubkey_openssh_fingerprint",
+    "get_pubkey_ssh2_fingerprint",
+    "get_pubkey_comment",
 ]
 
 try:
-    from Crypto.Util.asn1 import DerSequence, DerObject
-    from Crypto.PublicKey.RSA import algorithmIdentifier, importKey
-    pycrypto_available = True
+    from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.primitives import serialization
+
+    cryptography_available = True
 except ImportError:
-    pycrypto_available = False
+    cryptography_available = False
 
 
 def _to_md5_fingerprint(data):
@@ -40,31 +39,35 @@ def _to_md5_fingerprint(data):
 
 def get_pubkey_openssh_fingerprint(pubkey):
     # We import and export the key to make sure it is in OpenSSH format
-    if not pycrypto_available:
-        raise RuntimeError('pycrypto is not available')
-    k = importKey(pubkey)
-    pubkey = k.exportKey('OpenSSH')[7:]
-    decoded = base64.decodestring(pubkey)
-    return _to_md5_fingerprint(decoded)
+    if not cryptography_available:
+        raise RuntimeError("cryptography is not available")
+    public_key = serialization.load_ssh_public_key(b(pubkey), backend=default_backend())
+    pub_openssh = public_key.public_bytes(
+        encoding=serialization.Encoding.OpenSSH,
+        format=serialization.PublicFormat.OpenSSH,
+    )[
+        7:
+    ]  # strip ssh-rsa prefix
+    return _to_md5_fingerprint(base64_decode_string(pub_openssh))
 
 
 def get_pubkey_ssh2_fingerprint(pubkey):
     # This is the format that EC2 shows for public key fingerprints in its
     # KeyPair mgmt API
-    if not pycrypto_available:
-        raise RuntimeError('pycrypto is not available')
-    k = importKey(pubkey)
-    derPK = DerSequence([k.n, k.e])
-    bitmap = DerObject('BIT STRING')
-    bitmap.payload = bchr(0x00) + derPK.encode()
-    der = DerSequence([algorithmIdentifier, bitmap.encode()])
-    return _to_md5_fingerprint(der.encode())
+    if not cryptography_available:
+        raise RuntimeError("cryptography is not available")
+    public_key = serialization.load_ssh_public_key(b(pubkey), backend=default_backend())
+    pub_der = public_key.public_bytes(
+        encoding=serialization.Encoding.DER,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+    return _to_md5_fingerprint(pub_der)
 
 
 def get_pubkey_comment(pubkey, default=None):
     if pubkey.startswith("ssh-"):
         # This is probably an OpenSSH key
-        return pubkey.strip().split(' ', 3)[2]
+        return pubkey.strip().split(" ", 3)[2]
     if default:
         return default
-    raise ValueError('Public key is not in a supported format')
+    raise ValueError("Public key is not in a supported format")

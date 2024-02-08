@@ -15,26 +15,16 @@
 
 import os
 import mimetypes
+from typing import Generator
 
-from libcloud.utils.py3 import PY3
-from libcloud.utils.py3 import httplib
-from libcloud.utils.py3 import next
-from libcloud.utils.py3 import b
-
-if PY3:
-    from io import FileIO as file
+from libcloud.utils.py3 import b, next
 
 CHUNK_SIZE = 8096
 
-__all__ = [
-    'read_in_chunks',
-    'exhaust_iterator',
-    'guess_file_mime_type'
-]
+__all__ = ["read_in_chunks", "exhaust_iterator", "guess_file_mime_type"]
 
 
-def read_in_chunks(iterator, chunk_size=None, fill_size=False,
-                   yield_empty=False):
+def read_in_chunks(iterator, chunk_size=None, fill_size=False, yield_empty=False):
     """
     Return a generator which yields data in chunks.
 
@@ -49,8 +39,8 @@ def read_in_chunks(iterator, chunk_size=None, fill_size=False,
                       length (except for last chunk).
     :type fill_size: ``bool``
 
-    :param yield_empty: If true and iterator returned no data, yield empty
-                        bytes object before raising StopIteration.
+    :param yield_empty: If true and iterator returned no data, only yield empty
+                        bytes object
     :type yield_empty: ``bool``
 
     TODO: At some point in the future we could use byte arrays here if version
@@ -58,14 +48,14 @@ def read_in_chunks(iterator, chunk_size=None, fill_size=False,
     """
     chunk_size = chunk_size or CHUNK_SIZE
 
-    if isinstance(iterator, (file, httplib.HTTPResponse)):
+    try:
         get_data = iterator.read
-        args = (chunk_size, )
-    else:
+        args = (chunk_size,)
+    except AttributeError:
         get_data = next
-        args = (iterator, )
+        args = (iterator,)
 
-    data = b('')
+    data = b("")
     empty = False
 
     while not empty or len(data) > 0:
@@ -81,17 +71,31 @@ def read_in_chunks(iterator, chunk_size=None, fill_size=False,
 
         if len(data) == 0:
             if empty and yield_empty:
-                yield b('')
+                yield b("")
 
-            raise StopIteration
+            return
 
         if fill_size:
-            if empty or len(data) >= chunk_size:
+            data = yield from _optimized_chunked_generator(data=data, chunk_size=chunk_size)
+            if empty:
+                # Yield last not completely filled chunk
                 yield data[:chunk_size]
                 data = data[chunk_size:]
         else:
             yield data
-            data = b('')
+            data = b("")
+
+
+def _optimized_chunked_generator(data: bytes, chunk_size: int) -> Generator[bytes, None, bytes]:
+    # We want to emit chunk_size large chunks, but chunk_size can be larger or smaller than the chunks returned
+    # by get_data. We need to yield in a loop to avoid large amounts of data piling up.
+    # The loop also avoids copying all data #chunks amount of times by keeping the original data as is.
+    chunk_start = 0
+    while chunk_start + chunk_size < len(data):
+        yield data[chunk_start : chunk_start + chunk_size]
+        chunk_start += chunk_size
+    data = data[chunk_start:]
+    return data
 
 
 def exhaust_iterator(iterator):
@@ -105,12 +109,12 @@ def exhaust_iterator(iterator):
     :rtype ``str``
     :return Data returned by the iterator.
     """
-    data = b('')
+    data = b("")
 
     try:
         chunk = b(next(iterator))
     except StopIteration:
-        chunk = b('')
+        chunk = b("")
 
     while len(chunk) > 0:
         data += chunk
@@ -118,7 +122,7 @@ def exhaust_iterator(iterator):
         try:
             chunk = b(next(iterator))
         except StopIteration:
-            chunk = b('')
+            chunk = b("")
 
     return data
 
