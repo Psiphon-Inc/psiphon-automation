@@ -1,6 +1,6 @@
 vi:
   plaintext_email_no_attachment: |
-    Tải Psiphon tại đây:{{0}}/{0}/download.html#direct
+    Tải Psiphon tại đây: {{0}}/{0}/download.html#direct
   html_email_no_attachment: |
     <div style="direction: ltr;">
     Tải Psiphon tại đây: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
