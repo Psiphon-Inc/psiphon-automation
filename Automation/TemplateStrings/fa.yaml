@@ -1,10 +1,11 @@
 fa:
   plaintext_email_no_attachment: |
     Psiphon را از اینجا دانلود کنید: {{0}}/{0}/download.html#direct
-  html_email_no_attachment: |
+  html_email_no_attachment: |+
     <div style="direction: rtl;">
-    دانلود Psiphon<a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    دانلود Psiphon‏: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
     </div>
+
   plaintext_email_with_attachment: |+
     برای استفاده از Psiphon 3 برای ویندوز، فایل ضمیمه شده را که با psiphon3 شروع می‌شود را ذخیره کنید، سپس در صورت لزوم پسوند آن را به ".exe" تغییر دهید. در نهایت آن را اجراء کنید.
     برای استفاده از Psiphon 3 برای آندروید، فایل ضمیمه شدا را که با PsiphonAndroid شروع می‌شود را ذخیره کنید، سپس در صورت لزوم پسوند آن را به ".apk" تغییر دهید. در نهایت آن را نصب و اجراء کنید.

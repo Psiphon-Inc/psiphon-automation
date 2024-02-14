@@ -1,6 +1,6 @@
 ar:
   plaintext_email_no_attachment: |
-    نزّل سايفون بالضغط هنا:   {{0}}/{0}/download.html#direct
+    نزّل سايفون بالضغط هنا: {{0}}/{0}/download.html#direct
   html_email_no_attachment: |
     <div style="direction: rtl;">
     حمل سايفون هنا:<a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>

@@ -1,6 +1,6 @@
 bo:
   plaintext_email_no_attachment: |
-    སཡི་ཕོན་ཕབ་ལེན་འདི་ནས་གནང་རོགས།:{{0}}/{0}/download.html#direct
+    སཡི་ཕོན་ཕབ་ལེན་འདི་ནས་གནང་རོགས།: {{0}}/{0}/download.html#direct
   html_email_no_attachment: |
     <div style="direction: ltr;">
     སཡི་ཕོན་ཕབ་ལེན་འདི་ནས་གནང་རོགས།: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
