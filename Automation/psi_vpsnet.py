@@ -257,6 +257,9 @@ def launch_new_server(vpsnet_account, is_TCS, _, multi_ip=False, datacenter_city
             rsync_backups_enabled=VPSNetHost.rsync_backups_enabled,
             )
 
+        if type(node) != libcloud.compute.base.Node:
+            raise Exception(str(vars(node)))
+        
         # node = vpsnet_conn.create_node(
         #     name=VPSNetHost.name,
         #     image_id=VPSNetHost.system_template_id,
