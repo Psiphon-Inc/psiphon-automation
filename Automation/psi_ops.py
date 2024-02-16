@@ -1070,6 +1070,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         print(print_text)
 
+    def get_providers(self):
+        return list(set([host.provider for host in self.__hosts.values()]))
+
+    def get_regions(self):
+        return list(set([host.region for host in self.__hosts.values()]))
+    
     def show_regions_per_provider(self, provider_p='ALL'):
         if provider_p == 'ALL':
             hosts = [(h.provider, h.region) for h in self.__hosts.values()]
