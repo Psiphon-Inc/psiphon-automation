@@ -257,6 +257,9 @@ def launch_new_server(vpsnet_account, is_TCS, _, multi_ip=False, datacenter_city
             rsync_backups_enabled=VPSNetHost.rsync_backups_enabled,
             )
 
+        if type(node) != libcloud.compute.base.Node:
+            raise Exception(str(vars(node)))
+        
         # node = vpsnet_conn.create_node(
         #     name=VPSNetHost.name,
         #     image_id=VPSNetHost.system_template_id,
@@ -295,7 +298,7 @@ def launch_new_server(vpsnet_account, is_TCS, _, multi_ip=False, datacenter_city
         set_allowed_users(vpsnet_account, public_ip_address, new_root_password, stats_username)
     except Exception as e:
         print(type(e), str(e))
-        if node is not None:
+        if type(node) == libcloud.compute.base.Node:
             remove_server(vpsnet_account, node.id)
         else:
             print(type(e), "No node to be destroyed.")
