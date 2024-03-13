@@ -5296,7 +5296,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def reload(self):
         print('reloading...')
-        super(PsiphonNetwork, self).load(self.is_locked)
+        self = super(PsiphonNetwork, self).load(self.is_locked)
+        self.show_status()
 
 
 def unit_test():
