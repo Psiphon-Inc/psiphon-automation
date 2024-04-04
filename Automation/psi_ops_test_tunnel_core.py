@@ -321,8 +321,11 @@ def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, a
     # Also, if there is no remote check, don't use split tunnel mode because we always want
     # to test at least one proxied case.
     
-    print('Testing egress IP addresses %s in %s mode (split tunnel %s)...' % (
-            ','.join(expected_egress_ip_addresses), transport, 'ENABLED' if split_tunnel_mode else 'DISABLED'))
+    if download_url == None:
+        print('Testing egress IP addresses %s in %s mode (split tunnel %s)...' % (
+                ','.join(expected_egress_ip_addresses), transport, 'ENABLED' if split_tunnel_mode else 'DISABLED'))
+    else:
+        print('Testing download speed using %s mode...' % (transport))
     
     try:
         runner.connect_to_server(transport, split_tunnel_mode)
