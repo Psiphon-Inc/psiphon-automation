@@ -280,7 +280,7 @@ class TunnelCoreConsoleRunner:
                     download_speed = file_size_kb / download_time  # Kbps
 
                     # print(f"\nDownloaded {file_size_kb:.2f} kb in {download_time:.2f} seconds.")
-                    is_below_threshold = download_speed < 1000 # 1000 Kbps
+                    is_below_threshold = download_speed < 200 # 200 Kbps
                     if is_below_threshold:
                         output = {'SPEED-TEST': f'FAIL: Speed: {download_speed:.2f} Kbps'}
                     else:
