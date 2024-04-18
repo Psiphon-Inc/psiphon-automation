@@ -67,8 +67,8 @@ class PsiHetzner:
         self.api_token = hetzner_account.api_token
         self.regions = hetzner_account.regions
         self.plan = TCS_HETZNER_DEFAULT_PLAN
-        self.base_image_id = TCS_BASE_IMAGE_ID
-        self.ssh_key_name = hetzner_account.dafult_base_image_ssh_key_name
+        self.base_image_id = hetzner_account.default_base_image_name if TCS_BASE_IMAGE_NAME == None else TCS_BASE_IMAGE_NAME
+        self.ssh_key_name = hetzner_account.dafault_base_image_ssh_key_name
         self.ssh_private_key = hetzner_account.default_base_image_ssh_private_key
         self.client = Client(token=self.api_token)
 
@@ -108,7 +108,7 @@ class PsiHetzner:
         return datacenters.get(select_datacenter, '')
 
     def get_server_type(self, server_type=TCS_HETZNER_DEFAULT_PLAN):
-        servr_launch_type = self.client.server_types.get_by_name(server_type)
+        server_launch_type = self.client.server_types.get_by_name(server_type)
 
         return server_launch_type
 
@@ -117,13 +117,16 @@ class PsiHetzner:
 
         return server_launch_image
 
-    def get_ssh_key(self, ssh_key_name=TCS_HETZNER_DEFAULT_SSH_KEY_NAME):
-        server_default_ssh_key = self.client.ssh_keys.get_by_name(ssh_key_name)
+    def get_ssh_key(self, ssh_key_name=None):
+        if ssh_key_name == None:
+            server_default_ssh_key = self.client.ssh_keys.get_by_name(self.ssh_key_name)
+        else:
+            server_default_ssh_key = self.client.ssh_keys.get_by_name(ssh_key_name)
 
         return server_default_ssh_key
 
     def list_instances(self):
-        all_instances = self.client.servers.gat_all()
+        all_instances = self.client.servers.get_all()
         # This will return a list of Servers Object
         return all_instances
 
@@ -224,23 +227,23 @@ def add_swap_file(hetzner_account, ip_address):
 #
 ###
 def get_servers(hetzner_account):
-    hetzner_api = Psihetzner(hetzner_account)
+    hetzner_api = PsiHetzner(hetzner_account)
     instances = hetzner_api.list_instances()
     #return [(v['region'] + '_' + v['id'], v['label']) for v in hetzners]
     return instances
 
 def get_server(hetzner_account, hetzner_id):
-    hetzner_api = Psihetzner(hetzner_account)
+    hetzner_api = PsiHetzner(hetzner_account)
     return hetzner_api.get_instance(hetzner_id) 
 
 def remove_server(hetzner_account, hetzner_id):
-    hetzner_api = Psihetzner(hetzner_account)
+    hetzner_api = PsiHetzner(hetzner_account)
     hetzner_api.remove_instance(hetzner_id)
 
 def launch_new_server(hetzner_account, is_TCS, plugins, multi_ip=False):
 
     instance = None
-    hetzner_api = Psihetzner(hetzner_account) # Use API interface
+    hetzner_api = PsiHetzner(hetzner_account) # Use API interface
 
     try:
         #Create a new hetzner instance
@@ -249,7 +252,7 @@ def launch_new_server(hetzner_account, is_TCS, plugins, multi_ip=False):
         instance_info = hetzner_api.create_instance(host_id, region.name)
 
         # Wait for job completion
-        wait_while_condition(lambda: hetzner_api.client.get_instance(instance_info['id'])['power_status'] != 'running',
+        wait_while_condition(lambda: hetzner_api.client.servers.get_by_id(instance_info.id).status != 'running',
                          30,
                          'Creating Hetzner Instance')
         # Wait for Restorying fron snapshot
