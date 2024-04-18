@@ -161,7 +161,7 @@ class PsiHetzner:
         instance.delete()
         print("Deleting Instances: {} / {} - IP: {}".format(instance.id, instance.name, instance.public_net.ipv4.ip))
 
-    def create_instance(self, host_id, datacenter=None):
+    def create_instance(self, host_id, datacenter=None, lable={"psiphond"}):
         # Launch Instnace
         instance = self.client.servers.create(
             name=host_id,
@@ -169,7 +169,7 @@ class PsiHetzner:
             image=self.get_image(self.base_image_id),
             ssh_keys=[self.get_ssh_key(self.ssh_key_name)],
             location=self.get_region(datacenter.location.name),
-            labels={"uses":"psiphond"}
+            labels=label
         )
 
         return instance.server
