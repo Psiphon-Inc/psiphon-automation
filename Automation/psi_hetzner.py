@@ -157,9 +157,9 @@ class PsiHetzner:
         return instance
 
     def remove_instance(self, instance_id):
-        # ToDo: Untested yet!!!!
         instance = self.client.servers.get_by_id(instance_id)
-        print("Deleting Instances: {} / {} - IP: {}".format(instance_id, instance.name, instance.ipv4.ip))
+        instance.delete()
+        print("Deleting Instances: {} / {} - IP: {}".format(instance.id, instance.name, instance.public_net.ipv4.ip))
 
     def create_instance(self, host_id, datacenter=None):
         # Launch Instnace
@@ -182,7 +182,7 @@ class PsiHetzner:
 def refresh_credentials(hetzner_account, ip_address, new_root_password, new_stats_password, stats_username):
     ssh = psi_ssh.make_ssh_session(ip_address, hetzner_account.base_image_ssh_port,
                                    'root', None, None,
-                                   host_auth_key=hetzner_account.default_base_image_ssh_private_keyy)
+                                   host_auth_key=hetzner_account.default_base_image_ssh_private_key)
     try:
         ssh.exec_command('echo "root:%s" | chpasswd' % (new_root_password,))
         ssh.exec_command('useradd -M -d /var/log -s /bin/sh -g adm %s' % (stats_username))
@@ -270,11 +270,10 @@ def launch_new_server(hetzner_account, is_TCS, plugins, multi_ip=False):
         instance_info = hetzner_api.create_instance(host_id, datacenter)
 
         # Wait for job completion
+        # Hetzner initializing will take longer when restore from snapshot. 
         wait_while_condition(lambda: hetzner_api.client.servers.get_by_id(instance_info.id).status != 'running',
-                         30,
+                         120,
                          'Creating Hetzner Instance')
-        # Wait for Restorying fron snapshot
-        # time.sleep(30)
         instance = hetzner_api.client.servers.get_by_id(instance_info.id)
 
         instance_ip_address = instance.public_net.ipv4.ip
