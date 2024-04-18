@@ -40,7 +40,7 @@ TCS_BASE_IMAGE_NAME = None
 # cx31  = 2C8G
 # cpx21 = 3C4G (AMD)
 # cpx31 = 4C8G (AMD)
-TCS_HETZNER_DEFAULT_PLAN = 'cx21'
+TCS_HETZNER_DEFAULT_PLAN_LIST = ['cx21', 'cpx21']
 
 ###
 #
@@ -66,7 +66,8 @@ class PsiHetzner:
     def __init__(self, hetzner_account, debug=False):
         self.api_token = hetzner_account.api_token
         self.regions = hetzner_account.regions
-        self.plan = TCS_HETZNER_DEFAULT_PLAN
+        self.datacenters = hetzner_account.datacenters
+        self.plan_list = TCS_HETZNER_DEFAULT_PLAN_LIST
         self.base_image_id = hetzner_account.default_base_image_name if TCS_BASE_IMAGE_NAME == None else TCS_BASE_IMAGE_NAME
         self.ssh_key_name = hetzner_account.dafault_base_image_ssh_key_name
         self.ssh_private_key = hetzner_account.default_base_image_ssh_private_key
@@ -84,6 +85,18 @@ class PsiHetzner:
         region = random.choice(regions)
 
         return region
+
+    def get_datacenter(self, select_datacenter=None):
+        # Load datacenter from API
+        all_datacenters = self.client.datacenters.get_all()
+        if select_datacenter != None:
+            datacenters = [d for d in all_datacenters if d.name == select_datacenter]
+        else:
+            datacenters = [d for d in all_datacenters]
+
+        datacenter = random.choice(datacenters)
+
+        return datacenter
 
     def get_region_code(self, select_region):
         regions = {
@@ -107,8 +120,9 @@ class PsiHetzner:
 
         return datacenters.get(select_datacenter, '')
 
-    def get_server_type(self, server_type=TCS_HETZNER_DEFAULT_PLAN):
-        server_launch_type = self.client.server_types.get_by_name(server_type)
+    def get_server_type(self, datacenter, server_type=TCS_HETZNER_DEFAULT_PLAN_LIST):
+        #server_launch_type = self.client.server_types.get_by_name(server_type)
+        server_launch_type = [t for t in datacenter.server_types.available if t.name in server_type][0]
 
         return server_launch_type
 
@@ -144,18 +158,18 @@ class PsiHetzner:
         instance = self.client.servers.get_by_id(instance_id)
         print("Deleting Instances: {} / {} - IP: {}".format(instance_id, instance.name, instance.ipv4.ip))
 
-    def create_instance(self, host_id, region_name=None):
+    def create_instance(self, host_id, datacenter=None):
         # Launch Instnace
         instance = self.client.servers.create(
-		    name=host_id,
-		    server_type=self.get_server_type(TCS_HETZNER_DEFAULT_PLAN),
- 	 	    image=self.get_image(TCS_BASE_IMAGE_NAME),
-  		    ssh_keys=[self.get_ssh_key(self.ssh_key_name)],
-            location=self.get_region(region_name),
-  		    labels={"uses":"psiphond"}
+            name=host_id,
+            server_type=self.get_server_type(datacenter, TCS_HETZNER_DEFAULT_PLAN_LIST),
+            image=self.get_image(TCS_BASE_IMAGE_NAME),
+            ssh_keys=[self.get_ssh_key(self.ssh_key_name)],
+            location=self.get_region(datacenter.location.name),
+            labels={"uses":"psiphond"}
         )
 
-        return instance
+        return instance.server
 
 ###
 #
@@ -247,9 +261,10 @@ def launch_new_server(hetzner_account, is_TCS, plugins, multi_ip=False):
 
     try:
         #Create a new hetzner instance
-        region = hetzner_api.get_region()
-        host_id = "htz" + '-' + region.name.lower() + ''.join(random.choice(string.ascii_lowercase) for x in range(10))
-        instance_info = hetzner_api.create_instance(host_id, region.name)
+        #region = hetzner_api.get_region()
+        datacenter = hetzner_api.get_datacenter()
+        host_id = "htz" + '-' + ''.join(datacenter.name.lower().split('-')) + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
+        instance_info = hetzner_api.create_instance(host_id, datacenter)
 
         # Wait for job completion
         wait_while_condition(lambda: hetzner_api.client.servers.get_by_id(instance_info.id).status != 'running',
