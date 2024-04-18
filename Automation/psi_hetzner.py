@@ -33,7 +33,7 @@ from hcloud.images import Image
 from hcloud.server_types import ServerType
 
 # VARIABLE
-TCS_BASE_IMAGE_NAME = None
+TCS_BASE_IMAGE_ID = None
 # Plans:
 # cx11  = 1C2G
 # cx21  = 2C4G
@@ -68,7 +68,7 @@ class PsiHetzner:
         self.regions = hetzner_account.regions
         self.datacenters = hetzner_account.datacenters
         self.plan_list = TCS_HETZNER_DEFAULT_PLAN_LIST
-        self.base_image_id = hetzner_account.default_base_image_name if TCS_BASE_IMAGE_NAME == None else TCS_BASE_IMAGE_NAME
+        self.base_image_id = hetzner_account.default_base_image_id if TCS_BASE_IMAGE_ID == None else TCS_BASE_IMAGE_ID
         self.ssh_key_name = hetzner_account.dafault_base_image_ssh_key_name
         self.ssh_private_key = hetzner_account.default_base_image_ssh_private_key
         self.client = Client(token=self.api_token)
@@ -126,8 +126,11 @@ class PsiHetzner:
 
         return server_launch_type
 
-    def get_image(self, image_name=TCS_BASE_IMAGE_NAME):
-        server_launch_image = self.client.images.get_by_name(image_name)
+    def get_image(self, image_id=None):
+        if image_id == None:
+            server_launch_image = self.client.images.get_by_name('debian-12')
+        else:
+            server_launch_image = self.client.images.get_by_id(image_id)
 
         return server_launch_image
 
@@ -163,7 +166,7 @@ class PsiHetzner:
         instance = self.client.servers.create(
             name=host_id,
             server_type=self.get_server_type(datacenter, TCS_HETZNER_DEFAULT_PLAN_LIST),
-            image=self.get_image(TCS_BASE_IMAGE_NAME),
+            image=self.get_image(self.base_image_id),
             ssh_keys=[self.get_ssh_key(self.ssh_key_name)],
             location=self.get_region(datacenter.location.name),
             labels={"uses":"psiphond"}
