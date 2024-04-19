@@ -161,7 +161,7 @@ class PsiHetzner:
         instance.delete()
         print("Deleting Instances: {} / {} - IP: {}".format(instance.id, instance.name, instance.public_net.ipv4.ip))
 
-    def create_instance(self, host_id, datacenter=None, lable={"psiphond"}):
+    def create_instance(self, host_id, datacenter=None, labels={"type":"psiphond"}):
         # Launch Instnace
         instance = self.client.servers.create(
             name=host_id,
@@ -169,7 +169,7 @@ class PsiHetzner:
             image=self.get_image(self.base_image_id),
             ssh_keys=[self.get_ssh_key(self.ssh_key_name)],
             location=self.get_region(datacenter.location.name),
-            labels=label
+            labels=labels
         )
 
         return instance.server
@@ -272,7 +272,7 @@ def launch_new_server(hetzner_account, is_TCS, plugins, multi_ip=False):
         # Wait for job completion
         # Hetzner initializing will take longer when restore from snapshot. 
         wait_while_condition(lambda: hetzner_api.client.servers.get_by_id(instance_info.id).status != 'running',
-                         120,
+                         150,
                          'Creating Hetzner Instance')
         instance = hetzner_api.client.servers.get_by_id(instance_info.id)
 
