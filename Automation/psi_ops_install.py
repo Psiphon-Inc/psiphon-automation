@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2011, Psiphon Inc.
+# Copyright (c) 2024, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -1018,7 +1018,11 @@ def install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, ssh_ip
 
     for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, external_ports=use_external_ports).items():
         protocol_port_rule = ''
-        if 'UNFRONTED-MEEK' in protocol:
+        if 'INPROXY' in protocol:
+            protocol_port_rule = accept_with_unfronted_limit_rate_template.format(
+                accept_unfronted_rate_limit=accept_unfronted_rate_limit,
+                port=str(port))
+        elif 'UNFRONTED-MEEK' in protocol:
             protocol_port_rule = accept_with_unfronted_limit_rate_template.format(
                 accept_unfronted_rate_limit=accept_unfronted_rate_limit,
                 port=str(port))

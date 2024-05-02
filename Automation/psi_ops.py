@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2015, Psiphon Inc.
+# Copyright (c) 2024, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -265,6 +265,8 @@ Host = psi_utils.recordtype(
     'meek_server_fronting_host, alternate_meek_server_fronting_hosts, ' +
     'meek_cookie_encryption_public_key, meek_cookie_encryption_private_key, ' +
     'tactics_request_public_key, tactics_request_private_key, tactics_request_obfuscated_key, ' +
+    'conduit_broker_session_private_key, conduit_broker_public_key, conduit_broker_obfuscation_root_secret, ' +
+    'conduit_server_session_private_key, conduit_server_public_key, conduit_server_obfuscation_root_secret, ' +
     'run_packet_manipulator',
     default=None)
 
@@ -274,7 +276,8 @@ Server = psi_utils.recordtype(
     'propagation_channel_id, is_embedded, is_permanent, discovery_date_range, capabilities, ' +
     'web_server_port, web_server_secret, web_server_certificate, web_server_private_key, ' +
     'ssh_port, ssh_username, ssh_password, ssh_host_key, TCS_ssh_private_key, ' +
-    'ssh_obfuscated_port, ssh_obfuscated_quic_port, ssh_obfuscated_tapdance_port,  ssh_obfuscated_conjure_port,' +
+    'ssh_obfuscated_port, ssh_obfuscated_quic_port, ssh_obfuscated_tapdance_port,  ssh_obfuscated_conjure_port, ' +
+    'ssh_obfuscated_inproxy_webrtc_port, ' +
     'ssh_obfuscated_key, alternate_ssh_obfuscated_ports, osl_ids, osl_discovery_date_range, ' +
     'configuration_version',
     default=None)
@@ -296,14 +299,14 @@ def ServerCapabilities():
     for capability in ('handshake', 'VPN', 'SSH', 'OSSH'):
         capabilities[capability] = True
     # These are disabled by default
-    for capability in ('ssh-api-requests', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'FRONTED-MEEK-TACTICS', 'QUIC', 'TAPDANCE', 'CONJURE', 'FRONTED-MEEK-QUIC'):
+    for capability in ('ssh-api-requests', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'FRONTED-MEEK-TACTICS', 'QUIC', 'TAPDANCE', 'CONJURE', 'FRONTED-MEEK-QUIC', 'FRONTED-MEEK-BROKER', 'INPROXY-WEBRTC-OSSH'):
         capabilities[capability] = False
     return capabilities
 
 
 def copy_server_capabilities(caps):
     capabilities = {}
-    for capability in ('handshake', 'ssh-api-requests', 'VPN', 'SSH', 'OSSH', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'FRONTED-MEEK-TACTICS', 'QUIC', 'TAPDANCE', 'CONJURE', 'FRONTED-MEEK-QUIC'):
+    for capability in ('handshake', 'ssh-api-requests', 'VPN', 'SSH', 'OSSH', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'FRONTED-MEEK-TACTICS', 'QUIC', 'TAPDANCE', 'CONJURE', 'FRONTED-MEEK-QUIC', 'FRONTED-MEEK-BROKER', 'INPROXY-WEBRTC-OSSH'):
         capabilities[capability] = caps[capability]
     return capabilities
 
@@ -520,7 +523,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.73'
+    class_version = '0.74'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -941,6 +944,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for host in list(self.__hosts.values()) + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
                 self.add_server_entry_provider_id_to_host(host)
             self.version = '0.73'
+        if cmp(parse_version(self.version), parse_version('0.74')) < 0:
+            for host in list(self.__hosts.values()) + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
+                host.conduit_broker_session_private_key = None
+                host.conduit_broker_public_key = None
+                host.conduit_broker_obfuscation_root_secret = None
+                host.conduit_server_session_private_key = None
+                host.conduit_server_public_key = None
+                host.conduit_server_obfuscation_root_secret = None
+            for server in list(self.__servers.values()) + list(self.__deleted_servers.values()):
+                server.capabilities['FRONTED-MEEK-BROKER'] = False
+                server.capabilities['INPROXY-WEBRTC-OSSH'] = False
+                server.ssh_obfuscated_inproxy_webrtc_port = None
+            self.version = '0.74'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -2282,6 +2298,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             host,
                             servers,
                             self.__get_own_encoded_server_entries_for_host(host.id),
+                            self.__server_entry_signing_key_pair[0],
                             self.__discovery_strategy_value_hmac_key,
                             plugins,
                             self.__TCS_psiphond_config_values)
@@ -2322,6 +2339,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             host,
                             servers,
                             self.__get_own_encoded_server_entries_for_host(host.id),
+                            self.__server_entry_signing_key_pair[0],
                             self.__discovery_strategy_value_hmac_key,
                             plugins,
                             self.__TCS_psiphond_config_values)
@@ -2802,6 +2820,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             host,
                             servers,
                             self.__get_own_encoded_server_entries_for_host(host.id),
+                            self.__server_entry_signing_key_pair[0],
                             self.__discovery_strategy_value_hmac_key,
                             plugins,
                             self.__TCS_psiphond_config_values)
@@ -3329,6 +3348,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         psi_ops_deploy.deploy_implementation_to_hosts(
             hosts_and_servers,
             self.__get_own_encoded_server_entries_for_host,
+            self.__server_entry_signing_key_pair[0],
             self.__discovery_strategy_value_hmac_key,
             plugins,
             self.__TCS_psiphond_config_values)
@@ -3969,7 +3989,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server = list(filter(lambda x: x.id == server_id, self.__servers.values()))[0]
         host = list(filter(lambda x: x.id == server.host_id, self.__hosts.values()))[0]
         servers = [server for server in self.__servers.values() if server.host_id == host.id]
-        psi_ops_deploy.deploy_implementation(host, servers, self.__discovery_strategy_value_hmac_key, plugins, self.__TCS_psiphond_config_values)
+        psi_ops_deploy.deploy_implementation(
+            host,
+            servers,
+            self.__get_own_encoded_server_entries_for_host(host.id),
+            self.__server_entry_signing_key_pair[0],
+            self.__discovery_strategy_value_hmac_key,
+            plugins,
+            self.__TCS_psiphond_config_values)
         psi_ops_deploy.deploy_data(
             host,
             self.__compartmentalize_data_for_host(host.id, host.is_TCS),
@@ -4250,6 +4277,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if host.tactics_request_obfuscated_key:
             extended_config['tacticsRequestObfuscatedKey'] = host.tactics_request_obfuscated_key
 
+        if server_capabilities['INPROXY-WEBRTC-OSSH'] and host.conduit_server_public_key and host.conduit_server_obfuscation_root_secret and server.ssh_obfuscated_inproxy_webrtc_port:
+            extended_config['inproxySessionPublicKey'] = host.conduit_server_public_key
+            extended_config['inproxySessionRootObfuscationSecret'] = host.conduit_server_obfuscation_root_secret
+            extended_config['inproxyOSSHPort'] = int(server.ssh_obfuscated_inproxy_webrtc_port)
+            extended_config['tag'] = self.__get_server_tag(server)
+
+        # Don't include this capability in server entries
+        server_capabilities.pop('FRONTED-MEEK-BROKER')
+
         extended_config['capabilities'] = [capability for capability, enabled in server_capabilities.items() if enabled] if server_capabilities else []
 
         if host.passthrough_address is not None and len(host.passthrough_address) > 0:
@@ -4285,6 +4321,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             prefix_web_server_port = server.web_server_port
             prefix_web_server_secret = server.web_server_secret
             prefix_web_server_certificate = web_server_certificate
+
+        # If an explicit tag is included in the server entry, the webServerSecret is not needed.
+        if extended_config['tag'] and extended_config['webServerSecret']:
+            extended_config.pop('webServerSecret')
 
         encoded_server_entry = binascii.hexlify('{} {} {} {} {}'.format(
                                     prefix_ip_address,
