@@ -265,8 +265,8 @@ Host = psi_utils.recordtype(
     'meek_server_fronting_host, alternate_meek_server_fronting_hosts, ' +
     'meek_cookie_encryption_public_key, meek_cookie_encryption_private_key, ' +
     'tactics_request_public_key, tactics_request_private_key, tactics_request_obfuscated_key, ' +
-    'conduit_broker_session_private_key, conduit_broker_public_key, conduit_broker_obfuscation_root_secret, ' +
-    'conduit_server_session_private_key, conduit_server_public_key, conduit_server_obfuscation_root_secret, ' +
+    'inproxy_broker_session_private_key, inproxy_broker_public_key, inproxy_broker_obfuscation_root_secret, ' +
+    'inproxy_server_session_private_key, inproxy_server_public_key, inproxy_server_obfuscation_root_secret, ' +
     'run_packet_manipulator',
     default=None)
 
@@ -946,12 +946,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.version = '0.73'
         if cmp(parse_version(self.version), parse_version('0.74')) < 0:
             for host in list(self.__hosts.values()) + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
-                host.conduit_broker_session_private_key = None
-                host.conduit_broker_public_key = None
-                host.conduit_broker_obfuscation_root_secret = None
-                host.conduit_server_session_private_key = None
-                host.conduit_server_public_key = None
-                host.conduit_server_obfuscation_root_secret = None
+                host.inproxy_broker_session_private_key = None
+                host.inproxy_broker_public_key = None
+                host.inproxy_broker_obfuscation_root_secret = None
+                host.inproxy_server_session_private_key = None
+                host.inproxy_server_public_key = None
+                host.inproxy_server_obfuscation_root_secret = None
             for server in list(self.__servers.values()) + list(self.__deleted_servers.values()):
                 server.capabilities['FRONTED-MEEK-BROKER'] = False
                 server.capabilities['INPROXY-WEBRTC-OSSH'] = False
@@ -4277,9 +4277,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if host.tactics_request_obfuscated_key:
             extended_config['tacticsRequestObfuscatedKey'] = host.tactics_request_obfuscated_key
 
-        if server_capabilities['INPROXY-WEBRTC-OSSH'] and host.conduit_server_public_key and host.conduit_server_obfuscation_root_secret and server.ssh_obfuscated_inproxy_webrtc_port:
-            extended_config['inproxySessionPublicKey'] = host.conduit_server_public_key
-            extended_config['inproxySessionRootObfuscationSecret'] = host.conduit_server_obfuscation_root_secret
+        if server_capabilities['INPROXY-WEBRTC-OSSH'] and host.inproxy_server_public_key and host.inproxy_server_obfuscation_root_secret and server.ssh_obfuscated_inproxy_webrtc_port:
+            extended_config['inproxySessionPublicKey'] = host.inproxy_server_public_key
+            extended_config['inproxySessionRootObfuscationSecret'] = host.inproxy_server_obfuscation_root_secret
             extended_config['inproxyOSSHPort'] = int(server.ssh_obfuscated_inproxy_webrtc_port)
             extended_config['tag'] = self.__get_server_tag(server)
 

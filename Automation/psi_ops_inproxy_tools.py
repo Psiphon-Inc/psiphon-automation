@@ -19,7 +19,7 @@
 
 """
 
-These routines are used to generate keys for Conduit components.
+These routines are used to generate keys for Inproxy components.
 
 """
 
@@ -29,12 +29,12 @@ import os
 import unpaddedbase64
 
 
-def generate_conduit_key_pair():
+def generate_inproxy_key_pair():
     private_key = Ed25519PrivateKey.generate()
     session_private_key = unpaddedbase64.encode_base64(private_key.private_bytes_raw() + private_key.public_key().public_bytes_raw())
     public_key = unpaddedbase64.encode_base64(private_key.public_key().public_bytes_raw())
     return (session_private_key, public_key)
 
-def generate_conduit_obfuscation_root_secret():
+def generate_inproxy_obfuscation_root_secret():
     return unpaddedbase64.encode_base64(os.urandom(32))
 

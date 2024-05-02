@@ -453,15 +453,15 @@ def make_psiphond_config(host, server, own_encoded_server_entries, server_entry_
     if server.capabilities['FRONTED-MEEK-BROKER']:
         config['MeekServerRunInproxyBroker'] = True
         config['MeekServerInproxyBrokerOnly'] = len(config['TunnelProtocolPorts']) == 1
-        config['InproxyBrokerSessionPrivateKey'] = host.conduit_broker_session_private_key
-        config['InproxyBrokerObfuscationRootSecret'] = host.conduit_broker_obfuscation_root_secret
+        config['InproxyBrokerSessionPrivateKey'] = host.inproxy_broker_session_private_key
+        config['InproxyBrokerObfuscationRootSecret'] = host.inproxy_broker_obfuscation_root_secret
         config['InproxyBrokerAllowCommonASNMatching'] = True
         config['InproxyBrokerServerEntrySignaturePublicKey'] = server_entry_signature_public_key
-        config['MeekRequiredHeaders'] = TCS_psiphond_config_values['ConduitBrokerMeekRequiredHeaders']
+        config['MeekRequiredHeaders'] = TCS_psiphond_config_values['InproxyBrokerMeekRequiredHeaders']
         
     if server.capabilities['INPROXY-WEBRTC-OSSH']:
-        config['InproxyServerSessionPrivateKey'] = host.conduit_server_session_private_key
-        config['InproxyServerObfuscationRootSecret'] = host.conduit_server_obfuscation_root_secret
+        config['InproxyServerSessionPrivateKey'] = host.inproxy_server_session_private_key
+        config['InproxyServerObfuscationRootSecret'] = host.inproxy_server_obfuscation_root_secret
 
     return json.dumps(config)
 
