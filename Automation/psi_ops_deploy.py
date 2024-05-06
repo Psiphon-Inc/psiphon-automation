@@ -492,7 +492,7 @@ def get_supported_protocol_ports(host, server, **kwargs):
 
     if quic_ports:
         TCS_protocols += [
-            ('QUIC-OSSH', TCS_QUIC_OSSH_DOCKER_PORT)
+            ('QUIC-OSSH', TCS_QUIC_OSSH_DOCKER_PORT),
             ('INPROXY-WEBRTC-QUIC-OSSH', TCS_INPROXY_WEBRTC_QUIC_OSSH_DOCKER_PORT)
         ]
 
