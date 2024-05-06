@@ -277,7 +277,7 @@ Server = psi_utils.recordtype(
     'web_server_port, web_server_secret, web_server_certificate, web_server_private_key, ' +
     'ssh_port, ssh_username, ssh_password, ssh_host_key, TCS_ssh_private_key, ' +
     'ssh_obfuscated_port, ssh_obfuscated_quic_port, ssh_obfuscated_tapdance_port,  ssh_obfuscated_conjure_port, ' +
-    'ssh_obfuscated_inproxy_webrtc_port, ' +
+    'ssh_obfuscated_inproxy_webrtc_port, ssh_obfuscated_quic_inproxy_webrtc_port, ' +
     'ssh_obfuscated_key, alternate_ssh_obfuscated_ports, osl_ids, osl_discovery_date_range, ' +
     'configuration_version',
     default=None)
@@ -299,14 +299,14 @@ def ServerCapabilities():
     for capability in ('handshake', 'VPN', 'SSH', 'OSSH'):
         capabilities[capability] = True
     # These are disabled by default
-    for capability in ('ssh-api-requests', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'FRONTED-MEEK-TACTICS', 'QUIC', 'TAPDANCE', 'CONJURE', 'FRONTED-MEEK-QUIC', 'FRONTED-MEEK-BROKER', 'INPROXY-WEBRTC-OSSH'):
+    for capability in ('ssh-api-requests', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'FRONTED-MEEK-TACTICS', 'QUIC', 'TAPDANCE', 'CONJURE', 'FRONTED-MEEK-QUIC', 'FRONTED-MEEK-BROKER', 'INPROXY-WEBRTC-OSSH', 'INPROXY-WEBRTC-QUIC-OSSH'):
         capabilities[capability] = False
     return capabilities
 
 
 def copy_server_capabilities(caps):
     capabilities = {}
-    for capability in ('handshake', 'ssh-api-requests', 'VPN', 'SSH', 'OSSH', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'FRONTED-MEEK-TACTICS', 'QUIC', 'TAPDANCE', 'CONJURE', 'FRONTED-MEEK-QUIC', 'FRONTED-MEEK-BROKER', 'INPROXY-WEBRTC-OSSH'):
+    for capability in ('handshake', 'ssh-api-requests', 'VPN', 'SSH', 'OSSH', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'FRONTED-MEEK-TACTICS', 'QUIC', 'TAPDANCE', 'CONJURE', 'FRONTED-MEEK-QUIC', 'FRONTED-MEEK-BROKER', 'INPROXY-WEBRTC-OSSH', 'INPROXY-WEBRTC-QUIC-OSSH'):
         capabilities[capability] = caps[capability]
     return capabilities
 
@@ -955,7 +955,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for server in list(self.__servers.values()) + list(self.__deleted_servers.values()):
                 server.capabilities['FRONTED-MEEK-BROKER'] = False
                 server.capabilities['INPROXY-WEBRTC-OSSH'] = False
+                server.capabilities['INPROXY-WEBRTC-QUIC-OSSH'] = False
                 server.ssh_obfuscated_inproxy_webrtc_port = None
+                server.ssh_obfuscated_quic_inproxy_webrtc_port = None
             self.version = '0.74'
 
     def initialize_plugins(self):
@@ -4277,11 +4279,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if host.tactics_request_obfuscated_key:
             extended_config['tacticsRequestObfuscatedKey'] = host.tactics_request_obfuscated_key
 
-        if server_capabilities['INPROXY-WEBRTC-OSSH'] and host.inproxy_server_public_key and host.inproxy_server_obfuscation_root_secret and server.ssh_obfuscated_inproxy_webrtc_port:
-            extended_config['inproxySessionPublicKey'] = host.inproxy_server_public_key
-            extended_config['inproxySessionRootObfuscationSecret'] = host.inproxy_server_obfuscation_root_secret
-            extended_config['inproxyOSSHPort'] = int(server.ssh_obfuscated_inproxy_webrtc_port)
-            extended_config['tag'] = self.__get_server_tag(server)
+        if server_capabilities['INPROXY-WEBRTC-OSSH'] or server_capabilities['INPROXY-WEBRTC-QUIC-OSSH']:
+            if host.inproxy_server_public_key and host.inproxy_server_obfuscation_root_secret:
+                extended_config['inproxySessionPublicKey'] = host.inproxy_server_public_key
+                extended_config['inproxySessionRootObfuscationSecret'] = host.inproxy_server_obfuscation_root_secret
+                extended_config['tag'] = self.__get_server_tag(server)
+            if server.ssh_obfuscated_inproxy_webrtc_port:
+                extended_config['inproxyOSSHPort'] = int(server.ssh_obfuscated_inproxy_webrtc_port)
+            if server.ssh_obfuscated_quic_inproxy_webrtc_port:
+                extended_config['inproxyQUICPort'] = int(server.ssh_obfuscated_quic_inproxy_webrtc_port)
 
         # Don't include this capability in server entries
         server_capabilities.pop('FRONTED-MEEK-BROKER')

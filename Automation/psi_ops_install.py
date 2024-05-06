@@ -979,6 +979,9 @@ def install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, ssh_ip
     new_rate_limit_chain = textwrap.dedent('''
         -N PSI_RATE_LIMITING''')
 
+    accept_with_inproxy_limit_rate_template = textwrap.dedent('''
+        -A PSI_RATE_LIMITING -p {proto} -m state --state NEW -m {proto} --dport {port} -m limit {accept_unfronted_rate_limit} -j ACCEPT''')
+
     accept_with_unfronted_limit_rate_template = textwrap.dedent('''
         -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m limit {accept_unfronted_rate_limit} -j ACCEPT''')
 
@@ -1019,9 +1022,16 @@ def install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, ssh_ip
     for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, external_ports=use_external_ports).items():
         protocol_port_rule = ''
         if 'INPROXY' in protocol:
-            protocol_port_rule = accept_with_unfronted_limit_rate_template.format(
-                accept_unfronted_rate_limit=accept_unfronted_rate_limit,
-                port=str(port))
+            if 'QUIC' in protocol:
+                protocol_port_rule = accept_with_inproxy_limit_rate_template.format(
+                    accept_unfronted_rate_limit=accept_unfronted_rate_limit,
+                    proto="udp",
+                    port=str(port))
+            else:
+                protocol_port_rule = accept_with_inproxy_limit_rate_template.format(
+                    accept_unfronted_rate_limit=accept_unfronted_rate_limit,
+                    proto="tcp",
+                    port=str(port))
         elif 'UNFRONTED-MEEK' in protocol:
             protocol_port_rule = accept_with_unfronted_limit_rate_template.format(
                 accept_unfronted_rate_limit=accept_unfronted_rate_limit,

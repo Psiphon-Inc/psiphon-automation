@@ -101,6 +101,7 @@ TCS_TAPDANCE_OSSH_DOCKER_PORT = 1034
 TCS_FRONTED_MEEK_QUIC_OSSH_DOCKER_PORT = 1035
 TCS_CONJURE_OSSH_DOCKER_PORT = 1036
 TCS_INPROXY_WEBRTC_OSSH_DOCKER_PORT = 1037
+TCS_INPROXY_WEBRTC_QUIC_OSSH_DOCKER_PORT = 1038
 
 TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND = 'systemctl kill --signal=USR1 psiphond'
 TCS_PSIPHOND_STOP_ESTABLISHING_TUNNELS_SIGNAL_COMMAND = 'systemctl kill --signal=TSTP psiphond'
@@ -423,7 +424,7 @@ def make_psiphond_config(host, server, own_encoded_server_entries, server_entry_
     config['SSHUserName'] = server.ssh_username
     config['SSHPassword'] = server.ssh_password
 
-    if server.capabilities['SSH'] or server.capabilities['OSSH'] or server.capabilities['FRONTED-MEEK'] or server.capabilities['FRONTED-MEEK-QUIC'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] or server.capabilities['QUIC'] or server.capabilities['TAPDANCE'] or server.capabilities['CONJURE'] or server.capabilities['INPROXY-WEBRTC-OSSH']:
+    if server.capabilities['SSH'] or server.capabilities['OSSH'] or server.capabilities['FRONTED-MEEK'] or server.capabilities['FRONTED-MEEK-QUIC'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] or server.capabilities['QUIC'] or server.capabilities['TAPDANCE'] or server.capabilities['CONJURE'] or server.capabilities['INPROXY-WEBRTC-OSSH'] or server.capabilities['INPROXY-WEBRTC-QUIC-OSSH']:
         config['ObfuscatedSSHKey'] = server.ssh_obfuscated_key
 
     if server.capabilities['FRONTED-MEEK'] or server.capabilities['FRONTED-MEEK-QUIC'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] or server.capabilites['FRONTED-MEEK-BROKER']:
@@ -459,7 +460,7 @@ def make_psiphond_config(host, server, own_encoded_server_entries, server_entry_
         config['InproxyBrokerServerEntrySignaturePublicKey'] = server_entry_signature_public_key
         config['MeekRequiredHeaders'] = TCS_psiphond_config_values['InproxyBrokerMeekRequiredHeaders']
         
-    if server.capabilities['INPROXY-WEBRTC-OSSH']:
+    if server.capabilities['INPROXY-WEBRTC-OSSH'] or server.capabilities['INPROXY-WEBRTC-QUIC-OSSH']:
         config['InproxyServerSessionPrivateKey'] = host.inproxy_server_session_private_key
         config['InproxyServerObfuscationRootSecret'] = host.inproxy_server_obfuscation_root_secret
 
@@ -492,6 +493,7 @@ def get_supported_protocol_ports(host, server, **kwargs):
     if quic_ports:
         TCS_protocols += [
             ('QUIC-OSSH', TCS_QUIC_OSSH_DOCKER_PORT)
+            ('INPROXY-WEBRTC-QUIC-OSSH', TCS_INPROXY_WEBRTC_QUIC_OSSH_DOCKER_PORT)
         ]
 
     if meek_ports:
@@ -546,6 +548,9 @@ def get_supported_protocol_ports(host, server, **kwargs):
 
         if protocol == 'INPROXY-WEBRTC-OSSH' and server.capabilities['INPROXY-WEBRTC-OSSH']:
                 supported_protocol_ports[protocol] = int(server.ssh_obfuscated_inproxy_webrtc_port) if external_ports else docker_port
+
+        if protocol == 'INPROXY-WEBRTC-QUIC-OSSH' and server.capabilities['INPROXY-WEBRTC-QUIC-OSSH']:
+                supported_protocol_ports[protocol] = int(server.ssh_obfuscated_quic_inproxy_webrtc_port) if external_ports else docker_port
 
     return supported_protocol_ports
 
