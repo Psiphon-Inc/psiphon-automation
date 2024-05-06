@@ -31,8 +31,13 @@ import unpaddedbase64
 
 def generate_inproxy_key_pair():
     private_key = Ed25519PrivateKey.generate()
-    session_private_key = unpaddedbase64.encode_base64(private_key.private_bytes_raw() + private_key.public_key().public_bytes_raw())
-    public_key = unpaddedbase64.encode_base64(private_key.public_key().public_bytes_raw())
+    private_bytes_raw = private_key.private_bytes(encoding=serialization.Encoding.Raw,
+            format=serialization.PrivateFormat.Raw,
+            encryption_algorithm=serialization.NoEncryption())
+    public_bytes_raw = private_key.public_key().public_bytes(encoding=serialization.Encoding.Raw,
+            format=serialization.PublicFormat.Raw)
+    session_private_key = unpaddedbase64.encode_base64(private_bytes_raw + public_bytes_raw)
+    public_key = unpaddedbase64.encode_base64(public_bytes_raw)
     return (session_private_key, public_key)
 
 def generate_inproxy_obfuscation_root_secret():
