@@ -267,6 +267,7 @@ Host = psi_utils.recordtype(
     'tactics_request_public_key, tactics_request_private_key, tactics_request_obfuscated_key, ' +
     'inproxy_broker_session_private_key, inproxy_broker_public_key, inproxy_broker_obfuscation_root_secret, ' +
     'inproxy_server_session_private_key, inproxy_server_public_key, inproxy_server_obfuscation_root_secret, ' +
+    'is_inproxy, inproxy_proxy_session_private_key, inproxy_proxy_public_key, ' +
     'run_packet_manipulator',
     default=None)
 
@@ -276,7 +277,7 @@ Server = psi_utils.recordtype(
     'propagation_channel_id, is_embedded, is_permanent, discovery_date_range, capabilities, ' +
     'web_server_port, web_server_secret, web_server_certificate, web_server_private_key, ' +
     'ssh_port, ssh_username, ssh_password, ssh_host_key, TCS_ssh_private_key, ' +
-    'ssh_obfuscated_port, ssh_obfuscated_quic_port, ssh_obfuscated_tapdance_port,  ssh_obfuscated_conjure_port, ' +
+    'ssh_obfuscated_port, ssh_obfuscated_quic_port, ssh_obfuscated_tapdance_port, ssh_obfuscated_conjure_port, ' +
     'ssh_obfuscated_inproxy_webrtc_port, ssh_obfuscated_quic_inproxy_webrtc_port, ' +
     'ssh_obfuscated_key, alternate_ssh_obfuscated_ports, osl_ids, osl_discovery_date_range, ' +
     'configuration_version',
@@ -952,6 +953,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 host.inproxy_server_session_private_key = None
                 host.inproxy_server_public_key = None
                 host.inproxy_server_obfuscation_root_secret = None
+                host.is_inproxy = False
+                host.inproxy_proxy_session_private_key = None
+                host.inproxy_proxy_public_key = None
             for server in list(self.__servers.values()) + list(self.__deleted_servers.values()):
                 server.capabilities['FRONTED-MEEK-BROKER'] = False
                 server.capabilities['INPROXY-WEBRTC-OSSH'] = False
@@ -1758,6 +1762,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         alternate_meek_server_fronting_hosts, meek_cookie_encryption_public_key,
                         meek_cookie_encryption_private_key,
                         tactics_request_public_key, tactics_request_private_key, tactics_request_obfuscated_key,
+                        inproxy_broker_session_private_key, inproxy_broker_public_key, inproxy_broker_obfuscation_root_secret,
+                        inproxy_server_session_private_key, inproxy_server_public_key, inproxy_server_obfuscation_root_secret,
+                        is_inproxy, inproxy_proxy_session_private_key, inproxy_proxy_public_key,
                         run_packet_manipulator):
         return Host(id,
                     is_TCS,
@@ -1793,6 +1800,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     tactics_request_public_key,
                     tactics_request_private_key,
                     tactics_request_obfuscated_key,
+                    inproxy_broker_session_private_key,
+                    inproxy_broker_public_key,
+                    inproxy_broker_obfuscation_root_secret,
+                    inproxy_server_session_private_key,
+                    inproxy_server_public_key,
+                    inproxy_server_obfuscation_root_secret,
+                    is_inproxy,
+                    inproxy_proxy_session_private_key,
+                    inproxy_proxy_public_key,
                     run_packet_manipulator
                     )
 
@@ -1801,6 +1817,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         web_server_certificate, web_server_private_key, ssh_port, ssh_username, ssh_password,
                         ssh_host_key, TCS_ssh_private_key, ssh_obfuscated_port, ssh_obfuscated_quic_port,
                         ssh_obfuscated_tapdance_port, ssh_obfuscated_conjure_port,
+                        ssh_obfuscated_inproxy_webrtc_port, ssh_obfuscated_quic_inproxy_webrtc_port,
                         ssh_obfuscated_key, alternate_ssh_obfuscated_ports, osl_ids, osl_discovery_date_range, configuration_version):
         return Server(id,
                     host_id,
@@ -1825,6 +1842,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     ssh_obfuscated_quic_port,
                     ssh_obfuscated_tapdance_port,
                     ssh_obfuscated_conjure_port,
+                    ssh_obfuscated_inproxy_webrtc_port,
+                    ssh_obfuscated_quic_inproxy_webrtc_port,
                     ssh_obfuscated_key,
                     alternate_ssh_obfuscated_ports,
                     osl_ids,
@@ -1875,6 +1894,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.tactics_request_public_key,
                         host.tactics_request_private_key,
                         host.tactics_request_obfuscated_key,
+                        host.inproxy_broker_session_private_key,
+                        host.inproxy_broker_public_key,
+                        host.inproxy_broker_obfuscation_root_secret,
+                        host.inproxy_server_session_private_key,
+                        host.inproxy_server_public_key,
+                        host.inproxy_server_obfuscation_root_secret,
+                        host.is_inproxy,
+                        host.inproxy_proxy_session_private_key,
+                        host.inproxy_proxy_public_key,
                         host.run_packet_manipulator)
             for server in servers:
                 exp_server = (server.id,
@@ -1900,6 +1928,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 server.ssh_obfuscated_quic_port,
                                 server.ssh_obfuscated_tapdance_port,
                                 server.ssh_obfuscated_conjure_port,
+                                server.ssh_obfuscated_inproxy_webrtc_port,
+                                server.ssh_obfuscated_quic_inproxy_webrtc_port,
                                 server.ssh_obfuscated_key,
                                 server.alternate_ssh_obfuscated_ports,
                                 server.osl_ids,
@@ -2682,6 +2712,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.tactics_request_public_key,
                         host.tactics_request_private_key,
                         host.tactics_request_obfuscated_key,
+                        host.inproxy_broker_session_private_key,
+                        host.inproxy_broker_public_key,
+                        host.inproxy_broker_obfuscation_root_secret,
+                        host.inproxy_server_session_private_key,
+                        host.inproxy_server_public_key,
+                        host.inproxy_server_obfuscation_root_secret,
+                        host.is_inproxy,
+                        host.inproxy_proxy_session_private_key,
+                        host.inproxy_proxy_public_key,
                         host.run_packet_manipulator)
         self.__hosts_to_remove_from_providers.add(host_copy)
 
@@ -4625,6 +4664,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         host.tactics_request_public_key,
                                         '', # Omit: tactics_request_private_key isn't needed
                                         host.tactics_request_obfuscated_key,
+                                        None, # Omit: host.inproxy_broker_session_private_key
+                                        None, # Omit: host.inproxy_broker_public_key
+                                        None, # Omit: host.inproxy_broker_obfuscation_root_secret
+                                        None, # Omit: host.inproxy_server_session_private_key
+                                        None, # Omit: host.inproxy_server_public_key
+                                        None, # Omit: host.inproxy_server_obfuscation_root_secret
+                                        None, # Omit: host.is_inproxy
+                                        None, # Omit: host.inproxy_proxy_session_private_key
+                                        None, # Omit: host.inproxy_proxy_public_key
                                         None # Omit: run_packet_manipulator isn't needed
                                         )
 
@@ -4657,6 +4705,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 server.ssh_obfuscated_quic_port,
                                                 server.ssh_obfuscated_tapdance_port,
                                                 server.ssh_obfuscated_conjure_port,
+                                                server.ssh_obfuscated_inproxy_webrtc_port,
+                                                server.ssh_obfuscated_quic_inproxy_webrtc_port,
                                                 server.ssh_obfuscated_key,
                                                 server.alternate_ssh_obfuscated_ports,
                                                 None,
@@ -4887,6 +4937,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.meek_cookie_encryption_public_key,
                                             '',  # Omit: meek_cookie_encryption_private_key
                                             '', '', '', # Omit: tactics fields
+                                            None, # Omit: host.inproxy_broker_session_private_key
+                                            None, # Omit: host.inproxy_broker_public_key
+                                            None, # Omit: host.inproxy_broker_obfuscation_root_secret
+                                            None, # Omit: host.inproxy_server_session_private_key isn't needed
+                                            host.inproxy_server_public_key,
+                                            host.inproxy_server_obfuscation_root_secret,
+                                            host.is_inproxy,
+                                            None, # Omit: host.inproxy_proxy_session_private_key
+                                            None, # Omit: host.inproxy_proxy_public_key
                                             host.run_packet_manipulator
                                             )
             copy.__hosts[host.id].logs = host.logs
@@ -4916,6 +4975,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             server.ssh_obfuscated_quic_port,
                                             server.ssh_obfuscated_tapdance_port,
                                             server.ssh_obfuscated_conjure_port,
+                                            server.ssh_obfuscated_inproxy_webrtc_port,
+                                            server.ssh_obfuscated_quic_inproxy_webrtc_port,
                                             server.ssh_obfuscated_key,
                                             server.alternate_ssh_obfuscated_ports)
                                             # Omit: propagation, web server, ssh info, version
@@ -5014,6 +5075,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             '',  # Omit: meek_cookie_encryption_public_key
                                             '',  # Omit: meek_cookie_encryption_private_key
                                             '', '', '', # Omit: tactics fields
+                                            None, # Omit: host.inproxy_broker_session_private_key
+                                            None, # Omit: host.inproxy_broker_public_key
+                                            None, # Omit: host.inproxy_broker_obfuscation_root_secret
+                                            None, # Omit: host.inproxy_server_session_private_key
+                                            None, # Omit: host.inproxy_server_public_key
+                                            None, # Omit: host.inproxy_server_obfuscation_root_secret
+                                            host.is_inproxy,
+                                            None, # Omit: host.inproxy_proxy_session_private_key
+                                            None, # Omit: host.inproxy_proxy_public_key
                                             host.run_packet_manipulator
                                             )
             copy.__hosts[host.id].logs = host.logs
