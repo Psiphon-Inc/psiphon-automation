@@ -4368,7 +4368,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             prefix_web_server_certificate = web_server_certificate
 
         # If an explicit tag is included in the server entry, the webServerSecret is not needed.
-        if extended_config['tag'] and extended_config['webServerSecret']:
+        if 'tag' in extended_config and 'webServerSecret' in extended_config:
             extended_config.pop('webServerSecret')
 
         encoded_server_entry = binascii.hexlify('{} {} {} {} {}'.format(
