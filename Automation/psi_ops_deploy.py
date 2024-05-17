@@ -456,7 +456,6 @@ def make_psiphond_config(host, server, own_encoded_server_entries, server_entry_
         config['MeekServerInproxyBrokerOnly'] = len(config['TunnelProtocolPorts']) == 1
         config['InproxyBrokerSessionPrivateKey'] = host.inproxy_broker_session_private_key
         config['InproxyBrokerObfuscationRootSecret'] = host.inproxy_broker_obfuscation_root_secret
-        config['InproxyBrokerAllowCommonASNMatching'] = True
         config['InproxyBrokerServerEntrySignaturePublicKey'] = server_entry_signature_public_key
         config['MeekRequiredHeaders'] = TCS_psiphond_config_values['InproxyBrokerMeekRequiredHeaders']
         
