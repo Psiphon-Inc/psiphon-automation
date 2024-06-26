@@ -67,10 +67,10 @@ def go():
     worker_manager = multiprocessing.Manager()
     # We only want to pull items out of S3 as we process them, so the queue needs to be
     # limited to the number of worker processes.
-    work_queue = worker_manager.Queue(maxsize=config['numProcesses'])
+    work_queue = worker_manager.Queue(maxsize=config['numProcesses']*2)
     # Spin up the workers
-    worker_pool = multiprocessing.Pool(processes=config['numProcesses'])
-    [worker_pool.apply_async(_process_work_items, (work_queue,)) for i in range(config['numProcesses'])]
+    worker_pool = multiprocessing.Pool(processes=config['numProcesses']*2)
+    [worker_pool.apply_async(_process_work_items, (work_queue,)) for i in range(config['numProcesses']*2)]
 
     # Retrieve and process email-to-diagnostic-info records.
     # Note that `_email_diagnostic_info_records` throttles itself if/when
@@ -128,9 +128,10 @@ def _process_work_items(work_queue):
         # If this is not a reply, set a subject
         # If no subject is pre-determined, create one.
         if email_diagnostic_info.get('email_id') is None:
-            subject = 'DiagnosticInfo: %s (%s)' % (diagnostic_info['Metadata'].get('platform',
-                                                    '[NO_PLATFORM]').capitalize(),
-                                                    diagnostic_info['Metadata'].get('id', '[NO_ID]'))
+            subject = 'Feedback: %s %s (%s)' % (
+                diagnostic_info['Metadata'].get('appName', '[NO_APPNAME]').capitalize(),
+                diagnostic_info['Metadata'].get('platform', '[NO_PLATFORM]').capitalize(),
+                diagnostic_info['Metadata'].get('id', '[NO_ID]'))
         else:
             subject = 'Re: %s' % (email_diagnostic_info['email_subject'] or '')
 

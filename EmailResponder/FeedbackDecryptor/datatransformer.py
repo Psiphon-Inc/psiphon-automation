@@ -48,7 +48,7 @@ def _parse_survey_results(data):
 
 def _convert_locale_info(data):
     # Map numeric locale and country values to more human-usable values.
-    os_info = data.get('DiagnosticInfo', {}).get('SystemInformation', {}).get('OSInfo')
+    os_info = data.get('SystemInformation', {}).get('OSInfo')
 
     if os_info is None:
         return
@@ -125,21 +125,11 @@ def _shorten_ints(data):
 
 
 _transformations = {
-                    'android_4': (_translate_feedback, _parse_survey_results,
+                    'psiphon': (_translate_feedback, _parse_survey_results,
                                   _convert_locale_info, _sanitize_keys, _shorten_ints),
-                    'ios': (_translate_feedback, _parse_survey_results,
-                            _convert_locale_info, _sanitize_keys, _shorten_ints),
-                    'ios-browser': (_translate_feedback, _parse_survey_results,
-                                    _convert_locale_info, _sanitize_keys, _shorten_ints),
-                    'ios-vpn': (_translate_feedback, _parse_survey_results,
-                                _convert_locale_info, _sanitize_keys, _shorten_ints),
-                    'ios-vpn-on-mac': (_translate_feedback, _parse_survey_results,
-                                       _convert_locale_info, _sanitize_keys,
-                                       _shorten_ints),
-                    'windows': (_translate_feedback, _parse_survey_results,
-                                _convert_locale_info, _sanitize_keys, _shorten_ints),
                     'inproxy': (_translate_feedback, _parse_survey_results,
                                 _convert_locale_info, _sanitize_keys, _shorten_ints),
+                    'ryve': (_convert_locale_info, _sanitize_keys, _shorten_ints),
                     }
 
 
@@ -201,9 +191,11 @@ def transform(data):
 
     _postprocess_yaml(data)
 
-    transform_keys = set((data['Metadata']['platform'],))
-    transform_keys.add('%s_%s' % (data['Metadata']['platform'],
-                                  data['Metadata']['version']))
+    transform_keys = set((data['Metadata']['appName'],))
+    transform_keys.add((data['Metadata']['platform'],))
+    transform_keys.add('%s_%s_%s' % (data['Metadata']['appName'],
+                                     data['Metadata']['platform'],
+                                     data['Metadata']['version']))
 
     for key in transform_keys.intersection(list(_transformations.keys())):
         for transformation in _transformations[key]:

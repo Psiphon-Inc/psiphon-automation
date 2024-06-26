@@ -153,7 +153,7 @@ def send_raw_email_smtp(raw_email,
         # services other than the mailresponder.
         import settings
         try:
-            smtp_server = smtplib.SMTP('localhost', settings.LOCAL_SMTP_SEND_PORT)
+            smtp_server = smtplib.SMTP('localhost', settings.LOCAL_SMTP_SEND_PORT, timeout=10)
         except:
             return False
 

@@ -262,6 +262,26 @@ def is_diagnostic_info_sane(obj):
     return True
 
 
+def upgrade_diagnostic_info(diagnostic_info) -> None:
+    '''
+    Modifies diagnostic_info from older clients to match the structure expected from newer.
+    Must be called after is_diagnostic_info_sane.
+    '''
+
+    # In early Psiphon clients, we didn't include the appName in the
+    # diagnostic info (because Psiphon was the only app).
+    # Note that is_diagnostic_info_sane will have ensured that Metadata is present.
+    if diagnostic_info['Metadata'].get('platform') == 'inproxy':
+        diagnostic_info['Metadata']['appName'] = 'inproxy'
+    elif not diagnostic_info['Metadata'].get('appName'):
+        diagnostic_info['Metadata']['appName'] = 'psiphon'
+
+    # Early Psiphon clients nested SystemInformation, but now we want it at the top level.
+    # We will leave it in both locations for now.
+    if diagnostic_info.get('DiagnosticInfo', {}).get('SystemInformation') and not diagnostic_info.get('SystemInformation'):
+        diagnostic_info['SystemInformation'] = diagnostic_info['DiagnosticInfo']['SystemInformation']
+
+
 def is_diagnostic_info_sane_test():
     assert(not is_diagnostic_info_sane({}))
     assert(is_diagnostic_info_sane({'Metadata': {'platform': 'windows', 'version': 1, 'id': 'AAAAAAAAAAAAAAAA'}}))

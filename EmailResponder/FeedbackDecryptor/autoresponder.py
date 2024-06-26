@@ -200,7 +200,7 @@ def _check_and_add_address_blacklist(address):
 
 def _get_lang_id_from_diagnostic_info(diagnostic_info):
     '''
-    Derive the lanague from `diagnostic_info` and return its ID/code.
+    Derive the language from `diagnostic_info` and return its ID/code.
     Returns `None` if the language can't be determined.
     '''
 
@@ -211,7 +211,7 @@ def _get_lang_id_from_diagnostic_info(diagnostic_info):
     # There can be different -- and better or worse -- ways of determining the
     # user's language depending on platform, the type of feedback, and so on.
 
-    # Windows, with feedback message
+    # Windows and iOS, with feedback message
     lang_id = lang_id or utils.coalesce(diagnostic_info,
                                         ['Feedback', 'Message', 'text_lang_code'],
                                         required_types=str)
@@ -220,12 +220,12 @@ def _get_lang_id_from_diagnostic_info(diagnostic_info):
 
     # All Windows feedback
     lang_id = lang_id or utils.coalesce(diagnostic_info,
-                                        ['DiagnosticInfo', 'SystemInformation', 'OSInfo', 'LocaleInfo', 'language_code'],
+                                        ['SystemInformation', 'OSInfo', 'LocaleInfo', 'language_code'],
                                         required_types=str)
 
     # All Windows feedback
     lang_id = lang_id or utils.coalesce(diagnostic_info,
-                                        ['DiagnosticInfo', 'SystemInformation', 'OSInfo', 'LanguageInfo', 'language_code'],
+                                        ['SystemInformation', 'OSInfo', 'LanguageInfo', 'language_code'],
                                         required_types=str)
     # Android, from email
     lang_id = lang_id or utils.coalesce(diagnostic_info,
@@ -234,9 +234,9 @@ def _get_lang_id_from_diagnostic_info(diagnostic_info):
     if lang_id and lang_id.find('INDETERMINATE') >= 0:
         lang_id = None
 
-    # Android, from system language
+    # Psiphon for Android and iOS, and Ryve, from system language
     lang_id = lang_id or utils.coalesce(diagnostic_info,
-                                        ['DiagnosticInfo', 'SystemInformation', 'language'],
+                                        ['SystemInformation', 'language'],
                                         required_types=str)
 
     logger.debug_log('_get_lang_id_from_diagnostic_info: exiting with lang_id=%s' % lang_id)
@@ -286,11 +286,11 @@ def _get_response_content(response_id, diagnostic_info):
     logger.debug_log('_get_response_content: enter')
 
     sponsor_name = utils.coalesce(diagnostic_info,
-                                  ['DiagnosticInfo', 'SystemInformation', 'PsiphonInfo', 'SPONSOR_ID'],
+                                  ['SystemInformation', 'PsiphonInfo', 'SPONSOR_ID'],
                                   required_types=str)
 
     prop_channel_name = utils.coalesce(diagnostic_info,
-                                       ['DiagnosticInfo', 'SystemInformation', 'PsiphonInfo', 'PROPAGATION_CHANNEL_ID'],
+                                       ['SystemInformation', 'PsiphonInfo', 'PROPAGATION_CHANNEL_ID'],
                                        required_types=str)
 
     # Use default values if we couldn't get good user-specific values
@@ -456,7 +456,7 @@ def _analyze_diagnostic_info(diagnostic_info, reply_info):
 
     # TODO: more flexible rules, not so hard-coded
     if utils.coalesce(diagnostic_info,
-                      ['DiagnosticInfo', 'SystemInformation', 'isPlayStoreBuild']):
+                      ['SystemInformation', 'isPlayStoreBuild']):
         # No download links in Play Store email
         responses = ['generic_info']
     elif to_parts.name == local_email_parts.name and \

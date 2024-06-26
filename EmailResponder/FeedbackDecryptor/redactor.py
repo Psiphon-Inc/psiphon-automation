@@ -35,9 +35,10 @@ def redact_sensitive_values(obj):
         return
 
     try:
+        app_name = obj["Metadata"]["appName"]
         client_platform = obj["Metadata"]["platform"]
-        sys_info = obj["DiagnosticInfo"]["SystemInformation"]
-        client_version = sys_info["PsiphonInfo"]["CLIENT_VERSION"]
+        sys_info = obj["SystemInformation"]
+        client_version = sys_info["PsiphonInfo"]["CLIENT_VERSION"] or sys_info["ApplicationInfo"]["clientVersion"]
     except KeyError:
         return
 
@@ -47,7 +48,7 @@ def redact_sensitive_values(obj):
         except ValueError:
             return
 
-    redactors_to_run = redactors(client_platform, client_version)
+    redactors_to_run = redactors(app_name, client_platform, client_version)
     run_redactors(obj, redactors_to_run)
 
 
@@ -94,19 +95,26 @@ def _redact_sensitive_values_all_clients_test():
 
 
 def _generate_android_feedback(client_version, msg):
-    return _generate_feedback_scheme1("android", client_version, msg)
+    return _generate_feedback_scheme1("psiphon", "android", client_version, msg)
 
 
 # Note: scheme should match ios-browser as well.
 def _generate_ios_vpn_feedback(client_version, msg):
-    return _generate_feedback_scheme1("ios-vpn", client_version, msg)
+    return _generate_feedback_scheme1("psiphon", "ios-vpn", client_version, msg)
 
 
 # Note: this scheme is shared between iOS and Android clients, but there is at
 # least one other scheme used on Android.
-def _generate_feedback_scheme1(client_platform, client_version, msg):
+# Also note that if we change the actual scheme(s) used on the clients,
+# this code will probably need to be updated to generate a specific scheme version.
+def _generate_feedback_scheme1(app_name, client_platform, client_version, msg):
+    if app_name != "psiphon":
+        # The scheme produced here is only valid for Psiphon clients (not for Ryve).
+        raise ValueError("app_name must be 'psiphon', got '{}'".format(app_name))
+
     return {
         "Metadata": {
+            "appName": app_name,
             "platform": client_platform
         },
         "DiagnosticInfo": {
@@ -132,6 +140,7 @@ def _generate_feedback_scheme1(client_platform, client_version, msg):
 def _generate_windows_feedback(client_version, msg):
     return {
         "Metadata": {
+            "appName": "psiphon",
             "platform": "windows"
         },
         "DiagnosticInfo": {
@@ -197,14 +206,14 @@ def _redact_sensitive_values_ios_vpn_test():
     print('redact_sensitive_values_ios_vpn_test okay')
 
 
-def redactors(client_platform, client_version):
+def redactors(app_name, client_platform, client_version):
     '''
-    Return redactors to use for the target client platform and version.
+    Return redactors to use for the target app, platform, and version.
     '''
     redactors = [_redact_upstream_proxy_errors]
-    if client_platform == "ios-vpn" and client_version >= 160:
+    if app_name == "psiphon" and client_platform == "ios-vpn" and client_version >= 160:
         redactors.append(_ios_vpn_redact_start_tunnel_with_options)
-    elif client_platform == "windows" and client_version == 160:
+    elif app_name == "psiphon" and client_platform == "windows" and client_version == 160:
         redactors.append(_windows_redact_panic_logs)
     return redactors
 

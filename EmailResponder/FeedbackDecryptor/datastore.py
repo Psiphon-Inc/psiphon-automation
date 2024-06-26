@@ -287,7 +287,7 @@ def _get_stats_helper(since_time):
 
         response_checks = [r['data'] for r in rec.get('DiagnosticHistory', [])
                            if r.get('msg') == 'ServerResponseCheck'
-                             and r.get('data').get('responded') and r.get('data').get('responseTime')]
+                             and r.get('data', {}).get('responded') and r.get('data', {}).get('responseTime')]
 
         for r in response_checks:
             if isinstance(r['responded'], str):
@@ -321,7 +321,7 @@ def _get_stats_helper(since_time):
 
             response_checks = (r['data'] for r in rec.get('DiagnosticInfo', {}).get('DiagnosticHistory', [])
                               if r.get('msg') == 'ServerResponseCheck'
-                                 and r.get('data').get('responded') and r.get('data').get('responseTime'))
+                                 and r.get('data', {}).get('responded') and r.get('data', {}).get('responseTime'))
 
             survey_results = rec.get('Feedback', {}).get('Survey', {}).get('results', [])
             if type(survey_results) != list:

@@ -87,14 +87,17 @@ def _bucket_iterator(bucket: 'boto3.S3.Bucket') -> str:
     logger.debug_log('_bucket_iterator end') # unreachable
 
 
-def _should_email_data(diagnostic_info):
+def _should_email_data(diagnostic_info) -> bool:
     '''
     Determine if this diagnostic info should be emailed. Not all diagnostic
     info bundles have useful information that needs to be immediately seen by
     a human. Additionally, trying to email too many feedbacks can produce a backlog.
     '''
-    #return diagnostic_info.get('Feedback', {}).get('Message', {}).get('text')
-    return diagnostic_info.get('Feedback', {}).get('Message', {}).get('text') and diagnostic_info.get('Feedback', {}).get('email')
+    if diagnostic_info.get('Metadata', {}).get('appName') == 'ryve':
+        return True
+    elif diagnostic_info.get('Feedback', {}).get('Message', {}).get('text') and diagnostic_info.get('Feedback', {}).get('email'):
+        return True
+    return False
 
 
 def go():
@@ -193,13 +196,16 @@ def _process_work_items(work_queue):
 
             logger.log('feedback id: {0}; size: {1:.1f} MB'.format(diagnostic_info.get('Metadata', {}).get('id'), len(encrypted_info_json)/1e6))
 
-            # Modifies diagnostic_info
-            utils.convert_psinet_values(config, diagnostic_info)
-
             if not utils.is_diagnostic_info_sane(diagnostic_info):
                 # Something is wrong. Skip and continue.
                 logger.debug_log('_process_work_items: diagnostic_info not sane')
                 continue
+
+            # Modifies diagnostic_info
+            utils.upgrade_diagnostic_info(diagnostic_info)
+
+            # Modifies diagnostic_info
+            utils.convert_psinet_values(config, diagnostic_info)
 
             # Modifies diagnostic_info
             redactor.redact_sensitive_values(diagnostic_info)
