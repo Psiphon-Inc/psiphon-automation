@@ -2779,10 +2779,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         paused_servers_list = []
         server_ids_on_host = []
         for server in self.__servers.values():
-            if server.host_id == host.id and server_id == server_id:
+            if server.host_id == host.id and server_id == server.id:
                 server_ids_on_host.append(server.id)
                 break
-            else if server.host_id == host.id and server_id == 'all':
+            elif server.host_id == host.id and server_id == 'all':
                 server_ids_on_host.append(server.id)
         for server_id in server_ids_on_host:
             paused_server = self.__servers.pop(server_id)
@@ -2795,8 +2795,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         else:
             paused_host = None
         
-        self.__paused_hosts_and_servers[paused_host.id]['host'] = paused_host
-        self.__paused_hosts_and_servers[pause_host.id]['servers'] = paused_servers_list
+        self.__paused_hosts_and_servers[host.id]['host'] = paused_host
+        self.__paused_hosts_and_servers[host.id]['servers'] = paused_servers_list
 
         if paused_host != None and host.id in self.__deploy_implementation_required_for_hosts:
             self.__deploy_implementation_required_for_hosts.remove(host.id)
