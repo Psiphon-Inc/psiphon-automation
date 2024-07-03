@@ -2795,6 +2795,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         else:
             paused_host = None
         
+        self.__paused_hosts_and_servers[host.id] = dict()
         self.__paused_hosts_and_servers[host.id]['host'] = paused_host
         self.__paused_hosts_and_servers[host.id]['servers'] = paused_servers_list
 
