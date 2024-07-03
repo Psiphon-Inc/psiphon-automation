@@ -2772,24 +2772,24 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # NOTE: caller is responsible for saving now
         #self.save()
 
-    def pause_host(self, host_id, server_id='all'):
+    def pause_host(self, host_id, pause_server_id='all'):
         assert(self.is_locked)
         host = self.__hosts[host_id]
 
         paused_servers_list = []
         server_ids_on_host = []
         for server in self.__servers.values():
-            if server.host_id == host.id and server_id == server.id:
+            if server.host_id == host.id and pause_server_id == server.id:
                 server_ids_on_host.append(server.id)
                 break
-            elif server.host_id == host.id and server_id == 'all':
+            elif server.host_id == host.id and pause_server_id == 'all':
                 server_ids_on_host.append(server.id)
         for server_id in server_ids_on_host:
             paused_server = self.__servers.pop(server_id)
             paused_server.log("paused")
             paused_servers_list.append(paused_server)
         
-        if server_id == 'all':
+        if pause_server_id == 'all':
             paused_host = self.__hosts.pop(host.id)
             paused_host.log("paused")
         else:
