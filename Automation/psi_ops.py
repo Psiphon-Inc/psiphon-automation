@@ -2818,8 +2818,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if len(paused_servers) > 0:
             for paused_server in paused_servers:
                 for log in copy.copy(paused_server.logs):
-                if 'paused' in log[1]:
-                    paused_server.logs.remove(log)
+                    if 'paused' in log[1]:
+                        paused_server.logs.remove(log)
                 self.__servers[paused_server.id] = paused_server
         
         self.__paused_hosts_and_servers.pop(host_id)
