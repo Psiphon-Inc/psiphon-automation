@@ -108,6 +108,7 @@ class PsiOVH:
 
         print("Success setup cart order, CartID:{} and ItemID:{}".format(cart_id, item_id))
       except:
+        print("Failed setup cart order, CartID:{} and ItemID:{} for destination server: {}".format(cart_id, item_id, destination_server_id))
         self.client.delete('/order/cart/{cartId}/item/{itemId}'.format(cartId=cart_id, itemId=ip_order['itemId']))
 
     checkout_order = self.checkout_order_cart(cart_id)
