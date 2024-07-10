@@ -2475,6 +2475,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             server_info = server_infos[new_server_number]
             if type(server_info) != tuple:
                 continue
+            sys.stderr.write('[add_servers] Working on server: ' + \
+                'host_id: ' + server_info[0] + \
+                'provider: ' + server_info[3] + \
+                'internal_id: ' + server_info[4] + \
+                'ip_address: ' + server_info[5] + '\n')
             internal_ip = server_info[-1]
             egress_ip = server_info[-2]
             host = Host(*server_info[:-2])
