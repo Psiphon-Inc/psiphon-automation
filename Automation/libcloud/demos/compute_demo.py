@@ -27,21 +27,21 @@ try:
 except ImportError:
     secrets = None
 
-import os.path
 import sys
-
-# Add parent dir of this file's dir to sys.path (OS-agnostically)
-sys.path.append(os.path.normpath(os.path.join(os.path.dirname(__file__),
-                                 os.path.pardir)))
-
-from libcloud.common.types import InvalidCredsError
-from libcloud.compute.types import Provider
-from libcloud.compute.providers import get_driver
-
+import os.path
 from pprint import pprint
 
+# Add parent dir of this file's dir to sys.path (OS-agnostically)
+sys.path.append(os.path.normpath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 
-def get_demo_driver(provider_name='RACKSPACE', *args, **kwargs):
+# isort:skip pragma is needed to make sure those imports are not moved above
+# sys.path manipulation code (https://github.com/PyCQA/isort/issues/468)
+from libcloud.common.types import InvalidCredsError  # isort:skip
+from libcloud.compute.types import Provider  # isort:skip
+from libcloud.compute.providers import get_driver  # isort:skip
+
+
+def get_demo_driver(provider_name="RACKSPACE", *args, **kwargs):
     """An easy way to play with a driver interactively.
 
     # Load credentials from secrets.py:
@@ -71,15 +71,14 @@ def get_demo_driver(provider_name='RACKSPACE', *args, **kwargs):
     DriverClass = get_driver(getattr(Provider, provider_name))
 
     if not args:
-        args = getattr(secrets, provider_name + '_PARAMS', ())
+        args = getattr(secrets, provider_name + "_PARAMS", ())
     if not kwargs:
-        kwargs = getattr(secrets, provider_name + '_KEYWORD_PARAMS', {})
+        kwargs = getattr(secrets, provider_name + "_KEYWORD_PARAMS", {})
 
     try:
         return DriverClass(*args, **kwargs)
     except InvalidCredsError:
-        raise InvalidCredsError(
-            'valid values should be put in secrets.py')
+        raise InvalidCredsError("valid values should be put in secrets.py")
 
 
 def main(argv):
@@ -95,8 +94,7 @@ def main(argv):
     """
     try:
         driver = get_demo_driver()
-    except InvalidCredsError:
-        e = sys.exc_info()[1]
+    except InvalidCredsError as e:
         print("Invalid Credentials: " + e.value)
         return 1
 
@@ -109,10 +107,10 @@ def main(argv):
 
         print(">> Loading sizes... (showing up to 10)")
         pprint(driver.list_sizes()[:10])
-    except Exception:
-        e = sys.exc_info()[1]
+    except Exception as e:
         print("A fatal error occurred: " + e)
         return 1
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     sys.exit(main(sys.argv))

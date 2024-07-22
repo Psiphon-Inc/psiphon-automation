@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2011, Psiphon Inc.
+# Copyright (c) 2024, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -979,6 +979,9 @@ def install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, ssh_ip
     new_rate_limit_chain = textwrap.dedent('''
         -N PSI_RATE_LIMITING''')
 
+    accept_with_inproxy_limit_rate_template = textwrap.dedent('''
+        -A PSI_RATE_LIMITING -p {proto} -m state --state NEW -m {proto} --dport {port} -m limit {accept_unfronted_rate_limit} -j ACCEPT''')
+
     accept_with_unfronted_limit_rate_template = textwrap.dedent('''
         -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m limit {accept_unfronted_rate_limit} -j ACCEPT''')
 
@@ -1018,7 +1021,18 @@ def install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, ssh_ip
 
     for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, external_ports=use_external_ports).items():
         protocol_port_rule = ''
-        if 'UNFRONTED-MEEK' in protocol:
+        if 'INPROXY' in protocol:
+            if 'QUIC' in protocol:
+                protocol_port_rule = accept_with_inproxy_limit_rate_template.format(
+                    accept_unfronted_rate_limit=accept_unfronted_rate_limit,
+                    proto="udp",
+                    port=str(port))
+            else:
+                protocol_port_rule = accept_with_inproxy_limit_rate_template.format(
+                    accept_unfronted_rate_limit=accept_unfronted_rate_limit,
+                    proto="tcp",
+                    port=str(port))
+        elif 'UNFRONTED-MEEK' in protocol:
             protocol_port_rule = accept_with_unfronted_limit_rate_template.format(
                 accept_unfronted_rate_limit=accept_unfronted_rate_limit,
                 port=str(port))
@@ -1279,8 +1293,10 @@ def install_geoip_database(ssh, is_TCS):
                          posixpath.join(REMOTE_GEOIP_DIRECTORY, geo_ip_file))
 
 def install_second_ip_address(host, new_ip_addresses_list):
-    interfaces_path = '/etc/network/interfaces.d/multi_ip_interfaces'
-    nat_routing_path = '/etc/network/if-up.d/nat_routing'
+    
+    interface_alias = datetime.datetime.now().strftime('%m%d')
+
+    interfaces_path = '/etc/network/interfaces.d/multi_ip_interfaces.{}'.format(interface_alias)
     interface_dev = 'eth0' #Default interface devicename
 
     if type(new_ip_addresses_list) != list:
@@ -1294,7 +1310,6 @@ def install_second_ip_address(host, new_ip_addresses_list):
 
     interface_dev = ssh.exec_command("ip addr show | grep %s | awk '/inet.*brd/{print $NF}'" % (host.ip_address)).strip().split("\n")[0]
     interface_up = ssh.exec_command('cat /sys/class/net/' + interface_dev + '/operstate')
-    nat_routing_exist = ssh.exec_command('[ -f ' + nat_routing_path  + ' ] && echo "found" || echo "no"')
 
     if 'up' in interface_up:
         print("Checked {} is up, using it as default virtual interfaces".format(interface_dev))
@@ -1304,33 +1319,24 @@ def install_second_ip_address(host, new_ip_addresses_list):
 
     interfaces_contents_list = []
 
+    interfaces_contents_header = textwrap.dedent('''auto {interface_dev}:{virtual_interface_alias}
+    allow-hotplug {interface_dev}:{virtual_interface_alias}
+    ''').format(interface_dev=interface_dev, virtual_interface_alias=interface_alias)
+    
+    interfaces_contents_list.append(interfaces_contents_header)
+
     for i in range(0, len(new_ip_addresses_list)):
         new_ip_address = new_ip_addresses_list[i]
-        interfaces_contents = textwrap.dedent('''auto {interface_dev}:{virtual_interface_number}
-        allow-hotplug {interface_dev}:{virtual_interface_number}
-        iface {interface_dev}:{virtual_interface_number} inet static
-            address {ip_address}
-            netmask 255.255.255.0
-        ''').format(interface_dev=interface_dev, virtual_interface_number=i+1, ip_address=new_ip_address)
+        interfaces_contents = textwrap.dedent('''iface {interface_dev}:{virtual_interface_number} inet static
+        address {ip_address}
+        up /sbin/iptables -t nat -I PREROUTING -j DNAT -d {ip_address} --to-destination {host_ip_address}
+        down /sbin/iptables -t nat -D PREROUTING -j DNAT -d {ip_address} --to-destination {host_ip_address}
+        ''').format(interface_dev=interface_dev, virtual_interface_number=interface_alias, ip_address=new_ip_address, host_ip_address=host.ip_address)
         interfaces_contents_list.append(interfaces_contents)
     new_interfaces_contents = '\n'.join(interfaces_contents_list)
 
-    if 'no' in nat_routing_exist:
-        print("Nat routing iptables rule not found, creating a new one with header.")
-        new_nat_routing_header = textwrap.dedent('''#!/bin/sh''')
-        ssh.exec_command('echo "{new_nat_routing_header}" > {nat_routing_path}'.format(
-            new_nat_routing_header=new_nat_routing_header, nat_routing_path=nat_routing_path))
-
-    new_nat_routing_contents = textwrap.dedent('''/sbin/iptables -t nat -I PREROUTING -j DNAT -d {new_ip_addresses} --to-destination {host_ip_address}
-    ''').format(new_ip_addresses=','.join(new_ip_addresses_list), host_ip_address=host.ip_address)
-
     ssh.exec_command('echo "{second_interfaces_contents}" >> {interfaces_path}'.format(
         second_interfaces_contents=new_interfaces_contents, interfaces_path=interfaces_path))
-
-    ssh.exec_command('echo "{new_nat_routing_contents}" >> {nat_routing_path}'.format(
-        new_nat_routing_contents=new_nat_routing_contents, nat_routing_path=nat_routing_path))
-
-    ssh.exec_command('chmod +x {nat_routing_path}'.format(nat_routing_path=nat_routing_path))
 
     ssh.close()
 
@@ -1525,6 +1531,13 @@ while true; do
             then
                 # convert interface to kilobits
                 local interface_speed_in_kbps=$(( interface_speed * 1000))
+
+                # Limit the interface speed to 1 Gbps globally
+                if [ $interface_speed_in_kbps -gt $((1000 * 1000)) ]
+                then
+                    # Todo: Add a check for host.interface_speeed_cap in future if required for specific hosts
+                    interface_speed_in_kbps=$((1000 * 1000))
+                fi
 
                 # Record old bytes
                 local interface_bytes_in_old=$(cat "/sys/class/net/${_interface}/statistics/rx_bytes")

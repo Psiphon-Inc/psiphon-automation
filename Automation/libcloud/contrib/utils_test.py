@@ -16,37 +16,37 @@
 #
 ################################################################################
 
-import simplejson
+# pylint: skip-file
+
+import json
 import unittest
+
 import utils
 
 
 class SplitStringToAlphaNumTest(unittest.TestCase):
-
     def testInitial(self):
-        self.assertEqual(utils.splitStringWithNumbers('12-abc'),
-                         [12, '-abc'])
+        self.assertEqual(utils.splitStringWithNumbers("12-abc"), [12, "-abc"])
 
     def testMiddle(self):
-        self.assertEqual(utils.splitStringWithNumbers('abc-345-def'),
-                         ['abc-', 345, '-def'])
+        self.assertEqual(utils.splitStringWithNumbers("abc-345-def"), ["abc-", 345, "-def"])
 
     def testFinal(self):
-        self.assertEqual(utils.splitStringWithNumbers('xyz-42'),
-                         ['xyz-', 42])
+        self.assertEqual(utils.splitStringWithNumbers("xyz-42"), ["xyz-", 42])
 
     def testMultiple(self):
-        self.assertEqual(utils.splitStringWithNumbers('Aaa-123-Bbb-456-Ccc'),
-                         ['Aaa-', 123, '-Bbb-', 456, '-Ccc'])
+        self.assertEqual(
+            utils.splitStringWithNumbers("Aaa-123-Bbb-456-Ccc"),
+            ["Aaa-", 123, "-Bbb-", 456, "-Ccc"],
+        )
 
 
 class SortKeysNumericallyTest(unittest.TestCase):
-
     def testSimple(self):
         input = {
-            'a-1': 1,
-            'a-12': 12,
-            'a-2': 2,
+            "a-1": 1,
+            "a-12": 12,
+            "a-2": 2,
         }
         output = """\
 {
@@ -56,10 +56,10 @@ class SortKeysNumericallyTest(unittest.TestCase):
 }\
 """
         self.assertEqual(
-            simplejson.dumps(input, indent=4 * ' ',
-                             item_sort_key=utils.sortKeysNumerically),
-            output)
+            json.dumps(input, indent=4 * " ", item_sort_key=utils.sortKeysNumerically),
+            output,
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

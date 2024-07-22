@@ -1,21 +1,34 @@
-import sys
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 try:
     import simplejson as json
 except ImportError:
     import json
 
-from libcloud.common.luadns import LuadnsResponse, LuadnsConnection
-from libcloud.common.luadns import LuadnsException
-from libcloud.dns.base import DNSDriver, Zone, Record
-from libcloud.dns.types import Provider, RecordType
-from libcloud.dns.types import ZoneDoesNotExistError, ZoneAlreadyExistsError
-from libcloud.dns.types import RecordDoesNotExistError
+from libcloud.dns.base import Zone, Record, DNSDriver
+from libcloud.dns.types import (
+    Provider,
+    RecordType,
+    ZoneDoesNotExistError,
+    ZoneAlreadyExistsError,
+    RecordDoesNotExistError,
+)
+from libcloud.common.luadns import LuadnsResponse, LuadnsException, LuadnsConnection
 
-
-__all__ = [
-    'LuadnsDNSDriver'
-]
+__all__ = ["LuadnsDNSDriver"]
 
 
 class LuadnsDNSResponse(LuadnsResponse):
@@ -28,20 +41,20 @@ class LuadnsDNSConnection(LuadnsConnection):
 
 class LuadnsDNSDriver(DNSDriver):
     type = Provider.LUADNS
-    name = 'Luadns'
-    website = 'https://www.luadns.com'
+    name = "Luadns"
+    website = "https://www.luadns.com"
     connectionCls = LuadnsDNSConnection
 
     RECORD_TYPE_MAP = {
-        RecordType.A: 'A',
-        RecordType.AAAA: 'AAAA',
-        RecordType.CNAME: 'CNAME',
-        RecordType.MX: 'MX',
-        RecordType.NS: 'NS',
-        RecordType.PTR: 'PTR',
-        RecordType.SOA: 'SOA',
-        RecordType.SRV: 'SRV',
-        RecordType.TXT: 'TXT'
+        RecordType.A: "A",
+        RecordType.AAAA: "AAAA",
+        RecordType.CNAME: "CNAME",
+        RecordType.MX: "MX",
+        RecordType.NS: "NS",
+        RecordType.PTR: "PTR",
+        RecordType.SOA: "SOA",
+        RecordType.SRV: "SRV",
+        RecordType.TXT: "TXT",
     }
 
     def list_zones(self):
@@ -50,9 +63,8 @@ class LuadnsDNSDriver(DNSDriver):
 
         :return: ``list`` of :class:`Zone`
         """
-        action = '/v1/zones'
-        response = self.connection.request(action=action,
-                                           method='GET')
+        action = "/v1/zones"
+        response = self.connection.request(action=action, method="GET")
         zones = self._to_zones(response.parse_body())
 
         return zones
@@ -66,14 +78,12 @@ class LuadnsDNSDriver(DNSDriver):
 
         :rtype: :class:`Zone`
         """
-        action = '/v1/zones/%s' % zone_id
+        action = "/v1/zones/%s" % zone_id
         try:
             response = self.connection.request(action=action)
-        except LuadnsException:
-            e = sys.exc_info()[1]
-            if e.message in ['Zone not found.', 'Resource not found.']:
-                raise ZoneDoesNotExistError(zone_id=zone_id,
-                                            value='', driver=self)
+        except LuadnsException as e:
+            if e.message in ["Zone not found.", "Resource not found."]:
+                raise ZoneDoesNotExistError(zone_id=zone_id, value="", driver=self)
             else:
                 raise e
 
@@ -92,21 +102,18 @@ class LuadnsDNSDriver(DNSDriver):
 
         :rtype: ``bool``
         """
-        action = '/v1/zones/%s' % zone.id
+        action = "/v1/zones/%s" % zone.id
         try:
-            response = self.connection.request(action=action,
-                                               method='DELETE')
-        except LuadnsException:
-            e = sys.exc_info()[1]
-            if e.message in ['Resource not found.', 'Zone not found.']:
-                raise ZoneDoesNotExistError(zone_id=zone.id,
-                                            value='', driver=self)
+            response = self.connection.request(action=action, method="DELETE")
+        except LuadnsException as e:
+            if e.message in ["Resource not found.", "Zone not found."]:
+                raise ZoneDoesNotExistError(zone_id=zone.id, value="", driver=self)
             else:
                 raise e
 
         return response.status == 200
 
-    def create_zone(self, domain, type='master', ttl=None, extra=None):
+    def create_zone(self, domain, type="master", ttl=None, extra=None):
         """
         Create a new zone.
 
@@ -126,18 +133,13 @@ class LuadnsDNSDriver(DNSDriver):
 
         :rtype: :class:`Zone`
         """
-        action = '/v1/zones'
-        data = json.dumps({'name': domain})
+        action = "/v1/zones"
+        data = json.dumps({"name": domain})
         try:
-            response = self.connection.request(action=action,
-                                               method='POST',
-                                               data=data)
-        except LuadnsException:
-            e = sys.exc_info()[1]
+            response = self.connection.request(action=action, method="POST", data=data)
+        except LuadnsException as e:
             if e.message == "Zone '%s' is taken already." % domain:
-                raise ZoneAlreadyExistsError(zone_id=domain,
-                                             value='',
-                                             driver=self)
+                raise ZoneAlreadyExistsError(zone_id=domain, value="", driver=self)
             else:
                 raise e
         zone = self._to_zone(response.parse_body())
@@ -153,7 +155,7 @@ class LuadnsDNSDriver(DNSDriver):
 
         :return: ``list`` of :class:`Record`
         """
-        action = '/v1/zones/%s/records' % zone.id
+        action = "/v1/zones/%s/records" % zone.id
         response = self.connection.request(action=action)
         records = self._to_records(response.parse_body(), zone=zone)
 
@@ -172,14 +174,12 @@ class LuadnsDNSDriver(DNSDriver):
         :rtype: :class:`Record`
         """
         zone = self.get_zone(zone_id=zone_id)
-        action = '/v1/zones/%s/records/%s' % (zone_id, record_id)
+        action = "/v1/zones/{}/records/{}".format(zone_id, record_id)
         try:
             response = self.connection.request(action=action)
-        except LuadnsException:
-            e = sys.exc_info()[1]
-            if e.message == 'Record not found.':
-                raise RecordDoesNotExistError(record_id=record_id, driver=self,
-                                              value='')
+        except LuadnsException as e:
+            if e.message == "Record not found.":
+                raise RecordDoesNotExistError(record_id=record_id, driver=self, value="")
             else:
                 raise e
 
@@ -196,15 +196,12 @@ class LuadnsDNSDriver(DNSDriver):
 
         :rtype: ``bool``
         """
-        action = '/v1/zones/%s/records/%s' % (record.zone.id, record.id)
+        action = "/v1/zones/{}/records/{}".format(record.zone.id, record.id)
         try:
-            response = self.connection.request(action=action,
-                                               method='DELETE')
-        except LuadnsException:
-            e = sys.exc_info()[1]
-            if e.message == 'Record not found.':
-                raise RecordDoesNotExistError(record_id=record.id, driver=self,
-                                              value='')
+            response = self.connection.request(action=action, method="DELETE")
+        except LuadnsException as e:
+            if e.message == "Record not found.":
+                raise RecordDoesNotExistError(record_id=record.id, driver=self, value="")
             else:
                 raise e
 
@@ -235,20 +232,16 @@ class LuadnsDNSDriver(DNSDriver):
 
         :rtype: :class:`Record`
         """
-        action = '/v1/zones/%s/records' % zone.id
-        to_post = {'name': name, 'content': data, 'type': type,
-                   'zone_id': int(zone.id)}
+        action = "/v1/zones/%s/records" % zone.id
+        to_post = {"name": name, "content": data, "type": type, "zone_id": int(zone.id)}
         # ttl is required to create a record for luadns
         # pass it through extra like this: extra={'ttl':ttl}
         if extra is not None:
             to_post.update(extra)
         data = json.dumps(to_post)
         try:
-            response = self.connection.request(action=action,
-                                               method='POST',
-                                               data=data)
-        except LuadnsException:
-            e = sys.exc_info()[1]
+            response = self.connection.request(action=action, method="POST", data=data)
+        except LuadnsException as e:
             raise e
 
         record = self._to_record(response.parse_body(), zone=zone)
@@ -256,13 +249,19 @@ class LuadnsDNSDriver(DNSDriver):
         return record
 
     def _to_zone(self, item):
-        common_attr = ['id', 'name']
+        common_attr = ["id", "name"]
         extra = {}
         for key in item:
             if key not in common_attr:
                 extra[key] = item.get(key)
-        zone = Zone(domain=item['name'], id=item['id'], type=None,
-                    ttl=None, driver=self, extra=extra)
+        zone = Zone(
+            domain=item["name"],
+            id=item["id"],
+            type=None,
+            ttl=None,
+            driver=self,
+            extra=extra,
+        )
 
         return zone
 
@@ -274,14 +273,20 @@ class LuadnsDNSDriver(DNSDriver):
         return zones
 
     def _to_record(self, item, zone):
-        common_attr = ['id', 'content', 'name', 'type']
+        common_attr = ["id", "content", "name", "type"]
         extra = {}
         for key in item:
             if key not in common_attr:
                 extra[key] = item.get(key)
-        record = Record(id=item['id'], name=item['name'], type=item['type'],
-                        data=item['content'], zone=zone, driver=self,
-                        extra=extra)
+        record = Record(
+            id=item["id"],
+            name=item["name"],
+            type=item["type"],
+            data=item["content"],
+            zone=zone,
+            driver=self,
+            extra=extra,
+        )
 
         return record
 

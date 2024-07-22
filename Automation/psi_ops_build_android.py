@@ -120,6 +120,7 @@ def write_embedded_values(propagation_channel_id,
                           faq_url,
                           privacy_policy_url,
                           propagator_managed_upgrades,
+                          additional_parameters,
                           ignore_non_embedded_server_entries=False,
                           home_tab_url_exclusions=[]):
     utils.set_embedded_values(client_version,
@@ -147,6 +148,7 @@ def write_embedded_values(propagation_channel_id,
                               remote_server_list_signature_public_key,
                               server_entry_signature_public_key,
                               server_entry_exchange_obfuscation_key,
+                              additional_parameters,
                               '","'.join(home_tab_url_exclusions))
 
     cog_args = shlex.split('cog -U -I "%s" -o "%s" -D buildname="" "%s"' % (os.getcwd(), EMBEDDED_VALUES_FILENAME, EMBEDDED_VALUES_FILENAME + '.stub'))
@@ -196,6 +198,7 @@ def build_client(
         split_tunnel_dns_server, 
         version,
         propagator_managed_upgrades,
+        additional_parameters,
         test=False,
         home_tab_url_exclusions=[]):
 
@@ -236,6 +239,7 @@ def build_client(
             faq_url,
             privacy_policy_url,
             propagator_managed_upgrades,
+            additional_parameters,
             test,
             home_tab_url_exclusions)
 

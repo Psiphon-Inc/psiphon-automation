@@ -52,7 +52,7 @@ def check_load_on_host(host):
                          'free | grep "Swap" | awk \'{if ($2 == 0) {print 0} else {print $4/$2 * 100.0}}\'',
                          'df -T / | grep "/" | awk \'{if ($4 == 0) {print 0} else {print $4/$3 * 100.0}}\'']
         load_metrics = g_psinet.run_command_on_host(host, '; '.join(load_commands)).strip().split('\n')
-        if host.is_TCS:
+        if host.is_TCS or host.is_inproxy:
             load_threshold = float(load_metrics[1].strip())
         else:
             load_threshold = 4.0 * float(load_metrics[1].strip()) - 1
@@ -71,10 +71,13 @@ def check_load_on_host(host):
             raise Exception("Unexpected number of load metrics")
 
         processes_to_check = ['cron', 'rsyslogd', 'fail2ban-server', 'ntpd', 'systemctl', 'filebeat']
+        inproxy_processes = ['cron', 'fail2ban-server', 'psiphon-inproxy']
         legacy_process = ['psi_web.py', 'redis-server', 'badvpn-udpgw', 'xinetd']
         vpn_servers = [server.host_id for server in g_psinet.get_servers() if server.host_id == host.id and server.capabilities['VPN'] == True]
         if host.is_TCS:
             processes_to_check.append('psiphond')
+        elif host.is_inproxy:
+            processes_to_check = inproxy_processes
         else:
             processes_to_check = processes_to_check + legacy_process
 
@@ -104,11 +107,15 @@ def check_load_on_host(host):
 
         if host.is_TCS:
             geoip_freshness_check = 'find /usr/local/share/GeoIP/GeoIP2-City.mmdb -mtime -14'
+        elif host.is_inproxy:
+            geoip_freshness_check = None
         else:
             geoip_freshness_check = 'find /usr/local/share/GeoIP/GeoIPCity.dat'
-        fresh_geoip_db = g_psinet.run_command_on_host(host, geoip_freshness_check)
-        if fresh_geoip_db == '':
-            process_alerts.append('geoip_db')
+
+        if geoip_freshness_check:
+            fresh_geoip_db = g_psinet.run_command_on_host(host, geoip_freshness_check)
+            if fresh_geoip_db == '':
+                process_alerts.append('geoip_db')
 
         if host.is_TCS:
             if not g_psinet._PsiphonNetwork__check_host_is_accepting_tunnels(host.id):

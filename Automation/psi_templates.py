@@ -18,6 +18,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+# This file processes email autoresponder content templates
+
 import os
 import yaml
 
@@ -29,6 +31,8 @@ except TypeError as te:
     print(te)
 
 
+# This list needs to be kept in sync with the languages in i18n/transifex_pull.py
+# TODO: Use that list as the canonical source
 LANGUAGES = [
     'en',
     'fa',
@@ -47,6 +51,7 @@ LANGUAGES = [
     'fr',
     'hi',
     'hr',
+    'hu',
     'id',
     'it',
     'kk',
@@ -61,13 +66,15 @@ LANGUAGES = [
     'pt_PT',
     'ru',
     'sn',
+    'sw',
     'tg',
     'th',
     'ti',
     'tk',
     'tr',
-    'ug@Latn',
+    # 'ug@Latn',
     'uk',
+    'ur',
     'uz@Cyrl',
     'uz@Latn',
     'vi',

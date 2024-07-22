@@ -382,7 +382,7 @@ def _validate_start_tunnel_with_options(obj):
 
     exemplar = {
         'Event': lambda val: val == "Start",
-        'StartMethod': lambda val: val in ['Container', 'Boot', 'Crash', 'Other']
+        'StartMethod': lambda val: val in ['Container', 'Boot', 'Crash', 'Other', 'OtherAfterSystemStop']
     }
 
     return utils._check_exemplar(obj, exemplar)
@@ -399,6 +399,7 @@ def _validate_start_tunnel_with_options_test():
     assert(_validate_start_tunnel_with_options({'Event':'Start', 'StartMethod':'Boot'}) == True)
     assert(_validate_start_tunnel_with_options({'Event':'Start', 'StartMethod':'Crash'}) == True)
     assert(_validate_start_tunnel_with_options({'Event':'Start', 'StartMethod':'Other'}) == True)
+    assert(_validate_start_tunnel_with_options({'Event':'Start', 'StartMethod':'OtherAfterSystemStop'}) == True)
     assert(_validate_start_tunnel_with_options({'Event':'Start', 'StartMethod':'Container', 'UnexpectedField':'UnexpectedValue'}) == False)
 
     print('_validate_start_tunnel_with_test okay')

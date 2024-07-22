@@ -32,7 +32,7 @@ try:
 except ImportError as error:
     print(error)
 
-EXECUTABLE = 00744
+EXECUTABLE = 0o744
 BASE_PATH = '/usr/local/share/PsiphonV'
 BLACKLIST_DIR = 'malware_blacklist'
 IPSET_DIR = os.path.abspath(os.path.join(BASE_PATH, BLACKLIST_DIR, 'ipset'))
@@ -47,7 +47,7 @@ def build_malware_dictionary(url):
     malware_dicts = {}
     try:
         resp = urllib2.urlopen(url).read()
-        malware_lists = re.findall('\w+\.list', resp)
+        malware_lists = re.findall('\w+\.list', resp.decode())
         for item in malware_lists:
             name = item.split('.')
             malware_dicts[name[0]] = {'url': ''.join([url, item]),
@@ -57,7 +57,7 @@ def build_malware_dictionary(url):
                                      'set_name': name[0],
                                     }
         
-    except urllib2.URLError, er:
+    except urllib2.URLError as er:
         if hasattr(er, 'reason'):
             print('Failed: ', er.reason)
         elif hasattr(er, 'code'):
@@ -131,7 +131,7 @@ def modify_iptables_insert_tracker(tracker, chain, rules):
         if it already exists as it creates duplicate entries
     """
     add_tracker = True
-    for line in rules.split('\n'):
+    for line in rules.decode().split('\n'):
         if tracker['set_name'] in line:       # return if we see the tracker
             add_tracker = False
             break

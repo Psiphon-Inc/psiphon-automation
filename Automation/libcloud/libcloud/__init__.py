@@ -19,21 +19,27 @@ libcloud provides a unified interface to the cloud computing resources.
 :var __version__: Current version of libcloud
 """
 
-
 import os
+import atexit
 import codecs
 
-try:
-    import paramiko
-    have_paramiko = True
-except ImportError:
-    have_paramiko = False
+from libcloud.base import DriverType  # NOQA
+from libcloud.base import DriverTypeFactoryMap  # NOQA
+from libcloud.base import get_driver  # NOQA
 
-__all__ = [
-    '__version__',
-    'enable_debug'
-]
-__version__ = '1.1.0'
+try:
+    # TODO: This import is slow and adds overhead in situations when no
+    # requests are made but it's necessary for detecting bad version of
+    # requests
+    import requests  # NOQA
+
+    have_requests = True
+except ImportError:
+    have_requests = False
+
+__all__ = ["__version__", "enable_debug"]
+
+__version__ = "3.8.1.dev"
 
 
 def enable_debug(fo):
@@ -43,13 +49,20 @@ def enable_debug(fo):
     :param fo: Where to append debugging information
     :type fo: File like object, only write operations are used.
     """
-    from libcloud.common.base import (Connection,
-                                      LoggingHTTPConnection,
-                                      LoggingHTTPSConnection)
-    LoggingHTTPSConnection.log = fo
-    LoggingHTTPConnection.log = fo
-    Connection.conn_classes = (LoggingHTTPConnection,
-                               LoggingHTTPSConnection)
+    from libcloud.common.base import Connection
+    from libcloud.utils.loggingconnection import LoggingConnection
+
+    LoggingConnection.log = fo
+    Connection.conn_class = LoggingConnection
+
+    # Ensure the file handle is closed on exit
+    def close_file(fd):
+        try:
+            fd.close()
+        except Exception:
+            pass
+
+    atexit.register(close_file, fo)
 
 
 def _init_once():
@@ -58,10 +71,13 @@ def _init_once():
 
     This checks for the LIBCLOUD_DEBUG environment variable, which if it exists
     is where we will log debug information about the provider transports.
+
+    This also checks for known environment/dependency incompatibilities.
     """
-    path = os.getenv('LIBCLOUD_DEBUG')
+    path = os.getenv("LIBCLOUD_DEBUG")
+
     if path:
-        mode = 'a'
+        mode = "a"
 
         # Special case for /dev/stderr and /dev/stdout on Python 3.
         from libcloud.utils.py3 import PY3
@@ -69,13 +85,43 @@ def _init_once():
         # Opening those files in append mode will throw "illegal seek"
         # exception there.
         # Late import to avoid setup.py related side affects
-        if path in ['/dev/stderr', '/dev/stdout'] and PY3:
-            mode = 'w'
+        if path in ["/dev/stderr", "/dev/stdout"] and PY3:
+            mode = "w"
 
-        fo = codecs.open(path, mode, encoding='utf8')
+        fo = codecs.open(path, mode, encoding="utf8")
         enable_debug(fo)
 
-        if have_paramiko:
-            paramiko.common.logging.basicConfig(level=paramiko.common.DEBUG)
+        # NOTE: We use lazy import to avoid unnecessary import time overhead
+        try:
+            import paramiko  # NOQA
+
+            have_paramiko = True
+        except ImportError:
+            have_paramiko = False
+
+        if have_paramiko and hasattr(paramiko.util, "log_to_file"):
+            import logging
+
+            # paramiko always tries to open file path in append mode which
+            # won't work with /dev/{stdout, stderr} so we just ignore those
+            # errors
+            try:
+                paramiko.util.log_to_file(filename=path, level=logging.DEBUG)
+            except OSError as e:
+                if "illegal seek" not in str(e).lower():
+                    raise e
+
+    # check for broken `yum install python-requests`
+    if have_requests and requests.__version__ == "2.6.0":
+        chardet_version = requests.packages.chardet.__version__
+        required_chardet_version = "2.3.0"
+        assert chardet_version == required_chardet_version, (
+            "Known bad version of requests detected! This can happen when "
+            "requests was installed from a source other than PyPI, e.g. via "
+            "a package manager such as yum. Please either install requests "
+            "from PyPI or run `pip install chardet==%s` to resolve this "
+            "issue." % required_chardet_version
+        )
+
 
 _init_once()

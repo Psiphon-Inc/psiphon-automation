@@ -114,7 +114,7 @@ def go():
     work_queue = worker_manager.Queue(maxsize=config['numProcesses']*2)
     # Spin up the workers
     worker_pool = multiprocessing.Pool(processes=config['numProcesses'])
-    [worker_pool.apply_async(_process_work_items, (work_queue,)) for i in range(config['numProcesses'])]
+    exception_results = [worker_pool.apply_async(_process_work_items, (work_queue,)) for i in range(config['numProcesses'])]
 
     # Note that `_bucket_iterator` throttles itself if/when there are no
     # available objects in the bucket.
@@ -124,10 +124,20 @@ def go():
             work_queue.close()
             break
 
+        # Check if any exceptions have been thrown in the worker processes
+        for result in exception_results:
+            if result.ready():
+                logger.debug_log('go: getting exception result')
+                # This will raise an exception if one was thrown in the worker
+                result.get()
+
         logger.debug_log('go: enqueueing work item')
         # This blocks if the queue is full
         work_queue.put(encrypted_info_json)
         logger.debug_log('go: enqueued work item')
+
+    worker_pool.close()
+    worker_pool.join()
 
     logger.debug_log('go: done')
 
@@ -181,7 +191,7 @@ def _process_work_items(work_queue):
                 # Also throw, so we get an email about it
                 raise Exception('diagnostic_info unmarshalled empty')
 
-            logger.log('feedback id: %s' % diagnostic_info.get('Metadata', {}).get('id'))
+            logger.log('feedback id: {0}; size: {1:.1f} MB'.format(diagnostic_info.get('Metadata', {}).get('id'), len(encrypted_info_json)/1e6))
 
             # Modifies diagnostic_info
             utils.convert_psinet_values(config, diagnostic_info)
@@ -237,16 +247,19 @@ def _process_work_items(work_queue):
             logger.error(str(e))
 
         except Exception as e:
+            logger.error(str(e))
             try:
+                import traceback
                 # Something bad happened while decrypting. Report it via email.
                 sender.send(config['decryptedEmailRecipient'],
                             config['emailUsername'],
                             'S3Decryptor: unhandled exception',
-                            str(e) + '\n---\n' + str(diagnostic_info),
+                            traceback.format_exception(type(e), e, e.__traceback__) + '\n---\n' + str(diagnostic_info),
                             None)  # no html body
             except smtplib.SMTPException as e:
                 logger.exception()
                 logger.error(str(e))
+            work_queue.put(e)
             raise
 
     logger.debug_log('_process_work_items: done')

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2012, Psiphon Inc.
+# Copyright (c) 2024, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -100,6 +100,8 @@ TCS_QUIC_OSSH_DOCKER_PORT = 1033
 TCS_TAPDANCE_OSSH_DOCKER_PORT = 1034
 TCS_FRONTED_MEEK_QUIC_OSSH_DOCKER_PORT = 1035
 TCS_CONJURE_OSSH_DOCKER_PORT = 1036
+TCS_INPROXY_WEBRTC_OSSH_DOCKER_PORT = 1037
+TCS_INPROXY_WEBRTC_QUIC_OSSH_DOCKER_PORT = 1038
 
 TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND = 'systemctl kill --signal=USR1 psiphond'
 TCS_PSIPHOND_STOP_ESTABLISHING_TUNNELS_SIGNAL_COMMAND = 'systemctl kill --signal=TSTP psiphond'
@@ -134,7 +136,7 @@ def run_in_parallel(thread_pool_size, function, arguments):
             raise result
 
 
-def deploy_implementation(host, servers, own_encoded_server_entries, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
+def deploy_implementation(host, servers, own_encoded_server_entries, server_entry_signature_public_key, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
 
     print('deploy implementation to host %s%s...' % (host.id, " (TCS) " if host.is_TCS else "", ))
 
@@ -144,7 +146,7 @@ def deploy_implementation(host, servers, own_encoded_server_entries, discovery_s
                     host.ssh_host_key)
 
     if host.is_TCS:
-        deploy_TCS_implementation(ssh, host, servers, own_encoded_server_entries, TCS_psiphond_config_values)
+        deploy_TCS_implementation(ssh, host, servers, own_encoded_server_entries, server_entry_signature_public_key, TCS_psiphond_config_values)
     else:
         deploy_legacy_implementation(ssh, host, discovery_strategy_value_hmac_key, plugins)
 
@@ -240,7 +242,7 @@ def deploy_legacy_implementation(ssh, host, discovery_strategy_value_hmac_key, p
             plugin.deploy_implementation(ssh)
 
 
-def deploy_TCS_implementation(ssh, host, servers, own_encoded_server_entries, TCS_psiphond_config_values):
+def deploy_TCS_implementation(ssh, host, servers, own_encoded_server_entries, server_entry_signature_public_key, TCS_psiphond_config_values):
 
     # Limitation: only one server per host currently implemented
     # Multiple IP addresses (and servers) can be supported by port forwarding to the host IP address
@@ -250,7 +252,7 @@ def deploy_TCS_implementation(ssh, host, servers, own_encoded_server_entries, TC
 
     put_file_with_content(
         ssh,
-        make_psiphond_config(host, server, own_encoded_server_entries, TCS_psiphond_config_values),
+        make_psiphond_config(host, server, own_encoded_server_entries, server_entry_signature_public_key, TCS_psiphond_config_values),
         TCS_PSIPHOND_CONFIG_FILE_NAME)
 
     ssh.exec_command('touch %s' % (TCS_BLOCKLIST_CSV_FILE_NAME,))
@@ -276,10 +278,10 @@ def deploy_TCS_implementation(ssh, host, servers, own_encoded_server_entries, TC
             caps += ",CAP_NET_RAW"
         ssh.exec_command('setcap %s=+eip %s' % (caps, TCS_NATIVE_PSIPHOND_BINARY_FILE_NAME))
 
-        # Set madvdontneed environment variable for psiphond
+        # Set disablethp environment variable for psiphond
         ssh.exec_command('mkdir -p /etc/systemd/system/psiphond.service.d')
         godebug_env_content = '''[Service]
-Environment=\"GODEBUG=madvdontneed=1\"
+Environment=\"GODEBUG=disablethp=1\"
 '''
         put_file_with_content(ssh, godebug_env_content, '/etc/systemd/system/psiphond.service.d/01-env-godebug.conf')
         ssh.exec_command('systemctl daemon-reload')
@@ -321,7 +323,7 @@ CONTAINER_SYSCTL_STRING="--sysctl 'net.ipv4.ip_local_port_range=1100 65535'"
     # is delayed until deploy_TCS_data.
 
 
-def make_psiphond_config(host, server, own_encoded_server_entries, TCS_psiphond_config_values):
+def make_psiphond_config(host, server, own_encoded_server_entries, server_entry_signature_public_key, TCS_psiphond_config_values):
 
     # Missing TCS_psiphond_config_values items throw KeyError. This is intended. Don't forget to configure these values.
 
@@ -422,10 +424,10 @@ def make_psiphond_config(host, server, own_encoded_server_entries, TCS_psiphond_
     config['SSHUserName'] = server.ssh_username
     config['SSHPassword'] = server.ssh_password
 
-    if server.capabilities['SSH'] or server.capabilities['OSSH'] or server.capabilities['FRONTED-MEEK'] or server.capabilities['FRONTED-MEEK-QUIC'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] or server.capabilities['QUIC'] or server.capabilities['TAPDANCE'] or server.capabilities['CONJURE']:
+    if server.capabilities['SSH'] or server.capabilities['OSSH'] or server.capabilities['FRONTED-MEEK'] or server.capabilities['FRONTED-MEEK-QUIC'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] or server.capabilities['QUIC'] or server.capabilities['TAPDANCE'] or server.capabilities['CONJURE'] or server.capabilities['INPROXY-WEBRTC-OSSH'] or server.capabilities['INPROXY-WEBRTC-QUIC-OSSH']:
         config['ObfuscatedSSHKey'] = server.ssh_obfuscated_key
 
-    if server.capabilities['FRONTED-MEEK'] or server.capabilities['FRONTED-MEEK-QUIC'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET']:
+    if server.capabilities['FRONTED-MEEK'] or server.capabilities['FRONTED-MEEK-QUIC'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] or server.capabilities['FRONTED-MEEK-BROKER']:
         config['MeekCookieEncryptionPrivateKey'] = host.meek_cookie_encryption_private_key
         config['MeekObfuscatedKey'] = host.meek_server_obfuscated_key
         config['MeekCertificateCommonName'] = TCS_psiphond_config_values['MeekCertificateCommonName']
@@ -449,6 +451,18 @@ def make_psiphond_config(host, server, own_encoded_server_entries, TCS_psiphond_
 
     config['OwnEncodedServerEntries'] = own_encoded_server_entries
 
+    if server.capabilities['FRONTED-MEEK-BROKER']:
+        config['MeekServerRunInproxyBroker'] = True
+        config['MeekServerInproxyBrokerOnly'] = len(config['TunnelProtocolPorts']) == 1
+        config['InproxyBrokerSessionPrivateKey'] = host.inproxy_broker_session_private_key
+        config['InproxyBrokerObfuscationRootSecret'] = host.inproxy_broker_obfuscation_root_secret
+        config['InproxyBrokerServerEntrySignaturePublicKey'] = server_entry_signature_public_key
+        config['MeekRequiredHeaders'] = TCS_psiphond_config_values['InproxyBrokerMeekRequiredHeaders']
+        
+    if server.capabilities['INPROXY-WEBRTC-OSSH'] or server.capabilities['INPROXY-WEBRTC-QUIC-OSSH']:
+        config['InproxyServerSessionPrivateKey'] = host.inproxy_server_session_private_key
+        config['InproxyServerObfuscationRootSecret'] = host.inproxy_server_obfuscation_root_secret
+
     return json.dumps(config)
 
 
@@ -471,12 +485,14 @@ def get_supported_protocol_ports(host, server, **kwargs):
         ('SSH', TCS_SSH_DOCKER_PORT),
         ('OSSH', TCS_OSSH_DOCKER_PORT),
         ('TAPDANCE-OSSH', TCS_TAPDANCE_OSSH_DOCKER_PORT),
-        ('CONJURE-OSSH', TCS_CONJURE_OSSH_DOCKER_PORT)
+        ('CONJURE-OSSH', TCS_CONJURE_OSSH_DOCKER_PORT),
+        ('INPROXY-WEBRTC-OSSH', TCS_INPROXY_WEBRTC_OSSH_DOCKER_PORT),
     ]
 
     if quic_ports:
         TCS_protocols += [
-            ('QUIC-OSSH', TCS_QUIC_OSSH_DOCKER_PORT)
+            ('QUIC-OSSH', TCS_QUIC_OSSH_DOCKER_PORT),
+            ('INPROXY-WEBRTC-QUIC-OSSH', TCS_INPROXY_WEBRTC_QUIC_OSSH_DOCKER_PORT)
         ]
 
     if meek_ports:
@@ -511,7 +527,7 @@ def get_supported_protocol_ports(host, server, **kwargs):
         if protocol == 'CONJURE-OSSH' and server.capabilities['CONJURE']:
                 supported_protocol_ports[protocol] = int(server.ssh_obfuscated_conjure_port) if external_ports else docker_port
 
-        if protocol == 'FRONTED-MEEK-OSSH' and (server.capabilities['FRONTED-MEEK'] or server.capabilities['FRONTED-MEEK-QUIC']):
+        if protocol == 'FRONTED-MEEK-OSSH' and (server.capabilities['FRONTED-MEEK'] or server.capabilities['FRONTED-MEEK-QUIC'] or server.capabilities['FRONTED-MEEK-BROKER']):
                 supported_protocol_ports[protocol] = 443 if external_ports else docker_port
 
         if protocol == 'UNFRONTED-MEEK-OSSH' and server.capabilities['UNFRONTED-MEEK'] and not int(host.meek_server_port) == 443:
@@ -529,6 +545,12 @@ def get_supported_protocol_ports(host, server, **kwargs):
         if protocol == 'FRONTED-MEEK-QUIC-OSSH' and server.capabilities['FRONTED-MEEK-QUIC']:
                 supported_protocol_ports[protocol] = 443 if external_ports else docker_port
 
+        if protocol == 'INPROXY-WEBRTC-OSSH' and server.capabilities['INPROXY-WEBRTC-OSSH']:
+                supported_protocol_ports[protocol] = int(server.ssh_obfuscated_inproxy_webrtc_port) if external_ports else docker_port
+
+        if protocol == 'INPROXY-WEBRTC-QUIC-OSSH' and server.capabilities['INPROXY-WEBRTC-QUIC-OSSH']:
+                supported_protocol_ports[protocol] = int(server.ssh_obfuscated_quic_inproxy_webrtc_port) if external_ports else docker_port
+
     return supported_protocol_ports
 
 
@@ -545,7 +567,7 @@ def tunnel_protocol_supports_passthrough(protocol):
 
 
 # hosts_and_servers is a list of tuples: [(host, [server, ...]), ...]
-def deploy_implementation_to_hosts(hosts_and_servers, own_encoded_server_entries_generator, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
+def deploy_implementation_to_hosts(hosts_and_servers, own_encoded_server_entries_generator, server_entry_signature_public_key, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
 
     @retry_decorator_returning_exception
     def do_deploy_implementation(host_and_servers):
@@ -553,7 +575,7 @@ def deploy_implementation_to_hosts(hosts_and_servers, own_encoded_server_entries
             host = host_and_servers[0]
             servers = host_and_servers[1]
             own_encoded_server_entries = own_encoded_server_entries_generator(host.id)
-            deploy_implementation(host, servers, own_encoded_server_entries, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values)
+            deploy_implementation(host, servers, own_encoded_server_entries, server_entry_signature_public_key, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values)
         except:
             print('Error deploying implementation to host %s' % (host.id,))
             raise
@@ -582,6 +604,8 @@ def deploy_data(host, host_data, TCS_traffic_rules_set, TCS_OSL_config, TCS_tact
 
 
 def deploy_legacy_data(ssh, host, host_data):
+
+    raise Exception('deploy_legacy_data is no longer supported')
 
     # Stop server, if running, before replacing data file (command may fail)
     # Disable restarting the server through psi-check-services first

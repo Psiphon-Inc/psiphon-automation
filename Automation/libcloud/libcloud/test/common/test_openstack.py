@@ -15,34 +15,108 @@
 
 import sys
 import unittest
+from unittest.mock import Mock, patch
 
-from mock import Mock
-
+from libcloud.common.base import LibcloudConnection
 from libcloud.common.openstack import OpenStackBaseConnection
-from libcloud.utils.py3 import PY25
 
 
 class OpenStackBaseConnectionTest(unittest.TestCase):
     def setUp(self):
         self.timeout = 10
-        OpenStackBaseConnection.conn_classes = (None, Mock())
-        self.connection = OpenStackBaseConnection('foo', 'bar',
-                                                  timeout=self.timeout,
-                                                  ex_force_auth_url='https://127.0.0.1')
+        OpenStackBaseConnection.conn_class = Mock()
+        self.connection = OpenStackBaseConnection(
+            "foo", "bar", timeout=self.timeout, ex_force_auth_url="https://127.0.0.1"
+        )
         self.connection.driver = Mock()
-        self.connection.driver.name = 'OpenStackDriver'
+        self.connection.driver.name = "OpenStackDriver"
+
+    def tearDown(self):
+        OpenStackBaseConnection.conn_class = LibcloudConnection
 
     def test_base_connection_timeout(self):
         self.connection.connect()
         self.assertEqual(self.connection.timeout, self.timeout)
-        if PY25:
-            self.connection.conn_classes[1].assert_called_with(host='127.0.0.1',
-                                                               port=443)
-        else:
-            self.connection.conn_classes[1].assert_called_with(host='127.0.0.1',
-                                                               port=443,
-                                                               timeout=10)
+        self.connection.conn_class.assert_called_with(
+            host="127.0.0.1", secure=1, port=443, timeout=10
+        )
+
+    def test_set_microversion(self):
+        self.connection.service_type = "compute"
+        self.connection._ex_force_microversion = "2.67"
+        headers = self.connection.add_default_headers({})
+        self.assertEqual(headers["OpenStack-API-Version"], "compute 2.67")
+
+        self.connection.service_type = "compute"
+        self.connection._ex_force_microversion = "volume 2.67"
+        headers = self.connection.add_default_headers({})
+        self.assertNotIn("OpenStack-API-Version", headers)
+
+        self.connection.service_type = "volume"
+        self.connection._ex_force_microversion = "volume 2.67"
+        headers = self.connection.add_default_headers({})
+        self.assertEqual(headers["OpenStack-API-Version"], "volume 2.67")
+
+    @patch("libcloud.common.base.ConnectionUserAndKey.request")
+    def test_request(self, mock_request):
+        OpenStackBaseConnection.conn_class._raw_data = ""
+        OpenStackBaseConnection.default_content_type = "application/json"
+        expected_response = Mock()
+        mock_request.return_value = expected_response
+        response = self.connection.request(
+            "/path", data="somedata", headers={"h1": "v1"}, method="POST"
+        )
+        self.assertEqual(response, expected_response)
+        mock_request.assert_called_with(
+            action="/path",
+            params={},
+            data="somedata",
+            method="POST",
+            headers={"h1": "v1", "Content-Type": "application/json"},
+            raw=False,
+        )
+
+    @patch("libcloud.test.common.test_openstack.OpenStackBaseConnection.connect", Mock())
+    def test_connection_is_reused_when_details_dont_change(self):
+        url = "https://example.com"
+
+        self.connection._set_up_connection_info(url=url)
+        self.assertEqual(self.connection.connect.call_count, 1)
+
+        for index in range(0, 10):
+            self.connection._set_up_connection_info(url=url)
+            self.assertEqual(self.connection.connect.call_count, 1)
+
+    @patch("libcloud.test.common.test_openstack.OpenStackBaseConnection.connect", Mock())
+    def test_connection_is_not_reused_when_details_change(self):
+        url = "https://example.com"
+        self.connection._set_up_connection_info(url=url)
+        self.assertEqual(self.connection.connect.call_count, 1)
+
+        url = "https://example.com"
+        self.connection._set_up_connection_info(url=url)
+        self.assertEqual(self.connection.connect.call_count, 1)
+
+        url = "https://example.com:80"
+        self.connection._set_up_connection_info(url=url)
+        self.assertEqual(self.connection.connect.call_count, 2)
+
+        url = "http://example.com:80"
+        self.connection._set_up_connection_info(url=url)
+        self.assertEqual(self.connection.connect.call_count, 3)
+
+        url = "http://exxample.com:80"
+        self.connection._set_up_connection_info(url=url)
+        self.assertEqual(self.connection.connect.call_count, 4)
+
+        url = "http://exxample.com:81"
+        self.connection._set_up_connection_info(url=url)
+        self.assertEqual(self.connection.connect.call_count, 5)
+
+        url = "http://exxample.com:81"
+        self.connection._set_up_connection_info(url=url)
+        self.assertEqual(self.connection.connect.call_count, 5)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(unittest.main())

@@ -19,33 +19,31 @@
 
 import sys
 import unittest
-from libcloud.utils.py3 import httplib
-
-from libcloud.compute.drivers.linode import LinodeNodeDriver
-from libcloud.compute.base import Node, NodeAuthPassword
-from libcloud.compute.base import NodeAuthSSHKey, StorageVolume
 
 from libcloud.test import MockHttp
+from libcloud.utils.py3 import httplib
+from libcloud.compute.base import Node, StorageVolume, NodeAuthSSHKey, NodeAuthPassword
 from libcloud.test.compute import TestCaseMixin
 from libcloud.test.file_fixtures import ComputeFileFixtures
+from libcloud.compute.drivers.linode import LinodeNodeDriver
 
 
 class LinodeTest(unittest.TestCase, TestCaseMixin):
     # The Linode test suite
 
     def setUp(self):
-        LinodeNodeDriver.connectionCls.conn_classes = (None, LinodeMockHttp)
-        LinodeMockHttp.use_param = 'api_action'
-        self.driver = LinodeNodeDriver('foo')
+        LinodeNodeDriver.connectionCls.conn_class = LinodeMockHttp
+        LinodeMockHttp.use_param = "api_action"
+        self.driver = LinodeNodeDriver("foo", api_version="3.0")
 
     def test_list_nodes(self):
         nodes = self.driver.list_nodes()
         self.assertEqual(len(nodes), 1)
         node = nodes[0]
         self.assertEqual(node.id, "8098")
-        self.assertEqual(node.name, 'api-node3')
-        self.assertEqual(node.extra['PLANID'], '2')
-        self.assertTrue('75.127.96.245' in node.public_ips)
+        self.assertEqual(node.name, "api-node3")
+        self.assertEqual(node.extra["PLANID"], "2")
+        self.assertTrue("75.127.96.245" in node.public_ips)
         self.assertEqual(node.private_ips, [])
 
     def test_reboot_node(self):
@@ -60,20 +58,23 @@ class LinodeTest(unittest.TestCase, TestCaseMixin):
 
     def test_create_node_password_auth(self):
         # Will exception on failure
-        self.driver.create_node(name="Test",
-                                location=self.driver.list_locations()[0],
-                                size=self.driver.list_sizes()[0],
-                                image=self.driver.list_images()[6],
-                                auth=NodeAuthPassword("test123"))
+        self.driver.create_node(
+            name="Test",
+            location=self.driver.list_locations()[0],
+            size=self.driver.list_sizes()[0],
+            image=self.driver.list_images()[6],
+            auth=NodeAuthPassword("test123"),
+        )
 
     def test_create_node_ssh_key_auth(self):
         # Will exception on failure
-        node = self.driver.create_node(name="Test",
-                                       location=self.driver.list_locations()[
-                                           0],
-                                       size=self.driver.list_sizes()[0],
-                                       image=self.driver.list_images()[6],
-                                       auth=NodeAuthSSHKey('foo'))
+        node = self.driver.create_node(
+            name="Test",
+            location=self.driver.list_locations()[0],
+            size=self.driver.list_sizes()[0],
+            image=self.driver.list_images()[6],
+            auth=NodeAuthSSHKey("foo"),
+        )
         self.assertTrue(isinstance(node, Node))
 
     def test_list_sizes(self):
@@ -88,28 +89,33 @@ class LinodeTest(unittest.TestCase, TestCaseMixin):
 
     def test_create_node_response(self):
         # should return a node object
-        node = self.driver.create_node(name="node-name",
-                                       location=self.driver.list_locations()[
-                                           0],
-                                       size=self.driver.list_sizes()[0],
-                                       image=self.driver.list_images()[0],
-                                       auth=NodeAuthPassword("foobar"))
+        node = self.driver.create_node(
+            name="node-name",
+            location=self.driver.list_locations()[0],
+            size=self.driver.list_sizes()[0],
+            image=self.driver.list_images()[0],
+            auth=NodeAuthPassword("foobar"),
+        )
         self.assertTrue(isinstance(node, Node))
 
     def test_destroy_volume(self):
         # Will exception on failure
         node = self.driver.list_nodes()[0]
-        volume = StorageVolume(id=55648, name="test", size=1024,
-                               driver=self.driver, extra={"LINODEID": node.id})
+        volume = StorageVolume(
+            id=55648,
+            name="test",
+            size=1024,
+            driver=self.driver,
+            extra={"LINODEID": node.id},
+        )
         self.driver.destroy_volume(volume)
 
     def test_ex_create_volume(self):
         # should return a StorageVolume object
         node = self.driver.list_nodes()[0]
-        volume = self.driver.ex_create_volume(size=4096,
-                                              name="Another test image",
-                                              node=node,
-                                              fs_type="ext4")
+        volume = self.driver.ex_create_volume(
+            size=4096, name="Another test image", node=node, fs_type="ext4"
+        )
         self.assertTrue(isinstance(volume, StorageVolume))
 
     def test_ex_list_volumes(self):
@@ -123,18 +129,18 @@ class LinodeTest(unittest.TestCase, TestCaseMixin):
 
 
 class LinodeMockHttp(MockHttp):
-    fixtures = ComputeFileFixtures('linode')
+    fixtures = ComputeFileFixtures("linode")
 
     def _avail_datacenters(self, method, url, body, headers):
-        body = self.fixtures.load('_avail_datacenters.json')
+        body = self.fixtures.load("_avail_datacenters.json")
         return (httplib.OK, body, {}, httplib.responses[httplib.OK])
 
     def _avail_linodeplans(self, method, url, body, headers):
-        body = self.fixtures.load('_avail_linodeplans.json')
+        body = self.fixtures.load("_avail_linodeplans.json")
         return (httplib.OK, body, {}, httplib.responses[httplib.OK])
 
     def _avail_distributions(self, method, url, body, headers):
-        body = self.fixtures.load('_avail_distributions.json')
+        body = self.fixtures.load("_avail_distributions.json")
         return (httplib.OK, body, {}, httplib.responses[httplib.OK])
 
     def _linode_create(self, method, url, body, headers):
@@ -142,11 +148,15 @@ class LinodeMockHttp(MockHttp):
         return (httplib.OK, body, {}, httplib.responses[httplib.OK])
 
     def _linode_disk_create(self, method, url, body, headers):
-        body = '{"ERRORARRAY":[],"ACTION":"linode.disk.create","DATA":{"JobID":1298,"DiskID":55647}}'
+        body = (
+            '{"ERRORARRAY":[],"ACTION":"linode.disk.create","DATA":{"JobID":1298,"DiskID":55647}}'
+        )
         return (httplib.OK, body, {}, httplib.responses[httplib.OK])
 
     def _linode_disk_delete(self, method, url, body, headers):
-        body = '{"ERRORARRAY":[],"ACTION":"linode.disk.delete","DATA":{"JobID":1298,"DiskID":55648}}'
+        body = (
+            '{"ERRORARRAY":[],"ACTION":"linode.disk.delete","DATA":{"JobID":1298,"DiskID":55648}}'
+        )
         return (httplib.OK, body, {}, httplib.responses[httplib.OK])
 
     def _linode_disk_createfromdistribution(self, method, url, body, headers):
@@ -154,7 +164,7 @@ class LinodeMockHttp(MockHttp):
         return (httplib.OK, body, {}, httplib.responses[httplib.OK])
 
     def _linode_disk_list(self, method, url, body, headers):
-        body = self.fixtures.load('_linode_disk_list.json')
+        body = self.fixtures.load("_linode_disk_list.json")
         return (httplib.OK, body, {}, httplib.responses[httplib.OK])
 
     def _linode_delete(self, method, url, body, headers):
@@ -170,7 +180,7 @@ class LinodeMockHttp(MockHttp):
         return (httplib.OK, body, {}, httplib.responses[httplib.OK])
 
     def _avail_kernels(self, method, url, body, headers):
-        body = self.fixtures.load('_avail_kernels.json')
+        body = self.fixtures.load("_avail_kernels.json")
         return (httplib.OK, body, {}, httplib.responses[httplib.OK])
 
     def _linode_boot(self, method, url, body, headers):
@@ -182,17 +192,17 @@ class LinodeMockHttp(MockHttp):
         return (httplib.OK, body, {}, httplib.responses[httplib.OK])
 
     def _linode_list(self, method, url, body, headers):
-        body = self.fixtures.load('_linode_list.json')
+        body = self.fixtures.load("_linode_list.json")
         return (httplib.OK, body, {}, httplib.responses[httplib.OK])
 
     def _linode_ip_list(self, method, url, body, headers):
-        body = self.fixtures.load('_linode_ip_list.json')
+        body = self.fixtures.load("_linode_ip_list.json")
         return (httplib.OK, body, {}, httplib.responses[httplib.OK])
 
     def _batch(self, method, url, body, headers):
-        body = self.fixtures.load('_batch.json')
+        body = self.fixtures.load("_batch.json")
         return (httplib.OK, body, {}, httplib.responses[httplib.OK])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(unittest.main())

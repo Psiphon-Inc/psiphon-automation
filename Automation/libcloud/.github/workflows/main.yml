@@ -1,0 +1,388 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - trunk
+  pull_request:
+    branches:
+      - trunk
+  schedule:
+    - cron: '0 1 * * *'
+
+permissions:
+  contents: read  # for actions/checkout to fetch code
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  # Needed if we want colors in pytest output without tty and script -e -c wrapper
+  PY_COLORS: "1"
+  FORCE_COLOR: "1"
+
+jobs:
+  unit_tests:
+    name: Unit Tests (Python ${{ matrix.python_version }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 8
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python_version:
+          - 3.7
+          - 3.8
+          - 3.9
+          - "3.10"
+          - "3.11"
+          - "3.12-dev"
+          # cryptography is not compatible with older PyPy versions
+          #- "pypy-3.7"
+          - "pypy-3.8"
+        os:
+          - ubuntu-latest
+        include:
+          - python_version: pyjion
+            os: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 1
+
+      - name: Use Python ${{ matrix.python_version }}
+        if: ${{ matrix.python_version != 'pyjion' }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python_version }}
+
+      - name: Install OS / deb dependencies
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq gcc libvirt-dev
+
+      - name: Use Python 3.10 (pyjion)
+        if: ${{ matrix.python_version == 'pyjion' }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      # From https://github.com/tonybaloney/Pyjion/blob/develop/main/.github/workflows/benchmark.yml#L26 (MIT)
+      - name: Install OS / deb dependencies
+        if: ${{ matrix.python_version == 'pyjion' }}
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq cmake llvm-9 clang-9 autoconf automake \
+          libtool build-essential python curl git lldb-6.0 liblldb-6.0-dev \
+          libunwind8 libunwind8-dev gettext libicu-dev liblttng-ust-dev \
+          libssl-dev libnuma-dev libkrb5-dev zlib1g-dev
+
+      - name: Setup Dotnet 6
+        if: ${{ matrix.python_version == 'pyjion' }}
+        uses: actions/setup-dotnet@v3.2.0
+        with:
+          dotnet-version: "6.0.100"
+
+      - name: Cache Python Dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements-tests.txt', '') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install Pyjion
+        if: ${{ matrix.python_version == 'pyjion' }}
+        run: |
+          pip install pyjion
+
+      - name: Install Python Dependencies
+        run: |
+          pip install -r requirements-ci.txt
+
+      - name: Run unit tests tox target
+        run: |
+         tox -e py${{ matrix.python_version }}
+
+      - name: Run dist install checks tox target
+        # NOTE: 3.12 will be failing until we migrate away from setup.py
+        if: ${{ matrix.python_version != 'pypy-3.7' && matrix.python_version != 'pypy-3.8' && matrix.python_version != 'pyjion' && matrix.python_version != '3.12-dev' }}
+        run: |
+         tox -e py${{ matrix.python_version }}-dist,py${{ matrix.python_version }}-dist-wheel
+
+  code_coverage:
+    name: Generate Code Coverage
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python_version: [3.8]
+
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 1
+
+      - name: Use Python ${{ matrix.python_version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python_version }}
+
+      - name: Install OS / deb dependencies
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq graphviz gcc libvirt-dev
+
+      - name: Cache Python Dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements-tests.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install Python Dependencies
+        run: |
+          pip install -r requirements-ci.txt
+
+      - name: Run Checks
+        run: |
+          tox -e coverage-ci
+
+      - name: Upload Coverage to codecov.io
+        uses: codecov/codecov-action@eaaf4bedf32dbdc6b720b63067d99c4d77d6047d # v3.1.4
+        with:
+          # We utilize secret for more realiable builds. Without secret being set, upload step
+          # fails fairly often.
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+          verbose: true
+
+  lint_checks:
+    name: Run Various Lint and Other Checks
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python_version: [3.8]
+
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 1
+
+      - name: Use Python ${{ matrix.python_version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python_version }}
+
+      - name: Install OS / deb dependencies
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq graphviz gcc libvirt-dev
+
+      - name: Cache Python Dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements-lint.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install Python Dependencies
+        run: |
+          pip install -r requirements-ci.txt
+
+      - name: Run shellcheck
+        run: |
+          shellcheck dist/*.sh contrib/*.sh
+
+      - name: Run Python Checks
+        run: |
+          tox -e black-check,isort-check,pyupgrade,checks,import-timings,lint,pylint,mypy
+
+  build_test_docker_image:
+    name: Build and Verify Docker Image
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python_version: [3.8]
+
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 1
+
+      - name: Build Testing Docker Image
+        run: |
+          docker build -f contrib/Dockerfile -t libcloud_runtest_img .
+
+      - name: Verify Image Works
+        # This step runs checks under various Python versions and it's slow so
+        # we only run it on nightly basis
+        if: ${{ github.event.schedule == '0 1 * * *' }}
+        run: |
+          docker run libcloud_runtest_img
+
+  security_checks:
+    name: Run Security Checks
+    runs-on: ubuntu-20.04
+
+    strategy:
+      matrix:
+        python_version: [3.8]
+
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 1
+
+      - name: Install OS / deb dependencies
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq gcc libvirt-dev
+
+      - name: Use Python ${{ matrix.python_version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python_version }}
+
+      - name: Cache Python Dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements-lint.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install Python Dependencies
+        run: |
+          pip install -r requirements-ci.txt
+
+      - name: Install Library Into Virtualenv
+        run: |
+          python -m venv venv/
+          source venv/bin/activate
+          python -m pip install .
+
+      - name: Run Pip Audit Check On Main Library Dependencies
+        uses: ./.github/actions/gh-action-pip-audit/  # v1.0.0
+        with:
+          virtual-environment: venv/
+          # setuptools which we don't install or depend on directly
+          # PYSEC-2023-228 - pip vulnerability and we don't install pip directly
+          ignore-vulns: |
+            GHSA-r9hx-vwmv-q579
+            PYSEC-2022-43012
+            PYSEC-2023-228
+
+      - name: Cleanup
+        run: |
+          rm -rf venv/ || true
+
+      - name: Run Pip Audit Check On All Development And Test Dependencies
+        uses: ./.github/actions/gh-action-pip-audit/  # v1.0.0
+        with:
+          inputs: requirements-tests.txt requirements-lint.txt requirements-mypy.txt requirements-docs.txt
+          # setuptools which we don't install or depend on directly
+          ignore-vulns: |
+            GHSA-r9hx-vwmv-q579
+
+      - name: Run Bandit Check
+        run: |
+          tox -e bandit
+
+  micro-benchmarks:
+    name: Micro Benchmarks
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python_version: [3.8]
+
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 1
+
+      - name: Use Python ${{ matrix.python_version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python_version }}
+
+      - name: Install OS / deb dependencies
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq graphviz gcc libvirt-dev
+
+      - name: Cache Python Dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements-tests.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install Python Dependencies
+        run: |
+          pip install -r requirements-ci.txt
+
+      - name: Run Micro Benchmarks
+        run: |
+          tox -e micro-benchmarks
+
+  docs:
+    name: Build and upload Documentation
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python_version: [3.8]
+
+    steps:
+      - name: Print Environment Info
+        id: printenv
+        run: |
+          printenv | sort
+
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 1
+
+      - name: Use Python ${{ matrix.python_version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python_version }}
+
+      - name: Install OS / deb dependencies
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq graphviz gcc libvirt-dev
+
+      - name: Cache Python Dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements-docs.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install Python Dependencies
+        run: |
+          pip install -r requirements-ci.txt
+
+      - name: Build Docs
+        run: |
+          tox -e docs
+
+      - name: Trigger ReadTheDocs build
+        if: ${{ github.ref_name == 'trunk' }}
+        env:
+          RTD_TOKEN: ${{ secrets.RTD_TOKEN }}
+          BRANCH_NAME: "trunk"
+        run: |
+          pip install requests
+          python ./contrib/trigger_rtd_build.py
