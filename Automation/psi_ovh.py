@@ -114,3 +114,7 @@ class PsiOVH:
     checkout_order = self.checkout_order_cart(cart_id)
 
     return checkout_order['orderId']
+
+  def reboot_server(self, host_provider_id):
+    res = self.client.post("/dedicated/server/{serviceName}/reboot".format(serviceName=host_provider_id))
+    return (res['status'], res['taskId'])
