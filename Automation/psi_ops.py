@@ -2216,7 +2216,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def get_existing_server_ids(self):
         return [server.id for server in self.__servers.values()] + \
-               [deleted_server.id for deleted_server in self.__deleted_servers.values()]
+               [deleted_server.id for deleted_server in self.__deleted_servers.values()] + \
+               [paused_server.id for paused_server in self.__paused_servers.values()]
 
     def add_server_to_host(self, host, new_servers):
 
@@ -2813,12 +2814,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         if host_id in self.__paused_hosts.keys():
             paused_host = self.__paused_hosts.pop(host_id)
-            paused_servers = [self.__paused_servers[servers_id] for server_id in self.__paused_servers.keys() if self.__paused_servers[server_id].host_id == host.id]
         
+        paused_servers = [self.__paused_servers[servers_id] for server_id in self.__paused_servers.keys() if self.__paused_servers[server_id].host_id == host.id]
+
         if paused_host != None:
             for log in copy.copy(paused_host.logs):
                 if 'paused' in log[1]:
                     paused_host.logs.remove(log)
+            assert(paused_host not in self.__hosts)
             self.__hosts[paused_host.id] = paused_host
 
         if len(paused_servers) > 0:
