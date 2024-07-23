@@ -450,7 +450,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__deleted_hosts = []
         self.__servers = {}
         self.__deleted_servers = {}
-        self.__paused_hosts_and_servers = {}
+        self.__paused_hosts = {}
+        self.__paused_servers = {}
         self.__hosts_to_remove_from_providers = set()
         self.__client_versions = {
             CLIENT_PLATFORM_WINDOWS: [],
@@ -965,7 +966,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 server.ssh_obfuscated_quic_inproxy_webrtc_port = None
             self.version = '0.74'
         if cmp(parse_version(self.version), parse_version('0.75')) < 0:
-            self.__paused_hosts_and_servers = {}
+            self.__paused_hosts = {}
+            self.__paused_servers = {}
             self.version = '0.75'
 
     def initialize_plugins(self):
@@ -2782,7 +2784,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(self.is_locked)
         host = self.__hosts[host_id]
 
-        paused_servers_list = []
         server_ids_on_host = []
         for server in self.__servers.values():
             if server.host_id == host.id and pause_server_id == server.id:
@@ -2791,20 +2792,18 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             elif server.host_id == host.id and pause_server_id == 'all':
                 server_ids_on_host.append(server.id)
         for server_id in server_ids_on_host:
+            assert(server_id not in self.__paused_servers)
             paused_server = self.__servers.pop(server_id)
             paused_server.log("paused")
-            paused_servers_list.append(paused_server)
+            self.__paused_servers[server_id] = paused_server
         
         if pause_server_id == 'all':
             paused_host = self.__hosts.pop(host.id)
             paused_host.log("paused")
+            self.__paused_hosts[host.id] = paused_host
         else:
             paused_host = None
         
-        self.__paused_hosts_and_servers[host.id] = dict()
-        self.__paused_hosts_and_servers[host.id]['host'] = paused_host
-        self.__paused_hosts_and_servers[host.id]['servers'] = paused_servers_list
-
         if paused_host != None and host.id in self.__deploy_implementation_required_for_hosts:
             self.__deploy_implementation_required_for_hosts.remove(host.id)
         self.__deploy_stats_config_required = True
@@ -2812,9 +2811,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def restore_paused_host(self, host_id):
         assert(self.is_locked)
 
-        if host_id in self.__paused_hosts_and_servers.keys():
-            paused_host = self.__paused_hosts_and_servers[host_id]['host']
-            paused_servers = self.__paused_hosts_and_servers[host_id]['servers']
+        if host_id in self.__paused_hosts.keys():
+            paused_host = self.__paused_hosts.pop(host_id)
+            paused_servers = [self.__paused_servers[servers_id] for server_id in self.__paused_servers.keys() if self.__paused_servers[server_id].host_id == host.id]
         
         if paused_host != None:
             for log in copy.copy(paused_host.logs):
@@ -2828,8 +2827,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     if 'paused' in log[1]:
                         paused_server.logs.remove(log)
                 self.__servers[paused_server.id] = paused_server
-        
-        self.__paused_hosts_and_servers.pop(host_id)
+                self.__paused_servers.pop(paused_server_id)
         
     def backup_and_restore_for_migrate(self, action, host):
         if type(host) == str:
