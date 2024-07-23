@@ -3192,10 +3192,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return urls
 
     def make_fronting_spec(self, fronting_provider_id, addresses, disable_sni, 
-                           verify_server_name, verify_pins, host):
+                           skip_verify, verify_server_name, verify_pins, host):
         assert(isinstance(fronting_provider_id, str))
         assert(isinstance(addresses, list))
         assert(isinstance(disable_sni, bool))
+        assert(isinstance(skip_verify, bool))
         assert(isinstance(verify_server_name, str))
         assert(isinstance(verify_pins, list))
         assert(isinstance(host, str))
@@ -3204,6 +3205,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             'FrontingProviderID': fronting_provider_id,
             'Addresses': addresses,
             'DisableSNI': disable_sni,
+            'SkipVerify': skip_verify,
             'VerifyServerName': verify_server_name,
             'VerifyPins': verify_pins,
             'Host': host
@@ -3212,13 +3214,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return fronting_spec
 
     def add_s3_download_fronting_spec(self, fronting_provider_id, addresses, 
-                                      disable_sni, verify_server_name, 
-                                      verify_pins, host):
+                                      disable_sni, skip_verify,
+                                      verify_server_name, verify_pins, host):
         assert(self.is_locked)
         assert(isinstance(self.__s3_download_fronting_specs, list))
 
         fronting_spec = self.make_fronting_spec(fronting_provider_id, 
                                                 addresses, disable_sni, 
+                                                skip_verify,
                                                 verify_server_name, 
                                                 verify_pins, host)
 
@@ -3229,13 +3232,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return self.__s3_download_fronting_specs
 
     def add_s3_upload_fronting_spec(self, fronting_provider_id, addresses, 
-                                    disable_sni, verify_server_name, 
-                                    verify_pins, host):
+                                    disable_sni, skip_verify,
+                                    verify_server_name, verify_pins, host):
         assert(self.is_locked)
         assert(isinstance(self.__s3_upload_fronting_specs, list))
 
         fronting_spec = self.make_fronting_spec(fronting_provider_id, 
-                                                addresses, disable_sni, 
+                                                addresses, disable_sni,
+                                                skip_verify,
                                                 verify_server_name, 
                                                 verify_pins, host)
 
