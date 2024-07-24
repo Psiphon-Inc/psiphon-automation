@@ -2815,7 +2815,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if host_id in self.__paused_hosts.keys():
             paused_host = self.__paused_hosts.pop(host_id)
         
-        paused_servers = [self.__paused_servers[servers_id] for server_id in self.__paused_servers.keys() if self.__paused_servers[server_id].host_id == host.id]
+        paused_servers = [self.__paused_servers[server_id] for server_id in self.__paused_servers.keys() if self.__paused_servers[server_id].host_id == host_id]
 
         if paused_host != None:
             for log in copy.copy(paused_host.logs):
@@ -2830,7 +2830,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     if 'paused' in log[1]:
                         paused_server.logs.remove(log)
                 self.__servers[paused_server.id] = paused_server
-                self.__paused_servers.pop(paused_server_id)
+                self.__paused_servers.pop(paused_server.id)
         
     def backup_and_restore_for_migrate(self, action, host):
         if type(host) == str:
