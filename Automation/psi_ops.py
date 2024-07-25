@@ -450,6 +450,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__deleted_hosts = []
         self.__servers = {}
         self.__deleted_servers = {}
+        self.__paused_hosts = {}
+        self.__paused_servers = {}
         self.__hosts_to_remove_from_providers = set()
         self.__client_versions = {
             CLIENT_PLATFORM_WINDOWS: [],
@@ -524,7 +526,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.74'
+    class_version = '0.75'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -963,6 +965,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 server.ssh_obfuscated_inproxy_webrtc_port = None
                 server.ssh_obfuscated_quic_inproxy_webrtc_port = None
             self.version = '0.74'
+        if cmp(parse_version(self.version), parse_version('0.75')) < 0:
+            self.__paused_hosts = {}
+            self.__paused_servers = {}
+            self.version = '0.75'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -2210,7 +2216,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def get_existing_server_ids(self):
         return [server.id for server in self.__servers.values()] + \
-               [deleted_server.id for deleted_server in self.__deleted_servers.values()]
+               [deleted_server.id for deleted_server in self.__deleted_servers.values()] + \
+               [paused_server.id for paused_server in self.__paused_servers.values()]
 
     def add_server_to_host(self, host, new_servers):
 
@@ -2475,7 +2482,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             server_info = server_infos[new_server_number]
             if type(server_info) != tuple:
                 continue
+<<<<<<< HEAD
             sys.stderr.write('[add_servers] Working on server: ' + \
+=======
+            sys.stderr.write('[add_servers] Working on server (' + \
+                str(new_server_number+1) + '/' + str(len(server_infos)) + '): ' + \
+>>>>>>> c2e3291c3ebee4ef42f2ccc5607a9ffc3d4fbf48
                 ' host_id: ' + server_info[0] + \
                 ' provider: ' + server_info[3] + \
                 ' internal_id: ' + str(server_info[4]) + \
@@ -2773,6 +2785,57 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # NOTE: caller is responsible for saving now
         #self.save()
 
+    def pause_host(self, host_id, pause_server_id='all'):
+        assert(self.is_locked)
+        host = self.__hosts[host_id]
+
+        server_ids_on_host = []
+        for server in self.__servers.values():
+            if server.host_id == host.id and pause_server_id == server.id:
+                server_ids_on_host.append(server.id)
+                break
+            elif server.host_id == host.id and pause_server_id == 'all':
+                server_ids_on_host.append(server.id)
+        for server_id in server_ids_on_host:
+            assert(server_id not in self.__paused_servers)
+            paused_server = self.__servers.pop(server_id)
+            paused_server.log("paused")
+            self.__paused_servers[server_id] = paused_server
+        
+        if pause_server_id == 'all':
+            paused_host = self.__hosts.pop(host.id)
+            paused_host.log("paused")
+            self.__paused_hosts[host.id] = paused_host
+        else:
+            paused_host = None
+        
+        if paused_host != None and host.id in self.__deploy_implementation_required_for_hosts:
+            self.__deploy_implementation_required_for_hosts.remove(host.id)
+        self.__deploy_stats_config_required = True
+    
+    def restore_paused_host(self, host_id):
+        assert(self.is_locked)
+
+        if host_id in self.__paused_hosts.keys():
+            paused_host = self.__paused_hosts.pop(host_id)
+        
+        paused_servers = [self.__paused_servers[server_id] for server_id in self.__paused_servers.keys() if self.__paused_servers[server_id].host_id == host_id]
+
+        if paused_host != None:
+            for log in copy.copy(paused_host.logs):
+                if 'paused' in log[1]:
+                    paused_host.logs.remove(log)
+            assert(paused_host not in self.__hosts)
+            self.__hosts[paused_host.id] = paused_host
+
+        if len(paused_servers) > 0:
+            for paused_server in paused_servers:
+                for log in copy.copy(paused_server.logs):
+                    if 'paused' in log[1]:
+                        paused_server.logs.remove(log)
+                self.__servers[paused_server.id] = paused_server
+                self.__paused_servers.pop(paused_server.id)
+        
     def backup_and_restore_for_migrate(self, action, host):
         if type(host) == str:
             host = self.__hosts[host]
@@ -3191,10 +3254,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return urls
 
     def make_fronting_spec(self, fronting_provider_id, addresses, disable_sni, 
-                           verify_server_name, verify_pins, host):
+                           skip_verify, verify_server_name, verify_pins, host):
         assert(isinstance(fronting_provider_id, str))
         assert(isinstance(addresses, list))
         assert(isinstance(disable_sni, bool))
+        assert(isinstance(skip_verify, bool))
         assert(isinstance(verify_server_name, str))
         assert(isinstance(verify_pins, list))
         assert(isinstance(host, str))
@@ -3203,6 +3267,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             'FrontingProviderID': fronting_provider_id,
             'Addresses': addresses,
             'DisableSNI': disable_sni,
+            'SkipVerify': skip_verify,
             'VerifyServerName': verify_server_name,
             'VerifyPins': verify_pins,
             'Host': host
@@ -3211,13 +3276,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return fronting_spec
 
     def add_s3_download_fronting_spec(self, fronting_provider_id, addresses, 
-                                      disable_sni, verify_server_name, 
-                                      verify_pins, host):
+                                      disable_sni, skip_verify,
+                                      verify_server_name, verify_pins, host):
         assert(self.is_locked)
         assert(isinstance(self.__s3_download_fronting_specs, list))
 
         fronting_spec = self.make_fronting_spec(fronting_provider_id, 
                                                 addresses, disable_sni, 
+                                                skip_verify,
                                                 verify_server_name, 
                                                 verify_pins, host)
 
@@ -3228,13 +3294,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return self.__s3_download_fronting_specs
 
     def add_s3_upload_fronting_spec(self, fronting_provider_id, addresses, 
-                                    disable_sni, verify_server_name, 
-                                    verify_pins, host):
+                                    disable_sni, skip_verify,
+                                    verify_server_name, verify_pins, host):
         assert(self.is_locked)
         assert(isinstance(self.__s3_upload_fronting_specs, list))
 
         fronting_spec = self.make_fronting_spec(fronting_provider_id, 
-                                                addresses, disable_sni, 
+                                                addresses, disable_sni,
+                                                skip_verify,
                                                 verify_server_name, 
                                                 verify_pins, host)
 
