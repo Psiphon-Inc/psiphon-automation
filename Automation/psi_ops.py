@@ -2482,12 +2482,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             server_info = server_infos[new_server_number]
             if type(server_info) != tuple:
                 continue
-<<<<<<< HEAD
-            sys.stderr.write('[add_servers] Working on server: ' + \
-=======
+
             sys.stderr.write('[add_servers] Working on server (' + \
                 str(new_server_number+1) + '/' + str(len(server_infos)) + '): ' + \
->>>>>>> c2e3291c3ebee4ef42f2ccc5607a9ffc3d4fbf48
                 ' host_id: ' + server_info[0] + \
                 ' provider: ' + server_info[3] + \
                 ' internal_id: ' + str(server_info[4]) + \
