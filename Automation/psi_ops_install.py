@@ -1319,19 +1319,19 @@ def install_second_ip_address(host, new_ip_addresses_list):
 
     interfaces_contents_list = []
 
-    interfaces_contents_header = textwrap.dedent('''auto {interface_dev}:{virtual_interface_alias}
-    allow-hotplug {interface_dev}:{virtual_interface_alias}
-    ''').format(interface_dev=interface_dev, virtual_interface_alias=interface_alias)
-    
     interfaces_contents_list.append(interfaces_contents_header)
 
     for i in range(0, len(new_ip_addresses_list)):
         new_ip_address = new_ip_addresses_list[i]
-        interfaces_contents = textwrap.dedent('''iface {interface_dev}:{virtual_interface_number} inet static
+        interfaces_contents_header = textwrap.dedent('''auto {interface_dev}:{virtual_interface_alias}.{virtual_interface_number}
+        allow-hotplug {interface_dev}:{virtual_interface_alias}.{virtual_interface_number}
+        ''').format(interface_dev=interface_dev, virtual_interface_alias=interface_alias, virtual_interface_number=i+1)
+        
+        interfaces_contents = textwrap.dedent('''iface {interface_dev}:{virtual_interface_number}.{virtual_interface_number} inet static
         address {ip_address}
         up /sbin/iptables -t nat -I PREROUTING -j DNAT -d {ip_address} --to-destination {host_ip_address}
         down /sbin/iptables -t nat -D PREROUTING -j DNAT -d {ip_address} --to-destination {host_ip_address}
-        ''').format(interface_dev=interface_dev, virtual_interface_number=interface_alias, ip_address=new_ip_address, host_ip_address=host.ip_address)
+        ''').format(interface_dev=interface_dev, virtual_interface_number=interface_alias, virtual_interface_number=i+1, ip_address=new_ip_address, host_ip_address=host.ip_address)
         interfaces_contents_list.append(interfaces_contents)
     new_interfaces_contents = '\n'.join(interfaces_contents_list)
 
