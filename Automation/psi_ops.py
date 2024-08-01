@@ -3575,7 +3575,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
                     builds = None
                     if platform == CLIENT_PLATFORM_ANDROID and propagation_channel.propagator_managed_upgrades:
-                        // For Android Google Play campaigns, apks must not be published for side-loading
+                        # For Android Google Play campaigns, apks must not be published for side-loading
                         pass
                     else:
                         build_filename = self.build(
