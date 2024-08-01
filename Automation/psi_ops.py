@@ -3573,39 +3573,46 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     faq_url = psi_ops_s3.get_s3_bucket_faq_url(campaign.s3_bucket_name)
                     privacy_policy_url = psi_ops_s3.get_s3_bucket_privacy_policy_url(campaign.s3_bucket_name)
 
-                    build_filename = self.build(
-                                        propagation_channel.name,
-                                        sponsor.name,
-                                        remote_server_list_url_split,
-                                        OSL_root_url_split,
-                                        info_link_url,
-                                        upgrade_url_split,
-                                        get_new_version_url,
-                                        get_new_version_email,
-                                        faq_url,
-                                        privacy_policy_url,
-                                        [platform])[0]
+                    builds = None
+                    if platform == CLIENT_PLATFORM_ANDROID and propagation_channel.propagator_managed_upgrades:
+                        // For Android Google Play campaigns, apks must not be published for side-loading
+                        pass
+                    else:
+                        build_filename = self.build(
+                                            propagation_channel.name,
+                                            sponsor.name,
+                                            remote_server_list_url_split,
+                                            OSL_root_url_split,
+                                            info_link_url,
+                                            upgrade_url_split,
+                                            get_new_version_url,
+                                            get_new_version_email,
+                                            faq_url,
+                                            privacy_policy_url,
+                                            [platform])[0]
+    
+                        upgrade_filename = self.__make_upgrade_package_from_build(build_filename)
+    
+                        # Upload client builds
+                        # We only upload the builds for Propagation Channel IDs that need to be known for the host.
+                        # UPDATE: Now we copy all builds.  We know that this breaks compartmentalization.
+                        # However, we do not want to prevent an upgrade in the case where a user has
+                        # downloaded from multiple propagation channels, and might therefore be connecting
+                        # to a server from one propagation channel using a build from a different one.
+                        # UPDATE: Now clients get update packages out-of-band (S3). This server-hosted
+                        # upgrade capability may be resurrected in the future if necessary.
+                        #psi_ops_deploy.deploy_build_to_hosts(self.__hosts.values(), build_filename)
 
-                    upgrade_filename = self.__make_upgrade_package_from_build(build_filename)
+                        client_version = self.__client_versions[platform][-1].version if self.__client_versions[platform] else 0
 
-                    # Upload client builds
-                    # We only upload the builds for Propagation Channel IDs that need to be known for the host.
-                    # UPDATE: Now we copy all builds.  We know that this breaks compartmentalization.
-                    # However, we do not want to prevent an upgrade in the case where a user has
-                    # downloaded from multiple propagation channels, and might therefore be connecting
-                    # to a server from one propagation channel using a build from a different one.
-                    # UPDATE: Now clients get update packages out-of-band (S3). This server-hosted
-                    # upgrade capability may be resurrected in the future if necessary.
-                    #psi_ops_deploy.deploy_build_to_hosts(self.__hosts.values(), build_filename)
+                        builds = [(build_filename, client_version, client_build_filenames[platform]),
+                                 (upgrade_filename, client_version, s3_upgrade_resource_name)]
 
                     # Publish to propagation mechanisms
 
-                    client_version = self.__client_versions[platform][-1].version if self.__client_versions[platform] else 0
-
                     psi_ops_s3.update_s3_download_in_buckets(
                         self.__aws_account,
-                        [(build_filename, client_version, client_build_filenames[platform]),
-                         (upgrade_filename, client_version, s3_upgrade_resource_name)],
+                        builds,
                         remote_server_list,
                         remote_server_list_compressed,
                         [campaign.s3_bucket_name, campaign.alternate_s3_bucket_name])
