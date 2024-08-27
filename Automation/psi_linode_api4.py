@@ -84,6 +84,7 @@ class PsiLinode:
             'fr-par': 'Linode Paris, FR',
             'gb-lon': 'Linode London 2, UK',
             'id-cgk': 'Linode Jakarta, ID',
+            'in-bom-2': 'Linode Mumbai 2, IN',
             'in-maa': 'Linode Chennai, IN',
             'it-mil': 'Linode Milan, IT',
             'jp-osa': 'Linode Osaka, JP',
