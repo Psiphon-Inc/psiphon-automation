@@ -90,6 +90,7 @@ class PsiLinode:
             'jp-osa': 'Linode Osaka, JP',
             'nl-ams': 'Linode Amsterdam, NL',
             'se-sto': 'Linode Stockholm, SE',
+            'sg-sin-2': 'Linode Singapore 2, SG',
             'us-central': 'Linode Dallas, TX, USA',
             'us-east': 'Linode Newark, NJ, USA',
             'us-iad': 'Linode Washington, DC, USA',
