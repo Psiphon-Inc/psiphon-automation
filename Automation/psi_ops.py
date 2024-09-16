@@ -5361,7 +5361,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             test_propagation_channel = self.get_propagation_channel_by_name('Testing')
         except:
             pass
-        test_propagation_channel_id = test_propagation_channel.id if test_propagation_channel else '0'
+        test_propagation_channel_id = test_propagation_channel.id if test_propagation_channel else '00'
 
         version = self.__client_versions[CLIENT_PLATFORM_WINDOWS][-1].version if self.__client_versions[CLIENT_PLATFORM_WINDOWS] else 0  # This uses the Windows client
 
@@ -5372,7 +5372,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             and (not test_cases or set(test_cases).intersection(set(['VPN']))))):
             executable_path = psi_ops_build_windows.build_client(
                                     test_propagation_channel_id,
-                                    '0',        # sponsor_id
+                                    '00',        # sponsor_id
                                     None,       # banner
                                     [],         # encoded_server_list
                                     '',         # remote_server_list_signature_public_key

@@ -204,7 +204,7 @@ class PsiphonRunner:
 
 
 class TunnelCoreRunner:
-    def __init__(self, encoded_server_entry, propagation_channel_id = '0', split_tunnel_url_format = "", split_tunnel_signature_public_key = "", split_tunnel_dns_server = ""):
+    def __init__(self, encoded_server_entry, propagation_channel_id = '00', split_tunnel_url_format = "", split_tunnel_signature_public_key = "", split_tunnel_dns_server = ""):
         self.proc = None
         self.encoded_server_entry = encoded_server_entry
         self.propagation_channel_id = propagation_channel_id
@@ -218,7 +218,7 @@ class TunnelCoreRunner:
             "TargetServerEntry": self.encoded_server_entry, # Single Test Server Parameter
             "TunnelProtocol": transport, # Single or group Test Protocol
             "PropagationChannelId" : self.propagation_channel_id, # Propagation Channel ID = "Testing"
-            "SponsorId" : "0",
+            "SponsorId" : "00",
             "LocalHttpProxyPort" : 8080,
             "LocalSocksProxyPort" : 1080,
             "UseIndistinguishableTLS": True,
@@ -357,7 +357,7 @@ def __test_server(runner, transport, expected_egress_ip_addresses):
 
 def test_server(server, host, encoded_server_entry,
                 split_tunnel_url_format, split_tunnel_signature_public_key, split_tunnel_dns_server, version,
-                expected_egress_ip_addresses, test_propagation_channel_id = '0', test_cases = None, executable_path = None):
+                expected_egress_ip_addresses, test_propagation_channel_id = '00', test_cases = None, executable_path = None):
 
     ip_address = server.ip_address
     capabilities = server.capabilities
@@ -402,7 +402,7 @@ def test_server(server, host, encoded_server_entry,
             if not executable_path:
                 executable_path = psi_ops_build_windows.build_client(
                                     test_propagation_channel_id,
-                                    '0',        # sponsor_id
+                                    '00',        # sponsor_id
                                     None,       # banner
                                     [encoded_server_entry],
                                     '',         # remote_server_list_signature_public_key
