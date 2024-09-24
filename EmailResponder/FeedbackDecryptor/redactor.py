@@ -109,7 +109,7 @@ def _generate_ios_vpn_feedback(client_version, msg):
 # this code will probably need to be updated to generate a specific scheme version.
 def _generate_feedback_scheme1(app_name, client_platform, client_version, msg):
     if app_name != "psiphon":
-        # The scheme produced here is only valid for Psiphon clients (not for Ryve).
+        # The scheme produced here is only valid for Psiphon clients (not for Ryve or Conduit).
         raise ValueError("app_name must be 'psiphon', got '{}'".format(app_name))
 
     return {

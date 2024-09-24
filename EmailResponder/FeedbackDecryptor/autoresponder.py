@@ -234,7 +234,7 @@ def _get_lang_id_from_diagnostic_info(diagnostic_info):
     if lang_id and lang_id.find('INDETERMINATE') >= 0:
         lang_id = None
 
-    # Psiphon for Android and iOS, and Ryve, from system language
+    # Psiphon for Android and iOS, and Ryve and Conduit, from system language
     lang_id = lang_id or utils.coalesce(diagnostic_info,
                                         ['SystemInformation', 'language'],
                                         required_types=str)

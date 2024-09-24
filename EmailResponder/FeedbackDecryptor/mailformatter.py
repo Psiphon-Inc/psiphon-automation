@@ -35,8 +35,8 @@ def format(data):
 
     if data['Metadata']['appName'] == 'ryve':
         app_name = 'ryve'
-    elif data['Metadata']['appName'] == 'inproxy':
-        app_name = 'inproxy'
+    elif data['Metadata']['appName'] == 'conduit':
+        app_name = 'conduit'
     else:
         app_name = 'psiphon'
 
@@ -50,8 +50,6 @@ def format(data):
         platform = 'ios'
     elif data['Metadata']['platform'] == 'ios-vpn-on-mac':
         platform = 'ios-app-on-mac'
-    elif data['Metadata']['platform'] == 'inproxy':
-        platform = 'inproxy'
     else:
         platform = 'android'
 

@@ -127,9 +127,8 @@ def _shorten_ints(data):
 _transformations = {
                     'psiphon': (_translate_feedback, _parse_survey_results,
                                   _convert_locale_info, _sanitize_keys, _shorten_ints),
-                    'inproxy': (_translate_feedback, _parse_survey_results,
-                                _convert_locale_info, _sanitize_keys, _shorten_ints),
                     'ryve': (_convert_locale_info, _sanitize_keys, _shorten_ints),
+                    'conduit': (_convert_locale_info, _sanitize_keys, _shorten_ints),
                     }
 
 

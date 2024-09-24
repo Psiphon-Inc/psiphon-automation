@@ -244,7 +244,7 @@ def is_diagnostic_info_sane(obj):
 
     exemplar = {
                 'Metadata': {
-                             'platform': lambda val: val in ['android', 'ios', 'ios-browser', 'ios-vpn', 'ios-vpn-on-mac', 'windows', 'inproxy'],
+                             'platform': lambda val: val in ['android', 'ios', 'ios-browser', 'ios-vpn', 'ios-vpn-on-mac', 'windows'],
                              'version': lambda val: val in range(1, 5),
                              'id': lambda val: re.match(r'^[a-fA-F0-9]{16}', str(val)) is not None
                              },
@@ -271,9 +271,7 @@ def upgrade_diagnostic_info(diagnostic_info) -> None:
     # In early Psiphon clients, we didn't include the appName in the
     # diagnostic info (because Psiphon was the only app).
     # Note that is_diagnostic_info_sane will have ensured that Metadata is present.
-    if diagnostic_info['Metadata'].get('platform') == 'inproxy':
-        diagnostic_info['Metadata']['appName'] = 'inproxy'
-    elif not diagnostic_info['Metadata'].get('appName'):
+    if not diagnostic_info['Metadata'].get('appName'):
         diagnostic_info['Metadata']['appName'] = 'psiphon'
 
     # Early Psiphon clients nested SystemInformation, but now we want it at the top level.
