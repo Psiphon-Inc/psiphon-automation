@@ -3961,40 +3961,45 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                          'send_method': 'SES'
                         })
 
-                    # Email with attachments
-                    attachments = []
+                    # Email with Windows attachment
                     if campaign.platforms == None or CLIENT_PLATFORM_WINDOWS in campaign.platforms:
-                        attachments.append([campaign.s3_bucket_name,
-                                            psi_ops_s3.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME,
-                                            psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME])
-                    if campaign.platforms == None or CLIENT_PLATFORM_ANDROID in campaign.platforms:
-                        attachments.append([campaign.s3_bucket_name,
-                                            psi_ops_s3.DOWNLOAD_SITE_ANDROID_BUILD_FILENAME,
-                                            psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME])
-
-                    emails.append(
-                        {
-                         'email_addr': campaign.account.email_address,
-                         'body':
-                            [
-                                ['plain', psi_templates.get_plaintext_attachment_email_content(
+                        emails.append({
+                            'email_addr': campaign.account.email_address,
+                            'body': [
+                                ['plain', psi_templates.get_plaintext_windows_attachment_email_content(
                                                 campaign.s3_bucket_name,
-                                                psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME,
-                                                psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME,
-                                                campaign.languages,
-                                                campaign.platforms)],
-                                ['html', psi_templates.get_html_attachment_email_content(
+                                                campaign.languages)],
+                                ['html', psi_templates.get_html_windows_attachment_email_content(
                                                 campaign.s3_bucket_name,
-                                                psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME,
-                                                psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME,
-                                                campaign.languages,
-                                                campaign.platforms)]
+                                                campaign.languages)]
                             ],
-                         'attachments': attachments,
-                         'send_method': 'SMTP'
+                            'attachments': [
+                                [campaign.s3_bucket_name,
+                                 psi_ops_s3.DOWNLOAD_SITE_WINDOWS_BUILD_FILENAME,
+                                 psi_ops_s3.EMAIL_RESPONDER_WINDOWS_ATTACHMENT_FILENAME]
+                            ],
+                            'send_method': 'SMTP'
                         })
-                    # Don't log this, too much noise
-                    #campaign.log('configuring email')
+
+                    # Email with Android attachment
+                    if campaign.platforms == None or CLIENT_PLATFORM_ANDROID in campaign.platforms:
+                        emails.append({
+                            'email_addr': campaign.account.email_address,
+                            'body': [
+                                ['plain', psi_templates.get_plaintext_android_attachment_email_content(
+                                                campaign.s3_bucket_name,
+                                                campaign.languages)],
+                                ['html', psi_templates.get_html_android_attachment_email_content(
+                                                campaign.s3_bucket_name,
+                                                campaign.languages)]
+                            ],
+                            'attachments': [
+                                [campaign.s3_bucket_name,
+                                 psi_ops_s3.DOWNLOAD_SITE_ANDROID_BUILD_FILENAME,
+                                 psi_ops_s3.EMAIL_RESPONDER_ANDROID_ATTACHMENT_FILENAME]
+                            ],
+                            'send_method': 'SMTP'
+                        })
 
         psi_ops_s3.put_string_to_key_in_bucket(self.__aws_account,
                                                self.__automation_bucket,
