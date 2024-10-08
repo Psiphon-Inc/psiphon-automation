@@ -88,8 +88,8 @@ class TunnelCoreCouldNotConnectException(Exception):
 
 
 class TunnelCoreConsoleRunner:
-    def __init__(self, encoded_server_entry, propagation_channel_id='0', 
-                 sponsor_id='0', client_platform='', client_version='0', 
+    def __init__(self, encoded_server_entry, propagation_channel_id='00', 
+                 sponsor_id='00', client_platform='', client_version='0', 
                  use_indistinguishable_tls=True, split_tunnel_url_format='', 
                  split_tunnel_signature_public_key='', split_tunnel_dns_server='', 
                  tunnel_core_binary=None, tunnel_core_config=None, packet_tunnel_params=dict()):
@@ -402,8 +402,8 @@ def get_server_test_cases(server, host, test_cases):
 
 def test_server(server, host, encoded_server_entry, split_tunnel_url_format, 
                 split_tunnel_signature_public_key, split_tunnel_dns_server, 
-                expected_egress_ip_addresses, test_propagation_channel_id='0', 
-                test_sponsor_id='0', client_platform='', client_version='',
+                expected_egress_ip_addresses, test_propagation_channel_id='00', 
+                test_sponsor_id='00', client_platform='', client_version='',
                 use_indistinguishable_tls=True, test_cases = None, 
                 ip_test_sites = [], additional_test_sites = [], user_agent=USER_AGENT,
                 executable_path = None, config_file = None, 

@@ -450,6 +450,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__deleted_hosts = []
         self.__servers = {}
         self.__deleted_servers = {}
+        self.__paused_hosts = {}
+        self.__paused_servers = {}
         self.__hosts_to_remove_from_providers = set()
         self.__client_versions = {
             CLIENT_PLATFORM_WINDOWS: [],
@@ -524,7 +526,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.74'
+    class_version = '0.75'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -963,6 +965,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 server.ssh_obfuscated_inproxy_webrtc_port = None
                 server.ssh_obfuscated_quic_inproxy_webrtc_port = None
             self.version = '0.74'
+        if cmp(parse_version(self.version), parse_version('0.75')) < 0:
+            self.__paused_hosts = {}
+            self.__paused_servers = {}
+            self.version = '0.75'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -2210,7 +2216,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def get_existing_server_ids(self):
         return [server.id for server in self.__servers.values()] + \
-               [deleted_server.id for deleted_server in self.__deleted_servers.values()]
+               [deleted_server.id for deleted_server in self.__deleted_servers.values()] + \
+               [paused_server.id for paused_server in self.__paused_servers.values()]
 
     def add_server_to_host(self, host, new_servers):
 
@@ -2475,6 +2482,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             server_info = server_infos[new_server_number]
             if type(server_info) != tuple:
                 continue
+
             sys.stderr.write('[add_servers] Working on server (' + \
                 str(new_server_number+1) + '/' + str(len(server_infos)) + '): ' + \
                 ' host_id: ' + server_info[0] + \
@@ -2774,6 +2782,57 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # NOTE: caller is responsible for saving now
         #self.save()
 
+    def pause_host(self, host_id, pause_server_id='all'):
+        assert(self.is_locked)
+        host = self.__hosts[host_id]
+
+        server_ids_on_host = []
+        for server in self.__servers.values():
+            if server.host_id == host.id and pause_server_id == server.id:
+                server_ids_on_host.append(server.id)
+                break
+            elif server.host_id == host.id and pause_server_id == 'all':
+                server_ids_on_host.append(server.id)
+        for server_id in server_ids_on_host:
+            assert(server_id not in self.__paused_servers)
+            paused_server = self.__servers.pop(server_id)
+            paused_server.log("paused")
+            self.__paused_servers[server_id] = paused_server
+        
+        if pause_server_id == 'all':
+            paused_host = self.__hosts.pop(host.id)
+            paused_host.log("paused")
+            self.__paused_hosts[host.id] = paused_host
+        else:
+            paused_host = None
+        
+        if paused_host != None and host.id in self.__deploy_implementation_required_for_hosts:
+            self.__deploy_implementation_required_for_hosts.remove(host.id)
+        self.__deploy_stats_config_required = True
+    
+    def restore_paused_host(self, host_id):
+        assert(self.is_locked)
+
+        if host_id in self.__paused_hosts.keys():
+            paused_host = self.__paused_hosts.pop(host_id)
+        
+        paused_servers = [self.__paused_servers[server_id] for server_id in self.__paused_servers.keys() if self.__paused_servers[server_id].host_id == host_id]
+
+        if paused_host != None:
+            for log in copy.copy(paused_host.logs):
+                if 'paused' in log[1]:
+                    paused_host.logs.remove(log)
+            assert(paused_host not in self.__hosts)
+            self.__hosts[paused_host.id] = paused_host
+
+        if len(paused_servers) > 0:
+            for paused_server in paused_servers:
+                for log in copy.copy(paused_server.logs):
+                    if 'paused' in log[1]:
+                        paused_server.logs.remove(log)
+                self.__servers[paused_server.id] = paused_server
+                self.__paused_servers.pop(paused_server.id)
+        
     def backup_and_restore_for_migrate(self, action, host):
         if type(host) == str:
             host = self.__hosts[host]
@@ -3514,39 +3573,46 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     faq_url = psi_ops_s3.get_s3_bucket_faq_url(campaign.s3_bucket_name)
                     privacy_policy_url = psi_ops_s3.get_s3_bucket_privacy_policy_url(campaign.s3_bucket_name)
 
-                    build_filename = self.build(
-                                        propagation_channel.name,
-                                        sponsor.name,
-                                        remote_server_list_url_split,
-                                        OSL_root_url_split,
-                                        info_link_url,
-                                        upgrade_url_split,
-                                        get_new_version_url,
-                                        get_new_version_email,
-                                        faq_url,
-                                        privacy_policy_url,
-                                        [platform])[0]
+                    builds = None
+                    if platform == CLIENT_PLATFORM_ANDROID and propagation_channel.propagator_managed_upgrades:
+                        # For Android Google Play campaigns, apks must not be published for side-loading
+                        pass
+                    else:
+                        build_filename = self.build(
+                                            propagation_channel.name,
+                                            sponsor.name,
+                                            remote_server_list_url_split,
+                                            OSL_root_url_split,
+                                            info_link_url,
+                                            upgrade_url_split,
+                                            get_new_version_url,
+                                            get_new_version_email,
+                                            faq_url,
+                                            privacy_policy_url,
+                                            [platform])[0]
+    
+                        upgrade_filename = self.__make_upgrade_package_from_build(build_filename)
+    
+                        # Upload client builds
+                        # We only upload the builds for Propagation Channel IDs that need to be known for the host.
+                        # UPDATE: Now we copy all builds.  We know that this breaks compartmentalization.
+                        # However, we do not want to prevent an upgrade in the case where a user has
+                        # downloaded from multiple propagation channels, and might therefore be connecting
+                        # to a server from one propagation channel using a build from a different one.
+                        # UPDATE: Now clients get update packages out-of-band (S3). This server-hosted
+                        # upgrade capability may be resurrected in the future if necessary.
+                        #psi_ops_deploy.deploy_build_to_hosts(self.__hosts.values(), build_filename)
 
-                    upgrade_filename = self.__make_upgrade_package_from_build(build_filename)
+                        client_version = self.__client_versions[platform][-1].version if self.__client_versions[platform] else 0
 
-                    # Upload client builds
-                    # We only upload the builds for Propagation Channel IDs that need to be known for the host.
-                    # UPDATE: Now we copy all builds.  We know that this breaks compartmentalization.
-                    # However, we do not want to prevent an upgrade in the case where a user has
-                    # downloaded from multiple propagation channels, and might therefore be connecting
-                    # to a server from one propagation channel using a build from a different one.
-                    # UPDATE: Now clients get update packages out-of-band (S3). This server-hosted
-                    # upgrade capability may be resurrected in the future if necessary.
-                    #psi_ops_deploy.deploy_build_to_hosts(self.__hosts.values(), build_filename)
+                        builds = [(build_filename, client_version, client_build_filenames[platform]),
+                                 (upgrade_filename, client_version, s3_upgrade_resource_name)]
 
                     # Publish to propagation mechanisms
 
-                    client_version = self.__client_versions[platform][-1].version if self.__client_versions[platform] else 0
-
                     psi_ops_s3.update_s3_download_in_buckets(
                         self.__aws_account,
-                        [(build_filename, client_version, client_build_filenames[platform]),
-                         (upgrade_filename, client_version, s3_upgrade_resource_name)],
+                        builds,
                         remote_server_list,
                         remote_server_list_compressed,
                         [campaign.s3_bucket_name, campaign.alternate_s3_bucket_name])
@@ -5295,7 +5361,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             test_propagation_channel = self.get_propagation_channel_by_name('Testing')
         except:
             pass
-        test_propagation_channel_id = test_propagation_channel.id if test_propagation_channel else '0'
+        test_propagation_channel_id = test_propagation_channel.id if test_propagation_channel else '00'
 
         version = self.__client_versions[CLIENT_PLATFORM_WINDOWS][-1].version if self.__client_versions[CLIENT_PLATFORM_WINDOWS] else 0  # This uses the Windows client
 
@@ -5306,7 +5372,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             and (not test_cases or set(test_cases).intersection(set(['VPN']))))):
             executable_path = psi_ops_build_windows.build_client(
                                     test_propagation_channel_id,
-                                    '0',        # sponsor_id
+                                    '00',        # sponsor_id
                                     None,       # banner
                                     [],         # encoded_server_list
                                     '',         # remote_server_list_signature_public_key
