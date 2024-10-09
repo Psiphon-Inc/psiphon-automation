@@ -1292,8 +1292,7 @@ def install_geoip_database(ssh, is_TCS):
             ssh.put_file(os.path.join(os.path.abspath('.'), geo_ip_file),
                          posixpath.join(REMOTE_GEOIP_DIRECTORY, geo_ip_file))
 
-def install_second_ip_address(host, new_ip_addresses_list):
-    
+def install_second_ip_address(host, new_ip_addresses_list, netmask=None, gateway=None, new_destination=False):
     interface_alias = datetime.datetime.now().strftime('%m%d')
 
     interfaces_path = '/etc/network/interfaces.d/multi_ip_interfaces.{}'.format(interface_alias)
@@ -1319,20 +1318,46 @@ def install_second_ip_address(host, new_ip_addresses_list):
 
     interfaces_contents_list = []
 
-    interfaces_contents_header = textwrap.dedent('''auto {interface_dev}:{virtual_interface_alias}
-    allow-hotplug {interface_dev}:{virtual_interface_alias}
-    ''').format(interface_dev=interface_dev, virtual_interface_alias=interface_alias)
-    
-    interfaces_contents_list.append(interfaces_contents_header)
+    if new_destination == True:
+        host_destination_ip_address = new_ip_addresses_list[0] 
+    else:
+        host_destination_ip_address = host.ip_address
 
     for i in range(0, len(new_ip_addresses_list)):
         new_ip_address = new_ip_addresses_list[i]
-        interfaces_contents = textwrap.dedent('''iface {interface_dev}:{virtual_interface_number} inet static
-        address {ip_address}
+        interfaces_contents_header_auto = textwrap.dedent('''auto {interface_dev}:{virtual_interface_alias}.{virtual_interface_number}
+                                                          ''').format(interface_dev=interface_dev, virtual_interface_alias=interface_alias, virtual_interface_number=i+1)
+        interfaces_contents_header_hotplug = textwrap.dedent('''allow-hotplug {interface_dev}:{virtual_interface_alias}.{virtual_interface_number}
+                                                             ''').format(interface_dev=interface_dev, virtual_interface_alias=interface_alias, virtual_interface_number=i+1)
+        interfaces_contents_header = interfaces_contents_header_auto + interfaces_contents_header_hotplug
+        interfaces_contents_list.append(interfaces_contents_header)
+
+        interfaces_contents_ip_address = textwrap.dedent('''iface {interface_dev}:{virtual_interface_alias}.{virtual_interface_number} inet static
+        address {ip_address}''').format(interface_dev=interface_dev, virtual_interface_alias=interface_alias, virtual_interface_number=i+1, ip_address=new_ip_address)
+
+        if netmask != None:
+            interfaces_content_netmask = textwrap.indent('''
+        netmask {netmask_address}'''.format(netmask_address=netmask), prefix='')
+        else:
+            interfaces_content_netmask = ''
+
+        if gateway != None and i == 0:
+            interfaces_content_gateway = textwrap.indent('''
+        gateway {gateway_address}'''.format(gateway_address=gateway), prefix='')
+        else:
+            interfaces_content_gateway = ''
+        
+        if not new_destination or i != 0:
+            interfaces_contents_iptables_rule = textwrap.indent('''
         up /sbin/iptables -t nat -I PREROUTING -j DNAT -d {ip_address} --to-destination {host_ip_address}
         down /sbin/iptables -t nat -D PREROUTING -j DNAT -d {ip_address} --to-destination {host_ip_address}
-        ''').format(interface_dev=interface_dev, virtual_interface_number=interface_alias, ip_address=new_ip_address, host_ip_address=host.ip_address)
+        ''', prefix='').format(ip_address=new_ip_address, host_ip_address=host_destination_ip_address)
+        else:
+            interfaces_contents_iptables_rule = '\n'
+
+        interfaces_contents = interfaces_contents_ip_address + interfaces_content_netmask + interfaces_content_gateway + interfaces_contents_iptables_rule
         interfaces_contents_list.append(interfaces_contents)
+
     new_interfaces_contents = '\n'.join(interfaces_contents_list)
 
     ssh.exec_command('echo "{second_interfaces_contents}" >> {interfaces_path}'.format(
