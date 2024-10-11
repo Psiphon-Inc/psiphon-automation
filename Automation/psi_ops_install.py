@@ -1070,7 +1070,9 @@ def install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, ssh_ip
 
     if ssh_ip_address_whitelist:
         management_port_rule = ''.join([textwrap.dedent('''
-        -A INPUT -s {whitelist_ip_address} -p tcp -m state --state NEW -m tcp --dport {management_port} -j ACCEPT''')
+        -A INPUT -s {whitelist_ip_address} -p tcp -m state --state NEW -m tcp --dport {management_port} -j ACCEPT
+        -A INPUT -s {whitelist_ip_address} -p icmp --icmp-type 8 -j ACCEPT
+        -A INPUT -s {whitelist_ip_address} -p udp --dport 33434:33523 -j ACCEPT''')
         .format(whitelist_ip_address=whitelist_ip, management_port=host.ssh_port)
         for whitelist_ip in ssh_ip_address_whitelist])
     else:
