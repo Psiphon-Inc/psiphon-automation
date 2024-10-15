@@ -2626,6 +2626,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         None,
                         None,
                         None,
+                        None,
+                        None,
+                        None,
                         INITIAL_SERVER_CONFIGURATION_VERSION)
 
             server.osl_ids = list(osl_ids) if osl_ids else None
