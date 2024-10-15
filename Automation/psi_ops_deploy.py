@@ -100,8 +100,9 @@ TCS_QUIC_OSSH_DOCKER_PORT = 1033
 TCS_TAPDANCE_OSSH_DOCKER_PORT = 1034
 TCS_FRONTED_MEEK_QUIC_OSSH_DOCKER_PORT = 1035
 TCS_CONJURE_OSSH_DOCKER_PORT = 1036
-TCS_INPROXY_WEBRTC_OSSH_DOCKER_PORT = 1037
-TCS_INPROXY_WEBRTC_QUIC_OSSH_DOCKER_PORT = 1038
+TCS_INPROXY_WEBRTC_SSH_DOCKER_PORT = 1037
+TCS_INPROXY_WEBRTC_OSSH_DOCKER_PORT = 1038
+TCS_INPROXY_WEBRTC_QUIC_OSSH_DOCKER_PORT = 1039
 
 TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND = 'systemctl kill --signal=USR1 psiphond'
 TCS_PSIPHOND_STOP_ESTABLISHING_TUNNELS_SIGNAL_COMMAND = 'systemctl kill --signal=TSTP psiphond'
@@ -459,7 +460,7 @@ def make_psiphond_config(host, server, own_encoded_server_entries, server_entry_
         config['InproxyBrokerServerEntrySignaturePublicKey'] = server_entry_signature_public_key
         config['MeekRequiredHeaders'] = TCS_psiphond_config_values['InproxyBrokerMeekRequiredHeaders']
         
-    if server.capabilities['INPROXY-WEBRTC-OSSH'] or server.capabilities['INPROXY-WEBRTC-QUIC-OSSH']:
+    if server.capabilities['INPROXY-WEBRTC-SSH'] or server.capabilities['INPROXY-WEBRTC-OSSH'] or server.capabilities['INPROXY-WEBRTC-QUIC-OSSH']:
         config['InproxyServerSessionPrivateKey'] = host.inproxy_server_session_private_key
         config['InproxyServerObfuscationRootSecret'] = host.inproxy_server_obfuscation_root_secret
 
@@ -486,6 +487,7 @@ def get_supported_protocol_ports(host, server, **kwargs):
         ('OSSH', TCS_OSSH_DOCKER_PORT),
         ('TAPDANCE-OSSH', TCS_TAPDANCE_OSSH_DOCKER_PORT),
         ('CONJURE-OSSH', TCS_CONJURE_OSSH_DOCKER_PORT),
+        ('INPROXY-WEBRTC-SSH', TCS_INPROXY_WEBRTC_SSH_DOCKER_PORT),
         ('INPROXY-WEBRTC-OSSH', TCS_INPROXY_WEBRTC_OSSH_DOCKER_PORT),
     ]
 
@@ -544,6 +546,9 @@ def get_supported_protocol_ports(host, server, **kwargs):
 
         if protocol == 'FRONTED-MEEK-QUIC-OSSH' and server.capabilities['FRONTED-MEEK-QUIC']:
                 supported_protocol_ports[protocol] = 443 if external_ports else docker_port
+
+        if protocol == 'INPROXY-WEBRTC-SSH' and server.capabilities['INPROXY-WEBRTC-SSH']:
+                supported_protocol_ports[protocol] = int(server.ssh_inproxy_webrtc_port) if external_ports else docker_port
 
         if protocol == 'INPROXY-WEBRTC-OSSH' and server.capabilities['INPROXY-WEBRTC-OSSH']:
                 supported_protocol_ports[protocol] = int(server.ssh_obfuscated_inproxy_webrtc_port) if external_ports else docker_port
