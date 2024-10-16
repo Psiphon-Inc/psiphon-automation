@@ -78,6 +78,7 @@ class PsiLinode:
             'au-mel': 'Linode Melbourne, AU',
             'br-gru': 'Linode Sao Paulo, BR',
             'ca-central': 'Linode Toronto, Ontario, CAN',
+            'de-fra-2': 'Linode Frankfurt 2, DE',
             'es-mad': 'Linode Madrid, ES',
             'eu-central': 'Linode Frankfurt, DE',
             'eu-west': 'Linode London, England, UK',
