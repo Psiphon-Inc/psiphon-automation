@@ -136,37 +136,29 @@ def get_html_email_content(
         languages).format(bucket_root_url)
 
 
-def get_plaintext_attachment_email_content(
-        s3_bucket_name,
-        windows_attachment_filename,
-        android_attachment_filename,
-        languages,
-        platforms):
-    # TODO: new attachment strings per platform
-    if platforms != None:
-        return get_plaintext_email_content(s3_bucket_name, languages)
+def get_plaintext_windows_attachment_email_content(s3_bucket_name, languages):
     bucket_root_url = psi_ops_s3.get_s3_bucket_site_root(s3_bucket_name)
     return get_all_languages_string(
-        'plaintext_email_with_attachment',
-        languages).format(
-            bucket_root_url,
-            windows_attachment_filename, # supports legacy translations; can be removed in future release
-            android_attachment_filename) # # supports legacy translations; can be removed in future release
+        'plaintext_email_with_windows_attachment',
+        languages).format(bucket_root_url)
 
 
-def get_html_attachment_email_content(
-        s3_bucket_name,
-        windows_attachment_filename,
-        android_attachment_filename,
-        languages,
-        platforms):
-    # TODO: new attachment strings per platform
-    if platforms != None:
-        return get_html_email_content(s3_bucket_name, languages)
+def get_html_windows_attachment_email_content(s3_bucket_name, languages):
     bucket_root_url = psi_ops_s3.get_s3_bucket_site_root(s3_bucket_name)
     return get_all_languages_string(
-        'html_email_with_attachment',
-        languages).format(
-            bucket_root_url,
-            windows_attachment_filename,
-            android_attachment_filename)
+        'html_email_with_windows_attachment',
+        languages).format(bucket_root_url)
+
+
+def get_plaintext_android_attachment_email_content(s3_bucket_name, languages):
+    bucket_root_url = psi_ops_s3.get_s3_bucket_site_root(s3_bucket_name)
+    return get_all_languages_string(
+        'plaintext_email_with_android_attachment',
+        languages).format(bucket_root_url)
+
+
+def get_html_android_attachment_email_content(s3_bucket_name, languages):
+    bucket_root_url = psi_ops_s3.get_s3_bucket_site_root(s3_bucket_name)
+    return get_all_languages_string(
+        'html_email_with_android_attachment',
+        languages).format(bucket_root_url)
