@@ -2564,14 +2564,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 random_number = random.random()
                 if random_number < 0.33:
                     self.setup_meek_parameters_for_host(host, 80)
-                elif random_number < 0.55:
-                    ossh_port = random.choice([53, 554])
-                    self.setup_meek_parameters_for_host(host, 443)
-                elif random_number < 0.88:
+                elif random_number < 0.66:
                     ossh_port = random.choice([53, 554])
                     assert(host.is_TCS)
                     capabilities['UNFRONTED-MEEK'] = False
                     capabilities['TLS'] = True
+                elif random_number < 0.83:
+                    ossh_port = random.choice([53, 554])
+                    self.setup_meek_parameters_for_host(host, 443)
                 else:
                     ossh_port = random.choice([53, 554])
                     assert(host.is_TCS)
