@@ -277,7 +277,8 @@ Server = psi_utils.recordtype(
     'propagation_channel_id, is_embedded, is_permanent, discovery_date_range, capabilities, ' +
     'web_server_port, web_server_secret, web_server_certificate, web_server_private_key, ' +
     'ssh_port, ssh_username, ssh_password, ssh_host_key, TCS_ssh_private_key, ' +
-    'ssh_obfuscated_port, ssh_obfuscated_quic_port, ssh_obfuscated_tapdance_port, ssh_obfuscated_conjure_port, ' +
+    'ssh_obfuscated_port, ssh_obfuscated_quic_port, ssh_obfuscated_tls_port, ' +
+    'ssh_obfuscated_tapdance_port, ssh_obfuscated_conjure_port, ' +
     'ssh_inproxy_webrtc_port, ssh_obfuscated_inproxy_webrtc_port, ssh_obfuscated_quic_inproxy_webrtc_port, ' +
     'ssh_obfuscated_key, alternate_ssh_obfuscated_ports, osl_ids, osl_discovery_date_range, ' +
     'configuration_version',
@@ -300,14 +301,14 @@ def ServerCapabilities():
     for capability in ('handshake', 'VPN', 'SSH', 'OSSH'):
         capabilities[capability] = True
     # These are disabled by default
-    for capability in ('ssh-api-requests', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'FRONTED-MEEK-TACTICS', 'QUIC', 'TAPDANCE', 'CONJURE', 'FRONTED-MEEK-QUIC', 'FRONTED-MEEK-BROKER', 'INPROXY-WEBRTC-SSH', 'INPROXY-WEBRTC-OSSH', 'INPROXY-WEBRTC-QUIC-OSSH'):
+    for capability in ('ssh-api-requests', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'TLS', 'FRONTED-MEEK-TACTICS', 'QUIC', 'TAPDANCE', 'CONJURE', 'FRONTED-MEEK-QUIC', 'FRONTED-MEEK-BROKER', 'INPROXY-WEBRTC-SSH', 'INPROXY-WEBRTC-OSSH', 'INPROXY-WEBRTC-QUIC-OSSH'):
         capabilities[capability] = False
     return capabilities
 
 
 def copy_server_capabilities(caps):
     capabilities = {}
-    for capability in ('handshake', 'ssh-api-requests', 'VPN', 'SSH', 'OSSH', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'FRONTED-MEEK-TACTICS', 'QUIC', 'TAPDANCE', 'CONJURE', 'FRONTED-MEEK-QUIC', 'FRONTED-MEEK-BROKER', 'INPROXY-WEBRTC-SSH', 'INPROXY-WEBRTC-OSSH', 'INPROXY-WEBRTC-QUIC-OSSH'):
+    for capability in ('handshake', 'ssh-api-requests', 'VPN', 'SSH', 'OSSH', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'TLS', 'FRONTED-MEEK-TACTICS', 'QUIC', 'TAPDANCE', 'CONJURE', 'FRONTED-MEEK-QUIC', 'FRONTED-MEEK-BROKER', 'INPROXY-WEBRTC-SSH', 'INPROXY-WEBRTC-OSSH', 'INPROXY-WEBRTC-QUIC-OSSH'):
         capabilities[capability] = caps[capability]
     return capabilities
 
@@ -526,7 +527,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.76'
+    class_version = '0.77'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -974,6 +975,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 server.capabilities['INPROXY-WEBRTC-SSH'] = False
                 server.ssh_inproxy_webrtc_port = None
             self.version = '0.76'
+        if cmp(parse_version(self.version), parse_version('0.77')) < 0:
+            for server in list(self.__servers.values()) + list(self.__deleted_servers.values()) + list(self.__paused_servers.values()):
+                server.capabilities['TLS'] = False
+                server.ssh_obfuscated_tls_port = None
+            self.version = '0.77'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1827,7 +1833,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         is_embedded, is_permanent, discovery_date_range, capabilities, web_server_port, web_server_secret,
                         web_server_certificate, web_server_private_key, ssh_port, ssh_username, ssh_password,
                         ssh_host_key, TCS_ssh_private_key, ssh_obfuscated_port, ssh_obfuscated_quic_port,
-                        ssh_obfuscated_tapdance_port, ssh_obfuscated_conjure_port,
+                        ssh_obfuscated_tls_port, ssh_obfuscated_tapdance_port, ssh_obfuscated_conjure_port,
                         ssh_inproxy_webrtc_port, ssh_obfuscated_inproxy_webrtc_port, ssh_obfuscated_quic_inproxy_webrtc_port,
                         ssh_obfuscated_key, alternate_ssh_obfuscated_ports, osl_ids, osl_discovery_date_range, configuration_version):
         return Server(id,
@@ -1851,6 +1857,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     TCS_ssh_private_key,
                     ssh_obfuscated_port,
                     ssh_obfuscated_quic_port,
+                    ssh_obfuscated_tls_port,
                     ssh_obfuscated_tapdance_port,
                     ssh_obfuscated_conjure_port,
                     ssh_inproxy_webrtc_port,
@@ -1938,6 +1945,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 server.TCS_ssh_private_key,
                                 server.ssh_obfuscated_port,
                                 server.ssh_obfuscated_quic_port,
+                                server.ssh_obfuscated_tls_port,
                                 server.ssh_obfuscated_tapdance_port,
                                 server.ssh_obfuscated_conjure_port,
                                 server.ssh_inproxy_webrtc_port,
@@ -2040,6 +2048,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server.capabilities['FRONTED-MEEK'] = False
         server.capabilities['UNFRONTED-MEEK'] = False
         server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] = False
+        server.capabilities['TLS'] = False
         host = self.__hosts[server.host_id]
         servers = [s for s in self.__servers.values() if s.host_id == server.host_id]
         if host.is_TCS:
@@ -2555,9 +2564,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 random_number = random.random()
                 if random_number < 0.33:
                     self.setup_meek_parameters_for_host(host, 80)
-                elif random_number < 0.66:
+                elif random_number < 0.55:
                     ossh_port = random.choice([53, 554])
                     self.setup_meek_parameters_for_host(host, 443)
+                elif random_number < 0.88:
+                    ossh_port = random.choice([53, 554])
+                    assert(host.is_TCS)
+                    capabilities['UNFRONTED-MEEK'] = False
+                    capabilities['TLS'] = True
                 else:
                     ossh_port = random.choice([53, 554])
                     assert(host.is_TCS)
@@ -2572,6 +2586,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if host.is_TCS:
                 capabilities['handshake'] = False
                 capabilities['VPN'] = False
+
+            tls_port = None
+            if capabilities['TLS']:
+                tls_port = 443
 
             quic_port = ossh_port
             if random.random() > 0.5:
@@ -2590,7 +2608,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 # capability and only try QUICv1 QUIC versions.
                 host.enable_gquic = random.random() > 0.5
 
-                if capabilities['UNFRONTED-MEEK-SESSION-TICKET'] and not capabilities['OSSH'] and random.random() > 0.33:
+                if ((capabilities['TLS'] and int(tls_port) == 443) or
+                    (capabilities['UNFRONTED-MEEK-SESSION-TICKET'] and int(host.meek_server_port) == 443)) and not capabilities['OSSH'] and random.random() > 0.33:
                     capabilities['QUIC'] = True
                     quic_port = 443
                     host.passthrough_version = 2
@@ -2620,6 +2639,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         None,
                         ossh_port,
                         quic_port,
+                        tls_port,
                         None,
                         None,
                         None,
@@ -2636,8 +2656,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
             supports_passthrough = psi_ops_deploy.server_supports_passthrough(server, host)
             if supports_passthrough and len(self.__passthrough_addresses) > 0:
-                host.passthrough_address = random.choice(self.__passthrough_addresses) + ':' + str(host.meek_server_port)
-                if int(host.meek_server_port) == 443 and not host.passthrough_version and random.random() > 0.25:
+                host.passthrough_address = random.choice(self.__passthrough_addresses) + ':' + (str(tls_port) if capabilities['TLS'] else str(host.meek_server_port))
+                if ((capabilities['TLS'] and int(tls_port) == 443) or
+                    (capabilities['UNFRONTED-MEEK'] and int(host.meek_server_port) == 443) or
+                    (capabilities['UNFRONTED-MEEK-SESSION-TICKET'] and int(host.meek_server_port) == 443)) and not host.passthrough_version and random.random() > 0.25:
                     host.passthrough_version = 2
 
             self.setup_server(host, [server])
@@ -4796,6 +4818,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 None,
                                                 server.ssh_obfuscated_port,
                                                 server.ssh_obfuscated_quic_port,
+                                                server.ssh_obfuscated_tls_port,
                                                 server.ssh_obfuscated_tapdance_port,
                                                 server.ssh_obfuscated_conjure_port,
                                                 server.ssh_inproxy_webrtc_port,
@@ -5067,6 +5090,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             None, # Omit: server.TCS_ssh_private_key
                                             server.ssh_obfuscated_port,
                                             server.ssh_obfuscated_quic_port,
+                                            server.ssh_obfuscated_tls_port,
                                             server.ssh_obfuscated_tapdance_port,
                                             server.ssh_obfuscated_conjure_port,
                                             server.ssh_inproxy_webrtc_port,
