@@ -569,7 +569,7 @@ def server_supports_passthrough(server, host):
 
 
 def server_entry_capability_supports_passthrough(capability):
-    return capability in ['UNFRONTED-MEEK-HTTPS', 'UNFRONTED-MEEK-SESSION-TICKET', 'TLS']
+    return capability in ['UNFRONTED-MEEK-HTTPS', 'UNFRONTED-MEEK-SESSION-TICKET']
 
 
 def tunnel_protocol_supports_passthrough(protocol):
