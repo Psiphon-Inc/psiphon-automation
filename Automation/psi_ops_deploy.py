@@ -486,7 +486,7 @@ def get_supported_protocol_ports(host, server, **kwargs):
     TCS_protocols = [
         ('SSH', TCS_SSH_DOCKER_PORT),
         ('OSSH', TCS_OSSH_DOCKER_PORT),
-        ('TLS', TCS_TLS_OSSH_DOCKER_PORT),
+        ('TLS-OSSH', TCS_TLS_OSSH_DOCKER_PORT),
         ('TAPDANCE-OSSH', TCS_TAPDANCE_OSSH_DOCKER_PORT),
         ('CONJURE-OSSH', TCS_CONJURE_OSSH_DOCKER_PORT),
         ('INPROXY-WEBRTC-SSH', TCS_INPROXY_WEBRTC_SSH_DOCKER_PORT),
