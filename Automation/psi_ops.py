@@ -2658,7 +2658,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if supports_passthrough and len(self.__passthrough_addresses) > 0:
                 host.passthrough_address = random.choice(self.__passthrough_addresses) + ':' + (str(tls_port) if capabilities['TLS'] else str(host.meek_server_port))
                 if (capabilities['TLS'] or
-                    (int(host.meek_server_port) == 443 and not host.passthrough_version and random.random() > 0.25):
+                    (int(host.meek_server_port) == 443 and not host.passthrough_version and random.random() > 0.25)):
                     host.passthrough_version = 2
 
             self.setup_server(host, [server])
