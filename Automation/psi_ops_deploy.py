@@ -103,6 +103,7 @@ TCS_CONJURE_OSSH_DOCKER_PORT = 1036
 TCS_INPROXY_WEBRTC_SSH_DOCKER_PORT = 1037
 TCS_INPROXY_WEBRTC_OSSH_DOCKER_PORT = 1038
 TCS_INPROXY_WEBRTC_QUIC_OSSH_DOCKER_PORT = 1039
+TCS_TLS_OSSH_DOCKER_PORT = 1040
 
 TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND = 'systemctl kill --signal=USR1 psiphond'
 TCS_PSIPHOND_STOP_ESTABLISHING_TUNNELS_SIGNAL_COMMAND = 'systemctl kill --signal=TSTP psiphond'
@@ -425,7 +426,7 @@ def make_psiphond_config(host, server, own_encoded_server_entries, server_entry_
     config['SSHUserName'] = server.ssh_username
     config['SSHPassword'] = server.ssh_password
 
-    if server.capabilities['SSH'] or server.capabilities['OSSH'] or server.capabilities['FRONTED-MEEK'] or server.capabilities['FRONTED-MEEK-QUIC'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] or server.capabilities['QUIC'] or server.capabilities['TAPDANCE'] or server.capabilities['CONJURE'] or server.capabilities['INPROXY-WEBRTC-OSSH'] or server.capabilities['INPROXY-WEBRTC-QUIC-OSSH']:
+    if server.capabilities['SSH'] or server.capabilities['OSSH'] or server.capabilities['FRONTED-MEEK'] or server.capabilities['FRONTED-MEEK-QUIC'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] or server.capabilities['QUIC'] or server.capabilities['TLS'] or server.capabilities['TAPDANCE'] or server.capabilities['CONJURE'] or server.capabilities['INPROXY-WEBRTC-OSSH'] or server.capabilities['INPROXY-WEBRTC-QUIC-OSSH']:
         config['ObfuscatedSSHKey'] = server.ssh_obfuscated_key
 
     if server.capabilities['FRONTED-MEEK'] or server.capabilities['FRONTED-MEEK-QUIC'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] or server.capabilities['FRONTED-MEEK-BROKER']:
@@ -434,6 +435,9 @@ def make_psiphond_config(host, server, own_encoded_server_entries, server_entry_
         config['MeekCertificateCommonName'] = TCS_psiphond_config_values['MeekCertificateCommonName']
         config['MeekProhibitedHeaders'] = TCS_psiphond_config_values['MeekProhibitedHeaders']
         config['MeekProxyForwardedForHeaders'] = TCS_psiphond_config_values['MeekProxyForwardedForHeaders']
+
+    if server.capabilities['TLS']:
+        config['MeekObfuscatedKey'] = host.meek_server_obfuscated_key
 
     config['MaxConcurrentSSHHandshakes'] = 2000
 
@@ -485,6 +489,7 @@ def get_supported_protocol_ports(host, server, **kwargs):
     TCS_protocols = [
         ('SSH', TCS_SSH_DOCKER_PORT),
         ('OSSH', TCS_OSSH_DOCKER_PORT),
+        ('TLS-OSSH', TCS_TLS_OSSH_DOCKER_PORT),
         ('TAPDANCE-OSSH', TCS_TAPDANCE_OSSH_DOCKER_PORT),
         ('CONJURE-OSSH', TCS_CONJURE_OSSH_DOCKER_PORT),
         ('INPROXY-WEBRTC-SSH', TCS_INPROXY_WEBRTC_SSH_DOCKER_PORT),
@@ -523,6 +528,9 @@ def get_supported_protocol_ports(host, server, **kwargs):
         if protocol == 'QUIC-OSSH' and server.capabilities['QUIC']:
                 supported_protocol_ports[protocol] = int(server.ssh_obfuscated_quic_port) if external_ports else docker_port
 
+        if protocol == 'TLS-OSSH' and server.capabilities['TLS']:
+                supported_protocol_ports[protocol] = int(server.ssh_obfuscated_tls_port) if external_ports else docker_port
+
         if protocol == 'TAPDANCE-OSSH' and server.capabilities['TAPDANCE']:
                 supported_protocol_ports[protocol] = int(server.ssh_obfuscated_tapdance_port) if external_ports else docker_port
 
@@ -560,7 +568,7 @@ def get_supported_protocol_ports(host, server, **kwargs):
 
 
 def server_supports_passthrough(server, host):
-    return server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET']
+    return server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] or server.capabilities['TLS']
 
 
 def server_entry_capability_supports_passthrough(capability):
@@ -568,7 +576,7 @@ def server_entry_capability_supports_passthrough(capability):
 
 
 def tunnel_protocol_supports_passthrough(protocol):
-    return protocol in ['UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH', 'UNFRONTED-MEEK-SESSION-TICKET-OSSH']
+    return protocol in ['UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH', 'UNFRONTED-MEEK-SESSION-TICKET-OSSH', 'TLS-OSSH']
 
 
 # hosts_and_servers is a list of tuples: [(host, [server, ...]), ...]
