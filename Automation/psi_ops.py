@@ -2569,6 +2569,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     assert(host.is_TCS)
                     capabilities['UNFRONTED-MEEK'] = False
                     capabilities['TLS'] = True
+                    if not host.meek_server_obfuscated_key:
+                        host.meek_server_obfuscated_key = self.generate_obfuscated_key()
                 elif random_number < 0.83:
                     ossh_port = random.choice([53, 554])
                     self.setup_meek_parameters_for_host(host, 443)
@@ -4375,6 +4377,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         if server.ssh_obfuscated_quic_port:
             extended_config['sshObfuscatedQUICPort'] = int(server.ssh_obfuscated_quic_port)
+
+        if server.ssh_obfuscated_tls_port:
+            extended_config['TlsOSSHPort'] = int(server.ssh_obfuscated_tls_port)
 
         if server.ssh_obfuscated_tapdance_port:
             extended_config['sshObfuscatedTapdancePort'] = int(server.ssh_obfuscated_tapdance_port)

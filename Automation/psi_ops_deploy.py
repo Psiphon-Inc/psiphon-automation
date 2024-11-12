@@ -436,6 +436,9 @@ def make_psiphond_config(host, server, own_encoded_server_entries, server_entry_
         config['MeekProhibitedHeaders'] = TCS_psiphond_config_values['MeekProhibitedHeaders']
         config['MeekProxyForwardedForHeaders'] = TCS_psiphond_config_values['MeekProxyForwardedForHeaders']
 
+    if server.capabilities['TLS']:
+        config['MeekObfuscatedKey'] = host.meek_server_obfuscated_key
+
     config['MaxConcurrentSSHHandshakes'] = 2000
 
     # SSHBeginHandshakeTimeoutMillisecondsList/SSHHandshakeTimeoutMillisecondsList
