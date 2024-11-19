@@ -295,6 +295,8 @@ class VPSNetNodeDriver(NodeDriver):
                     "fqdn": fqdn,
                     "system_template_id": image_id,
                     "cloud_id": cloud_id,
+                    "server_monitoring_service_required": "0",
+                    "server_monitoring_configuration_service_required": "0",
                     "backups_enabled": kwargs.get("backups_enabled", 0),
                     "rsync_backups_enabled": kwargs.get(
                         "rsync_backups_enabled", 0)}}
