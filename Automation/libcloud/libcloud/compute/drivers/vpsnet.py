@@ -150,6 +150,8 @@ class VPSNetNodeDriver(NodeDriver):
                 "system_template_id": image.id,
                 "backups_enabled": ex_backups_enabled,
                 "slices_required": size.id,
+                "server_monitoring_service_required": "0",
+                "server_monitoring_configuration_service_required": "0"
             }
         }
 
