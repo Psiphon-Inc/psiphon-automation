@@ -150,6 +150,8 @@ class VPSNetNodeDriver(NodeDriver):
                 "system_template_id": image.id,
                 "backups_enabled": ex_backups_enabled,
                 "slices_required": size.id,
+                "server_monitoring_service_required": "0",
+                "server_monitoring_configuration_service_required": "0"
             }
         }
 
@@ -293,10 +295,13 @@ class VPSNetNodeDriver(NodeDriver):
                     "fqdn": fqdn,
                     "system_template_id": image_id,
                     "cloud_id": cloud_id,
+                    "server_monitoring_service_required": "0",
+                    "server_monitoring_configuration_service_required": "0",
                     "backups_enabled": kwargs.get("backups_enabled", 0),
                     "rsync_backups_enabled": kwargs.get(
                         "rsync_backups_enabled", 0)}}
         
+        print("Creating Servers: " + request["virtual_machine"]["fqdn"])
         res = self.connection.request(
             "/ssd_virtual_machines.{}".format(API_VERSION,),
             data=json.dumps(request),
