@@ -301,7 +301,7 @@ class VPSNetNodeDriver(NodeDriver):
                     "rsync_backups_enabled": kwargs.get(
                         "rsync_backups_enabled", 0)}}
         
-        print("Creating Servers: " + request["fqdn"])
+        print("Creating Servers: " + request["virtual_machine"]["fqdn"])
         res = self.connection.request(
             "/ssd_virtual_machines.{}".format(API_VERSION,),
             data=json.dumps(request),
