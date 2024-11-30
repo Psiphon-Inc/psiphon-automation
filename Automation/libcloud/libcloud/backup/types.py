@@ -13,57 +13,54 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__all__ = [
-    'Provider',
-    'BackupTargetType',
-    'BackupTargetJobStatusType'
-]
+__all__ = ["Provider", "BackupTargetType", "BackupTargetJobStatusType"]
 
 
-class Provider(object):
+class Provider:
     """
     Defines for each of the supported providers
 
     Non-Dummy drivers are sorted in alphabetical order. Please preserve this
     ordering when adding new drivers.
     """
-    DUMMY = 'dummy'
-    DIMENSIONDATA = 'dimensiondata'
-    EBS = 'ebs'
-    GCE = 'gce'
+
+    DUMMY = "dummy"
+    DIMENSIONDATA = "dimensiondata"
+    EBS = "ebs"
+    GCE = "gce"
 
 
-class BackupTargetType(object):
+class BackupTargetType:
     """
     Backup Target type.
     """
 
-    VIRTUAL = 'Virtual'
+    VIRTUAL = "Virtual"
     """ Denotes a virtual host """
 
-    PHYSICAL = 'Physical'
+    PHYSICAL = "Physical"
     """ Denotes a physical host """
 
-    FILESYSTEM = 'Filesystem'
+    FILESYSTEM = "Filesystem"
     """ Denotes a file system (e.g. NAS) """
 
-    DATABASE = 'Database'
+    DATABASE = "Database"
     """ Denotes a database target """
 
-    OBJECT = 'Object'
+    OBJECT = "Object"
     """ Denotes an object based file system """
 
-    VOLUME = 'Volume'
+    VOLUME = "Volume"
     """ Denotes a block storage volume """
 
 
-class BackupTargetJobStatusType(object):
+class BackupTargetJobStatusType:
     """
     The status of a backup target job
     """
 
-    RUNNING = 'Running'
-    CANCELLED = 'Cancelled'
-    FAILED = 'Failed'
-    COMPLETED = 'Completed'
-    PENDING = 'Pending'
+    RUNNING = "Running"
+    CANCELLED = "Cancelled"
+    FAILED = "Failed"
+    COMPLETED = "Completed"
+    PENDING = "Pending"

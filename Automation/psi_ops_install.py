@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2011, Psiphon Inc.
+# Copyright (c) 2024, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -979,6 +979,9 @@ def install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, ssh_ip
     new_rate_limit_chain = textwrap.dedent('''
         -N PSI_RATE_LIMITING''')
 
+    accept_with_inproxy_limit_rate_template = textwrap.dedent('''
+        -A PSI_RATE_LIMITING -p {proto} -m state --state NEW -m {proto} --dport {port} -m limit {accept_unfronted_rate_limit} -j ACCEPT''')
+
     accept_with_unfronted_limit_rate_template = textwrap.dedent('''
         -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m limit {accept_unfronted_rate_limit} -j ACCEPT''')
 
@@ -1018,7 +1021,18 @@ def install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, ssh_ip
 
     for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, external_ports=use_external_ports).items():
         protocol_port_rule = ''
-        if 'UNFRONTED-MEEK' in protocol:
+        if 'INPROXY' in protocol:
+            if 'QUIC' in protocol:
+                protocol_port_rule = accept_with_inproxy_limit_rate_template.format(
+                    accept_unfronted_rate_limit=accept_unfronted_rate_limit,
+                    proto="udp",
+                    port=str(port))
+            else:
+                protocol_port_rule = accept_with_inproxy_limit_rate_template.format(
+                    accept_unfronted_rate_limit=accept_unfronted_rate_limit,
+                    proto="tcp",
+                    port=str(port))
+        elif 'UNFRONTED-MEEK' in protocol:
             protocol_port_rule = accept_with_unfronted_limit_rate_template.format(
                 accept_unfronted_rate_limit=accept_unfronted_rate_limit,
                 port=str(port))
@@ -1135,6 +1149,7 @@ def install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, ssh_ip
     # NOTE: exclude for servers with meek capability (or is fronted) and meek_server_port is 443 or OSSH is running on 443
     if server.capabilities['handshake'] and not (
             ((server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET']) and int(host.meek_server_port) == 443) or
+            (server.capabilities['TLS'] and int(server.ssh_obfuscated_tls_port) == 443) or
             (server.capabilities['OSSH'] and int(server.ssh_obfuscated_port) == 443)):
         web_server_port_forward = textwrap.dedent('''
 
@@ -1280,8 +1295,7 @@ def install_geoip_database(ssh, is_TCS):
             ssh.put_file(os.path.join(os.path.abspath('.'), geo_ip_file),
                          posixpath.join(REMOTE_GEOIP_DIRECTORY, geo_ip_file))
 
-def install_second_ip_address(host, new_ip_addresses_list):
-    
+def install_second_ip_address(host, new_ip_addresses_list, netmask=None, gateway=None, new_destination=False):
     interface_alias = datetime.datetime.now().strftime('%m%d')
 
     interfaces_path = '/etc/network/interfaces.d/multi_ip_interfaces.{}'.format(interface_alias)
@@ -1307,20 +1321,46 @@ def install_second_ip_address(host, new_ip_addresses_list):
 
     interfaces_contents_list = []
 
-    interfaces_contents_header = textwrap.dedent('''auto {interface_dev}:{virtual_interface_alias}
-    allow-hotplug {interface_dev}:{virtual_interface_alias}
-    ''').format(interface_dev=interface_dev, virtual_interface_alias=interface_alias)
-    
-    interfaces_contents_list.append(interfaces_contents_header)
+    if new_destination == True:
+        host_destination_ip_address = new_ip_addresses_list[0] 
+    else:
+        host_destination_ip_address = host.ip_address
 
     for i in range(0, len(new_ip_addresses_list)):
         new_ip_address = new_ip_addresses_list[i]
-        interfaces_contents = textwrap.dedent('''iface {interface_dev}:{virtual_interface_number} inet static
-        address {ip_address}
+        interfaces_contents_header_auto = textwrap.dedent('''auto {interface_dev}:{virtual_interface_alias}.{virtual_interface_number}
+                                                          ''').format(interface_dev=interface_dev, virtual_interface_alias=interface_alias, virtual_interface_number=i+1)
+        interfaces_contents_header_hotplug = textwrap.dedent('''allow-hotplug {interface_dev}:{virtual_interface_alias}.{virtual_interface_number}
+                                                             ''').format(interface_dev=interface_dev, virtual_interface_alias=interface_alias, virtual_interface_number=i+1)
+        interfaces_contents_header = interfaces_contents_header_auto + interfaces_contents_header_hotplug
+        interfaces_contents_list.append(interfaces_contents_header)
+
+        interfaces_contents_ip_address = textwrap.dedent('''iface {interface_dev}:{virtual_interface_alias}.{virtual_interface_number} inet static
+        address {ip_address}''').format(interface_dev=interface_dev, virtual_interface_alias=interface_alias, virtual_interface_number=i+1, ip_address=new_ip_address)
+
+        if netmask != None:
+            interfaces_content_netmask = textwrap.indent('''
+        netmask {netmask_address}'''.format(netmask_address=netmask), prefix='')
+        else:
+            interfaces_content_netmask = ''
+
+        if gateway != None and i == 0:
+            interfaces_content_gateway = textwrap.indent('''
+        gateway {gateway_address}'''.format(gateway_address=gateway), prefix='')
+        else:
+            interfaces_content_gateway = ''
+        
+        if not new_destination or i != 0:
+            interfaces_contents_iptables_rule = textwrap.indent('''
         up /sbin/iptables -t nat -I PREROUTING -j DNAT -d {ip_address} --to-destination {host_ip_address}
         down /sbin/iptables -t nat -D PREROUTING -j DNAT -d {ip_address} --to-destination {host_ip_address}
-        ''').format(interface_dev=interface_dev, virtual_interface_number=interface_alias, ip_address=new_ip_address, host_ip_address=host.ip_address)
+        ''', prefix='').format(ip_address=new_ip_address, host_ip_address=host_destination_ip_address)
+        else:
+            interfaces_contents_iptables_rule = '\n'
+
+        interfaces_contents = interfaces_contents_ip_address + interfaces_content_netmask + interfaces_content_gateway + interfaces_contents_iptables_rule
         interfaces_contents_list.append(interfaces_contents)
+
     new_interfaces_contents = '\n'.join(interfaces_contents_list)
 
     ssh.exec_command('echo "{second_interfaces_contents}" >> {interfaces_path}'.format(

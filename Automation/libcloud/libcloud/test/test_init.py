@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Licensed to the Apache Software Foundation (ASF) under one or more§
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -17,45 +16,73 @@
 import os
 import sys
 import logging
+import tempfile
+from unittest.mock import patch
+
+import libcloud
+from libcloud import _init_once
+from libcloud.base import DriverTypeNotFoundError
+from libcloud.test import unittest
+from libcloud.utils.loggingconnection import LoggingConnection
 
 try:
-    import paramiko
+    import paramiko  # NOQA
+
     have_paramiko = True
 except ImportError:
     have_paramiko = False
 
-from libcloud import _init_once
-from libcloud.common.base import LoggingHTTPConnection
-from libcloud.common.base import LoggingHTTPSConnection
-
-from libcloud.test import unittest
-
 
 class TestUtils(unittest.TestCase):
+    def tearDown(self):
+        if "LIBCLOUD_DEBUG" in os.environ:
+            del os.environ["LIBCLOUD_DEBUG"]
+
     def test_init_once_and_debug_mode(self):
+        if have_paramiko:
+            paramiko_logger = logging.getLogger("paramiko")
+            paramiko_logger.setLevel(logging.INFO)
+
         # Debug mode is disabled
         _init_once()
 
-        self.assertEqual(LoggingHTTPConnection.log, None)
-        self.assertEqual(LoggingHTTPSConnection.log, None)
+        self.assertIsNone(LoggingConnection.log)
 
         if have_paramiko:
-            logger = paramiko.util.logging.getLogger()
-            paramiko_log_level = logger.getEffectiveLevel()
-            self.assertEqual(paramiko_log_level, logging.WARNING)
+            paramiko_log_level = paramiko_logger.getEffectiveLevel()
+            self.assertEqual(paramiko_log_level, logging.INFO)
 
         # Enable debug mode
-        os.environ['LIBCLOUD_DEBUG'] = '/dev/null'
+        _, tmp_path = tempfile.mkstemp()
+        os.environ["LIBCLOUD_DEBUG"] = tmp_path
         _init_once()
 
-        self.assertTrue(LoggingHTTPConnection.log is not None)
-        self.assertTrue(LoggingHTTPSConnection.log is not None)
+        self.assertTrue(LoggingConnection.log is not None)
 
         if have_paramiko:
-            logger = paramiko.util.logging.getLogger()
-            paramiko_log_level = logger.getEffectiveLevel()
+            paramiko_log_level = paramiko_logger.getEffectiveLevel()
             self.assertEqual(paramiko_log_level, logging.DEBUG)
 
+    def test_factory(self):
+        driver = libcloud.get_driver(libcloud.DriverType.COMPUTE, libcloud.DriverType.COMPUTE.EC2)
+        self.assertEqual(driver.__name__, "EC2NodeDriver")
 
-if __name__ == '__main__':
+    def test_raises_error(self):
+        with self.assertRaises(DriverTypeNotFoundError):
+            libcloud.get_driver("potato", "potato")
+
+    @patch.object(libcloud.requests, "__version__", "2.6.0")
+    @patch.object(libcloud.requests.packages.chardet, "__version__", "2.2.1")
+    def test_init_once_detects_bad_yum_install_requests(self, *args):
+        expected_msg = "Known bad version of requests detected"
+        with self.assertRaisesRegex(AssertionError, expected_msg):
+            _init_once()
+
+    @patch.object(libcloud.requests, "__version__", "2.6.0")
+    @patch.object(libcloud.requests.packages.chardet, "__version__", "2.3.0")
+    def test_init_once_correct_chardet_version(self, *args):
+        _init_once()
+
+
+if __name__ == "__main__":
     sys.exit(unittest.main())

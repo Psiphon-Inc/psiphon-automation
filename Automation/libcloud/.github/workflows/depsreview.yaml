@@ -1,0 +1,30 @@
+name: 'Dependency Review'
+
+on:
+  pull_request:
+    branches:
+      - trunk
+
+permissions:
+  contents: read  # for actions/checkout to fetch code
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 'Checkout Repository'
+        uses: actions/checkout@v4
+
+      - name: 'Dependency Review'
+        uses: actions/dependency-review-action@v3
+        # TODO: We really want one check for direct prod dependencies where we
+        # only allows ASF, MIT, BSD and nother one for testing / dev
+        # dependencies where we also allow GPL, etc.
+        #with:
+        #   allow-licenses: MIT, Apache-2.0, BSD-3-Clause

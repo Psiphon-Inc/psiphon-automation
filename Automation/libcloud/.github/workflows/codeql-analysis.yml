@@ -1,0 +1,45 @@
+name: "CodeQL Analysis"
+
+on:
+  push:
+    branches: [ trunk ]
+  pull_request:
+    branches: [ trunk ]
+  schedule:
+    - cron: '0 3 * * *'
+
+permissions:
+  contents: read  # for actions/checkout to fetch code
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    permissions:
+      actions: read  # for github/codeql-action/init to get workflow details
+      security-events: write  # for github/codeql-action/autobuild to send a status report
+    name: Analyze
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'python' ]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@master
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v2
+      with:
+        languages: ${{ matrix.language }}
+
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v2
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v2

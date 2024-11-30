@@ -13,36 +13,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from libcloud.common.base import ConnectionKey, JsonResponse
+from typing import Dict, List
 
+from libcloud.common.base import JsonResponse, ConnectionKey
 
-__all__ = [
-    'API_HOST',
-    'DNSPodException',
-    'DNSPodResponse',
-    'DNSPodConnection'
-]
+__all__ = ["API_HOST", "DNSPodException", "DNSPodResponse", "DNSPodConnection"]
 
 # Endpoint for dnspod api
-API_HOST = 'api.dnspod.com'
+API_HOST = "api.dnspod.com"
 
 
 class DNSPodResponse(JsonResponse):
-    errors = []
-    objects = []
+    errors = []  # type: List[Dict]
+    objects = []  # type: List[Dict]
 
     def __init__(self, response, connection):
-        super(DNSPodResponse, self).__init__(response=response,
-                                             connection=connection)
+        super().__init__(response=response, connection=connection)
         self.errors, self.objects = self.parse_body_and_errors()
         if not self.success():
-            raise DNSPodException(code=self.status,
-                                  message=self.errors.pop()
-                                  ['status']['message'])
+            raise DNSPodException(code=self.status, message=self.errors.pop()["status"]["message"])
 
     def parse_body_and_errors(self):
-        js = super(DNSPodResponse, self).parse_body()
-        if 'status' in js and js['status']['code'] != '1':
+        js = super().parse_body()
+        if "status" in js and js["status"]["code"] != "1":
             self.errors.append(js)
         else:
             self.objects.append(js)
@@ -58,21 +51,20 @@ class DNSPodConnection(ConnectionKey):
     responseCls = DNSPodResponse
 
     def add_default_headers(self, headers):
-        headers['Content-Type'] = 'application/x-www-form-urlencoded'
-        headers['Accept'] = 'text/json'
+        headers["Content-Type"] = "application/x-www-form-urlencoded"
+        headers["Accept"] = "text/json"
 
         return headers
 
 
 class DNSPodException(Exception):
-
     def __init__(self, code, message):
         self.code = code
         self.message = message
         self.args = (code, message)
 
     def __str__(self):
-        return "%s %s" % (self.code, self.message)
+        return "{} {}".format(self.code, self.message)
 
     def __repr__(self):
-        return "DNSPodException %s %s" % (self.code, self.message)
+        return "DNSPodException {} {}".format(self.code, self.message)

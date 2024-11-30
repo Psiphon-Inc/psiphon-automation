@@ -16,6 +16,8 @@ Data/GeoData
 *.pem
 EmailResponder/FeedbackDecryptor/conf.json
 
+i18n/transifex_api_token
+
 # CipherShare files
 CipherShare*.exe
 kcce.dll

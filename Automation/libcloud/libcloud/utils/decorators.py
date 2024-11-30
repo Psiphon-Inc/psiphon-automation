@@ -13,14 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 from functools import wraps
 
 from libcloud.common.types import LibcloudError
 
-__all__ = [
-    'wrap_non_libcloud_exceptions'
-]
+__all__ = ["wrap_non_libcloud_exceptions"]
 
 
 def wrap_non_libcloud_exceptions(func):
@@ -31,13 +28,12 @@ def wrap_non_libcloud_exceptions(func):
     Note: This function should only be used to wrap methods on the driver
     classes.
     """
+
     @wraps(func)
     def decorated_function(*args, **kwargs):
         try:
             return func(*args, **kwargs)
-        except Exception:
-            e = sys.exc_info()[1]
-
+        except Exception as e:
             if isinstance(e, LibcloudError):
                 raise e
 
@@ -46,12 +42,13 @@ def wrap_non_libcloud_exceptions(func):
             else:
                 driver = None
 
-            fault = getattr(e, 'fault', None)
+            fault = getattr(e, "fault", None)
 
-            if fault and getattr(fault, 'string', None):
+            if fault and getattr(fault, "string", None):
                 message = fault.string
             else:
-                message = e.message
+                message = str(e)
 
             raise LibcloudError(value=message, driver=driver)
+
     return decorated_function

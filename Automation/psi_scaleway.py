@@ -162,14 +162,14 @@ class PsiScaleway:
             vol_res = self.client.query().volumes(scaleway['volumes']['0']['id']).delete()
 
             # Delete IPs
-            if scaleway['public_ip']['dynamic'] == False:
+            if scaleway['public_ip'] != None and scaleway['public_ip']['dynamic'] == False:
                 ip_res = self.client.query().ips(scaleway['public_ip']['id']).delete()
         except slexc.HttpClientError as exc:
             print(json.dumps(exc.response.json(), indent=2))
 
     def create_flexible_ip(self):
         try:
-            flexible_ip = self.client.query().ips.post({'project': self.project_id, 'tags': ['psiphon3-hosts']})
+            flexible_ip = self.client.query().ips.post({'project': self.project_id, "type": "routed_ipv4", 'tags': ['psiphon3-hosts']})
 
             flexible_ip_address = flexible_ip['ip']['address']
             flexible_ip_id = flexible_ip['ip']['id']
@@ -178,12 +178,32 @@ class PsiScaleway:
         except slexc.HttpClientError as exc:
             print(json.dumps(exc.response.json(), indent=2))
 
+    def get_all_flexible_ips(self, scaleway_account):
+        try:
+            # page through results and return all flexible routed IPs in the account.
+            flexible_routed_ips = []
+            for region in scaleway_account.regions:
+                self.region = region
+                self.reload()
+                page_number = 1
+                flexible_routed_ips += self.client.query().ips.get(page=page_number, type='routed_ipv4')['ips']
+                while True:
+                    page_number += 1
+                    next_page = self.client.query().ips.get(page=page_number, type='routed_ipv4')['ips']
+                    if next_page:
+                        flexible_routed_ips += next_page
+                    else:
+                        break
+            return flexible_routed_ips
+        except slexc.HttpClientError as exc:
+            print(json.dumps(exc.response.json(), indent=2))
+
     def remove_flexible_ip(self, ip_address):
         try:
             del_res = self.client.query().ips(ip_address).delete()
         except slexc.HttpClientError as exc:
             print(json.dumps(exc.response.json(), indent=2))
-
+            
     def start_scaleway(self, scaleway_id):
         try:
             # Boot scaleway from API
@@ -205,19 +225,18 @@ class PsiScaleway:
         except slexc.HttpClientError as exc:
             print(json.dumps(exc.response.json(), indent=2))
 
-    def create_scaleway(self, host_id, reserved_ip=False):
+    def create_scaleway(self, host_id):
         try:
-            # IF reserved_ip
+            _, flexible_ip_id = self.create_flexible_ip()
             req = {
                     'project': self.project_id,
                     'name': host_id,
                     'commercial_type': tcs_instance_size,
-                    'image': self.get_image()['id']
+                    'image': self.get_image()['id'],
+                    'routed_ip_enabled': True,
+                    'public_ip': flexible_ip_id
             }
 
-            if reserved_ip:
-                flexible_ip_address, flexible_ip_id = self.create_flexible_ip()
-                req['public_ip'] = flexible_ip_id
             # We are using Scaleway 3 vCPUs 4 GB: u'DEV1-M'
             scaleway = self.client.query().servers.post(req) 
 
@@ -332,9 +351,14 @@ def get_server_ip_addresses(scaleway_account, scaleway_id):
     scaleway = scaleway_api.scaleway_list(scaleway_id)
 
     public_ip = scaleway['public_ip']['address']
-    private_ip = scaleway['private_ip']
+    private_ip = scaleway['private_ip'] # This is kept for old server (one without routed_ipv4) compatibility
 
     return (public_ip, private_ip)
+
+def get_orphan_ips(scaleway_account): # Only for routed_ipv4
+    scaleway_api = PsiScaleway(scaleway_account)
+    orphan_flexible_ips = [flexible_ip["address"] for flexible_ip in scaleway_api.get_all_flexible_ips(scaleway_account) if flexible_ip["state"] == "detached"]
+    return orphan_flexible_ips
 
 def launch_new_server(scaleway_account, is_TCS, plugins, multi_ip=False):
 
@@ -348,7 +372,6 @@ def launch_new_server(scaleway_account, is_TCS, plugins, multi_ip=False):
         scaleway, datacenter_name, region = scaleway_api.create_scaleway(host_id)
 
         scaleway_ip_address = scaleway['public_ip']['address']
-        scaleway_internal_ip_address = scaleway['private_ip']
 
         new_stats_username = psi_utils.generate_stats_username()
         # scaleways created by an image keep the image's hostname.  Override this
@@ -375,7 +398,7 @@ def launch_new_server(scaleway_account, is_TCS, plugins, multi_ip=False):
             scaleway_account.base_ssh_port, 'root', new_root_password,
             ' '.join(new_host_public_key.split(' ')[:2]),
             new_stats_username, new_stats_password,
-            datacenter_name, region, None, scaleway_internal_ip_address)
+            datacenter_name, region, None, None)
 
 if __name__ == '__main__':
     print(launch_new_server())

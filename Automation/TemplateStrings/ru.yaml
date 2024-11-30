@@ -1,20 +1,21 @@
 ru:
   plaintext_email_no_attachment: |
-      Скачайте Psiphon здесь: {{0}}/{0}/download.html#direct
+    Скачайте Psiphon здесь: {{0}}/{0}/download.html#direct
   html_email_no_attachment: |
-      <div style="direction: ltr;">
-      Скачайте Psiphon здесь: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
-      </div>
-  plaintext_email_with_attachment: |
-      Чтобы использовать Psiphon 3 на Windows, сохраните прикрепленный файл {{1}} с расширением ".exe".
-      Чтобы использовать Psiphon 3 на Android, установите прикрепленный файл {{2}}.
-      Для получения подробной информации или для повторной загрузки файла нажмите ссылку ниже.
-      {{0}}/{0}/download.html#direct
+    <div style="direction: ltr;">
+    Скачайте Psiphon здесь: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
+  plaintext_email_with_attachment: |+
+    Чтобы использовать Psiphon 3 для Windows, сохраните файл-вложение, название которого начинается с "psiphon3". Если нужно, добавьте к нему расширение ".exe". Запустите программу.
+    Чтобы использовать Psiphon 3 для Android, сохраните файл-вложение, название которого начинается "PsiphonAndroid". Если нужно, добавьте к нему расширение ".apk". Установите программу и запустите ее.
+    Чтобы узнать больше или снова скачать файлы, используйте ссылку ниже.
+    {{0}}/{0}/download.html#direct
+
   html_email_with_attachment: |
-      <div style="direction: ltr;">
-      Чтобы использовать Psiphon 3 на Windows, сохраните прикрепленный файл {{1}} с расширением ".exe".<br>
-      Чтобы использовать Psiphon 3 на Android, установите прикрепленный файл {{2}}.<br>
-      Для получения подробной информации или для повторной загрузки файла нажмите ссылку ниже.<br>
-      <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
-      </div>
-      <br>
+    <div style="direction: ltr;">
+    Чтобы использовать Psiphon 3 для Windows, сохраните файл-вложение, название которого начинается с "psiphon3". Если нужно, добавьте к нему расширение ".exe". Запустите программу.<br>
+    Чтобы использовать Psiphon 3 для Android, сохраните файл-вложение, название которого начинается "PsiphonAndroid". Если нужно, добавьте к нему расширение ".apk". Установите программу и запустите ее.<br>
+    Чтобы узнать больше или снова скачать файлы, используйте ссылку ниже.<br>
+    <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
+    <br>

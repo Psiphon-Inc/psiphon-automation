@@ -87,7 +87,7 @@ class SSH(object):
         if ssh_pkey is not None:
             ssh_pkey = ssh.RSAKey.from_private_key(StringIO(ssh_pkey))
 
-        self.ssh.connect(ip_address, ssh_port, ssh_username, ssh_password, pkey=ssh_pkey, timeout=60)
+        self.ssh.connect(ip_address, ssh_port, ssh_username, ssh_password, pkey=ssh_pkey, timeout=60, banner_timeout=90, auth_timeout=90)
 
     def close(self):
         self.ssh.close()

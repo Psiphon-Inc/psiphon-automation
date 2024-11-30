@@ -42,14 +42,14 @@ CONFIG_FILE_NAME = os.path.join(SOURCE_ROOT, 'tunnel-core-config.config')
 
 def load_default_tunnel_core():
     if not os.path.exists(TUNNEL_CORE):
-        print("Psiphon tunnel core binary does not exist in path {0}, exiting".format(SOURCE_ROOT))
+        print("[ERROR] Psiphon tunnel core binary does not exist in path {0}, exiting".format(SOURCE_ROOT))
         sys.exit(1)
     return TUNNEL_CORE
 
 
 def load_default_config():
     if not os.path.exists(CONFIG_FILE_NAME):
-        print("Psiphon tunnel core config does not exist in path {0}, exiting".format(SOURCE_ROOT))
+        print("[ERROR] Psiphon tunnel core config does not exist in path {0}, exiting".format(SOURCE_ROOT))
         sys.exit(1)
     return CONFIG_FILE_NAME
 
@@ -88,8 +88,8 @@ class TunnelCoreCouldNotConnectException(Exception):
 
 
 class TunnelCoreConsoleRunner:
-    def __init__(self, encoded_server_entry, propagation_channel_id='0', 
-                 sponsor_id='0', client_platform='', client_version='0', 
+    def __init__(self, encoded_server_entry, propagation_channel_id='00', 
+                 sponsor_id='00', client_platform='', client_version='0', 
                  use_indistinguishable_tls=True, split_tunnel_url_format='', 
                  split_tunnel_signature_public_key='', split_tunnel_dns_server='', 
                  tunnel_core_binary=None, tunnel_core_config=None, packet_tunnel_params=dict()):
@@ -171,7 +171,7 @@ class TunnelCoreConsoleRunner:
         # Read tunnel-core log file for connection message instead of sleep 25 second
 
         time.sleep(1)
-        print('Tunnel Core is connecting...')
+        print('[Testing] Tunnel Core is connecting...')
         start_time = time.time()
 
         # Breaking this loop means the process sent EOF to stderr, or 'tunnels' tunnels were established
@@ -192,7 +192,7 @@ class TunnelCoreConsoleRunner:
 
             if time.time() >= start_time + 25:
                 # if the sleep time is 25 second, get out while loop and keep going
-                print('Not successfully connected after 25 second.')
+                print('[FAILED] Not successfully connected after 25 second.')
                 raise TunnelCoreCouldNotConnectException('Could not connect after 25 seconds')
 
 
@@ -279,8 +279,8 @@ def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, a
     # Split tunnelling is not implemented for VPN.
     # Also, if there is no remote check, don't use split tunnel mode because we always want
     # to test at least one proxied case.
-    
-    print('Testing egress IP addresses %s in %s mode (split tunnel %s)...' % (
+                            
+    print('[Testing] Testing egress IP addresses %s in %s mode (split tunnel %s)...' % (
             ','.join(expected_egress_ip_addresses), transport, 'ENABLED' if split_tunnel_mode else 'DISABLED'))
     
     try:
@@ -304,7 +304,7 @@ def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, a
             for url in test_sites:
                 # Get egress IP from web site in same GeoIP region; local split tunnel is not proxied
                 
-                print("Testing site: {0}".format(url)) 
+                print("[Test Site] Testing site: {0}".format(url)) 
                 
                 if url.startswith('https'):
                     urllib3.disable_warnings()
@@ -366,7 +366,7 @@ def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, a
                         continue 
     
     except Exception as err:
-        print("Could not tunnel to {0}: {1}".format(url, err))
+        print("[FAILED] Could not tunnel to {0}: {1}".format(url, err))
         output['HTTP'] = output['HTTPS'] = 'FAIL : General Exception: {0}'.format(err)
         raise
     finally:
@@ -402,8 +402,8 @@ def get_server_test_cases(server, host, test_cases):
 
 def test_server(server, host, encoded_server_entry, split_tunnel_url_format, 
                 split_tunnel_signature_public_key, split_tunnel_dns_server, 
-                expected_egress_ip_addresses, test_propagation_channel_id='0', 
-                test_sponsor_id='0', client_platform='', client_version='',
+                expected_egress_ip_addresses, test_propagation_channel_id='00', 
+                test_sponsor_id='00', client_platform='', client_version='',
                 use_indistinguishable_tls=True, test_cases = None, 
                 ip_test_sites = [], additional_test_sites = [], user_agent=USER_AGENT,
                 executable_path = None, config_file = None, 
@@ -428,7 +428,7 @@ def test_server(server, host, encoded_server_entry, split_tunnel_url_format,
     
     if len(packet_tunnel_params) > 0:
         test_cases = [test_cases][0]
-        print('Testing Packet Tunnel using {}'.format(test_cases[0]))
+        print('[Packet Tunnel] Testing Packet Tunnel using {}'.format(test_cases[0]))
     
     results = {}
     for test_case in test_cases:
@@ -440,6 +440,7 @@ def test_server(server, host, encoded_server_entry, split_tunnel_url_format,
         
         results[test_case] = {}
         try:
+            print('[Testing] Testing Host: %s - Server: %s ...' %(host.id, server.id))
             results[test_case] = __test_server(tunnel_core_runner, test_case, 
                                                expected_egress_ip_addresses, 
                                                ip_test_sites, additional_test_sites, user_agent, False)

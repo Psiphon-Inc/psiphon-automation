@@ -147,8 +147,8 @@ class PsiOCI:
         return instance
 
     def remove_instance(self, instance_id):
-        instance = self.compute_api.get_instance(instance_id).data
-        self.compute_api.terminate_instance(instance.id)
+        instance = self.compute_api.get_instance(instance_id, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY).data
+        self.compute_api.terminate_instance(instance.id, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
 
     def start_instance(self, instance_id):
         # TODO

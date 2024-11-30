@@ -13,23 +13,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Type, cast
+
 from libcloud.compute.types import Provider
 from libcloud.compute.providers import get_driver
+from libcloud.compute.drivers.ec2 import EC2NodeDriver
+from libcloud.compute.drivers.rackspace import RackspaceNodeDriver
 
 EC2 = get_driver(Provider.EC2)
 Rackspace = get_driver(Provider.RACKSPACE)
 
-drivers = [EC2('access key id', 'secret key', region='us-east-1'),
-           Rackspace('username', 'api key', region='iad')]
+drivers = [
+    EC2("access key id", "secret key", region="us-east-1"),
+    Rackspace("username", "api key", region="iad"),
+]
 
-nodes = [driver.list_nodes() for driver in drivers]
+nodes = []
+for driver in drivers:
+    nodes.extend(driver.list_nodes())
 
 print(nodes)
 # [ <Node: provider=Amazon, status=RUNNING, name=bob, ip=1.2.3.4.5>,
 # <Node: provider=Rackspace, status=REBOOT, name=korine, ip=6.7.8.9.10>, ... ]
 
 # grab the node named "test"
-node = [n for n in nodes if n.name == 'test'][0]
+node = [n for n in nodes if n.name == "test"][0]
 
 # reboot "test"
 node.reboot()
