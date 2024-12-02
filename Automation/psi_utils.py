@@ -206,7 +206,7 @@ def update_recordtype(rcd, **kwargs):
     rcd.log(log)
 
 
-_PASSWORD_LENGTH = 30
+_PASSWORD_LENGTH = 35
 _EXCLUDED_CHARS = 'oO0lI'  # Example: Exclude 'o', 'O', 'l', 'I', '0'
 _sysrand = random.SystemRandom()
 def generate_password():
