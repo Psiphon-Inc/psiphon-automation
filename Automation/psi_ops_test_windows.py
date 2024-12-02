@@ -217,7 +217,7 @@ class TunnelCoreRunner:
     def _setup_tunnel_config(self, transport):
         config = {
             "TargetServerEntry": self.encoded_server_entry, # Single Test Server Parameter
-            "ServerEntrySignaturePublicKey": self.server_entry_signature_public_key
+            "ServerEntrySignaturePublicKey": self.server_entry_signature_public_key,
             "TunnelProtocol": transport, # Single or group Test Protocol
             "PropagationChannelId" : self.propagation_channel_id, # Propagation Channel ID = "Testing"
             "SponsorId" : "00",
