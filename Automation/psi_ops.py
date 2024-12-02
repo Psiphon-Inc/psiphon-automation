@@ -5371,6 +5371,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     server,
                                     self.__hosts[server.host_id],
                                     self.__get_encoded_server_entry(server),
+                                    self.__server_entry_signing_key_pair[0],
                                     self.__split_tunnel_url_format(),
                                     self.__split_tunnel_signature_public_key(),
                                     self.__split_tunnel_dns_server(),

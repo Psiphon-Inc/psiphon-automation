@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2022, Psiphon Inc.
+# Copyright (c) 2024, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -204,9 +204,10 @@ class PsiphonRunner:
 
 
 class TunnelCoreRunner:
-    def __init__(self, encoded_server_entry, propagation_channel_id = '00', split_tunnel_url_format = "", split_tunnel_signature_public_key = "", split_tunnel_dns_server = ""):
+    def __init__(self, encoded_server_entry, server_entry_signature_public_key, propagation_channel_id = '00', split_tunnel_url_format = "", split_tunnel_signature_public_key = "", split_tunnel_dns_server = ""):
         self.proc = None
         self.encoded_server_entry = encoded_server_entry
+        self.server_entry_signature_public_key = server_entry_signature_public_key
         self.propagation_channel_id = propagation_channel_id
         self.split_tunnel_url_format = split_tunnel_url_format
         self.split_tunnel_signature_public_key = split_tunnel_signature_public_key
@@ -216,6 +217,7 @@ class TunnelCoreRunner:
     def _setup_tunnel_config(self, transport):
         config = {
             "TargetServerEntry": self.encoded_server_entry, # Single Test Server Parameter
+            "ServerEntrySignaturePublicKey": self.server_entry_signature_public_key
             "TunnelProtocol": transport, # Single or group Test Protocol
             "PropagationChannelId" : self.propagation_channel_id, # Propagation Channel ID = "Testing"
             "SponsorId" : "00",
@@ -355,7 +357,7 @@ def __test_server(runner, transport, expected_egress_ip_addresses):
         runner.stop_psiphon()
 
 
-def test_server(server, host, encoded_server_entry,
+def test_server(server, host, encoded_server_entry, server_entry_signature_public_key,
                 split_tunnel_url_format, split_tunnel_signature_public_key, split_tunnel_dns_server, version,
                 expected_egress_ip_addresses, test_propagation_channel_id = '00', test_cases = None, executable_path = None):
 
@@ -364,7 +366,7 @@ def test_server(server, host, encoded_server_entry,
     web_server_port = server.web_server_port
     web_server_secret = server.web_server_secret
 
-    local_test_cases = copy.copy(test_cases) if test_cases else ['handshake', 'VPN', 'OSSH', 'SSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH', 'UNFRONTED-MEEK-SESSION-TICKET-OSSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTP-OSSH', 'FRONTED-MEEK-QUIC-OSSH', 'QUIC-OSSH', 'TAPDANCE-OSSH']
+    local_test_cases = copy.copy(test_cases) if test_cases else ['handshake', 'VPN', 'SSH', 'OSSH', 'QUIC-OSSH', 'TLS-OSSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH', 'UNFRONTED-MEEK-SESSION-TICKET-OSSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTP-OSSH', 'FRONTED-MEEK-QUIC-OSSH', 'TAPDANCE-OSSH', 'CONJURE-OSSH', 'INPROXY-WEBRTC-SSH', 'INPROXY-WEBRTC-OSSH', 'INPROXY-WEBRTC-QUIC-OSSH']
 
     for test_case in copy.copy(local_test_cases):
         if ((test_case == 'VPN' # VPN requires handshake, SSH or SSH+
@@ -376,8 +378,10 @@ def test_server(server, host, encoded_server_entry,
             or (test_case == 'FRONTED-MEEK-HTTP-OSSH' and not (capabilities['FRONTED-MEEK'] and host.alternate_meek_server_fronting_hosts))
             or (test_case == 'FRONTED-MEEK-QUIC-OSSH' and not capabilities['FRONTED-MEEK-QUIC'])
             or (test_case == 'QUIC-OSSH' and not capabilities['QUIC'])
+            or (test_case == 'TLS-OSSH' and not capabilities['TLS'])
             or (test_case == 'TAPDANCE-OSSH' and not capabilities['TAPDANCE'])
-            or (test_case in ['handshake', 'OSSH', 'SSH', 'VPN'] and not capabilities[test_case])):
+            or (test_case == 'CONJURE-OSSH' and not capabilities['CONJURE'])
+            or (test_case in ['handshake', 'VPN', 'SSH', 'OSSH', 'INPROXY-WEBRTC-SSH', 'INPROXY-WEBRTC-OSSH', 'INPROXY-WEBRTC-QUIC-OSSH'] and not capabilities[test_case])):
             print('Server does not support %s' % (test_case,))
             local_test_cases.remove(test_case)
 
@@ -443,7 +447,7 @@ def test_server(server, host, encoded_server_entry,
 
         else:
 
-            tunnel_core_runner = TunnelCoreRunner(encoded_server_entry, test_propagation_channel_id,  split_tunnel_url_format, split_tunnel_signature_public_key, split_tunnel_dns_server)
+            tunnel_core_runner = TunnelCoreRunner(encoded_server_entry, server_entry_signature_public_key, test_propagation_channel_id,  split_tunnel_url_format, split_tunnel_signature_public_key, split_tunnel_dns_server)
 
             try:
                 __test_server(tunnel_core_runner, test_case, expected_egress_ip_addresses)
