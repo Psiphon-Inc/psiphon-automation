@@ -4711,7 +4711,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def get_servers(self):
         return list(self.__servers.values())
 
-    def get_servers_newer_than(self, newer_than_datetime=datetime.datetime.now()-datetime.timedelta(day=1)):
+    def get_servers_newer_than(self, newer_than_datetime=datetime.datetime.now()-datetime.timedelta(days=1)):
         # This only take datetime object for the time or default to 1 day ago
         # Use datetime.datetime(2024, 03, 17, 0, 30, 0, 0) to generate datetime object
         return [server for server in self.__servers.values() if [log for log in server.logs if 'created' in log][0][0] > newer_than_datetime]
