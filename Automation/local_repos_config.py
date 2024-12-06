@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2019, Psiphon Inc.
+# Copyright (c) 2024, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -23,4 +23,5 @@ import os
 ANDROID_REPO_ROOT = os.path.abspath(os.path.join('..', '..', 'psiphon-android'))
 WINDOWS_REPO_ROOT = os.path.abspath(os.path.join('..', '..', 'psiphon-windows', 'src'))
 WEBSITE_REPO_ROOT = os.path.abspath(os.path.join('..', '..', 'psiphon-website'))
+TUNNEL_CORE_BINARIES_REPO_ROOT = os.path.abspath(os.path.join('..', '..', 'psiphon-tunnel-core-binaries'))
 
