@@ -62,9 +62,8 @@ CHECK_IP_ADDRESS_URL_LOCAL = 'http://automation.whatismyip.com/n09230945.asp'
 CHECK_IP_ADDRESS_URL_REMOTE = 'http://automation.whatismyip.com/n09230945.asp'
 USER_AGENT = "Python-urllib/psiphon-tunnel-core"
 
-if os.path.exists(os.path.join(local_repos_config.WINDOWS_REPO_ROOT, '3rdParty')):
-    TUNNEL_CORE_ROOT = os.path.join(local_repos_config.WINDOWS_REPO_ROOT, '3rdParty')
-    TUNNEL_CORE = os.path.join(TUNNEL_CORE_ROOT, 'psiphon-tunnel-core.exe')
+TUNNEL_CORE_ROOT = os.path.join(local_repos_config.WINDOWS_REPO_ROOT, '3rdParty')
+TUNNEL_CORE = os.path.join(TUNNEL_CORE_ROOT, 'psiphon-tunnel-core.exe')
 if os.path.exists(os.path.join(local_repos_config.TUNNEL_CORE_BINARIES_REPO_ROOT, 'windows')):
     TUNNEL_CORE_ROOT = os.path.join(local_repos_config.TUNNEL_CORE_BINARIES_REPO_ROOT, 'windows')
     TUNNEL_CORE = os.path.join(TUNNEL_CORE_ROOT, 'psiphon-tunnel-core-i686.exe')
