@@ -270,10 +270,13 @@ class TunnelCoreRunner:
                 time.sleep(25)
                 break
 
-            line = json.loads(line)
-            if line["data"].get("count") != None:
-                if line["noticeType"] == "Tunnels" and line["data"]["count"] == 1:
-                    break
+            try:
+                line = json.loads(line)
+                if line["data"].get("count") != None:
+                    if line["noticeType"] == "Tunnels" and line["data"]["count"] == 1:
+                        break
+            except:
+                pass
 
             if time.time() >= start_time + 25:
                 # if the sleep time is 25 second, get out while loop and keep going
