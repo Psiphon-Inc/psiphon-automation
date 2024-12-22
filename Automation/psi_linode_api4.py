@@ -95,6 +95,7 @@ class PsiLinode:
             'jp-osa': 'Linode Osaka, JP',
             'jp-tyo-3': 'Linode Tokyo 3, JP',
             'mx-qro-1': 'Linode Queretaro, MX',
+            'my-kul-1': 'Linode Kuala Lumpur, MY',
             'nl-ams': 'Linode Amsterdam, NL',
             'nz-akl-1': 'Linode Auckland, NZ',
             'se-sto': 'Linode Stockholm, SE',
