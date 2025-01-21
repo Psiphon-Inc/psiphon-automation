@@ -634,6 +634,7 @@ def install_TCS_host(host, servers, existing_server_ids, TCS_psiphond_config_val
             host.ssh_username, host.ssh_password,
             host.ssh_host_key)
 
+    set_psiphond_logrotate(ssh)
     install_geoip_database(ssh, True)
 
     ssh.close()
@@ -1276,6 +1277,14 @@ def install_malware_blacklist(host, is_TCS):
     ssh.exec_command(psi_ip_blacklist_host_path)
     ssh.close()
 
+def set_psiphond_logrotate(ssh):
+
+    psiphond_logrotate_contents = '''/var/log/psiphond/psiphond.log {
+    rotate 7
+    daily
+}'''
+
+    ssh.exec_command('echo "{}" > /etc/logrotate.d/psiphond'.format(psiphond_logrotate_contents))
 
 def install_geoip_database(ssh, is_TCS):
 
