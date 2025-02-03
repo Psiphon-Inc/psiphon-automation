@@ -523,7 +523,7 @@ def install_legacy_host(host, servers, existing_server_ids, plugins):
         if (server.ssh_username is None
             or server.ssh_password is None):
             server.ssh_username = 'psiphon_ssh_%s' % (
-                binascii.hexlify(os.urandom(SSH_RANDOM_USERNAME_SUFFIX_BYTE_LENGTH)),)
+                binascii.hexlify(os.urandom(SSH_RANDOM_USERNAME_SUFFIX_BYTE_LENGTH)).decode(),)
             server.ssh_password = binascii.hexlify(os.urandom(SSH_PASSWORD_BYTE_LENGTH)).decode()
         if server.ssh_host_key is None:
             ssh.exec_command('rm /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (server.internal_ip_address,))
@@ -659,7 +659,7 @@ def install_TCS_host(host, servers, existing_server_ids, TCS_psiphond_config_val
         if (server.ssh_username is None
             or server.ssh_password is None):
             server.ssh_username = 'psiphon_ssh_%s' % (
-                binascii.hexlify(os.urandom(SSH_RANDOM_USERNAME_SUFFIX_BYTE_LENGTH)),)
+                binascii.hexlify(os.urandom(SSH_RANDOM_USERNAME_SUFFIX_BYTE_LENGTH)).decode(),)
             server.ssh_password = binascii.hexlify(os.urandom(SSH_PASSWORD_BYTE_LENGTH)).decode()
 
         if server.ssh_host_key is None:
