@@ -278,9 +278,9 @@ Server = psi_utils.recordtype(
     'web_server_port, web_server_secret, web_server_certificate, web_server_private_key, ' +
     'ssh_port, ssh_username, ssh_password, ssh_host_key, TCS_ssh_private_key, ' +
     'ssh_obfuscated_port, ssh_obfuscated_quic_port, ssh_obfuscated_tls_port, ' +
-    'ssh_obfuscated_tapdance_port, ssh_obfuscated_conjure_port, ' +
+    'ssh_obfuscated_shadowsocks_port, ssh_obfuscated_tapdance_port, ssh_obfuscated_conjure_port, ' +
     'ssh_inproxy_webrtc_port, ssh_obfuscated_inproxy_webrtc_port, ssh_obfuscated_quic_inproxy_webrtc_port, ' +
-    'ssh_obfuscated_key, alternate_ssh_obfuscated_ports, osl_ids, osl_discovery_date_range, ' +
+    'ssh_obfuscated_key, shadowsocks_key, alternate_ssh_obfuscated_ports, osl_ids, osl_discovery_date_range, ' +
     'configuration_version',
     default=None)
 
@@ -301,14 +301,14 @@ def ServerCapabilities():
     for capability in ('handshake', 'VPN', 'SSH', 'OSSH'):
         capabilities[capability] = True
     # These are disabled by default
-    for capability in ('ssh-api-requests', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'TLS', 'FRONTED-MEEK-TACTICS', 'QUIC', 'TAPDANCE', 'CONJURE', 'FRONTED-MEEK-QUIC', 'FRONTED-MEEK-BROKER', 'INPROXY-WEBRTC-SSH', 'INPROXY-WEBRTC-OSSH', 'INPROXY-WEBRTC-QUIC-OSSH'):
+    for capability in ('ssh-api-requests', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'TLS', 'FRONTED-MEEK-TACTICS', 'QUIC', 'SHADOWSOCKS', 'TAPDANCE', 'CONJURE', 'FRONTED-MEEK-QUIC', 'FRONTED-MEEK-BROKER', 'INPROXY-WEBRTC-SSH', 'INPROXY-WEBRTC-OSSH', 'INPROXY-WEBRTC-QUIC-OSSH'):
         capabilities[capability] = False
     return capabilities
 
 
 def copy_server_capabilities(caps):
     capabilities = {}
-    for capability in ('handshake', 'ssh-api-requests', 'VPN', 'SSH', 'OSSH', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'TLS', 'FRONTED-MEEK-TACTICS', 'QUIC', 'TAPDANCE', 'CONJURE', 'FRONTED-MEEK-QUIC', 'FRONTED-MEEK-BROKER', 'INPROXY-WEBRTC-SSH', 'INPROXY-WEBRTC-OSSH', 'INPROXY-WEBRTC-QUIC-OSSH'):
+    for capability in ('handshake', 'ssh-api-requests', 'VPN', 'SSH', 'OSSH', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'TLS', 'FRONTED-MEEK-TACTICS', 'QUIC', 'SHADOWSOCKS', 'TAPDANCE', 'CONJURE', 'FRONTED-MEEK-QUIC', 'FRONTED-MEEK-BROKER', 'INPROXY-WEBRTC-SSH', 'INPROXY-WEBRTC-OSSH', 'INPROXY-WEBRTC-QUIC-OSSH'):
         capabilities[capability] = caps[capability]
     return capabilities
 
@@ -527,7 +527,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.77'
+    class_version = '0.78'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -980,6 +980,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 server.capabilities['TLS'] = False
                 server.ssh_obfuscated_tls_port = None
             self.version = '0.77'
+        if cmp(parse_version(self.version), parse_version('0.78')) < 0:
+            for server in list(self.__servers.values()) + list(self.__deleted_servers.values()) + list(self.__paused_servers.values()):
+                server.capabilities['SHADOWSOCKS'] = False
+                server.ssh_obfuscated_shadowsocks_port = None
+                server.shadowsocks_key = None
+            self.version = '0.78'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1833,9 +1839,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         is_embedded, is_permanent, discovery_date_range, capabilities, web_server_port, web_server_secret,
                         web_server_certificate, web_server_private_key, ssh_port, ssh_username, ssh_password,
                         ssh_host_key, TCS_ssh_private_key, ssh_obfuscated_port, ssh_obfuscated_quic_port,
-                        ssh_obfuscated_tls_port, ssh_obfuscated_tapdance_port, ssh_obfuscated_conjure_port,
+                        ssh_obfuscated_tls_port, ssh_obfuscated_shadowsocks_port, ssh_obfuscated_tapdance_port, ssh_obfuscated_conjure_port,
                         ssh_inproxy_webrtc_port, ssh_obfuscated_inproxy_webrtc_port, ssh_obfuscated_quic_inproxy_webrtc_port,
-                        ssh_obfuscated_key, alternate_ssh_obfuscated_ports, osl_ids, osl_discovery_date_range, configuration_version):
+                        ssh_obfuscated_key, shadowsocks_key, alternate_ssh_obfuscated_ports, osl_ids, osl_discovery_date_range, configuration_version):
         return Server(id,
                     host_id,
                     ip_address,
@@ -1858,12 +1864,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     ssh_obfuscated_port,
                     ssh_obfuscated_quic_port,
                     ssh_obfuscated_tls_port,
+                    ssh_obfuscated_shadowsocks_port,
                     ssh_obfuscated_tapdance_port,
                     ssh_obfuscated_conjure_port,
                     ssh_inproxy_webrtc_port,
                     ssh_obfuscated_inproxy_webrtc_port,
                     ssh_obfuscated_quic_inproxy_webrtc_port,
                     ssh_obfuscated_key,
+                    shadowsocks_key,
                     alternate_ssh_obfuscated_ports,
                     osl_ids,
                     osl_discovery_date_range,
@@ -1946,12 +1954,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 server.ssh_obfuscated_port,
                                 server.ssh_obfuscated_quic_port,
                                 server.ssh_obfuscated_tls_port,
+                                server.ssh_obfuscated_shadowsocks_port,
                                 server.ssh_obfuscated_tapdance_port,
                                 server.ssh_obfuscated_conjure_port,
                                 server.ssh_inproxy_webrtc_port,
                                 server.ssh_obfuscated_inproxy_webrtc_port,
                                 server.ssh_obfuscated_quic_inproxy_webrtc_port,
                                 server.ssh_obfuscated_key,
+                                server.shadowsocks_key,
                                 server.alternate_ssh_obfuscated_ports,
                                 server.osl_ids,
                                 server.osl_discovery_date_range,
@@ -2049,6 +2059,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         server.capabilities['UNFRONTED-MEEK'] = False
         server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] = False
         server.capabilities['TLS'] = False
+        server.capabilities['SHADOWSOCKS'] = False
         host = self.__hosts[server.host_id]
         servers = [s for s in self.__servers.values() if s.host_id == server.host_id]
         if host.is_TCS:
@@ -2651,6 +2662,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         None,
                         None,
                         None,
+                        None,
+                        None,
                         INITIAL_SERVER_CONFIGURATION_VERSION)
 
             server.osl_ids = list(osl_ids) if osl_ids else None
@@ -2788,6 +2801,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             deleted_server.ssh_password = None
             deleted_server.ssh_host_key = None
             deleted_server.ssh_obfuscated_key = None
+            deleted_server.shadowsocks_key = None
             deleted_server.TCS_ssh_private_key = None
             # Add deleted log to deleted server
             deleted_server.log("deleted")
@@ -4381,6 +4395,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if server.ssh_obfuscated_tls_port:
             extended_config['TlsOSSHPort'] = int(server.ssh_obfuscated_tls_port)
 
+        if server.ssh_obfuscated_shadowsocks_port:
+            extended_config['SshShadowsocksPort'] = int(server.ssh_obfuscated_shadowsocks_port)
+            extended_config['SshShadowsocksKey'] = server.shadowsocks_key if server.shadowsocks_key else ''
+
         if server.ssh_obfuscated_tapdance_port:
             extended_config['sshObfuscatedTapdancePort'] = int(server.ssh_obfuscated_tapdance_port)
 
@@ -4828,12 +4846,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                                 server.ssh_obfuscated_port,
                                                 server.ssh_obfuscated_quic_port,
                                                 server.ssh_obfuscated_tls_port,
+                                                server.ssh_obfuscated_shadowsocks_port,
                                                 server.ssh_obfuscated_tapdance_port,
                                                 server.ssh_obfuscated_conjure_port,
                                                 server.ssh_inproxy_webrtc_port,
                                                 server.ssh_obfuscated_inproxy_webrtc_port,
                                                 server.ssh_obfuscated_quic_inproxy_webrtc_port,
                                                 server.ssh_obfuscated_key,
+                                                server.shadowsocks_key,
                                                 server.alternate_ssh_obfuscated_ports,
                                                 None,
                                                 None,
@@ -5100,12 +5120,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             server.ssh_obfuscated_port,
                                             server.ssh_obfuscated_quic_port,
                                             server.ssh_obfuscated_tls_port,
+                                            server.ssh_obfuscated_shadowsocks_port,
                                             server.ssh_obfuscated_tapdance_port,
                                             server.ssh_obfuscated_conjure_port,
                                             server.ssh_inproxy_webrtc_port,
                                             server.ssh_obfuscated_inproxy_webrtc_port,
                                             server.ssh_obfuscated_quic_inproxy_webrtc_port,
                                             server.ssh_obfuscated_key,
+                                            server.shadowsocks_key,
                                             server.alternate_ssh_obfuscated_ports)
                                             # Omit: propagation, web server, ssh info, version
             copy.__servers[server.id].logs = server.logs
