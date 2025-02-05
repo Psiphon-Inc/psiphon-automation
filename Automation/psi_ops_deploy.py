@@ -431,7 +431,7 @@ def make_psiphond_config(host, server, own_encoded_server_entries, server_entry_
         config['ObfuscatedSSHKey'] = server.ssh_obfuscated_key
 
     if server.capabilities['SHADOWSOCKS']:
-        config['ShadowsocksKey'] = server.shadowssocks_key
+        config['ShadowsocksKey'] = server.shadowsocks_key
 
     if server.capabilities['FRONTED-MEEK'] or server.capabilities['FRONTED-MEEK-QUIC'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] or server.capabilities['FRONTED-MEEK-BROKER']:
         config['MeekCookieEncryptionPrivateKey'] = host.meek_cookie_encryption_private_key
