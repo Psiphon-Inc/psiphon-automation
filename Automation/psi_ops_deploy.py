@@ -536,7 +536,7 @@ def get_supported_protocol_ports(host, server, **kwargs):
         if protocol == 'TLS-OSSH' and server.capabilities['TLS']:
                 supported_protocol_ports[protocol] = int(server.ssh_obfuscated_tls_port) if external_ports else docker_port
 
-        if protocol == 'SHADOWSOCKS-OSSH' and server.capabilites['SHADOWSOCKS']:
+        if protocol == 'SHADOWSOCKS-OSSH' and server.capabilities['SHADOWSOCKS']:
                 supported_protocol_ports[protocol] = int(server.ssh_obfuscated_shadowsocks_port) if external_ports else docker_port
 
         if protocol == 'TAPDANCE-OSSH' and server.capabilities['TAPDANCE']:
