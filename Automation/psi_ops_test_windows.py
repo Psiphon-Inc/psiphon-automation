@@ -372,7 +372,7 @@ def test_server(server, host, encoded_server_entry, server_entry_signature_publi
     web_server_port = server.web_server_port
     web_server_secret = server.web_server_secret
 
-    local_test_cases = copy.copy(test_cases) if test_cases else ['handshake', 'VPN', 'SSH', 'OSSH', 'QUIC-OSSH', 'TLS-OSSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH', 'UNFRONTED-MEEK-SESSION-TICKET-OSSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTP-OSSH', 'FRONTED-MEEK-QUIC-OSSH', 'TAPDANCE-OSSH', 'CONJURE-OSSH', 'INPROXY-WEBRTC-SSH', 'INPROXY-WEBRTC-OSSH', 'INPROXY-WEBRTC-QUIC-OSSH']
+    local_test_cases = copy.copy(test_cases) if test_cases else ['handshake', 'VPN', 'SSH', 'OSSH', 'QUIC-OSSH', 'TLS-OSSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH', 'UNFRONTED-MEEK-SESSION-TICKET-OSSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTP-OSSH', 'FRONTED-MEEK-QUIC-OSSH', 'SHADOWSOCKS-OSSH', 'TAPDANCE-OSSH', 'CONJURE-OSSH', 'INPROXY-WEBRTC-SSH', 'INPROXY-WEBRTC-OSSH', 'INPROXY-WEBRTC-QUIC-OSSH']
 
     for test_case in copy.copy(local_test_cases):
         if ((test_case == 'VPN' # VPN requires handshake, SSH or SSH+
@@ -385,6 +385,7 @@ def test_server(server, host, encoded_server_entry, server_entry_signature_publi
             or (test_case == 'FRONTED-MEEK-QUIC-OSSH' and not capabilities['FRONTED-MEEK-QUIC'])
             or (test_case == 'QUIC-OSSH' and not capabilities['QUIC'])
             or (test_case == 'TLS-OSSH' and not capabilities['TLS'])
+            or (test_case == 'SHADOWSOCKS-OSSH' and not capabilities['SHADOWSOCKS'])
             or (test_case == 'TAPDANCE-OSSH' and not capabilities['TAPDANCE'])
             or (test_case == 'CONJURE-OSSH' and not capabilities['CONJURE'])
             or (test_case in ['handshake', 'VPN', 'SSH', 'OSSH', 'INPROXY-WEBRTC-SSH', 'INPROXY-WEBRTC-OSSH', 'INPROXY-WEBRTC-QUIC-OSSH'] and not capabilities[test_case])):

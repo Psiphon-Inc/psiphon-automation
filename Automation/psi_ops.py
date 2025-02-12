@@ -5686,8 +5686,8 @@ if __name__ == "__main__":
     parser.add_option("-r", "--read-only", dest="readonly", action="store_true",
                       help="don't lock the network object")
     parser.add_option("-t", "--test", dest="test", action="append",
-                      choices=('handshake', 'VPN', 'SSH', 'OSSH', 'QUIC-OSSH', 'TLS-OSSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTP-OSSH', 'FRONTED-MEEK-QUIC-OSSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH', 'UNFRONTED-MEEK-SESSION-TICKET-OSSH', 'TAPDANCE-OSSH', 'CONJURE-OSSH', 'INPROXY-WEBRTC-SSH', 'INPROXY-WEBRTC-OSSH', 'INPROXY-WEBRTC-QUIC-OSSH'),
-                      help="specify once for each of: handshake, VPN, SSH, OSSH, QUIC-OSSH, TLS-OSSH, FRONTED-MEEK-OSSH, FRONTED-MEEK-HTTP-OSSH, FRONTED-MEEK-QUIC-OSSH, UNFRONTED-MEEK-OSSH, UNFRONTED-MEEK-HTTPS-OSSH, UNFRONTED-MEEK-SESSION-TICKET-OSSH, TAPDANCE-OSSH, CONJURE-OSSH, INPROXY-WEBRTC-SSH, INPROXY-WEBRTC-OSSH, INPROXY-WEBRTC-QUIC-OSSH")
+                      choices=('handshake', 'VPN', 'SSH', 'OSSH', 'QUIC-OSSH', 'TLS-OSSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTP-OSSH', 'FRONTED-MEEK-QUIC-OSSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH', 'UNFRONTED-MEEK-SESSION-TICKET-OSSH', 'SHADOWSOCKS-OSSH', 'TAPDANCE-OSSH', 'CONJURE-OSSH', 'INPROXY-WEBRTC-SSH', 'INPROXY-WEBRTC-OSSH', 'INPROXY-WEBRTC-QUIC-OSSH'),
+                      help="specify once for each of: handshake, VPN, SSH, OSSH, QUIC-OSSH, TLS-OSSH, FRONTED-MEEK-OSSH, FRONTED-MEEK-HTTP-OSSH, FRONTED-MEEK-QUIC-OSSH, UNFRONTED-MEEK-OSSH, UNFRONTED-MEEK-HTTPS-OSSH, UNFRONTED-MEEK-SESSION-TICKET-OSSH, SHADOWSOCKS-OSSH, TAPDANCE-OSSH, CONJURE-OSSH, INPROXY-WEBRTC-SSH, INPROXY-WEBRTC-OSSH, INPROXY-WEBRTC-QUIC-OSSH")
     parser.add_option("-u", "--update-routes", dest="updateroutes", action="store_true",
                       help="update external signed routes files")
     parser.add_option("-d", "--deploy", dest="deploy", action="store_true",
