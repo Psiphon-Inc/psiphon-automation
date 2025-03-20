@@ -80,7 +80,7 @@ def format(data):
         break
 
     if template_filename not in _cached_templates:
-        raise Exception('No suitable template found for %s' % data)
+        raise Exception('No suitable template found for %s' % data['Metadata'])
 
     try:
         rendered = _cached_templates[template_filename].render(data=data)
