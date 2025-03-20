@@ -47,8 +47,8 @@ ExecStop=/bin/kill -s SIGINT $MAINPID
 # Enable for debug logging
 #Environment=DEBUG=1
 
-Environment=FEEDBACK_DECRYPTOR_DIR=fill-in-with-path-to-source
-ExecStart=/bin/sh -c "env -C $FEEDBACK_DECRYPTOR_DIR poetry run python3.9 service_s3decryptor.py"
+WorkingDirectory=fill-in-with-path-to-source
+ExecStart=/opt/psiphon/venv/bin/python service_s3decryptor.py
 
 [Install]
 # "multi-user.target" refers to the system being at runlevel 3
