@@ -2619,7 +2619,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 # that they don't attempt to dial the server using gQUIC
                 # versions. Newer clients will recognize the tweaked
                 # capability and only try QUICv1 QUIC versions.
-                host.enable_gquic = random.random() > 0.5
+                host.enable_gquic = random.random() > 0.75
 
                 if ((capabilities['TLS'] and int(tls_port) == 443) or
                     (capabilities['UNFRONTED-MEEK-SESSION-TICKET'] and int(host.meek_server_port) == 443)) and not capabilities['OSSH'] and random.random() > 0.33:
