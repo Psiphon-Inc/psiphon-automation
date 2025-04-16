@@ -131,10 +131,11 @@ def get_region_name(region):
         135: FRA-B-SSD                      Frankfurt DE
         148: SLC-A-SSD                      SLC US
         151: CHI-G-SSD                      Chicago US
+        154: ATL-A-SSD                      Atlanta US
     '''
     if region['cloud_id'] in [65, 91, 121, 127, 134]:
         return 'GB'
-    if region['cloud_id'] in [66, 113, 116, 117, 118, 124, 125, 126, 129, 130, 131, 132, 133, 148, 151]:
+    if region['cloud_id'] in [66, 113, 116, 117, 118, 124, 125, 126, 129, 130, 131, 132, 133, 148, 151, 154]:
         return 'US'
     if region['cloud_id'] in [119, 128]:
         return 'CA'
