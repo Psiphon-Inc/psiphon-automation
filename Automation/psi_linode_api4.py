@@ -80,6 +80,7 @@ class PsiLinode:
             'ca-central': 'Linode Toronto, Ontario, CAN',
             'cl-scl-1': 'Linode Santiago, CL',
             'co-bog-1': 'Linode Bogota, CO',
+            'de-ber-1': 'Linode Berlin, DE',
             'de-fra-2': 'Linode Frankfurt 2, DE',
             'de-ham-1': 'Linode Hamburg, DE',
             'es-mad': 'Linode Madrid, ES',
