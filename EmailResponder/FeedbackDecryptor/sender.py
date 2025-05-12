@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import typing
 import sys
 
 from config import config
@@ -27,13 +28,13 @@ _SES_EMAIL_SIZE_LIMIT = 10485760
 
 
 def send_email(
-        recipient: str | list[str],
+        recipient: typing.Union[str, list[str]],
         from_address: str,
         subject: str,
         body_text: str,
         body_html: str,
-        replyid: str | None = None,
-        attachments: list | None = None) -> None:
+        replyid: typing.Union[str, None] = None,
+        attachments: typing.Union[list, None] = None) -> None:
     '''
     Send email back to the user that sent feedback.
     On error, raises exception.
