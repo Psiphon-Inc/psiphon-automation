@@ -15,7 +15,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import sys
-import smtplib
 
 from config import config
 
@@ -27,52 +26,24 @@ import sendmail
 _SES_EMAIL_SIZE_LIMIT = 10485760
 
 
-def send(recipients, from_address,
-         subject, body_text, body_html,
-         replyid=None):
-    '''
-    Send email via SMTP. Throws `smtplib.SMTPException` on error.
-    `recipients` may be an array of address or a single address string.
-    '''
-
-    reply_to_header = {'In-Reply-To': replyid,
-                       'References': replyid} if replyid else None
-
-    body = []
-    if body_text:
-        body.append(('plain', body_text))
-    if body_html:
-        body.append(('html', body_html))
-
-    raw_email = sendmail.create_raw_email(recipients,
-                                          from_address,
-                                          subject,
-                                          body,
-                                          None,
-                                          reply_to_header)
-
-    smtp_server = smtplib.SMTP_SSL(config['smtpServer'], config['smtpPort'])
-    smtp_server.login(config['emailUsername'], config['emailPassword'])
-
-    sendmail.send_raw_email_smtp(raw_email,
-                                 from_address,
-                                 recipients,
-                                 smtp_server)
-
-
-def send_response(recipient, from_address,
-                  subject, body_text, body_html,
-                  replyid, attachments):
+def send_email(
+        recipient: str | list[str],
+        from_address: str,
+        subject: str,
+        body_text: str,
+        body_html: str,
+        replyid: str | None = None,
+        attachments: list | None = None) -> None:
     '''
     Send email back to the user that sent feedback.
     On error, raises exception.
-    `replyid` may be None. `attachments` may be None.
     '''
 
-    # TODO: Use SMTP rather than SES if we have attachments SES or SMTP (get@ style).
-    # DISABLING ATTACHMENTS
-    if attachments:
-        return
+    # The attachment types allowed by SES are limited (and not APK or EXE), so we're going
+    # to remove them at this point.
+    # TODO: Figure out a better way to do this. (We used to use SMTP for this, and we
+    # could consider going back to it.)
+    attachments = None
 
     extra_headers = {'Reply-To': from_address}
 
@@ -94,7 +65,7 @@ def send_response(recipient, from_address,
                                           extra_headers)
 
     if not raw_email:
-        return
+        raise ValueError("Failed to create raw email")
 
     # SES has a send size limit, above which it'll reject the email. If our raw_email is
     # larger than that, we'll discard the HTML version.
@@ -106,10 +77,11 @@ def send_response(recipient, from_address,
                                               body,
                                               attachments,
                                               extra_headers)
+        # We're not going to check the size again. We'll just try and let it fail if it's too big.
 
     if not raw_email:
-        return
+        raise ValueError("Failed to create raw email")
 
     # If the raw_email is still too large, we will get an exception from this call.
     # There's nothing we can do about it, so we'll let it bubble up and be logged.
-    sendmail.send_raw_email_amazonses(raw_email, from_address, recipient, config['awsRegion'])
+    sendmail.send_raw_email_amazonses(raw_email, from_address, recipient, config.awsRegion)

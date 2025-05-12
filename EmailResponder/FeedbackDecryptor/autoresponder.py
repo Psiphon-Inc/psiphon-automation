@@ -39,7 +39,7 @@ import email_validator
 sys.path.append('..')
 
 # Make the Automation (psi_ops) modules available
-sys.path.append(config['psiOpsPath'])
+sys.path.append(config.psiOpsPath)
 
 import aws_helpers
 
@@ -294,8 +294,8 @@ def _get_response_content(response_id, diagnostic_info):
                                        required_types=str)
 
     # Use default values if we couldn't get good user-specific values
-    sponsor_name = sponsor_name or config['defaultSponsorName']
-    prop_channel_name = prop_channel_name or config['defaultPropagationChannelName']
+    sponsor_name = sponsor_name or config.defaultSponsorName
+    prop_channel_name = prop_channel_name or config.defaultPropagationChannelName
 
     lang_id = _get_lang_id_from_diagnostic_info(diagnostic_info)
     # lang_id may be None, if the language could not be determined
@@ -341,8 +341,8 @@ def _get_response_content(response_id, diagnostic_info):
     # Use default values if we couldn't get good user-specific values
     if not bucketname or not email_address:
         default_bucketname, default_email_address = \
-            psi_ops_helpers.get_bucket_name_and_email_address(config['defaultSponsorName'],
-                                                              config['defaultPropagationChannelName'])
+            psi_ops_helpers.get_bucket_name_and_email_address(config.defaultSponsorName,
+                                                              config.defaultPropagationChannelName)
         bucketname = bucketname or default_bucketname
         email_address = email_address or default_email_address
 
@@ -442,7 +442,7 @@ def _analyze_diagnostic_info(diagnostic_info, reply_info):
     AddressParts = collections.namedtuple('AddressParts', ['name', 'plus', 'domain'])
 
     # Get our local email address parts
-    match = _address_splitter.match(config['emailUsername'])
+    match = _address_splitter.match(config.emailUsername)
     local_email_parts = AddressParts(*match.groups())
 
     # We'll break apart the "to" address (if applicable)
@@ -532,14 +532,14 @@ def go():
                 subject = response_content['subject']
 
             try:
-                sender.send_response(reply_info.address,
-                                     config['reponseEmailAddress'],
-                                     subject,
-                                     response_content['body_text'],
-                                     response_content['body_html'],
-                                     reply_info.message_id,
-                                     response_content['attachments'])
+                sender.send_email(reply_info.address,
+                                  config.responseEmailAddress,
+                                  subject,
+                                  response_content['body_text'],
+                                  response_content['body_html'],
+                                  reply_info.message_id,
+                                  response_content['attachments'])
             except Exception as e:
-                logger.debug_log('go: send_response excepted')
+                logger.debug_log('go: send_email excepted')
                 logger.exception()
                 logger.error(str(e))

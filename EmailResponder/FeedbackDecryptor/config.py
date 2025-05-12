@@ -22,6 +22,59 @@ _CONFIG_FILENAME = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
     'conf.json')
 
-config = {}
+class Config:
+    def __init__(self, privateKeyPemFile: str, privateKeyPassword: str, decryptedEmailRecipient: str,
+                 awsRegion: str, s3BucketName: str, psiOpsPath: str, psinetFilePath: str,
+                 googleApiKey: str, googleApiServers: list, statsEmailRecipients: list,
+                 statsWarningThresholdPerMinute: float, reponseEmailAddress: str,
+                 defaultSponsorName: str, defaultPropagationChannelName: str,
+                 s3ObjectMaxSize: int, numProcesses: int):
+        self.privateKeyPemFile = privateKeyPemFile
+        self.privateKeyPassword = privateKeyPassword
+        self.decryptedEmailRecipient = decryptedEmailRecipient
+        self.awsRegion = awsRegion
+        self.s3BucketName = s3BucketName
+        self.psiOpsPath = psiOpsPath
+        self.psinetFilePath = psinetFilePath
+        self.googleApiKey = googleApiKey
+        self.googleApiServers = googleApiServers
+        self.statsEmailRecipients = statsEmailRecipients
+        self.statsWarningThresholdPerMinute = statsWarningThresholdPerMinute
+        self.reponseEmailAddress = reponseEmailAddress
+        self.defaultSponsorName = defaultSponsorName
+        self.defaultPropagationChannelName = defaultPropagationChannelName
+        self.s3ObjectMaxSize = s3ObjectMaxSize
+        self.numProcesses = numProcesses
+
+    @classmethod
+    def from_json(cls, json_data):
+        required_keys = {
+            "privateKeyPemFile": str,
+            "privateKeyPassword": str,
+            "decryptedEmailRecipient": str,
+            "awsRegion": str,
+            "s3BucketName": str,
+            "psiOpsPath": str,
+            "psinetFilePath": str,
+            "googleApiKey": str,
+            "googleApiServers": list,
+            "statsEmailRecipients": list,
+            "statsWarningThresholdPerMinute": float,
+            "reponseEmailAddress": str,
+            "defaultSponsorName": str,
+            "defaultPropagationChannelName": str,
+            "s3ObjectMaxSize": int,
+            "numProcesses": int,
+        }
+
+        for key, value_type in required_keys.items():
+            if key not in json_data:
+                raise ValueError(f"Missing required config key: {key}")
+            if not isinstance(json_data[key], value_type):
+                raise TypeError(f"Config key '{key}' must be of type {value_type.__name__}, but got {type(json_data[key]).__name__}")
+
+        return cls(**json_data)
+
+# Load and validate the config
 with open(_CONFIG_FILENAME, 'r') as conf_fp:
-    config = json.load(conf_fp)
+    config = Config.from_json(json.load(conf_fp))

@@ -29,8 +29,8 @@ _country_dialing_codes = json.load(open('country_dialing_codes.json'))
 
 def _translate_feedback(data):
     if data.get('Feedback', {}).get('Message'):
-        trans = translation.translate(config['googleApiServers'],
-                                      config['googleApiKey'],
+        trans = translation.translate(config.googleApiServers,
+                                      config.googleApiKey,
                                       data['Feedback']['Message']['text'])
         data['Feedback']['Message']['text_lang_code'] = trans[0]
         data['Feedback']['Message']['text_lang_name'] = trans[1]

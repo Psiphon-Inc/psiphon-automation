@@ -20,7 +20,6 @@ Decrypts them and stores them in the diagnostic-info-DB.
 '''
 
 import time
-import smtplib
 import json
 import yaml
 import multiprocessing
@@ -44,7 +43,7 @@ _BUCKET_ITEM_MIN_SIZE = 100
 
 
 def _is_bucket_item_sane(obj: 'boto3.S3.Object') -> bool:
-    if obj.size < _BUCKET_ITEM_MIN_SIZE or obj.size > int(config['s3ObjectMaxSize']):
+    if obj.size < _BUCKET_ITEM_MIN_SIZE or obj.size > int(config.s3ObjectMaxSize):
         err = 'item not sane size: %d' % obj.size
         logger.error(err)
         return False
@@ -107,17 +106,17 @@ def go():
     logger.debug_log('go: start')
 
     s3 = boto3.resource('s3')
-    bucket = s3.Bucket(config['s3BucketName'])
+    bucket = s3.Bucket(config.s3BucketName)
 
     # Set up the multiprocessing
     worker_manager = multiprocessing.Manager()
     # We only want to pull items out of S3 as we process them, so the queue needs to be
     # limited to the number of worker processes. We're doubling the number of workers
     # because the s3decryptor is the main workhorse of the server.
-    work_queue = worker_manager.Queue(maxsize=config['numProcesses']*2)
+    work_queue = worker_manager.Queue(maxsize=config.numProcesses*2)
     # Spin up the workers
-    worker_pool = multiprocessing.Pool(processes=config['numProcesses'])
-    exception_results = [worker_pool.apply_async(_process_work_items, (work_queue,)) for i in range(config['numProcesses'])]
+    worker_pool = multiprocessing.Pool(processes=config.numProcesses)
+    exception_results = [worker_pool.apply_async(_process_work_items, (work_queue,)) for i in range(config.numProcesses)]
 
     # Note that `_bucket_iterator` throttles itself if/when there are no
     # available objects in the bucket.
@@ -235,16 +234,16 @@ def _process_work_items(work_queue):
             logger.error(str(e))
             try:
                 # Something bad happened while decrypting. Report it via email.
-                sender.send(config['decryptedEmailRecipient'],
-                            config['emailUsername'],
-                            'S3Decryptor: bad object',
-                            encrypted_info_json,
-                            None)  # no html body
-            except smtplib.SMTPException as e:
+                sender.send_email(config.decryptedEmailRecipient,
+                                  config.reponseEmailAddress,
+                                  'S3Decryptor: bad object',
+                                  encrypted_info_json,
+                                  None)  # no html body
+            except Exception as e:
                 logger.exception()
                 logger.error(str(e))
 
-        # yaml.constructor.ConstructorError was being thown when a YAML value
+        # yaml.constructor.ConstructorError was being thrown when a YAML value
         # consisted of just string "=". Probably due to this PyYAML bug:
         # http://pyyaml.org/ticket/140
         except (ValueError, TypeError, yaml.constructor.ConstructorError) as e:
@@ -257,12 +256,12 @@ def _process_work_items(work_queue):
             try:
                 import traceback
                 # Something bad happened while decrypting. Report it via email.
-                sender.send(config['decryptedEmailRecipient'],
-                            config['emailUsername'],
-                            'S3Decryptor: unhandled exception',
-                            traceback.format_exception(type(e), e, e.__traceback__) + '\n---\n' + str(diagnostic_info),
-                            None)  # no html body
-            except smtplib.SMTPException as e:
+                sender.send_email(config.decryptedEmailRecipient,
+                                  config.reponseEmailAddress,
+                                  'S3Decryptor: unhandled exception',
+                                  traceback.format_exception(type(e), e, e.__traceback__) + '\n---\n' + str(diagnostic_info),
+                                  None)  # no html body
+            except Exception as e:
                 logger.exception()
                 logger.error(str(e))
             work_queue.put(e)
