@@ -442,7 +442,7 @@ def _analyze_diagnostic_info(diagnostic_info, reply_info):
     AddressParts = collections.namedtuple('AddressParts', ['name', 'plus', 'domain'])
 
     # Get our local email address parts
-    match = _address_splitter.match(config.emailUsername)
+    match = _address_splitter.match(config.responseEmailAddress)
     local_email_parts = AddressParts(*match.groups())
 
     # We'll break apart the "to" address (if applicable)

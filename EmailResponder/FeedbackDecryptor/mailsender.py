@@ -137,7 +137,7 @@ def _process_work_items(work_queue):
 
         try:
             sender.send_email(config.decryptedEmailRecipient,
-                              config.emailUsername,
+                              config.responseEmailAddress,
                               subject,
                               diagnostic_info_text,
                               diagnostic_info_html,
