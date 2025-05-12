@@ -3,6 +3,7 @@
   "privateKeyPemFile": "priv.pem",
   "privateKeyPassword": "password2",
   "decryptedEmailRecipient": "user-talk@example.com",
+  "decryptedEmailSender": "feedback@example.com",
 
   // The AWS region where our resources are located.
   "awsRegion": "us-east-1",

@@ -23,7 +23,8 @@ _CONFIG_FILENAME = os.path.join(
     'conf.json')
 
 class Config:
-    def __init__(self, privateKeyPemFile: str, privateKeyPassword: str, decryptedEmailRecipient: str,
+    def __init__(self, privateKeyPemFile: str, privateKeyPassword: str,
+                 decryptedEmailRecipient: str, decryptedEmailSender: str,
                  awsRegion: str, s3BucketName: str, psiOpsPath: str, psinetFilePath: str,
                  googleApiKey: str, googleApiServers: list, statsEmailRecipients: list,
                  statsWarningThresholdPerMinute: int, responseEmailAddress: str,
@@ -32,6 +33,7 @@ class Config:
         self.privateKeyPemFile = privateKeyPemFile
         self.privateKeyPassword = privateKeyPassword
         self.decryptedEmailRecipient = decryptedEmailRecipient
+        self.decryptedEmailSender = decryptedEmailSender
         self.awsRegion = awsRegion
         self.s3BucketName = s3BucketName
         self.psiOpsPath = psiOpsPath
@@ -52,6 +54,7 @@ class Config:
             "privateKeyPemFile": str,
             "privateKeyPassword": str,
             "decryptedEmailRecipient": str,
+            "decryptedEmailSender": str,
             "awsRegion": str,
             "s3BucketName": str,
             "psiOpsPath": str,
