@@ -259,7 +259,7 @@ def _process_work_items(work_queue):
                 sender.send_email(config.decryptedEmailRecipient,
                                   config.responseEmailAddress,
                                   'S3Decryptor: unhandled exception',
-                                  traceback.format_exception(type(e), e, e.__traceback__) + '\n---\n' + str(diagnostic_info),
+                                  str(traceback.format_exception(type(e), e, e.__traceback__)) + '\n---\n' + str(diagnostic_info),
                                   None)  # no html body
             except Exception as e:
                 logger.exception()
