@@ -133,7 +133,7 @@ def go():
                 # This will raise an exception if one was thrown in the worker
                 result.get()
 
-        logger.debug_log('go: enqueueing work item')
+        logger.debug_log('go: enqueuing work item')
         # This blocks if the queue is full
         work_queue.put(encrypted_info_json)
         logger.debug_log('go: enqueued work item')

@@ -81,7 +81,7 @@ def go():
             work_queue.close()
             break
 
-        logger.debug_log('go: enqueueing work item')
+        logger.debug_log('go: enqueuing work item')
         # This blocks if the queue is full
         work_queue.put(email_diagnostic_info)
         logger.debug_log('go: enqueued work item')
