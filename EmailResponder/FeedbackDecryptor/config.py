@@ -26,7 +26,7 @@ class Config:
     def __init__(self, privateKeyPemFile: str, privateKeyPassword: str, decryptedEmailRecipient: str,
                  awsRegion: str, s3BucketName: str, psiOpsPath: str, psinetFilePath: str,
                  googleApiKey: str, googleApiServers: list, statsEmailRecipients: list,
-                 statsWarningThresholdPerMinute: float, reponseEmailAddress: str,
+                 statsWarningThresholdPerMinute: int, responseEmailAddress: str,
                  defaultSponsorName: str, defaultPropagationChannelName: str,
                  s3ObjectMaxSize: int, numProcesses: int):
         self.privateKeyPemFile = privateKeyPemFile
@@ -40,7 +40,7 @@ class Config:
         self.googleApiServers = googleApiServers
         self.statsEmailRecipients = statsEmailRecipients
         self.statsWarningThresholdPerMinute = statsWarningThresholdPerMinute
-        self.reponseEmailAddress = reponseEmailAddress
+        self.responseEmailAddress = responseEmailAddress
         self.defaultSponsorName = defaultSponsorName
         self.defaultPropagationChannelName = defaultPropagationChannelName
         self.s3ObjectMaxSize = s3ObjectMaxSize
@@ -59,8 +59,8 @@ class Config:
             "googleApiKey": str,
             "googleApiServers": list,
             "statsEmailRecipients": list,
-            "statsWarningThresholdPerMinute": float,
-            "reponseEmailAddress": str,
+            "statsWarningThresholdPerMinute": int,
+            "responseEmailAddress": str,
             "defaultSponsorName": str,
             "defaultPropagationChannelName": str,
             "s3ObjectMaxSize": int,

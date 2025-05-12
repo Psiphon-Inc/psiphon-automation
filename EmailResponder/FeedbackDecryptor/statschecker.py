@@ -62,7 +62,7 @@ def _send(template_name, data):
 
     try:
         sender.send_email(config.statsEmailRecipients,
-                          config.reponseEmailAddress,
+                          config.responseEmailAddress,
                           'FeedbackDecryptor: ' + template_name.capitalize(),
                           yaml.safe_dump(data, default_flow_style=False),
                           rendered)

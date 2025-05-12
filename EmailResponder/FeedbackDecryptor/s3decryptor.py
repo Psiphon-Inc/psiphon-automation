@@ -235,7 +235,7 @@ def _process_work_items(work_queue):
             try:
                 # Something bad happened while decrypting. Report it via email.
                 sender.send_email(config.decryptedEmailRecipient,
-                                  config.reponseEmailAddress,
+                                  config.responseEmailAddress,
                                   'S3Decryptor: bad object',
                                   encrypted_info_json,
                                   None)  # no html body
@@ -257,7 +257,7 @@ def _process_work_items(work_queue):
                 import traceback
                 # Something bad happened while decrypting. Report it via email.
                 sender.send_email(config.decryptedEmailRecipient,
-                                  config.reponseEmailAddress,
+                                  config.responseEmailAddress,
                                   'S3Decryptor: unhandled exception',
                                   traceback.format_exception(type(e), e, e.__traceback__) + '\n---\n' + str(diagnostic_info),
                                   None)  # no html body
