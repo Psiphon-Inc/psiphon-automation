@@ -144,7 +144,7 @@ class PsiLinode:
         return self.linode_list(linode_id).delete()
     
     def create_linode(self):
-        available_regions = self.get_available_regions()
+        available_regions = [region for region in self.get_available_regions() if region._raw_json['site_type'] == 'core']
         choice_region = random.choice(available_regions)
         datacenter_name = self.get_datacenter_names(choice_region)
 
