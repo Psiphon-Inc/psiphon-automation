@@ -79,6 +79,10 @@ class SSH(object):
                 self.ssh.get_host_keys().add(key_host_name,
                                              key_type,
                                              ssh.DSSKey(data=base64.b64decode(key_data)))
+            elif key_type == 'ssh-ed25519':
+                self.ssh.get_host_keys().add(key_host_name,
+                                             key_type,
+                                             ssh.Ed25519Key(data=base64.b64decode(key_data)))
             else: # 'ssh-rsa'
                 self.ssh.get_host_keys().add(key_host_name,
                                              key_type,
