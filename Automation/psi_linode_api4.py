@@ -29,7 +29,7 @@ import psi_utils
 import linode_api4
 
 # VARIABLE
-tcs_image_id = 'private/28935950'
+tcs_image_id = 'private/32155109'
 
 #==============================================================================
 
@@ -279,7 +279,7 @@ def refresh_credentials(linode_account, ip_address, password, host_public_key, n
         ssh.exec_command('rm /etc/ssh/ssh_host_*')
         ssh.exec_command('rm -rf /root/.ssh')
         ssh.exec_command('export DEBIAN_FRONTEND=noninteractive && dpkg-reconfigure openssh-server')
-        return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
+        return ssh.exec_command('cat /etc/ssh/ssh_host_ed25519_key.pub')
     finally:
         ssh.close()
 
