@@ -27,6 +27,7 @@ import copy
 import shutil
 import json
 import shlex
+import ipaddress
 import local_repos_config
 
 from functools import wraps
@@ -327,6 +328,14 @@ def __test_server(runner, transport, expected_egress_ip_addresses):
             ','.join(expected_egress_ip_addresses), transport, 'ENABLED' if split_tunnel_mode else 'DISABLED'))
 
     try:
+        original_ip_address = ''
+        if '' in expected_egress_ip_addresses:
+            urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler()))
+            if has_local_check:
+                original_ip_address = urlopen(CHECK_IP_ADDRESS_URL_LOCAL, 30).read().decode().split('\n')[0]
+            if has_remote_check:
+                original_ip_address = urlopen(CHECK_IP_ADDRESS_URL_REMOTE, 30).read().decode().split('\n')[0]
+
         runner.connect_to_server(transport, split_tunnel_mode)
 
         runner.wait_for_connection()
@@ -338,7 +347,8 @@ def __test_server(runner, transport, expected_egress_ip_addresses):
 
             egress_ip_address = urlopen(CHECK_IP_ADDRESS_URL_LOCAL, 30).read().decode().split('\n')[0]
 
-            is_proxied = (egress_ip_address in expected_egress_ip_addresses)
+            is_proxied = ((egress_ip_address in expected_egress_ip_addresses) or
+                          ('' in expected_egress_ip_addresses and ipaddress.ip_address(egress_ip_address) and egress_ip_address != original_ip_address))
 
             if (transport == 'VPN' or not split_tunnel_mode) and not is_proxied:
                 raise Exception('Local case/VPN/not split tunnel: egress is %s and expected egresses are %s' % (
@@ -353,7 +363,8 @@ def __test_server(runner, transport, expected_egress_ip_addresses):
 
             egress_ip_address = urlopen(CHECK_IP_ADDRESS_URL_REMOTE, 30).read().decode().split('\n')[0]
 
-            is_proxied = (egress_ip_address in expected_egress_ip_addresses)
+            is_proxied = ((egress_ip_address in expected_egress_ip_addresses) or
+                          ('' in expected_egress_ip_addresses and ipaddress.ip_address(egress_ip_address) and egress_ip_address != original_ip_address))
 
             if not is_proxied:
                 raise Exception('Remote case: egress is %s and expected egresses are %s' % (
