@@ -79,7 +79,7 @@ def refresh_credentials(vpsnet_account, ip_address, generated_root_password,
         ssh.exec_command('rm /etc/ssh/ssh_host_*')
         ssh.exec_command('rm -rf /root/.ssh')
         ssh.exec_command('export DEBIAN_FRONTEND=noninteractive && dpkg-reconfigure openssh-server')
-        return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
+        return ssh.exec_command('cat /etc/ssh/ssh_host_ed25519_key.pub')
     finally:
         ssh.close()
 
@@ -200,7 +200,7 @@ def launch_new_server(vpsnet_account, is_TCS, _, multi_ip=False, datacenter_city
     """
 
     # TODO-TCS: select base image based on is_TCS flag
-    base_image_id = '10015' # For VPS
+    base_image_id = '10075' # For VPS
     # base_image_id = '8850' # For Cloud Server
 
     try:
