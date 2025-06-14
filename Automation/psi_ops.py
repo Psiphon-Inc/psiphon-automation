@@ -2104,10 +2104,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         number_disabled = 0
         for server in servers:
             users_on_host = self.__count_users_on_host(server.host_id)
-            if users_on_host <= 15:
+            if users_on_host <= 10:
                 self.remove_host(server.host_id)
                 number_removed += 1
-            elif users_on_host < 40:
+            elif users_on_host < 25:
                 self.__disable_server(server)
                 number_disabled += 1
         return number_removed, number_disabled
