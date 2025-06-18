@@ -2604,8 +2604,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 tls_port = 443
 
             quic_port = ossh_port
-            if random.random() > 0.5:
+            random_number = random.random()
+            if random_number < 0.25:
                 quic_port = 443
+            elif random_number < 0.75:
+                quic_port = 53
             elif quic_port in [68, 123] or random.random() < 0.1:
                 quic_port = ssh_port
 
