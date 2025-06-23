@@ -2201,15 +2201,16 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if new_propagation_servers_count == None:
             new_propagation_servers_count = propagation_channel.new_propagation_servers_count
 
+        poolsize = 20
         def _launch_new_server(count):
             try:
                 is_TCS = True
-                time.sleep(count*5)
+                time.sleep(random.randrange(poolsize))
                 return self.launch_new_server(is_TCS)
             except:
                 return None
 
-        pool = ThreadPool(20)
+        pool = ThreadPool(poolsize)
         new_servers = pool.map(_launch_new_server, [count for count in range(new_osl_discovery_servers_count + new_discovery_servers_count + new_propagation_servers_count)])
 
         failure = None
@@ -2376,10 +2377,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             self.__TCS_tactics_config_template,
                             self.__TCS_blocklist_csv)
 
-    def setup_server(self, host, servers):
+    def setup_server_install(self, host, servers):
+        existing_server_ids = None
+        for server in servers:
+            if server.id is None:
+                existing_server_ids = self.get_existing_server_ids()
+                break
+
         # Install Psiphon 3 and generate configuration values
-        # Here, we're assuming one server/IP address per host
-        psi_ops_install.install_host(host, servers, self.get_existing_server_ids(), self.__TCS_psiphond_config_values, self.__ssh_ip_address_whitelist, self.__TCS_iptables_output_rules, plugins)
+        psi_ops_install.install_host(host, servers, existing_server_ids, self.__TCS_psiphond_config_values, self.__ssh_ip_address_whitelist, self.__TCS_iptables_output_rules, plugins)
         host.log('install')
         psi_ops_install.change_weekly_crontab_runday(host, None)
         # Update database
@@ -2399,6 +2405,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if host.is_TCS:
                 server.capabilities['ssh-api-requests'] = True
 
+    def setup_server_deploy(self, host, servers):
         # Deploy will upload web server source database data and client builds
         # (Only deploying for the new host, not broadcasting info yet...)
         psi_ops_deploy.deploy_implementation(
@@ -2418,10 +2425,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             self.__TCS_tactics_config_template,
                             self.__TCS_blocklist_csv)
         psi_ops_deploy.deploy_routes(host)
+        self.run_command_on_host(host, 'shutdown -r 10')
         host.log('initial deployment')
-
-        for server in servers:
-            self.test_server(server.id, ['handshake'])
 
     def launch_new_server(self, is_TCS, provider=None, multi_ip=True):
         if provider == None:
@@ -2505,6 +2510,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         #campaign.log('marked for build and publish (new embedded server)')
 
         new_server_error = ''
+        existing_server_ids = self.get_existing_server_ids()
+        hosts_and_servers_to_deploy = []
         for new_server_number in range(len(server_infos)):
             server_info = server_infos[new_server_number]
             if type(server_info) != tuple:
@@ -2520,7 +2527,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             host = Host(*server_info[:-2])
 
             if not host.region:
-                new_server_error = "Empty host region"
+                new_server_error += "Empty host region\n"
+                continue
+
+            if host.id in self.__hosts:
+                new_server_error += "Duplicate host id\n"
                 continue
 
             self.add_server_entry_provider_id_to_host(host)
@@ -2678,12 +2689,44 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     (int(host.meek_server_port) == 443 and not host.passthrough_version and random.random() > 0.25)):
                     host.passthrough_version = 2
 
-            self.setup_server(host, [server])
+            server.id = psi_ops_install.generate_unique_server_id(existing_server_ids)
+            existing_server_ids.append(server.id)
+            hosts_and_servers_to_deploy.append((host, server))
 
-            self.run_command_on_host(host, 'shutdown -r 10')
+        successfully_installed = set()
+        failed_to_install = set()
+        def _setup_server_install(params):
+            try:
+                self.setup_server_install(params[0], [params[1]])
+                successfully_installed.add(params)
+            except Exception as ex:
+                failed_to_install.add(params)
 
-            if manual_deploy != True:
-                self.save()
+        pool = ThreadPool(25)
+        pool.map(_setup_server_install, hosts_and_servers_to_deploy)
+
+        for params in failed_to_install:
+            try:
+                self.remove_host(params[0].id)
+            except:
+                pass
+
+        successfully_deployed = set()
+        failed_to_deploy = set()
+        def _setup_server_deploy(params):
+            try:
+                self.setup_server_deploy(params[0], [params[1]])
+                successfully_deployed.add(params)
+            except Exception as ex:
+                failed_to_deploy.add(params)
+
+        pool.map(_setup_server_deploy, list(successfully_installed))
+
+        for params in failed_to_deploy:
+            self.remove_host(params[0].id)
+
+        if successfully_deployed and (manual_deploy != True):
+            self.save()
 
         if new_server_error:
             raise Exception(new_server_error)
