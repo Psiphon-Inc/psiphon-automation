@@ -2191,8 +2191,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         # Use a default 5 day discovery date range.
         new_discovery_date_range = (tomorrow, tomorrow + datetime.timedelta(days=5))
-        # Use a default 15 day osl discovery date range.
-        new_osl_discovery_date_range = (today, today + datetime.timedelta(days=15))
+        # Use a default 5 day osl discovery date range.
+        new_osl_discovery_date_range = (today, today + datetime.timedelta(days=5))
 
         if new_osl_discovery_servers_count == None:
             new_osl_discovery_servers_count = propagation_channel.new_osl_discovery_servers_count
