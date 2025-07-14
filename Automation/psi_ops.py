@@ -3585,9 +3585,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Build
 
         for platform in self.__deploy_builds_required_for_campaigns:
-            # Temp: skip Windows builds
-            if platform == CLIENT_PLATFORM_WINDOWS:
-                continue
             deployed_builds_for_platform = False
             for target in self.__deploy_builds_required_for_campaigns[platform].copy():
 
