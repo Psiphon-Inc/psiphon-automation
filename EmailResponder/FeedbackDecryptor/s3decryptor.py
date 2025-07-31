@@ -92,7 +92,7 @@ def _should_email_data(diagnostic_info) -> bool:
     info bundles have useful information that needs to be immediately seen by
     a human. Additionally, trying to email too many feedbacks can produce a backlog.
     '''
-    if diagnostic_info.get('Metadata', {}).get('appName') in ('ryve', 'conduit',):
+    if diagnostic_info.get('Metadata', {}).get('appName') in ('ryve', 'conduit', 'psiphon4'):
         return True
     elif diagnostic_info.get('Feedback', {}).get('Message', {}).get('text') and diagnostic_info.get('Feedback', {}).get('email'):
         return True

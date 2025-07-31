@@ -37,6 +37,8 @@ def format(data):
         app_name = 'ryve'
     elif data['Metadata']['appName'] == 'conduit':
         app_name = 'conduit'
+    elif data['Metadata']['appName'] == 'psiphon4':
+        app_name = 'psiphon4'
     else:
         app_name = 'psiphon'
 
