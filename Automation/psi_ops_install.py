@@ -1520,7 +1520,7 @@ exit 0
 
 threshold_load_per_cpu=0.90 #Percentage of Total CPU load.
 threshold_mem=25
-threshold_syn_sent=1000
+threshold_syn_sent=10000
 threshold_network_bandwidth_percent=94.00 #Has to be a float value (used for accuracy in the comparison)
 
 while true; do
@@ -1780,3 +1780,4 @@ def change_weekly_crontab_runday(host, weekdaynum):
                             host.ssh_host_key)
         ssh.exec_command(cmd)
         ssh.close()
+
