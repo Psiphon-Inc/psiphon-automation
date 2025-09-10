@@ -1521,6 +1521,7 @@ exit 0
 threshold_load_per_cpu=0.90 #Percentage of Total CPU load.
 threshold_mem=25
 threshold_syn_sent=100000
+threshold_conntrack_percent=90
 threshold_network_bandwidth_percent=94.00 #Has to be a float value (used for accuracy in the comparison)
 
 while true; do
@@ -1550,6 +1551,14 @@ while true; do
     if [ $syn_sent -ge $threshold_syn_sent ]; then
         loaded_net=1
         logger psi_limit_load: SYN_SENT threshold reached.
+    fi
+
+    conntrack_count=`cat /proc/sys/net/netfilter/nf_conntrack_count`
+    conntrack_max=`cat /proc/sys/net/netfilter/nf_conntrack_max`
+    conntrack_percent=$(echo "scale=2; ($conntrack_count * 100) / $conntrack_max" | bc)
+    if [ $(echo "$conntrack_percent > $threshold_conntrack_percent" | bc) -eq 1 ]; then
+        loaded_net=1
+        logger psi_limit_load: Conntrack threshold reached. Count: $conntrack_count Max: $conntrack_max Percent: $conntrack_percent
     fi
 
     loaded_bandwidth=0
@@ -1780,4 +1789,3 @@ def change_weekly_crontab_runday(host, weekdaynum):
                             host.ssh_host_key)
         ssh.exec_command(cmd)
         ssh.close()
-
