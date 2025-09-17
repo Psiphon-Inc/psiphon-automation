@@ -5492,7 +5492,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             and (not test_cases or set(test_cases).intersection(set(['VPN']))))):
             executable_path = psi_ops_build_windows.build_client(
                                     test_propagation_channel_id,
-                                    '00',        # sponsor_id
+                                    '0000000000000000', # sponsor_id
                                     None,       # banner
                                     [],         # encoded_server_list
                                     '',         # remote_server_list_signature_public_key
