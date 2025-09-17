@@ -224,7 +224,7 @@ class TunnelCoreRunner:
             "ServerEntrySignaturePublicKey": self.server_entry_signature_public_key,
             "TunnelProtocol": transport, # Single or group Test Protocol
             "PropagationChannelId" : self.propagation_channel_id, # Propagation Channel ID = "Testing"
-            "SponsorId" : "00",
+            "SponsorId" : "0000000000000000",
             "LocalHttpProxyPort" : 8080,
             "LocalSocksProxyPort" : 1080,
             "UseIndistinguishableTLS": True,
@@ -424,7 +424,7 @@ def test_server(server, host, encoded_server_entry, server_entry_signature_publi
             if not executable_path:
                 executable_path = psi_ops_build_windows.build_client(
                                     test_propagation_channel_id,
-                                    '00',        # sponsor_id
+                                    '0000000000000000', # sponsor_id
                                     None,       # banner
                                     [encoded_server_entry],
                                     '',         # remote_server_list_signature_public_key
@@ -474,3 +474,4 @@ def test_server(server, host, encoded_server_entry, server_entry_signature_publi
                 results[test_case] = 'FAIL: ' + str(ex)
 
     return results
+
