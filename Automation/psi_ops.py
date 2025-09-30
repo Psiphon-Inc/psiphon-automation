@@ -2048,20 +2048,24 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         assert(server.id not in self.__servers)
         self.__servers[server.id] = server
 
-    def __disable_server(self, server):
+    def __disable_host(self, host_id):
         assert(self.is_locked)
-        # Prevent users from establishing new connections to this server,
+        host = self.__hosts[host_id]
+        servers = [s for s in self.__servers.values() if s.host_id == host_id]
+        # Prevent users from establishing new connections to this host,
         # while allowing existing connections to be maintained.
-        server.capabilities['handshake'] = False
-        server.capabilities['SSH'] = False
-        server.capabilities['OSSH'] = False
-        server.capabilities['FRONTED-MEEK'] = False
-        server.capabilities['UNFRONTED-MEEK'] = False
-        server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] = False
-        server.capabilities['TLS'] = False
-        server.capabilities['SHADOWSOCKS'] = False
-        host = self.__hosts[server.host_id]
-        servers = [s for s in self.__servers.values() if s.host_id == server.host_id]
+        for server in servers:
+            server.capabilities['handshake'] = False
+            server.capabilities['SSH'] = False
+            server.capabilities['OSSH'] = False
+            server.capabilities['QUIC'] = False
+            server.capabilities['TLS'] = False
+            server.capabilities['SHADOWSOCKS'] = False
+            server.capabilities['UNFRONTED-MEEK'] = False
+            server.capabilities['UNFRONTED-MEEK-SESSION-TICKET'] = False
+            server.capabilities['FRONTED-MEEK'] = False
+            server.capabilities['FRONTED-MEEK-QUIC'] = False
+
         if host.is_TCS:
             psi_ops_install.install_TCS_psi_limit_load(host, disable_permanently=True)
         else:
@@ -2100,17 +2104,34 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     host.datacenter_name = str(host.provider)
 
     def __prune_servers(self, servers):
+        removal_threshold = 10
+        disable_threshold = 35
+        hosts_to_remove = set()
+        hosts_disabled = set()
+        hosts_failed = set()
+        def _prune_host(host_id):
+            try:
+                users_on_host = self.__count_users_on_host(host_id)
+                if users_on_host <= removal_threshold:
+                    hosts_to_remove.add(host_id)
+                elif users_on_host < disable_threshold:
+                    self.__disable_host(host_id)
+                    hosts_disabled.add(host_id)
+            except:
+                hosts_failed.add(host_id)
+
+        pool = ThreadPool(30)
+        pool.map(_prune_host, [server.host_id for server in servers])
+
         number_removed = 0
-        number_disabled = 0
-        for server in servers:
-            users_on_host = self.__count_users_on_host(server.host_id)
-            if users_on_host <= 10:
-                self.remove_host(server.host_id)
-                number_removed += 1
-            elif users_on_host < 35:
-                self.__disable_server(server)
-                number_disabled += 1
-        return number_removed, number_disabled
+        for host_id in hosts_to_remove:
+            self.remove_host(server.host_id)
+            number_removed += 1
+
+        for host_id in hosts_failed:
+            sys.stderr.write('Failure when checking host for pruning: %s\n' % (host_id))
+
+        return number_removed, len(hosts_disabled)
 
     def prune_propagation_channel_servers(self, propagation_channel_name,
                                           max_osl_discovery_server_age_in_days=None,
