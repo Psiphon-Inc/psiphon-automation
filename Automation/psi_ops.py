@@ -2125,7 +2125,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         number_removed = 0
         for host_id in hosts_to_remove:
-            self.remove_host(server.host_id)
+            self.remove_host(host_id)
             number_removed += 1
 
         for host_id in hosts_failed:
