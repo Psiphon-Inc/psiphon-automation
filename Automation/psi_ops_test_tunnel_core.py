@@ -243,8 +243,11 @@ class TunnelCoreConsoleRunner:
                                                source_address=(self.tun_source_ip_address,
                                                                self.tun_source_port))
             response = pool.request('GET', path, headers={"User-Agent": user_agent}, release_conn=True)
-            egress_ip_address = response.data.strip()
-            is_proxied = (egress_ip_address.decode("UTF-8") in expected_egress_ip_addresses)
+            if isinstance(response.data.strip(), bytes):
+                egress_ip_address = json.loads(response.data.strip())['remoteIP']
+            else:
+                egress_ip_address = response.data.strip().decode("UTF-8")
+            is_proxied = (egress_ip_address in expected_egress_ip_addresses)
             if is_proxied:
                 output['PT-HTTPS'] = 'PASS'
         
@@ -317,7 +320,12 @@ def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, a
                             "User-Agent":   user_agent
                         }).data.split(b'\n')[0]
                     
-                    is_proxied = (egress_ip_address.decode("UTF-8") in expected_egress_ip_addresses)
+                    
+                    if isinstance(response.data.strip(), bytes):
+                        egress_ip_address = json.loads(response.data.strip())['remoteIP']
+                    else:
+                        egress_ip_address = response.data.strip().decode("UTF-8")
+                    is_proxied = (egress_ip_address in expected_egress_ip_addresses)
                     
                     if url.startswith('https'):
                         output['HTTPS'] = 'PASS' if is_proxied else 'FAIL : Connection is not proxied.  Egress IP is: {0}, expected: {1}'.format(egress_ip_address, expected_egress_ip_addresses)
