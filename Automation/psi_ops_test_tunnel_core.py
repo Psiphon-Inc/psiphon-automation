@@ -243,9 +243,9 @@ class TunnelCoreConsoleRunner:
                                                source_address=(self.tun_source_ip_address,
                                                                self.tun_source_port))
             response = pool.request('GET', path, headers={"User-Agent": user_agent}, release_conn=True)
-            if isinstance(response.data.strip(), bytes):
-                egress_ip_address = json.loads(response.data.strip())['remoteIP']
-            else:
+            try:
+                egress_ip_address = json.loads(response.data.strip().decode('UTF-8'))['remoteIP']
+            except:
                 egress_ip_address = response.data.strip().decode("UTF-8")
             is_proxied = (egress_ip_address in expected_egress_ip_addresses)
             if is_proxied:
@@ -320,11 +320,11 @@ def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, a
                             "User-Agent":   user_agent
                         })
                     
-                    
-                    if isinstance(response.data.strip(), bytes):
-                        egress_ip_address = json.loads(response.data.strip())['remoteIP']
-                    else:
+                    try:
+                        egress_ip_address = json.loads(response.data.strip().decode('UTF-8'))['remoteIP']
+                    except:
                         egress_ip_address = response.data.strip().decode("UTF-8")
+
                     is_proxied = (egress_ip_address in expected_egress_ip_addresses)
                     
                     if url.startswith('https'):
