@@ -313,12 +313,12 @@ def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, a
                     urllib3.disable_warnings()
                 
                 try:
-                    egress_ip_address = http_proxy.request(
+                    response = http_proxy.request(
                         'GET', 
                         url, 
                         headers={
                             "User-Agent":   user_agent
-                        }).data.split(b'\n')[0]
+                        })
                     
                     
                     if isinstance(response.data.strip(), bytes):
