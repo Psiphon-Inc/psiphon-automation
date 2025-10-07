@@ -257,18 +257,17 @@ class TunnelCoreRunner:
         self.proc = subprocess.Popen(shlex.split(cmd), creationflags=subprocess.CREATE_NEW_CONSOLE, stderr=subprocess.PIPE)
 
     def wait_for_connection(self):
-        # If using tunnel-core
-        # Read tunnel-core log file for connection message instead of sleep 25 second
-
         time.sleep(1)
         print('Tunnel Core is connecting...')
+        max_wait_seconds = 35
         start_time = time.time()
 
-        # Breaking this loop means the process sent EOF to stderr, or 'tunnels' tunnels were established
+        # Breaking this loop means the process sent EOF to stderr, max_wait_seconds has elapsed without a connection, 
+        # or a tunnel was established
         while True:
+            # Read tunnel-core output for connection message
             line = self.proc.stderr.readline()
             if not line:
-                time.sleep(25)
                 break
 
             try:
@@ -279,9 +278,9 @@ class TunnelCoreRunner:
             except:
                 pass
 
-            if time.time() >= start_time + 25:
-                # if the sleep time is 25 second, get out while loop and keep going
-                print('Not successfully connected after 25 second.')
+            if time.time() >= start_time + max_wait_seconds:
+                # if max_wait_seconds has elapsed, let the test proceed
+                print('Not successfully connected after %d seconds.' % (max_wait_seconds))
                 break
 
     def setup_proxy(self):
