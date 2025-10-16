@@ -5483,7 +5483,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                     self.__split_tunnel_dns_server(),
                                     egress_ip_addresses,
                                     test_propagation_channel_id,
-                                    test_sponsor_id='Testing'.encode('UTF-8').hex(),
+                                    test_sponsor_id='0000000000000000',
                                     client_platform='',
                                     client_version='',
                                     use_indistinguishable_tls=True,
