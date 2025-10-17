@@ -2579,7 +2579,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 if random.random() < 0.5:
                     capabilities['OSSH'] = False
                     capabilities['UNFRONTED-MEEK'] = True
-            elif new_server_number % 2 == 1:
+            elif new_server_number % 4 == 1:
                 # We would like every other new propagation server created to be somewhat obfuscated
                 capabilities['handshake'] = False
                 capabilities['VPN'] = False
