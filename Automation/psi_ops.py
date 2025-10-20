@@ -2780,6 +2780,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 # It is safe to call provider_remove_host() for a host that has
                 # already been removed, so there is no need to save() yet.
 
+        poolsize = 20
+        @psi_ops_deploy.retry_decorator_returning_exception
         def remove_host_from_provider(params):
             provider_remove_host = params[0]
             provider_account = params[1]
@@ -2788,10 +2790,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 # Remove the actual host through the provider's API
                 provider_remove_host(provider_account, host.provider_id)
             except Exception as ex:
-                print(str(ex))
-                return ex
+                time.sleep(random.randrange(poolsize))
+                raise ex
 
-        pool = ThreadPool(30)
+        pool = ThreadPool(poolsize)
         results = pool.map(remove_host_from_provider, params_list)
         for result in results:
             if result:
