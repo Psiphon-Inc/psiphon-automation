@@ -53,7 +53,7 @@ def refresh_credentials(digitalocean_account, ip_address, new_root_password, new
         ssh.exec_command('export DEBIAN_FRONTEND=noninteractive && dpkg-reconfigure openssh-server')
         ssh.exec_command('sed -i -e "/^PasswordAuthentication no/s/^.*$/PasswordAuthentication yes/" /etc/ssh/sshd_config')
         ssh.exec_command('service ssh restart')
-        return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
+        return ssh.exec_command('cat /etc/ssh/ssh_host_ed25519_key.pub')
     finally:
         ssh.close()
 
@@ -582,7 +582,7 @@ def launch_new_server(digitalocean_account, is_TCS, _, multi_ip=False):
 
     # None TCS id '25617090' only for VPN + filebeat
     # Old working None TCS id: 17784624
-    base_id = '25617090' if not is_TCS else '172832625'
+    base_id = '25617090' if not is_TCS else '206163705'
     droplet = None
     try:
         Droplet = collections.namedtuple('Droplet', ['name', 'region', 'image',
