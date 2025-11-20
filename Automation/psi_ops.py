@@ -2786,15 +2786,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             provider_remove_host = params[0]
             provider_account = params[1]
             host = params[2]
-            try:
-                # Remove the actual host through the provider's API
-                provider_remove_host(provider_account, host.provider_id)
-            except Exception as ex:
-                time.sleep(random.randrange(poolsize))
-                raise ex
+            # avoid hitting API rate-limits
+            time.sleep(random.randrange(poolsize))
+            # Remove the actual host through the provider's API
+            provider_remove_host(provider_account, host.provider_id)
 
         pool = ThreadPool(poolsize)
         results = pool.map(remove_host_from_provider, params_list)
+        # special case: clean up digitalocean floating IPs no longer associated with a droplet
+        psi_digitalocean.remove_orphan_ips(self.__digitalocean_account)
         for result in results:
             if result:
                 raise result
