@@ -637,6 +637,10 @@ def install_TCS_host(host, servers, existing_server_ids, TCS_psiphond_config_val
     set_psiphond_logrotate(ssh)
     install_geoip_database(ssh, True)
 
+    for plugin in plugins:
+        if hasattr(plugin, 'install_host'):
+            plugin.install_host(ssh)
+
     ssh.close()
 
     # Generate server ID, web server key material, SSH key material

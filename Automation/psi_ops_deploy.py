@@ -149,7 +149,7 @@ def deploy_implementation(host, servers, own_encoded_server_entries, server_entr
                     host.ssh_host_key)
 
     if host.is_TCS:
-        deploy_TCS_implementation(ssh, host, servers, own_encoded_server_entries, server_entry_signature_public_key, TCS_psiphond_config_values)
+        deploy_TCS_implementation(ssh, host, servers, own_encoded_server_entries, server_entry_signature_public_key, plugins, TCS_psiphond_config_values)
     else:
         deploy_legacy_implementation(ssh, host, discovery_strategy_value_hmac_key, plugins)
 
@@ -245,7 +245,7 @@ def deploy_legacy_implementation(ssh, host, discovery_strategy_value_hmac_key, p
             plugin.deploy_implementation(ssh)
 
 
-def deploy_TCS_implementation(ssh, host, servers, own_encoded_server_entries, server_entry_signature_public_key, TCS_psiphond_config_values):
+def deploy_TCS_implementation(ssh, host, servers, own_encoded_server_entries, server_entry_signature_public_key, plugins, TCS_psiphond_config_values):
 
     # Limitation: only one server per host currently implemented
     # Multiple IP addresses (and servers) can be supported by port forwarding to the host IP address
@@ -263,6 +263,10 @@ def deploy_TCS_implementation(ssh, host, servers, own_encoded_server_entries, se
     # Create the log file, since psiphond no longer does that to avoid a race condition with logrotate
     ssh.exec_command('touch %s' % (TCS_PSIPHOND_LOG_FILE_NAME,))
     ssh.exec_command('chown psiphond:psiphond %s' % (TCS_PSIPHOND_LOG_FILE_NAME,))
+
+    for plugin in plugins:
+        if hasattr(plugin, 'deploy_implementation'):
+            plugin.deploy_implementation(ssh, host)
 
     if host.TCS_type == 'NATIVE':
         # Upload psiphond, restart service
@@ -471,6 +475,22 @@ def make_psiphond_config(host, server, own_encoded_server_entries, server_entry_
     if server.capabilities['INPROXY-WEBRTC-SSH'] or server.capabilities['INPROXY-WEBRTC-OSSH'] or server.capabilities['INPROXY-WEBRTC-QUIC-OSSH']:
         config['InproxyServerSessionPrivateKey'] = host.inproxy_server_session_private_key
         config['InproxyServerObfuscationRootSecret'] = host.inproxy_server_obfuscation_root_secret
+
+    if server.capabilities['FRONTED-MEEK-TACTICS']:
+        config['TacticsRequestPublicKey'] = host.tactics_request_public_key
+        config['TacticsRequestPrivateKey'] = host.tactics_request_private_key
+        config['TacticsRequestObfuscatedKey'] = host.tactics_request_obfuscated_key
+
+    config['LogFormat'] = 'both'
+    config['MetricSocketPath'] = TCS_psiphond_config_values['MetricSocketPath']
+    config['LogDestinationPrefix'] = TCS_psiphond_config_values['LogDestinationPrefix']
+
+    dsl_relay_service_address = TCS_psiphond_config_values.get('DSLRelayServiceAddress', None)
+    if dsl_relay_service_address:
+        config['DSLRelayServiceAddress'] = dsl_relay_service_address
+        config['DSLRelayCACertificatesFilename'] = '/opt/psiphon/psiphond/tls/ca.pem'
+        config['DSLRelayHostCertificateFilename'] = '/opt/psiphon/psiphond/tls/client-cert.pem'
+        config['DSLRelayHostKeyFilename'] = '/opt/psiphon/psiphond/tls/client-key.pem'
 
     return json.dumps(config)
 
