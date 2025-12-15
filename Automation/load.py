@@ -216,7 +216,7 @@ def send_mail(record):
     rendered = pynliner.fromString(rendered)
     log_diagnostics('Sending email...')
     log_diagnostics('Truncated hosts from %d to %d' % (len(hosts), len(truncated_hosts)))
-    sender.send(config['statsEmailRecipients'], config['emailUsername'], 'Psiphon 3 Host Load Stats', repr(record), rendered)
+    sender.send(config['statsEmailRecipients'], config['emailFromAddr'], 'Psiphon 3 Host Load Stats', repr(record), rendered)
     log_diagnostics('Email sent.')
 
 
