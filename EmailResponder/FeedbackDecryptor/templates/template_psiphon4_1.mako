@@ -26,7 +26,7 @@
   app_info = data.get('ApplicationInfo', {})
   psiphon_info = data.get('PsiphonInfo', {})
   logs = data.get('Logs', [])
-  feedback_info data.get('Feedback', {})
+  feedback_info = data.get('Feedback', {})
 %>
 
 <style>
