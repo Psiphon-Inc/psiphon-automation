@@ -26,6 +26,7 @@
   app_info = data.get('ApplicationInfo', {})
   psiphon_info = data.get('PsiphonInfo', {})
   logs = data.get('Logs', [])
+  feedback_info data.get('Feedback', {})
 %>
 
 <style>
@@ -115,7 +116,14 @@
 </style>
 
 
-<h1>Conduit</h1>
+<h1>Psiphon 4</h1>
+
+% if feedback_info:
+  <h2>Feedback</h2>
+  <pre>
+${yaml.dump(feedback_info)}
+  </pre>
+% endif
 
 % if metadata:
   <h2>Metadata</h2>
