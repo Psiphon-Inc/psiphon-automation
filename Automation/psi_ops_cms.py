@@ -21,6 +21,8 @@ import os
 import sys
 import subprocess
 import shlex
+import shutil
+import pathlib
 import tempfile
 import jsonpickle
 import getpass
@@ -31,6 +33,9 @@ import getpass
 PSI_OPS_ROOT = os.path.abspath(os.path.join('..', 'Data', 'PsiOps'))
 PSI_OPS_DB_FILENAME = os.path.join(PSI_OPS_ROOT, 'psi_ops.dat')
 
+# Using pathlib and shutil.which for maximum reliability.
+# shutil.which searches for the unqualified name in PATH.
+CIPHERSHARE_EXE = pathlib.Path(shutil.which('CipherShareScriptingClient.exe')).as_posix()
 
 if os.path.isfile('psi_data_config.py'):
     import psi_data_config
@@ -45,12 +50,13 @@ if os.path.isfile('psi_data_config.py'):
 
 
 def unlock_document():
-    cmd = 'CipherShareScriptingClient.exe \
-            UnlockDocument \
+    cmd = '%s \
             -UserName %s -Password %s \
             -OfficeName %s -DatabasePath "%s" -ServerHost %s -ServerPort %s \
+            UnlockDocument \
             -Document "%s"' \
-         % (psi_ops_config.CIPHERSHARE_USERNAME,
+         % (CIPHERSHARE_EXE,
+            psi_ops_config.CIPHERSHARE_USERNAME,
             psi_ops_config.CIPHERSHARE_PASSWORD,
             psi_ops_config.CIPHERSHARE_OFFICENAME,
             psi_ops_config.CIPHERSHARE_DATABASEPATH,
@@ -66,12 +72,13 @@ def unlock_document():
 
 
 def lock_document():
-    cmd = 'CipherShareScriptingClient.exe \
-            LockDocument \
+    cmd = '%s \
             -UserName %s -Password %s \
             -OfficeName %s -DatabasePath "%s" -ServerHost %s -ServerPort %s \
+            LockDocument \
             -Document "%s"' \
-         % (psi_ops_config.CIPHERSHARE_USERNAME,
+         % (CIPHERSHARE_EXE,
+            psi_ops_config.CIPHERSHARE_USERNAME,
             psi_ops_config.CIPHERSHARE_PASSWORD,
             psi_ops_config.CIPHERSHARE_OFFICENAME,
             psi_ops_config.CIPHERSHARE_DATABASEPATH,
@@ -88,15 +95,15 @@ def lock_document():
 
 def export_document(dest_filename):
     if sys.platform in ['win32','cygwin']:
-        cmd = 'CipherShareScriptingClient.exe'
+        cmd = CIPHERSHARE_EXE
         # os.remove(dest_filename) is not necessary on windows OS as it will overwrite the psi_ops.db file.
     else:
-        cmd = 'wine CipherShareScriptingClient.exe'
+        cmd = 'wine %s' % CIPHERSHARE_EXE
         # For Linux CS client will create error due to existing file path. so removing previous file (psi_ops.db from relative location $PSI_OPS_DB_FILENAME) is necessary.
         os.remove(dest_filename)
-    cmd += ' ExportDocument \
-            -UserName %s -Password %s \
+    cmd += ' -UserName %s -Password %s \
             -OfficeName %s -DatabasePath "%s" -ServerHost %s -ServerPort %s \
+            ExportDocument \
             -SourceDocument "%s" \
             -TargetFile "%s"' \
          % (psi_ops_config.CIPHERSHARE_USERNAME,
@@ -117,10 +124,10 @@ def export_document(dest_filename):
 
 
 def import_document(source_filename, for_stats=False, for_devops=False):
-    cmd = 'CipherShareScriptingClient.exe \
-            ImportDocument \
+    cmd = '%s \
             -UserName %s -Password %s \
             -OfficeName %s -DatabasePath "%s" -ServerHost %s -ServerPort %s \
+            ImportDocument \
             -SourceFile "%s" \
             -TargetDocument "%s" \
             -ShareGroup "%s" \
@@ -128,7 +135,8 @@ def import_document(source_filename, for_stats=False, for_devops=False):
             -AddVersionIfExists \
             %s \
             -IgnoreKeyTrust' \
-         % (psi_ops_config.CIPHERSHARE_USERNAME,
+         % (CIPHERSHARE_EXE,
+            psi_ops_config.CIPHERSHARE_USERNAME,
             psi_ops_config.CIPHERSHARE_PASSWORD,
             psi_ops_config.CIPHERSHARE_OFFICENAME,
             psi_ops_config.CIPHERSHARE_DATABASEPATH,
@@ -152,12 +160,13 @@ def import_document(source_filename, for_stats=False, for_devops=False):
 
 
 def delete_document(for_stats=False):
-    cmd = 'CipherShareScriptingClient.exe \
-            DeleteDocument \
+    cmd = '%s \
             -UserName %s -Password %s \
             -OfficeName %s -DatabasePath "%s" -ServerHost %s -ServerPort %s \
+            DeleteDocument \
             -Document "%s"' \
-         % (psi_ops_config.CIPHERSHARE_USERNAME,
+         % (CIPHERSHARE_EXE,
+            psi_ops_config.CIPHERSHARE_USERNAME,
             psi_ops_config.CIPHERSHARE_PASSWORD,
             psi_ops_config.CIPHERSHARE_OFFICENAME,
             psi_ops_config.CIPHERSHARE_DATABASEPATH,
