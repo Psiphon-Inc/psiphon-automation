@@ -1596,7 +1596,7 @@ get_interface_utilization() {
 
     # Must be numeric and non-negative; otherwise treat as unknown => no limiting
     case "$interface_speed" in
-        ''|*[!0-9]*)
+        ''|*[!0-9]*|0)
             echo 0
             return
             ;;
