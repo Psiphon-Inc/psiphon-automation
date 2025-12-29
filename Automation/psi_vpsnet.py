@@ -49,10 +49,8 @@ try:
 except AttributeError:
     raise ImportError("psi_vpsnet requires ssl.PROTOCOL_TLSv1_2")
 
-def get_datacenter_name(datacenter, region):
-    datacenter_split = datacenter.split('-')
-    datacenter_name = 'VPS.net {}-{}, {}'.format(datacenter_split[-3].strip(), datacenter_split[-2], region)
-
+def get_datacenter_name(datacenter):
+    datacenter_name = 'VPS.net {}'.format(datacenter)
     return datacenter_name
 
 def get_vpsnet_connection(vpsnet_account):
@@ -135,17 +133,17 @@ def get_region_name(region):
         157: SIN-B-SSD                      Singapore SG
         160: DAL-C-SSD                      Dallas US
     '''
-    if region['cloud_id'] in [65, 91, 121, 127, 134]:
+    if region['cloud_id'] in [65, 91, 121, 127, 134, 137]:
         return 'GB'
-    if region['cloud_id'] in [66, 113, 116, 117, 118, 124, 125, 126, 129, 130, 131, 132, 133, 148, 151, 154, 160]:
+    if region['cloud_id'] in [66, 113, 116, 117, 118, 124, 125, 126, 129, 130, 131, 132, 133, 141, 142, 143, 144, 148, 151, 154, 160]:
         return 'US'
     if region['cloud_id'] in [119, 128]:
         return 'CA'
     if region['cloud_id'] in [120]:
         return 'NL'
-    if region['cloud_id'] in [135]:
+    if region['cloud_id'] in [135, 139]:
         return 'DE'
-    if region['cloud_id'] in [157]:
+    if region['cloud_id'] in [145, 157]:
         return 'SG'
     return ''
 
@@ -199,9 +197,7 @@ def launch_new_server(vpsnet_account, is_TCS, _, multi_ip=False, datacenter_city
         launch_new_server is called from psi_ops.py to create a new server.
     """
 
-    # TODO-TCS: select base image based on is_TCS flag
-    base_image_id = '10096' # For VPS
-    # base_image_id = '8850' # For Cloud Server
+    base_image_label = 'Psiphon3-TCS-V12.8-20250812'
 
     try:
         VPSNetHost = collections.namedtuple('VPSNetHost',
@@ -224,7 +220,7 @@ def launch_new_server(vpsnet_account, is_TCS, _, multi_ip=False, datacenter_city
         for region in vpsnet_clouds:
             print('%s -> %s' % (region['cloud']['id'], region['cloud']['label']))
             for template in region['cloud']['system_templates']:
-                if 'tcs' in template['label'].lower() and str(template['id']) == base_image_id:
+                if template['label'] == base_image_label:
                     print('\tFound psiphon template id %s in region %s' % (
                         template['id'], region['cloud']['id']))
                     template['cloud_id'] = region['cloud']['id']
@@ -267,15 +263,13 @@ def launch_new_server(vpsnet_account, is_TCS, _, multi_ip=False, datacenter_city
         if type(node) != libcloud.compute.base.Node:
             raise Exception(str(vars(node)))
         
-        # node = vpsnet_conn.create_node(
-        #     name=VPSNetHost.name,
-        #     image_id=VPSNetHost.system_template_id,
-        #     cloud_id=VPSNetHost.cloud_id,
-        #     size=VPSNetHost.ssd_vps_plan,
-        #     backups_enabled=VPSNetHost.backups_enabled,
-        #     rsync_backups_enabled=VPSNetHost.rsync_backups_enabled,
-        #     ex_fqdn=VPSNetHost.fqdn,
-        #     )
+        # Find the node ID
+        for attempt in range(30):
+            time.sleep(10)
+            nodes = vpsnet_conn.list_ssd_nodes_basic()
+            if host_id in [n.name.split('.')[0] for n in nodes]:
+                node = [n for n in nodes if n.name.split('.')[0] == host_id][0]
+                break
         
         if not wait_on_action(vpsnet_conn, node, 30):
             raise "Could not power on node"
@@ -324,7 +318,7 @@ def launch_new_server(vpsnet_account, is_TCS, _, multi_ip=False, datacenter_city
         ' '.join(node_public_key.split(' ')[:2]),
         stats_username,
         new_stats_password,
-        get_datacenter_name(region_template['cloud_label'], get_region_name(region_template)),
+        get_datacenter_name(region_template['cloud_label']),
         get_region_name(region_template),
         None, None
         )
