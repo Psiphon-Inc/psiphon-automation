@@ -1510,8 +1510,7 @@ def install_TCS_psi_limit_load(host, disable_permanently=False):
         raise 'Unhandled host.TCS_type: ' + host.TCS_type
 
     if disable_permanently:
-        script = '''
-#!/bin/bash
+        script = '''#!/bin/bash
 
 iptables -D %s -j PSI_LIMIT_LOAD
 iptables -I %s -j PSI_LIMIT_LOAD
@@ -1519,46 +1518,153 @@ iptables -I %s -j PSI_LIMIT_LOAD
 exit 0
 '''  % (psi_limit_load_chain_name, psi_limit_load_chain_name, psi_ops_deploy.TCS_PSIPHOND_STOP_ESTABLISHING_TUNNELS_SIGNAL_COMMAND)
     else:
-        script = '''
-#!/bin/bash
+        script = '''#!/bin/bash
 
 threshold_load_per_cpu=0.90 #Percentage of Total CPU load.
-threshold_mem=25
+percent_threshold_max_memory=$((8 * 1024 * 1024))
+memory_threshold_percent=25
+high_memory_threshold=$((2 * 1024 * 1024))
 threshold_syn_sent=100000
 threshold_conntrack_percent=90
+default_global_cap_kbps=$((1000 * 1000))
+global_cap_override_file="/usr/local/etc/psi_limit_load_speed_cap_kbps"
 threshold_network_bandwidth_percent=94.00 #Has to be a float value (used for accuracy in the comparison)
+
+get_mem_total_kb() {
+  awk '/^MemTotal:/ { print $2 }' /proc/meminfo
+}
+
+get_mem_avail_kb() {
+  awk '
+    BEGIN { avail=""; free=buf=cache="" }
+
+    /^MemAvailable:/ { avail=$2 }
+    /^MemFree:/      { free=$2 }
+    /^Buffers:/      { buf=$2 }
+    /^Cached:/       { cache=$2 }
+
+    END {
+      if (avail != "") {
+        print avail
+      } else if (free != "") {
+        # old-kernel approximation
+        if (buf == "") buf = 0
+        if (cache == "") cache = 0
+        print free + buf + cache
+      } else {
+        print 0
+      }
+    }
+  ' /proc/meminfo | head -n 1
+}
+
+calc_min_free_kb() {
+  local total_kb="$1"
+  if [ "$total_kb" -le "$percent_threshold_max_memory" ]; then
+    echo $(( total_kb * memory_threshold_percent / 100 ))
+  else
+    echo "$high_memory_threshold"
+  fi
+}
+
+get_global_cap_kbps() {
+    local cap=""
+    if [ -r "$global_cap_override_file" ]; then
+        cap="$(tr -d '[:space:]' < "$global_cap_override_file" 2>/dev/null)"
+    fi
+    case "$cap" in
+        ''|*[!0-9]*|0) echo "$default_global_cap_kbps" ;;
+        *)             echo "$cap" ;;
+    esac
+}
+
+get_interface_utilization() {
+    # Get the primary interface
+    local _interface
+    _interface="$(ip route get 1.2.3.4 2>/dev/null | awk '{print $5; exit}')"
+    [ -n "$_interface" ] || { echo 0; return; }
+
+    # Read interface speed (Mbps) - may be unreadable on some NICs/VMs
+    local speed_path="/sys/class/net/${_interface}/speed"
+    local interface_speed=""
+    if [ -r "$speed_path" ]; then
+        interface_speed="$(cat "$speed_path" 2>/dev/null | tr -d '[:space:]')"
+    else
+        echo 0
+        return
+    fi
+
+    # Must be numeric and non-negative; otherwise treat as unknown => no limiting
+    case "$interface_speed" in
+        ''|*[!0-9]*)
+            echo 0
+            return
+            ;;
+    esac
+
+    # Convert Mbps -> kbps
+    local interface_speed_in_kbps=$(( interface_speed * 1000 ))
+
+    # Apply global cap (default 1Gbps, overrideable upward via file)
+    local cap_kbps
+    cap_kbps="$(get_global_cap_kbps)"
+    if [ "$interface_speed_in_kbps" -gt "$cap_kbps" ]; then
+        interface_speed_in_kbps="$cap_kbps"
+    fi
+
+    # Read RX bytes twice over 10 seconds
+    local rx_path="/sys/class/net/${_interface}/statistics/rx_bytes"
+    [ -r "$rx_path" ] || { echo 0; return; }
+
+    local old_bytes new_bytes
+    old_bytes="$(cat "$rx_path" 2>/dev/null | tr -d '[:space:]')"
+    sleep 10
+    new_bytes="$(cat "$rx_path" 2>/dev/null | tr -d '[:space:]')"
+
+    case "$old_bytes" in ''|*[!0-9]* ) echo 0; return ;; esac
+    case "$new_bytes" in ''|*[!0-9]* ) echo 0; return ;; esac
+    [ "$new_bytes" -ge "$old_bytes" ] || { echo 0; return; }
+
+    # Average kbps over 10s: bytes_delta * 8 / 1000 / 10
+    local average_kilobits_in=$(( (new_bytes - old_bytes) * 8 / 1000 / 10 ))
+
+    # Utilization percentage
+    echo "$(echo "scale=2; ($average_kilobits_in * 100) / $interface_speed_in_kbps" | bc)"
+}
 
 while true; do
 
     loaded_cpu=0
     num_cpu=`grep 'model name' /proc/cpuinfo | wc -l`
     threshold_cpu=$(echo "$threshold_load_per_cpu * $num_cpu" | bc)
-    load_cpu=`uptime | cut -d , -f 4 | cut -d : -f 2`
+    load_cpu="$(awk '{print $1}' /proc/loadavg)"
     if [ $(echo "$load_cpu > $threshold_cpu" | bc) -eq 1 ]; then
         loaded_cpu=1
         logger psi_limit_load: CPU load threshold reached. Current Load: $load_cpu Threshold: $threshold_cpu Num CPU: $num_cpu
         break
     fi
 
-    free=$(free | grep "buffers/cache" | awk '{print $4/($3+$4) * 100.0}')
-    if [ -z "$free" ]; then
-        free=$(free | grep "Mem" | awk '{print $7/$2 * 100.0}')
-    fi
-    
-    loaded_mem=$(echo "$free<$threshold_mem" | bc)
-    if [ $loaded_mem -eq 1 ]; then
-        logger psi_limit_load: Free memory load threshold reached.
+    loaded_mem=0
+    mem_total_kb="$(get_mem_total_kb)"
+    mem_avail_kb="$(get_mem_avail_kb)"
+    mem_min_free_kb="$(calc_min_free_kb "$mem_total_kb")"
+    if [ "$mem_avail_kb" -lt "$mem_min_free_kb" ]; then
+        loaded_mem=1
+        logger "psi_limit_load: Free memory threshold reached. Available=${mem_avail_kb}kB Threshold=${mem_min_free_kb}kB Total=${mem_total_kb}kB"
     fi
 
     loaded_net=0
     syn_sent=`%s`
-    if [ $syn_sent -ge $threshold_syn_sent ]; then
+    case "$syn_sent" in ''|*[!0-9]*) syn_sent=0 ;; esac
+    if [ "$syn_sent" -ge "$threshold_syn_sent" ]; then
         loaded_net=1
         logger psi_limit_load: SYN_SENT threshold reached.
     fi
 
     conntrack_count=`cat /proc/sys/net/netfilter/nf_conntrack_count`
-    conntrack_max=`cat /proc/sys/net/netfilter/nf_conntrack_max`
+    case "$conntrack_count" in ''|*[!0-9]*) conntrack_count=0 ;; esac
+    conntrack_max=$(cat /proc/sys/net/netfilter/nf_conntrack_max 2>/dev/null)
+    case "$conntrack_max" in ''|*[!0-9]*|0) conntrack_max=1 ;; esac
     conntrack_percent=$(echo "scale=2; ($conntrack_count * 100) / $conntrack_max" | bc)
     if [ $(echo "$conntrack_percent > $threshold_conntrack_percent" | bc) -eq 1 ]; then
         loaded_net=1
@@ -1566,62 +1672,16 @@ while true; do
     fi
 
     loaded_bandwidth=0
-
-    # Define the function to get the interface bandwidth
-    get_interface_speed() {
-        # Get the primary interface
-        local _interface=$(ip route get 1.2.3.4 | awk '{print $5}')
-
-        if [ $? -eq 0 ]
-        then
-            # Getting interface speed
-            local interface_speed=$(cat "/sys/class/net/${_interface}/speed")
-
-            if [ $? -eq 0 ] && [ -f "/sys/class/net/${_interface}/speed" ] && [ $interface_speed -ge 0 ]
-            then
-                # convert interface to kilobits
-                local interface_speed_in_kbps=$(( interface_speed * 1000))
-
-                # Limit the interface speed to 1 Gbps globally
-                if [ $interface_speed_in_kbps -gt $((1000 * 1000)) ]
-                then
-                    # Todo: Add a check for host.interface_speeed_cap in future if required for specific hosts
-                    interface_speed_in_kbps=$((1000 * 1000))
-                fi
-
-                # Record old bytes
-                local interface_bytes_in_old=$(cat "/sys/class/net/${_interface}/statistics/rx_bytes")
-
-                # Record new bytes after 10 seconds
-                sleep 10
-                local interface_bytes_in_new=$(cat "/sys/class/net/${_interface}/statistics/rx_bytes")
-
-                # Calculate average kilobytes/sec
-                local average_kilobits_in=$(( (interface_bytes_in_new - interface_bytes_in_old) * 8 / 1000 / 10 ))
-
-                #Calculate utilized percentage of interface speed
-                local utilized_percentage_in=$(echo "scale=2; (($average_kilobits_in * 100) / ($interface_speed_in_kbps))" | bc)
-
-                # print the results
-                echo $utilized_percentage_in
-            else
-                echo 0
-            fi
-        else
-            echo 0
-        fi
-    }
-
-    current_bandwidth=$(get_interface_speed)
-    if [ $(echo "$current_bandwidth > $threshold_network_bandwidth_percent" | bc) -eq 1 ]; then
+    current_bandwidth_percent=$(get_interface_utilization)
+    if [ $(echo "$current_bandwidth_percent > $threshold_network_bandwidth_percent" | bc) -eq 1 ]; then
         loaded_bandwidth=1
-        logger psi_limit_load: Network bandwidth threshold reached. Current Network utilization in Percent: $current_bandwidth
+        logger psi_limit_load: Network bandwidth threshold reached. Current Network utilization in Percent: $current_bandwidth_percent
     fi
 
     break
 done
 
-if [ $loaded_cpu -eq 1 ] || [ $loaded_mem -eq 1 ] || [ $loaded_net -eq 1 ] || [ $loaded_bandwidth -eq 1 ]; then
+if [ "$loaded_cpu" -eq 1 ] || [ "$loaded_mem" -eq 1 ] || [ "$loaded_net" -eq 1 ] || [ "$loaded_bandwidth" -eq 1 ]; then
     %s
 else
     %s
