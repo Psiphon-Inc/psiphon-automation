@@ -91,6 +91,17 @@ def set_allowed_users(vpsnet_account, ip_address, password, stats_username):
     finally:
         ssh.close()
 
+def add_swap_file(vpsnet_account, ip_address, password):
+    ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_ssh_port, 'root', password, None, None)
+    try:
+        has_swap = ssh.exec_command('grep swap /etc/fstab')
+        if not has_swap:
+            ssh.exec_command('dd if=/dev/zero of=/swapfile bs=1024 count=1048576 && mkswap /swapfile && chown root:root /swapfile && chmod 0600 /swapfile')
+            ssh.exec_command('echo "/swapfile swap swap defaults 0 0" >> /etc/fstab')
+            ssh.exec_command('swapon -a')
+    finally:
+        ssh.close()
+
 def wait_on_action(vpsnet_conn, node, interval=30):
     for attempt in range(10):
         node = vpsnet_conn.get_ssd_node(node.id)
@@ -297,6 +308,7 @@ def launch_new_server(vpsnet_account, is_TCS, _, multi_ip=False, datacenter_city
                                               new_root_password, new_stats_password, stats_username)
         assert(node_public_key)
         set_allowed_users(vpsnet_account, public_ip_address, new_root_password, stats_username)
+        add_swap_file(vpsnet_account, public_ip_address, new_root_password)
     except Exception as e:
         print(type(e), str(e))
         if type(node) == libcloud.compute.base.Node:
