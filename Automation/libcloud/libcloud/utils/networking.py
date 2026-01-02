@@ -15,14 +15,13 @@
 
 import socket
 import struct
-import platform
 
 __all__ = [
-    'is_private_subnet',
-    'is_public_subnet',
-    'is_valid_ip_address',
-    'join_ipv4_segments',
-    'increment_ipv4_segments'
+    "is_private_subnet",
+    "is_public_subnet",
+    "is_valid_ip_address",
+    "join_ipv4_segments",
+    "increment_ipv4_segments",
 ]
 
 
@@ -35,15 +34,17 @@ def is_private_subnet(ip):
 
     :return: ``bool`` if the specified IP address is private.
     """
-    priv_subnets = [{'subnet': '10.0.0.0', 'mask': '255.0.0.0'},
-                    {'subnet': '172.16.0.0', 'mask': '255.240.0.0'},
-                    {'subnet': '192.168.0.0', 'mask': '255.255.0.0'}]
+    priv_subnets = [
+        {"subnet": "10.0.0.0", "mask": "255.0.0.0"},
+        {"subnet": "172.16.0.0", "mask": "255.240.0.0"},
+        {"subnet": "192.168.0.0", "mask": "255.255.0.0"},
+    ]
 
-    ip = struct.unpack('I', socket.inet_aton(ip))[0]
+    ip = struct.unpack("I", socket.inet_aton(ip))[0]
 
     for network in priv_subnets:
-        subnet = struct.unpack('I', socket.inet_aton(network['subnet']))[0]
-        mask = struct.unpack('I', socket.inet_aton(network['mask']))[0]
+        subnet = struct.unpack("I", socket.inet_aton(network["subnet"]))[0]
+        mask = struct.unpack("I", socket.inet_aton(network["mask"]))[0]
 
         if (ip & mask) == (subnet & mask):
             return True
@@ -75,17 +76,9 @@ def is_valid_ip_address(address, family=socket.AF_INET):
 
     :return: ``bool`` True if the provided address is valid.
     """
-    is_windows = platform.system() == 'Windows'
-
-    if is_windows and family == socket.AF_INET6:
-        raise ValueError('Checking IPv6 addresses is not supported on Windows')
-
     try:
-        if is_windows:
-            socket.inet_aton(address)
-        else:
-            socket.inet_pton(family, address)
-    except socket.error:
+        socket.inet_pton(family, address)
+    except OSError:
         return False
 
     return True
@@ -102,7 +95,7 @@ def join_ipv4_segments(segments):
     :return: IPv4 address.
     :rtype: ``str``
     """
-    return '.'.join([str(s) for s in segments])
+    return ".".join([str(s) for s in segments])
 
 
 def increment_ipv4_segments(segments):

@@ -15,14 +15,14 @@
 
 import sys
 
+from libcloud.test import unittest
 from libcloud.compute.drivers.exoscale import ExoscaleNodeDriver
 from libcloud.test.compute.test_cloudstack import CloudStackCommonTestCase
-
-from libcloud.test import unittest
 
 
 class ExoscaleNodeDriverTestCase(CloudStackCommonTestCase, unittest.TestCase):
     driver_klass = ExoscaleNodeDriver
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     sys.exit(unittest.main())

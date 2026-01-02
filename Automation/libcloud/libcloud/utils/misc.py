@@ -14,56 +14,37 @@
 # limitations under the License.
 
 import os
-import sys
 import binascii
-import socket
-import time
-import ssl
-from datetime import datetime, timedelta
-from functools import wraps
+from typing import List
 
-from libcloud.utils.py3 import httplib
-from libcloud.common.exceptions import RateLimitReachedError
+# Imported for backward compatibility
+# noinspection PyProtectedMember
+from libcloud.utils.retry import DEFAULT_DELAY  # noqa: F401
+from libcloud.utils.retry import DEFAULT_BACKOFF  # noqa: F401
+from libcloud.utils.retry import DEFAULT_TIMEOUT  # noqa: F401
+from libcloud.utils.retry import TRANSIENT_SSL_ERROR  # noqa: F401
+from libcloud.utils.retry import Retry  # flake8: noqa
+from libcloud.utils.retry import TransientSSLError  # noqa: F401
 from libcloud.common.providers import get_driver as _get_driver
 from libcloud.common.providers import set_driver as _set_driver
 
 __all__ = [
-    'find',
-    'get_driver',
-    'set_driver',
-    'merge_valid_keys',
-    'get_new_obj',
-    'str2dicts',
-    'dict2str',
-    'reverse_dict',
-    'lowercase_keys',
-    'get_secure_random_string',
-    'retry',
-
-    'ReprMixin'
+    "find",
+    "get_driver",
+    "set_driver",
+    "merge_valid_keys",
+    "get_new_obj",
+    "str2dicts",
+    "dict2str",
+    "reverse_dict",
+    "lowercase_keys",
+    "get_secure_random_string",
+    "ReprMixin",
 ]
 
-# Error message which indicates a transient SSL error upon which request
-# can be retried
-TRANSIENT_SSL_ERROR = 'The read operation timed out'
 
-
-class TransientSSLError(ssl.SSLError):
-    """Represent transient SSL errors, e.g. timeouts"""
-    pass
-
-
-# Constants used by the ``retry`` decorator
-DEFAULT_TIMEOUT = 30  # default retry timeout
-DEFAULT_DELAY = 1  # default sleep delay used in each iterator
-DEFAULT_BACKOFF = 1  # retry backup multiplier
-RETRY_EXCEPTIONS = (RateLimitReachedError, socket.error, socket.gaierror,
-                    httplib.NotConnected, httplib.ImproperConnectionState,
-                    TransientSSLError)
-
-
-def find(l, predicate):
-    results = [x for x in l if predicate(x)]
+def find(value, predicate):
+    results = [x for x in value if predicate(x)]
     return results[0] if len(results) > 0 else None
 
 
@@ -71,6 +52,9 @@ def find(l, predicate):
 # been moved to "libcloud.common.providers" module
 get_driver = _get_driver
 set_driver = _set_driver
+# Note: This is an alias for backward-compatibility for a function which has
+# been moved to "libcloud.util.retry" module
+retry = Retry
 
 
 def merge_valid_keys(params, valid_keys, extra):
@@ -144,7 +128,7 @@ def str2dicts(data):
     list_data.append({})
     d = list_data[-1]
 
-    lines = data.split('\n')
+    lines = data.split("\n")
     for line in lines:
         line = line.strip()
 
@@ -154,13 +138,13 @@ def str2dicts(data):
             d = list_data[-1]
             continue
 
-        whitespace = line.find(' ')
+        whitespace = line.find(" ")
 
         if not whitespace:
             continue
 
         key = line[0:whitespace]
-        value = line[whitespace + 1:]
+        value = line[whitespace + 1 :]
         d.update({key: value})
 
     list_data = [val for val in list_data if val != {}]
@@ -182,16 +166,16 @@ def str2list(data):
     """
     list_data = []
 
-    for line in data.split('\n'):
+    for line in data.split("\n"):
         line = line.strip()
 
         if not line:
             continue
 
         try:
-            splitted = line.split(' ')
-            # key = splitted[0]
-            value = splitted[1]
+            split = line.split(" ")
+            # key = split[0]
+            value = split[1]
         except Exception:
             continue
 
@@ -216,22 +200,22 @@ def dict2str(data):
     cpu 2200
     ram 1024
     """
-    result = ''
+    result = ""
     for k in data:
         if data[k] is not None:
-            result += '%s %s\n' % (str(k), str(data[k]))
+            result += "{} {}\n".format(str(k), str(data[k]))
         else:
-            result += '%s\n' % str(k)
+            result += "%s\n" % str(k)
 
     return result
 
 
 def reverse_dict(dictionary):
-    return dict([(value, key) for key, value in list(dictionary.items())])
+    return {value: key for key, value in list(dictionary.items())}
 
 
 def lowercase_keys(dictionary):
-    return dict(((k.lower(), v) for k, v in dictionary.items()))
+    return {k.lower(): v for k, v in dictionary.items()}
 
 
 def get_secure_random_string(size):
@@ -247,94 +231,27 @@ def get_secure_random_string(size):
     """
     value = os.urandom(size)
     value = binascii.hexlify(value)
-    value = value.decode('utf-8')[:size]
+    value = value.decode("utf-8")[:size]
     return value
 
 
-class ReprMixin(object):
+class ReprMixin:
     """
     Mixin class which adds __repr__ and __str__ methods for the attributes
     specified on the class.
     """
 
-    _repr_attributes = []
+    _repr_attributes = []  # type: List[str]
 
     def __repr__(self):
         attributes = []
         for attribute in self._repr_attributes:
             value = getattr(self, attribute, None)
-            attributes.append('%s=%s' % (attribute, value))
+            attributes.append("{}={}".format(attribute, value))
 
-        values = (self.__class__.__name__, ', '.join(attributes))
-        result = '<%s %s>' % values
+        values = (self.__class__.__name__, ", ".join(attributes))
+        result = "<%s %s>" % values
         return result
 
     def __str__(self):
         return str(self.__repr__())
-
-
-def retry(retry_exceptions=RETRY_EXCEPTIONS, retry_delay=DEFAULT_DELAY,
-          timeout=DEFAULT_TIMEOUT, backoff=DEFAULT_BACKOFF):
-    """
-    Retry decorator that helps to handle common transient exceptions.
-
-    :param retry_exceptions: types of exceptions to retry on.
-    :param retry_delay: retry delay between the attempts.
-    :param timeout: maximum time to wait.
-    :param backoff: multiplier added to delay between attempts.
-
-    :Example:
-
-    retry_request = retry(timeout=1, retry_delay=1, backoff=1)
-    retry_request(self.connection.request)()
-    """
-    if retry_exceptions is None:
-        retry_exceptions = RETRY_EXCEPTIONS
-    if retry_delay is None:
-        retry_delay = DEFAULT_DELAY
-    if timeout is None:
-        timeout = DEFAULT_TIMEOUT
-    if backoff is None:
-        backoff = DEFAULT_BACKOFF
-
-    timeout = max(timeout, 0)
-
-    def transform_ssl_error(func, *args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except ssl.SSLError:
-            exc = sys.exc_info()[1]
-
-            if TRANSIENT_SSL_ERROR in str(exc):
-                raise TransientSSLError(*exc.args)
-
-            raise exc
-
-    def decorator(func):
-        @wraps(func)
-        def retry_loop(*args, **kwargs):
-            current_delay = retry_delay
-            end = datetime.now() + timedelta(seconds=timeout)
-
-            while True:
-                try:
-                    return transform_ssl_error(func, *args, **kwargs)
-                except retry_exceptions:
-                    exc = sys.exc_info()[1]
-
-                    if isinstance(exc, RateLimitReachedError):
-                        time.sleep(exc.retry_after)
-
-                        # Reset retries if we're told to wait due to rate
-                        # limiting
-                        current_delay = retry_delay
-                        end = datetime.now() + timedelta(
-                            seconds=exc.retry_after + timeout)
-                    elif datetime.now() >= end:
-                        raise
-                    else:
-                        time.sleep(current_delay)
-                        current_delay *= backoff
-
-        return retry_loop
-    return decorator

@@ -16,10 +16,9 @@ First congratulations and welcome to the team!
 1. Subscribe to the public mailing lists
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If you haven't yet, subscribe to {dev,users,commits}@apache.libcloud.org
-mailing lists. Committs mailing list is especially important because all of
-the JIRA notification, Github Pull Request notifications and build notifications
-are sent there.
+If you haven't yet, subscribe to {dev,users,notifications}@libcloud.apache.org
+mailing lists. Notifications mailing list is especially important because all of
+Github Issue, Pull Request and build notifications are sent there.
 
 2. Subscribe to the private mailing list
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -42,48 +41,26 @@ After you have registered go to
 "`Your details <https://pypi.python.org/pypi?%3Aaction=user_form>`_" page and
 populate `PGP Key ID` field with your PGP key ID.
 
-Applying a patch
-----------------
+4. Link your ASF and Github account
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-When applying a third-party patch created using ``git format-patch`` or
-``git diff`` command, use the following command:
+We use Github for managing issues and user contributions (pull requests). As
+such, you need to link your Github.com account with your ASF account using
+`Gitbox <https://gitbox.apache.org/setup/>`_. This way you will get write
+access to github.com/apache/libcloud repository and you will be able to
+manage issues and pull request directly through our Github repository.
 
-.. sourcecode:: bash
+Merging user contributions
+--------------------------
 
-    git am --signoff < patch_name.patch
+When a pull request with user contribution (changes) has been reviewed and
+all the criteria for merging has been met (tests and code coverage, Travis
+build is passing, user signed an ICLA, etc.), you can directly merge those
+changes into trunk either by using Github web interface or doing it manually
+on the command line.
 
-``--signoff`` argument signs the patch and lets others know that you have
-reviewed and merged a patch.
-
-If you are working with a Github pull request, you can obtain a patch file
-by appending ``.patch`` to the end of the pull request URL. For example:
-
-.. sourcecode:: bash
-
-    wget https://github.com/apache/libcloud/pull/<pr number>.patch
-    git am --signoff < <pr number>.patch
-    # rebase to squash commits / ammend
-    ...
-
-When working with a Github pull request, also don't forget to
-update the commit message during rebase (or use ``git commit --amend`` if the
-rebase was not necessary) to include the "Closes #prnumber" message. This way,
-the corresponding Github pull request will get automatically closed once the
-Github mirror is updated.
-
-For example::
-
-    ...
-    Original message
-    ...
-
-    Closes #prnumber
-
-If the original patch author didn't squash all of the commits into one and you
-think this is needed, you should squash all the commits yourself using
-``git rebase`` after you have merged / applied the patch.
-
-After the patch has been applied, make sure to update ``CHANGES.rst`` file.
+It's also important that you update changelog in ``CHANGES.rst`` file after
+you merged the changes.
 
 Making a release (for release managers)
 ---------------------------------------
@@ -91,32 +68,47 @@ Making a release (for release managers)
 This section contains information a release manager should follow when
 preparing a release.
 
+0. Update committed files
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* Make sure ``CHANGES`` file is up to date
+* Make sure ``__version__`` string in ``libcloud/__init__.py`` is up to date
+* Make sure ``version`` and ``release`` in ``docs/conf.py`` are up to date
+* Update constants, pricing and other auto-generated data: ``tox -e scrape-ec2-sizes,scrape-ec2-prices``
+
 1. Pre-release check list
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * Make sure tests pass on all the supported Python versions (``tox``)
-* Make sure ``CHANGES`` file is up to date
-* Make sure ``__version__`` string in ``libcloud/__init__.py`` is up to date
 * Remove the ``tox`` directory with ``rm -rf .tox``
 * Remove the _secrets_ file with ``rm libcloud/test/secrets.py``
+* Remove leftover builds from previous releases. ``rm -f dist/apache* ; rm -rf apache_libcloud.egg-info``
 
-2. Update JIRA
-~~~~~~~~~~~~~~
+2. Update Github
+~~~~~~~~~~~~~~~~~
 
-* Create a new JIRA version for the release in question (if one doesn't exist
+* Create a new Github milestone for the release in question (if one doesn't exist
   yet)
-* Close all the corresponding JIRA tickets and set ``Fix Version/s`` field
-  to the current version
-* Release the JIRA version
+* Update affected issues and pull requests and add the corresponding release
+  milestone to them
 
 3. Creating release artifacts
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-We have a script that runs the required setup.py commands and then hashes
-and signs the files. You will need the latest version of ``pip`` and the ``wheel``
-package. To run it:
+.. note::
+
+  It's important that you have the latest versions of ``build`` package
+  installed to ensure the generated wheel files contain correct metadata.
+
+We have a script that runs the required commands and then hashes and signs the
+files. You will need the latest version of ``build`` package.
+
+To run it:
 
 .. sourcecode:: bash
+
+    # Install build dependencies
+    pip install -e ".[build]"
 
     cd dist
     ./release.sh -u <yourusername>@apache.org
@@ -125,7 +117,7 @@ package. To run it:
 your local GPG database.
 
 This should result in a set of
-``apache-libcloud-${VERSION}.{tar.bz2,tar.gz,zip,whl}{,asc,md5,sha1}`` files that
+``apache-libcloud-${VERSION}.{tar.gz,whl}{,asc,md5,sha1}`` files that
 are suitable to be uploaded for a release.
 
 Copy the artifacts in another directory, unpack one of them and test it with ``tox``.
@@ -160,6 +152,9 @@ For example:
 
     git tag --sign v0.15.0 105b9610835f99704996d861d613c5a9a8b3f8b1
 
+The commit SHA needs to be the one release artifacts are based on (aka the one
+people voted on) and the same one you used for the ``-tentative`` tag.
+
 Keep in mind that it's important that you sign the commit / tag with your GPG
 key.
 
@@ -181,21 +176,27 @@ key.
 7. Publishing package to PyPi
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**For consistency and security reasons packages are always uploaded to PyPi
-manually using the web interface and not using the setup.py upload
-command.**
+We have a script that uploads the signed Python source files to PyPi. It
+uses twine, so ensure you have twine available in your path `which twine`
+before running. Twine can be downloaded from https://pypi.python.org/pypi/twine.
 
-* Run ``python setup.py register`` command. This will register a new
-  version on PyPi, but it won't upload the actual release artifacts.
+You should also ensure you have 2FA / MFA enabled for your PyPi account and
+generate a new API token with apache-libcloud project scope which gives
+publish permission.
 
-* Go to the `PyPi release management page`_, find a new release and click on
-  "files" link.
+For more information on how to generate an API tokens and configure twine to
+use this token, see:
 
-* Once you are there, upload all the release artifacts (.tar.bz2, .tar.gz,
-  .zip, and .whl). For ``File Type`` select ``Source`` (except for ``.whl``
-  file where you should select ``Python Wheel``) and for ``Python Version``
-  select ``Any (ie. pure Python)``. Make sure to also select and upload a PGP
-  signature for each file (``PGP signature (.asc)`` field).
+* https://pypi.org/help/#apitoken
+* https://kynan.github.io/blog/2020/05/23/how-to-upload-your-package-to-the-python-package-index-pypi-test-server
+
+.. sourcecode:: bash
+
+    # Install publish dependencies
+    pip install -e ".[publish]"
+
+    cd dist
+    ./deploy.sh
 
 Once all the files have been uploaded, the page should look similar to the
 screenshot below.
@@ -223,24 +224,40 @@ For example
 
 .. sourcecode:: bash
 
-    ./dist/verify_checksums.sh apache-libcloud-0.13.2
+    ./dist/verify_checksums.sh apache-libcloud-3.5.0
 
-9. Updating doap_libcloud.rdf file
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+9. Updating doap_libcloud.rdf, __init__.py
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Add information about the new release to the ``doap_libcloud.rdf`` file in the
 root of the main code repository.
 
+Update ``__version__`` attribute in ``libcloud/__init.py__`` file and indicate
+we are now working on a new release by incrementing a number and adding ``-dev``
+suffix. For example, if version ``2.2.1`` has been released you would change
+it from:
+
+.. sourcecode:: python
+
+    __version__ = '2.2.1'
+
+To:
+
+.. sourcecode:: python
+
+    __version__ = '2.2.2-dev'
+
 10. Updating website
 ~~~~~~~~~~~~~~~~~~~~
 
-Check out the website using SVN: ``svn co https://svn.apache.org/repos/asf/libcloud/site/trunk``
+Check out the website using git: ``git clone http://gitbox.apache.org/repos/asf/libcloud-site.git``
 
 * Update the front page (``source/index.html`` file)
 * Update "Downloads" page (``source/downloads.md`` file)
 * Add a blog entry in the ``_posts`` directory.
 
-Build the site locally and make sure everything is correct. Check the ``README.md`` file.
+Build the site locally and make sure everything is correct before pushing website updated. Check
+the ``README.md`` file in that repo on how to do that.
 
 11. Sending announcements
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -314,7 +331,7 @@ Body::
     This bug could manifest itself while uploading a file with some of the storage providers.
 
     Besides this bug fix, it includes a couple of other smaller bug fixes and changes. Full change log
-    can be found at https://git-wip-us.apache.org/repos/asf?p=libcloud.git;a=blob;f=CHANGES;h=b7747f777afdeb63bcacf496d1d034f1b3287c31;hb=c4b3daae946049652a500a8515929b4cbf14a6b4
+    can be found at https://git.apache.org/repos/asf?p=libcloud.git;a=blob;f=CHANGES;h=b7747f777afdeb63bcacf496d1d034f1b3287c31;hb=c4b3daae946049652a500a8515929b4cbf14a6b4
 
     Release artifacts can be found at http://people.apache.org/~tomaz/libcloud/.
 
@@ -378,7 +395,7 @@ Body::
     Bugs / Issues
 
     If you find any bug or issue, please report it on our issue tracker
-    <https://issues.apache.org/jira/browse/LIBCLOUD>.
+    <https://github.com/apache/libcloud/issues>.
     Don't forget to attach an example and / or test which reproduces your problem.
 
     Thanks
@@ -406,7 +423,7 @@ Body::
     Content-Length regression which broke create and update operations in
     the Bluebox Compute and Azure Storage driver (LIBCLOUD-362, LIBCLOUD-3901).
 
-    Full change log can be found at <https://git-wip-us.apache.org/repos/asf?p=libcloud.git;a=blob;f=CHANGES;h=ca90c84e296ca82e2206eb86ed7364c588aad503;hb=602b6a7a27dca6990a38eb887e1d6615826387d5>
+    Full change log can be found at <https://git.apache.org/repos/asf?p=libcloud.git;a=blob;f=CHANGES;h=ca90c84e296ca82e2206eb86ed7364c588aad503;hb=602b6a7a27dca6990a38eb887e1d6615826387d5>
 
     Download
 
@@ -439,13 +456,13 @@ Body::
     Bugs / Issues
 
     If you find any bug or issue, please report it on our issue tracker
-    <https://issues.apache.org/jira/browse/LIBCLOUD>.
+    <https://github.com/apache/libcloud/issues>.
     Don't forget to attach an example and / or test which reproduces your problem.
 
     Thanks
 
     Thanks to everyone who contributed and made this release possible! Full list of
     people who contributed to this release can be found in the CHANGES file
-    <https://git-wip-us.apache.org/repos/asf?p=libcloud.git;a=blob;f=CHANGES;h=ca90c84e296ca82e2206eb86ed7364c588aad503;hb=602b6a7a27dca6990a38eb887e1d6615826387d5>.
+    <https://git.apache.org/repos/asf?p=libcloud.git;a=blob;f=CHANGES;h=ca90c84e296ca82e2206eb86ed7364c588aad503;hb=602b6a7a27dca6990a38eb887e1d6615826387d5>.
 
 .. _`PyPi release management page`: https://pypi.python.org/pypi?%3Aaction=pkg_edit&name=apache-libcloud

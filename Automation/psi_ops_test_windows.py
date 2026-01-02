@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2022, Psiphon Inc.
+# Copyright (c) 2024, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -27,6 +27,7 @@ import copy
 import shutil
 import json
 import shlex
+import ipaddress
 import local_repos_config
 
 from functools import wraps
@@ -62,10 +63,13 @@ CHECK_IP_ADDRESS_URL_LOCAL = 'http://automation.whatismyip.com/n09230945.asp'
 CHECK_IP_ADDRESS_URL_REMOTE = 'http://automation.whatismyip.com/n09230945.asp'
 USER_AGENT = "Python-urllib/psiphon-tunnel-core"
 
-SOURCE_ROOT = local_repos_config.WINDOWS_REPO_ROOT
-TUNNEL_CORE = os.path.join(SOURCE_ROOT, '3rdParty', 'psiphon-tunnel-core.exe')
-CONFIG_FILE_NAME = os.path.join(SOURCE_ROOT, '3rdParty', 'tunnel-core-config.config')
-LOG_FILE_NAME = os.path.join(SOURCE_ROOT, '3rdParty', 'tunnel-core-log.txt')
+TUNNEL_CORE_ROOT = os.path.join(local_repos_config.WINDOWS_REPO_ROOT, '3rdParty')
+TUNNEL_CORE = os.path.join(TUNNEL_CORE_ROOT, 'psiphon-tunnel-core.exe')
+if os.path.exists(os.path.join(local_repos_config.TUNNEL_CORE_BINARIES_REPO_ROOT, 'windows')):
+    TUNNEL_CORE_ROOT = os.path.join(local_repos_config.TUNNEL_CORE_BINARIES_REPO_ROOT, 'windows')
+    TUNNEL_CORE = os.path.join(TUNNEL_CORE_ROOT, 'psiphon-tunnel-core-i686.exe')
+CONFIG_FILE_NAME = os.path.join(TUNNEL_CORE_ROOT, 'tunnel-core-config.config')
+LOG_FILE_NAME = os.path.join(TUNNEL_CORE_ROOT, 'tunnel-core-log.txt')
 
 def urlopen(url, timeout):
     if url.startswith('https') and hasattr(ssl, 'SSLContext'):
@@ -204,9 +208,10 @@ class PsiphonRunner:
 
 
 class TunnelCoreRunner:
-    def __init__(self, encoded_server_entry, propagation_channel_id = '0', split_tunnel_url_format = "", split_tunnel_signature_public_key = "", split_tunnel_dns_server = ""):
+    def __init__(self, encoded_server_entry, server_entry_signature_public_key, propagation_channel_id = '00', split_tunnel_url_format = "", split_tunnel_signature_public_key = "", split_tunnel_dns_server = ""):
         self.proc = None
         self.encoded_server_entry = encoded_server_entry
+        self.server_entry_signature_public_key = server_entry_signature_public_key
         self.propagation_channel_id = propagation_channel_id
         self.split_tunnel_url_format = split_tunnel_url_format
         self.split_tunnel_signature_public_key = split_tunnel_signature_public_key
@@ -216,9 +221,10 @@ class TunnelCoreRunner:
     def _setup_tunnel_config(self, transport):
         config = {
             "TargetServerEntry": self.encoded_server_entry, # Single Test Server Parameter
+            "ServerEntrySignaturePublicKey": self.server_entry_signature_public_key,
             "TunnelProtocol": transport, # Single or group Test Protocol
             "PropagationChannelId" : self.propagation_channel_id, # Propagation Channel ID = "Testing"
-            "SponsorId" : "0",
+            "SponsorId" : "0000000000000000",
             "LocalHttpProxyPort" : 8080,
             "LocalSocksProxyPort" : 1080,
             "UseIndistinguishableTLS": True,
@@ -251,28 +257,30 @@ class TunnelCoreRunner:
         self.proc = subprocess.Popen(shlex.split(cmd), creationflags=subprocess.CREATE_NEW_CONSOLE, stderr=subprocess.PIPE)
 
     def wait_for_connection(self):
-        # If using tunnel-core
-        # Read tunnel-core log file for connection message instead of sleep 25 second
-
         time.sleep(1)
         print('Tunnel Core is connecting...')
+        max_wait_seconds = 35
         start_time = time.time()
 
-        # Breaking this loop means the process sent EOF to stderr, or 'tunnels' tunnels were established
+        # Breaking this loop means the process sent EOF to stderr, max_wait_seconds has elapsed without a connection, 
+        # or a tunnel was established
         while True:
+            # Read tunnel-core output for connection message
             line = self.proc.stderr.readline()
             if not line:
-                time.sleep(25)
                 break
 
-            line = json.loads(line)
-            if line["data"].get("count") != None:
-                if line["noticeType"] == "Tunnels" and line["data"]["count"] == 1:
-                    break
+            try:
+                line = json.loads(line)
+                if line["data"].get("count") != None:
+                    if line["noticeType"] == "Tunnels" and line["data"]["count"] == 1:
+                        break
+            except:
+                pass
 
-            if time.time() >= start_time + 25:
-                # if the sleep time is 25 second, get out while loop and keep going
-                print('Not successfully connected after 25 second.')
+            if time.time() >= start_time + max_wait_seconds:
+                # if max_wait_seconds has elapsed, let the test proceed
+                print('Not successfully connected after %d seconds.' % (max_wait_seconds))
                 break
 
     def setup_proxy(self):
@@ -319,6 +327,14 @@ def __test_server(runner, transport, expected_egress_ip_addresses):
             ','.join(expected_egress_ip_addresses), transport, 'ENABLED' if split_tunnel_mode else 'DISABLED'))
 
     try:
+        original_ip_address = ''
+        if '' in expected_egress_ip_addresses:
+            urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler()))
+            if has_local_check:
+                original_ip_address = urlopen(CHECK_IP_ADDRESS_URL_LOCAL, 30).read().decode().split('\n')[0]
+            if has_remote_check:
+                original_ip_address = urlopen(CHECK_IP_ADDRESS_URL_REMOTE, 30).read().decode().split('\n')[0]
+
         runner.connect_to_server(transport, split_tunnel_mode)
 
         runner.wait_for_connection()
@@ -330,7 +346,8 @@ def __test_server(runner, transport, expected_egress_ip_addresses):
 
             egress_ip_address = urlopen(CHECK_IP_ADDRESS_URL_LOCAL, 30).read().decode().split('\n')[0]
 
-            is_proxied = (egress_ip_address in expected_egress_ip_addresses)
+            is_proxied = ((egress_ip_address in expected_egress_ip_addresses) or
+                          ('' in expected_egress_ip_addresses and ipaddress.ip_address(egress_ip_address) and egress_ip_address != original_ip_address))
 
             if (transport == 'VPN' or not split_tunnel_mode) and not is_proxied:
                 raise Exception('Local case/VPN/not split tunnel: egress is %s and expected egresses are %s' % (
@@ -345,7 +362,8 @@ def __test_server(runner, transport, expected_egress_ip_addresses):
 
             egress_ip_address = urlopen(CHECK_IP_ADDRESS_URL_REMOTE, 30).read().decode().split('\n')[0]
 
-            is_proxied = (egress_ip_address in expected_egress_ip_addresses)
+            is_proxied = ((egress_ip_address in expected_egress_ip_addresses) or
+                          ('' in expected_egress_ip_addresses and ipaddress.ip_address(egress_ip_address) and egress_ip_address != original_ip_address))
 
             if not is_proxied:
                 raise Exception('Remote case: egress is %s and expected egresses are %s' % (
@@ -355,16 +373,16 @@ def __test_server(runner, transport, expected_egress_ip_addresses):
         runner.stop_psiphon()
 
 
-def test_server(server, host, encoded_server_entry,
+def test_server(server, host, encoded_server_entry, server_entry_signature_public_key,
                 split_tunnel_url_format, split_tunnel_signature_public_key, split_tunnel_dns_server, version,
-                expected_egress_ip_addresses, test_propagation_channel_id = '0', test_cases = None, executable_path = None):
+                expected_egress_ip_addresses, test_propagation_channel_id = '00', test_cases = None, executable_path = None):
 
     ip_address = server.ip_address
     capabilities = server.capabilities
     web_server_port = server.web_server_port
     web_server_secret = server.web_server_secret
 
-    local_test_cases = copy.copy(test_cases) if test_cases else ['handshake', 'VPN', 'OSSH', 'SSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH', 'UNFRONTED-MEEK-SESSION-TICKET-OSSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTP-OSSH', 'FRONTED-MEEK-QUIC-OSSH', 'QUIC-OSSH', 'TAPDANCE-OSSH']
+    local_test_cases = copy.copy(test_cases) if test_cases else ['handshake', 'VPN', 'SSH', 'OSSH', 'QUIC-OSSH', 'TLS-OSSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH', 'UNFRONTED-MEEK-SESSION-TICKET-OSSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTP-OSSH', 'FRONTED-MEEK-QUIC-OSSH', 'SHADOWSOCKS-OSSH', 'TAPDANCE-OSSH', 'CONJURE-OSSH', 'INPROXY-WEBRTC-SSH', 'INPROXY-WEBRTC-OSSH', 'INPROXY-WEBRTC-QUIC-OSSH']
 
     for test_case in copy.copy(local_test_cases):
         if ((test_case == 'VPN' # VPN requires handshake, SSH or SSH+
@@ -376,8 +394,11 @@ def test_server(server, host, encoded_server_entry,
             or (test_case == 'FRONTED-MEEK-HTTP-OSSH' and not (capabilities['FRONTED-MEEK'] and host.alternate_meek_server_fronting_hosts))
             or (test_case == 'FRONTED-MEEK-QUIC-OSSH' and not capabilities['FRONTED-MEEK-QUIC'])
             or (test_case == 'QUIC-OSSH' and not capabilities['QUIC'])
+            or (test_case == 'TLS-OSSH' and not capabilities['TLS'])
+            or (test_case == 'SHADOWSOCKS-OSSH' and not capabilities['SHADOWSOCKS'])
             or (test_case == 'TAPDANCE-OSSH' and not capabilities['TAPDANCE'])
-            or (test_case in ['handshake', 'OSSH', 'SSH', 'VPN'] and not capabilities[test_case])):
+            or (test_case == 'CONJURE-OSSH' and not capabilities['CONJURE'])
+            or (test_case in ['handshake', 'VPN', 'SSH', 'OSSH', 'INPROXY-WEBRTC-SSH', 'INPROXY-WEBRTC-OSSH', 'INPROXY-WEBRTC-QUIC-OSSH'] and not capabilities[test_case])):
             print('Server does not support %s' % (test_case,))
             local_test_cases.remove(test_case)
 
@@ -402,11 +423,11 @@ def test_server(server, host, encoded_server_entry,
             if not executable_path:
                 executable_path = psi_ops_build_windows.build_client(
                                     test_propagation_channel_id,
-                                    '0',        # sponsor_id
+                                    '0000000000000000', # sponsor_id
                                     None,       # banner
                                     [encoded_server_entry],
                                     '',         # remote_server_list_signature_public_key
-                                    ('','','','',''), # remote_server_list_url
+                                    ('','','','',''), # remote_server_list_url_split
                                     ('[{}]'), # remote_server_list_urls_json
                                     '', # OSL_root_url_split
                                     ('[{}]'), # OSL_root_urls_json
@@ -416,10 +437,11 @@ def test_server(server, host, encoded_server_entry,
                                     '',         # feedback_upload_server
                                     '',         # feedback_upload_path
                                     '',         # feedback_upload_server_headers
+                                    '',         # feedback_upload_urls_json
                                     '',         # info_link_url
                                     '',         # upgrade_signature_public_key
-                                    ('','','','',''), # upgrade_url
-                                    ('[{}]'), #upgrade_urls_json
+                                    ('','','','',''), # upgrade_url_split
+                                    ('[{}]'), # upgrade_urls_json
                                     '',         # get_new_version_url
                                     '',         # get_new_version_email
                                     '',         # faq_url
@@ -428,8 +450,9 @@ def test_server(server, host, encoded_server_entry,
                                     split_tunnel_signature_public_key,
                                     split_tunnel_dns_server,
                                     version,
-                                    False,
-                                    True)
+                                    False,      # propagator_managed_upgrades
+                                    '',         # additional_parameters
+                                    True)      # test
 
             psiphon_runner = PsiphonRunner(encoded_server_entry, executable_path)
 
@@ -441,7 +464,7 @@ def test_server(server, host, encoded_server_entry,
 
         else:
 
-            tunnel_core_runner = TunnelCoreRunner(encoded_server_entry, test_propagation_channel_id,  split_tunnel_url_format, split_tunnel_signature_public_key, split_tunnel_dns_server)
+            tunnel_core_runner = TunnelCoreRunner(encoded_server_entry, server_entry_signature_public_key, test_propagation_channel_id,  split_tunnel_url_format, split_tunnel_signature_public_key, split_tunnel_dns_server)
 
             try:
                 __test_server(tunnel_core_runner, test_case, expected_egress_ip_addresses)
@@ -450,3 +473,4 @@ def test_server(server, host, encoded_server_entry,
                 results[test_case] = 'FAIL: ' + str(ex)
 
     return results
+

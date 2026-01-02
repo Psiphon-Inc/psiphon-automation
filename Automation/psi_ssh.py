@@ -79,6 +79,10 @@ class SSH(object):
                 self.ssh.get_host_keys().add(key_host_name,
                                              key_type,
                                              ssh.DSSKey(data=base64.b64decode(key_data)))
+            elif key_type == 'ssh-ed25519':
+                self.ssh.get_host_keys().add(key_host_name,
+                                             key_type,
+                                             ssh.Ed25519Key(data=base64.b64decode(key_data)))
             else: # 'ssh-rsa'
                 self.ssh.get_host_keys().add(key_host_name,
                                              key_type,
@@ -87,7 +91,7 @@ class SSH(object):
         if ssh_pkey is not None:
             ssh_pkey = ssh.RSAKey.from_private_key(StringIO(ssh_pkey))
 
-        self.ssh.connect(ip_address, ssh_port, ssh_username, ssh_password, pkey=ssh_pkey, timeout=60)
+        self.ssh.connect(ip_address, ssh_port, ssh_username, ssh_password, pkey=ssh_pkey, timeout=60, banner_timeout=90, auth_timeout=90)
 
     def close(self):
         self.ssh.close()

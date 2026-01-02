@@ -1,0 +1,19 @@
+sw:
+  plaintext_email_no_attachment: |
+    Pakua Psiphon hapa: {{0}}/{0}/pakua.html#direct
+  html_email_no_attachment: |
+    <div style="direction: ltr;">
+    Pakua Psiphon hapa:  <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/pakua.html#direct</a><br>
+    </div>
+  plaintext_email_with_attachment: |+
+    Kutumia Psiphon 3 kwenye window, hifadhi jalada lililoambatanishwa ambalo linaanza na "psiphon", na lipe tena jina uwe na "exe" muendelezo, kama muhimu.  Kisha fungua.
+    Kutumia Psiphon 3 kwa Admin, hifadhi jalada lililoambatanishwa ambalo huanza pamoja  "PsiphonAdmin", na ipe ten jina kuwa na "apk" muendelezo, kama muhimu.  Kisha sakinisha na iendesha.
+    Kwa maelezo zaidi au kupakua jalada tena, bofya kiunganishi hapo chini
+    {{0}}/{0}/download.html#direct
+
+  html_email_with_attachment: |
+    Kwa kutumia Psiphon 3 kwa madirisha, hifadhi faili ilyowekwa ambayo inanza  na "Psiphon3", na badili jina kua ".exe"  tawi, kama lazima. alafu ikimbie.<br>Kwa kutumia Psiphon3 kwa Admin, hifadhi faili iliyoweka ambayo inaanza na  "PsiphonAndroid", na badili jina kua ".apk" tawi, kama inafaa. Kisha sakinisha na ikimbie.<br>
+    Kwa maelezo zaidi au kwa kupakua faili tena, bonyeza kiunga chini.<br>
+    <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/pakua.html#moja kwa moja</a><br>
+    <div style="direction: ltr;">
+    <br>

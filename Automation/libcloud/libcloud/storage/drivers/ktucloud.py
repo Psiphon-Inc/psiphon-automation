@@ -15,9 +15,7 @@
 
 from libcloud.common.types import LibcloudError
 from libcloud.storage.providers import Provider
-
-from libcloud.storage.drivers.cloudfiles import CloudFilesConnection
-from libcloud.storage.drivers.cloudfiles import CloudFilesStorageDriver
+from libcloud.storage.drivers.cloudfiles import CloudFilesConnection, CloudFilesStorageDriver
 
 KTUCLOUDSTORAGE_AUTH_URL = "https://ssproxy.ucloudbiz.olleh.com/auth/v1.0"
 KTUCLOUDSTORAGE_API_VERSION = "1.0"
@@ -32,16 +30,16 @@ class KTUCloudStorageConnection(CloudFilesConnection):
     _auth_version = KTUCLOUDSTORAGE_API_VERSION
 
     def get_endpoint(self):
-        eps = self.service_catalog.get_endpoints(name='cloudFiles')
+        eps = self.service_catalog.get_endpoints(name="cloudFiles")
 
         if len(eps) == 0:
-            raise LibcloudError('Could not find specified endpoint')
+            raise LibcloudError("Could not find specified endpoint")
 
         ep = eps[0]
         public_url = ep.url
 
         if not public_url:
-            raise LibcloudError('Could not find specified endpoint')
+            raise LibcloudError("Could not find specified endpoint")
 
         return public_url
 
@@ -52,5 +50,5 @@ class KTUCloudStorageDriver(CloudFilesStorageDriver):
     """
 
     type = Provider.KTUCLOUD
-    name = 'KTUCloud Storage'
+    name = "KTUCloud Storage"
     connectionCls = KTUCloudStorageConnection

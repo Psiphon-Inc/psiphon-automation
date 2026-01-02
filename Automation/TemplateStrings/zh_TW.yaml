@@ -1,19 +1,23 @@
 zh_TW:
   plaintext_email_no_attachment: |
-      從這里下載賽風： {{0}}/{0}/download.html#direct
+    從這里下載 Psiphon ： {{0}}/{0}/download.html#direct
   html_email_no_attachment: |
-      <div style="direction: ltr;">
-      在此下載賽風：<a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
-      </div>
-  plaintext_email_with_attachment: |
-      如要在 Windows 上使用賽風3, 請先保存這個副檔名為".exe"的附件 {{1}} 。
-      如要在安卓上使用賽風 3, 請安裝這個附件 {{2}}。
-      若要獲取更多資訊或者再次下載文件，請點擊以下連結。
-      {{0}}/{0}/download.html#direct
-  html_email_with_attachment: |
-      <div style="direction: ltr;">
-      如要在 Windows 上使用賽風3, 請保存這個副檔名為".exe"的附件 {{1}} 。<br>
-      如要在 Android 上使用 Psiphon 3, 請安裝這個附件 {{2}}。<br>若要獲取更多資訊或者再次下載文件，請點擊以下連結。<br>
-      <a href="{{0}}/{0}/download.html">{{0}}/{0}/download.html#direct</a><br>
-      </div>
-      <br>
+    <div style="direction: ltr;">
+    在此下載 Psiphon ：<a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
+  plaintext_email_with_attachment: |+
+    使用 Windows 版 Psiphon 3, 請儲存名稱開頭為 "psiphon3"的檔案，並將其副檔名改為 ".exe" ，隨後即可執行之。
+    在 Android 設備上使用 Psiphon 3，先儲存檔名為 "PsiphonAndroid"，將副檔名改為".apk"，然後安裝執行。
+    詳細資訊或是需要重新下載安裝檔，請直接點擊下方連結。
+    {{0}}/{0}/download.html#direct
+
+  html_email_with_attachment: |+
+    <div style="direction: ltr;">
+    使用 Windows 版 Psiphon 3, 請儲存名稱開頭為 "psiphon3"的檔案，並將其副檔名改為 ".exe" ，隨後即可執行之。<br>
+    在 Android 設備上使用 Psiphon 3，先儲存檔名為 "PsiphonAndroid"，將副檔名改為".apk"，然後安裝執行。<br>
+    詳細資訊或是需要重新下載安裝檔，請直接點擊下方連結。<br>
+    <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
+    <br>
+
+...

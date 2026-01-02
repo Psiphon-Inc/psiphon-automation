@@ -16,55 +16,47 @@
 import sys
 import unittest
 
-from libcloud.utils.py3 import httplib
-from libcloud.utils.py3 import urlparse
-from libcloud.utils.py3 import parse_qsl
+from libcloud.test import MockHttp
+from libcloud.utils.py3 import httplib, urlparse, parse_qsl
+from libcloud.test.compute import TestCaseMixin
+from libcloud.test.file_fixtures import ComputeFileFixtures
+from libcloud.compute.drivers.ktucloud import KTUCloudNodeDriver
 
 try:
     import simplejson as json
 except ImportError:
     import json
 
-from libcloud.compute.drivers.ktucloud import KTUCloudNodeDriver
-
-from libcloud.test import MockHttpTestCase
-from libcloud.test.compute import TestCaseMixin
-from libcloud.test.file_fixtures import ComputeFileFixtures
-
 
 class KTUCloudNodeDriverTest(unittest.TestCase, TestCaseMixin):
-
     def setUp(self):
-        KTUCloudNodeDriver.connectionCls.conn_classes = \
-            (None, KTUCloudStackMockHttp)
-        self.driver = KTUCloudNodeDriver('apikey', 'secret',
-                                         path='/test/path',
-                                         host='api.dummy.com')
-        self.driver.path = '/test/path'
+        KTUCloudNodeDriver.connectionCls.conn_class = KTUCloudStackMockHttp
+        self.driver = KTUCloudNodeDriver(
+            "apikey", "secret", path="/test/path", host="api.dummy.com"
+        )
+        self.driver.path = "/test/path"
         self.driver.type = -1
-        KTUCloudStackMockHttp.fixture_tag = 'default'
+        KTUCloudStackMockHttp.fixture_tag = "default"
         self.driver.connection.poll_interval = 0.0
 
     def test_create_node_immediate_failure(self):
         size = self.driver.list_sizes()[0]
         image = self.driver.list_images()[0]
-        KTUCloudStackMockHttp.fixture_tag = 'deployfail'
+        KTUCloudStackMockHttp.fixture_tag = "deployfail"
         self.assertRaises(
-            Exception,
-            self.driver.create_node,
-            name='node-name', image=image, size=size)
+            Exception, self.driver.create_node, name="node-name", image=image, size=size
+        )
 
     def test_create_node_delayed_failure(self):
         size = self.driver.list_sizes()[0]
         image = self.driver.list_images()[0]
-        KTUCloudStackMockHttp.fixture_tag = 'deployfail2'
+        KTUCloudStackMockHttp.fixture_tag = "deployfail2"
         self.assertRaises(
-            Exception,
-            self.driver.create_node,
-            name='node-name', image=image, size=size)
+            Exception, self.driver.create_node, name="node-name", image=image, size=size
+        )
 
     def test_list_images_no_images_available(self):
-        KTUCloudStackMockHttp.fixture_tag = 'notemplates'
+        KTUCloudStackMockHttp.fixture_tag = "notemplates"
 
         images = self.driver.list_images()
         self.assertEqual(0, len(images))
@@ -78,7 +70,7 @@ class KTUCloudNodeDriverTest(unittest.TestCase, TestCaseMixin):
         self.assertEqual(112, len(sizes))
 
     def test_list_sizes_nodisk(self):
-        KTUCloudStackMockHttp.fixture_tag = 'nodisk'
+        KTUCloudStackMockHttp.fixture_tag = "nodisk"
 
         sizes = self.driver.list_sizes()
         self.assertEqual(2, len(sizes))
@@ -91,9 +83,9 @@ class KTUCloudNodeDriverTest(unittest.TestCase, TestCaseMixin):
         self.assertTrue(check)
 
 
-class KTUCloudStackMockHttp(MockHttpTestCase):
-    fixtures = ComputeFileFixtures('ktucloud')
-    fixture_tag = 'default'
+class KTUCloudStackMockHttp(MockHttp, unittest.TestCase):
+    fixtures = ComputeFileFixtures("ktucloud")
+    fixture_tag = "default"
 
     def _load_fixture(self, fixture):
         body = self.fixtures.load(fixture)
@@ -103,29 +95,30 @@ class KTUCloudStackMockHttp(MockHttpTestCase):
         url = urlparse.urlparse(url)
         query = dict(parse_qsl(url.query))
 
-        self.assertTrue('apiKey' in query)
-        self.assertTrue('command' in query)
-        self.assertTrue('response' in query)
-        self.assertTrue('signature' in query)
+        self.assertTrue("apiKey" in query)
+        self.assertTrue("command" in query)
+        self.assertTrue("response" in query)
+        self.assertTrue("signature" in query)
 
-        self.assertTrue(query['response'] == 'json')
+        self.assertTrue(query["response"] == "json")
 
-        del query['apiKey']
-        del query['response']
-        del query['signature']
-        command = query.pop('command')
+        del query["apiKey"]
+        del query["response"]
+        del query["signature"]
+        command = query.pop("command")
 
-        if hasattr(self, '_cmd_' + command):
-            return getattr(self, '_cmd_' + command)(**query)
+        if hasattr(self, "_cmd_" + command):
+            return getattr(self, "_cmd_" + command)(**query)
         else:
-            fixture = command + '_' + self.fixture_tag + '.json'
+            fixture = command + "_" + self.fixture_tag + ".json"
             body, obj = self._load_fixture(fixture)
-            return (httplib.OK, body, obj, httplib.responses[httplib.OK])
+            return (httplib.OK, body, {}, httplib.responses[httplib.OK])
 
     def _cmd_queryAsyncJobResult(self, jobid):
-        fixture = 'queryAsyncJobResult' + '_' + str(jobid) + '.json'
+        fixture = "queryAsyncJobResult" + "_" + str(jobid) + ".json"
         body, obj = self._load_fixture(fixture)
-        return (httplib.OK, body, obj, httplib.responses[httplib.OK])
+        return (httplib.OK, body, {}, httplib.responses[httplib.OK])
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     sys.exit(unittest.main())

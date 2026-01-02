@@ -2,7 +2,7 @@ OpenStack Compute Driver Documentation
 ======================================
 
 `OpenStack`_ is an open-source project which allows you to build and run your
-own public or a private cloud.
+own public or private cloud.
 
 .. figure:: /_static/images/provider_logos/openstack.png
     :align: center
@@ -12,6 +12,32 @@ own public or a private cloud.
 Among many other private clouds, it also powers Rackspace's Public Cloud.
 
 .. _connecting-to-openstack-installation:
+
+Selecting the Nova API version
+------------------------------
+
+Along with your connection criteria, you can specify the Nova version with `api_version`, 
+currently supported versions of Nova are:
+
+- 1.0
+- 1.1
+- 2.0
+- 2.1 (v12)
+- 2.2 (v13)
+
+.. code-block:: python
+
+  from libcloud.compute.providers import get_driver
+  from libcloud.compute.types import Provider
+
+  Openstack = get_driver(Provider.OPENSTACK)
+
+  con = Openstack(
+      'admin', 'password',
+      ex_force_base_url='http://23.12.198.36:8774/v2.1',
+      api_version='2.0',
+      ex_tenant_name='demo')
+
 
 Connecting to the OpenStack installation
 ----------------------------------------
@@ -45,9 +71,14 @@ Available arguments:
     and API key
   * ``2.0_password`` - authenticate against keystone with a username and
     password
+  * ``2.0_voms`` - 2.0 VOMS key
+  * ``3.x_password`` - 3.x keystone password
+  * ``3.x_appcred`` - 3.x keystone with application credential
+  * ``3.x_oidc_access_token`` - OIDC access token
+
 
   Unless you are working with a very old version of OpenStack you will either
-  want to use ``2.0_apikey`` or ``2.0_password``.
+  want to use ``2.0_*`` or ``3.x_*``.
 * ``ex_tenant_name`` - tenant / project name
 * ``ex_force_auth_token`` - token which is used for authentication. If this
   argument is provided, normal authentication flow is skipped and the OpenStack
@@ -58,9 +89,23 @@ Available arguments:
 * ``ex_force_service_type``
 * ``ex_force_service_name``
 * ``ex_force_service_region``
-* ``ex_force_base_url`` - Base URL to the OpenStack API endpoint. By default,
+* ``ex_force_base_url`` - Base URL to the OpenStack nova API endpoint. By default,
   driver obtains API endpoint URL from the server catalog, but if this argument
   is provided, this step is skipped and the provided value is used directly.
+* ``ex_force_network_url`` - Base URL to the OpenStack neutron API endpoint. By default,
+  driver obtains API endpoint URL from the server catalog, but if this argument
+  is provided, this step is skipped and the provided value is used directly. Only valid 
+  in case of api_version >= 2.0.
+* ``ex_force_image_url`` - Base URL to the OpenStack glance API endpoint. By default,
+  driver obtains API endpoint URL from the server catalog, but if this argument
+  is provided, this step is skipped and the provided value is used directly. Only valid 
+  in case of api_version >= 2.0.
+* ``ex_force_volume_url`` - Base URL to the OpenStack cinder API endpoint. By default,
+  driver obtains API endpoint URL from the server catalog, but if this argument
+  is provided, this step is skipped and the provided value is used directly. Only valid 
+  in case of api_version >= 2.0.
+* ``ex_force_microversion`` - Microversion of the API to interact with OpenStack.
+  Only valid in case of api_version >= 2.0.
 
 Some examples which show how to use this arguments can be found in the section
 below.
@@ -136,6 +181,21 @@ public cloud providers support it.
    :language: python
 .. _`Cloud-Init examples`: http://cloudinit.readthedocs.org/en/latest/topics/examples.html
 
+8. Authentication token cache
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Since version ???, authentication tokens can be stored in an external cache.
+This enables multiple processes to reuse the tokens, reducing the number of
+token allocations in the OpenStack authentication service.
+
+.. literalinclude:: /examples/compute/openstack/auth_cache.py
+   :language: python
+
+If the cache implementation stores tokens somewhere outside the process - for
+instance, to disk or a remote system - running this program twice will
+allocate a token from OpenStack, store it in the cache, then reuse that token
+on the second run.
+
 Non-standard functionality and extension methods
 ------------------------------------------------
 
@@ -166,6 +226,9 @@ token on the first request or if the auth token is about to expire.
 
 As noted in the example 4 above, this doesn't hold true if you use
 ``ex_force_auth_token`` argument.
+
+Tokens can also be stored in an external cache for shared use among multiple
+processes; see example 8 above.
 
 Troubleshooting
 ---------------
@@ -217,15 +280,22 @@ are supported by two different subclasses of the OpenStackNodeDriver. The
 default is the 1.1 API. The 1.0 API is supported to be able to connect to
 OpenStack instances which do not yet support the version 1.1 API.
 
-Compute 1.1 API version (current)
+Compute 2.0 API version (current)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autoclass:: libcloud.compute.drivers.openstack.OpenStack_2_NodeDriver
+    :members:
+    :inherited-members:
+
+Compute 1.1 API version (old installations)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. autoclass:: libcloud.compute.drivers.openstack.OpenStack_1_1_NodeDriver
     :members:
     :inherited-members:
 
-Compute 1.0 API version (old installations)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Compute 1.0 API version (older installations)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. autoclass:: libcloud.compute.drivers.openstack.OpenStack_1_0_NodeDriver
     :members:

@@ -1,20 +1,22 @@
 ar:
   plaintext_email_no_attachment: |
-      نزّل سايفون بالضغط هنا:   {{0}}/{0}/download.html#direct
+    نزّل سايفون بالضغط هنا: {{0}}/{0}/download.html#direct
   html_email_no_attachment: |
-      <div style="direction: rtl;">
-      حمل سايفون هنا:<a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
-      </div>
+    <div style="direction: rtl;">
+    حمل سايفون هنا:<a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
   plaintext_email_with_attachment: |
-      لإستعمال Psiphon 3 في ويندوز، إحفظ الملف المرفق بصيغة   {{1}}  ".exe" extension.
-      لإستعمال  Psiphon 3 مع أندرويد، قم بتنزيل الملف المرفق   {{2}}.
-      إذا كنت تريد المزيد من ألمعلومات أو لتنزيل الملفات من جديد إضغط على الرابط أدناه.
-      {{0}}/{0}/download.html#direct
-  html_email_with_attachment: |
-      <div style="direction: rtl;">
-      لإستعمال Psiphon 3 في ويندوز، إحفظ الملف المرفق {{1}}  ".exe" بصيغة .<br>
-      لإستعمال  Psiphon 3 مع أندرويد، قم بتنزيل الملف المرفق  {{2}}.<br>
-      ذا كنت تريد المزيد من ألمعلومات أو لتنزيل الملفات من جديد إضغط على الرابط أدناه. <br>
-      <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
-      </div>
-      <br>
+    لاستخدام Psiphon 3 في ويندوز، احفظ الملف المرفق الذي يبدأ بـ "psiphon3" مع إعادة تسميته بإضافة الامتداد ".exe" إذا استدعى الأمر. الآن شغِّل الملف.
+    لاستخدام Psiphon 3 في أجهزة الأندرويد، احفظ الملف المرفق الذي يبدأ بـ "PsiphonAndroid"، مع إعادة تسميته بإضافة الامتداد "apk." إذا استدعى الأمر، ثم ثبِّت الملف وشغِّله.
+    للمزيد من المعلومات أو لتنزيل الملفات مرة أخرى، انقر على الرابط أدناه.
+    {{0}}/{0}/download.html#direct
+  html_email_with_attachment: |+
+    <div style="direction: ltr;">
+    لاستخدام Psiphon 3 في ويندوز، احفظ الملف المرفق الذي يبدأ بـ "psiphon3" مع إعادة تسميته بإضافة الامتداد ".exe" إذا استدعى الأمر. الآن شغِّل الملف.<br>
+    لاستخدام Psiphon 3 في أجهزة الأندرويد، احفظ الملف المرفق الذي يبدأ بـ "PsiphonAndroid"، مع إعادة تسميته بإضافة الامتداد "apk." إذا استدعى الأمر، ثم ثبِّت الملف وشغِّله.<br>
+    للمزيد من المعلومات أو لتنزيل الملفات مرة أخرى، انقر على الرابط أدناه.<br>
+    <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+    </div>
+    <br>
+
+...

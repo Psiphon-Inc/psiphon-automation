@@ -3,7 +3,7 @@ cachetools==3.1.1
 cogapp==3.3.0 
 cryptography==3.3.2
 future==0.18.2 
-jsonpickle==2.0.0
+jsonpickle==3.0.2
 linode_api4==2.2.1
 oci==2.100.0
 paramiko==2.11.0
@@ -14,4 +14,5 @@ pyyaml==5.3.1
 qrcode==6.1
 slumber==0.7.1
 twitter==1.19.3 
+unpaddedbase64==2.1.0
 

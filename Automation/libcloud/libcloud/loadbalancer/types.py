@@ -18,8 +18,7 @@ __all__ = [
     "State",
     "LibcloudLBError",
     "LibcloudLBImmutableError",
-
-    "OLD_CONSTANT_TO_NEW_MAPPING"
+    "OLD_CONSTANT_TO_NEW_MAPPING",
 ]
 
 from libcloud.common.types import LibcloudError
@@ -33,7 +32,7 @@ class LibcloudLBImmutableError(LibcloudLBError):
     pass
 
 
-class Provider(object):
+class Provider:
     """
     Defines for each of the supported providers
 
@@ -42,20 +41,21 @@ class Provider(object):
 
     :cvar ALIYUN_SLB: Aliyun SLB loadbalancer driver
     """
-    ALIYUN_SLB = 'aliyun_slb'
-    BRIGHTBOX = 'brightbox'
-    CLOUDSTACK = 'cloudstack'
-    DIMENSIONDATA = 'dimensiondata'
-    ELB = 'elb'
-    GCE = 'gce'
-    GOGRID = 'gogrid'
-    NINEFOLD = 'ninefold'
-    RACKSPACE = 'rackspace'
-    SOFTLAYER = 'softlayer'
+
+    ALB = "alb"
+    ALIYUN_SLB = "aliyun_slb"
+    BRIGHTBOX = "brightbox"
+    CLOUDSTACK = "cloudstack"
+    DIMENSIONDATA = "dimensiondata"
+    ELB = "elb"
+    GCE = "gce"
+    NINEFOLD = "ninefold"
+    NTTCIS = "nttcis"
+    RACKSPACE = "rackspace"
 
     # Deprecated
-    RACKSPACE_US = 'rackspace_us'
-    RACKSPACE_UK = 'rackspace_uk'
+    RACKSPACE_US = "rackspace_us"
+    RACKSPACE_UK = "rackspace_uk"
 
 
 OLD_CONSTANT_TO_NEW_MAPPING = {
@@ -64,7 +64,7 @@ OLD_CONSTANT_TO_NEW_MAPPING = {
 }
 
 
-class State(object):
+class State:
     """
     Standard states for a loadbalancer
 
@@ -79,11 +79,12 @@ class State(object):
     DELETED = 4
 
 
-class MemberCondition(object):
+class MemberCondition:
     """
     Each member of a load balancer can have an associated condition
     which determines its role within the load balancer.
     """
+
     ENABLED = 0
     DISABLED = 1
     DRAINING = 2

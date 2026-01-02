@@ -1,21 +1,21 @@
 sn:
   plaintext_email_no_attachment: |
-      Tutunura Psiphon pano: {{0}}/{0}/download.html#direct
+    Tutunura Psiphon pano: {{0}}/{0}/download.html#direct
   plaintext_email_with_attachment: |+
-      Kushandisa Psiphon3 pa Windows, chengetedza faira rebatanidzwa {{1}} rine ".exe" tambanudzo.
-      Kushandisa Psiphon3 pa Android, chengetedza faira rebatanidzwa {{2}}.
-      Rimwe ruzivo kana kututunura ma faira aya zvekare, tinya kochekero iripasi.
-      {{0}}/{0}/tutunura.html#direct
+    Kushandisa Psiphon3 pa Windows, chengetedza faira rebatanidzwa {{1}} rine ".exe" tambanudzo.
+    Kushandisa Psiphon3 pa Android, chengetedza faira rebatanidzwa {{2}}.
+    Rimwe ruzivo kana kututunura ma faira aya zvekare, tinya kochekero iripasi.
+    {{0}}/{0}/tutunura.html#direct
 
   html_email_with_attachment: |
-      <div style="direction: ltr;">
-      Kushandisa Psiphon3 pa Windows, chengetedza faira rebatanidzwa {{1}} rine ".exe" tambanudzo.<br>
+    <div style="direction: ltr;">
+    Kushandisa Psiphon3 pa Windows, chengetedza faira rebatanidzwa {{1}} rine ".exe" tambanudzo.<br>
 
-      Kushandisa Psiphon3 pa Android, chengetedza faira rebatanidzwa {{2}}.<br>
+    Kushandisa Psiphon3 pa Android, chengetedza faira rebatanidzwa {{2}}.<br>
 
-      <a href="{{0}}/{0}/tutunura.html#direct">
-      {{0}}/{0}/tutunura.html#direct</a><br>
+    <a href="{{0}}/{0}/tutunura.html#direct">
+    {{0}}/{0}/tutunura.html#direct</a><br>
 
-      </div>
+    </div>
 
-      <br>
+    <br>

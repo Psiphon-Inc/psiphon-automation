@@ -13,31 +13,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
+import os
 import random
+import unittest
 
-from libcloud.utils.py3 import httplib
-from libcloud.utils.py3 import StringIO
-from libcloud.utils.py3 import urlparse
-from libcloud.utils.py3 import parse_qs
-from libcloud.utils.py3 import parse_qsl
-from libcloud.utils.py3 import u
-from libcloud.utils.py3 import unittest2_required
+import requests
+import requests_mock
 
-if unittest2_required:
-    import unittest2 as unittest
+from libcloud.http import LibcloudConnection
+from libcloud.utils.py3 import PY2, httplib, parse_qs, urlparse, urlquote, parse_qsl
+from libcloud.common.base import Response
+
+if PY2:
+    from StringIO import StringIO
 else:
-    import unittest
+    from io import StringIO
 
 
-XML_HEADERS = {'content-type': 'application/xml'}
+XML_HEADERS = {"content-type": "application/xml"}
 
 
 class LibcloudTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         self._visited_urls = []
         self._executed_mock_methods = []
-        super(LibcloudTestCase, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def setUp(self):
         self._visited_urls = []
@@ -51,15 +51,18 @@ class LibcloudTestCase(unittest.TestCase):
 
     def assertExecutedMethodCount(self, expected):
         actual = len(self._executed_mock_methods)
-        self.assertEqual(actual, expected,
-                         'expected %d, but %d mock methods were executed'
-                         % (expected, actual))
+        self.assertEqual(
+            actual,
+            expected,
+            "expected %d, but %d mock methods were executed" % (expected, actual),
+        )
 
 
-class multipleresponse(object):
+class multipleresponse:
     """
     A decorator that allows MockHttp objects to return multi responses
     """
+
     count = 0
     func = None
 
@@ -73,63 +76,18 @@ class multipleresponse(object):
         return response
 
 
-class MockResponse(object):
-    """
-    A mock HTTPResponse
-    """
-    headers = {}
-    body = StringIO()
-    status = 0
-    reason = ''
-    version = 11
+class BodyStream(StringIO):
+    def next(self, chunk_size=None):
+        return StringIO.next(self)
 
-    def __init__(self, status, body=None, headers=None, reason=None):
-        self.status = status
-        self.body = StringIO(u(body)) if body else StringIO()
-        self.headers = headers or self.headers
-        self.reason = reason or self.reason
+    def __next__(self, chunk_size=None):
+        return StringIO.__next__(self)
 
-    def read(self, *args, **kwargs):
-        return self.body.read(*args, **kwargs)
-
-    def next(self):
-        if sys.version_info >= (2, 5) and sys.version_info <= (2, 6):
-            return self.body.next()
-        else:
-            return next(self.body)
-
-    def __next__(self):
-        return self.next()
-
-    def getheader(self, name, *args, **kwargs):
-        return self.headers.get(name, *args, **kwargs)
-
-    def getheaders(self):
-        return list(self.headers.items())
-
-    def msg(self):
-        raise NotImplemented
+    def read(self, chunk_size=None):
+        return StringIO.read(self)
 
 
-class BaseMockHttpObject(object):
-    def _get_method_name(self, type, use_param, qs, path):
-        path = path.split('?')[0]
-        meth_name = path.replace('/', '_').replace('.', '_').replace('-', '_')
-
-        if type:
-            meth_name = '%s_%s' % (meth_name, self.type)
-
-        if use_param and use_param in qs:
-            param = qs[use_param][0].replace('.', '_').replace('-', '_')
-            meth_name = '%s_%s' % (meth_name, param)
-
-        if meth_name == '':
-            meth_name = 'root'
-
-        return meth_name
-
-
-class MockHttp(BaseMockHttpObject):
+class MockHttp(LibcloudConnection):
     """
     A mock HTTP client/server suitable for testing purposes. This replaces
     `HTTPConnection` by implementing its API and returning a mock response.
@@ -138,101 +96,125 @@ class MockHttp(BaseMockHttpObject):
     Each of these mock methods should return a tuple of:
 
         (int status, str body, dict headers, str reason)
-
-    >>> mock = MockHttp('localhost', 8080)
-    >>> mock.request('GET', '/example/')
-    >>> response = mock.getresponse()
-    >>> response.body.read()
-    'Hello World!'
-    >>> response.status
-    200
-    >>> response.getheaders()
-    [('X-Foo', 'libcloud')]
-    >>> MockHttp.type = 'fail'
-    >>> mock.request('GET', '/example/')
-    >>> response = mock.getresponse()
-    >>> response.body.read()
-    'Oh Noes!'
-    >>> response.status
-    403
-    >>> response.getheaders()
-    [('X-Foo', 'fail')]
-
     """
-    responseCls = MockResponse
-    host = None
-    port = None
-    response = None
 
     type = None
     use_param = None  # will use this param to namespace the request function
-
     test = None  # TestCase instance which is using this mock
-
     proxy_url = None
 
-    def __init__(self, host, port, *args, **kwargs):
-        self.host = host
-        self.port = port
+    def __init__(self, *args, **kwargs):
+        # Load assertion methods into the class, in case people want to assert
+        # within a response
+        if isinstance(self, unittest.TestCase):
+            unittest.TestCase.__init__(self, "__init__")
+        super().__init__(*args, **kwargs)
 
-    def request(self, method, url, body=None, headers=None, raw=False):
+    def _get_request(self, method, url, body=None, headers=None):
         # Find a method we can use for this request
         parsed = urlparse.urlparse(url)
-        scheme, netloc, path, params, query, fragment = parsed
+        _, _, path, _, query, _ = parsed
         qs = parse_qs(query)
-        if path.endswith('/'):
+        if path.endswith("/"):
             path = path[:-1]
-        meth_name = self._get_method_name(type=self.type,
-                                          use_param=self.use_param,
-                                          qs=qs, path=path)
-        meth = getattr(self, meth_name.replace('%', '_'))
+        meth_name = self._get_method_name(
+            type=self.type, use_param=self.use_param, qs=qs, path=path
+        )
+        meth = getattr(self, meth_name.replace("%", "_"))
 
         if self.test and isinstance(self.test, LibcloudTestCase):
             self.test._add_visited_url(url=url)
             self.test._add_executed_mock_method(method_name=meth_name)
+        return meth(method, url, body, headers)
 
-        status, body, headers, reason = meth(method, url, body, headers)
-        self.response = self.responseCls(status, body, headers, reason)
+    def request(self, method, url, body=None, headers=None, raw=False, stream=False):
+        headers = self._normalize_headers(headers=headers)
+        r_status, r_body, r_headers, r_reason = self._get_request(method, url, body, headers)
+        if r_body is None:
+            r_body = ""
+        # this is to catch any special chars e.g. ~ in the request. URL
+        url = urlquote(url)
 
-    def getresponse(self):
-        return self.response
+        with requests_mock.mock() as m:
+            m.register_uri(
+                method,
+                url,
+                text=r_body,
+                reason=r_reason,
+                headers=r_headers,
+                status_code=r_status,
+            )
+            try:
+                super().request(
+                    method=method,
+                    url=url,
+                    body=body,
+                    headers=headers,
+                    raw=raw,
+                    stream=stream,
+                )
+            except requests_mock.exceptions.NoMockAddress as nma:
+                raise AttributeError("Failed to mock out URL {} - {}".format(url, nma.request.url))
 
-    def connect(self):
-        """
-        Can't think of anything to mock here.
-        """
-        pass
+    def prepared_request(self, method, url, body=None, headers=None, raw=False, stream=False):
+        headers = self._normalize_headers(headers=headers)
+        r_status, r_body, r_headers, r_reason = self._get_request(method, url, body, headers)
 
-    def close(self):
-        pass
-
-    def set_http_proxy(self, proxy_url):
-        self.proxy_url = proxy_url
+        with requests_mock.mock() as m:
+            m.register_uri(
+                method,
+                url,
+                text=r_body,
+                reason=r_reason,
+                headers=r_headers,
+                status_code=r_status,
+            )
+            super().prepared_request(
+                method=method,
+                url=url,
+                body=body,
+                headers=headers,
+                raw=raw,
+                stream=stream,
+            )
 
     # Mock request/response example
     def _example(self, method, url, body, headers):
         """
         Return a simple message and header, regardless of input.
         """
-        return (httplib.OK, 'Hello World!', {'X-Foo': 'libcloud'},
-                httplib.responses[httplib.OK])
+        return (
+            httplib.OK,
+            "Hello World!",
+            {"X-Foo": "libcloud"},
+            httplib.responses[httplib.OK],
+        )
 
     def _example_fail(self, method, url, body, headers):
-        return (httplib.FORBIDDEN, 'Oh Noes!', {'X-Foo': 'fail'},
-                httplib.responses[httplib.FORBIDDEN])
+        return (
+            httplib.FORBIDDEN,
+            "Oh No!",
+            {"X-Foo": "fail"},
+            httplib.responses[httplib.FORBIDDEN],
+        )
 
+    def _get_method_name(self, type, use_param, qs, path):
+        path = path.split("?")[0]
+        meth_name = (
+            path.replace("/", "_").replace(".", "_").replace("-", "_").replace("~", "%7E")
+        )  # Python 3.7 no longer quotes ~
 
-class MockHttpTestCase(MockHttp, unittest.TestCase):
-    # Same as the MockHttp class, but you can also use assertions in the
-    # classes which inherit from this one.
-    def __init__(self, *args, **kwargs):
-        unittest.TestCase.__init__(self)
+        if type:
+            meth_name = "{}_{}".format(meth_name, self.type)
 
-        if kwargs.get('host', None) and kwargs.get('port', None):
-            MockHttp.__init__(self, *args, **kwargs)
+        if use_param and use_param in qs:
+            param = qs[use_param][0].replace(".", "_").replace("-", "_")
+            meth_name = "{}_{}".format(meth_name, param)
 
-    def runTest(self):
-        pass
+        if meth_name == "":
+            meth_name = "root"
+
+        return meth_name
 
     def assertUrlContainsQueryParams(self, url, expected_params, strict=False):
         """
@@ -248,107 +230,63 @@ class MockHttpTestCase(MockHttp, unittest.TestCase):
                        (defaults to ``False``)
         :type strict: ``bool``
         """
-        question_mark_index = url.find('?')
+        question_mark_index = url.find("?")
 
         if question_mark_index != -1:
-            url = url[question_mark_index + 1:]
+            url = url[question_mark_index + 1 :]
 
         params = dict(parse_qsl(url))
 
         if strict:
-            self.assertDictEqual(params, expected_params)
+            assert params == expected_params
         else:
             for key, value in expected_params.items():
-                self.assertIn(key, params)
-                self.assertEqual(params[key], value)
+                assert key in params
+                assert params[key] == value
 
 
-class StorageMockHttp(MockHttp):
-    def putrequest(self, method, action, skip_host=0, skip_accept_encoding=0):
-        pass
-
-    def putheader(self, key, value):
-        pass
-
-    def endheaders(self):
-        pass
-
-    def send(self, data):
-        pass
+class MockConnection:
+    def __init__(self, action):
+        self.action = action
 
 
-class MockRawResponse(BaseMockHttpObject):
+StorageMockHttp = MockHttp
+
+
+def make_response(status=200, headers={}, connection=None):
+    response = requests.Response()
+    response.status_code = status
+    response.headers = headers
+    return Response(response, connection)
+
+
+def generate_random_data(size):
+    data = ""
+    current_size = 0
+    while current_size < size:
+        value = str(random.randint(0, 9))
+        value_size = len(value)
+        data += value
+        current_size += value_size
+    return data
+
+
+def no_network():
+    """Return true if the NO_NETWORK environment variable is set.
+    Can be used to skip relevant tests.
     """
-    Mock RawResponse object suitable for testing.
+    return "NO_NETWORK" in os.environ
+
+
+def no_internet():
+    """Return true if the NO_INTERNET or the NO_NETWORK environment variable
+    is set.
+    Can be used to skip relevant tests.
     """
+    return "NO_INTERNET" in os.environ or no_network()
 
-    type = None
-    responseCls = MockResponse
-
-    def __init__(self, connection):
-        super(MockRawResponse, self).__init__()
-        self._data = []
-        self._current_item = 0
-
-        self._status = None
-        self._response = None
-        self._headers = None
-        self._reason = None
-        self.connection = connection
-
-    def next(self):
-        if self._current_item == len(self._data):
-            raise StopIteration
-
-        value = self._data[self._current_item]
-        self._current_item += 1
-        return value
-
-    def __next__(self):
-        return self.next()
-
-    def _generate_random_data(self, size):
-        data = ''
-        current_size = 0
-        while current_size < size:
-            value = str(random.randint(0, 9))
-            value_size = len(value)
-            data += value
-            current_size += value_size
-
-        return data
-
-    @property
-    def response(self):
-        return self._get_response_if_not_available()
-
-    @property
-    def status(self):
-        self._get_response_if_not_available()
-        return self._status
-
-    @property
-    def headers(self):
-        self._get_response_if_not_available()
-        return self._headers
-
-    @property
-    def reason(self):
-        self._get_response_if_not_available()
-        return self._reason
-
-    def _get_response_if_not_available(self):
-        if not self._response:
-            meth_name = self._get_method_name(type=self.type,
-                                              use_param=False, qs=None,
-                                              path=self.connection.action)
-            meth = getattr(self, meth_name.replace('%', '_'))
-            result = meth(self.connection.method, None, None, None)
-            self._status, self._body, self._headers, self._reason = result
-            self._response = self.responseCls(self._status, self._body,
-                                              self._headers, self._reason)
-        return self._response
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

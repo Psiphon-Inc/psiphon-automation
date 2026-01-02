@@ -17,22 +17,21 @@ VPS.net driver
 """
 import base64
 
+from libcloud.utils.py3 import b
+from libcloud.common.base import JsonResponse, ConnectionUserAndKey
+from libcloud.common.types import InvalidCredsError, MalformedResponseError
+from libcloud.compute.base import Node, NodeSize, NodeImage, NodeDriver, NodeLocation
+from libcloud.compute.types import NodeState
+from libcloud.compute.providers import Provider
+
 try:
     import simplejson as json
 except ImportError:
     import json
 
-from libcloud.utils.py3 import b
 
-from libcloud.common.base import ConnectionUserAndKey, JsonResponse
-from libcloud.common.types import InvalidCredsError, MalformedResponseError
-from libcloud.compute.providers import Provider
-from libcloud.compute.types import NodeState
-from libcloud.compute.base import Node, NodeDriver
-from libcloud.compute.base import NodeSize, NodeImage, NodeLocation
-
-API_HOST = 'api.vps.net'
-API_VERSION = 'api10json'
+API_HOST = "api.vps.net"
+API_VERSION = "api10json"
 
 RAM_PER_NODE = 256
 DISK_PER_NODE = 10
@@ -42,7 +41,7 @@ BANDWIDTH_PER_NODE = 250
 class VPSNetResponse(JsonResponse):
     def parse_body(self):
         try:
-            return super(VPSNetResponse, self).parse_body()
+            return super().parse_body()
         except MalformedResponseError:
             return self.body
 
@@ -54,7 +53,7 @@ class VPSNetResponse(JsonResponse):
 
     def parse_error(self):
         try:
-            errors = super(VPSNetResponse, self).parse_body()['errors'][0]
+            errors = super().parse_body()["errors"][0]
         except MalformedResponseError:
             return self.body
         else:
@@ -72,8 +71,8 @@ class VPSNetConnection(ConnectionUserAndKey):
     allow_insecure = False
 
     def add_default_headers(self, headers):
-        user_b64 = base64.b64encode(b('%s:%s' % (self.user_id, self.key)))
-        headers['Authorization'] = 'Basic %s' % (user_b64.decode('utf-8'))
+        user_b64 = base64.b64encode(b("{}:{}".format(self.user_id, self.key)))
+        headers["Authorization"] = "Basic {}".format(user_b64.decode("utf-8"))
         return headers
 
 
@@ -83,50 +82,55 @@ class VPSNetNodeDriver(NodeDriver):
     """
 
     type = Provider.VPSNET
-    api_name = 'vps_net'
+    api_name = "vps_net"
     name = "vps.net"
-    website = 'http://vps.net/'
+    website = "http://vps.net/"
     connectionCls = VPSNetConnection
 
     def _to_node(self, vm):
-        if vm['running']:
+        if vm["running"]:
             state = NodeState.RUNNING
         else:
             state = NodeState.PENDING
 
-        n = Node(id=vm['id'],
-                 name=vm['label'],
-                 state=state,
-                 public_ips=[vm.get('primary_ip_address', None)],
-                 private_ips=[],
-                 extra={'slices_count': vm['slices_count'],
-                        'password': vm.get('password', None)},
-                 # Number of nodes consumed by VM
-                 driver=self.connection.driver)
+        n = Node(
+            id=vm["id"],
+            name=vm["label"],
+            state=state,
+            public_ips=[vm.get("primary_ip_address", None)],
+            private_ips=[],
+            extra={"slices_count": vm["slices_count"]},
+            # Number of nodes consumed by VM
+            driver=self.connection.driver,
+        )
         return n
 
     def _to_image(self, image, cloud):
-        image = NodeImage(id=image['id'],
-                          name="%s: %s" % (cloud, image['label']),
-                          driver=self.connection.driver)
+        image = NodeImage(
+            id=image["id"],
+            name="{}: {}".format(cloud, image["label"]),
+            driver=self.connection.driver,
+        )
 
         return image
 
     def _to_size(self, num):
-        size = NodeSize(id=num,
-                        name="%d Node" % (num,),
-                        ram=RAM_PER_NODE * num,
-                        disk=DISK_PER_NODE,
-                        bandwidth=BANDWIDTH_PER_NODE * num,
-                        price=self._get_price_per_node(num) * num,
-                        driver=self.connection.driver)
+        size = NodeSize(
+            id=num,
+            name="%d Node".format(num,),
+            ram=RAM_PER_NODE * num,
+            disk=DISK_PER_NODE,
+            bandwidth=BANDWIDTH_PER_NODE * num,
+            price=self._get_price_per_node(num) * num,
+            driver=self.connection.driver,
+        )
         return size
 
     def _get_price_per_node(self, num):
-        single_node_price = self._get_size_price(size_id='1')
+        single_node_price = self._get_size_price(size_id="1")
         return num * single_node_price
 
-    def create_node(self, name, image_id, cloud_id,size, **kwargs):
+    def create_node(self, name, image, size, ex_backups_enabled=False, ex_fqdn=None):
         """Create a new VPS.net node
 
         @inherits: :class:`NodeDriver.create_node`
@@ -137,139 +141,139 @@ class VPSNetNodeDriver(NodeDriver):
         :keyword    ex_fqdn:   Fully Qualified domain of the node
         :type       ex_fqdn:   ``str``
         """
-        headers = {'Content-Type': 'application/json'}
-        request = {'virtual_machine':
-                   {'label': name,
-                    'fqdn': kwargs.get('ex_fqdn', ''),
-                    'system_template_id': image_id,
-                    'cloud_id': cloud_id,
-                    'backups_enabled': kwargs.get('ex_backups_enabled', 0),
-                    'slices_required': size}}
+        ex_backups_enabled = 1 if ex_backups_enabled else 0
+        headers = {"Content-Type": "application/json"}
+        request = {
+            "virtual_machine": {
+                "label": name,
+                "fqdn": ex_fqdn or "",
+                "system_template_id": image.id,
+                "backups_enabled": ex_backups_enabled,
+                "slices_required": size.id,
+                "server_monitoring_service_required": "0",
+                "server_monitoring_configuration_service_required": "0"
+            }
+        }
 
-        res = self.connection.request('/virtual_machines.%s' % (API_VERSION,),
-                                      data=json.dumps(request),
-                                      headers=headers,
-                                      method='POST')
-
-        if 'virtual_machine' in res.object:
-            node = self._to_node(res.object['virtual_machine'])
-        else:
-            node = res
+        res = self.connection.request(
+            "/virtual_machines.{}".format(API_VERSION),
+            data=json.dumps(request),
+            headers=headers,
+            method="POST",
+        )
+        node = self._to_node(res.object["virtual_machine"])
         return node
 
     def reboot_node(self, node):
         res = self.connection.request(
-            '/virtual_machines/%s/%s.%s' % (node.id,
-                                            'reboot',
-                                            API_VERSION),
-            method="POST")
-        node = self._to_node(res.object['virtual_machine'])
+            "/virtual_machines/{}/{}.{}".format(node.id, "reboot", API_VERSION),
+            method="POST",
+        )
+        node = self._to_node(res.object["virtual_machine"])
         return True
 
     def list_sizes(self, location=None):
-        res = self.connection.request('/nodes.%s' % (API_VERSION,))
-        available_nodes = len([size for size in res.object
-                               if size['slice']['virtual_machine_id']])
+        res = self.connection.request("/nodes.{}".format(API_VERSION))
+        available_nodes = len([size for size in res.object if size["slice"]["virtual_machine_id"]])
         sizes = [self._to_size(i) for i in range(1, available_nodes + 1)]
         return sizes
 
     def destroy_node(self, node):
-        res = self.connection.request('/virtual_machines/%s.%s'
-                                      % (node.id, API_VERSION),
-                                      method='DELETE')
+        res = self.connection.request(
+            "/virtual_machines/{}.{}".format(node.id, API_VERSION), method="DELETE"
+        )
         return res.status == 200
 
     def list_nodes(self):
-        res = self.connection.request('/virtual_machines.%s' % (API_VERSION,))
-        return [self._to_node(i['virtual_machine']) for i in res.object]
+        res = self.connection.request("/virtual_machines.{}".format(API_VERSION))
+        return [self._to_node(i["virtual_machine"]) for i in res.object]
 
     def list_images(self, location=None):
-        res = self.connection.request('/available_clouds.%s' % (API_VERSION,))
+        res = self.connection.request("/available_clouds.{}".format(API_VERSION))
 
         images = []
         for cloud in res.object:
-            label = cloud['cloud']['label']
-            templates = cloud['cloud']['system_templates']
-            images.extend([self._to_image(image, label)
-                           for image in templates])
+            label = cloud["cloud"]["label"]
+            templates = cloud["cloud"]["system_templates"]
+            images.extend([self._to_image(image, label) for image in templates])
 
         return images
 
     def list_locations(self):
-        return [NodeLocation(0, "VPS.net Western US", 'US', self)]
+        return [NodeLocation(0, "VPS.net Western US", "US", self)]
     
     def list_ssd_nodes(self, location=None):
         res = self.connection.request(
-            '/ssd_virtual_machines.%s' % (API_VERSION,))
-        if 'errors' in res.object:
-            raise 'Error returning list of nodes: %s' % (res.object['errors'])
+            "/ssd_virtual_machines.{}".format(API_VERSION,))
+        if "errors" in res.object:
+            raise "Error returning list of nodes: {}".format(res.object["errors"])
         
-        return [self._to_ssd_node(i['virtual_machine']) for i in res.object]
+        return [self._to_ssd_node(i["virtual_machine"]) for i in res.object]
     
     def list_ssd_nodes_basic(self, location=None):
         res = self.connection.request(
-            '/ssd_virtual_machines.%s' % (API_VERSION,),
-            params={'basic': True})
-        if 'errors' in res.object:
-            raise 'Error returning list of nodes: %s' % (res.object['errors'])
+            "/ssd_virtual_machines.{}".format(API_VERSION,),
+            params={"basic": True})
+        if "errors" in res.object:
+            raise "Error returning list of nodes: {}".format(res.object["errors"])
 
-        return [self._to_ssd_node_basic(i['virtual_machine']) for i in res.object]
+        return [self._to_ssd_node_basic(i["virtual_machine"]) for i in res.object]
 
     def get_node(self, node_id):
         res = self.connection.request(
-            '/virtual_machines/%s.%s' % (node_id,
+            "/virtual_machines/{}.{}".format(node_id,
                                              API_VERSION),
             method="GET")
-        node = self._to_node(res.object['virtual_machine'])
+        node = self._to_node(res.object["virtual_machine"])
         return node
 
     def get_ssd_node(self, node_id):
         res = self.connection.request(
-            '/ssd_virtual_machines/%s.%s' % (node_id,
+            "/ssd_virtual_machines/{}.{}".format(node_id,
                                              API_VERSION),
             method="GET")
-        node = self._to_ssd_node(res.object['virtual_machine'])
+        node = self._to_ssd_node(res.object["virtual_machine"])
         return node
     
     def reboot_ssd_node(self, node):
         res = self.connection.request(
-            '/ssd_virtual_machines/%s/%s.%s' % (node.id,
-                                                'reboot',
+            "/ssd_virtual_machines/{}/{}.{}".format(node.id,
+                                                "reboot",
                                                 API_VERSION),
             method="POST")
-        node = self._to_ssd_node(res.object['virtual_machine'])
+        node = self._to_ssd_node(res.object["virtual_machine"])
         return True
     
     def shutdown_ssd_node(self, node):
         res = self.connection.request(
-            '/ssd_virtual_machines/%s/%s.%s' % (node.id,
-                                                'shutdown',
+            "/ssd_virtual_machines/{}/{}.{}".format(node.id,
+                                                "shutdown",
                                                 API_VERSION),
             method="POST")
-        node = self._to_ssd_node(res.object['virtual_machine'])
+        node = self._to_ssd_node(res.object["virtual_machine"])
         return True
     
     def force_shutdown_ssd_node(self, node):
         res = self.connection.request(
-            '/ssd_virtual_machines/%s/%s.%s' % (node.id,
-                                                'power_off',
+            "/ssd_virtual_machines/{}/{}.{}".format(node.id,
+                                                "power_off",
                                                 API_VERSION),
             method="POST")
-        node = self._to_ssd_node(res.object['virtual_machine'])
+        node = self._to_ssd_node(res.object["virtual_machine"])
         return True
     
     def start_ssd_node(self, node):
         res = self.connection.request(
-            '/ssd_virtual_machines/%s/%s.%s' % (node.id,
-                                                'power_on',
+            "/ssd_virtual_machines/{}/{}.{}".format(node.id,
+                                                "power_on",
                                                 API_VERSION),
             method="POST")
-        node = self._to_ssd_node(res.object['virtual_machine'])
+        node = self._to_ssd_node(res.object["virtual_machine"])
         return True
     
     def delete_ssd_node(self, node):
         res = self.connection.request(
-            '/ssd_virtual_machines/%s.%s' % (node.id,
+            "/ssd_virtual_machines/{}.{}".format(node.id,
                                              API_VERSION),
             method="DELETE")
         return res
@@ -285,48 +289,51 @@ class VPSNetNodeDriver(NodeDriver):
         :keyword    ex_rsync_backups_enabled: Fully Qualified domain of the node
         :type       ex_rsync_backups_enabled:   ``bool``
         """
-        headers = {'Content-Type': 'application/json'}
-        request = {'virtual_machine':
-                   {'ssd_vps_plan': size,
-                    'fqdn': fqdn,
-                    'system_template_id': image_id,
-                    'cloud_id': cloud_id,
-                    'backups_enabled': kwargs.get('backups_enabled', 0),
-                    'rsync_backups_enabled': kwargs.get(
-                        'rsync_backups_enabled', 0)}}
+        headers = {"Content-Type": "application/json"}
+        request = {"virtual_machine":
+                   {"ssd_vps_plan": size,
+                    "fqdn": fqdn,
+                    "system_template_id": image_id,
+                    "cloud_id": cloud_id,
+                    "server_monitoring_service_required": "0",
+                    "server_monitoring_configuration_service_required": "0",
+                    "backups_enabled": kwargs.get("backups_enabled", 0),
+                    "rsync_backups_enabled": kwargs.get(
+                        "rsync_backups_enabled", 0)}}
         
+        print("Creating Servers: " + request["virtual_machine"]["fqdn"])
         res = self.connection.request(
-            '/ssd_virtual_machines.%s' % (API_VERSION,),
+            "/ssd_virtual_machines.{}".format(API_VERSION,),
             data=json.dumps(request),
             headers=headers,
-            method='POST')
-        if 'virtual_machine' in res.object:
-            node = self._to_ssd_node(res.object['virtual_machine'])
+            method="POST")
+        if "virtual_machine" in res.object:
+            node = self._to_ssd_node(res.object["virtual_machine"])
         else:
             node = res
         return node
     
     def _to_ssd_node(self, vm):
-        if vm['running']:
+        if vm["running"]:
             state = NodeState.RUNNING
         else:
             state = NodeState.PENDING
 
-        n = Node(id=vm['id'],
-                 name=vm['ssd_vps_label'],
+        n = Node(id=vm["id"],
+                 name=vm["ssd_vps_label"],
                  state=state,
-                 public_ips=[vm.get('primary_ip_address', None)],
+                 public_ips=[vm.get("primary_ip_address", None)],
                  private_ips=[],
                  extra={
-                    'password': vm.get('password', None),
-                    'backups_enabled': vm['backups_enabled'],
-                    'cloud_id': vm['cloud_id']},
+                    "password": vm.get("password", None),
+                    "backups_enabled": vm["backups_enabled"],
+                    "cloud_id": vm["cloud_id"]},
                  driver=self.connection.driver)
         return n
     
     def _to_ssd_node_basic(self, vm):
-        if vm.has_key('running'):
-            if vm['running']:
+        if "running" in vm:
+            if vm["running"]:
                 state = NodeState.RUNNING
             else:
                 state = NodeState.PENDING
@@ -334,48 +341,48 @@ class VPSNetNodeDriver(NodeDriver):
             # Assume vm is running
             state = NodeState.RUNNING
 
-        n = Node(id=vm['id'],
-                 name=vm['hostname'],
+        n = Node(id=vm["id"],
+                 name=vm["hostname"],
                  state=state,
-                 public_ips=[vm.get('primary_ip_address', None)],
+                 public_ips=[vm.get("primary_ip_address", None)],
                  private_ips=[],
                  extra={
-                    'cloud_id': vm['cloud_id']},
+                    "cloud_id": vm["cloud_id"]},
                  driver=self.connection.driver)
         return n
 
     def get_system_templates(self):
         res = self.connection.request(
-            '/system_templates.%s' % (API_VERSION),
+            "/system_templates.{}".format(API_VERSION),
             method="GET")
         return res
     
     def get_all_ssd_clouds(self):
         res = self.connection.request(
-            '/available_ssd_clouds.%s' % (API_VERSION),
-            method='GET')
+            "/available_ssd_clouds.{}".format(API_VERSION),
+            method="GET")
         return res.parse_body()
     
     def get_available_ssd_clouds(self):
         available_clouds = list()
         clouds = self.get_all_ssd_clouds()
         for cloud in clouds:
-            if cloud['cloud']['available']:
+            if cloud["cloud"]["available"]:
                 available_clouds.append(cloud)
         
         return available_clouds
 
     def get_all_clouds(self):
         res = self.connection.request(
-            '/available_clouds.%s' % (API_VERSION),
-            method='GET')
+            "/available_clouds.{}".format(API_VERSION),
+            method="GET")
         return res.parse_body()
     
     def get_available_clouds(self):
         available_clouds = list()
         clouds = self.get_all_clouds()
         for cloud in clouds:
-            if cloud['cloud']['available']:
+            if cloud["cloud"]["available"]:
                 available_clouds.append(cloud)
         
         return available_clouds
