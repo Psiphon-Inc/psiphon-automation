@@ -32,6 +32,7 @@ import tempfile
 import random
 import optparse
 import operator
+import pickle
 import gzip
 import zlib
 import copy
@@ -1879,7 +1880,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def export_host_and_server(self, host_id_list):
 
-        import pickle
         exp_entry = list()
 
         for host_id in host_id_list:
@@ -1974,8 +1974,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             pickle.dump(exp_entry, export_file, protocol=2)
 
     def import_host_and_server(self):
-
-        import pickle
 
         assert(self.is_locked)
 
@@ -3818,6 +3816,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if self.__deploy_stats_config_required:
             self.push_stats_config()
             self.push_devops_config()
+            self.push_db_config()
             self.__deploy_stats_config_required = False
             self.save()
 
@@ -4012,6 +4011,23 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 psi_routes.GEO_ROUTES_ROOT,
                 psi_routes.GEO_ROUTES_SIGNED_EXTENSION)
 
+    def push_db_config(self):
+        assert(self.is_locked)
+        print('push db config...')
+
+        fd, file_path = tempfile.mkstemp(suffix=".pkl.gz")
+        os.close(fd)
+        try:
+            with gzip.open(file_path, 'wb') as f:
+                pickle.dump(self.__compartmentalize_data_for_db(), f, protocol=pickle.HIGHEST_PROTOCOL)
+            psi_ops_cms.delete_document(for_db=True)
+            psi_ops_cms.import_document(file_path, for_db=True)
+        finally:
+            try:
+                os.remove(file_path)
+            except FileNotFoundError:
+                pass
+
     def push_devops_config(self):
         assert(self.is_locked)
         print('push devops config...')
@@ -4020,12 +4036,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         try:
             temp_file.write(self.__compartmentalize_data_for_devops_server().encode())
             temp_file.close()
-            psi_ops_cms.delete_document(for_stats=False)
-            psi_ops_cms.import_document(temp_file.name, False, True)
+            psi_ops_cms.delete_document(for_devops=True)
+            psi_ops_cms.import_document(temp_file.name, for_devops=True)
         finally:
             try:
                 os.remove(temp_file.name)
-            except:
+            except FileNotFoundError:
                 pass
 
     def push_stats_config(self):
@@ -4037,11 +4053,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             temp_file.write(self.__compartmentalize_data_for_stats_server().encode())
             temp_file.close()
             psi_ops_cms.delete_document(for_stats=True)
-            psi_ops_cms.import_document(temp_file.name, True, False)
+            psi_ops_cms.import_document(temp_file.name, for_stats=True)
         finally:
             try:
                 os.remove(temp_file.name)
-            except:
+            except FileNotFoundError:
                 pass
 
     def push_email_config(self):
@@ -5005,6 +5021,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # Host, Server, SponsorHomePage, ...
             return obj.todict()
 
+    def __compartmentalize_data_for_db(self):
+        psinet_copy = copy.deepcopy(self)
+        psinet_copy.__deleted_hosts.clear()
+        psinet_copy.__deleted_servers.clear()
+        psinet_copy.__paused_hosts.clear()
+        psinet_copy.__paused_servers.clear()
+        psinet_copy.__hosts_to_remove_from_providers.clear()
+        return psinet_copy
+
     def __compartmentalize_data_for_tcs(self, discovery_date=datetime.datetime.now()):
         # Create a compartmentalized database for tunnel-core-server with only the information needed by a particular host
         # - all propagation channels because any client may connect to servers on this host
@@ -5728,6 +5753,7 @@ def replace_propagation_channel_servers(propagation_channel_name):
         try:
             psinet.push_stats_config()
             psinet.push_devops_config()
+            psinet.push_db_config()
         except:
             pass
         psinet.show_status()
