@@ -74,45 +74,7 @@ class PsiVultr:
 
         region = random.choice(regions)
 
-        return region['country'], region['id']
-
-    def get_datacenter_names(self, select_datacenter):
-        datacenters = {
-            "ewr" : "VULT New Jersey, US",
-            "ord" : "VULT Chicago, US",
-            "dfw" : "VULT Dallas, US",
-            "sea" : "VULT Seattle, US",
-            "lax" : "VULT Los Angeles, US",
-            "atl" : "VULT Atlanta, US",
-            "ams" : "VULT Amsterdam, NL",
-            "lhr" : "VULT London, GB",
-            "fra" : "VULT Frankfurt, DE",
-            "sjc" : "VULT Silicon Valley, US",
-            "syd" : "VULT Sydney, AU",
-            "yto" : "VULT Toronto, CA",
-            "cdg" : "VULT Paris, FR",
-            "nrt" : "VULT Tokyo, JP",
-            "waw" : "VULT Warsaw, PL",
-            "mad" : "VULT Madrid, ES",
-            "icn" : "VULT Seoul, KR",
-            "mia" : "VULT Miami, US",
-            "sgp" : "VULT Singapore, SG",
-            "sto" : "VULT Stockholm, SE",
-            "mex" : "VULT Mexico City, MX",
-            "mel" : "VULT Melbourne, AU",
-            "bom" : "VULT Mumbai, IN",
-            "jnb" : "VULT Johannesburg, ZA",
-            "tlv" : "VULT Tel Aviv, IL",
-            "blr" : "VULT Bangalore, IN",
-            "del" : "VULT Delhi NCR, IN",
-            "scl" : "VULT Santiago, CL",
-            "itm" : "VULT Osaka, JP",
-            "man" : "VULT Manchester, GB",
-            "hnl" : "VULT Honolulu, US", #hnl and sao does not have vc2-2c-4gb available.
-            "sao" : "VULT Sao Paulo, BR" # this is a mistake/error as per their api: https://api.vultr.com/v2/regions; should be: Sao Paulo
-            }
-
-        return datacenters.get(select_datacenter, '')
+        return region['country'], region['id'], f"VULT {region['city']}, {region['country']}"
 
     def list_instances(self):
         all_instances = self.client.list_instances()
@@ -139,7 +101,7 @@ class PsiVultr:
   		    tags=["psiphond"]
         )
 
-        return instance, self.get_datacenter_names(instance['region']), self.get_region(instance['region'])
+        return instance
 
 ###
 #
@@ -230,10 +192,10 @@ def launch_new_server(vultr_account, is_TCS, plugins, multi_ip=False):
     vultr_api = PsiVultr(vultr_account) # Use API interface
 
     try:
-        #Create a new Vultr instance
-        region, datacenter_code = vultr_api.get_region()
+        # Create a new Vultr instance
+        region, datacenter_code, datacenter_name = vultr_api.get_region()
         host_id = "vt" + '-' + region.lower() + datacenter_code.lower() + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
-        instance_info, datacenter_name, region_info = vultr_api.create_instance(host_id, datacenter_code)
+        instance_info = vultr_api.create_instance(host_id, datacenter_code)
 
         # Wait for job completion
         wait_while_condition(lambda: vultr_api.client.get_instance(instance_info['id'])['power_status'] != 'running',
