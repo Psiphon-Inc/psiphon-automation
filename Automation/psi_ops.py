@@ -386,10 +386,9 @@ OracleAccount = psi_utils.recordtype(
     
 VultrAccount = psi_utils.recordtype(
     'VultrAccount',
-    'api_key, regions, ' +
+    'api_key, base_image_ssh_port, ' +
     'base_image_root_password, base_image_ssh_private_key, ' +
-    'base_image_ssh_public_key, base_image_ssh_port, ' +
-    'base_image_ssh_key_id',
+    'base_image_ssh_public_key, base_image_ssh_key_id',
     default=None)
 
 ElasticHostsAccount = psi_utils.recordtype(

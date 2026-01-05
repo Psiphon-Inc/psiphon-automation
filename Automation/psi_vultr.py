@@ -57,7 +57,6 @@ def wait_while_condition(condition, max_wait_seconds, description):
 class PsiVultr:
     def __init__(self, vultr_account, debug=False):
         self.api_key = vultr_account.api_key
-        self.regions = vultr_account.regions
         self.plan = TCS_VULTR_DEFAULT_PLAN
         self.base_image_id = TCS_BASE_IMAGE_ID
         self.ssh_key_id = vultr_account.base_image_ssh_key_id
