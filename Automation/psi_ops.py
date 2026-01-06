@@ -125,6 +125,11 @@ except ImportError as error:
     print(error)
 
 try:
+    import psi_vultr
+except ImportError as error:
+    print(error)
+
+try:
     pass
     # Remove elastichost library
     #import psi_elastichosts

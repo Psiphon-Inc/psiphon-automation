@@ -31,7 +31,7 @@ import psi_utils
 from vultr import vultr
 
 # VARIABLE
-TCS_BASE_IMAGE_ID = '5eaa342e-8b40-4236-b7d1-2fb5a7a34635'
+TCS_BASE_IMAGE_ID = '0f2bcea6-cd40-4fb4-89d8-8d9ed75d8763'
 TCS_VULTR_DEFAULT_PLAN = 'vc2-2c-4gb' # default 2vCore 4G RAM 'vc2-2c-4gb', Sao Paulo 'vc2-2c-4gb-sc1'
 
 ###
@@ -109,7 +109,7 @@ class PsiVultr:
 ###
 def refresh_credentials(vultr_account, ip_address, new_root_password, new_stats_password, stats_username):
     ssh = psi_ssh.make_ssh_session(ip_address, vultr_account.base_image_ssh_port,
-                                   'root', None, None,
+                                   'root', None, vultr_account.base_image_ssh_public_key,
                                    host_auth_key=vultr_account.base_image_ssh_private_key)
     try:
         ssh.exec_command('echo "root:%s" | chpasswd' % (new_root_password,))
@@ -118,13 +118,13 @@ def refresh_credentials(vultr_account, ip_address, new_root_password, new_stats_
         ssh.exec_command('rm /etc/ssh/ssh_host_*')
         ssh.exec_command('rm -rf /root/.ssh')
         ssh.exec_command('export DEBIAN_FRONTEND=noninteractive && dpkg-reconfigure openssh-server')
-        return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
+        return ssh.exec_command('cat /etc/ssh/ssh_host_ed25519_key.pub')
     finally:
         ssh.close()
 
 def set_allowed_users(vultr_account, ip_address, stats_username):
     ssh = psi_ssh.make_ssh_session(ip_address, vultr_account.base_image_ssh_port,
-                                   'root', None, None,
+                                   'root', None, vultr_account.base_image_ssh_public_key,
                                    host_auth_key=vultr_account.base_image_ssh_private_key)
     try:
         user_exists = ssh.exec_command('grep %s /etc/ssh/sshd_config' % stats_username)
@@ -137,7 +137,7 @@ def set_allowed_users(vultr_account, ip_address, stats_username):
 def get_host_name(vultr_account, ip_address):
     # Note: using base image credentials; call before changing credentials
     ssh = psi_ssh.make_ssh_session(ip_address, vultr_account.base_image_ssh_port,
-                                   'root',None, None,
+                                   'root', None, vultr_account.base_image_ssh_public_key,
                                    host_auth_key=vultr_account.base_image_ssh_private_key)
     try:
         return ssh.exec_command('hostname').strip()
@@ -147,7 +147,7 @@ def get_host_name(vultr_account, ip_address):
 def set_host_name(vultr_account, ip_address, new_hostname):
     # Note: hostnamectl is for systemd servers
     ssh = psi_ssh.make_ssh_session(ip_address, vultr_account.base_image_ssh_port,
-                                   'root', None, None,
+                                   'root', None, vultr_account.base_image_ssh_public_key,
                                    host_auth_key=vultr_account.base_image_ssh_private_key)
     try:
         ssh.exec_command('hostnamectl set-hostname %s' % new_hostname)
@@ -155,7 +155,9 @@ def set_host_name(vultr_account, ip_address, new_hostname):
         ssh.close()
 
 def add_swap_file(vultr_account, ip_address):
-    ssh = psi_ssh.make_ssh_session(ip_address, vultr_account.base_image_ssh_port, 'root', None, None, host_auth_key=vultr_account.base_image_ssh_private_key)
+    ssh = psi_ssh.make_ssh_session(ip_address, vultr_account.base_image_ssh_port,
+                                   'root', None, vultr_account.base_image_ssh_public_key,
+                                   host_auth_key=vultr_account.base_image_ssh_private_key)
     try:
         has_swap = ssh.exec_command('grep swap /etc/fstab')
 
@@ -174,8 +176,7 @@ def add_swap_file(vultr_account, ip_address):
 def get_servers(vultr_account):
     vultr_api = PsiVultr(vultr_account)
     instances = vultr_api.list_instances()
-    #return [(v['region'] + '_' + v['id'], v['label']) for v in vultrs]
-    return instances
+    return [(v['id'], v['label']) for v in instances]
 
 def get_server(vultr_account, vultr_id):
     vultr_api = PsiVultr(vultr_account)
@@ -228,7 +229,7 @@ def launch_new_server(vultr_account, is_TCS, plugins, multi_ip=False):
             vultr_account.base_image_ssh_port, 'root', new_root_password,
             ' '.join(new_host_public_key.split(' ')[:2]),
             new_stats_username, new_stats_password,
-            datacenter_name, region, egress_ip_address if multi_ip else None, None)
+            datacenter_name, region, None, None)
 
 if __name__ == '__main__':
     print(launch_new_server)
