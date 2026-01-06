@@ -1,0 +1,26 @@
+#!/usr/local/bin/python
+
+import sys
+import code
+import psi_ops
+#import datetime
+import time
+
+from importlib import reload
+
+print("Loading...")
+
+psinet = x = psi_ops.PsiphonNetwork.load(lock=False)
+
+banner =  '''Psiphon 3 Console (Python Version: {}.{}.{})
+-----------------\n
+Interact with the:
+\'psinet = x\' for psi_ops.dat
+\'opsnet = o\' for psi_ops_devops.dat
+\'stanet = s\' for psi_ops_stats.dat
+object for different database...\n
+type \'exit()\' or Ctrl-D to exit.'''.format(sys.version_info.major, sys.version_info.minor, sys.version_info.micro)
+
+#sys.ps1 = f"[{get_timestamp()}] >>> "
+sys.ps1 = f"[{datetime.now()}]>>>"
+code.interact(banner=banner, local=locals())
