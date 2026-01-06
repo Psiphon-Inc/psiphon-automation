@@ -31,7 +31,7 @@ import psi_utils
 from vultr import vultr
 
 # VARIABLE
-TCS_BASE_IMAGE_ID = '0f2bcea6-cd40-4fb4-89d8-8d9ed75d8763'
+TCS_BASE_IMAGE_ID = '0bae4aa7-32ca-4a02-b623-dcdb1d2ea632'
 TCS_VULTR_DEFAULT_PLAN = 'vc2-2c-4gb' # default 2vCore 4G RAM 'vc2-2c-4gb', Sao Paulo 'vc2-2c-4gb-sc1'
 
 ###
