@@ -125,6 +125,11 @@ except ImportError as error:
     print(error)
 
 try:
+    import psi_vultr
+except ImportError as error:
+    print(error)
+
+try:
     pass
     # Remove elastichost library
     #import psi_elastichosts
@@ -323,7 +328,7 @@ AwsAccount = psi_utils.recordtype(
     'access_id, secret_key',
     default=None)
   
-providers = ['linode', 'digitalocean', 'vpsnet', 'scaleway', 'oci']
+providers = ['linode', 'digitalocean', 'vpsnet', 'scaleway', 'oci', 'vultr']
 
 ProviderRank = psi_utils.recordtype(
     'ProviderRank',
@@ -384,6 +389,13 @@ OracleAccount = psi_utils.recordtype(
     'base_image_ssh_public_keys, base_image_rsa_private_key',
     default=None)
     
+VultrAccount = psi_utils.recordtype(
+    'VultrAccount',
+    'api_key, base_image_ssh_port, ' +
+    'base_image_root_password, base_image_ssh_private_key, ' +
+    'base_image_ssh_public_key, base_image_ssh_key_id',
+    default=None)
+
 ElasticHostsAccount = psi_utils.recordtype(
     'ElasticHostsAccount',
     'zone, uuid, api_key, base_drive_id, cpu, mem, base_host_public_key, ' +
@@ -469,6 +481,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__scaleway_account = ScalewayAccount()
         self.__ramnode_account = RamnodeAccount()
         self.__oci_account = OracleAccount()
+        self.__vultr_account = VultrAccount()
         self.__elastichosts_accounts = []
         self.__deploy_implementation_required_for_hosts = set()
         self.__deploy_data_required_for_all = False
@@ -528,7 +541,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.78'
+    class_version = '0.79'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -987,6 +1000,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 server.ssh_obfuscated_shadowsocks_port = None
                 server.shadowsocks_key = None
             self.version = '0.78'
+        if cmp(parse_version(self.version), parse_version('0.79')) < 0:
+            self.__vultr_account = VultrAccount()
+            self.version = '0.79'
 
     def initialize_plugins(self):
         for plugin in plugins:
