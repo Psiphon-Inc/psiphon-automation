@@ -37,10 +37,12 @@ TCS_BASE_IMAGE_ID = None
 # Plans:
 # cx11  = 1C2G
 # cx21  = 2C4G
+# cx23  = 2C4G
 # cx31  = 2C8G
 # cpx21 = 3C4G (AMD)
+# cpx22 = 2C4G (AMD)
 # cpx31 = 4C8G (AMD)
-TCS_HETZNER_DEFAULT_PLAN_LIST = ['cx21', 'cpx21']
+TCS_HETZNER_DEFAULT_PLAN_LIST = ['cx21', 'cx23', 'cpx21', 'cpx22']
 
 ###
 #
@@ -104,7 +106,8 @@ class PsiHetzner:
             "nbg1": "DE",
             "hel1": "FI",
             "ash" : "US",
-            "hil" : "US"
+            "hil" : "US",
+            "sin" : "SG"
         }
 
         return regions.get(select_region, '')
@@ -115,7 +118,8 @@ class PsiHetzner:
             "nbg1": "Hetzner Nuremberg, DE",
             "hel1": "Hetzner Helsinki, FI",
             "ash" : "Hetzner Ashburn VA, US",
-            "hil" : "Hetzner Hillsboro OR, US"
+            "hil" : "Hetzner Hillsboro OR, US",
+            "sin" : "Hetzner Singapore, SG"
             }
 
         return datacenters.get(select_datacenter, '')
