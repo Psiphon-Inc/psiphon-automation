@@ -634,6 +634,8 @@ def install_TCS_host(host, servers, existing_server_ids, TCS_psiphond_config_val
             host.ssh_username, host.ssh_password,
             host.ssh_host_key)
 
+    ssh.exec_command('apt-get install -y python-is-python3')
+    
     set_psiphond_logrotate(ssh)
     install_geoip_database(ssh, True)
 
