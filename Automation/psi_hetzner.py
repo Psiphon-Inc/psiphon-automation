@@ -242,6 +242,13 @@ def add_swap_file(hetzner_account, ip_address):
     finally:
         ssh.close()
 
+def resize_disk(hetzner_account, ip_address):
+    ssh = psi_ssh.make_ssh_session(ip_address, hetzner_account.base_image_ssh_port, 'root', None, None, host_auth_key=hetzner_account.default_base_image_ssh_private_key)
+    try:
+        ssh.exec_command('resize2fs /dev/sda1')
+    finally:
+        ssh.close()
+
 ###
 #
 # Main function
@@ -292,6 +299,7 @@ def launch_new_server(hetzner_account, is_TCS, plugins, multi_ip=False):
         set_host_name(hetzner_account, instance_ip_address, host_id)
         set_allowed_users(hetzner_account, instance_ip_address, new_stats_username)
         add_swap_file(hetzner_account, instance_ip_address)
+        resize_disk(hetzner_account, instance_ip_address)
 
         # Change the new hetzner instance's credentials
 
