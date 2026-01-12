@@ -130,6 +130,11 @@ except ImportError as error:
     print(error)
 
 try:
+    import psi_hetzner
+except ImportError as error:
+    print(error)
+
+try:
     pass
     # Remove elastichost library
     #import psi_elastichosts
@@ -328,7 +333,7 @@ AwsAccount = psi_utils.recordtype(
     'access_id, secret_key',
     default=None)
   
-providers = ['linode', 'digitalocean', 'vpsnet', 'scaleway', 'oci', 'vultr']
+providers = ['linode', 'digitalocean', 'vpsnet', 'scaleway', 'oci', 'vultr', 'hetzner']
 
 ProviderRank = psi_utils.recordtype(
     'ProviderRank',
@@ -394,6 +399,13 @@ VultrAccount = psi_utils.recordtype(
     'api_key, base_image_ssh_port, ' +
     'base_image_root_password, base_image_ssh_private_key, ' +
     'base_image_ssh_public_key, base_image_ssh_key_id',
+    default=None)
+
+HetznerAccount = psi_utils.recordtype(
+    'HetznerAccount',
+    'api_token, regions, datacenters, ' +
+    'base_image_ssh_port, default_base_image_id, ' +
+    'dafault_base_image_ssh_key_name, default_base_image_ssh_private_key',
     default=None)
 
 ElasticHostsAccount = psi_utils.recordtype(
@@ -482,6 +494,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__ramnode_account = RamnodeAccount()
         self.__oci_account = OracleAccount()
         self.__vultr_account = VultrAccount()
+        self.__hetzner_account = HetznerAccount()
         self.__elastichosts_accounts = []
         self.__deploy_implementation_required_for_hosts = set()
         self.__deploy_data_required_for_all = False
@@ -541,7 +554,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.79'
+    class_version = '0.80'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -1003,6 +1016,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.79')) < 0:
             self.__vultr_account = VultrAccount()
             self.version = '0.79'
+        if cmp(parse_version(self.version), parse_version('0.80')) < 0:
+            self.__hetzner_account = HetznerAccount()
+            self.version = '0.80'
 
     def initialize_plugins(self):
         for plugin in plugins:
