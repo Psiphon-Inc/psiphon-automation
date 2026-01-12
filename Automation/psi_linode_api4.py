@@ -90,6 +90,7 @@ class PsiLinode:
             'fr-mrs-1': 'Linode Marseille, FR',
             'fr-mrs-2': 'Linode Marseille 2, FR',
             'fr-par': 'Linode Paris, FR',
+            'fr-par-2': 'Linode Paris 2, FR',
             'gb-lon': 'Linode London 2, UK',
             'id-cgk': 'Linode Jakarta, ID',
             'in-bom-2': 'Linode Mumbai 2, IN',
