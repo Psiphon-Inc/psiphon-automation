@@ -1261,7 +1261,8 @@ def install_malware_blacklist(host, is_TCS):
 
     psi_ip_blacklist = 'psi_ipblacklist.py'
     psi_ip_blacklist_host_path = posixpath.join('/usr/local/bin', psi_ip_blacklist)
-    if_up_script_path = '/etc/network/if-up.d/set_blocklist'
+    # TODO: use another mechanism to set blocklist on boot?
+    # if_up_script_path = '/etc/network/if-up.d/set_blocklist'
     cron_script_path = '/etc/cron.daily/set_blocklist'
 
     ssh = psi_ssh.SSH(
@@ -1278,7 +1279,7 @@ def install_malware_blacklist(host, is_TCS):
     ssh.put_file(os.path.join(os.path.abspath('.'), psi_ip_blacklist),
                  psi_ip_blacklist_host_path)
     ssh.exec_command('chmod +x %s' % (psi_ip_blacklist_host_path,))
-    ssh.exec_command('ln -s %s %s' % (psi_ip_blacklist_host_path, if_up_script_path))
+    # ssh.exec_command('ln -s %s %s' % (psi_ip_blacklist_host_path, if_up_script_path))
     ssh.exec_command('ln -s %s %s' % (psi_ip_blacklist_host_path, cron_script_path))
     ssh.exec_command(psi_ip_blacklist_host_path)
     ssh.close()
