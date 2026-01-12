@@ -42,7 +42,7 @@ TCS_BASE_IMAGE_ID = None
 # cpx21 = 3C4G (AMD)
 # cpx22 = 2C4G (AMD)
 # cpx31 = 4C8G (AMD)
-TCS_HETZNER_DEFAULT_PLAN_LIST = ['cx21', 'cx23', 'cpx21', 'cpx22']
+TCS_HETZNER_DEFAULT_PLAN_LIST = ['cpx21', 'cpx22']
 
 ###
 #
@@ -250,8 +250,7 @@ def add_swap_file(hetzner_account, ip_address):
 def get_servers(hetzner_account):
     hetzner_api = PsiHetzner(hetzner_account)
     instances = hetzner_api.list_instances()
-    #return [(v['region'] + '_' + v['id'], v['label']) for v in hetzners]
-    return instances
+    return [(instance.id, instance.name) for instance in instances]
 
 def get_server(hetzner_account, hetzner_id):
     hetzner_api = PsiHetzner(hetzner_account)
@@ -310,7 +309,7 @@ def launch_new_server(hetzner_account, is_TCS, plugins, multi_ip=False):
             hetzner_account.base_image_ssh_port, 'root', new_root_password,
             ' '.join(new_host_public_key.split(' ')[:2]),
             new_stats_username, new_stats_password,
-            datacenter_name, region_code, egress_ip_address if multi_ip else None, None)
+            datacenter_name, region_code, None, None)
 
 if __name__ == '__main__':
     print(launch_new_server)
