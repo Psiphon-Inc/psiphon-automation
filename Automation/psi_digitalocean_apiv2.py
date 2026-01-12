@@ -53,7 +53,7 @@ def refresh_credentials(digitalocean_account, ip_address, new_root_password, new
         ssh.exec_command('export DEBIAN_FRONTEND=noninteractive && dpkg-reconfigure openssh-server')
         ssh.exec_command('sed -i -e "/^PasswordAuthentication no/s/^.*$/PasswordAuthentication yes/" /etc/ssh/sshd_config')
         ssh.exec_command('service ssh restart')
-        return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
+        return ssh.exec_command('cat /etc/ssh/ssh_host_ed25519_key.pub')
     finally:
         ssh.close()
 
@@ -195,23 +195,27 @@ def get_datacenter_region(region):
             2-digit country code
     """
     '''
-        nyc1 New York 1
-        ams1 Amsterdam 1
-        sfo1 San Francisco
-        nyc2 New York 2
         ams2 Amsterdam 2
-        sgp1 Singapore 1
-        lon1 London 1
-        nyc3 New York 3
         ams3 Amsterdam 3
+        atl1 Atlanta 1
+        blr1 Bangalore 1
         fra1 Frankfurt 1
-        tor1 Toronto 1
-        blr1 Banglore 1
+        lon1 London 1
+        nyc1 New York 1
+        nyc2 New York 2
+        nyc3 New York 3
+        sfo1 San Francisco 1
+        sfo2 San Francisco 2
+        sfo3 San Francisco 3
+        sgp1 Singapore 1
         syd1 Sydney 1
+        tor1 Toronto 1
     '''
     if 'nyc' in region:
         return 'US'
     if 'sfo' in region:
+        return 'US'
+    if 'atl' in region:
         return 'US'
     if 'ams' in region:
         return 'NL'
@@ -382,6 +386,15 @@ def get_orphan_ips(digitalocean_account):
     except Exception as e:
         raise e
 
+def remove_orphan_ips(digitalocean_account):
+    try:
+        do_mgr = digitalocean.Manager(token=digitalocean_account.oauth_token)
+        orphan_floating_ips = [floating_ip for floating_ip in do_mgr.get_all_floating_ips() if not floating_ip.droplet]
+        for orphan_ip in orphan_floating_ips:
+            orphan_ip.destroy()
+    except Exception as e:
+        raise e
+
 def remove_server(digitalocean_account, droplet_id):
     """
         Destroys a digitalocean droplet.
@@ -393,12 +406,6 @@ def remove_server(digitalocean_account, droplet_id):
     try:
         do_mgr = digitalocean.Manager(token=digitalocean_account.oauth_token)
         droplet = do_mgr.get_droplet(droplet_id)
-        try:
-            floating_ips = [floating_ip for floating_ip in do_mgr.get_all_floating_ips() if floating_ip.droplet and floating_ip.droplet['id'] == droplet.id]
-            for floating_ip in floating_ips:
-                floating_ip.destroy()
-        except digitalocean.baseapi.NotFoundError as e:
-            print("No Floating IP Address to be deleted")
         result = droplet.destroy()
         if not result:
             raise Exception('Could not destroy droplet: %s' % str(droplet_id))
@@ -582,7 +589,7 @@ def launch_new_server(digitalocean_account, is_TCS, _, multi_ip=False):
 
     # None TCS id '25617090' only for VPN + filebeat
     # Old working None TCS id: 17784624
-    base_id = '25617090' if not is_TCS else '137260538'
+    base_id = '25617090' if not is_TCS else '206557567'
     droplet = None
     try:
         Droplet = collections.namedtuple('Droplet', ['name', 'region', 'image',

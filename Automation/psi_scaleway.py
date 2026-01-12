@@ -32,8 +32,8 @@ from scaleway.scaleway import apis as ScalewayApis
 from slumber import exceptions as slexc
 
 # VARIABLE
-tcs_image_name = 'Psiphon-TCS-V10-20230615'
-tcs_instance_size = 'DEV1-M'
+tcs_image_name = 'Psiphon3-TCS-V12.7-20250524'
+tcs_instance_size = 'DEV1-L'
 
 ###
 #
@@ -265,7 +265,7 @@ def refresh_credentials(scaleway_account, ip_address, new_root_password, new_sta
         ssh.exec_command('rm /etc/ssh/ssh_host_*')
         ssh.exec_command('rm -rf /root/.ssh')
         ssh.exec_command('export DEBIAN_FRONTEND=noninteractive && dpkg-reconfigure openssh-server')
-        return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
+        return ssh.exec_command('cat /etc/ssh/ssh_host_ed25519_key.pub')
     finally:
         ssh.close()
 

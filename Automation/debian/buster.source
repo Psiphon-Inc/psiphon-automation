@@ -12,5 +12,5 @@ deb-src http://deb.debian.org/debian/ buster-updates main contrib
 deb http://deb.debian.org/debian-security buster/updates main
 deb-src http://deb.debian.org/debian-security buster/updates main
 
-deb http://ftp.debian.org/debian buster-backports main
-deb-src http://ftp.debian.org/debian buster-backports main
+#deb http://ftp.debian.org/debian buster-backports main
+#deb-src http://ftp.debian.org/debian buster-backports main

@@ -31,7 +31,7 @@ import psi_utils
 import oci
 
 # VARIABLE
-TCS_BASE_IMAGE_NAME = 'Psiphon-TCS-V10.3-20230726'
+TCS_BASE_IMAGE_NAME = 'Psiphon-TCS-V12.4-20260108'
 
 ###
 #
@@ -253,7 +253,7 @@ def refresh_credentials(oracle_account, ip_address, new_root_password, new_stats
         ssh.exec_command('rm /etc/ssh/ssh_host_*')
         ssh.exec_command('rm -rf /root/.ssh')
         ssh.exec_command('export DEBIAN_FRONTEND=noninteractive && dpkg-reconfigure openssh-server')
-        return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
+        return ssh.exec_command('cat /etc/ssh/ssh_host_ed25519_key.pub')
     finally:
         ssh.close()
 

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2011, Psiphon Inc.
+# Copyright (c) 2024, Psiphon Inc.
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -523,7 +523,7 @@ def install_legacy_host(host, servers, existing_server_ids, plugins):
         if (server.ssh_username is None
             or server.ssh_password is None):
             server.ssh_username = 'psiphon_ssh_%s' % (
-                binascii.hexlify(os.urandom(SSH_RANDOM_USERNAME_SUFFIX_BYTE_LENGTH)),)
+                binascii.hexlify(os.urandom(SSH_RANDOM_USERNAME_SUFFIX_BYTE_LENGTH)).decode(),)
             server.ssh_password = binascii.hexlify(os.urandom(SSH_PASSWORD_BYTE_LENGTH)).decode()
         if server.ssh_host_key is None:
             ssh.exec_command('rm /etc/ssh/ssh_host_rsa_key.psiphon_ssh_%s' % (server.internal_ip_address,))
@@ -634,7 +634,14 @@ def install_TCS_host(host, servers, existing_server_ids, TCS_psiphond_config_val
             host.ssh_username, host.ssh_password,
             host.ssh_host_key)
 
+    ssh.exec_command('apt-get install -y python-is-python3')
+    
+    set_psiphond_logrotate(ssh)
     install_geoip_database(ssh, True)
+
+    for plugin in plugins:
+        if hasattr(plugin, 'install_host'):
+            plugin.install_host(ssh)
 
     ssh.close()
 
@@ -658,7 +665,7 @@ def install_TCS_host(host, servers, existing_server_ids, TCS_psiphond_config_val
         if (server.ssh_username is None
             or server.ssh_password is None):
             server.ssh_username = 'psiphon_ssh_%s' % (
-                binascii.hexlify(os.urandom(SSH_RANDOM_USERNAME_SUFFIX_BYTE_LENGTH)),)
+                binascii.hexlify(os.urandom(SSH_RANDOM_USERNAME_SUFFIX_BYTE_LENGTH)).decode(),)
             server.ssh_password = binascii.hexlify(os.urandom(SSH_PASSWORD_BYTE_LENGTH)).decode()
 
         if server.ssh_host_key is None:
@@ -979,6 +986,9 @@ def install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, ssh_ip
     new_rate_limit_chain = textwrap.dedent('''
         -N PSI_RATE_LIMITING''')
 
+    accept_with_inproxy_limit_rate_template = textwrap.dedent('''
+        -A PSI_RATE_LIMITING -p {proto} -m state --state NEW -m {proto} --dport {port} -m limit {accept_unfronted_rate_limit} -j ACCEPT''')
+
     accept_with_unfronted_limit_rate_template = textwrap.dedent('''
         -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m limit {accept_unfronted_rate_limit} -j ACCEPT''')
 
@@ -1018,7 +1028,18 @@ def install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, ssh_ip
 
     for protocol, port in psi_ops_deploy.get_supported_protocol_ports(host, server, external_ports=use_external_ports).items():
         protocol_port_rule = ''
-        if 'UNFRONTED-MEEK' in protocol:
+        if 'INPROXY' in protocol:
+            if 'QUIC' in protocol:
+                protocol_port_rule = accept_with_inproxy_limit_rate_template.format(
+                    accept_unfronted_rate_limit=accept_unfronted_rate_limit,
+                    proto="udp",
+                    port=str(port))
+            else:
+                protocol_port_rule = accept_with_inproxy_limit_rate_template.format(
+                    accept_unfronted_rate_limit=accept_unfronted_rate_limit,
+                    proto="tcp",
+                    port=str(port))
+        elif 'UNFRONTED-MEEK' in protocol:
             protocol_port_rule = accept_with_unfronted_limit_rate_template.format(
                 accept_unfronted_rate_limit=accept_unfronted_rate_limit,
                 port=str(port))
@@ -1056,7 +1077,9 @@ def install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, ssh_ip
 
     if ssh_ip_address_whitelist:
         management_port_rule = ''.join([textwrap.dedent('''
-        -A INPUT -s {whitelist_ip_address} -p tcp -m state --state NEW -m tcp --dport {management_port} -j ACCEPT''')
+        -A INPUT -s {whitelist_ip_address} -p tcp -m state --state NEW -m tcp --dport {management_port} -j ACCEPT
+        -A INPUT -s {whitelist_ip_address} -p icmp --icmp-type 8 -j ACCEPT
+        -A INPUT -s {whitelist_ip_address} -p udp --dport 33434:33523 -j ACCEPT''')
         .format(whitelist_ip_address=whitelist_ip, management_port=host.ssh_port)
         for whitelist_ip in ssh_ip_address_whitelist])
     else:
@@ -1133,6 +1156,7 @@ def install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, ssh_ip
     # NOTE: exclude for servers with meek capability (or is fronted) and meek_server_port is 443 or OSSH is running on 443
     if server.capabilities['handshake'] and not (
             ((server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK-SESSION-TICKET']) and int(host.meek_server_port) == 443) or
+            (server.capabilities['TLS'] and int(server.ssh_obfuscated_tls_port) == 443) or
             (server.capabilities['OSSH'] and int(server.ssh_obfuscated_port) == 443)):
         web_server_port_forward = textwrap.dedent('''
 
@@ -1237,7 +1261,8 @@ def install_malware_blacklist(host, is_TCS):
 
     psi_ip_blacklist = 'psi_ipblacklist.py'
     psi_ip_blacklist_host_path = posixpath.join('/usr/local/bin', psi_ip_blacklist)
-    if_up_script_path = '/etc/network/if-up.d/set_blocklist'
+    # TODO: use another mechanism to set blocklist on boot?
+    # if_up_script_path = '/etc/network/if-up.d/set_blocklist'
     cron_script_path = '/etc/cron.daily/set_blocklist'
 
     ssh = psi_ssh.SSH(
@@ -1254,11 +1279,19 @@ def install_malware_blacklist(host, is_TCS):
     ssh.put_file(os.path.join(os.path.abspath('.'), psi_ip_blacklist),
                  psi_ip_blacklist_host_path)
     ssh.exec_command('chmod +x %s' % (psi_ip_blacklist_host_path,))
-    ssh.exec_command('ln -s %s %s' % (psi_ip_blacklist_host_path, if_up_script_path))
+    # ssh.exec_command('ln -s %s %s' % (psi_ip_blacklist_host_path, if_up_script_path))
     ssh.exec_command('ln -s %s %s' % (psi_ip_blacklist_host_path, cron_script_path))
     ssh.exec_command(psi_ip_blacklist_host_path)
     ssh.close()
 
+def set_psiphond_logrotate(ssh):
+
+    psiphond_logrotate_contents = '''/var/log/psiphond/psiphond.log {
+    rotate 7
+    daily
+}'''
+
+    ssh.exec_command('echo "{}" > /etc/logrotate.d/psiphond'.format(psiphond_logrotate_contents))
 
 def install_geoip_database(ssh, is_TCS):
 
@@ -1278,8 +1311,7 @@ def install_geoip_database(ssh, is_TCS):
             ssh.put_file(os.path.join(os.path.abspath('.'), geo_ip_file),
                          posixpath.join(REMOTE_GEOIP_DIRECTORY, geo_ip_file))
 
-def install_second_ip_address(host, new_ip_addresses_list):
-    
+def install_second_ip_address(host, new_ip_addresses_list, netmask=None, gateway=None, new_destination=False):
     interface_alias = datetime.datetime.now().strftime('%m%d')
 
     interfaces_path = '/etc/network/interfaces.d/multi_ip_interfaces.{}'.format(interface_alias)
@@ -1305,20 +1337,46 @@ def install_second_ip_address(host, new_ip_addresses_list):
 
     interfaces_contents_list = []
 
-    interfaces_contents_header = textwrap.dedent('''auto {interface_dev}:{virtual_interface_alias}
-    allow-hotplug {interface_dev}:{virtual_interface_alias}
-    ''').format(interface_dev=interface_dev, virtual_interface_alias=interface_alias)
-    
-    interfaces_contents_list.append(interfaces_contents_header)
+    if new_destination == True:
+        host_destination_ip_address = new_ip_addresses_list[0] 
+    else:
+        host_destination_ip_address = host.ip_address
 
     for i in range(0, len(new_ip_addresses_list)):
         new_ip_address = new_ip_addresses_list[i]
-        interfaces_contents = textwrap.dedent('''iface {interface_dev}:{virtual_interface_number} inet static
-        address {ip_address}
+        interfaces_contents_header_auto = textwrap.dedent('''auto {interface_dev}:{virtual_interface_alias}.{virtual_interface_number}
+                                                          ''').format(interface_dev=interface_dev, virtual_interface_alias=interface_alias, virtual_interface_number=i+1)
+        interfaces_contents_header_hotplug = textwrap.dedent('''allow-hotplug {interface_dev}:{virtual_interface_alias}.{virtual_interface_number}
+                                                             ''').format(interface_dev=interface_dev, virtual_interface_alias=interface_alias, virtual_interface_number=i+1)
+        interfaces_contents_header = interfaces_contents_header_auto + interfaces_contents_header_hotplug
+        interfaces_contents_list.append(interfaces_contents_header)
+
+        interfaces_contents_ip_address = textwrap.dedent('''iface {interface_dev}:{virtual_interface_alias}.{virtual_interface_number} inet static
+        address {ip_address}''').format(interface_dev=interface_dev, virtual_interface_alias=interface_alias, virtual_interface_number=i+1, ip_address=new_ip_address)
+
+        if netmask != None:
+            interfaces_content_netmask = textwrap.indent('''
+        netmask {netmask_address}'''.format(netmask_address=netmask), prefix='')
+        else:
+            interfaces_content_netmask = ''
+
+        if gateway != None and i == 0:
+            interfaces_content_gateway = textwrap.indent('''
+        gateway {gateway_address}'''.format(gateway_address=gateway), prefix='')
+        else:
+            interfaces_content_gateway = ''
+        
+        if not new_destination or i != 0:
+            interfaces_contents_iptables_rule = textwrap.indent('''
         up /sbin/iptables -t nat -I PREROUTING -j DNAT -d {ip_address} --to-destination {host_ip_address}
         down /sbin/iptables -t nat -D PREROUTING -j DNAT -d {ip_address} --to-destination {host_ip_address}
-        ''').format(interface_dev=interface_dev, virtual_interface_number=interface_alias, ip_address=new_ip_address, host_ip_address=host.ip_address)
+        ''', prefix='').format(ip_address=new_ip_address, host_ip_address=host_destination_ip_address)
+        else:
+            interfaces_contents_iptables_rule = '\n'
+
+        interfaces_contents = interfaces_contents_ip_address + interfaces_content_netmask + interfaces_content_gateway + interfaces_contents_iptables_rule
         interfaces_contents_list.append(interfaces_contents)
+
     new_interfaces_contents = '\n'.join(interfaces_contents_list)
 
     ssh.exec_command('echo "{second_interfaces_contents}" >> {interfaces_path}'.format(
@@ -1455,8 +1513,7 @@ def install_TCS_psi_limit_load(host, disable_permanently=False):
         raise 'Unhandled host.TCS_type: ' + host.TCS_type
 
     if disable_permanently:
-        script = '''
-#!/bin/bash
+        script = '''#!/bin/bash
 
 iptables -D %s -j PSI_LIMIT_LOAD
 iptables -I %s -j PSI_LIMIT_LOAD
@@ -1464,100 +1521,170 @@ iptables -I %s -j PSI_LIMIT_LOAD
 exit 0
 '''  % (psi_limit_load_chain_name, psi_limit_load_chain_name, psi_ops_deploy.TCS_PSIPHOND_STOP_ESTABLISHING_TUNNELS_SIGNAL_COMMAND)
     else:
-        script = '''
-#!/bin/bash
+        script = '''#!/bin/bash
 
 threshold_load_per_cpu=0.90 #Percentage of Total CPU load.
-threshold_mem=25
-threshold_syn_sent=1000
+percent_threshold_max_memory=$((8 * 1024 * 1024))
+memory_threshold_percent=25
+high_memory_threshold=$((2 * 1024 * 1024))
+threshold_syn_sent=100000
+threshold_conntrack_percent=90
+default_global_cap_kbps=$((1000 * 1000))
+global_cap_override_file="/usr/local/etc/psi_limit_load_speed_cap_kbps"
 threshold_network_bandwidth_percent=94.00 #Has to be a float value (used for accuracy in the comparison)
+
+get_mem_total_kb() {
+  awk '/^MemTotal:/ { print $2 }' /proc/meminfo
+}
+
+get_mem_avail_kb() {
+  awk '
+    BEGIN { avail=""; free=buf=cache="" }
+
+    /^MemAvailable:/ { avail=$2 }
+    /^MemFree:/      { free=$2 }
+    /^Buffers:/      { buf=$2 }
+    /^Cached:/       { cache=$2 }
+
+    END {
+      if (avail != "") {
+        print avail
+      } else if (free != "") {
+        # old-kernel approximation
+        if (buf == "") buf = 0
+        if (cache == "") cache = 0
+        print free + buf + cache
+      } else {
+        print 0
+      }
+    }
+  ' /proc/meminfo | head -n 1
+}
+
+calc_min_free_kb() {
+  local total_kb="$1"
+  if [ "$total_kb" -le "$percent_threshold_max_memory" ]; then
+    echo $(( total_kb * memory_threshold_percent / 100 ))
+  else
+    echo "$high_memory_threshold"
+  fi
+}
+
+get_global_cap_kbps() {
+    local cap=""
+    if [ -r "$global_cap_override_file" ]; then
+        cap="$(tr -d '[:space:]' < "$global_cap_override_file" 2>/dev/null)"
+    fi
+    case "$cap" in
+        ''|*[!0-9]*|0) echo "$default_global_cap_kbps" ;;
+        *)             echo "$cap" ;;
+    esac
+}
+
+get_interface_utilization() {
+    # Get the primary interface
+    local _interface
+    _interface="$(ip route get 1.2.3.4 2>/dev/null | awk '{print $5; exit}')"
+    [ -n "$_interface" ] || { echo 0; return; }
+
+    # Read interface speed (Mbps) - may be unreadable on some NICs/VMs
+    local speed_path="/sys/class/net/${_interface}/speed"
+    local interface_speed=""
+    if [ -r "$speed_path" ]; then
+        interface_speed="$(cat "$speed_path" 2>/dev/null | tr -d '[:space:]')"
+    else
+        echo 0
+        return
+    fi
+
+    # Must be numeric and non-negative; otherwise treat as unknown => no limiting
+    case "$interface_speed" in
+        ''|*[!0-9]*|0)
+            echo 0
+            return
+            ;;
+    esac
+
+    # Convert Mbps -> kbps
+    local interface_speed_in_kbps=$(( interface_speed * 1000 ))
+
+    # Apply global cap (default 1Gbps, overrideable upward via file)
+    local cap_kbps
+    cap_kbps="$(get_global_cap_kbps)"
+    if [ "$interface_speed_in_kbps" -gt "$cap_kbps" ]; then
+        interface_speed_in_kbps="$cap_kbps"
+    fi
+
+    # Read RX bytes twice over 10 seconds
+    local rx_path="/sys/class/net/${_interface}/statistics/rx_bytes"
+    [ -r "$rx_path" ] || { echo 0; return; }
+
+    local old_bytes new_bytes
+    old_bytes="$(cat "$rx_path" 2>/dev/null | tr -d '[:space:]')"
+    sleep 10
+    new_bytes="$(cat "$rx_path" 2>/dev/null | tr -d '[:space:]')"
+
+    case "$old_bytes" in ''|*[!0-9]* ) echo 0; return ;; esac
+    case "$new_bytes" in ''|*[!0-9]* ) echo 0; return ;; esac
+    [ "$new_bytes" -ge "$old_bytes" ] || { echo 0; return; }
+
+    # Average kbps over 10s: bytes_delta * 8 / 1000 / 10
+    local average_kilobits_in=$(( (new_bytes - old_bytes) * 8 / 1000 / 10 ))
+
+    # Utilization percentage
+    echo "$(echo "scale=2; ($average_kilobits_in * 100) / $interface_speed_in_kbps" | bc)"
+}
 
 while true; do
 
     loaded_cpu=0
     num_cpu=`grep 'model name' /proc/cpuinfo | wc -l`
     threshold_cpu=$(echo "$threshold_load_per_cpu * $num_cpu" | bc)
-    load_cpu=`uptime | cut -d , -f 4 | cut -d : -f 2`
+    load_cpu="$(awk '{print $1}' /proc/loadavg)"
     if [ $(echo "$load_cpu > $threshold_cpu" | bc) -eq 1 ]; then
         loaded_cpu=1
         logger psi_limit_load: CPU load threshold reached. Current Load: $load_cpu Threshold: $threshold_cpu Num CPU: $num_cpu
         break
     fi
 
-    free=$(free | grep "buffers/cache" | awk '{print $4/($3+$4) * 100.0}')
-    if [ -z "$free" ]; then
-        free=$(free | grep "Mem" | awk '{print $7/$2 * 100.0}')
-    fi
-    
-    loaded_mem=$(echo "$free<$threshold_mem" | bc)
-    if [ $loaded_mem -eq 1 ]; then
-        logger psi_limit_load: Free memory load threshold reached.
+    loaded_mem=0
+    mem_total_kb="$(get_mem_total_kb)"
+    mem_avail_kb="$(get_mem_avail_kb)"
+    mem_min_free_kb="$(calc_min_free_kb "$mem_total_kb")"
+    if [ "$mem_avail_kb" -lt "$mem_min_free_kb" ]; then
+        loaded_mem=1
+        logger "psi_limit_load: Free memory threshold reached. Available=${mem_avail_kb}kB Threshold=${mem_min_free_kb}kB Total=${mem_total_kb}kB"
     fi
 
     loaded_net=0
     syn_sent=`%s`
-    if [ $syn_sent -ge $threshold_syn_sent ]; then
+    case "$syn_sent" in ''|*[!0-9]*) syn_sent=0 ;; esac
+    if [ "$syn_sent" -ge "$threshold_syn_sent" ]; then
         loaded_net=1
         logger psi_limit_load: SYN_SENT threshold reached.
     fi
 
+    conntrack_count=`cat /proc/sys/net/netfilter/nf_conntrack_count`
+    case "$conntrack_count" in ''|*[!0-9]*) conntrack_count=0 ;; esac
+    conntrack_max=$(cat /proc/sys/net/netfilter/nf_conntrack_max 2>/dev/null)
+    case "$conntrack_max" in ''|*[!0-9]*|0) conntrack_max=1 ;; esac
+    conntrack_percent=$(echo "scale=2; ($conntrack_count * 100) / $conntrack_max" | bc)
+    if [ $(echo "$conntrack_percent > $threshold_conntrack_percent" | bc) -eq 1 ]; then
+        loaded_net=1
+        logger psi_limit_load: Conntrack threshold reached. Count: $conntrack_count Max: $conntrack_max Percent: $conntrack_percent
+    fi
+
     loaded_bandwidth=0
-
-    # Define the function to get the interface bandwidth
-    get_interface_speed() {
-        # Get the primary interface
-        local _interface=$(ip route get 1.2.3.4 | awk '{print $5}')
-
-        if [ $? -eq 0 ]
-        then
-            # Getting interface speed
-            local interface_speed=$(cat "/sys/class/net/${_interface}/speed")
-
-            if [ $? -eq 0 ] && [ -f "/sys/class/net/${_interface}/speed" ] && [ $interface_speed -ge 0 ]
-            then
-                # convert interface to kilobits
-                local interface_speed_in_kbps=$(( interface_speed * 1000))
-
-                # Limit the interface speed to 1 Gbps globally
-                if [ $interface_speed_in_kbps -gt $((1000 * 1000)) ]
-                then
-                    # Todo: Add a check for host.interface_speeed_cap in future if required for specific hosts
-                    interface_speed_in_kbps=$((1000 * 1000))
-                fi
-
-                # Record old bytes
-                local interface_bytes_in_old=$(cat "/sys/class/net/${_interface}/statistics/rx_bytes")
-
-                # Record new bytes after 10 seconds
-                sleep 10
-                local interface_bytes_in_new=$(cat "/sys/class/net/${_interface}/statistics/rx_bytes")
-
-                # Calculate average kilobytes/sec
-                local average_kilobits_in=$(( (interface_bytes_in_new - interface_bytes_in_old) * 8 / 1000 / 10 ))
-
-                #Calculate utilized percentage of interface speed
-                local utilized_percentage_in=$(echo "scale=2; (($average_kilobits_in * 100) / ($interface_speed_in_kbps))" | bc)
-
-                # print the results
-                echo $utilized_percentage_in
-            else
-                echo 0
-            fi
-        else
-            echo 0
-        fi
-    }
-
-    current_bandwidth=$(get_interface_speed)
-    if [ $(echo "$current_bandwidth > $threshold_network_bandwidth_percent" | bc) -eq 1 ]; then
+    current_bandwidth_percent=$(get_interface_utilization)
+    if [ $(echo "$current_bandwidth_percent > $threshold_network_bandwidth_percent" | bc) -eq 1 ]; then
         loaded_bandwidth=1
-        logger psi_limit_load: Network bandwidth threshold reached. Current Network utilization in Percent: $current_bandwidth
+        logger psi_limit_load: Network bandwidth threshold reached. Current Network utilization in Percent: $current_bandwidth_percent
     fi
 
     break
 done
 
-if [ $loaded_cpu -eq 1 ] || [ $loaded_mem -eq 1 ] || [ $loaded_net -eq 1 ] || [ $loaded_bandwidth -eq 1 ]; then
+if [ "$loaded_cpu" -eq 1 ] || [ "$loaded_mem" -eq 1 ] || [ "$loaded_net" -eq 1 ] || [ "$loaded_bandwidth" -eq 1 ]; then
     %s
 else
     %s

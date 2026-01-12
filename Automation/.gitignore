@@ -10,3 +10,4 @@ CipherShare/
 *ssl*
 deploy.py
 psinet.py
+psicli.py

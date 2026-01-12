@@ -9,17 +9,30 @@ en:
         Download Psiphon here: <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
         </div>
 
-    # The plaintext body of the auto-response email that does have attachments. Please do not modify placeholders such as "{0}", "{{0}}". Note that "{{0}}/{0}/" is part of a URL and spaces should not be inserted.
-    plaintext_email_with_attachment: |+
+    # The plaintext body of the auto-response email has a Windows application attachment. Please do not modify placeholders such as "{0}", "{{0}}". Note that "{{0}}/{0}/" is part of a URL and spaces should not be inserted.
+    plaintext_email_with_windows_attachment: |+
         To use Psiphon 3 for Windows, save the attached file that starts with "psiphon3", and rename it to have a ".exe" extension, if necessary. Then run it.
+        For more information or to download the files again, click the link below.
+        {{0}}/{0}/download.html#direct
+
+    # The HTML body of the auto-response email has a Windows application attachment. Please do not modify placeholders such as "{0}", "{{0}}". Note that "{{0}}/{0}/" is part of a URL and spaces should not be inserted.
+    html_email_with_windows_attachment: |
+        <div style="direction: ltr;">
+        To use Psiphon 3 for Windows, save the attached file that starts with "psiphon3", and rename it to have a ".exe" extension, if necessary. Then run it.<br>
+        For more information or to download the files again, click the link below.<br>
+        <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>
+        </div>
+        <br>
+
+    # The plaintext body of the auto-response email has a Android application attachment. Please do not modify placeholders such as "{0}", "{{0}}". Note that "{{0}}/{0}/" is part of a URL and spaces should not be inserted.
+    plaintext_email_with_android_attachment: |+
         To use Psiphon 3 for Android, save the attached file that starts with "PsiphonAndroid", and rename it to have a ".apk" extension, if necessary. Then install and run it.
         For more information or to download the files again, click the link below.
         {{0}}/{0}/download.html#direct
 
-    # The plaintext body of the auto-response email that does have attachments. Please do not modify placeholders such as "{0}", "{{0}}". Note that "{{0}}/{0}/" is part of a URL and spaces should not be inserted.
-    html_email_with_attachment: |
+    # The HTML body of the auto-response email has a Android application attachment. Please do not modify placeholders such as "{0}", "{{0}}". Note that "{{0}}/{0}/" is part of a URL and spaces should not be inserted.
+    html_email_with_android_attachment: |
         <div style="direction: ltr;">
-        To use Psiphon 3 for Windows, save the attached file that starts with "psiphon3", and rename it to have a ".exe" extension, if necessary. Then run it.<br>
         To use Psiphon 3 for Android, save the attached file that starts with "PsiphonAndroid", and rename it to have a ".apk" extension, if necessary. Then install and run it.<br>
         For more information or to download the files again, click the link below.<br>
         <a href="{{0}}/{0}/download.html#direct">{{0}}/{0}/download.html#direct</a><br>

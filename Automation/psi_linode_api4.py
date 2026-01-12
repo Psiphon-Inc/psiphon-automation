@@ -29,7 +29,7 @@ import psi_utils
 import linode_api4
 
 # VARIABLE
-tcs_image_id = 'private/21040253'
+tcs_image_id = 'private/32158606'
 
 #==============================================================================
 
@@ -75,27 +75,46 @@ class PsiLinode:
             'ap-south': 'Linode Singapore, SG',
             'ap-southeast': 'Linode Sydney, NSW, Australia',
             'ap-west': 'Linode Mumbai, India',
+            'au-mel': 'Linode Melbourne, AU',
             'br-gru': 'Linode Sao Paulo, BR',
             'ca-central': 'Linode Toronto, Ontario, CAN',
+            'cl-scl-1': 'Linode Santiago, CL',
+            'co-bog-1': 'Linode Bogota, CO',
+            'co-bog-2': 'Linode Bogota 2, CO',
+            'de-ber-1': 'Linode Berlin, DE',
+            'de-fra-2': 'Linode Frankfurt 2, DE',
+            'de-ham-1': 'Linode Hamburg, DE',
             'es-mad': 'Linode Madrid, ES',
             'eu-central': 'Linode Frankfurt, DE',
             'eu-west': 'Linode London, England, UK',
+            'fr-mrs-1': 'Linode Marseille, FR',
+            'fr-mrs-2': 'Linode Marseille 2, FR',
             'fr-par': 'Linode Paris, FR',
+            'gb-lon': 'Linode London 2, UK',
             'id-cgk': 'Linode Jakarta, ID',
+            'in-bom-2': 'Linode Mumbai 2, IN',
             'in-maa': 'Linode Chennai, IN',
             'it-mil': 'Linode Milan, IT',
             'jp-osa': 'Linode Osaka, JP',
+            'jp-tyo-3': 'Linode Tokyo 3, JP',
+            'mx-qro-1': 'Linode Queretaro, MX',
+            'my-kul-1': 'Linode Kuala Lumpur, MY',
             'nl-ams': 'Linode Amsterdam, NL',
+            'nz-akl-1': 'Linode Auckland, NZ',
             'se-sto': 'Linode Stockholm, SE',
+            'sg-sin-2': 'Linode Singapore 2, SG',
             'us-central': 'Linode Dallas, TX, USA',
+            'us-den-1': 'Linode Denver, CO, USA',
             'us-east': 'Linode Newark, NJ, USA',
+            'us-hou-1': 'Linode Houston, TX, USA',
             'us-iad': 'Linode Washington, DC, USA',
             'us-lax': 'Linode Los Angeles, CA, USA',
             'us-mia': 'Linode Miami, FL, USA',
             'us-ord': 'Linode Chicago, IL, USA',
             'us-sea': 'Linode Seattle, WA, USA',
             'us-southeast': 'Linode Atlanta, GA, USA',
-            'us-west': 'Linode Fremont, CA, USA'
+            'us-west': 'Linode Fremont, CA, USA',
+            'za-jnb-1': 'Linode Johannesburg, ZA'
         }
         return regions.get(region.id, "")
 
@@ -127,7 +146,7 @@ class PsiLinode:
         return self.linode_list(linode_id).delete()
     
     def create_linode(self):
-        available_regions = self.get_available_regions()
+        available_regions = [region for region in self.get_available_regions() if region._raw_json['site_type'] == 'core']
         choice_region = random.choice(available_regions)
         datacenter_name = self.get_datacenter_names(choice_region)
 
@@ -262,7 +281,7 @@ def refresh_credentials(linode_account, ip_address, password, host_public_key, n
         ssh.exec_command('rm /etc/ssh/ssh_host_*')
         ssh.exec_command('rm -rf /root/.ssh')
         ssh.exec_command('export DEBIAN_FRONTEND=noninteractive && dpkg-reconfigure openssh-server')
-        return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
+        return ssh.exec_command('cat /etc/ssh/ssh_host_ed25519_key.pub')
     finally:
         ssh.close()
 
