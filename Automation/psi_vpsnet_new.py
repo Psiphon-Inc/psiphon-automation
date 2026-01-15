@@ -62,45 +62,60 @@ class PsiVpsnet:
         self.ssh_key_id = vpsnet_account.base_image_ssh_key_id
         self.client = vps.vpsnet(api_key=self.api_key)
 
-    def get_region(self, select_region=None):
-        # Load region from API
+    def get_location(self, select_location=None):
+        # Load location from API
         # region_id required for create_instance
-        all_regions = self.client.list_regions()
-        if select_region != None:
-            regions = [r for r in all_regions if r['id'] == select_region]
+        all_locations = self.client.get_vps_locations()
+        if select_location != None:
+            locations = [r for r in all_locations['data'] if r['id'] == select_location]
         else:
-            regions = all_regions
+            locations = all_locations['data']
 
-        region = random.choice(regions)
+        location = random.choice(locations)
 
-        return region['country'], region['id'], f"VULT {region['city']}, {region['country']}"
+        country = location['name'][-2:]
+        city = location['name'][:-8].rstrip()
+        loc_id = location['id']
 
+        return country, loc_id, f"VPSNET {city}, {country}"
+
+    #
     def list_instances(self):
-        all_instances = self.client.list_instances()
+        all_instances = self.client.get_vms()
         return all_instances
 
-    def get_instance(self, instance_id):
-        instance = self.client.get_instance(instance_id)
+    #
+    def get_instance(self, provider_id):
+        split_ids = self.client.provider_id_to_location_server_ids(provider_id)
+        location_id = split_ids[0]
+        server_id = split_ids[1]
+        instance = self.client.get_vm_server_details(location_id, server_id)
         return instance
 
-    def remove_instance(self, instance_id):
-        print("Deleting Instances: {}".format(instance_id))
-        self.client.delete_instance(instance_id)
+    #
+    def remove_instance(self, provider_id):
+        split_ids = self.client.provider_id_to_location_server_ids(provider_id)
+        location_id = split_ids[0]
+        server_id = split_ids[1]
+        print("Deleting Instances: {}".format(location_id - server_id))
+        self.client.delete_vm_vps_server(location_id, server_id)
+
 
     def create_instance(self, host_id, datacenter_code):
         # Launch Instnace
         instance = self.client.create_instance(
-		    region=datacenter_code,
-		    plan=self.plan,
- 	 	    label=host_id,
-  		    hostname=host_id,
-  		    backups="disabled",
+                    region=datacenter_code,
+                    plan=self.plan,
+                    label=host_id,
+                    hostname=host_id,
+                    backups="disabled",
             snapshot_id=self.base_image_id,
             sshkey_id=[self.ssh_key_id],
-  		    tags=["psiphond"]
+                    tags=["psiphond"]
         )
 
         return instance
+
 
 ###
 #
@@ -134,30 +149,30 @@ def set_allowed_users(vultr_account, ip_address, stats_username):
     finally:
         ssh.close()
 
-def get_host_name(vultr_account, ip_address):
+def get_host_name(vpsnet_account, ip_address):
     # Note: using base image credentials; call before changing credentials
-    ssh = psi_ssh.make_ssh_session(ip_address, vultr_account.base_image_ssh_port,
-                                   'root', None, vultr_account.base_image_ssh_public_key,
-                                   host_auth_key=vultr_account.base_image_ssh_private_key)
+    ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_image_ssh_port,
+                                   'root', None, vpsnet_account.base_image_ssh_public_key,
+                                   host_auth_key=vpsnet_account.base_image_ssh_private_key)
     try:
         return ssh.exec_command('hostname').strip()
     finally:
         ssh.close()
 
-def set_host_name(vultr_account, ip_address, new_hostname):
+def set_host_name(vpsnet_account, ip_address, new_hostname):
     # Note: hostnamectl is for systemd servers
-    ssh = psi_ssh.make_ssh_session(ip_address, vultr_account.base_image_ssh_port,
-                                   'root', None, vultr_account.base_image_ssh_public_key,
-                                   host_auth_key=vultr_account.base_image_ssh_private_key)
+    ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_image_ssh_port,
+                                   'root', None, vpsnet_account.base_image_ssh_public_key,
+                                   host_auth_key=vpsnet_account.base_image_ssh_private_key)
     try:
         ssh.exec_command('hostnamectl set-hostname %s' % new_hostname)
     finally:
         ssh.close()
 
-def add_swap_file(vultr_account, ip_address):
-    ssh = psi_ssh.make_ssh_session(ip_address, vultr_account.base_image_ssh_port,
-                                   'root', None, vultr_account.base_image_ssh_public_key,
-                                   host_auth_key=vultr_account.base_image_ssh_private_key)
+def add_swap_file(vpsnet_account, ip_address):
+    ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_image_ssh_port,
+                                   'root', None, vpsnet_account.base_image_ssh_public_key,
+                                   host_auth_key=vpsnet_account.base_image_ssh_private_key)
     try:
         has_swap = ssh.exec_command('grep swap /etc/fstab')
 
@@ -167,69 +182,78 @@ def add_swap_file(vultr_account, ip_address):
             ssh.exec_command('swapon -a')
     finally:
         ssh.close()
+###
 
 ###
 #
 # Main function
 #
 ###
-def get_servers(vultr_account):
-    vultr_api = PsiVultr(vultr_account)
-    instances = vultr_api.list_instances()
-    return [(v['id'], v['label']) for v in instances]
+def get_servers(vpsnet_account): #
+    vpsnet_api = PsiVpsnet(vpsnet_account)
+    instances = vpsnet_api.get_vms()
+    return [(v['id'], v['label']) for v in instances['data']]
 
-def get_server(vultr_account, vultr_id):
-    vultr_api = PsiVultr(vultr_account)
-    return vultr_api.get_instance(vultr_id) 
+def get_server(vpsnet_account, provder_id): #
+    split_ids = self.client.provider_id_to_location_server_ids(provider_id)
+    location_id = split_ids[0]
+    server_id = split_ids[1]
+    vpsnet_api = PsiVpsnet(vpsnet_account)
+    return vpsnet_api.get_vm_server_details(location_id, server_id)
 
-def remove_server(vultr_account, vultr_id):
-    vultr_api = PsiVultr(vultr_account)
-    vultr_api.remove_instance(vultr_id)
+def remove_server(vpsnet_account, provider_id): #
+    split_ids = self.client.provider_id_to_location_server_ids(provider_id)
+    location_id = split_ids[0]
+    server_id = split_ids[1]
+    vpsnet_api = PsiVpsnet(vpsnet_account)
+    vpsnet_api.delete_vm_vps_server(location_id, server_id)
 
-def launch_new_server(vultr_account, is_TCS, plugins, multi_ip=False):
+def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
 
     instance = None
-    vultr_api = PsiVultr(vultr_account) # Use API interface
+    vpsnet_api = PsiVpsnet(vpsnet_account) # Use API interface
 
     try:
-        # Create a new Vultr instance
-        region, datacenter_code, datacenter_name = vultr_api.get_region()
+        # Create a new vpsnet instance
+        region, datacenter_code, datacenter_name = vpsnet_api.get_region()
         host_id = "vt" + '-' + region.lower() + datacenter_code.lower() + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
-        instance_info = vultr_api.create_instance(host_id, datacenter_code)
+        instance_info = vpsnet_api.create_instance(host_id, datacenter_code)
 
         # Wait for job completion
-        wait_while_condition(lambda: vultr_api.client.get_instance(instance_info['id'])['power_status'] != 'running',
+        wait_while_condition(lambda: vpsnet_api.client.get_instance(instance_info['id'])['power_status'] != 'running',
                          30,
-                         'Creating VULTR Instance')
+                         'Creating VPSNET Instance')
         # Wait for Restorying fron snapshot
         time.sleep(30)
-        instance = vultr_api.client.get_instance(instance_info['id'])
+        instance = vpsnet_api.client.get_instance(instance_info['id'])
 
         instance_ip_address = instance["main_ip"]
 
         new_stats_username = psi_utils.generate_stats_username()
-        set_host_name(vultr_account, instance_ip_address, host_id)
-        set_allowed_users(vultr_account, instance_ip_address, new_stats_username)
-        add_swap_file(vultr_account, instance_ip_address)
+        set_host_name(vpsnet_account, instance_ip_address, host_id)
+        set_allowed_users(vpsnet_account, instance_ip_address, new_stats_username)
+        add_swap_file(vpsnet_account, instance_ip_address)
 
-        # Change the new vultr instance's credentials
+        # Change the new vpsnet instance's credentials
         new_root_password = psi_utils.generate_password()
         new_stats_password = psi_utils.generate_password()
-        new_host_public_key = refresh_credentials(vultr_account, instance_ip_address,
+        new_host_public_key = refresh_credentials(vpsnet_account, instance_ip_address,
                                                   new_root_password, new_stats_password,
                                                   new_stats_username)
 
     except Exception as ex:
         if instance:
-            vultr_api.remove_instance(instance['id'])
+            vpsnet_api.remove_instance(instance['id'])
         raise ex
 
     return (host_id, is_TCS, 'NATIVE' if is_TCS else None, None,
             instance['id'], instance_ip_address,
-            vultr_account.base_image_ssh_port, 'root', new_root_password,
+            vpsnet_account.base_image_ssh_port, 'root', new_root_password,
             ' '.join(new_host_public_key.split(' ')[:2]),
             new_stats_username, new_stats_password,
             datacenter_name, region, None, None)
 
 if __name__ == '__main__':
     print(launch_new_server)
+
+
