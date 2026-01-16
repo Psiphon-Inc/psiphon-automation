@@ -177,6 +177,22 @@ class PsiOCI:
                 )
             ).data
 
+    def resize_instance_shape(self, instance_id, resize_ocpu_to=4, resize_ram_to=16):
+        instance = self.compute_api.get_instance(instance_id).data
+        update_details = oci.core.models.UpdateInstanceDetails(
+            shape_config=oci.core.models.UpdateInstanceShapeConfigDetails(
+                ocpus=resize_ocpu_to,
+                memory_in_gbs=resize_ram_to,
+            ),
+        )
+
+        res = self.compute_api.update_instance(
+            instance_id=instance_id,
+            update_instance_details=update_details,
+        )
+
+        print("Finish updating {} to CPU: {} and RAM: {}".format(instance.display_name, resize_ocpu_to, resize_ram_to))
+
     def create_image(self):
         image = self.compute_api.create_image(
             create_image_details=oci.core.models.CreateImageDetails(
@@ -356,6 +372,14 @@ def resize_volume(oracle_account, instance_id, resize_to=200):
     oci_api, instance_id = reload_api_client(oci_api, instance_id)
     try:
         oci_api.resize_boot_volume(instance_id, resize_to)
+    except Exception as e:
+        raise e
+
+def resize_instance(oracle_account, instance_id, resize_ocpu_to=4, resize_ram_to=16):
+    oci_api = PsiOCI(oracle_account)
+    oci_api, instance_id = reload_api_client(oci_api, instance_id)
+    try:
+        oci_api.resize_instance_shape(instance_id, resize_ocpu_to, resize_ram_to)
     except Exception as e:
         raise e
 
