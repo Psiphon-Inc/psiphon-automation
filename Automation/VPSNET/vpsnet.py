@@ -5,9 +5,10 @@ class vpsnet:
     def __init__(self, api_key):
         self.__key = api_key
         self.__url = 'https://platform.vps.net'
-        self.s = requests.session()
-        if self.api_key:
-            self.s.headers.update({'Authorization': f'Bearer {self.api_key}'})
+        self.api_key = api_key
+        #self.s = requests.session()
+        #if self.api_key:
+        #    self.s.headers.update({'Authorization': f'Bearer {self.api_key}'})
 
 
     def _get_request(self, endpoint): #done;
@@ -67,54 +68,23 @@ class vpsnet:
 
     # Create_VM
     def create_vm(self, location_id, data): #WORKS
-###
-	#data['label'] is label for the new server;
-	#data['hostname'] is hostname for the new server;
-	#data['product_name'] is server product name; from get_ssd_vps_plans;
-	#data['custom_template_id'] is psiphon custom template id;
-        #data['location_id'] is the location of the server from get_vps_locations;
-	#data['bill_hourly'] is the billing type; per hour in our case;
-        payload = dict()
-        #payload = f"{\"label\":\"{str(data['label'])}\",\"hostname\":\"{str(data['hostname'])}\",\"backups\":false,\"product_name\":{str(data['product_name'])}\",\"os_component_code\":\"{str(data['os_component_code'])}\"}"
-        payload = (f"{{"
-            f"\"label\": \"{data['label']}\", "
-            f"\"hostname\": \"{data['hostname']}\", "
-            f"\"backups\": false, "
-            f"\"bill_hourly\": true, "
-            f"\"product_name\": \"{data['product_name']}\", "
-            f"\"custom_template_id\": \"{data['custom_template_id']}\""
-            f"}}")
-
-        #print(payload)
+	    #data['label'] is label for the new server;
+	    #data['hostname'] is hostname for the new server;
+	    #data['product_name'] is server product name; from get_ssd_vps_plans;
+	    #data['custom_template_id'] is psiphon custom template id;
+            #data['location_id'] is the location of the server from get_vps_locations;
+	    #data['bill_hourly'] is the billing type; per hour in our case;
         url = '/rest-api/ssd-vps/locations/' + str(location_id) + '/servers'
-        print("create:" + url)
-        print(payload)
-        #response = self._post_request('/rest-api/ssd-vps/locations/' + str(data['location_id'])  + '/servers', payload)
-        response = self._post_request(url, payload)
-        #print(response.text)
-        #response = self._post_request('/rest-api/ssd-vps/locations/0/servers', payload)
+        response = self._post_request(url, data)
 
-	    # successfully created
+        # successfully created
         if response['status_code'] == 201:
 	    # response is array of array of response data;
             print(response['data'])
             return response
-###
-        #json_request = dict()
-
-        #json_request['name'] = name
-        #json_request['region_id'] = region
-        #json_request['package_id'] = package
-        #json_request['os_template_id'] = 69
-        #json_request['has_ipv6'] = False
-        #json_request['has_private_networking'] = False
-        #json_request['ssh_key_ids'] = [357]
-
-        #response =  self._post_request('/virtual_machines', json_request)
-
-        #if response['status'] == 'success':
-        #    return response['id']
-
+        else :
+            return "Failed To Create VM"
+        return "Failed TO Create VM"
 
     # Get VM Status
     def get_vm_server_status(self, location_id, server_id): #WORKS;
@@ -177,44 +147,36 @@ class vpsnet:
         return response
 
 
-    def get_custom_os_id(location_ids, label):
-        count = 0
-        location_id = 0
-        custom_os_id_info = dict()
-        for i in range(len(location_ids)):
-            location_id = location_ids[i]
-            location_ids_info = get_custom_os_ssd_vps(location_ids[i])
-            for j in range(location_ids_info['data']) :
-                if location_ids_info['data'][j]['label'] == label:
-                    custom_os_id = location_ids_info['data'][j]['id']
-                    break
-                else:
-                    return false
-        custom_os_id_info[location_id] : custom_os_id
-    return custom_os_id_info
-
-
     def provider_id_to_location_server_ids(provider_id) :
         delimiter = "-"
         split_ids = provider_id.split(delimiter)
         return split_ids
 
 
-    def get_custom_os_id(self, location_ids, label):
-        count = 0
-        location_id = 0
+    # gets all custom os ids for all locations
+    def get_location_custom_os_ids(self) :
+        location_custom_os_ids = dict(
+        locations = self.get_vps_locations()
+        for i in range(len(locations['data'])):
+            location_custom_os_ids[i] = self.get_custom_os_ssd_vps(locations['data'][i]['id'])
+        return location_custom_os_ids
+
+
+    # gets all custom os id for locations with the label: "label" and returns the one matching "location_id"
+    def get_custom_os_id(self, location_id, label):
+        location_ids = get_location_custom_os_ids()
         custom_os_id_info = dict()
-        for i in range(len(location_ids)):
-            location_id = location_ids[i]
-            location_ids_info = self.get_custom_os_ssd_vps(location_ids[i])
-            for j in range(len(location_ids_info['data'])) :
-                if location_ids_info['data'][j]['label'] == label:
-                    custom_os_id = location_ids_info['data'][j]['id']
-                    break
-                else:
-                    return false
-            custom_os_id_info[location_id] = str(custom_os_id)
-        return custom_os_id_info
+        if location_ids[location_id][0]['label'] == label:
+            custom_os_id = location_ids_info[location_id]['data'][0]['id']
+        return custom_os_id
+
+
+    def get_server_id_by_host_id(self, host_id) :
+        all_vps_vms = self.get_vms()
+        for i in range(len(all_vps_vms['data'])) :
+            if all_vps_vms['data'][i]['hostname'] == host_id :
+                server_id = all_vps_vms['data'][i]['id']
+        return server_id
 
 
     def get_ssh_keys(self):
