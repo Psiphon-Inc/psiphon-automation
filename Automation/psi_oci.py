@@ -223,8 +223,8 @@ class PsiOCI:
                 ),
                 shape="VM.Standard.E4.Flex",
                 shape_config=oci.core.models.LaunchInstanceShapeConfigDetails(
-                    memory_in_gbs=4,
-                    ocpus=1
+                    memory_in_gbs=8,
+                    ocpus=2
                 ),
                 source_details=oci.core.models.InstanceSourceViaImageDetails(
                     source_type="image",
