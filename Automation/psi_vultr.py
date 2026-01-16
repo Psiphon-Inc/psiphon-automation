@@ -184,7 +184,11 @@ def get_server(vultr_account, vultr_id):
 
 def remove_server(vultr_account, vultr_id):
     vultr_api = PsiVultr(vultr_account)
-    vultr_api.remove_instance(vultr_id)
+    try:
+        vultr_api.remove_instance(vultr_id)
+    except Exception as e:
+        if 'Not Found' not in str(e):
+            raise e
 
 def launch_new_server(vultr_account, is_TCS, plugins, multi_ip=False):
 
