@@ -230,7 +230,7 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
                          30,
                          'Creating VPSNET Instance')
 
-        instance = vpsnet_api.client.get_vm_server_details(location_id, server_id))
+        instance = vpsnet_api.client.get_vm_server_details(location_id, server_id)
 
         instance_ip_address = instance['data']['ip_addresses'][0]['ip_address']['address']
 
