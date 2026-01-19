@@ -337,7 +337,7 @@ providers = ['linode', 'digitalocean', 'vpsnet', 'scaleway', 'oci', 'vultr', 'he
 
 ProviderRank = psi_utils.recordtype(
     'ProviderRank',
-    'provider, rank',
+    'provider, rank, propagation_channel_id',
     default=None)
 ProviderRank.provider_values = tuple(providers)
 
@@ -554,7 +554,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.80'
+    class_version = '0.81'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -1019,6 +1019,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.80')) < 0:
             self.__hetzner_account = HetznerAccount()
             self.version = '0.80'
+        if cmp(parse_version(self.version), parse_version('0.81')) < 0:
+            for pr in self.__provider_ranks:
+                if not hasattr(pr, 'propagation_channel_id'):
+                    pr.propagation_channel_id = None
+            self.version = '0.81'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1407,10 +1412,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def show_provider_ranks(self):
         for r in self.__provider_ranks:
+            propagation_channel_name = 'Default'
+            if r.propagation_channel_id:
+                channel = self.__propagation_channels.get(r.propagation_channel_id)
+                propagation_channel_name = channel.name if channel else r.propagation_channel_id
             print(textwrap.dedent('''
                 Provider:   %s
                 Rank:       %s
-                ''') % (r.provider, r.rank))
+                Channel:    %s
+                ''') % (r.provider, r.rank, propagation_channel_name))
 
     def __generate_id(self):
         count = 16
@@ -2257,7 +2267,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             try:
                 is_TCS = True
                 time.sleep(random.randrange(poolsize))
-                return self.launch_new_server(is_TCS)
+                return self.launch_new_server(is_TCS, propagation_channel=propagation_channel)
             except:
                 return None
 
@@ -2479,9 +2489,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.run_command_on_host(host, 'shutdown -r 10')
         host.log('initial deployment')
 
-    def launch_new_server(self, is_TCS, provider=None, multi_ip=True):
+    def launch_new_server(self, is_TCS, provider=None, multi_ip=True, propagation_channel=None):
         if provider == None:
-            provider = self._weighted_random_choice(self.__provider_ranks).provider
+            provider_ranks = self.__get_provider_ranks_for_propagation_channel(propagation_channel)
+            provider = self._weighted_random_choice(provider_ranks).provider
 
         if provider.lower() in providers:
             provider_controller = globals()["psi_{}".format(provider.lower())]
@@ -4302,7 +4313,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__aws_account,
             access_id=access_id, secret_key=secret_key)
 
-    def upsert_provider_rank(self, provider, rank):
+    def upsert_provider_rank(self, provider, rank, propagation_channel_name=None):
         '''
         Inserts or updates a Provider-Rank entry. The "key" for an entry is provider.
         rank: the higher the score, the more the provider will be preferred when
@@ -4312,10 +4323,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if provider not in ProviderRank.provider_values:
             raise ValueError('bad provider value: %s' % provider)
 
+        propagation_channel_id = None
+        if propagation_channel_name:
+            propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
+            propagation_channel_id = propagation_channel.id
+
         pr = ProviderRank()
         found = False
         for existing_pr in self.__provider_ranks:
-            if existing_pr.provider == provider:
+            if existing_pr.provider == provider and existing_pr.propagation_channel_id == propagation_channel_id:
                 pr = existing_pr
                 found = True
                 break
@@ -4325,7 +4341,22 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         psi_utils.update_recordtype(
             pr,
-            provider=provider, rank=rank)
+            provider=provider, rank=rank, propagation_channel_id=propagation_channel_id)
+
+    def __get_provider_ranks_for_propagation_channel(self, propagation_channel):
+        if not propagation_channel:
+            return [r for r in self.__provider_ranks if r.propagation_channel_id is None]
+
+        merged = {}
+        for rank in self.__provider_ranks:
+            if rank.propagation_channel_id is None:
+                merged[rank.provider] = ProviderRank(rank.provider, rank.rank, None)
+
+        for rank in self.__provider_ranks:
+            if rank.propagation_channel_id == propagation_channel.id:
+                merged[rank.provider] = ProviderRank(rank.provider, rank.rank, rank.propagation_channel_id)
+
+        return list(merged.values())
 
     def set_linode_account(self, api_key, base_id, base_ip_address, base_ssh_port,
                            base_root_password, base_stats_username, base_host_public_key,
