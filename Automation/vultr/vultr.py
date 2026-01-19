@@ -30,7 +30,20 @@ class Vultr(object):
 
     def list_instances(self):
         url = f'{self.API_URL}/instances'
-        return self._get(url)['instances']
+        all_instances = []
+        cursor = None
+        while True:
+            params = {'per_page': 200}
+            if cursor:
+                params['cursor'] = cursor
+
+            payload = self._get(url, params=params)
+            all_instances.extend(payload.get('instances', []))
+            cursor = payload.get('meta', {}).get('links', {}).get('next')
+            if not cursor:
+                break
+
+        return all_instances
 
     def get_instance(self, instance: typing.Union[str, dict]):
         instance_id = self._get_obj_key(instance)
@@ -143,8 +156,8 @@ class Vultr(object):
     def filter_regions(regions: list, locations: list) -> list:
         return [d for d in regions if d['id'] in locations]
 
-    def _get(self, url):
-        r = self.s.get(url, timeout=10)
+    def _get(self, url, params=None):
+        r = self.s.get(url, params=params, timeout=10)
         if not r.ok:
             r.raise_for_status()
         return r.json()
