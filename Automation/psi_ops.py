@@ -3158,7 +3158,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for host_provider_id, host_name in hosts_provider_id_list:
             # TODO: safety check to avoid delete production servers
             orphan = provider_controller.get_server(provider_account, host_provider_id)
-            orphan_id = orphan['zone'] + '_' + orphan['id'] if provider == 'scaleway' else orphan.id
+            orphan_id = orphan['zone'] + '_' + orphan['id'] if provider == 'scaleway' else \
+                        orphan['id'] if provider == 'vultr' else \
+                        orphan.id
             print(textwrap.dedent('''
                   Provider ID:             %s
                   Host Name/Labe:          %s
@@ -3176,6 +3178,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                       orphan['zone'],
                       str(orphan['tags'])
                   ) if provider == 'scaleway' else (
+                      orphan_id,
+                      orphan['label'],
+                      orphan['power_status'],
+                      orphan['date_created'],
+                      orphan['main_ip'],
+                      orphan['region'],
+                      orphan['tag']
+                  ) if provider == 'vultr' else (
                       str(orphan_id),
                       orphan.display_name,
                       orphan.lifecycle_state,
@@ -3200,6 +3210,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                       orphan.region['slug'],
                       str(orphan.tags)
                   ) if provider == 'digitalocean' else (
+                      str(orphan_id),
+                      orphan.name,
+                      orphan.status,
+                      orphan.created.strftime('%Y-%m-%dT%H:%M:%S'),
+                      orphan.public_net.ipv4.ip,
+                      orphan.datacenter.description,
+                      orphan.labels
+                  ) if provider == 'hetzner' else (
                       str(orphan_id),
                       orphan.label,
                       orphan.status,
