@@ -137,7 +137,9 @@ class PsiOCI:
         return datacenters.get(self.config["region"], '')
 
     def list_instances(self):
-        instances = self.compute_api.list_instances(self.config["compartment"]).data
+        instances = oci.pagination.list_call_get_all_results(
+            self.compute_api.list_instances,
+            self.config["compartment"]).data
 
         return instances
 
