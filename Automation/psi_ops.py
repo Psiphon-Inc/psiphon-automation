@@ -3130,7 +3130,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         existing_hosts = [str(host.provider_id) for host in self.get_hosts() if host.provider == provider]
         to_be_removed_hosts = [str(host.provider_id) for host in self._PsiphonNetwork__hosts_to_remove_from_providers if host.provider == provider]
         
-        orphans = [o for o in running_machines if o[0] not in existing_hosts + to_be_removed_hosts]
+        orphans = [o for o in running_machines if str(o[0]) not in existing_hosts + to_be_removed_hosts]
         
         return orphans
     
