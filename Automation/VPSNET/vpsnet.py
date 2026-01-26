@@ -155,7 +155,7 @@ class vpsnet:
 
     # gets all custom os ids for all locations
     def get_location_custom_os_ids(self) :
-        location_custom_os_ids = dict(
+        location_custom_os_ids = dict()
         locations = self.get_vps_locations()
         for i in range(len(locations['data'])):
             location_custom_os_ids[i] = self.get_custom_os_ssd_vps(locations['data'][i]['id'])
