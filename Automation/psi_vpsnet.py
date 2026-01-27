@@ -73,6 +73,7 @@ class PsiVpsnet:
 
         location = random.choice(locations)
 
+    def get_datacenter_name(datacenter):
         country = location['name'][-2:]
         city = location['name'][:-8].rstrip()
         location_id = location['id']
@@ -144,6 +145,80 @@ def get_host_name(vpsnet_account, ip_address):
     ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_image_ssh_port,
                                    'root', None, vpsnet_account.base_image_ssh_public_key,
                                    host_auth_key=vpsnet_account.base_image_ssh_private_key)
+
+def add_swap_file(vpsnet_account, ip_address, password):
+    ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_ssh_port, 'root', password, None, None)
+    try:
+        has_swap = ssh.exec_command('grep swap /etc/fstab')
+        if not has_swap:
+            ssh.exec_command('dd if=/dev/zero of=/swapfile bs=1024 count=1048576 && mkswap /swapfile && chown root:root /swapfile && chmod 0600 /swapfile')
+            ssh.exec_command('echo "/swapfile swap swap defaults 0 0" >> /etc/fstab')
+            ssh.exec_command('swapon -a')
+    finally:
+        ssh.close()
+
+def wait_on_action(vpsnet_conn, node, interval=30):
+    for attempt in range(10):
+        node = vpsnet_conn.get_ssd_node(node.id)
+        if 'running' in node.state.lower():
+            return True
+        else:
+            print('node state : %s.  Trying again in %s' % (node.state, interval))
+            time.sleep(int(interval))
+
+    return False
+
+
+def get_region_name(region):
+    '''
+        65:  LON-K-SSD:                     London GB (Not available)
+        66:  SLC-G-SSD:                     Salt Lake City US (Not available)
+        91:  LON-M-SSD:                     London GB (Not available)
+        113: SLC-H-SSD:                     Salt Lake City US
+        116: (New York) - NYC-A-SSD:        New York US (Not available)
+        117: (Los Angeles) - LAX-A-SSD:     Los Angeles US
+        118: SLC-K-SSD:                     Salt Lake City US
+        119: TOR-A-SSD:                     Toronto CA
+        120: AMS-B-SSD:                     Amsterdam NL
+        121: LON-P-SSD:                     London GB (Not available)
+        124: (Miami) - MIA-A-SSD:           Miami US
+        125: (Chicago) - CHI-C-SSD:         Chicago US
+        126: (Dallas) - DAL-B-SSD           Dallas US
+        127: LON-R-SSD                      London GB
+        128: VAN-A-SSD                      Vancouver CA
+        129: (New York) - NYC-B-SSH         New York US
+        130: PHX-A-SSD                      City of Phoenix US
+        131: (Seattle) - SEA-B-SSD          Seattle US
+        132: ATL-G-SSD                      Atlanta US
+        133: (New York) - NYC-C-SSD         New York US
+        134: LON-Q-SS                       London GB
+        135: FRA-B-SSD                      Frankfurt DE
+        148: SLC-A-SSD                      SLC US
+        151: CHI-G-SSD                      Chicago US
+        154: ATL-A-SSD                      Atlanta US
+        157: SIN-B-SSD                      Singapore SG
+        160: DAL-C-SSD                      Dallas US
+    '''
+    if region['cloud_id'] in [65, 91, 121, 127, 134, 137]:
+        return 'GB'
+    if region['cloud_id'] in [66, 113, 116, 117, 118, 124, 125, 126, 129, 130, 131, 132, 133, 141, 142, 143, 144, 148, 151, 154, 160]:
+        return 'US'
+    if region['cloud_id'] in [119, 128]:
+        return 'CA'
+    if region['cloud_id'] in [120]:
+        return 'NL'
+    if region['cloud_id'] in [135, 139]:
+        return 'DE'
+    if region['cloud_id'] in [145, 157]:
+        return 'SG'
+    return ''
+
+
+def get_server(account, node_id):
+    '''
+        get_server returns a vps.net node object
+    '''
+    node = None
     try:
         return ssh.exec_command('hostname').strip()
     finally:
@@ -202,6 +277,7 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
 
     instance = None
     vpsnet_api = PsiVpsnet(vpsnet_account) # Use API interface
+    base_image_label = 'Psiphon3-TCS-V12.8-20250812'
 
     try:
         # Create a new vpsnet instance
@@ -230,21 +306,88 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
                          30,
                          'Creating VPSNET Instance')
 
+        # Check each available cloud for a psiphon template to use.
+        # Populate a list of templates and the cloud IDs.
+        psiphon_templates = list()
+        print('Available Regions:\n')
+        for region in vpsnet_clouds:
+            print('%s -> %s' % (region['cloud']['id'], region['cloud']['label']))
+            for template in region['cloud']['system_templates']:
+                if template['label'] == base_image_label:
+                    print('\tFound psiphon template id %s in region %s' % (
+                        template['id'], region['cloud']['id']))
+                    template['cloud_id'] = region['cloud']['id']
+                    template['cloud_label'] = region['cloud']['label']
+                    psiphon_templates.append(template)
+
         instance = vpsnet_api.client.get_vm_server_details(location_id, server_id)
 
         instance_ip_address = instance['data']['ip_addresses'][0]['ip_address']['address']
 
         new_stats_username = psi_utils.generate_stats_username()
         set_host_name(vpsnet_account, instance_ip_address, host_id)
-        set_allowed_users(vpsnet_account, instance_ip_address, new_stats_username)
-        add_swap_file(vpsnet_account, instance_ip_address)
+        '''
+            package/plan for the new SSD server.
+            (VPS 1GB - 1, VPS 2GB - 2, VPS 4GB - 3, VPS 8GB - 4, VPS 16GB - 5)
+        '''
+
+        host_id = 'vn-' + get_region_name(region_template).lower() + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
+
+        VPSNetHost.name = str(host_id)
+        VPSNetHost.ssd_vps_plan = vpsnet_account.base_ssd_plan
+        VPSNetHost.fqdn = str(host_id + '.vps.net')
+        VPSNetHost.backups_enabled = False
+        VPSNetHost.rsync_backups_enabled = False
+        VPSNetHost.licenses = None
+
+        node = vpsnet_conn.create_ssd_node(
+            fqdn=VPSNetHost.fqdn,
+            image_id=VPSNetHost.system_template_id,
+            cloud_id=VPSNetHost.cloud_id,
+            size=VPSNetHost.ssd_vps_plan,
+            backups_enabled=VPSNetHost.backups_enabled,
+            rsync_backups_enabled=VPSNetHost.rsync_backups_enabled,
+            )
+
+        if type(node) != libcloud.compute.base.Node:
+            raise Exception(str(vars(node)))
+
+        # Find the node ID
+        for attempt in range(30):
+            time.sleep(10)
+            nodes = vpsnet_conn.list_ssd_nodes_basic()
+            if host_id in [n.name.split('.')[0] for n in nodes]:
+                node = [n for n in nodes if n.name.split('.')[0] == host_id][0]
+                break
+
+        if not wait_on_action(vpsnet_conn, node, 30):
+            raise "Could not power on node"
+        else:
+            node = vpsnet_conn.get_ssd_node(node.id)
+            #node = vpsnet_conn.get_node(node.id)
+
+        generated_root_password = node.extra['password']
+
+        # Get the Node IP address
+        if isinstance(node.public_ips, list):
+            for public_ip in node.public_ips:
+                if 'ip_address' in (public_ip and public_ip['ip_address']):
+                    public_ip_address = public_ip['ip_address']['ip_address']
+
+        if is_TCS:
+            stats_username = psi_utils.generate_stats_username()
+        elif not is_TCS:
+            stats_username = vpsnet_account.base_stats_username
 
         # Change the new vpsnet instance's credentials
         new_root_password = psi_utils.generate_password()
         new_stats_password = psi_utils.generate_password()
-        new_host_public_key = refresh_credentials(vpsnet_account, instance_ip_address,
-                                                  new_root_password, new_stats_password,
-                                                  new_stats_username)
+        node_public_key = refresh_credentials(vpsnet_account, public_ip_address,
+                                              generated_root_password,
+                                              new_root_password, new_stats_password, stats_username)
+        assert(node_public_key)
+        set_allowed_users(vpsnet_account, public_ip_address, new_root_password, stats_username)
+        add_swap_file(vpsnet_account, public_ip_address, new_root_password)
 
     except Exception as ex:
         if instance:
@@ -254,10 +397,12 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
     return (host_id, is_TCS, 'NATIVE' if is_TCS else None, None,
             vps_provider_id, instance_ip_address,
             vpsnet_account.base_image_ssh_port, 'root', new_root_password,
-            ' '.join(new_host_public_key.split(' ')[:2]),
+            ' '.join(node_public_key.split(' ')[:2]),
             new_stats_username, new_stats_password,
-            datacenter_name, region, None, None)
+            get_datacenter_name(region_template['cloud_label']),
+            get_region_name(region_template),
+            None, None
+            )
 
 if __name__ == '__main__':
     print(launch_new_server)
-

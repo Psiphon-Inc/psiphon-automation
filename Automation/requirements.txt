@@ -3,6 +3,7 @@ cachetools==3.1.1
 cogapp==3.3.0 
 cryptography==3.3.2
 future==0.18.2 
+hcloud==1.35.0
 jsonpickle==3.0.2
 linode_api4==2.2.1
 oci==2.100.0

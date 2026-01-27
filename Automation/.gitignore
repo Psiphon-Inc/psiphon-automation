@@ -8,6 +8,7 @@ network-health/
 CipherShare/
 *snippets*
 *ssl*
+entries*
 deploy.py
 psinet.py
 psicli.py

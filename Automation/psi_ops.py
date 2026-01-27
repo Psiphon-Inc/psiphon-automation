@@ -32,6 +32,7 @@ import tempfile
 import random
 import optparse
 import operator
+import pickle
 import gzip
 import zlib
 import copy
@@ -120,6 +121,16 @@ except ImportError as error:
 
 try:
     import psi_oci
+except ImportError as error:
+    print(error)
+
+try:
+    import psi_vultr
+except ImportError as error:
+    print(error)
+
+try:
+    import psi_hetzner
 except ImportError as error:
     print(error)
 
@@ -322,11 +333,11 @@ AwsAccount = psi_utils.recordtype(
     'access_id, secret_key',
     default=None)
   
-providers = ['linode', 'digitalocean', 'vpsnet', 'scaleway', 'oci']
+providers = ['linode', 'digitalocean', 'vpsnet', 'scaleway', 'oci', 'vultr', 'hetzner']
 
 ProviderRank = psi_utils.recordtype(
     'ProviderRank',
-    'provider, rank',
+    'provider, rank, propagation_channel_id',
     default=None)
 ProviderRank.provider_values = tuple(providers)
 
@@ -383,6 +394,20 @@ OracleAccount = psi_utils.recordtype(
     'base_image_ssh_public_keys, base_image_rsa_private_key',
     default=None)
     
+VultrAccount = psi_utils.recordtype(
+    'VultrAccount',
+    'api_key, base_image_ssh_port, ' +
+    'base_image_root_password, base_image_ssh_private_key, ' +
+    'base_image_ssh_public_key, base_image_ssh_key_id',
+    default=None)
+
+HetznerAccount = psi_utils.recordtype(
+    'HetznerAccount',
+    'api_token, regions, datacenters, ' +
+    'base_image_ssh_port, default_base_image_id, ' +
+    'dafault_base_image_ssh_key_name, default_base_image_ssh_private_key',
+    default=None)
+
 ElasticHostsAccount = psi_utils.recordtype(
     'ElasticHostsAccount',
     'zone, uuid, api_key, base_drive_id, cpu, mem, base_host_public_key, ' +
@@ -468,6 +493,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.__scaleway_account = ScalewayAccount()
         self.__ramnode_account = RamnodeAccount()
         self.__oci_account = OracleAccount()
+        self.__vultr_account = VultrAccount()
+        self.__hetzner_account = HetznerAccount()
         self.__elastichosts_accounts = []
         self.__deploy_implementation_required_for_hosts = set()
         self.__deploy_data_required_for_all = False
@@ -527,7 +554,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.78'
+    class_version = '0.81'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -986,6 +1013,17 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 server.ssh_obfuscated_shadowsocks_port = None
                 server.shadowsocks_key = None
             self.version = '0.78'
+        if cmp(parse_version(self.version), parse_version('0.79')) < 0:
+            self.__vultr_account = VultrAccount()
+            self.version = '0.79'
+        if cmp(parse_version(self.version), parse_version('0.80')) < 0:
+            self.__hetzner_account = HetznerAccount()
+            self.version = '0.80'
+        if cmp(parse_version(self.version), parse_version('0.81')) < 0:
+            for pr in self.__provider_ranks:
+                if not hasattr(pr, 'propagation_channel_id'):
+                    pr.propagation_channel_id = None
+            self.version = '0.81'
 
     def initialize_plugins(self):
         for plugin in plugins:
@@ -1374,10 +1412,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def show_provider_ranks(self):
         for r in self.__provider_ranks:
+            propagation_channel_name = 'Default'
+            if r.propagation_channel_id:
+                channel = self.__propagation_channels.get(r.propagation_channel_id)
+                propagation_channel_name = channel.name if channel else r.propagation_channel_id
             print(textwrap.dedent('''
                 Provider:   %s
                 Rank:       %s
-                ''') % (r.provider, r.rank))
+                Channel:    %s
+                ''') % (r.provider, r.rank, propagation_channel_name))
 
     def __generate_id(self):
         count = 16
@@ -1879,7 +1922,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def export_host_and_server(self, host_id_list):
 
-        import pickle
         exp_entry = list()
 
         for host_id in host_id_list:
@@ -1974,8 +2016,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             pickle.dump(exp_entry, export_file, protocol=2)
 
     def import_host_and_server(self):
-
-        import pickle
 
         assert(self.is_locked)
 
@@ -2210,10 +2250,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         today = datetime.datetime(now.year, now.month, now.day)
         tomorrow = today + datetime.timedelta(days=1)
 
-        # Use a default 5 day discovery date range.
-        new_discovery_date_range = (tomorrow, tomorrow + datetime.timedelta(days=5))
-        # Use a default 5 day osl discovery date range.
-        new_osl_discovery_date_range = (today, today + datetime.timedelta(days=5))
+        # Use a default 7 day discovery date range.
+        new_discovery_date_range = (tomorrow, tomorrow + datetime.timedelta(days=7))
+        # Use a default 15 day osl discovery date range.
+        new_osl_discovery_date_range = (today, today + datetime.timedelta(days=15))
 
         if new_osl_discovery_servers_count == None:
             new_osl_discovery_servers_count = propagation_channel.new_osl_discovery_servers_count
@@ -2227,7 +2267,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             try:
                 is_TCS = True
                 time.sleep(random.randrange(poolsize))
-                return self.launch_new_server(is_TCS)
+                return self.launch_new_server(is_TCS, propagation_channel=propagation_channel)
             except:
                 return None
 
@@ -2449,9 +2489,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         self.run_command_on_host(host, 'shutdown -r 10')
         host.log('initial deployment')
 
-    def launch_new_server(self, is_TCS, provider=None, multi_ip=True):
+    def launch_new_server(self, is_TCS, provider=None, multi_ip=True, propagation_channel=None):
         if provider == None:
-            provider = self._weighted_random_choice(self.__provider_ranks).provider
+            provider_ranks = self.__get_provider_ranks_for_propagation_channel(propagation_channel)
+            provider = self._weighted_random_choice(provider_ranks).provider
 
         if provider.lower() in providers:
             provider_controller = globals()["psi_{}".format(provider.lower())]
@@ -2786,15 +2827,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             provider_remove_host = params[0]
             provider_account = params[1]
             host = params[2]
-            try:
-                # Remove the actual host through the provider's API
-                provider_remove_host(provider_account, host.provider_id)
-            except Exception as ex:
-                time.sleep(random.randrange(poolsize))
-                raise ex
+            # avoid hitting API rate-limits
+            time.sleep(random.randrange(poolsize))
+            # Remove the actual host through the provider's API
+            provider_remove_host(provider_account, host.provider_id)
 
         pool = ThreadPool(poolsize)
         results = pool.map(remove_host_from_provider, params_list)
+        # special case: clean up digitalocean floating IPs no longer associated with a droplet
+        psi_digitalocean.remove_orphan_ips(self.__digitalocean_account)
         for result in results:
             if result:
                 raise result
@@ -3089,7 +3130,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         existing_hosts = [str(host.provider_id) for host in self.get_hosts() if host.provider == provider]
         to_be_removed_hosts = [str(host.provider_id) for host in self._PsiphonNetwork__hosts_to_remove_from_providers if host.provider == provider]
         
-        orphans = [o for o in running_machines if o[0] not in existing_hosts + to_be_removed_hosts]
+        orphans = [o for o in running_machines if str(o[0]) not in existing_hosts + to_be_removed_hosts]
         
         return orphans
     
@@ -3117,7 +3158,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for host_provider_id, host_name in hosts_provider_id_list:
             # TODO: safety check to avoid delete production servers
             orphan = provider_controller.get_server(provider_account, host_provider_id)
-            orphan_id = orphan['zone'] + '_' + orphan['id'] if provider == 'scaleway' else orphan.id
+            orphan_id = orphan['zone'] + '_' + orphan['id'] if provider == 'scaleway' else \
+                        orphan['id'] if provider == 'vultr' else \
+                        orphan.id
             print(textwrap.dedent('''
                   Provider ID:             %s
                   Host Name/Labe:          %s
@@ -3135,6 +3178,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                       orphan['zone'],
                       str(orphan['tags'])
                   ) if provider == 'scaleway' else (
+                      orphan_id,
+                      orphan['label'],
+                      orphan['power_status'],
+                      orphan['date_created'],
+                      orphan['main_ip'],
+                      orphan['region'],
+                      orphan['tag']
+                  ) if provider == 'vultr' else (
                       str(orphan_id),
                       orphan.display_name,
                       orphan.lifecycle_state,
@@ -3159,6 +3210,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                       orphan.region['slug'],
                       str(orphan.tags)
                   ) if provider == 'digitalocean' else (
+                      str(orphan_id),
+                      orphan.name,
+                      orphan.status,
+                      orphan.created.strftime('%Y-%m-%dT%H:%M:%S'),
+                      orphan.public_net.ipv4.ip,
+                      orphan.datacenter.description,
+                      orphan.labels
+                  ) if provider == 'hetzner' else (
                       str(orphan_id),
                       orphan.label,
                       orphan.status,
@@ -3818,6 +3877,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if self.__deploy_stats_config_required:
             self.push_stats_config()
             self.push_devops_config()
+            self.push_db_config()
             self.__deploy_stats_config_required = False
             self.save()
 
@@ -4012,6 +4072,23 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 psi_routes.GEO_ROUTES_ROOT,
                 psi_routes.GEO_ROUTES_SIGNED_EXTENSION)
 
+    def push_db_config(self):
+        assert(self.is_locked)
+        print('push db config...')
+
+        fd, file_path = tempfile.mkstemp(suffix=".pkl.gz")
+        os.close(fd)
+        try:
+            with gzip.open(file_path, 'wb') as f:
+                pickle.dump(self.__compartmentalize_data_for_db(), f, protocol=pickle.HIGHEST_PROTOCOL)
+            psi_ops_cms.delete_document(for_db=True)
+            psi_ops_cms.import_document(file_path, for_db=True)
+        finally:
+            try:
+                os.remove(file_path)
+            except FileNotFoundError:
+                pass
+
     def push_devops_config(self):
         assert(self.is_locked)
         print('push devops config...')
@@ -4020,12 +4097,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         try:
             temp_file.write(self.__compartmentalize_data_for_devops_server().encode())
             temp_file.close()
-            psi_ops_cms.delete_document(for_stats=False)
-            psi_ops_cms.import_document(temp_file.name, False, True)
+            psi_ops_cms.delete_document(for_devops=True)
+            psi_ops_cms.import_document(temp_file.name, for_devops=True)
         finally:
             try:
                 os.remove(temp_file.name)
-            except:
+            except FileNotFoundError:
                 pass
 
     def push_stats_config(self):
@@ -4037,11 +4114,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             temp_file.write(self.__compartmentalize_data_for_stats_server().encode())
             temp_file.close()
             psi_ops_cms.delete_document(for_stats=True)
-            psi_ops_cms.import_document(temp_file.name, True, False)
+            psi_ops_cms.import_document(temp_file.name, for_stats=True)
         finally:
             try:
                 os.remove(temp_file.name)
-            except:
+            except FileNotFoundError:
                 pass
 
     def push_email_config(self):
@@ -4254,7 +4331,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__aws_account,
             access_id=access_id, secret_key=secret_key)
 
-    def upsert_provider_rank(self, provider, rank):
+    def upsert_provider_rank(self, provider, rank, propagation_channel_name=None):
         '''
         Inserts or updates a Provider-Rank entry. The "key" for an entry is provider.
         rank: the higher the score, the more the provider will be preferred when
@@ -4264,10 +4341,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if provider not in ProviderRank.provider_values:
             raise ValueError('bad provider value: %s' % provider)
 
+        propagation_channel_id = None
+        if propagation_channel_name:
+            propagation_channel = self.get_propagation_channel_by_name(propagation_channel_name)
+            propagation_channel_id = propagation_channel.id
+
         pr = ProviderRank()
         found = False
         for existing_pr in self.__provider_ranks:
-            if existing_pr.provider == provider:
+            if existing_pr.provider == provider and existing_pr.propagation_channel_id == propagation_channel_id:
                 pr = existing_pr
                 found = True
                 break
@@ -4277,7 +4359,22 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         psi_utils.update_recordtype(
             pr,
-            provider=provider, rank=rank)
+            provider=provider, rank=rank, propagation_channel_id=propagation_channel_id)
+
+    def __get_provider_ranks_for_propagation_channel(self, propagation_channel):
+        if not propagation_channel:
+            return [r for r in self.__provider_ranks if r.propagation_channel_id is None]
+
+        merged = {}
+        for rank in self.__provider_ranks:
+            if rank.propagation_channel_id is None:
+                merged[rank.provider] = ProviderRank(rank.provider, rank.rank, None)
+
+        for rank in self.__provider_ranks:
+            if rank.propagation_channel_id == propagation_channel.id:
+                merged[rank.provider] = ProviderRank(rank.provider, rank.rank, rank.propagation_channel_id)
+
+        return list(merged.values())
 
     def set_linode_account(self, api_key, base_id, base_ip_address, base_ssh_port,
                            base_root_password, base_stats_username, base_host_public_key,
@@ -5005,6 +5102,15 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             # Host, Server, SponsorHomePage, ...
             return obj.todict()
 
+    def __compartmentalize_data_for_db(self):
+        psinet_copy = copy.deepcopy(self)
+        psinet_copy.__deleted_hosts.clear()
+        psinet_copy.__deleted_servers.clear()
+        psinet_copy.__paused_hosts.clear()
+        psinet_copy.__paused_servers.clear()
+        psinet_copy.__hosts_to_remove_from_providers.clear()
+        return psinet_copy
+
     def __compartmentalize_data_for_tcs(self, discovery_date=datetime.datetime.now()):
         # Create a compartmentalized database for tunnel-core-server with only the information needed by a particular host
         # - all propagation channels because any client may connect to servers on this host
@@ -5728,6 +5834,7 @@ def replace_propagation_channel_servers(propagation_channel_name):
         try:
             psinet.push_stats_config()
             psinet.push_devops_config()
+            psinet.push_db_config()
         except:
             pass
         psinet.show_status()

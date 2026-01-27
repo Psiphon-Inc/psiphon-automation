@@ -194,6 +194,12 @@ def log_diagnostics(line):
         log_file.write(line + '\n')
 
 def send_mail(record):
+    # Truncate results to limit email length
+    start_time, end_time, (total_users, total_hosts, unreachable_hosts, hosts) = record
+    max_hosts = len(hosts) // 2
+    truncated_hosts = hosts[:max_hosts]
+    truncated_record = (start_time, end_time, (total_users, total_hosts, unreachable_hosts, truncated_hosts))
+
     template_filename = 'psi_mail_hosts_load.mako'
     template_lookup = TemplateLookup(directories=[os.path.dirname(os.path.abspath('__file__'))])
     # SECURITY IMPORTANT: `'h'` in the `default_filters` list causes HTML
@@ -202,14 +208,15 @@ def send_mail(record):
     # essential.
     template = Template(filename=template_filename, default_filters=['unicode', 'h'], lookup=template_lookup)
     try:
-        rendered = template.render(data=record)
+        rendered = template.render(data=truncated_record)
     except:
         raise Exception(exceptions.text_error_template().render())
 
     # CSS in email HTML must be inline
     rendered = pynliner.fromString(rendered)
     log_diagnostics('Sending email...')
-    sender.send(config['statsEmailRecipients'], config['emailUsername'], 'Psiphon 3 Host Load Stats', repr(record), rendered)
+    log_diagnostics('Truncated hosts from %d to %d' % (len(hosts), len(truncated_hosts)))
+    sender.send(config['statsEmailRecipients'], config['emailFromAddr'], 'Psiphon 3 Host Load Stats', repr(record), rendered)
     log_diagnostics('Email sent.')
 
 

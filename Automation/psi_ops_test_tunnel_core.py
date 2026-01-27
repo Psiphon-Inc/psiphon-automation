@@ -26,6 +26,7 @@ import copy
 import json
 import shlex
 import signal
+import ipaddress
 
 from functools import wraps
 
@@ -200,7 +201,7 @@ class TunnelCoreConsoleRunner:
         return urllib3.ProxyManager("http://127.0.0.1:{http_port}".format(http_port=self.http_proxy_port), timeout=30.0)
     
     
-    def run_packet_tunnel_tests(self, test_sites, expected_egress_ip_addresses, user_agent):
+    def run_packet_tunnel_tests(self, test_sites, expected_egress_ip_addresses, user_agent, original_ip_address=''):
         import dns.resolver
         import urllib3
         
@@ -247,7 +248,16 @@ class TunnelCoreConsoleRunner:
                 egress_ip_address = json.loads(response.data.strip().decode('UTF-8'))['remoteIP']
             except:
                 egress_ip_address = response.data.strip().decode("UTF-8")
-            is_proxied = (egress_ip_address in expected_egress_ip_addresses)
+            is_valid_ip = False
+            try:
+                ipaddress.ip_address(egress_ip_address)
+                is_valid_ip = True
+            except Exception:
+                is_valid_ip = False
+            is_proxied = (
+                (egress_ip_address in expected_egress_ip_addresses) or
+                ('' in expected_egress_ip_addresses and is_valid_ip and original_ip_address and egress_ip_address != original_ip_address)
+            )
             if is_proxied:
                 output['PT-HTTPS'] = 'PASS'
         
@@ -287,6 +297,22 @@ def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, a
             ','.join(expected_egress_ip_addresses), transport, 'ENABLED' if split_tunnel_mode else 'DISABLED'))
     
     try:
+        # Establish baseline original egress IP (unproxied) if special-case '' is used
+        original_ip_address = ''
+        if '' in expected_egress_ip_addresses and len(test_sites) > 0:
+            baseline_url = test_sites[0]
+            try:
+                if baseline_url.startswith('https'):
+                    urllib3.disable_warnings()
+                pool = urllib3.PoolManager(timeout=30.0)
+                response = pool.request('GET', baseline_url, headers={"User-Agent": user_agent})
+                try:
+                    original_ip_address = json.loads(response.data.strip().decode('UTF-8'))['remoteIP']
+                except:
+                    original_ip_address = response.data.strip().decode('UTF-8')
+            except Exception as _:
+                original_ip_address = ''
+
         runner.connect_to_server(transport, split_tunnel_mode)
         
         runner.wait_for_connection()
@@ -295,7 +321,8 @@ def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, a
             output.update(runner.run_packet_tunnel_tests(
                                     runner.test_sites, 
                                     expected_egress_ip_addresses,
-                                    user_agent))
+                                    user_agent,
+                                    original_ip_address))
         
         else:
             
@@ -325,8 +352,17 @@ def __test_server(runner, transport, expected_egress_ip_addresses, test_sites, a
                     except:
                         egress_ip_address = response.data.strip().decode("UTF-8")
 
-                    is_proxied = (egress_ip_address in expected_egress_ip_addresses)
-                    
+                    is_valid_ip = False
+                    try:
+                        ipaddress.ip_address(egress_ip_address)
+                        is_valid_ip = True
+                    except Exception:
+                        is_valid_ip = False
+                    is_proxied = (
+                        (egress_ip_address in expected_egress_ip_addresses) or
+                        ('' in expected_egress_ip_addresses and is_valid_ip and original_ip_address and egress_ip_address != original_ip_address)
+                    )
+
                     if url.startswith('https'):
                         output['HTTPS'] = 'PASS' if is_proxied else 'FAIL : Connection is not proxied.  Egress IP is: {0}, expected: {1}'.format(egress_ip_address, expected_egress_ip_addresses)
                     else:

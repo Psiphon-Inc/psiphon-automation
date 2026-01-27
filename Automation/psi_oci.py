@@ -31,7 +31,7 @@ import psi_utils
 import oci
 
 # VARIABLE
-TCS_BASE_IMAGE_NAME = 'Psiphon-TCS-V10.3-20230726'
+TCS_BASE_IMAGE_NAME = 'Psiphon-TCS-V12.4-20260108'
 
 ###
 #
@@ -137,7 +137,9 @@ class PsiOCI:
         return datacenters.get(self.config["region"], '')
 
     def list_instances(self):
-        instances = self.compute_api.list_instances(self.config["compartment"]).data
+        instances = oci.pagination.list_call_get_all_results(
+            self.compute_api.list_instances,
+            self.config["compartment"]).data
 
         return instances
 
@@ -176,6 +178,22 @@ class PsiOCI:
                     size_in_gbs=resize_to
                 )
             ).data
+
+    def resize_instance_shape(self, instance_id, resize_ocpu_to=4, resize_ram_to=16):
+        instance = self.compute_api.get_instance(instance_id).data
+        update_details = oci.core.models.UpdateInstanceDetails(
+            shape_config=oci.core.models.UpdateInstanceShapeConfigDetails(
+                ocpus=resize_ocpu_to,
+                memory_in_gbs=resize_ram_to,
+            ),
+        )
+
+        res = self.compute_api.update_instance(
+            instance_id=instance_id,
+            update_instance_details=update_details,
+        )
+
+        print("Finish updating {} to CPU: {} and RAM: {}".format(instance.display_name, resize_ocpu_to, resize_ram_to))
 
     def create_image(self):
         image = self.compute_api.create_image(
@@ -253,7 +271,7 @@ def refresh_credentials(oracle_account, ip_address, new_root_password, new_stats
         ssh.exec_command('rm /etc/ssh/ssh_host_*')
         ssh.exec_command('rm -rf /root/.ssh')
         ssh.exec_command('export DEBIAN_FRONTEND=noninteractive && dpkg-reconfigure openssh-server')
-        return ssh.exec_command('cat /etc/ssh/ssh_host_rsa_key.pub')
+        return ssh.exec_command('cat /etc/ssh/ssh_host_ed25519_key.pub')
     finally:
         ssh.close()
 
@@ -356,6 +374,14 @@ def resize_volume(oracle_account, instance_id, resize_to=200):
     oci_api, instance_id = reload_api_client(oci_api, instance_id)
     try:
         oci_api.resize_boot_volume(instance_id, resize_to)
+    except Exception as e:
+        raise e
+
+def resize_instance(oracle_account, instance_id, resize_ocpu_to=4, resize_ram_to=16):
+    oci_api = PsiOCI(oracle_account)
+    oci_api, instance_id = reload_api_client(oci_api, instance_id)
+    try:
+        oci_api.resize_instance_shape(instance_id, resize_ocpu_to, resize_ram_to)
     except Exception as e:
         raise e
 
