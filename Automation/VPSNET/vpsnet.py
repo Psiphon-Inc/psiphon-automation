@@ -31,10 +31,6 @@ class VPSNET:
             if payload != None:
                 # Create VM
                 response = requests.post(self.__url + endpoint, headers={'X-Api-Token': self.__key, 'Content-Type': 'application/json', 'Accept': 'application/json'}, data=payload)
-                print(endpoint, payload)
-                print(self.__url + endpoint)
-                print(response)
-                print("HERE")
             else:
                 # Control VM
                 response = requests.post(self.__url + endpoint, headers={'X-Api-Token': self.__key})
@@ -142,7 +138,7 @@ class VPSNET:
 
     def delete_vm_vps_server(self, location_id, server_id): #WORKS
         response = self._delete_request('/rest-api/ssd-vps/locations/' + str(location_id) + '/servers/' + str(server_id))
-        return response['data']
+        return response
 
 
     def get_operating_systems(self, location_id) : #WORKS
@@ -170,7 +166,7 @@ class VPSNET:
     def get_server_id_by_host_id(self, host_id) :
         all_vps_vms = self.get_vms()
         for i in range(len(all_vps_vms)) :
-            if all_vps_vms[i]['hostname'] == host_id + ".vps.net" :
+            if all_vps_vms[i]['hostname'] == host_id :
                 server_id = all_vps_vms[i]['id']
         return server_id
 
@@ -205,6 +201,6 @@ class VPSNET:
 
     def delete_ssh_key(self, ssh_key) :
         response = self._delete_request('/rest-api/ssh-keys/' + str(ssh_key))
-        return response['data']
+        return response
 
 

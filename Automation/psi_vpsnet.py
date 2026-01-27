@@ -77,12 +77,8 @@ class PsiVpsnet:
 
         return region, location_id, datacenter_name
 
-    def get_datacenter_name(datacenter):
-        country = location['name'][-2:]
-        city = location['name'][:-8].rstrip()
-        location_id = location['id']
-
-        return country, location_id, f"VPSNET {city}, {country}"
+    def get_datacenter_name(datacenter_name, region):
+        return f"VPSNET {datacenter_name}, {region}"
 
     #
     def list_instances(self):
@@ -114,7 +110,7 @@ class PsiVpsnet:
 #
 ###
 def refresh_credentials(vpsnet_account, ip_address, new_root_password, new_stats_password, stats_username):
-    ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_image_ssh_port,
+    ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_ssh_port,
                                    'root', None, vpsnet_account.base_image_ssh_public_key,
                                    host_auth_key=vpsnet_account.base_image_ssh_private_key)
     try:
@@ -129,7 +125,7 @@ def refresh_credentials(vpsnet_account, ip_address, new_root_password, new_stats
         ssh.close()
 
 def set_allowed_users(vpsnet_account, ip_address, stats_username):
-    ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_image_ssh_port,
+    ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_ssh_port,
                                    'root', None, vpsnet_account.base_image_ssh_public_key,
                                    host_auth_key=vpsnet_account.base_image_ssh_private_key)
     try:
@@ -142,7 +138,7 @@ def set_allowed_users(vpsnet_account, ip_address, stats_username):
 
 def get_host_name(vpsnet_account, ip_address):
     # Note: using base image credentials; call before changing credentials
-    ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_image_ssh_port,
+    ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_ssh_port,
                                    'root', None, vpsnet_account.base_image_ssh_public_key,
                                    host_auth_key=vpsnet_account.base_image_ssh_private_key)
 
@@ -215,7 +211,7 @@ def get_region_name(region):
 
 def set_host_name(vpsnet_account, ip_address, new_hostname):
     # Note: hostnamectl is for systemd servers
-    ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_image_ssh_port,
+    ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_ssh_port,
                                    'root', None, vpsnet_account.base_image_ssh_public_key,
                                    host_auth_key=vpsnet_account.base_image_ssh_private_key)
     try:
@@ -224,7 +220,7 @@ def set_host_name(vpsnet_account, ip_address, new_hostname):
         ssh.close()
 
 def add_swap_file(vpsnet_account, ip_address):
-    ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_image_ssh_port,
+    ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_ssh_port,
                                    'root', None, vpsnet_account.base_image_ssh_public_key,
                                    host_auth_key=vpsnet_account.base_image_ssh_private_key)
     try:
@@ -254,17 +250,14 @@ def get_server(vpsnet_account, provider_id): #
     return vpsnet_api.client.get_vm_server_details(location_id, server_id)
 
 def remove_server(vpsnet_account, provider_id): #
-    split_ids = self.client.provider_id_to_location_server_ids(provider_id)
-    location_id = split_ids[0]
-    server_id = split_ids[1]
     vpsnet_api = PsiVpsnet(vpsnet_account)
-    vpsnet_api.delete_vm_vps_server(location_id, server_id)
+    location_id, server_id = vpsnet_api.client.provider_id_to_location_server_ids(provider_id)
+    vpsnet_api.client.delete_vm_vps_server(location_id, server_id)
 
 def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
 
     instance = None
     vpsnet_api = PsiVpsnet(vpsnet_account) # Use API interface
-    base_image_label = 'Psiphon3-TCS-V12.8-20250812'
 
     try:
         # Create a new vpsnet instance
@@ -273,13 +266,23 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
         custom_template_id = vpsnet_api.client.get_custom_os_id(str(location_id), TCS_BASE_IMAGE_ID)
         hostname_vpsnet = host_id + ".vps.net"
 
+        #data = (f"{{"
+        #    f"\"label\": \"{host_id}\", "
+        #    f"\"hostname\": \"{hostname_vpsnet}\", "
+        #    f"\"backups\": false, "
+        #    f"\"bill_hourly\": true, "
+        #    f"\"product_name\": \"{TCS_VPS_DEFAULT_PLAN}\", "
+        #    f"\"custom_template_id\": \"{custom_template_id}\""
+        #    f"}}")
+
+        # For test only
         data = (f"{{"
             f"\"label\": \"{host_id}\", "
             f"\"hostname\": \"{hostname_vpsnet}\", "
             f"\"backups\": false, "
             f"\"bill_hourly\": true, "
             f"\"product_name\": \"{TCS_VPS_DEFAULT_PLAN}\", "
-            f"\"custom_template_id\": \"{custom_template_id}\""
+            f"\"os_component_code\": \"SSDVPSDEBIAN12\""
             f"}}")
 
         instance_info = vpsnet_api.create_instance(location_id, data)
@@ -290,7 +293,7 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
         vps_provider_id = str(location_id) + "-" + str(server_id)
 
         # Waiting for job completion
-        wait_while_condition(lambda: vpsnet_api.client.get_vm_server_status(location_id, server_id)['message'] != 'Powered On',
+        wait_while_condition(lambda: vpsnet_api.client.get_vm_server_status(location_id, server_id)['status'] != 1,
                          30,
                          'Creating VPSNET Instance')
 
@@ -298,19 +301,14 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
 
         instance = vpsnet_api.client.get_vm_server_details(location_id, server_id)
 
-        instance_ip_address = instance['data']['ip_addresses'][0]['ip_address']['address']
+        instance_ip_address = instance['ip_addresses'][0]['ip_address']['address']
 
         new_stats_username = psi_utils.generate_stats_username()
         set_host_name(vpsnet_account, instance_ip_address, host_id)
         set_allowed_users(vpsnet_account, public_ip_address, new_root_password, stats_username)
         add_swap_file(vpsnet_account, public_ip_address, new_root_password)
 
-        #generated_root_password = node.extra['password']
-
-        if is_TCS:
-            stats_username = psi_utils.generate_stats_username()
-        elif not is_TCS:
-            stats_username = vpsnet_account.base_stats_username
+        generated_root_password = instance['initial_root_password']
 
         # Change the new vpsnet instance's credentials
         new_root_password = psi_utils.generate_password()
@@ -327,11 +325,11 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
 
     return (host_id, is_TCS, 'NATIVE' if is_TCS else None, None,
             vps_provider_id, instance_ip_address,
-            vpsnet_account.base_image_ssh_port, 'root', new_root_password,
+            vpsnet_account.base_ssh_port, 'root', new_root_password,
             ' '.join(node_public_key.split(' ')[:2]),
             new_stats_username, new_stats_password,
-            get_datacenter_name(region_template['cloud_label']),
-            get_region_name(region_template),
+            get_datacenter_name(datacenter_name, reigon),
+            region,
             None, None
             )
 
