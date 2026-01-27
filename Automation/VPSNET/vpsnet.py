@@ -60,6 +60,9 @@ class VPSNET:
         except Exception as e:
             raise e
 
+    def provider_id_to_location_server_ids(provider_id, delimiter="-"):
+        location_id, node_id = provider_id.split(delimiter)
+        return location_id, node_id
 
     def get_ssd_vps_plans(self): #WORKS
         response = self._get_request('/rest-api/ssd-vps/plans/')
