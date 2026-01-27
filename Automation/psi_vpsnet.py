@@ -28,7 +28,7 @@ import psi_utils
 
 # Import VPSNET Python Library
 # Requirement: VPSNET directory with library file
-from vpsnet import vpsnet
+from VPSNET import vpsnet
 
 # VARIABLE
 TCS_BASE_IMAGE_ID = 'Psiphon3-TCS-V12.8-20250812' # most current base image label
@@ -59,19 +59,18 @@ class PsiVpsnet:
         self.api_key = vpsnet_account.api_key
         self.plan = TCS_VPS_DEFAULT_PLAN
         self.base_image_id = TCS_BASE_IMAGE_ID
-        self.ssh_key_id = vpsnet_account.base_image_ssh_key_id
-        self.client = vps.vpsnet(api_key=self.api_key)
+        self.client = vpsnet.VPSNET(api_key=self.api_key)
 
     def get_location(self, select_location=None):
         # Load location from API
         # region_id required for create_instance
         all_locations = self.client.get_vps_locations()
         if select_location != None:
-            locations = [r for r in all_locations['data'] if r['id'] == select_location]
+            locations = [r for r in all_locations if r['id'] == select_location]
         else:
-            locations = all_locations['data']
+            locations = all_locations
 
-        location = random.choice(locations)
+        return random.choice(locations)
 
     def get_datacenter_name(datacenter):
         country = location['name'][-2:]
@@ -87,17 +86,13 @@ class PsiVpsnet:
 
     #
     def get_instance(self, provider_id):
-        split_ids = self.client.provider_id_to_location_server_ids(provider_id)
-        location_id = split_ids[0]
-        server_id = split_ids[1]
+        location_id, server_id = self.client.provider_id_to_location_server_ids(provider_id)
         instance = self.client.get_vm_server_details(location_id, server_id)
         return instance
 
     #
     def remove_instance(self, provider_id):
-        split_ids = self.client.provider_id_to_location_server_ids(provider_id)
-        location_id = split_ids[0]
-        server_id = split_ids[1]
+        location_id, server_id = self.client.provider_id_to_location_server_ids(provider_id)
         print("Deleting Instances: {}".format(location_id - server_id))
         self.client.delete_vm_vps_server(location_id, server_id)
 
@@ -256,15 +251,13 @@ def add_swap_file(vpsnet_account, ip_address):
 ###
 def get_servers(vpsnet_account): #
     vpsnet_api = PsiVpsnet(vpsnet_account)
-    instances = vpsnet_api.get_vms()
-    return [(v['id'], v['label']) for v in instances['data']]
+    instances = vpsnet_api.client.get_vms()
+    return [(v['id'], v['location']['id'], v['label']) for v in instances]
 
-def get_server(vpsnet_account, provder_id): #
-    split_ids = self.client.provider_id_to_location_server_ids(provider_id)
-    location_id = split_ids[0]
-    server_id = split_ids[1]
+def get_server(vpsnet_account, provider_id): #
     vpsnet_api = PsiVpsnet(vpsnet_account)
-    return vpsnet_api.get_vm_server_details(location_id, server_id)
+    location_id, server_id = vpsnet_api.client.provider_id_to_location_server_ids(provider_id)
+    return vpsnet_api.client.get_vm_server_details(location_id, server_id)
 
 def remove_server(vpsnet_account, provider_id): #
     split_ids = self.client.provider_id_to_location_server_ids(provider_id)
@@ -283,7 +276,7 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
         # Create a new vpsnet instance
         region, location_id, datacenter_name = vpsnet_api.get_location()
         host_id = "vt" + '-' + region.lower() + location_id.lower() + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
-        custom_template_id = vpsnet_api.get_custom_os_id(location_id, TCS_BASE_IMAGE_ID)
+        custom_template_id = vpsnet_api.client.get_custom_os_id(location_id, TCS_BASE_IMAGE_ID)
         data = (f"{{"
             f"\"label\": \"{host_id}\", "
             f"\"hostname\": \"{host_id}\", "
