@@ -60,7 +60,7 @@ class VPSNET:
         except Exception as e:
             raise e
 
-    def provider_id_to_location_server_ids(provider_id, delimiter="-"):
+    def provider_id_to_location_server_ids(self, provider_id, delimiter="-"):
         location_id, node_id = provider_id.split(delimiter)
         return location_id, node_id
 
