@@ -75,6 +75,9 @@ class PsiVpsnet:
         location_id = location['id']
         datacenter_name, region = location['name'].split(", ")
 
+        if region == 'UK':
+            region = 'GB'
+
         return region, location_id, datacenter_name
 
     def get_datacenter_name(datacenter_name, region):
