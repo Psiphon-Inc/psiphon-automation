@@ -32,7 +32,7 @@ from VPSNET import vpsnet
 
 # VARIABLE
 TCS_BASE_IMAGE_ID = 'Psiphon3-TCS-V12.8-20250812' # most current base image label
-TCS_VPS_DEFAULT_PLAN = 'V3' # 'id': 328, 'label': '4 Cores / 2GB RAM / 80GB SSD / 4TB Bandwidth', 'price': '16.00', 'product_name': 'V3'
+TCS_VPS_DEFAULT_PLAN = 'V4' # 'id': 328, 'label': '4 Cores / 2GB RAM / 80GB SSD / 4TB Bandwidth', 'price': '16.00', 'product_name': 'V3'
 
 ###
 #
@@ -242,7 +242,7 @@ def add_swap_file(vpsnet_account, ip_address):
 def get_servers(vpsnet_account): #
     vpsnet_api = PsiVpsnet(vpsnet_account)
     instances = vpsnet_api.client.get_vms()
-    return [(v['id'], v['location']['id'], v['label']) for v in instances]
+    return [(str(v['location']['id']) + '-' + str(v['id']), v['hostname']) for v in instances]
 
 def get_server(vpsnet_account, provider_id): #
     vpsnet_api = PsiVpsnet(vpsnet_account)
@@ -250,9 +250,12 @@ def get_server(vpsnet_account, provider_id): #
     return vpsnet_api.client.get_vm_server_details(location_id, server_id)
 
 def remove_server(vpsnet_account, provider_id): #
-    vpsnet_api = PsiVpsnet(vpsnet_account)
-    location_id, server_id = vpsnet_api.client.provider_id_to_location_server_ids(provider_id)
-    vpsnet_api.client.delete_vm_vps_server(location_id, server_id)
+    try:
+        vpsnet_api = PsiVpsnet(vpsnet_account)
+        location_id, server_id = vpsnet_api.client.provider_id_to_location_server_ids(provider_id)
+        vpsnet_api.client.delete_vm_vps_server(location_id, server_id)
+    except:
+        print("ERROR: Remove server failed: {}".format(provider_id))
 
 def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
 
@@ -262,7 +265,7 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
     try:
         # Create a new vpsnet instance
         region, location_id, datacenter_name = vpsnet_api.get_location()
-        host_id = "vt" + '-' + region.lower() + datacenter_name[:3].lower() + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
+        host_id = "vn" + '-' + region.lower() + datacenter_name[:3].lower() + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
         custom_template_id = vpsnet_api.client.get_custom_os_id(str(location_id), TCS_BASE_IMAGE_ID)
         hostname_vpsnet = host_id + ".vps.net"
 
@@ -328,7 +331,7 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
             vpsnet_account.base_ssh_port, 'root', new_root_password,
             ' '.join(node_public_key.split(' ')[:2]),
             new_stats_username, new_stats_password,
-            get_datacenter_name(datacenter_name, reigon),
+            get_datacenter_name(datacenter_name, region),
             region,
             None, None
             )
