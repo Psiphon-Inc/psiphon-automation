@@ -28,6 +28,7 @@ import psi_utils
 
 # Import hetzner Python Library
 # Requirement: hetzner directory with library file
+import hcloud
 from hcloud import Client
 from hcloud.images import Image
 from hcloud.server_types import ServerType
@@ -162,8 +163,8 @@ class PsiHetzner:
 
     def remove_instance(self, instance_id):
         instance = self.client.servers.get_by_id(instance_id)
-        instance.delete()
         print("Deleting Instances: {} / {} - IP: {}".format(instance.id, instance.name, instance.public_net.ipv4.ip))
+        instance.delete()
 
     def create_instance(self, host_id, datacenter=None, labels={"type":"psiphond"}):
         # Launch Instnace
@@ -265,7 +266,11 @@ def get_server(hetzner_account, hetzner_id):
 
 def remove_server(hetzner_account, hetzner_id):
     hetzner_api = PsiHetzner(hetzner_account)
-    hetzner_api.remove_instance(hetzner_id)
+    try:
+        hetzner_api.remove_instance(hetzner_id)
+    except hcloud._exceptions.APIException as ex:
+        if 'server not found' not in str(ex):
+            raise ex
 
 def launch_new_server(hetzner_account, is_TCS, plugins, multi_ip=False):
 
