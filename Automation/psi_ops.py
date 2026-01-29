@@ -361,6 +361,7 @@ VPSNetAccount = psi_utils.recordtype(
     'VPSNetAccount',
     'account_id, api_key, api_base_url, base_ssh_port, ' +
     'base_root_password, base_stats_username, ' +
+    'base_ssh_private_key, base_ssh_key_id, base_host_public_key, ' +
     'base_cloud_id, base_system_template, base_ssd_plan',
     default=None)
 
@@ -554,7 +555,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.81'
+    class_version = '0.82'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -1024,6 +1025,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 if not hasattr(pr, 'propagation_channel_id'):
                     pr.propagation_channel_id = None
             self.version = '0.81'
+        if cmp(parse_version(self.version), parse_version('0.82')) < 0:
+            self.__vpsnet_account.base_ssh_private_key = ''
+            self.__vpsnet_account.base_ssh_key_id = 0
+            self.__vpsnet_account.base_host_public_key = ''
+            self.version = '0.82'
+
 
     def initialize_plugins(self):
         for plugin in plugins:
