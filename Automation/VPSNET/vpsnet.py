@@ -79,7 +79,6 @@ class VPSNET:
         # successfully created
         if response['status_code'] == 201:
 	    # response is array of array of response data;
-            print(response['data'])
             return response['data']
         else :
             return "Failed To Create VM"
@@ -178,29 +177,4 @@ class VPSNET:
     def get_ssh_key(self, ssh_key) :
         response = self._get_request('/rest-api/ssh-keys/' + str(ssh_key))
         return response['data']
-
-
-    def add_ssh_key(self, public_key, key_label):
-        payload = dict()
-        payload = (f"{{"
-            f"\"public_key\": \"{public_key}\", "
-            f"\"label\": \"{key_label}\""
-            f"}}")
-        url = '/rest-api/ssh-keys'
-        response = self._post_request(url, payload)
-
-        # successfully created
-        if response['status_code'] == 200:
-            # response is array of array of response data;
-            print(response)
-            return response['data']
-        else: #error
-            print(response)
-            return response['data']
-
-
-    def delete_ssh_key(self, ssh_key) :
-        response = self._delete_request('/rest-api/ssh-keys/' + str(ssh_key))
-        return response
-
 
