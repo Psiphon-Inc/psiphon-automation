@@ -89,7 +89,14 @@ class SSH(object):
                                              ssh.RSAKey(data=base64.b64decode(key_data)))
 
         if ssh_pkey is not None:
-            ssh_pkey = ssh.RSAKey.from_private_key(StringIO(ssh_pkey))
+            split_ssh_key = ssh_host_key.split(' ')
+            key_type = split_ssh_key[0]
+            key_data = split_ssh_key[1]
+
+            if key_type = 'ssh-ed25519':
+                ssh_pkey = ssh.Ed25519Key.from_private_key(StringIO(ssh_pkey))
+            else: # 'ssh-rsa'
+                ssh_pkey = ssh.RSAKey.from_private_key(StringIO(ssh_pkey))
 
         self.ssh.connect(ip_address, ssh_port, ssh_username, ssh_password, pkey=ssh_pkey, timeout=60, banner_timeout=90, auth_timeout=90)
 
