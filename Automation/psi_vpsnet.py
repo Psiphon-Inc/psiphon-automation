@@ -34,6 +34,59 @@ from VPSNET import vpsnet
 TCS_BASE_IMAGE_ID = 'Psiphon3-TCS-V12.8-20250812' # most current base image label
 TCS_VPS_DEFAULT_PLAN = 'V4' # 'id': 328, 'label': '4 Cores / 2GB RAM / 80GB SSD / 4TB Bandwidth', 'price': '16.00', 'product_name': 'V3'
 
+
+### Old API:
+### 65:  LON-K-SSD:                     London GB (Not available)
+### 66:  SLC-G-SSD:                     Salt Lake City US (Not available)
+### 91:  LON-M-SSD:                     London GB (Not available)
+### 113: SLC-H-SSD:                     Salt Lake City US
+### 116: (New York) - NYC-A-SSD:        New York US (Not available)
+### 117: (Los Angeles) - LAX-A-SSD:     Los Angeles US
+### 118: SLC-K-SSD:                     Salt Lake City US
+### 119: TOR-A-SSD:                     Toronto CA
+### 120: AMS-B-SSD:                     Amsterdam NL
+### 121: LON-P-SSD:                     London GB (Not available)
+### 124: (Miami) - MIA-A-SSD:           Miami US
+### 125: (Chicago) - CHI-C-SSD:         Chicago US
+### 126: (Dallas) - DAL-B-SSD           Dallas US
+### 127: LON-R-SSD                      London GB
+### 128: VAN-A-SSD                      Vancouver CA
+### 129: (New York) - NYC-B-SSH         New York US
+### 130: PHX-A-SSD                      City of Phoenix US
+### 131: (Seattle) - SEA-B-SSD          Seattle US
+### 132: ATL-G-SSD                      Atlanta US
+### 133: (New York) - NYC-C-SSD         New York US
+### 134: LON-Q-SS                       London GB
+### 135: FRA-B-SSD                      Frankfurt DE
+### 148: SLC-A-SSD                      SLC US
+### 151: CHI-G-SSD                      Chicago US
+### 154: ATL-A-SSD                      Atlanta US
+### 157: SIN-B-SSD                      Singapore SG
+### 160: DAL-C-SSD                      Dallas US
+###
+### New API:
+### [{'id': 117, 'name': 'London - M, UK', 'ssh_key_required': False}
+### {'id': 121, 'name': 'Salt Lake City - H, US', 'ssh_key_required': False}
+### {'id': 125, 'name': 'Salt Lake City - K, US', 'ssh_key_required': False}
+### {'id': 129, 'name': 'Amsterdam - B, NL', 'ssh_key_required': False}
+### {'id': 133, 'name': 'London - P, UK', 'ssh_key_required': False}
+### {'id': 137, 'name': 'London - R, UK', 'ssh_key_required': False}
+### {'id': 141, 'name': 'New York City - A, US', 'ssh_key_required': False}
+### {'id': 145, 'name': 'New York City - C, US', 'ssh_key_required': False}
+### {'id': 149, 'name': 'London - Q, UK', 'ssh_key_required': False}
+### {'id': 153, 'name': 'Frankfurt - B, DE', 'ssh_key_required': False}
+### {'id': 161, 'name': 'London - A, UK', 'ssh_key_required': False}
+### {'id': 165, 'name': 'Frankfurt - C, DE', 'ssh_key_required': False}
+### {'id': 169, 'name': 'Atlanta - A2, US', 'ssh_key_required': False}
+### {'id': 173, 'name': 'Salt Lake City - A2, US', 'ssh_key_required': False}
+### {'id': 177, 'name': 'Chicago - G2, US', 'ssh_key_required': False}
+### {'id': 181, 'name': 'Dallas - C2, US', 'ssh_key_required': False}
+### {'id': 189, 'name': 'Salt Lake City - A1, US', 'ssh_key_required': False}
+### {'id': 193, 'name': 'Chicago - G1, US', 'ssh_key_required': False}
+### {'id': 197, 'name': 'Atlanta - A1, US', 'ssh_key_required': False}
+### {'id': 205, 'name': 'Dallas - C1, US', 'ssh_key_required': False}
+### {'id': 213, 'name': 'London - F, UK', 'ssh_key_required': True}]
+
 ###
 #
 # Helper functions
@@ -158,50 +211,6 @@ def add_swap_file(vpsnet_account, ip_address, root_password):
             ssh.exec_command('swapon -a')
     finally:
         ssh.close()
-
-def get_region_name(region):
-    '''
-        65:  LON-K-SSD:                     London GB (Not available)
-        66:  SLC-G-SSD:                     Salt Lake City US (Not available)
-        91:  LON-M-SSD:                     London GB (Not available)
-        113: SLC-H-SSD:                     Salt Lake City US
-        116: (New York) - NYC-A-SSD:        New York US (Not available)
-        117: (Los Angeles) - LAX-A-SSD:     Los Angeles US
-        118: SLC-K-SSD:                     Salt Lake City US
-        119: TOR-A-SSD:                     Toronto CA
-        120: AMS-B-SSD:                     Amsterdam NL
-        121: LON-P-SSD:                     London GB (Not available)
-        124: (Miami) - MIA-A-SSD:           Miami US
-        125: (Chicago) - CHI-C-SSD:         Chicago US
-        126: (Dallas) - DAL-B-SSD           Dallas US
-        127: LON-R-SSD                      London GB
-        128: VAN-A-SSD                      Vancouver CA
-        129: (New York) - NYC-B-SSH         New York US
-        130: PHX-A-SSD                      City of Phoenix US
-        131: (Seattle) - SEA-B-SSD          Seattle US
-        132: ATL-G-SSD                      Atlanta US
-        133: (New York) - NYC-C-SSD         New York US
-        134: LON-Q-SS                       London GB
-        135: FRA-B-SSD                      Frankfurt DE
-        148: SLC-A-SSD                      SLC US
-        151: CHI-G-SSD                      Chicago US
-        154: ATL-A-SSD                      Atlanta US
-        157: SIN-B-SSD                      Singapore SG
-        160: DAL-C-SSD                      Dallas US
-    '''
-    if region['cloud_id'] in [65, 91, 121, 127, 134, 137]:
-        return 'GB'
-    if region['cloud_id'] in [66, 113, 116, 117, 118, 124, 125, 126, 129, 130, 131, 132, 133, 141, 142, 143, 144, 148, 151, 154, 160]:
-        return 'US'
-    if region['cloud_id'] in [119, 128]:
-        return 'CA'
-    if region['cloud_id'] in [120]:
-        return 'NL'
-    if region['cloud_id'] in [135, 139]:
-        return 'DE'
-    if region['cloud_id'] in [145, 157]:
-        return 'SG'
-    return ''
 
 ###
 #
