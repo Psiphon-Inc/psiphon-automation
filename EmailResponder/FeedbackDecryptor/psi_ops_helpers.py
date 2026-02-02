@@ -21,7 +21,7 @@ import os
 from config import config
 
 # Make the Automation (psi_ops) modules available
-sys.path.append(config['psiOpsPath'])
+sys.path.append(config.psiOpsPath)
 import psi_ops
 
 # We are effectively exporting these
@@ -41,7 +41,7 @@ def _ensure_psinet_loaded():
     # Load the psinet DB
     global _psinet
     if not _psinet:
-        _psinet = psi_ops.PsiphonNetwork.load_from_file(config['psinetFilePath'])
+        _psinet = psi_ops.PsiphonNetwork.load_from_file(config.psinetFilePath)
 
 
 def get_propagation_channel_name_by_id(prop_channel_id):

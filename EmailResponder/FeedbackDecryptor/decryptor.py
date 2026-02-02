@@ -44,7 +44,7 @@ def decrypt(data):
 
     global _private_key_pem
     if not _private_key_pem:
-        with open(config['privateKeyPemFile'], 'r') as f:
+        with open(config.privateKeyPemFile, 'r') as f:
             _private_key_pem = f.read()
 
     ciphertext = b64decode(data['contentCiphertext'])
@@ -53,7 +53,7 @@ def decrypt(data):
     # Ready our private key, with which we'll unwrap the encryption and MAC
     # keys.
     rsa_pk = serialization.load_pem_private_key(
-        bytes(_private_key_pem, 'utf-8'), bytes(config['privateKeyPassword'], 'utf-8'))
+        bytes(_private_key_pem, 'utf-8'), bytes(config.privateKeyPassword, 'utf-8'))
 
     pk_padder = pk_padding.OAEP(
                     mgf=pk_padding.MGF1(algorithm=hashes.SHA1()),

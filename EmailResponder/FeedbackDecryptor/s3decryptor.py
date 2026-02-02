@@ -20,7 +20,6 @@ Decrypts them and stores them in the diagnostic-info-DB.
 '''
 
 import time
-import smtplib
 import json
 import yaml
 import multiprocessing
@@ -44,7 +43,7 @@ _BUCKET_ITEM_MIN_SIZE = 100
 
 
 def _is_bucket_item_sane(obj: 'boto3.S3.Object') -> bool:
-    if obj.size < _BUCKET_ITEM_MIN_SIZE or obj.size > int(config['s3ObjectMaxSize']):
+    if obj.size < _BUCKET_ITEM_MIN_SIZE or obj.size > int(config.s3ObjectMaxSize):
         err = 'item not sane size: %d' % obj.size
         logger.error(err)
         return False
@@ -87,14 +86,17 @@ def _bucket_iterator(bucket: 'boto3.S3.Bucket') -> str:
     logger.debug_log('_bucket_iterator end') # unreachable
 
 
-def _should_email_data(diagnostic_info):
+def _should_email_data(diagnostic_info) -> bool:
     '''
     Determine if this diagnostic info should be emailed. Not all diagnostic
     info bundles have useful information that needs to be immediately seen by
     a human. Additionally, trying to email too many feedbacks can produce a backlog.
     '''
-    #return diagnostic_info.get('Feedback', {}).get('Message', {}).get('text')
-    return diagnostic_info.get('Feedback', {}).get('Message', {}).get('text') and diagnostic_info.get('Feedback', {}).get('email')
+    if diagnostic_info.get('Metadata', {}).get('appName') in ('ryve', 'conduit', 'psiphon4'):
+        return True
+    elif diagnostic_info.get('Feedback', {}).get('Message', {}).get('text') and diagnostic_info.get('Feedback', {}).get('email'):
+        return True
+    return False
 
 
 def go():
@@ -104,17 +106,17 @@ def go():
     logger.debug_log('go: start')
 
     s3 = boto3.resource('s3')
-    bucket = s3.Bucket(config['s3BucketName'])
+    bucket = s3.Bucket(config.s3BucketName)
 
     # Set up the multiprocessing
     worker_manager = multiprocessing.Manager()
     # We only want to pull items out of S3 as we process them, so the queue needs to be
     # limited to the number of worker processes. We're doubling the number of workers
     # because the s3decryptor is the main workhorse of the server.
-    work_queue = worker_manager.Queue(maxsize=config['numProcesses']*2)
+    work_queue = worker_manager.Queue(maxsize=config.numProcesses*2)
     # Spin up the workers
-    worker_pool = multiprocessing.Pool(processes=config['numProcesses'])
-    exception_results = [worker_pool.apply_async(_process_work_items, (work_queue,)) for i in range(config['numProcesses'])]
+    worker_pool = multiprocessing.Pool(processes=config.numProcesses)
+    exception_results = [worker_pool.apply_async(_process_work_items, (work_queue,)) for i in range(config.numProcesses)]
 
     # Note that `_bucket_iterator` throttles itself if/when there are no
     # available objects in the bucket.
@@ -131,7 +133,7 @@ def go():
                 # This will raise an exception if one was thrown in the worker
                 result.get()
 
-        logger.debug_log('go: enqueueing work item')
+        logger.debug_log('go: enqueuing work item')
         # This blocks if the queue is full
         work_queue.put(encrypted_info_json)
         logger.debug_log('go: enqueued work item')
@@ -193,13 +195,16 @@ def _process_work_items(work_queue):
 
             logger.log('feedback id: {0}; size: {1:.1f} MB'.format(diagnostic_info.get('Metadata', {}).get('id'), len(encrypted_info_json)/1e6))
 
-            # Modifies diagnostic_info
-            utils.convert_psinet_values(config, diagnostic_info)
-
             if not utils.is_diagnostic_info_sane(diagnostic_info):
                 # Something is wrong. Skip and continue.
                 logger.debug_log('_process_work_items: diagnostic_info not sane')
                 continue
+
+            # Modifies diagnostic_info
+            utils.upgrade_diagnostic_info(diagnostic_info)
+
+            # Modifies diagnostic_info
+            utils.convert_psinet_values(config, diagnostic_info)
 
             # Modifies diagnostic_info
             redactor.redact_sensitive_values(diagnostic_info)
@@ -229,16 +234,16 @@ def _process_work_items(work_queue):
             logger.error(str(e))
             try:
                 # Something bad happened while decrypting. Report it via email.
-                sender.send(config['decryptedEmailRecipient'],
-                            config['emailUsername'],
-                            'S3Decryptor: bad object',
-                            encrypted_info_json,
-                            None)  # no html body
-            except smtplib.SMTPException as e:
+                sender.send_email(config.decryptedEmailRecipient,
+                                  config.responseEmailAddress,
+                                  'S3Decryptor: bad object',
+                                  encrypted_info_json,
+                                  None)  # no html body
+            except Exception as e:
                 logger.exception()
                 logger.error(str(e))
 
-        # yaml.constructor.ConstructorError was being thown when a YAML value
+        # yaml.constructor.ConstructorError was being thrown when a YAML value
         # consisted of just string "=". Probably due to this PyYAML bug:
         # http://pyyaml.org/ticket/140
         except (ValueError, TypeError, yaml.constructor.ConstructorError) as e:
@@ -251,12 +256,12 @@ def _process_work_items(work_queue):
             try:
                 import traceback
                 # Something bad happened while decrypting. Report it via email.
-                sender.send(config['decryptedEmailRecipient'],
-                            config['emailUsername'],
-                            'S3Decryptor: unhandled exception',
-                            traceback.format_exception(type(e), e, e.__traceback__) + '\n---\n' + str(diagnostic_info),
-                            None)  # no html body
-            except smtplib.SMTPException as e:
+                sender.send_email(config.decryptedEmailRecipient,
+                                  config.responseEmailAddress,
+                                  'S3Decryptor: unhandled exception',
+                                  str(traceback.format_exception(type(e), e, e.__traceback__)) + '\n---\n' + str(diagnostic_info),
+                                  None)  # no html body
+            except Exception as e:
                 logger.exception()
                 logger.error(str(e))
             work_queue.put(e)

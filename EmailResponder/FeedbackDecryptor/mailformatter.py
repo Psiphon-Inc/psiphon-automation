@@ -32,6 +32,16 @@ def format(data):
 
     # The values in `data` come directly from the user, so we shouldn't trust
     # them enough to put them directly in to a filename.
+
+    if data['Metadata']['appName'] == 'ryve':
+        app_name = 'ryve'
+    elif data['Metadata']['appName'] == 'conduit':
+        app_name = 'conduit'
+    elif data['Metadata']['appName'] == 'psiphon4':
+        app_name = 'psiphon4'
+    else:
+        app_name = 'psiphon'
+
     if data['Metadata']['platform'] == 'windows':
         platform = 'windows'
     elif data['Metadata']['platform'] == 'ios': # legacy catch all
@@ -40,27 +50,39 @@ def format(data):
         platform = 'ios'
     elif data['Metadata']['platform'] == 'ios-vpn':
         platform = 'ios'
-    elif data['Metadata']['platform'] == 'ios-vpn-on-mac':
+    elif data['Metadata']['platform'] in ['ios-vpn-on-mac', 'ios-app-on-mac']:
         platform = 'ios-app-on-mac'
-    elif data['Metadata']['platform'] == 'inproxy':
-        platform = 'inproxy'
     else:
         platform = 'android'
 
     version = int(data['Metadata']['version'])
 
-    template_filename = 'templates/template_%s_%d.mako' % (platform, version)
+    template_filenames = (
+        'templates/template_%s_%s_%d.mako' % (app_name, platform, version),
+        'templates/template_%s_%d.mako' % (app_name, version),
+    )
+
+    for template_filename in template_filenames:
+        if template_filename not in _cached_templates:
+            template_lookup = TemplateLookup(directories=['.'])
+
+            # SECURITY IMPORTANT: `'h'` in the `default_filters` list causes HTML
+            # escaping to be applied to all expression tags (${...}) in this
+            # template. Because we're outputting untrusted user-supplied data, this is
+            # essential.
+            try:
+                _cached_templates[template_filename] = Template(filename=template_filename,
+                                                                default_filters=['str', 'h'],
+                                                                lookup=template_lookup)
+            except FileNotFoundError:
+                # This template doesn't exist; try the next one
+                continue
+
+        # We found our template
+        break
 
     if template_filename not in _cached_templates:
-        template_lookup = TemplateLookup(directories=['.'])
-
-        # SECURITY IMPORTANT: `'h'` in the `default_filters` list causes HTML
-        # escaping to be applied to all expression tags (${...}) in this
-        # template. Because we're output untrusted user-supplied data, this is
-        # essential.
-        _cached_templates[template_filename] = Template(filename=template_filename,
-                                                        default_filters=['str', 'h'],
-                                                        lookup=template_lookup)
+        raise Exception('No suitable template found for %s' % data['Metadata'])
 
     try:
         rendered = _cached_templates[template_filename].render(data=data)

@@ -25,7 +25,6 @@ services.
 import time
 import datetime
 import yaml
-import smtplib
 from mako.template import Template
 from mako.lookup import TemplateLookup
 import pynliner
@@ -62,12 +61,12 @@ def _send(template_name, data):
     rendered = _render_email(template_name, data)
 
     try:
-        sender.send(config['statsEmailRecipients'],
-                    config['emailUsername'],
-                    'FeedbackDecryptor: ' + template_name.capitalize(),
-                    yaml.safe_dump(data, default_flow_style=False),
-                    rendered)
-    except smtplib.SMTPException:
+        sender.send_email(config.statsEmailRecipients,
+                          config.responseEmailAddress,
+                          'FeedbackDecryptor: ' + template_name.capitalize(),
+                          yaml.safe_dump(data, default_flow_style=False),
+                          rendered)
+    except:
         logger.exception()
 
 
@@ -102,10 +101,10 @@ def go():
         recs_per_min = 0
         if new_count > 0 and interval_mins > 0:
             recs_per_min = new_count / interval_mins
-        if recs_per_min > config['statsWarningThresholdPerMinute']:
+        if recs_per_min > config.statsWarningThresholdPerMinute:
             _send_warning_email({'recs_per_min': recs_per_min,
                                  'interval_mins': interval_mins,
-                                 'warning_threshold': config['statsWarningThresholdPerMinute']})
+                                 'warning_threshold': config.statsWarningThresholdPerMinute})
 
         # If we just passed midnight, send the stats email
         if not last_send_time or (last_send_time - midnight).total_seconds() < 0:

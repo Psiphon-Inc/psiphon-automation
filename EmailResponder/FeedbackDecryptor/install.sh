@@ -36,23 +36,22 @@ if [ "$?" -ne "0" ]; then
   exit 1
 fi
 
-# We're installing poetry as root, globally so that all users have access to it
-sudo python3.9 -m pip install --upgrade poetry
-
-# Our poetry.toml has the virtualenvs.create directive set to false, which makes it
-# install packages globally using pip rather than in a venv. This allows it to be used by
-# all users (ubuntu, root, feedback_decryptor).
-# (An alternative approach could be to use virtualenvs.path and set it to a path that's
-# writable by all users. But that seems more dangerous.)
-sudo poetry install
+# Create the virtualenv if it doesn't exist.
+# TODO: Parameterize the path to the virtualenv (or use a standard location).
+if [ ! -d /opt/psiphon/venv ]; then
+  sudo python3.9 -m venv /opt/psiphon/venv
+  sudo chown -R $FEEDBACK_USER:$FEEDBACK_USER /opt/psiphon/venv
+  sudo chmod -R g+rwx /opt/psiphon/venv
+fi
+sudo /opt/psiphon/venv/bin/pip install -r requirements.txt
 
 # Create the diagnostic data SQL DB.
 sudo mysql -u root --socket=/var/run/mysqld/mysqld.sock < sql_diagnostic_feedback_schema.sql
 
-sed "s|fill-in-with-path-to-source|\"`pwd`\"|" s3decryptor.service > s3decryptor.service.configured
-sed "s|fill-in-with-path-to-source|\"`pwd`\"|" mailsender.service > mailsender.service.configured
-sed "s|fill-in-with-path-to-source|\"`pwd`\"|" statschecker.service > statschecker.service.configured
-sed "s|fill-in-with-path-to-source|\"`pwd`\"|" autoresponder.service > autoresponder.service.configured
+sed "s|fill-in-with-path-to-source|`pwd`|" s3decryptor.service > s3decryptor.service.configured
+sed "s|fill-in-with-path-to-source|`pwd`|" mailsender.service > mailsender.service.configured
+sed "s|fill-in-with-path-to-source|`pwd`|" statschecker.service > statschecker.service.configured
+sed "s|fill-in-with-path-to-source|`pwd`|" autoresponder.service > autoresponder.service.configured
 
 sudo cp s3decryptor.service.configured /etc/systemd/system/s3decryptor.service
 sudo cp mailsender.service.configured /etc/systemd/system/mailsender.service
