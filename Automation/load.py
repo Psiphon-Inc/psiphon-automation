@@ -1,5 +1,5 @@
 #!/usr/bin/python
-## Copyright (c) 2014, Psiphon Inc.
+## Copyright (c) 2026, Psiphon Inc.
 ## All rights reserved.
 ##
 ## This program is free software: you can redistribute it and/or modify
@@ -32,12 +32,7 @@ from mako.template import Template
 from mako.lookup import TemplateLookup
 from mako import exceptions
 
-# Using the FeedbackDecryptor's mail capabilities
-sys.path.append(os.path.abspath(os.path.join('..', 'EmailResponder')))
-sys.path.append(os.path.abspath(os.path.join('..', 'EmailResponder', 'FeedbackDecryptor')))
-import sender
-from config import config
-
+import load_sender
 import psi_ops
 
 def check_load_on_host(host):
@@ -216,7 +211,7 @@ def send_mail(record):
     rendered = pynliner.fromString(rendered)
     log_diagnostics('Sending email...')
     log_diagnostics('Truncated hosts from %d to %d' % (len(hosts), len(truncated_hosts)))
-    sender.send(config['statsEmailRecipients'], config['emailFromAddr'], 'Psiphon 3 Host Load Stats', repr(record), rendered)
+    load_sender.send('Psiphon 3 Host Load Stats', repr(record), rendered)
     log_diagnostics('Email sent.')
 
 
