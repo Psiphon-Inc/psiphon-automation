@@ -3165,7 +3165,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for host_provider_id, host_name in hosts_provider_id_list:
             # TODO: safety check to avoid delete production servers
             orphan = provider_controller.get_server(provider_account, host_provider_id)
-            print(host_provider_id, orphan)
             orphan_id = orphan['zone'] + '_' + orphan['id'] if provider == 'scaleway' else \
                         orphan['id'] if provider == 'vultr' else \
                         host_provider_id if provider == 'vpsnet' else \
