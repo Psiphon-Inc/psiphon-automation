@@ -3165,8 +3165,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         for host_provider_id, host_name in hosts_provider_id_list:
             # TODO: safety check to avoid delete production servers
             orphan = provider_controller.get_server(provider_account, host_provider_id)
+            print(host_provider_id, orphan)
             orphan_id = orphan['zone'] + '_' + orphan['id'] if provider == 'scaleway' else \
                         orphan['id'] if provider == 'vultr' else \
+                        host_provider_id if provider == 'vpsnet' else \
                         orphan.id
             print(textwrap.dedent('''
                   Provider ID:             %s
@@ -3201,14 +3203,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                       orphan.region,
                       orphan.freeform_tags
                   ) if provider == 'oci' else (
-                      str(orphan_id),
-                      orphan.name,
-                      orphan.state,
-                      orphan.public_ips[0]['ip_address']['created_at'],
-                      orphan.public_ips[0]['ip_address']['ip_address'],
+                      str(host_provider_id),
+                      orphan['hostname'],
+                      orphan['suspended'],
+                      orphan['ip_addresses'][0]['ip_address']['created_at'],
+                      orphan['ip_addresses'][0]['ip_address']['address'],
                       'No Region infomation',
                       'VPS.net node has no tags'
-                  ) if provider == 'vpsnet' else (
+                  ) if provider == 'vpsnet' else ( 
                       str(orphan_id),
                       orphan.name,
                       orphan.status,
