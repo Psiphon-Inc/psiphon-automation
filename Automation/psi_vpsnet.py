@@ -31,7 +31,7 @@ import psi_utils
 from VPSNET import vpsnet
 
 # VARIABLE
-TCS_BASE_IMAGE_ID = 'Psiphon3-TCS-V12.8-20250812' # most current base image label
+TCS_BASE_IMAGE_ID = 'Psiphon3-TCS-V12.9-20260204' # most current base image label
 TCS_VPS_DEFAULT_PLAN = 'V4' # 'id': 328, 'label': '4 Cores / 2GB RAM / 80GB SSD / 4TB Bandwidth', 'price': '16.00', 'product_name': 'V3'
 
 
@@ -98,7 +98,7 @@ def wait_while_condition(condition, max_wait_seconds, description):
     while condition() == True:
         if total_wait_seconds > max_wait_seconds:
             raise Exception('Took more than %d seconds to %s' % (max_wait_seconds, description))
-        print("Instance NOT Online, Keep waiting!i ({} second)".format(wait_seconds))
+        print("Instance NOT Online, Keep waiting! ({} second)".format(wait_seconds))
         time.sleep(wait_seconds)
         total_wait_seconds = total_wait_seconds + wait_seconds
 
@@ -251,10 +251,10 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
             f"\"label\": \"{host_id}\", "
             f"\"hostname\": \"{hostname_vpsnet}\", "
             f"\"backups\": false, "
-            f"\"bill_hourly\": true, "
+            f"\"bill_hourly\": false, " # This function doesn't exist yet.
             f"\"product_name\": \"{TCS_VPS_DEFAULT_PLAN}\", "
             f"\"custom_template_id\": \"{custom_template_id}\", "
-            f"\"ssh_key_id\": \"{vpsnet_account.base_ssh_key_id}\""
+            f"\"ssh_key_id\": \"{vpsnet_account.base_ssh_key_id}\"" # Right now ssh-key will be ignored for most locations.
             f"}}")
 
         instance_info = vpsnet_api.create_instance(location_id, data)
