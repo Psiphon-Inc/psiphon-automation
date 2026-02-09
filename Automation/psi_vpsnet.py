@@ -212,6 +212,14 @@ def add_swap_file(vpsnet_account, ip_address, root_password):
     finally:
         ssh.close()
 
+def update_dns(vpsnet_account, ip_address, root_password):
+    ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_ssh_port, 'root', root_password, None, None) 
+
+    try:
+        ssh.exec_command("echo 'nameserver 8.8.8.8\nnameserver 8.8.4.4\nnameserver 1.1.1.1\nnameserver 1.0.0.1' > /etc/resolv.conf")
+    finally:
+        ssh.close()
+
 ###
 #
 # Main function
@@ -278,6 +286,7 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
         set_host_name(vpsnet_account, instance_ip_address, generated_root_password, host_id)
         set_allowed_users(vpsnet_account, instance_ip_address, generated_root_password, new_stats_username)
         add_swap_file(vpsnet_account, instance_ip_address, generated_root_password)
+        update_dns(vpsnet_account, instance_ip_address, generated_root_password)
 
         # Change the new vpsnet instance's credentials
         new_root_password = psi_utils.generate_password()
