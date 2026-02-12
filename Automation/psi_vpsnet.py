@@ -246,6 +246,7 @@ def remove_server(vpsnet_account, provider_id): #
 def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
 
     instance = None
+    vps_provider_id = None
     vpsnet_api = PsiVpsnet(vpsnet_account) # Use API interface
 
     try:
@@ -268,8 +269,8 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
         instance_info = vpsnet_api.create_instance(location_id, data)
 
         # Waiting to be restored from snapshot
-        wait_while_condition(lambda: vpsnet_api.client.get_server_id_by_host_id(hostname_vpsnet) != None,
-                         60,
+        wait_while_condition(lambda: vpsnet_api.client.get_server_id_by_host_id(hostname_vpsnet) == None,
+                         120,
                          'Initiate VPSNET Instance')
         server_id = vpsnet_api.client.get_server_id_by_host_id(hostname_vpsnet)
         vps_provider_id = str(location_id) + "-" + str(server_id)
@@ -298,7 +299,7 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
         assert(node_public_key)
 
     except Exception as ex:
-        if instance:
+        if vps_provider_id:
             vpsnet_api.remove_instance(vps_provider_id)
         raise ex
 
