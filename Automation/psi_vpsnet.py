@@ -268,7 +268,9 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
         instance_info = vpsnet_api.create_instance(location_id, data)
 
         # Waiting to be restored from snapshot
-        time.sleep(30)
+        wait_while_condition(lambda: vpsnet_api.client.get_server_id_by_host_id(hostname_vpsnet) != None,
+                         40,
+                         'Initiate VPSNET Instance')
         server_id = vpsnet_api.client.get_server_id_by_host_id(hostname_vpsnet)
         vps_provider_id = str(location_id) + "-" + str(server_id)
 

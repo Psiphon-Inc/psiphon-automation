@@ -167,7 +167,8 @@ class VPSNET:
         for i in range(len(all_vps_vms)) :
             if all_vps_vms[i]['hostname'] == host_id :
                 server_id = all_vps_vms[i]['id']
-        return server_id
+                return server_id
+        return None
 
     def get_ssh_keys(self):
         response = self._get_request('/rest-api/ssh-keys/')
