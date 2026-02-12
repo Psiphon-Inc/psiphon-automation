@@ -269,7 +269,7 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
 
         # Waiting to be restored from snapshot
         wait_while_condition(lambda: vpsnet_api.client.get_server_id_by_host_id(hostname_vpsnet) != None,
-                         40,
+                         60,
                          'Initiate VPSNET Instance')
         server_id = vpsnet_api.client.get_server_id_by_host_id(hostname_vpsnet)
         vps_provider_id = str(location_id) + "-" + str(server_id)
