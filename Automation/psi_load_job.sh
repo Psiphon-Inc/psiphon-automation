@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# "python3 ./load.py" shouldn't run for longer than 120 minutes
-max_seconds=7200
+# "python3 ./load.py" shouldn't run for longer than 150 minutes
+max_seconds=9000
 process="$(pgrep -f "python3 ./load.py")"
 if [[ -n "$process" ]]; then
   seconds=$(echo "$(date +%s) - $(stat -c %X /proc/$process)" | bc)
