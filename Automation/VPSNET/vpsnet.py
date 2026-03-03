@@ -57,7 +57,8 @@ class VPSNET:
             raise e
 
     def provider_id_to_location_server_ids(self, provider_id, delimiter="-"):
-        location_id, node_id = provider_id.split(delimiter)
+        location_id = provider_id.split(delimiter, 1)[0]
+        node_id = provider_id.split(delimiter, 1)[1]
         return location_id, node_id
 
     def get_ssd_vps_plans(self): #WORKS
