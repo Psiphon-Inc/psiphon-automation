@@ -132,6 +132,7 @@ class SSH(object):
         if not muted:
             print('SSH %s: put file %s %s' % (self.ip_address, local_path, remote_path))
         sftp = self.ssh.open_sftp()
+        sftp.get_channel().settimeout(600)
         sftp.put(local_path, remote_path)
         sftp.close()
 
