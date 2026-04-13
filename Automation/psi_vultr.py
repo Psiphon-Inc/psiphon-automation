@@ -168,6 +168,16 @@ def add_swap_file(vultr_account, ip_address):
     finally:
         ssh.close()
 
+def set_password_forcing(vultr_account, ip_address) :
+    ssh = psi_ssh.make_ssh_session(ip_address, vultr_account.base_image_ssh_port,
+                                   'root', None, vultr_account.base_image_ssh_public_key,
+                                   host_auth_key=vultr_account.base_image_ssh_private_key)
+    try:
+        ssh.exec_command("sed -i 's|dictcheck = 1|dictcheck = 0|g' / etc/security/pwquality.conf")
+    finally:
+        ssh.close()
+
+
 ###
 #
 # Main function
