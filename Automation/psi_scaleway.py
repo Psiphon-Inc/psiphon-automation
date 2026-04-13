@@ -33,7 +33,7 @@ from slumber import exceptions as slexc
 
 # VARIABLE
 tcs_image_name = 'Psiphon3-TCS-V12.7-20250524'
-tcs_instance_size = 'DEV1-L'
+tcs_instance_size = 'DEV1-M'
 
 ###
 #
