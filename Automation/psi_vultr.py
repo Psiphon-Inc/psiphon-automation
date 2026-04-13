@@ -173,7 +173,7 @@ def set_password_forcing(vultr_account, ip_address) :
                                    'root', None, vultr_account.base_image_ssh_public_key,
                                    host_auth_key=vultr_account.base_image_ssh_private_key)
     try:
-        ssh.exec_command("sed -i 's|dictcheck = 1|dictcheck = 0|g' / etc/security/pwquality.conf")
+        ssh.exec_command("echo dictcheck = 0 >> /etc/security/pwquality.conf")
     finally:
         ssh.close()
 
@@ -215,12 +215,13 @@ def launch_new_server(vultr_account, is_TCS, plugins, multi_ip=False):
         wait_while_condition(lambda: vultr_api.client.get_instance(instance_info['id'])['power_status'] != 'running',
                          30,
                          'Creating VULTR Instance')
-        # Wait for Restorying fron snapshot
+        # Wait for Restoring from snapshot
         time.sleep(30)
         instance = vultr_api.client.get_instance(instance_info['id'])
 
         instance_ip_address = instance["main_ip"]
-
+		
+        set_password_forcing(vultr_account, instance_ip_address)
         new_stats_username = psi_utils.generate_stats_username()
         set_host_name(vultr_account, instance_ip_address, host_id)
         set_allowed_users(vultr_account, instance_ip_address, new_stats_username)
