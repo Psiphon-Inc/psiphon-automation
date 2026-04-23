@@ -397,9 +397,9 @@ OracleAccount = psi_utils.recordtype(
     
 VultrAccount = psi_utils.recordtype(
     'VultrAccount',
-    'aws_access_key_id, aws_secret_access_key, ' +
-    'base_rsa_private_key, base_ssh_root_password, ' +
-    'base_ssh_port, regions, key_pair_name',
+    'api_key, base_image_ssh_port, ' +
+    'base_image_root_password, base_image_ssh_private_key, ' +
+    'base_image_ssh_public_key, base_image_ssh_key_id',
     default=None)
 
 HetznerAccount = psi_utils.recordtype(
@@ -411,9 +411,9 @@ HetznerAccount = psi_utils.recordtype(
 
 LightsailAccount = psi_utils.recordtype(
     'LightsailAccount',
-    'api_token, regions, datacenters, ' +
-    'base_image_ssh_port, default_base_image_id, ' +
-    'dafault_base_image_ssh_key_name, default_base_image_ssh_private_key',
+    'aws_access_key_id, aws_secret_access_key, ' +
+    'base_rsa_private_key, base_ssh_root_password, ' +
+    'base_ssh_port, regions, key_pair_name',
     default=None)
 
 ElasticHostsAccount = psi_utils.recordtype(
