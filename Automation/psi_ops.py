@@ -397,13 +397,20 @@ OracleAccount = psi_utils.recordtype(
     
 VultrAccount = psi_utils.recordtype(
     'VultrAccount',
-    'api_key, base_image_ssh_port, ' +
-    'base_image_root_password, base_image_ssh_private_key, ' +
-    'base_image_ssh_public_key, base_image_ssh_key_id',
+    'aws_access_key_id, aws_secret_access_key, ' +
+    'base_rsa_private_key, base_ssh_root_password, ' +
+    'base_ssh_port, regions, key_pair_name',
     default=None)
 
 HetznerAccount = psi_utils.recordtype(
     'HetznerAccount',
+    'api_token, regions, datacenters, ' +
+    'base_image_ssh_port, default_base_image_id, ' +
+    'dafault_base_image_ssh_key_name, default_base_image_ssh_private_key',
+    default=None)
+
+LightsailAccount = psi_utils.recordtype(
+    'LightsailAccount',
     'api_token, regions, datacenters, ' +
     'base_image_ssh_port, default_base_image_id, ' +
     'dafault_base_image_ssh_key_name, default_base_image_ssh_private_key',
@@ -555,7 +562,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.82'
+    class_version = '0.83'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -1030,6 +1037,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__vpsnet_account.base_ssh_key_id = 0
             self.__vpsnet_account.base_host_public_key = ''
             self.version = '0.82'
+        if cmp(parse_version(self.version), parse_version('0.83')) < 0:
+            self.__lightsail_account = LightsailAccount()
+            self.version = '0.83'
 
 
     def initialize_plugins(self):
