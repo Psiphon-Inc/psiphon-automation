@@ -471,6 +471,7 @@ def make_psiphond_config(host, server, own_encoded_server_entries, server_entry_
         config['InproxyBrokerObfuscationRootSecret'] = host.inproxy_broker_obfuscation_root_secret
         config['InproxyBrokerServerEntrySignaturePublicKey'] = server_entry_signature_public_key
         config['MeekRequiredHeaders'] = TCS_psiphond_config_values['InproxyBrokerMeekRequiredHeaders']
+        config['MeekRequiredHeadersNonStrict'] = True
         
     if server.capabilities['INPROXY-WEBRTC-SSH'] or server.capabilities['INPROXY-WEBRTC-OSSH'] or server.capabilities['INPROXY-WEBRTC-QUIC-OSSH']:
         config['InproxyServerSessionPrivateKey'] = host.inproxy_server_session_private_key
