@@ -254,6 +254,9 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
         region, location_id, datacenter_name = vpsnet_api.get_location()
         host_id = "vn" + '-' + region.lower() + datacenter_name[:3].lower() + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
         custom_template_id = vpsnet_api.client.get_custom_os_id(str(location_id), TCS_BASE_IMAGE_ID)
+        if not custom_template_id:
+            raise Exception('Could not find vpsnet custom template in datacenter %s' % (datacenter_name))
+            
         hostname_vpsnet = host_id + ".vps.net"
 
         data = (f"{{"
