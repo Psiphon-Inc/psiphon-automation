@@ -251,11 +251,17 @@ def deploy_TCS_implementation(ssh, host, servers, own_encoded_server_entries, se
     # Multiple IP addresses (and servers) can be supported by port forwarding to the host IP address
     server = [server for server in servers if server.ip_address == host.ip_address][0]
 
-    # Upload psiphond.config
+    # Query host memory
+    try:
+        meminfo_output = ssh.exec_command('awk \'/MemTotal/{print $2}\' /proc/meminfo', muted=True)
+        host_memory_total_kb = int(meminfo_output.strip())
+    except:
+        host_memory_total_kb = None
 
+    # Upload psiphond.config
     put_file_with_content(
         ssh,
-        make_psiphond_config(host, server, own_encoded_server_entries, server_entry_signature_public_key, TCS_psiphond_config_values),
+        make_psiphond_config(host, server, own_encoded_server_entries, server_entry_signature_public_key, TCS_psiphond_config_values, host_memory_total_kb),
         TCS_PSIPHOND_CONFIG_FILE_NAME)
 
     ssh.exec_command('touch %s' % (TCS_BLOCKLIST_CSV_FILE_NAME,))
@@ -330,7 +336,7 @@ CONTAINER_SYSCTL_STRING="--sysctl 'net.ipv4.ip_local_port_range=1100 65535'"
     # is delayed until deploy_TCS_data.
 
 
-def make_psiphond_config(host, server, own_encoded_server_entries, server_entry_signature_public_key, TCS_psiphond_config_values):
+def make_psiphond_config(host, server, own_encoded_server_entries, server_entry_signature_public_key, TCS_psiphond_config_values, host_memory_total_kb=None):
 
     # Missing TCS_psiphond_config_values items throw KeyError. This is intended. Don't forget to configure these values.
 
@@ -447,7 +453,12 @@ def make_psiphond_config(host, server, own_encoded_server_entries, server_entry_
     if server.capabilities['TLS']:
         config['MeekObfuscatedKey'] = host.meek_server_obfuscated_key
 
-    config['MaxConcurrentSSHHandshakes'] = 2000
+    # Scale MaxConcurrentSSHHandshakes based on host memory.
+    if host_memory_total_kb is not None:
+        host_memory_gb = host_memory_total_kb / (1024 * 1024)
+        config['MaxConcurrentSSHHandshakes'] = max(2000, int(host_memory_gb * 2000))
+    else:
+        config['MaxConcurrentSSHHandshakes'] = 2000
 
     # SSHBeginHandshakeTimeoutMillisecondsList/SSHHandshakeTimeoutMillisecondsList
     # should be Python lists of integer millisecond values.
