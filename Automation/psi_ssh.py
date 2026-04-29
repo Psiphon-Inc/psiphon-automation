@@ -96,8 +96,8 @@ class SSH(object):
     def close(self):
         self.ssh.close()
 
-    def exec_command(self, command_line, muted=False):
-        (_, output, _) = self.ssh.exec_command(command_line)
+    def exec_command(self, command_line, muted=False, timeout=900):
+        (_, output, _) = self.ssh.exec_command(command_line, timeout=timeout)
         out = output.read()
         out = out.decode('utf-8')
         if not muted:
