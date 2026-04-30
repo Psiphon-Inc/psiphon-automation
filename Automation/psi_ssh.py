@@ -98,7 +98,10 @@ class SSH(object):
 
     def exec_command(self, command_line, muted=False, timeout=900):
         (_, output, _) = self.ssh.exec_command(command_line, timeout=timeout)
-        out = output.read()
+        try:
+            out = output.read()
+        finally:
+            output.channel.close()
         out = out.decode('utf-8')
         if not muted:
             print('SSH %s: %s %s' % (self.ip_address, command_line[0:20]+'...', out[:100]))
@@ -132,13 +135,18 @@ class SSH(object):
         if not muted:
             print('SSH %s: put file %s %s' % (self.ip_address, local_path, remote_path))
         sftp = self.ssh.open_sftp()
-        sftp.get_channel().settimeout(600)
-        sftp.put(local_path, remote_path)
-        sftp.close()
+        try:
+            sftp.get_channel().settimeout(600)
+            sftp.put(local_path, remote_path)
+        finally:
+            sftp.close()
 
     def get_file(self, remote_path, local_path, muted=False):
         if not muted:
             print('SSH %s: get file %s %s' % (self.ip_address, local_path, remote_path))
         sftp = self.ssh.open_sftp()
-        sftp.get(remote_path, local_path)
-        sftp.close()
+        try:
+            sftp.get_channel().settimeout(600)
+            sftp.get(remote_path, local_path)
+        finally:
+            sftp.close()
