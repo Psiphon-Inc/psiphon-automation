@@ -99,6 +99,7 @@ class SSH(object):
     def exec_command(self, command_line, muted=False, timeout=900):
         (_, output, _) = self.ssh.exec_command(command_line, timeout=timeout)
         try:
+            output.channel.settimeout(timeout)
             out = output.read()
         finally:
             output.channel.close()
