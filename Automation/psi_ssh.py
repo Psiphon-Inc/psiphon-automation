@@ -91,10 +91,21 @@ class SSH(object):
         if ssh_pkey is not None:
             ssh_pkey = ssh.RSAKey.from_private_key(StringIO(ssh_pkey))
 
-        self.ssh.connect(ip_address, ssh_port, ssh_username, ssh_password, pkey=ssh_pkey, timeout=60, banner_timeout=90, auth_timeout=90)
+        try:
+            self.ssh.connect(ip_address, ssh_port, ssh_username, ssh_password, pkey=ssh_pkey, timeout=30, banner_timeout=45, auth_timeout=45)
+        except Exception:
+            self.close()
+            raise
 
     def close(self):
-        self.ssh.close()
+        try:
+            self.ssh.get_transport().sock.close()
+        except Exception:
+            pass
+        try:
+            self.ssh.close()
+        except Exception:
+            pass
 
     def exec_command(self, command_line, muted=False, timeout=900):
         (_, output, _) = self.ssh.exec_command(command_line, timeout=timeout)
