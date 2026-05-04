@@ -99,7 +99,9 @@ class SSH(object):
 
     def close(self):
         try:
-            self.ssh.get_transport().sock.close()
+            transport = self.ssh.get_transport()
+            if transport and transport.sock:
+                transport.sock.settimeout(1)
         except Exception:
             pass
         try:
