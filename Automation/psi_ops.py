@@ -5489,13 +5489,19 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def run_command_on_host(self, host, command, muted=False):
         if type(host) == str:
             host = self.__hosts[host]
-        ssh = psi_ssh.SSH(
-                host.ip_address, host.ssh_port,
-                host.ssh_username, host.ssh_password,
-                host.ssh_host_key)
-        ssh_output = ssh.exec_command(command, muted)
-        ssh.close()
-        return ssh_output
+        ssh = None
+        try:
+            ssh = psi_ssh.SSH(
+                    host.ip_address, host.ssh_port,
+                    host.ssh_username, host.ssh_password,
+                    host.ssh_host_key)
+            return ssh.exec_command(command, muted)
+        finally:
+            if ssh is not None:
+                try:
+                    ssh.close()
+                except Exception:
+                    pass
 
     def run_command_on_hosts(self, command):
 
