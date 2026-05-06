@@ -24,7 +24,7 @@ There are currently three tables in our Mongo DB:
   between Psiphon performance and user environment.
 
 - email_diagnostic_info: This is a little less concrete. The short version is:
-  This table indicates that a particlar diagnostic_info record should be
+  This table indicates that a particular diagnostic_info record should be
   formatted and emailed. It might also record additional information (like the
   email ID and subject) about the email that should be sent. Once the diagnostic_info
   has been sent, the associated record is removed from this table.
