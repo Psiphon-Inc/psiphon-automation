@@ -48,6 +48,7 @@ ExecStop=/bin/kill -s SIGINT $MAINPID
 #Environment=DEBUG=1
 
 WorkingDirectory=fill-in-with-path-to-source
+# TODO: Parameterize venv path
 ExecStart=/opt/psiphon/venv/bin/python service_s3decryptor.py
 
 [Install]

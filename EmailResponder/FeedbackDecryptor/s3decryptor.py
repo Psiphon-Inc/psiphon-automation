@@ -24,6 +24,7 @@ import json
 import yaml
 import multiprocessing
 import boto3
+from pymongo.errors import DocumentTooLarge
 
 from config import config
 import logger
@@ -251,11 +252,22 @@ def _process_work_items(work_queue):
             logger.exception()
             logger.error(str(e))
 
+        except DocumentTooLarge as e:
+            metadata = diagnostic_info.get('Metadata', {}) if diagnostic_info else {}
+            logger.error(
+                'DocumentTooLarge: feedback_id=%s platform=%s app=%s version=%s '
+                'encrypted_size=%.1fMB; %s' % (
+                    metadata.get('id'),
+                    metadata.get('platform'),
+                    metadata.get('appName'),
+                    metadata.get('version'),
+                    len(encrypted_info_json) / 1e6,
+                    e))
+
         except Exception as e:
             logger.error(str(e))
             try:
                 import traceback
-                # Something bad happened while decrypting. Report it via email.
                 sender.send_email(config.decryptedEmailRecipient,
                                   config.responseEmailAddress,
                                   'S3Decryptor: unhandled exception',
@@ -264,7 +276,6 @@ def _process_work_items(work_queue):
             except Exception as e:
                 logger.exception()
                 logger.error(str(e))
-            work_queue.put(e)
             raise
 
     logger.debug_log('_process_work_items: done')
