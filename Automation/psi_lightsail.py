@@ -27,7 +27,7 @@ import psi_utils
 from lightsail import lightsail
 
 # VARIABLE
-TCS_BASE_SNAPSHOT_NAME = 'Psiphon-TCS-V12.5-20260422'
+TCS_BASE_SNAPSHOT_NAME = 'Psiphon-TCS-V13.1-20260511'
 # Available bundle IDs (general purpose):
 #   nano_3_0    - 0.5 GB RAM, 2 vCPU, 20 GB SSD, 1 TB xfer - $5/mo
 #   micro_3_0   - 1 GB RAM,   2 vCPU, 40 GB SSD, 2 TB xfer - $7/mo
@@ -298,7 +298,7 @@ def launch_new_server(lightsail_account, is_TCS, plugins, multi_ip=False):
     except Exception as ex:
         if instance:
             print("Removing instances due to failure...")
-            #lightsail_api.remove_instance(instance['name'])
+            lightsail_api.remove_instance(instance['name'])
         raise ex
 
     return (host_id, is_TCS, 'NATIVE' if is_TCS else None, None,
