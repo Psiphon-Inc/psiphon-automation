@@ -125,7 +125,7 @@ class PsiLightsail:
 
     def create_instance(self, host_id, availability_zone):
         operations = self.client.create_instance_from_snapshot(
-            instance_name=host_id,
+            sinstance_name=host_id,
             availability_zone=availability_zone,
             bundle_id=self.bundle_id,
             instance_snapshot_name=self.snapshot_name,
@@ -267,7 +267,7 @@ def launch_new_server(lightsail_account, is_TCS, plugins, multi_ip=False):
 
     try:
         region, availability_zone, datacenter_name = lightsail_api.get_region()
-        host_id = "aws" + '-' + 'ls' + region.lower() + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
+        host_id = "aws" + '-' + 'l' + region.lower() + datacenter_name.split(' ')[2][:3].lower() + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
 
         lightsail_api.create_instance(host_id, availability_zone)
 
