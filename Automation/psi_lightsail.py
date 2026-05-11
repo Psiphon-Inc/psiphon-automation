@@ -125,7 +125,7 @@ class PsiLightsail:
 
     def create_instance(self, host_id, availability_zone):
         operations = self.client.create_instance_from_snapshot(
-            sinstance_name=host_id,
+            instance_name=host_id,
             availability_zone=availability_zone,
             bundle_id=self.bundle_id,
             instance_snapshot_name=self.snapshot_name,
