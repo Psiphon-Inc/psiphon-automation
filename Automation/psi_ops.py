@@ -3183,6 +3183,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             orphan_id = orphan['zone'] + '_' + orphan['id'] if provider == 'scaleway' else \
                         orphan['id'] if provider == 'vultr' else \
                         host_provider_id if provider == 'vpsnet' else \
+                        host_provider_id if provider == 'lightsail' else \
                         orphan.id
             print(textwrap.dedent('''
                   Provider ID:             %s
@@ -3209,6 +3210,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                       orphan['region'],
                       orphan['tag']
                   ) if provider == 'vultr' else (
+                      orphan_id,
+                      orphan['name'],
+                      orphan['state']['name'],
+                      orphan['createdAt'].strftime('%Y-%m-%dT%H:%M:%S'),
+                      orphan['publicIpAddress'],
+                      orphan['location']['availabilityZone'],
+                      '; '.join([f'{tag["key"]}: {tag["value"]}' for tag in orphan['tags']])
+                  ) if provider == 'lightsail' else (
                       str(orphan_id),
                       orphan.display_name,
                       orphan.lifecycle_state,
