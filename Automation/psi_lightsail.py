@@ -37,7 +37,7 @@ TCS_BASE_SNAPSHOT_NAME = 'Psiphon-TCS-V13.1-20260511'
 #   xlarge_3_0  - 16 GB RAM,  4 vCPU, 320 GB SSD, 6 TB xfer - $84/mo
 #   2xlarge_3_0 - 32 GB RAM,  8 vCPU, 640 GB SSD, 7 TB xfer - $164/mo
 # Note: bundle must be >= original snapshot's bundle when creating from snapshot.
-TCS_BUNDLE_ID = 'micro_3_0'
+TCS_BUNDLE_ID = 'medium_3_0'
 
 #==============================================================================
 
@@ -108,7 +108,23 @@ class PsiLightsail:
             raise Exception('No available zones in region %s' % region_info['name'])
 
         zone = random.choice(available_zones)
-        country_code = region_info['name'].split('-')[0].upper()
+
+        country_code_map = {'ap-northeast-1': 'JP',
+                            'ap-northeast-2': 'KR',
+                            'ap-south-1': 'IN',
+                            'ap-southeast-1': 'SG',
+                            'ap-southeast-2': 'AU',
+                            'ca-central-1': 'CA',
+                            'eu-central-1': 'DE',
+                            'eu-north-1': 'SE',
+                            'eu-west-1': 'IE',
+                            'eu-west-2': 'GB',
+                            'eu-west-3': 'FR',
+                            'us-east-1': 'US',
+                            'us-east-2': 'US',
+                            'us-west-2': 'US'}
+        
+        country_code = country_code_map[region_info['name']]
         datacenter_name = 'AWS LightSail %s' % region_info.get('displayName', region_info['name'])
 
         return country_code, zone, datacenter_name
