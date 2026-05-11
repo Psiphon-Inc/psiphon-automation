@@ -135,6 +135,11 @@ except ImportError as error:
     print(error)
 
 try:
+    import psi_lightsail
+except ImportError as error:
+    print(error)
+
+try:
     pass
     # Remove elastichost library
     #import psi_elastichosts
@@ -333,7 +338,7 @@ AwsAccount = psi_utils.recordtype(
     'access_id, secret_key',
     default=None)
   
-providers = ['linode', 'digitalocean', 'vpsnet', 'scaleway', 'oci', 'vultr', 'hetzner']
+providers = ['linode', 'digitalocean', 'vpsnet', 'scaleway', 'oci', 'vultr', 'hetzner', 'lightsail']
 
 ProviderRank = psi_utils.recordtype(
     'ProviderRank',
