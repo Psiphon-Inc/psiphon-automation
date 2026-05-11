@@ -282,6 +282,7 @@ def launch_new_server(lightsail_account, is_TCS, plugins, multi_ip=False):
         instance = lightsail_api.get_instance(host_id)
 
         instance_ip_address = instance['publicIpAddress']
+        instance_private_ip_address = instance['privateIpAddress']
 
         new_stats_username = psi_utils.generate_stats_username()
         set_host_name(lightsail_account, instance_ip_address, host_id)
@@ -305,7 +306,7 @@ def launch_new_server(lightsail_account, is_TCS, plugins, multi_ip=False):
             lightsail_account.base_ssh_port, 'root', new_root_password,
             ' '.join(new_host_public_key.split(' ')[:2]),
             new_stats_username, new_stats_password,
-            datacenter_name, region, None, None)
+            datacenter_name, region, None, instance_private_ip_address)
 
 if __name__ == '__main__':
     print(launch_new_server)
