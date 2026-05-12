@@ -114,6 +114,8 @@ class PsiLightsail:
                             'ap-south-1': 'IN',
                             'ap-southeast-1': 'SG',
                             'ap-southeast-2': 'AU',
+                            'ap-southeast-3': 'ID',
+                            'ap-southeast-5': 'MY',                            
                             'ca-central-1': 'CA',
                             'eu-central-1': 'DE',
                             'eu-north-1': 'SE',
