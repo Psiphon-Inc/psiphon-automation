@@ -135,6 +135,11 @@ except ImportError as error:
     print(error)
 
 try:
+    import psi_lightsail
+except ImportError as error:
+    print(error)
+
+try:
     pass
     # Remove elastichost library
     #import psi_elastichosts
@@ -333,7 +338,7 @@ AwsAccount = psi_utils.recordtype(
     'access_id, secret_key',
     default=None)
   
-providers = ['linode', 'digitalocean', 'vpsnet', 'scaleway', 'oci', 'vultr', 'hetzner']
+providers = ['linode', 'digitalocean', 'vpsnet', 'scaleway', 'oci', 'vultr', 'hetzner', 'lightsail']
 
 ProviderRank = psi_utils.recordtype(
     'ProviderRank',
@@ -407,6 +412,13 @@ HetznerAccount = psi_utils.recordtype(
     'api_token, regions, datacenters, ' +
     'base_image_ssh_port, default_base_image_id, ' +
     'dafault_base_image_ssh_key_name, default_base_image_ssh_private_key',
+    default=None)
+
+LightsailAccount = psi_utils.recordtype(
+    'LightsailAccount',
+    'aws_access_key_id, aws_secret_access_key, ' +
+    'base_rsa_private_key, base_ssh_root_password, ' +
+    'base_ssh_port, regions, key_pair_name',
     default=None)
 
 ElasticHostsAccount = psi_utils.recordtype(
@@ -555,7 +567,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.82'
+    class_version = '0.83'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -1030,6 +1042,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__vpsnet_account.base_ssh_key_id = 0
             self.__vpsnet_account.base_host_public_key = ''
             self.version = '0.82'
+        if cmp(parse_version(self.version), parse_version('0.83')) < 0:
+            self.__lightsail_account = LightsailAccount()
+            self.version = '0.83'
 
 
     def initialize_plugins(self):
@@ -3168,6 +3183,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             orphan_id = orphan['zone'] + '_' + orphan['id'] if provider == 'scaleway' else \
                         orphan['id'] if provider == 'vultr' else \
                         host_provider_id if provider == 'vpsnet' else \
+                        host_provider_id if provider == 'lightsail' else \
                         orphan.id
             print(textwrap.dedent('''
                   Provider ID:             %s
@@ -3194,6 +3210,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                       orphan['region'],
                       orphan['tag']
                   ) if provider == 'vultr' else (
+                      orphan_id,
+                      orphan['name'],
+                      orphan['state']['name'],
+                      orphan['createdAt'].strftime('%Y-%m-%dT%H:%M:%S'),
+                      orphan['publicIpAddress'],
+                      orphan['location']['availabilityZone'],
+                      '; '.join([f'{tag["key"]}: {tag["value"]}' for tag in orphan['tags']])
+                  ) if provider == 'lightsail' else (
                       str(orphan_id),
                       orphan.display_name,
                       orphan.lifecycle_state,
