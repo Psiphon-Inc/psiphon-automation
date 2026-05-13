@@ -109,7 +109,7 @@ class PsiLinode:
             'us-east': 'Linode Newark, NJ, USA',
             'us-hou-1': 'Linode Houston, TX, USA',
             'us-iad': 'Linode Washington, DC, USA',
-            'us-iad-2': 'Linode Washington 2, DC',
+            'us-iad-2': 'Linode Washington 2, DC, USA',
             'us-lax': 'Linode Los Angeles, CA, USA',
             'us-mia': 'Linode Miami, FL, USA',
             'us-ord': 'Linode Chicago, IL, USA',
