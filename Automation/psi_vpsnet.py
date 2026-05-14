@@ -32,6 +32,7 @@ from VPSNET import vpsnet
 
 # VARIABLE
 TCS_BASE_IMAGE_ID = 'Psiphon3-TCS-V12.9-20260204' # most current base image label
+#TCS_BASE_IMAGE_ID = 'psiphon.london.base.template'
 TCS_VPS_DEFAULT_PLAN = 'V4' # 'id': 328, 'label': '4 Cores / 2GB RAM / 80GB SSD / 4TB Bandwidth', 'price': '16.00', 'product_name': 'V3'
 
 
@@ -85,7 +86,8 @@ TCS_VPS_DEFAULT_PLAN = 'V4' # 'id': 328, 'label': '4 Cores / 2GB RAM / 80GB SSD 
 ### {'id': 193, 'name': 'Chicago - G1, US', 'ssh_key_required': False}
 ### {'id': 197, 'name': 'Atlanta - A1, US', 'ssh_key_required': False}
 ### {'id': 205, 'name': 'Dallas - C1, US', 'ssh_key_required': False}
-### {'id': 213, 'name': 'London - F, UK', 'ssh_key_required': True}]
+### {'id': 213, 'name': 'London - F, UK', 'ssh_key_required': True}
+### {'id': 225, 'name': 'Salt Lake City - F, US', 'ssh_key_required': True}]
 
 ###
 #
@@ -128,11 +130,12 @@ class PsiVpsnet:
 
         location_id = location['id']
         datacenter_name, region = location['name'].split(", ")
+        ssh_key_required = location['ssh_key_required']
 
         if region == 'UK':
             region = 'GB'
 
-        return region, location_id, datacenter_name
+        return region, location_id, datacenter_name, ssh_key_required
 
     def get_datacenter_name(datacenter_name, region):
         return f"VPSNET {datacenter_name}, {region}"
@@ -194,9 +197,9 @@ def set_allowed_users(vpsnet_account, ip_address, root_password, stats_username)
 def set_host_name(vpsnet_account, ip_address, root_password, new_hostname):
     # Note: hostnamectl is for systemd servers
     ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_ssh_port,
-                                   'root', root_password, None, None)
+                                   'debian', None, None, vpsnet_account.base_ssh_private_key)
     try:
-        ssh.exec_command('hostnamectl set-hostname %s' % new_hostname)
+        ssh.exec_command('sudo hostnamectl set-hostname %s' % new_hostname)
     finally:
         ssh.close()
 
@@ -213,10 +216,43 @@ def add_swap_file(vpsnet_account, ip_address, root_password):
         ssh.close()
 
 def update_dns(vpsnet_account, ip_address, root_password):
-    ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_ssh_port, 'root', root_password, None, None) 
+    ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_ssh_port, 'debian', None, None, vpsnet_account.base_ssh_private_key) 
 
     try:
         ssh.exec_command("echo 'nameserver 8.8.8.8\nnameserver 8.8.4.4\nnameserver 1.1.1.1\nnameserver 1.0.0.1' > /etc/resolv.conf")
+    finally:
+        ssh.close()
+
+
+# change root user password to default Psiphon VPS password; to be executed before allow_root_ssh and Psiphon deploy 
+def set_ssh_root_user(vpsnet_account, ip_address):
+    ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_ssh_port, 'debian', None, None, vpsnet_account.base_ssh_private_key)
+
+    try:
+        ssh.exec_command("echo root:{new_password} | sudo chpasswd".format(new_password=vpsnet_account.base_root_password))
+
+    finally:
+        ssh.close()
+
+# allow root user to ssh into server; to be executed before Psiphon deploy.
+def allow_root_ssh(vpsnet_account, ip_address):
+    ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_ssh_port, 'debian', None, None, vpsnet_account.base_ssh_private_key)
+
+    try:
+        ssh.exec_command("sudo sed -i 's|#PermitRootLogin prohibit-password|PermitRootLogin yes|g' /etc/ssh/sshd_config && sudo sed -i 's|#PasswordAuthentication yes|PasswordAuthentication yes|g' /etc/ssh/sshd_config && sudo systemctl restart sshd") 
+
+    finally:
+        ssh.close()
+
+# update /etc/hosts
+def update_etc_hosts(vpsnet_account, ip_address, hostname_vpsnet):
+    ssh = psi_ssh.make_ssh_session(ip_address, 2222, 'debian', None, None, vpsnet_account.base_ssh_private_key)
+    hostname_vpsnet_local = hostname_vpsnet + ".localdomain"
+    hosts_data = "127.0.0.1	localhost \n{ip_address}	{hostname_vps_local} {hostname_vpsnet} ".format(ip_address=ip_address, hostname_vps_local=hostname_vpsnet_local, hostname_vpsnet=hostname_vpsnet)
+
+    try:
+        ssh.exec_command("sudo echo {data} >> /etc/hosts ".format(data=hosts_data))
+
     finally:
         ssh.close()
 
@@ -244,20 +280,26 @@ def remove_server(vpsnet_account, provider_id): #
         print("ERROR: Remove server failed: {}".format(provider_id))
 
 def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
-
     instance = None
     vps_provider_id = None
     vpsnet_api = PsiVpsnet(vpsnet_account) # Use API interface
 
     try:
         # Create a new vpsnet instance
-        region, location_id, datacenter_name = vpsnet_api.get_location()
+
+
+        region, location_id, datacenter_name, ssh_key_required = vpsnet_api.get_location()
         host_id = "vn" + '-' + region.lower() + datacenter_name[:3].lower() + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
         custom_template_id = vpsnet_api.client.get_custom_os_id(str(location_id), TCS_BASE_IMAGE_ID)
         if not custom_template_id:
             raise Exception('Could not find vpsnet custom template in datacenter %s' % (datacenter_name))
             
         hostname_vpsnet = host_id + ".vps.net"
+
+        if ssh_key_required == True:
+            ssh_key_id = vpsnet_account.base_ssh_key_id
+        else:
+            ssh_key_id = vpsnet_account.base_ssh_key_id
 
         data = (f"{{"
             f"\"label\": \"{host_id}\", "
@@ -266,7 +308,7 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
             f"\"bill_hourly\": false, " # This function doesn't exist yet.
             f"\"product_name\": \"{TCS_VPS_DEFAULT_PLAN}\", "
             f"\"custom_template_id\": \"{custom_template_id}\", "
-            f"\"ssh_key_id\": \"{vpsnet_account.base_ssh_key_id}\"" # Right now ssh-key will be ignored for most locations.
+            f"\"ssh_key_id\": \"{ssh_key_id}\"" # Right now ssh-key will be ignored for most locations.
             f"}}")
 
         instance_info = vpsnet_api.create_instance(location_id, data)
@@ -289,21 +331,30 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
         generated_root_password = instance['initial_root_password']
 
         new_stats_username = psi_utils.generate_stats_username()
-        set_host_name(vpsnet_account, instance_ip_address, generated_root_password, host_id)
-        set_allowed_users(vpsnet_account, instance_ip_address, generated_root_password, new_stats_username)
-        add_swap_file(vpsnet_account, instance_ip_address, generated_root_password)
-        update_dns(vpsnet_account, instance_ip_address, generated_root_password)
+
+        # using vspnet_account.base_ssh_private_key
+        set_ssh_root_user(vpsnet_account, instance_ip_address)
+        update_dns(vpsnet_account, instance_ip_address, vpsnet_account.base_root_password) 
+        update_etc_hosts(vpsnet_account, instance_ip_address, hostname_vpsnet)
+        set_host_name(vpsnet_account, instance_ip_address, vpsnet_account.base_root_password, hostname_vpsnet)
+        allow_root_ssh(vpsnet_account, instance_ip_address)
+        #
+
+        set_allowed_users(vpsnet_account, instance_ip_address, vpsnet_account.base_root_password, new_stats_username)
+        add_swap_file(vpsnet_account, instance_ip_address, vpsnet_account.base_root_password)
+        update_dns(vpsnet_account, instance_ip_address, vpsnet_account.base_root_password)
 
         # Change the new vpsnet instance's credentials
         new_root_password = psi_utils.generate_password()
         new_stats_password = psi_utils.generate_password()
-        node_public_key = refresh_credentials(vpsnet_account, instance_ip_address, generated_root_password, 
+        node_public_key = refresh_credentials(vpsnet_account, instance_ip_address, vpsnet_account.base_root_password, 
                                               new_root_password, new_stats_password, new_stats_username)
-        assert(node_public_key)
 
+        assert(node_public_key)
     except Exception as ex:
         if vps_provider_id:
-            vpsnet_api.remove_instance(vps_provider_id)
+            print("Failed to create, not removing though")
+            #vpsnet_api.remove_instance(vps_provider_id)
         raise ex
 
     return (host_id, is_TCS, 'NATIVE' if is_TCS else None, None,
