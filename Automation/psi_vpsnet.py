@@ -32,7 +32,6 @@ from VPSNET import vpsnet
 
 # VARIABLE
 TCS_BASE_IMAGE_ID = 'Psiphon3-TCS-V12.9-20260204' # most current base image label
-#TCS_BASE_IMAGE_ID = 'psiphon.london.base.template'
 TCS_VPS_DEFAULT_PLAN = 'V4' # 'id': 328, 'label': '4 Cores / 2GB RAM / 80GB SSD / 4TB Bandwidth', 'price': '16.00', 'product_name': 'V3'
 
 
@@ -334,15 +333,14 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
 
         # using vspnet_account.base_ssh_private_key
         set_ssh_root_user(vpsnet_account, instance_ip_address)
-        update_dns(vpsnet_account, instance_ip_address, vpsnet_account.base_root_password) 
-        update_etc_hosts(vpsnet_account, instance_ip_address, hostname_vpsnet)
-        set_host_name(vpsnet_account, instance_ip_address, vpsnet_account.base_root_password, hostname_vpsnet)
         allow_root_ssh(vpsnet_account, instance_ip_address)
-        #
 
+        # using vpsnet_account.base_root_password
+        set_host_name(vpsnet_account, instance_ip_address, vpsnet_account.base_root_password, hostname_vpsnet)
         set_allowed_users(vpsnet_account, instance_ip_address, vpsnet_account.base_root_password, new_stats_username)
         add_swap_file(vpsnet_account, instance_ip_address, vpsnet_account.base_root_password)
         update_dns(vpsnet_account, instance_ip_address, vpsnet_account.base_root_password)
+        update_etc_hosts(vpsnet_account, instance_ip_address, hostname_vpsnet)
 
         # Change the new vpsnet instance's credentials
         new_root_password = psi_utils.generate_password()
@@ -354,7 +352,7 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
     except Exception as ex:
         if vps_provider_id:
             print("Failed to create, not removing though")
-            #vpsnet_api.remove_instance(vps_provider_id)
+            vpsnet_api.remove_instance(vps_provider_id)
         raise ex
 
     return (host_id, is_TCS, 'NATIVE' if is_TCS else None, None,
