@@ -1034,6 +1034,9 @@ def install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, ssh_ip
                     accept_unfronted_rate_limit=accept_unfronted_rate_limit,
                     proto="udp",
                     port=str(port))
+            elif '-FRONTED-' in protocol:
+                protocol_port_rule = accept_with_fronted_limit_rate_template.format(
+                    port=str(port))
             else:
                 protocol_port_rule = accept_with_inproxy_limit_rate_template.format(
                     accept_unfronted_rate_limit=accept_unfronted_rate_limit,

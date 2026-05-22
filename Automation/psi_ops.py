@@ -317,14 +317,14 @@ def ServerCapabilities():
     for capability in ('handshake', 'VPN', 'SSH', 'OSSH'):
         capabilities[capability] = True
     # These are disabled by default
-    for capability in ('ssh-api-requests', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'TLS', 'FRONTED-MEEK-TACTICS', 'QUIC', 'SHADOWSOCKS', 'TAPDANCE', 'CONJURE', 'FRONTED-MEEK-QUIC', 'FRONTED-MEEK-BROKER', 'INPROXY-WEBRTC-SSH', 'INPROXY-WEBRTC-OSSH', 'INPROXY-WEBRTC-QUIC-OSSH'):
+    for capability in ('ssh-api-requests', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'TLS', 'FRONTED-MEEK-TACTICS', 'QUIC', 'SHADOWSOCKS', 'TAPDANCE', 'CONJURE', 'FRONTED-MEEK-QUIC', 'FRONTED-MEEK-BROKER', 'INPROXY-WEBRTC-SSH', 'INPROXY-WEBRTC-OSSH', 'INPROXY-WEBRTC-QUIC-OSSH', 'INPROXY-WEBRTC-FRONTED-MEEK-OSSH'):
         capabilities[capability] = False
     return capabilities
 
 
 def copy_server_capabilities(caps):
     capabilities = {}
-    for capability in ('handshake', 'ssh-api-requests', 'VPN', 'SSH', 'OSSH', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'TLS', 'FRONTED-MEEK-TACTICS', 'QUIC', 'SHADOWSOCKS', 'TAPDANCE', 'CONJURE', 'FRONTED-MEEK-QUIC', 'FRONTED-MEEK-BROKER', 'INPROXY-WEBRTC-SSH', 'INPROXY-WEBRTC-OSSH', 'INPROXY-WEBRTC-QUIC-OSSH'):
+    for capability in ('handshake', 'ssh-api-requests', 'VPN', 'SSH', 'OSSH', 'FRONTED-MEEK', 'UNFRONTED-MEEK', 'UNFRONTED-MEEK-SESSION-TICKET', 'TLS', 'FRONTED-MEEK-TACTICS', 'QUIC', 'SHADOWSOCKS', 'TAPDANCE', 'CONJURE', 'FRONTED-MEEK-QUIC', 'FRONTED-MEEK-BROKER', 'INPROXY-WEBRTC-SSH', 'INPROXY-WEBRTC-OSSH', 'INPROXY-WEBRTC-QUIC-OSSH', 'INPROXY-WEBRTC-FRONTED-MEEK-OSSH'):
         capabilities[capability] = caps[capability]
     return capabilities
 
@@ -567,7 +567,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.83'
+    class_version = '0.84'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -1045,6 +1045,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if cmp(parse_version(self.version), parse_version('0.83')) < 0:
             self.__lightsail_account = LightsailAccount()
             self.version = '0.83'
+        if cmp(parse_version(self.version), parse_version('0.84')) < 0:
+            for server in list(self.__servers.values()) + list(self.__deleted_servers.values()):
+                server.capabilities['INPROXY-WEBRTC-FRONTED-MEEK-OSSH'] = False
+            self.version = '0.84'
 
 
     def initialize_plugins(self):
@@ -2367,6 +2371,20 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         host.server_entry_provider_id = self.__server_entry_provider_id_aliases[server_entry_provider_id_alias]
 
+    def setup_fronted_inproxy_for_server(self, server_id, fronting_provider_alias, meek_server_fronting_domain, meek_server_fronting_host):
+        server = self.__servers[server_id]
+        host = self.__hosts[server.host_id]
+        assert(host.meek_server_port == None or host.meek_server_port != 443)
+
+        host.fronting_provider_id = self.__fronting_provider_id_aliases[fronting_provider_alias]
+
+        server.capabilities['INPROXY-WEBRTC-FRONTED-MEEK-OSSH'] = True
+        host.meek_server_fronting_domain = meek_server_fronting_domain
+        host.meek_server_fronting_host = meek_server_fronting_host
+        self.setup_meek_parameters_for_host(host, None)
+
+        self.install_meek_for_host(host)
+
     def setup_fronting_for_server(self, server_id, fronting_provider_alias, meek_server_fronting_domain, meek_server_fronting_host):
         server = self.__servers[server_id]
         host = self.__hosts[server.host_id]
@@ -2431,8 +2449,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         return keypair['publicKey'], keypair['privateKey']
 
     def setup_meek_parameters_for_host(self, host, meek_server_port):
-        assert(host.meek_server_port == None)
-        host.meek_server_port = meek_server_port
+        if (meek_server_port):
+            assert(host.meek_server_port == None)
+            host.meek_server_port = meek_server_port
         if not host.meek_server_obfuscated_key:
             host.meek_server_obfuscated_key = self.generate_obfuscated_key()
         if not host.meek_cookie_encryption_public_key or not host.meek_cookie_encryption_private_key:
@@ -4650,7 +4669,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if host.tactics_request_obfuscated_key:
             extended_config['tacticsRequestObfuscatedKey'] = host.tactics_request_obfuscated_key
 
-        if server_capabilities['INPROXY-WEBRTC-SSH'] or server_capabilities['INPROXY-WEBRTC-OSSH'] or server_capabilities['INPROXY-WEBRTC-QUIC-OSSH']:
+        if server_capabilities['INPROXY-WEBRTC-SSH'] or server_capabilities['INPROXY-WEBRTC-OSSH'] or server_capabilities['INPROXY-WEBRTC-QUIC-OSSH'] or server_capabilities['INPROXY-WEBRTC-FRONTED-MEEK-OSSH']:
             if host.inproxy_server_public_key and host.inproxy_server_obfuscation_root_secret:
                 extended_config['inproxySessionPublicKey'] = host.inproxy_server_public_key
                 extended_config['inproxySessionRootObfuscationSecret'] = host.inproxy_server_obfuscation_root_secret
@@ -5899,8 +5918,8 @@ if __name__ == "__main__":
     parser.add_option("-r", "--read-only", dest="readonly", action="store_true",
                       help="don't lock the network object")
     parser.add_option("-t", "--test", dest="test", action="append",
-                      choices=('handshake', 'VPN', 'SSH', 'OSSH', 'QUIC-OSSH', 'TLS-OSSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTP-OSSH', 'FRONTED-MEEK-QUIC-OSSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH', 'UNFRONTED-MEEK-SESSION-TICKET-OSSH', 'SHADOWSOCKS-OSSH', 'TAPDANCE-OSSH', 'CONJURE-OSSH', 'INPROXY-WEBRTC-SSH', 'INPROXY-WEBRTC-OSSH', 'INPROXY-WEBRTC-QUIC-OSSH'),
-                      help="specify once for each of: handshake, VPN, SSH, OSSH, QUIC-OSSH, TLS-OSSH, FRONTED-MEEK-OSSH, FRONTED-MEEK-HTTP-OSSH, FRONTED-MEEK-QUIC-OSSH, UNFRONTED-MEEK-OSSH, UNFRONTED-MEEK-HTTPS-OSSH, UNFRONTED-MEEK-SESSION-TICKET-OSSH, SHADOWSOCKS-OSSH, TAPDANCE-OSSH, CONJURE-OSSH, INPROXY-WEBRTC-SSH, INPROXY-WEBRTC-OSSH, INPROXY-WEBRTC-QUIC-OSSH")
+                      choices=('handshake', 'VPN', 'SSH', 'OSSH', 'QUIC-OSSH', 'TLS-OSSH', 'FRONTED-MEEK-OSSH', 'FRONTED-MEEK-HTTP-OSSH', 'FRONTED-MEEK-QUIC-OSSH', 'UNFRONTED-MEEK-OSSH', 'UNFRONTED-MEEK-HTTPS-OSSH', 'UNFRONTED-MEEK-SESSION-TICKET-OSSH', 'SHADOWSOCKS-OSSH', 'TAPDANCE-OSSH', 'CONJURE-OSSH', 'INPROXY-WEBRTC-SSH', 'INPROXY-WEBRTC-OSSH', 'INPROXY-WEBRTC-QUIC-OSSH', 'INPROXY-WEBRTC-FRONTED-MEEK-OSSH'),
+                      help="specify once for each of: handshake, VPN, SSH, OSSH, QUIC-OSSH, TLS-OSSH, FRONTED-MEEK-OSSH, FRONTED-MEEK-HTTP-OSSH, FRONTED-MEEK-QUIC-OSSH, UNFRONTED-MEEK-OSSH, UNFRONTED-MEEK-HTTPS-OSSH, UNFRONTED-MEEK-SESSION-TICKET-OSSH, SHADOWSOCKS-OSSH, TAPDANCE-OSSH, CONJURE-OSSH, INPROXY-WEBRTC-SSH, INPROXY-WEBRTC-OSSH, INPROXY-WEBRTC-QUIC-OSSH, INPROXY-WEBRTC-FRONTED-MEEK-OSSH")
     parser.add_option("-u", "--update-routes", dest="updateroutes", action="store_true",
                       help="update external signed routes files")
     parser.add_option("-d", "--deploy", dest="deploy", action="store_true",
