@@ -2875,8 +2875,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         pool = ThreadPool(poolsize)
         results = pool.map(remove_host_from_provider, params_list)
+        
         # special case: clean up digitalocean floating IPs no longer associated with a droplet
-        psi_digitalocean.remove_orphan_ips(self.__digitalocean_account)
+        # DISABLED for now
+        # psi_digitalocean.remove_orphan_ips(self.__digitalocean_account)
+
         for result in results:
             if result:
                 raise result
