@@ -3168,8 +3168,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
     def get_provider_server_ips(self, provider):
         assert(provider in providers)
-        return set([server.ip_address for server in self.get_servers() if self.__hosts[server.host_id].provider==provider and server.ip_address is not None] +
-                   [server.egress_ip_address for server in self.get_servers() if self.__hosts[server.host_id].provider==provider and server.egress_ip_address is not None])
+        return set([server.ip_address for server in self.get_servers() if self.__hosts[server.host_id].provider==provider and server.ip_address] +
+                   [server.egress_ip_address for server in self.get_servers() if self.__hosts[server.host_id].provider==provider and server.egress_ip_address])
 
     def list_orphans(self, provider):
         provider_controller = globals()["psi_{}".format(provider)]
