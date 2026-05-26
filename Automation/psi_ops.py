@@ -2877,8 +2877,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         results = pool.map(remove_host_from_provider, params_list)
         
         # special case: clean up digitalocean floating IPs no longer associated with a droplet
-        # DISABLED for now
-        # psi_digitalocean.remove_orphan_ips(self.__digitalocean_account)
+        server_ips = self.get_provider_server_ips('digitalocean')
+        psi_digitalocean.remove_orphan_ips(self.__digitalocean_account, server_ips)
 
         for result in results:
             if result:
@@ -3166,6 +3166,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         self.__deploy_data_required_for_all = True
 
+    def get_provider_server_ips(self, provider):
+        assert(provider in providers)
+        return set([server.ip_address for server in self.get_servers() if self.__hosts[server.host_id].provider==provider and server.ip_address is not None] +
+                   [server.egress_ip_address for server in self.get_servers() if self.__hosts[server.host_id].provider==provider and server.egress_ip_address is not None])
+
     def list_orphans(self, provider):
         provider_controller = globals()["psi_{}".format(provider)]
         provider_account = vars(self)["_PsiphonNetwork__{}_account".format(provider)]
@@ -3182,7 +3187,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         provider_controller = globals()["psi_{}".format(provider)]
         provider_account = vars(self)["_PsiphonNetwork__{}_account".format(provider)]
 
-        orphan_ips = provider_controller.get_orphan_ips(provider_account)
+        server_ips = self.get_provider_server_ips(provider)
+        orphan_ips = provider_controller.get_orphan_ips(provider_account, server_ips)
         return orphan_ips
 
     def find_orphans(self):

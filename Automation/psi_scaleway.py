@@ -355,9 +355,9 @@ def get_server_ip_addresses(scaleway_account, scaleway_id):
 
     return (public_ip, private_ip)
 
-def get_orphan_ips(scaleway_account): # Only for routed_ipv4
+def get_orphan_ips(scaleway_account, server_ips): # Only for routed_ipv4
     scaleway_api = PsiScaleway(scaleway_account)
-    orphan_flexible_ips = [flexible_ip["address"] for flexible_ip in scaleway_api.get_all_flexible_ips(scaleway_account) if flexible_ip["state"] == "detached"]
+    orphan_flexible_ips = [flexible_ip["address"] for flexible_ip in scaleway_api.get_all_flexible_ips(scaleway_account) if flexible_ip["state"] == "detached" and flexible_ip["address"] not in server_ips]
     return orphan_flexible_ips
 
 def launch_new_server(scaleway_account, is_TCS, plugins, multi_ip=False):
