@@ -301,7 +301,7 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
         else:
             initial_username = "root"
 
-        ssh_key_id = vpsnet_account.base_ssh_private_key
+        ssh_key_id = vpsnet_account.base_ssh_key_id
 
         data = (f"{{"
             f"\"label\": \"{host_id}\", "
@@ -359,7 +359,7 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
         assert(node_public_key)
     except Exception as ex:
         if vps_provider_id:
-            print("Failed to create, not removing though")
+            print(f"Failed to create {vps_provider_id}")
             vpsnet_api.remove_instance(vps_provider_id)
         raise ex
 
