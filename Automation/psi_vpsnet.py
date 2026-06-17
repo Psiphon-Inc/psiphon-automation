@@ -222,6 +222,13 @@ def update_dns(vpsnet_account, ip_address, root_password):
     finally:
         ssh.close()
 
+def fix_ifup(vpsnet_account, ip_address, root_password):
+    ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_ssh_port, 'root', root_password, None, None)
+
+    try:
+        ssh.exec_command("apt install -y ifupdown")
+    finally:
+        ssh.close()
 
 # change root user password to default Psiphon VPS password; to be executed before allow_root_ssh and Psiphon deploy 
 def change_root_password(vpsnet_account, initial_username, ip_address):
@@ -247,10 +254,10 @@ def allow_root_ssh(vpsnet_account, initial_username, ip_address):
 def update_etc_hosts(vpsnet_account, ip_address, root_password, hostname_vpsnet):
     ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_ssh_port, 'root', root_password, None, None)
     hostname_vpsnet_local = hostname_vpsnet + ".localdomain"
-    hosts_data = "127.0.0.1	localhost \n{ip_address}	{hostname_vps_local} {hostname_vpsnet} ".format(ip_address=ip_address, hostname_vps_local=hostname_vpsnet_local, hostname_vpsnet=hostname_vpsnet)
+    hosts_data = "127.0.0.1 localhost \n{ip_address}	{hostname_vps_local} {hostname_vpsnet}".format(ip_address=ip_address, hostname_vps_local=hostname_vpsnet_local, hostname_vpsnet=hostname_vpsnet)
 
     try:
-        ssh.exec_command("echo \"{data}\" >> /etc/hosts ".format(data=hosts_data))
+        ssh.exec_command("echo \"{data}\" >> /etc/hosts".format(data=hosts_data))
 
     finally:
         ssh.close()
@@ -340,6 +347,7 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
         add_swap_file(vpsnet_account, instance_ip_address, generated_root_password)
         update_dns(vpsnet_account, instance_ip_address, generated_root_password)
         update_etc_hosts(vpsnet_account, instance_ip_address, generated_root_password, hostname_vpsnet)
+        fix_ifup(vpsnet_account, instance_ip_address, generated_root_password)
 
         # Change the new vpsnet instance's credentials
         new_root_password = psi_utils.generate_password()
