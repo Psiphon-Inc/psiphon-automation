@@ -235,7 +235,7 @@ def change_root_password(vpsnet_account, initial_username, ip_address):
 
 # allow root user to ssh into server; to be executed before Psiphon deploy.
 def allow_root_ssh(vpsnet_account, initial_username, ip_address):
-    ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_ssh_port, intial_username, None, None, vpsnet_account.base_ssh_private_key)
+    ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_ssh_port, initial_username, None, None, vpsnet_account.base_ssh_private_key)
 
     try:
         ssh.exec_command("sudo sed -i 's|#PermitRootLogin prohibit-password|PermitRootLogin yes|g' /etc/ssh/sshd_config && sudo sed -i 's|#PasswordAuthentication yes|PasswordAuthentication yes|g' /etc/ssh/sshd_config && sudo systemctl restart sshd") 
