@@ -250,7 +250,7 @@ def update_etc_hosts(vpsnet_account, ip_address, root_password, hostname_vpsnet)
     hosts_data = "127.0.0.1	localhost \n{ip_address}	{hostname_vps_local} {hostname_vpsnet} ".format(ip_address=ip_address, hostname_vps_local=hostname_vpsnet_local, hostname_vpsnet=hostname_vpsnet)
 
     try:
-        ssh.exec_command("echo {data} >> /etc/hosts ".format(data=hosts_data))
+        ssh.exec_command("echo \"{data}\" >> /etc/hosts ".format(data=hosts_data))
 
     finally:
         ssh.close()
