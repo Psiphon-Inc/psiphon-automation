@@ -196,14 +196,14 @@ def set_allowed_users(vpsnet_account, ip_address, root_password, stats_username)
 def set_host_name(vpsnet_account, ip_address, root_password, new_hostname):
     # Note: hostnamectl is for systemd servers
     ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_ssh_port,
-                                   'root', None, None, vpsnet_account.base_ssh_private_key)
+                                   'root', root_password, None, None)
     try:
-        ssh.exec_command('sudo hostnamectl set-hostname %s' % new_hostname)
+        ssh.exec_command('hostnamectl set-hostname %s' % new_hostname)
     finally:
         ssh.close()
 
 def add_swap_file(vpsnet_account, ip_address, root_password):
-    ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_ssh_port, 'root', root_password, None, None) 
+    ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_ssh_port, 'root', root_password, None, None)
 
     try:
         has_swap = ssh.exec_command('grep swap /etc/fstab')
@@ -215,7 +215,7 @@ def add_swap_file(vpsnet_account, ip_address, root_password):
         ssh.close()
 
 def update_dns(vpsnet_account, ip_address, root_password):
-    ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_ssh_port, 'debian', None, None, vpsnet_account.base_ssh_private_key) 
+    ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_ssh_port, 'root', root_password, None, None)
 
     try:
         ssh.exec_command("echo 'nameserver 8.8.8.8\nnameserver 8.8.4.4\nnameserver 1.1.1.1\nnameserver 1.0.0.1' > /etc/resolv.conf")
@@ -244,8 +244,8 @@ def allow_root_ssh(vpsnet_account, initial_username, ip_address):
         ssh.close()
 
 # update /etc/hosts
-def update_etc_hosts(vpsnet_account, ip_address, hostname_vpsnet):
-    ssh = psi_ssh.make_ssh_session(ip_address, 2222, 'root', None, None, vpsnet_account.base_ssh_private_key)
+def update_etc_hosts(vpsnet_account, ip_address, root_password, hostname_vpsnet):
+    ssh = psi_ssh.make_ssh_session(ip_address, vpsnet_account.base_ssh_port, 'root', root_password, None, None)
     hostname_vpsnet_local = hostname_vpsnet + ".localdomain"
     hosts_data = "127.0.0.1	localhost \n{ip_address}	{hostname_vps_local} {hostname_vpsnet} ".format(ip_address=ip_address, hostname_vps_local=hostname_vpsnet_local, hostname_vpsnet=hostname_vpsnet)
 
@@ -295,12 +295,6 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
 
         hostname_vpsnet = host_id + ".vps.net"
 
-        if ssh_key_required == True:
-            generated_root_password = vpsnet_account.base_root_password
-            initial_username = "debian"
-        else:
-            initial_username = "root"
-
         ssh_key_id = vpsnet_account.base_ssh_key_id
 
         data = (f"{{"
@@ -317,7 +311,7 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
 
         # Waiting to be restored from snapshot
         wait_while_condition(lambda: vpsnet_api.client.get_server_id_by_host_id(hostname_vpsnet) == None,
-                         300,
+                         600,
                          'Initiate VPSNET Instance')
         server_id = vpsnet_api.client.get_server_id_by_host_id(hostname_vpsnet)
         vps_provider_id = str(location_id) + "-" + str(server_id)
@@ -332,15 +326,17 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
         instance_ip_address = instance['ip_addresses'][0]['ip_address']['address']
         
         #for old servers
-        if ssh_key_required == False: 
+        if ssh_key_required == False:
+            initial_username = "root"
             generated_root_password = instance['initial_root_password']
         #for new '-F' servers
-        else : 
+        else:
+            initial_username = "debian"
             #set ssh to permit root user, using vpsnet_account.base_ssh_private_key;
             #change root password since VPS default one is wrong (for new '-F' servers)
             change_root_password(vpsnet_account, initial_username, instance_ip_address)
             allow_root_ssh(vpsnet_account, initial_username, instance_ip_address)
-            generated_root_password = vpsnet_account.base_root_password #base root password from psinet.
+            generated_root_password = vpsnet_account.base_root_password
 
         new_stats_username = psi_utils.generate_stats_username()
 
@@ -348,7 +344,7 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
         set_allowed_users(vpsnet_account, instance_ip_address, generated_root_password, new_stats_username)
         add_swap_file(vpsnet_account, instance_ip_address, generated_root_password)
         update_dns(vpsnet_account, instance_ip_address, generated_root_password)
-        update_etc_hosts(vpsnet_account, instance_ip_address, hostname_vpsnet)
+        update_etc_hosts(vpsnet_account, instance_ip_address, generated_root_password, hostname_vpsnet)
 
         # Change the new vpsnet instance's credentials
         new_root_password = psi_utils.generate_password()
