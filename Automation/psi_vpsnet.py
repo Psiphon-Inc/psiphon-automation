@@ -250,7 +250,7 @@ def update_etc_hosts(vpsnet_account, ip_address, root_password, hostname_vpsnet)
     hosts_data = "127.0.0.1	localhost \n{ip_address}	{hostname_vps_local} {hostname_vpsnet} ".format(ip_address=ip_address, hostname_vps_local=hostname_vpsnet_local, hostname_vpsnet=hostname_vpsnet)
 
     try:
-        ssh.exec_command("sudo echo {data} >> /etc/hosts ".format(data=hosts_data))
+        ssh.exec_command("echo {data} >> /etc/hosts ".format(data=hosts_data))
 
     finally:
         ssh.close()
@@ -285,8 +285,6 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
 
     try:
         # Create a new vpsnet instance
-
-
         region, location_id, datacenter_name, ssh_key_required = vpsnet_api.get_location()
         host_id = "vn" + '-' + region.lower() + datacenter_name[:3].lower() + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
         custom_template_id = vpsnet_api.client.get_custom_os_id(str(location_id), TCS_BASE_IMAGE_ID)
@@ -295,8 +293,6 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
 
         hostname_vpsnet = host_id + ".vps.net"
 
-        ssh_key_id = vpsnet_account.base_ssh_key_id
-
         data = (f"{{"
             f"\"label\": \"{host_id}\", "
             f"\"hostname\": \"{hostname_vpsnet}\", "
@@ -304,7 +300,7 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
             f"\"bill_hourly\": false, " # This function doesn't exist yet.
             f"\"product_name\": \"{TCS_VPS_DEFAULT_PLAN}\", "
             f"\"custom_template_id\": \"{custom_template_id}\", "
-            f"\"ssh_key_id\": \"{ssh_key_id}\"" 
+            f"\"ssh_key_id\": \"{vpsnet_account.base_ssh_key_id}\"" 
             f"}}")
 
         instance_info = vpsnet_api.create_instance(location_id, data)
@@ -339,7 +335,6 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
             generated_root_password = vpsnet_account.base_root_password
 
         new_stats_username = psi_utils.generate_stats_username()
-
         set_host_name(vpsnet_account, instance_ip_address, generated_root_password, hostname_vpsnet)
         set_allowed_users(vpsnet_account, instance_ip_address, generated_root_password, new_stats_username)
         add_swap_file(vpsnet_account, instance_ip_address, generated_root_password)
