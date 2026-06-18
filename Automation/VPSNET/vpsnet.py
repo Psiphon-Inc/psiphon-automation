@@ -74,6 +74,7 @@ class VPSNET:
 	    #data['custom_template_id'] is psiphon custom template id;
             #data['location_id'] is the location of the server from get_vps_locations;
 	    #data['bill_hourly'] is the billing type; per hour in our case;
+            #data['ssh_key_id'] is the ssh key id; used when ssh_key_required = true;
         url = '/rest-api/ssd-vps/locations/' + str(location_id) + '/servers'
         response = self._post_request(url, data)
 
@@ -157,26 +158,30 @@ class VPSNET:
 
 
     # gets all custom os id for locations with the label: "label" and returns the one matching "location_id"
-    def get_custom_os_id(self, location_id, label):
+    def get_custom_os_id(self, id_location, label):
         location_ids = self.get_location_custom_os_ids()
-        for custom_os in location_ids[location_id]:
-            if custom_os['label'] == label:
-                return custom_os['id']
+        string_location_id = str(id_location)
+        if location_ids[string_location_id]:
+            for x in range(len(location_ids[string_location_id])):
+                if location_ids[string_location_id][x]['label'] == label:
+                   return location_ids[string_location_id][x]['id']
 
-    def get_server_id_by_host_id(self, host_id) :
-        all_vps_vms = self.get_vms()
+
+    def get_server_id_by_host_id(self, host_id) : 
+        all_vps_vms = self.get_vms() 
         for i in range(len(all_vps_vms)) :
             if all_vps_vms[i]['hostname'] == host_id :
                 server_id = all_vps_vms[i]['id']
                 return server_id
         return None
 
+
     def get_ssh_keys(self):
         response = self._get_request('/rest-api/ssh-keys/')
         return response['data']
 
-    # ToDo: Never tested from HERE to END
-    def get_ssh_key(self, ssh_key) :
-        response = self._get_request('/rest-api/ssh-keys/' + str(ssh_key))
-        return response['data']
 
+    # ToDo: Never tested from HERE to END
+    def get_ssh_key(self, ssh_key_id) :
+        response = self._get_request('/rest-api/ssh-keys/' + str(ssh_key_id))
+        return response['data']
