@@ -350,7 +350,7 @@ def get_servers(oracle_account):
         oci_instances = oci_api.list_instances()
         instances += oci_instances
 
-    return [(instance.id, instance.display_name) for instance in instances if instance.lifecycle_state!='TERMINATED']
+    return [(instance.id, instance.display_name) for instance in instances if instance.lifecycle_state!='TERMINATED' and not instance.freeform_tags]
 
 def get_server(oracle_account, instance_id):
     oci_api = PsiOCI(oracle_account)
