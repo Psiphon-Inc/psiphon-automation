@@ -260,7 +260,7 @@ def get_servers(lightsail_account):
         lightsail_api.region = region
         lightsail_api.reload()
         instances = lightsail_api.list_instances()
-        all_instances += [(region + '_' + i['name'], i['name']) for i in instances]
+        all_instances += [(region + '_' + i['name'], i['name']) for i in instances if i['tags'] == [{'key': 'Name', 'value': i['name']}]]
 
     return all_instances
 
