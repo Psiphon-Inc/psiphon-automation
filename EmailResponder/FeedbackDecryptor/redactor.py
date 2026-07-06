@@ -31,30 +31,25 @@ def redact_sensitive_values(obj):
     are redacted by modifying the dictionary directly.
     '''
 
-    if isinstance(obj, str) or not isinstance(obj, dict):
+    if not isinstance(obj, dict):
         return
 
-    try:
-        app_name = obj["Metadata"]["appName"]
-        client_platform = obj["Metadata"]["platform"]
-        sys_info = obj["SystemInformation"]
-        client_version = sys_info["PsiphonInfo"]["CLIENT_VERSION"] or sys_info["ApplicationInfo"]["clientVersion"]
-    except KeyError:
-        return
+    # The upstream-proxy redactor is safe to run on any client and does not
+    # depend on the client version, so it must always run. It must not be gated
+    # on parsing version metadata, whose location varies between clients (e.g.
+    # modern clients such as psiphon4 place PsiphonInfo at the top level rather
+    # than under SystemInformation) -- otherwise a lookup miss would silently
+    # disable all redaction.
+    redactors_to_run = [_redact_upstream_proxy_errors]
+    redactors_to_run += _version_specific_redactors(obj)
 
-    if not isinstance(client_version, int):
-        try:
-            client_version = int(client_version)
-        except ValueError:
-            return
-
-    redactors_to_run = redactors(app_name, client_platform, client_version)
     run_redactors(obj, redactors_to_run)
 
 
 def redact_sensitive_values_test():
     _redact_sensitive_values_all_clients_test()
     _redact_sensitive_values_ios_vpn_test()
+    _redact_sensitive_values_psiphon4_test()
 
     print('redact_sensitive_values_test okay')
 
@@ -112,17 +107,19 @@ def _generate_feedback_scheme1(app_name, client_platform, client_version, msg):
         # The scheme produced here is only valid for Psiphon clients (not for Ryve or Conduit).
         raise ValueError("app_name must be 'psiphon', got '{}'".format(app_name))
 
+    # This is the shape as received by redact_sensitive_values, i.e. after
+    # upgrade_diagnostic_info has hoisted SystemInformation to the top level.
     return {
         "Metadata": {
             "appName": app_name,
             "platform": client_platform
         },
-        "DiagnosticInfo": {
-            "SystemInformation": {
-                "PsiphonInfo": {
-                    "CLIENT_VERSION": client_version
-                },
+        "SystemInformation": {
+            "PsiphonInfo": {
+                "CLIENT_VERSION": client_version
             },
+        },
+        "DiagnosticInfo": {
             "DiagnosticHistory": [
                 {
                     "data": {
@@ -143,12 +140,12 @@ def _generate_windows_feedback(client_version, msg):
             "appName": "psiphon",
             "platform": "windows"
         },
-        "DiagnosticInfo": {
-            "SystemInformation": {
-                "PsiphonInfo": {
-                    "CLIENT_VERSION": client_version
-                },
+        "SystemInformation": {
+            "PsiphonInfo": {
+                "CLIENT_VERSION": client_version
             },
+        },
+        "DiagnosticInfo": {
             "DiagnosticHistory": [
                 {
                     "msg": "",
@@ -171,6 +168,51 @@ def _generate_windows_feedback(client_version, msg):
             ],
         },
     }
+
+
+# psiphon4 (and other modern clients) place PsiphonInfo and ApplicationInfo at
+# the top level; there is no PsiphonInfo nested under SystemInformation.
+def _generate_psiphon4_feedback(client_platform, msg):
+    return {
+        "Metadata": {
+            "appName": "psiphon4",
+            "platform": client_platform,
+            "version": 1,
+        },
+        "ApplicationInfo": {
+            "ClientVersion": "2.5.1+481",
+            "applicationId": "com.psiphon3",
+        },
+        "PsiphonInfo": {
+            "CLIENT_VERSION": 481,
+        },
+        "SystemInformation": {
+            "Build": {"BRAND": "OPPO"},
+            "language": "ar",
+        },
+        "Logs": [
+            {
+                "category": "PsiphonTunnel",
+                "message": msg,
+            }
+        ],
+    }
+
+
+def _redact_sensitive_values_psiphon4_test():
+    # Regression test: modern clients such as psiphon4 place PsiphonInfo at the
+    # top level, so the version lookup can't find SystemInformation.PsiphonInfo.
+    # The universal upstream-proxy redactor must still run regardless.
+
+    log = 'UpstreamProxyError: {"message": "upstreamproxy error: proxyURI url.Parse: parse http://user:pass@example.com: net/url: invalid userinfo"}'
+    expected_log = 'UpstreamProxyError: {"message": "upstreamproxy error: proxyURI url.Parse: parse <redacted>"}'
+
+    obj = _generate_psiphon4_feedback("android", log)
+    redact_sensitive_values(obj)
+    expected_obj = _generate_psiphon4_feedback("android", expected_log)
+    assert(obj == expected_obj)
+
+    print('redact_sensitive_values_psiphon4_test okay')
 
 
 def _redact_sensitive_values_ios_vpn_test():
@@ -206,11 +248,24 @@ def _redact_sensitive_values_ios_vpn_test():
     print('redact_sensitive_values_ios_vpn_test okay')
 
 
-def redactors(app_name, client_platform, client_version):
+def _version_specific_redactors(obj):
     '''
-    Return redactors to use for the target app, platform, and version.
+    Return the redactors that target specific legacy Psiphon client builds,
+    selected by app name, platform, and version. Returns an empty list when the
+    identifying metadata can't be read (e.g. non-Psiphon or modern clients), so
+    that a missing or relocated field never disables the universal redaction in
+    `redact_sensitive_values`.
     '''
-    redactors = [_redact_upstream_proxy_errors]
+    try:
+        app_name = obj["Metadata"]["appName"]
+        client_platform = obj["Metadata"]["platform"]
+        sys_info = obj["SystemInformation"]
+        client_version = int(sys_info["PsiphonInfo"]["CLIENT_VERSION"]
+                             or sys_info["ApplicationInfo"]["clientVersion"])
+    except (KeyError, ValueError, TypeError):
+        return []
+
+    redactors = []
     if app_name == "psiphon" and client_platform == "ios-vpn" and client_version >= 160:
         redactors.append(_ios_vpn_redact_start_tunnel_with_options)
     elif app_name == "psiphon" and client_platform == "windows" and client_version == 160:
