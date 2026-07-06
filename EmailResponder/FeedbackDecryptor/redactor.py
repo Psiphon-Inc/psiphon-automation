@@ -66,18 +66,18 @@ def _redact_sensitive_values_all_clients_test():
         'UpstreamProxyError: {"message": "upstreamproxy error: handshake error: <nil>, response status: 403 Forbidden"}':
           'UpstreamProxyError: {"message": "upstreamproxy error: handshake error: <nil>, response status: 403 Forbidden"}',
         # simple test
-        'UpstreamProxyError: {"message": "upstreamproxy error: proxyURI url.Parse: parse http:\/\/example.com: net\/url: invalid userinfo"}':
+        r'UpstreamProxyError: {"message": "upstreamproxy error: proxyURI url.Parse: parse http:\/\/example.com: net\/url: invalid userinfo"}':
           'UpstreamProxyError: {"message": "upstreamproxy error: proxyURI url.Parse: parse <redacted>"}',
         # test nested JSON
-        'UpstreamProxyError: {"message": {"nested_message": "upstreamproxy error: proxyURI url.Parse: parse http:\/\/example.com: net\/url: invalid userinfo"}}':
+        r'UpstreamProxyError: {"message": {"nested_message": "upstreamproxy error: proxyURI url.Parse: parse http:\/\/example.com: net\/url: invalid userinfo"}}':
           'UpstreamProxyError: {"message": {"nested_message": "upstreamproxy error: proxyURI url.Parse: parse <redacted>"}}',
         # test extra JSON fields
-        'UpstreamProxyError: {"message": "upstreamproxy error: proxyURI url.Parse: parse http:\/\/example.com: net\/url: invalid userinfo", "k": {"k1": "v1"}}':
+        r'UpstreamProxyError: {"message": "upstreamproxy error: proxyURI url.Parse: parse http:\/\/example.com: net\/url: invalid userinfo", "k": {"k1": "v1"}}':
           'UpstreamProxyError: {"message": "upstreamproxy error: proxyURI url.Parse: parse <redacted>", "k": {"k1": "v1"}}',
         # tests where we fallback on a destructive redaction
-        'UpstreamProxyError: {"upstreamproxy error: proxyURI url.Parse: parse http:\/\/example.com: net\/url: invalid userinfo": "v"}':
+        r'UpstreamProxyError: {"upstreamproxy error: proxyURI url.Parse: parse http:\/\/example.com: net\/url: invalid userinfo": "v"}':
           'UpstreamProxyError: {"upstreamproxy error: proxyURI url.Parse: parse <redacted>',
-        'UpstreamProxyError: "upstreamproxy error: proxyURI url.Parse: parse http:\/\/example.com: net\/url: invalid userinfo"':
+        r'UpstreamProxyError: "upstreamproxy error: proxyURI url.Parse: parse http:\/\/example.com: net\/url: invalid userinfo"':
           'UpstreamProxyError: "upstreamproxy error: proxyURI url.Parse: parse <redacted>'
     }
 
