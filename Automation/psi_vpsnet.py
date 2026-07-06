@@ -31,7 +31,7 @@ import psi_utils
 from VPSNET import vpsnet
 
 # VARIABLE
-TCS_BASE_IMAGE_ID = 'Psiphon3-TCS-V12.9-20260204' # most current base image label
+TCS_BASE_IMAGE_ID = 'Psiphon3-TCS-V12.9-20260629' # most current base image label
 TCS_VPS_DEFAULT_PLAN = 'V4' # 'id': 328, 'label': '4 Cores / 2GB RAM / 80GB SSD / 4TB Bandwidth', 'price': '16.00', 'product_name': 'V3'
 
 
