@@ -118,11 +118,61 @@
 
 <h1>Psiphon 4</h1>
 
-% if feedback_info:
+% if feedback_info and feedback_info.get('Message') and feedback_info['Message'].get('text'):
+<%
+  message = feedback_info['Message']
+  msg_text = message['text']
+
+  # Through experimentation, we have found that the maximum number of urlencoded
+  # UTF-8 characters that can successfully be put into a Google Translate URL
+  # is about 600. So if there are more characters than that, we'll just link
+  # to the blank form.
+  gtranslate_url = 'https://translate.google.com/#auto/en/'
+  urlencoded_msg = utils.urlencode(msg_text)
+  if len(urlencoded_msg) < 600:
+    gtranslate_url += urlencoded_msg
+
+  lang_code = message.get('text_lang_code')
+  translated = message.get('text_translated')
+
+  # There are some special values that text_lang_code might have that indicate
+  # a problem during translation.
+  no_translation = lang_code in ('[INDETERMINATE]', '[TRANSLATION_FAIL]')
+
+  direction = 'rtl' if lang_code in ('fa', 'ar', 'iw', 'yi') else ''
+%>
+
   <h2>Feedback</h2>
-  <pre>
-${yaml.dump(feedback_info)}
-  </pre>
+
+  % if lang_code and not no_translation:
+    <div class="english_message">${translated}</div>
+
+    % if msg_text != translated:
+      <div class="smaller">
+        Auto-translated from ${message['text_lang_name']}.
+      </div>
+      <br>
+
+      <div class="original_message ${direction}">${msg_text}</div>
+
+      <div class="smaller">
+        <a href="${gtranslate_url}">Google Translate.</a>
+      </div>
+    % endif
+  % else:
+    ## Either translation failed/was indeterminate, or this feedback predates
+    ## translation being enabled. Show the original message directly (readable,
+    ## rather than the unicode-escaped YAML dump) with a translate link.
+    % if no_translation:
+      <div class="smaller">Auto-translate failed: ${message['text_lang_name']}</div>
+    % endif
+
+    <div class="original_message ${direction}">${msg_text}</div>
+
+    <div class="smaller">
+      <a href="${gtranslate_url}">Google Translate.</a>
+    </div>
+  % endif
 % endif
 
 % if metadata:
