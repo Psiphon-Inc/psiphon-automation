@@ -34,13 +34,13 @@ def redact_sensitive_values(obj):
     if not isinstance(obj, dict):
         return
 
-    # The upstream-proxy redactor is safe to run on any client and does not
-    # depend on the client version, so it must always run. It must not be gated
-    # on parsing version metadata, whose location varies between clients (e.g.
-    # modern clients such as psiphon4 place PsiphonInfo at the top level rather
-    # than under SystemInformation) -- otherwise a lookup miss would silently
-    # disable all redaction.
-    redactors_to_run = [_redact_upstream_proxy_errors]
+    # The upstream-proxy redactors are safe to run on any client and do not
+    # depend on the client version, so they must always run. They must not be
+    # gated on parsing version metadata, whose location varies between clients
+    # (e.g. modern clients such as psiphon4 place PsiphonInfo at the top level
+    # rather than under SystemInformation) -- otherwise a lookup miss would
+    # silently disable all redaction.
+    redactors_to_run = [_redact_upstream_proxy_errors, _redact_upstream_proxy_config]
     redactors_to_run += _version_specific_redactors(obj)
 
     run_redactors(obj, redactors_to_run)
@@ -50,6 +50,7 @@ def redact_sensitive_values_test():
     _redact_sensitive_values_all_clients_test()
     _redact_sensitive_values_ios_vpn_test()
     _redact_sensitive_values_psiphon4_test()
+    _redact_upstream_proxy_config_test()
 
     print('redact_sensitive_values_test okay')
 
@@ -215,6 +216,48 @@ def _redact_sensitive_values_psiphon4_test():
     print('redact_sensitive_values_psiphon4_test okay')
 
 
+def _redact_upstream_proxy_config_test():
+    # Inline config-dump message: the proxy URL (with credentials) and the
+    # custom-headers list must be redacted; unrelated fields must be left alone.
+    msg_in = ('Starting VPN with config: {excludeLocalNetworks: false, '
+              'upstreamProxyUrl: http://user:pass@[UNKNOWN]:5555, '
+              'upstreamProxyCustomHeaders: [{X-Foo: bar}], vpnMode: EXCLUDE_ONLY, '
+              'appPackageIds: [ca.psiphon.conduit], sponsorId: 4000000000000003}')
+    msg_out = ('Starting VPN with config: {excludeLocalNetworks: false, '
+               'upstreamProxyUrl: <redacted>, '
+               'upstreamProxyCustomHeaders: <redacted>, vpnMode: EXCLUDE_ONLY, '
+               'appPackageIds: [ca.psiphon.conduit], sponsorId: 4000000000000003}')
+    obj = _generate_psiphon4_feedback("android", msg_in)
+    redact_sensitive_values(obj)
+    assert(obj["Logs"][0]["message"] == msg_out)
+
+    # Structured tunnel-core notice: the custom header name leaks as a field
+    # value and must be redacted; the (non-sensitive) proxy type must not be.
+    obj = {
+        "Metadata": {"appName": "psiphon4", "platform": "android"},
+        "Logs": [{
+            "category": "tunnel-core",
+            "data": {"data": {
+                "upstreamProxyCustomHeaderNames": "X-Foo",
+                "upstreamProxyType": "http",
+            }},
+        }],
+    }
+    redact_sensitive_values(obj)
+    inner = obj["Logs"][0]["data"]["data"]
+    assert(inner["upstreamProxyCustomHeaderNames"] == "<redacted>")
+    assert(inner["upstreamProxyType"] == "http")
+
+    # Empty and already-redacted values must not be (re-)mangled.
+    unchanged = ("config: {upstreamProxyUrl: , upstreamProxyCustomHeaders: [], "
+                 "upstreamProxyUrl: <redacted>, foo: bar}")
+    obj = _generate_psiphon4_feedback("android", unchanged)
+    redact_sensitive_values(obj)
+    assert(obj["Logs"][0]["message"] == unchanged)
+
+    print('redact_upstream_proxy_config_test okay')
+
+
 def _redact_sensitive_values_ios_vpn_test():
 
     # Test where a sensitive value is redacted
@@ -360,6 +403,46 @@ def _redact_text_proceeding_target_from_dict(target, d):
                 redacted = True
 
     return redacted
+
+
+# The proxy URL can embed "user:password@", and the custom header names/values
+# are user-supplied. All are sensitive upstream-proxy configuration.
+_UPSTREAM_PROXY_SENSITIVE_KEYS = frozenset((
+    'upstreamProxyUrl',
+    'upstreamProxyCustomHeaders',
+    'upstreamProxyCustomHeaderNames',
+))
+
+# Match those settings when a client embeds them inline in a larger log message,
+# e.g. "Starting VPN with config: {... upstreamProxyUrl: http://user:pass@host:port,
+# upstreamProxyCustomHeaders: [{X-Foo: bar}], ...}". The URL value runs until the
+# next field (comma) or the closing brace; the headers value is a bracketed list.
+_UPSTREAM_PROXY_URL_RE = re.compile(r'(upstreamProxyUrl:\s*)[^,}\s][^,}]*')
+_UPSTREAM_PROXY_HEADERS_RE = re.compile(r'(upstreamProxyCustomHeaders:\s*)\[[^\]]+\]')
+
+
+def _redact_upstream_proxy_config(obj, path, val):
+    '''
+    Redact upstream-proxy configuration that some clients log. Unlike
+    _redact_upstream_proxy_errors (which targets a tunnel-core parse error),
+    this handles the client's own config dumps. It covers both a structured
+    field (e.g. {'upstreamProxyCustomHeaderNames': 'X-Foo'}) and the settings
+    embedded inline in a larger message string.
+    '''
+    if not isinstance(val, str):
+        return
+
+    # Structured field whose key is a sensitive upstream-proxy setting.
+    if path and path[-1] in _UPSTREAM_PROXY_SENSITIVE_KEYS:
+        if val and val != '<redacted>':
+            utils.assign_value_to_obj_at_path(obj, path, '<redacted>')
+        return
+
+    # The same settings embedded inline in a larger log message.
+    redacted_val = _UPSTREAM_PROXY_URL_RE.sub(r'\1<redacted>', val)
+    redacted_val = _UPSTREAM_PROXY_HEADERS_RE.sub(r'\1<redacted>', redacted_val)
+    if redacted_val != val:
+        utils.assign_value_to_obj_at_path(obj, path, redacted_val)
 
 
 def _ios_vpn_redact_start_tunnel_with_options(obj, path, val):
