@@ -95,7 +95,7 @@ TCS_VPS_DEFAULT_PLAN = 'V4' # 'id': 328, 'label': '4 Cores / 2GB RAM / 80GB SSD 
 ###
 def wait_while_condition(condition, max_wait_seconds, description):
     total_wait_seconds = 0
-    wait_seconds = 5
+    wait_seconds = 10
     while condition() == True:
         if total_wait_seconds > max_wait_seconds:
             raise Exception('Took more than %d seconds to %s' % (max_wait_seconds, description))
