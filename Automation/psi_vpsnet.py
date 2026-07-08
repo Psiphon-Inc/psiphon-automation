@@ -31,7 +31,8 @@ import psi_utils
 from VPSNET import vpsnet
 
 # VARIABLE
-TCS_BASE_IMAGE_ID = 'Psiphon3-TCS-V12.9-20260629' # most current base image label
+TCS_BASE_IMAGE_ID = 'Psiphon3-TCS-V12.9-20260204' # base image label for old datacenters
+TCS_BASE_IMAGE_ID_SSH_KEY_REQUIRED = 'Psiphon3-TCS-V12.9-20260629' # most current base image label
 TCS_VPS_DEFAULT_PLAN = 'V4' # 'id': 328, 'label': '4 Cores / 2GB RAM / 80GB SSD / 4TB Bandwidth', 'price': '16.00', 'product_name': 'V3'
 
 
@@ -95,7 +96,7 @@ TCS_VPS_DEFAULT_PLAN = 'V4' # 'id': 328, 'label': '4 Cores / 2GB RAM / 80GB SSD 
 ###
 def wait_while_condition(condition, max_wait_seconds, description):
     total_wait_seconds = 0
-    wait_seconds = 10
+    wait_seconds = 15
     while condition() == True:
         if total_wait_seconds > max_wait_seconds:
             raise Exception('Took more than %d seconds to %s' % (max_wait_seconds, description))
@@ -113,7 +114,6 @@ class PsiVpsnet:
     def __init__(self, vpsnet_account, debug=False):
         self.api_key = vpsnet_account.api_key
         self.plan = TCS_VPS_DEFAULT_PLAN
-        self.base_image_id = TCS_BASE_IMAGE_ID
         self.client = vpsnet.VPSNET(api_key=self.api_key)
 
     def get_location(self, select_location=None):
@@ -294,7 +294,7 @@ def launch_new_server(vpsnet_account, is_TCS, plugins, multi_ip=False):
         # Create a new vpsnet instance
         region, location_id, datacenter_name, ssh_key_required = vpsnet_api.get_location()
         host_id = "vn" + '-' + region.lower() + datacenter_name[:3].lower() + ''.join(random.choice(string.ascii_lowercase) for x in range(8))
-        custom_template_id = vpsnet_api.client.get_custom_os_id(str(location_id), TCS_BASE_IMAGE_ID)
+        custom_template_id = vpsnet_api.client.get_custom_os_id(str(location_id), TCS_BASE_IMAGE_ID_SSH_KEY_REQUIRED if ssh_key_required else TCS_BASE_IMAGE_ID)
         if not custom_template_id:
             raise Exception('Could not find vpsnet custom template in datacenter %s' % (datacenter_name))
 
