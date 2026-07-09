@@ -2606,7 +2606,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for sponsor in self.__sponsors.values():
                 for campaign in sponsor.campaigns:
                     if campaign.propagation_channel_id == propagation_channel.id:
-                        for platform in self.__deploy_builds_required_for_campaigns:
+                        # Only schedule Android builds when new servers are created
+                        for platform in [CLIENT_PLATFORM_ANDROID]:
                             self.__deploy_builds_required_for_campaigns[platform].add(
                                     (campaign.propagation_channel_id, sponsor.id))
                         # Don't log this, too much noise
@@ -3736,9 +3737,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
                 for campaign in list(filter(lambda x: x.propagation_channel_id == propagation_channel_id, sponsor.campaigns)):
 
-                    if campaign.platforms != None and not platform in campaign.platforms:
-                        continue
-
                     if not campaign.s3_bucket_name:
                         campaign.s3_bucket_name = psi_ops_s3.create_s3_website_bucket_name()
                         campaign.log('created s3 bucket %s' % (campaign.s3_bucket_name,))
@@ -3810,6 +3808,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     builds = None
                     if platform == CLIENT_PLATFORM_ANDROID and propagation_channel.propagator_managed_upgrades:
                         # For Android Google Play campaigns, apks must not be published for side-loading
+                        pass
+                    elif campaign.platforms != None and not platform in campaign.platforms:
+                        # Skip this build
                         pass
                     else:
                         build_filename = self.build(
