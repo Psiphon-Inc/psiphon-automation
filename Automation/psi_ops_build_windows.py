@@ -38,29 +38,18 @@ except ImportError as error:
 APPLICATION_TITLE = 'Psiphon 3' # (TODO: sync this value with client source code; only used for testing)
 SOURCE_ROOT = local_repos_config.WINDOWS_REPO_ROOT
 CLIENT_SOLUTION_FILENAME = os.path.join(SOURCE_ROOT, 'psiclient2015.sln')
-CODE_SIGNING_PFX_FILENAME = os.path.join(os.path.abspath('..'), 'Data', 'CodeSigning', 'test-code-signing-package.pfx')
 BANNER_FILENAME = os.path.join(SOURCE_ROOT, 'webui', 'banner.png')
 EMBEDDED_VALUES_FILENAME = os.path.join(SOURCE_ROOT, 'embeddedvalues.h')
 EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, 'Release', 'psiphon.exe')
 BUILDS_ROOT = os.path.join('.', 'Builds', 'Windows')
 BUILD_FILENAME_TEMPLATE = 'psiphon-%s-%s.exe'
-POLIPO_EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, '3rdParty', 'polipo.exe')
-CORE_EXECUTABLE_FILENAME = os.path.join(SOURCE_ROOT, '3rdParty', 'psiphon-tunnel-core.exe')
 
 VISUAL_STUDIO_ENV_BATCH_FILENAME = 'C:\\Program Files\\Microsoft Visual Studio 14.0\\VC\\vcvarsall.bat'
 VISUAL_STUDIO_ENV_BATCH_FILENAME_x86 = 'C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\vcvarsall.bat'
 
-SIGN_TOOL_FILENAME = 'C:\\Program Files\\Microsoft SDKs\\Windows\\v7.1\\Bin\\signtool.exe'
-SIGN_TOOL_FILENAME_ALT = 'C:\\Program Files\\Microsoft SDKs\\Windows\\v7.0A\\Bin\\signtool.exe'
-SIGN_TOOL_FILENAME_x64 = 'C:\\Program Files (x86)\\Microsoft SDKs\\Windows\\v7.1A\\Bin\signtool.exe'
+SIGN_TOOL_FILENAME = 'C:\\Program Files (x86)\\Windows Kits\\10\\bin\\x64\\signtool.exe'
 
 UPX_FILENAME = '.\\Tools\\upx.exe'
-
-# if psi_build_config.py exists, load it and use psi_build_config.DATA_ROOT as the data root dir
-
-if os.path.isfile('psi_data_config.py'):
-    import psi_data_config
-    CODE_SIGNING_PFX_FILENAME = os.path.join(psi_data_config.DATA_ROOT, 'CodeSigning', psi_data_config.CODE_SIGNING_PACKAGE_FILENAME)
 
 
 #==============================================================================
@@ -70,21 +59,12 @@ def build_client_executable():
     visual_studio_env_batch_filename = VISUAL_STUDIO_ENV_BATCH_FILENAME
     if not os.path.isfile(visual_studio_env_batch_filename):
         visual_studio_env_batch_filename = VISUAL_STUDIO_ENV_BATCH_FILENAME_x86
-    signtool_filename = SIGN_TOOL_FILENAME
-    if not os.path.isfile(signtool_filename):
-        signtool_filename = SIGN_TOOL_FILENAME_ALT
-    if not os.path.isfile(signtool_filename):
-        signtool_filename = SIGN_TOOL_FILENAME_x64
     commands = [
-        '"%s" sign /t http://timestamp.digicert.com /f "%s" "%s"\n' % (
-          signtool_filename, CODE_SIGNING_PFX_FILENAME, POLIPO_EXECUTABLE_FILENAME),
-        '"%s" sign /t http://timestamp.digicert.com /f "%s" "%s"\n' % (
-          signtool_filename, CODE_SIGNING_PFX_FILENAME, CORE_EXECUTABLE_FILENAME),
         'msbuild "%s" /v:quiet /t:Rebuild /p:Configuration=Release\n' % (
           CLIENT_SOLUTION_FILENAME,),
         '"%s" -qq "%s"\n' % (UPX_FILENAME, EXECUTABLE_FILENAME),
-        '"%s" sign /t http://timestamp.digicert.com /f "%s" "%s"\n' % (
-          signtool_filename, CODE_SIGNING_PFX_FILENAME, EXECUTABLE_FILENAME)]
+        '"%s" sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 "%s"\n' % (
+          SIGN_TOOL_FILENAME, EXECUTABLE_FILENAME)]
     command_filename = 'build.cmd'
     for command in commands:
         with open(command_filename, 'w') as file:
@@ -251,9 +231,7 @@ def build_client(
     try:
         # Backup/restore original files minimize chance of checking values into source control
         backup = psi_utils.TemporaryBackup(
-            [BANNER_FILENAME,
-             POLIPO_EXECUTABLE_FILENAME,
-             CORE_EXECUTABLE_FILENAME])
+            [BANNER_FILENAME])
 
         # Write banner binary to file
         if banner:
