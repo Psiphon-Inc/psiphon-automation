@@ -3806,8 +3806,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     privacy_policy_url = psi_ops_s3.get_s3_bucket_privacy_policy_url(campaign.s3_bucket_name)
 
                     builds = None
-                    if platform == CLIENT_PLATFORM_ANDROID and propagation_channel.propagator_managed_upgrades:
-                        # For Android Google Play campaigns, apks must not be published for side-loading
+                    if platform == CLIENT_PLATFORM_ANDROID:
+                        # apks are now published by another process
                         pass
                     elif campaign.platforms != None and not platform in campaign.platforms:
                         # Skip this build
