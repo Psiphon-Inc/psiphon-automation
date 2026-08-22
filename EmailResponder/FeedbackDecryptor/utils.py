@@ -244,7 +244,7 @@ def is_diagnostic_info_sane(obj):
 
     exemplar = {
                 'Metadata': {
-                             'platform': lambda val: val in ['android', 'ios', 'ios-browser', 'ios-vpn', 'ios-vpn-on-mac', 'ios-app-on-mac', 'windows'],
+                             'platform': lambda val: val in ['android', 'ios', 'ios-browser', 'ios-vpn', 'ios-vpn-on-mac', 'ios-app-on-mac', 'windows', 'macos', 'linux'],
                              'version': lambda val: val in range(1, 5),
                              'id': lambda val: re.match(r'^[a-fA-F0-9]{16}', str(val)) is not None
                              },
@@ -289,6 +289,8 @@ def is_diagnostic_info_sane_test():
     assert(not is_diagnostic_info_sane({'_id': 1, 'datetime': 1, 'Metadata': {'extra': 1, 'platform': 'windows', 'version': 1, 'id': 'AAAAAAAAAAAAAAAA'}}))
     assert(not is_diagnostic_info_sane({'Metadata': {'platform': 'badplatform', 'version': 1, 'id': 'AAAAAAAAAAAAAAAA'}}))
     assert(is_diagnostic_info_sane({'Metadata': {'_id': 1, 'platform': 'windows', 'version': 1, 'id': 'AAAAAAAAAAAAAAAA'}}))
+    assert(is_diagnostic_info_sane({'Metadata': {'platform': 'macos', 'version': 2, 'id': 'AAAAAAAAAAAAAAAA'}}))
+    assert(is_diagnostic_info_sane({'Metadata': {'platform': 'linux', 'version': 2, 'id': 'AAAAAAAAAAAAAAAA'}}))
     print('is_diagnostic_info_sane test okay')
 
 is_diagnostic_info_sane.test = is_diagnostic_info_sane_test
