@@ -194,6 +194,10 @@ def _process_work_items(work_queue):
                 # Also throw, so we get an email about it
                 raise Exception('diagnostic_info unmarshalled empty')
 
+            # Modifies diagnostic_info. Must run before the sanity check, which
+            # requires the normalized envelope.
+            utils.normalize_lowercase_envelope(diagnostic_info)
+
             logger.log('feedback id: {0}; size: {1:.1f} MB'.format(diagnostic_info.get('Metadata', {}).get('id'), len(encrypted_info_json)/1e6))
 
             if not utils.is_diagnostic_info_sane(diagnostic_info):

@@ -189,7 +189,9 @@ def convert_psinet_values(config, obj):
                 clean_val = ''.join(split)
                 assign_value_to_obj_at_path(obj, path, clean_val)
 
-        if path[-1] == 'PROPAGATION_CHANNEL_ID':
+        # Modern clients (Psiphon 4 feedback report v2) carry these under `app`
+        # in camelCase; older clients use PsiphonInfo and SCREAMING_SNAKE.
+        if path[-1] in ('PROPAGATION_CHANNEL_ID', 'propagationChannelId'):
             prop_channel_name = prop_channel_id_to_name.get(val)
             if not prop_channel_name:
                 prop_channel_name = psi_ops_helpers.get_propagation_channel_name_by_id(val)
@@ -199,7 +201,7 @@ def convert_psinet_values(config, obj):
                 assign_value_to_obj_at_path(obj,
                                             path,
                                             prop_channel_name)
-        elif path[-1] == 'SPONSOR_ID':
+        elif path[-1] in ('SPONSOR_ID', 'sponsorId'):
             sponsor_name = sponsor_id_to_name.get(val)
             if not sponsor_name:
                 sponsor_name = psi_ops_helpers.get_sponsor_name_by_id(val)
@@ -230,6 +232,98 @@ def psiphon_server_id_from_ip(ip):
     return server_id
 
 
+def normalize_lowercase_envelope(diagnostic_info) -> None:
+    '''
+    Modifies diagnostic_info from clients using the all-lowercase envelope
+    (Psiphon 4 feedback report v2 and later) to the key names the rest of the
+    pipeline dispatches on: `metadata` becomes `Metadata`, and `feedback`
+    becomes `Feedback` with its `message` renamed to `Message`. That leaves
+    `Feedback` mixed-case, holding `Message` beside a lowercase `email`.
+    Everything outside the envelope keeps the shape the client sent.
+    Must be called before is_diagnostic_info_sane, so it has to tolerate
+    arbitrary untrusted input. A block whose type is unexpected is left under
+    its original key rather than dropped, so that nothing the client sent is
+    lost before the report is stored.
+    '''
+
+    if not isinstance(diagnostic_info, dict):
+        return
+
+    if 'Metadata' in diagnostic_info or not isinstance(diagnostic_info.get('metadata'), dict):
+        return
+
+    diagnostic_info['Metadata'] = diagnostic_info.pop('metadata')
+
+    if isinstance(diagnostic_info.get('feedback'), dict):
+        feedback = diagnostic_info.pop('feedback')
+        if isinstance(feedback.get('message'), dict):
+            feedback['Message'] = feedback.pop('message')
+        diagnostic_info['Feedback'] = feedback
+
+
+def normalize_lowercase_envelope_test():
+    v2 = {
+        'metadata': {'appName': 'psiphon4', 'platform': 'ios', 'version': 2, 'id': 'A1B2C3D4E5F60718'},
+        'system': {'device': {'model': 'iPhone16,2'}, 'locale': 'en-CA'},
+        'app': {'appId': 'ca.psiphon.psiphon4', 'sponsorId': 'FFFFFFFFFFFFFFFF'},
+        'logs': [{'timestamp!!timestamp': '2026-09-02T10:00:00.000Z', 'category': 'tunnel-core'}],
+        'diagnostics': {'crashHistory': ['boom']},
+        'feedback': {'email': 'user@example.com', 'message': {'text': 'hello'}},
+    }
+    normalized = dict(v2)
+    normalize_lowercase_envelope(normalized)
+
+    assert(normalized['Metadata']['appName'] == 'psiphon4')
+    assert(normalized['Feedback']['email'] == 'user@example.com')
+    assert(normalized['Feedback']['Message']['text'] == 'hello')
+    assert('metadata' not in normalized and 'feedback' not in normalized)
+    assert('message' not in normalized['Feedback'])
+
+    assert(normalized['system']['device']['model'] == 'iPhone16,2')
+    assert(normalized['app']['sponsorId'] == 'FFFFFFFFFFFFFFFF')
+    assert(normalized['logs'][0]['category'] == 'tunnel-core')
+    assert(normalized['diagnostics']['crashHistory'] == ['boom'])
+
+    # Running it again must not disturb the result.
+    normalize_lowercase_envelope(normalized)
+    assert(normalized['Metadata']['appName'] == 'psiphon4')
+    assert(normalized['Feedback']['Message']['text'] == 'hello')
+
+    # A diagnostics-only report has a message object with no text.
+    no_text = {'metadata': {'id': 'A1B2C3D4E5F60718'}, 'feedback': {'message': {}}}
+    normalize_lowercase_envelope(no_text)
+    assert(no_text['Feedback']['Message'] == {})
+
+    no_feedback = {'metadata': {'id': 'A1B2C3D4E5F60718'}}
+    normalize_lowercase_envelope(no_feedback)
+    assert('Feedback' not in no_feedback)
+
+    legacy = {'Metadata': {'appName': 'psiphon'}, 'Feedback': {'Message': {'text': 'hi'}}}
+    legacy_copy = {'Metadata': {'appName': 'psiphon'}, 'Feedback': {'Message': {'text': 'hi'}}}
+    normalize_lowercase_envelope(legacy)
+    assert(legacy == legacy_copy)
+
+    # Non-dict and malformed input must not raise.
+    normalize_lowercase_envelope(None)
+    normalize_lowercase_envelope('nonsense')
+    normalize_lowercase_envelope({'metadata': 'nonsense'})
+
+    # An unexpected type keeps its original key, so the value is not dropped.
+    odd_feedback = {'metadata': {'id': 'A1B2C3D4E5F60718'}, 'feedback': 'nonsense'}
+    normalize_lowercase_envelope(odd_feedback)
+    assert(odd_feedback['feedback'] == 'nonsense')
+    assert('Feedback' not in odd_feedback)
+
+    odd_message = {'metadata': {'id': 'A1B2C3D4E5F60718'}, 'feedback': {'message': 'nonsense'}}
+    normalize_lowercase_envelope(odd_message)
+    assert(odd_message['Feedback']['message'] == 'nonsense')
+    assert('Message' not in odd_message['Feedback'])
+
+    print('normalize_lowercase_envelope test okay')
+
+normalize_lowercase_envelope.test = normalize_lowercase_envelope_test
+
+
 def is_diagnostic_info_sane(obj):
     '''
     Returns true if `obj` is a sane-looking diagnostic info object.
@@ -244,7 +338,7 @@ def is_diagnostic_info_sane(obj):
 
     exemplar = {
                 'Metadata': {
-                             'platform': lambda val: val in ['android', 'ios', 'ios-browser', 'ios-vpn', 'ios-vpn-on-mac', 'ios-app-on-mac', 'windows'],
+                             'platform': lambda val: val in ['android', 'ios', 'ios-browser', 'ios-vpn', 'ios-vpn-on-mac', 'ios-app-on-mac', 'macos', 'windows'],
                              'version': lambda val: val in range(1, 5),
                              'id': lambda val: re.match(r'^[a-fA-F0-9]{16}', str(val)) is not None
                              },
@@ -289,6 +383,14 @@ def is_diagnostic_info_sane_test():
     assert(not is_diagnostic_info_sane({'_id': 1, 'datetime': 1, 'Metadata': {'extra': 1, 'platform': 'windows', 'version': 1, 'id': 'AAAAAAAAAAAAAAAA'}}))
     assert(not is_diagnostic_info_sane({'Metadata': {'platform': 'badplatform', 'version': 1, 'id': 'AAAAAAAAAAAAAAAA'}}))
     assert(is_diagnostic_info_sane({'Metadata': {'_id': 1, 'platform': 'windows', 'version': 1, 'id': 'AAAAAAAAAAAAAAAA'}}))
+    assert(is_diagnostic_info_sane({'Metadata': {'platform': 'macos', 'version': 2, 'id': 'A1B2C3D4E5F60718'}}))
+
+    # A Psiphon 4 v2 report is only sane once its envelope has been normalized.
+    v2 = {'metadata': {'appName': 'psiphon4', 'platform': 'ios', 'version': 2, 'id': 'A1B2C3D4E5F60718'}}
+    assert(not is_diagnostic_info_sane(v2))
+    normalize_lowercase_envelope(v2)
+    assert(is_diagnostic_info_sane(v2))
+
     print('is_diagnostic_info_sane test okay')
 
 is_diagnostic_info_sane.test = is_diagnostic_info_sane_test

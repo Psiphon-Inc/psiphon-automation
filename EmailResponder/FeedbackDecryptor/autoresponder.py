@@ -428,6 +428,29 @@ def _get_response_content(response_id, diagnostic_info):
     }
 
 
+# Apps we know have no autoresponse copy. Suppressing one of these is routine;
+# suppressing anything else means the allow-list failed closed on an app name
+# we did not anticipate, which is worth surfacing.
+_KNOWN_UNSUPPORTED_APPS = ('psiphon4', 'ryve', 'conduit')
+
+
+def _suppress_response(diagnostic_info) -> bool:
+    '''
+    Returns True for every app but Psiphon 3. The copy in `responses/` is
+    Psiphon 3's, and the only response an uploaded report from one of those apps
+    can select is `download_new_version_links`, which points at Psiphon 3
+    downloads.
+    An allow-list rather than a deny-list, so that an app added later cannot
+    inherit copy that was never written for it.
+    Checked ahead of `_check_and_add_address_blacklist` so that a suppressed
+    report does not spend the address's daily response slot.
+    '''
+
+    return utils.coalesce(diagnostic_info,
+                          ('Metadata', 'appName'),
+                          required_types=str) != 'psiphon'
+
+
 def _analyze_diagnostic_info(diagnostic_info, reply_info):
     '''
     Determines what response should be sent based on `diagnostic_info` content.
@@ -480,6 +503,38 @@ def _analyze_diagnostic_info(diagnostic_info, reply_info):
     return responses
 
 
+def _suppress_response_test():
+    assert(_suppress_response({'Metadata': {'appName': 'psiphon'}}) is False)
+    assert(_suppress_response({'Metadata': {'appName': 'psiphon4'}}) is True)
+    assert(_suppress_response({'Metadata': {'appName': 'ryve'}}) is True)
+    assert(_suppress_response({'Metadata': {'appName': 'conduit'}}) is True)
+
+    # Fail closed: an unreadable app name is suppressed rather than assumed to
+    # be Psiphon 3 and sent Psiphon 3 copy.
+    assert(_suppress_response(None) is True)
+    assert(_suppress_response({}) is True)
+    assert(_suppress_response({'Metadata': {}}) is True)
+    assert(_suppress_response({'Metadata': {'appName': 1}}) is True)
+    assert(_suppress_response({'Metadata': {'appName': 'Psiphon'}}) is True)
+
+    print('_suppress_response test okay')
+
+_suppress_response.test = _suppress_response_test
+
+
+# TODO: proper unit test framework
+def test():
+    logger.disable()
+
+    for name_in_module in dir(sys.modules[__name__]):
+        testee = getattr(sys.modules[__name__], name_in_module)
+
+        if not hasattr(testee, 'test') or not hasattr(testee.test, '__call__'):
+            continue
+
+        testee.test()
+
+
 def go():
     logger.debug_log('go: enter')
 
@@ -491,6 +546,18 @@ def go():
         email_info = autoresponder_info.get('email_info')
 
         logger.debug_log('go: got autoresponder record')
+
+        if _suppress_response(diagnostic_info):
+            app_name = utils.coalesce(diagnostic_info, ('Metadata', 'appName'))
+            if app_name in _KNOWN_UNSUPPORTED_APPS:
+                logger.debug_log('go: response suppressed for appName=%s' % app_name)
+            else:
+                # debug_log does not emit unless DEBUG is set, which it is not
+                # in production, so an unexpected app name has to log louder or
+                # it leaves no trace at all.
+                logger.log('go: response suppressed for unrecognised appName=%s'
+                           % app_name)
+            continue
 
         # For now we don't do any interesting processing/analysis and we just
         # respond to every feedback with an exhortation to upgrade.
