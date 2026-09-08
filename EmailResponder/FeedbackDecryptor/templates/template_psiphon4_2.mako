@@ -45,7 +45,9 @@
       parts.append(str(value))
     return ' '.join(parts)
 
-  date = metadata.get('date')
+  ## A date _postprocess_yaml could not parse keeps its original key and stays
+  ## a string, same as the log timestamps.
+  date = metadata.get('date') or metadata.get('date!!timestamp')
 
   summary = [
     ('Feedback ID', metadata.get('id')),
@@ -63,14 +65,12 @@
     ('Device', join_present(device, ('manufacturer', 'brand', 'model'))),
     ('OS', join_present(os_info, ('name', 'version', 'sdkInt'))),
     ('Network', system.get('networkType')),
+    ## Root and jailbreak detection are deliberately not one shared key: they
+    ## are different mechanisms. A platform sends its own flag and not the
+    ## other, so the absent one drops out on the None filter below.
+    ('Root detected', system.get('rootDetected')),
+    ('Jailbreak detected', system.get('jailbreakDetected')),
   ]
-
-  ## Root and jailbreak detection are deliberately not one shared key: they are
-  ## different mechanisms. Only one of them is ever present.
-  if 'rootDetected' in system:
-    summary.append(('Root detected', system['rootDetected']))
-  elif 'jailbreakDetected' in system:
-    summary.append(('Jailbreak detected', system['jailbreakDetected']))
 %>
 
 <style>
@@ -97,10 +97,6 @@
     font-weight: bold;
   }
 
-  .log-entry .log-level-debug {
-    color: gray;
-  }
-
   .log-entry-data {
     font-family: monospace;
     font-weight: normal;
@@ -113,16 +109,7 @@
     height: 1px;
   }
 
-  .english_message {
-    margin: 1em 0px;
-    border-left-width: 4px;
-    border-left-style: solid;
-    border-left-color: rgb(221, 221, 221);
-    padding: 0px 1em;
-    /* This renders newlines as newlines */
-    white-space: pre-wrap;
-  }
-
+  .english_message,
   .original_message {
     margin: 1em 0px;
     border-left-width: 4px;
@@ -218,7 +205,7 @@
 ## their keys.
 ##
 
-% if device or os_info:
+% if system:
   <h2>System</h2>
   <pre>
 ${yaml.dump(system, default_flow_style=False, allow_unicode=True)}
@@ -239,12 +226,11 @@ ${yaml.dump(diagnostics, default_flow_style=False, allow_unicode=True)}
   </pre>
 % endif
 
-% if metadata:
-  <h2>Metadata</h2>
-  <pre>
+## Always present: format() has already indexed data['Metadata'].
+<h2>Metadata</h2>
+<pre>
 ${yaml.dump(metadata, default_flow_style=False, allow_unicode=True)}
-  </pre>
-% endif
+</pre>
 
 ##
 ## Logs
@@ -265,7 +251,16 @@ ${yaml.dump(metadata, default_flow_style=False, allow_unicode=True)}
       payload = entry_data
 
     level = entry.get('level')
-    log_level_class = level.lower() if level else 'none'
+
+    ## Most rows carry a single-value payload: a tunnel-core notice is usually
+    ## just {'message': ...} and a native or frontend line just {'tag': ...}.
+    ## A dict repr buries the only useful value, and these are the bulk of a
+    ## real report. Anything with a second key is dumped whole.
+    payload_text = repr(payload) if payload else ''
+    for sole_key in ('message', 'tag'):
+      if list(payload) == [sole_key] and isinstance(payload[sole_key], str):
+        payload_text = payload[sole_key]
+        break
 
     ## A timestamp that failed to parse keeps its `!!timestamp` key and stays a
     ## string, so there may be no datetime to diff against.
@@ -286,14 +281,14 @@ ${yaml.dump(metadata, default_flow_style=False, allow_unicode=True)}
   <div class="log-entry">
     <span class="timestamp">${timestamp_display}</span>
 
-    <span class="log-entry-message log-level-${log_level_class}">
+    <span class="log-entry-message">
       ${category}
       % if level:
         [${level}]:
       % endif
       ${headline}
-      % if payload:
-        <span class="log-entry-data">${repr(payload)}</span>
+      % if payload_text:
+        <span class="log-entry-data">${payload_text}</span>
       % endif
     </span>
   </div>

@@ -117,6 +117,9 @@ def _generate_psiphon4_v2_feedback(platform, message, extra_blocks=None):
     `datatransformer._translate_feedback` would have added to it in place.
     '''
 
+    # Deferred: this is fixture-only, and datatransformer pulls in translation
+    # and requests. Importing at module scope would add those to mailsender's
+    # import graph in production for no reason.
     import utils
     import datatransformer
 
@@ -152,6 +155,11 @@ def _generate_psiphon4_v2_feedback(platform, message, extra_blocks=None):
                 'timestamp!!timestamp': '2026-09-02T09:59:00.000Z',
                 'category': 'tunnel-core',
                 'data': {'noticeType': 'ConnectedServer', 'data': {'ipAddress': 'server-1'}},
+            },
+            {
+                'timestamp!!timestamp': '2026-09-02T09:59:15.000Z',
+                'category': 'tunnel-core',
+                'data': {'noticeType': 'Info', 'data': {'message': 'sole message field'}},
             },
             {
                 'timestamp!!timestamp': '2026-09-02T09:59:30.000Z',
@@ -200,6 +208,19 @@ def format_test():
     assert('ConnectedServer' in rendered)
     assert('noticeType' not in rendered)
     assert('tunnel connected' in rendered)
+    # A single-field payload is promoted out of its dict repr; a payload with
+    # more than one key is still dumped whole.
+    assert('sole message field' in rendered)
+    # Compare against tag-stripped, unescaped text: the rendered repr has its
+    # quotes HTML-escaped, and the promoted values contain the key names.
+    import html as html_module
+    import re as re_module
+    logs_text = html_module.unescape(
+        re_module.sub('<[^>]+>', ' ', rendered.split('Logs')[-1]))
+    assert('sole message field' in logs_text and "{'message'" not in logs_text)
+    assert('VPNManager' in logs_text and "{'tag'" not in logs_text)
+    # A payload with a key we do not promote is still dumped whole.
+    assert("{'ipAddress': 'server-1'}" in logs_text)
     # Trace and debug lines are below the threshold we print.
     assert('should be skipped' not in rendered)
     assert('ExampleSponsor' in rendered)
