@@ -191,6 +191,10 @@ def convert_psinet_values(config, obj):
 
         # Modern clients (Psiphon 4 feedback report v2) carry these under `app`
         # in camelCase; older clients use PsiphonInfo and SCREAMING_SNAKE.
+        # Both are allowed to be empty, and psinet has nothing to say about ''.
+        if not val:
+            continue
+
         if path[-1] in ('PROPAGATION_CHANNEL_ID', 'propagationChannelId'):
             prop_channel_name = prop_channel_id_to_name.get(val)
             if not prop_channel_name:
@@ -241,9 +245,9 @@ def normalize_lowercase_envelope(diagnostic_info) -> None:
     `Feedback` mixed-case, holding `Message` beside a lowercase `email`.
     Everything outside the envelope keeps the shape the client sent.
     Must be called before is_diagnostic_info_sane, so it has to tolerate
-    arbitrary untrusted input. A block whose type is unexpected is left under
-    its original key rather than dropped, so that nothing the client sent is
-    lost before the report is stored.
+    arbitrary untrusted input. A block whose type is unexpected, or whose
+    PascalCase name is already taken, is left under its original key rather
+    than dropped, so that nothing the client sent is lost before storage.
     '''
 
     if not isinstance(diagnostic_info, dict):
@@ -254,9 +258,9 @@ def normalize_lowercase_envelope(diagnostic_info) -> None:
 
     diagnostic_info['Metadata'] = diagnostic_info.pop('metadata')
 
-    if isinstance(diagnostic_info.get('feedback'), dict):
+    if isinstance(diagnostic_info.get('feedback'), dict) and 'Feedback' not in diagnostic_info:
         feedback = diagnostic_info.pop('feedback')
-        if isinstance(feedback.get('message'), dict):
+        if isinstance(feedback.get('message'), dict) and 'Message' not in feedback:
             feedback['Message'] = feedback.pop('message')
         diagnostic_info['Feedback'] = feedback
 
@@ -270,24 +274,24 @@ def normalize_lowercase_envelope_test():
         'diagnostics': {'crashHistory': ['boom']},
         'feedback': {'email': 'user@example.com', 'message': {'text': 'hello'}},
     }
-    normalized = dict(v2)
-    normalize_lowercase_envelope(normalized)
+    # Normalized in place, which is the documented contract.
+    normalize_lowercase_envelope(v2)
 
-    assert(normalized['Metadata']['appName'] == 'psiphon4')
-    assert(normalized['Feedback']['email'] == 'user@example.com')
-    assert(normalized['Feedback']['Message']['text'] == 'hello')
-    assert('metadata' not in normalized and 'feedback' not in normalized)
-    assert('message' not in normalized['Feedback'])
+    assert(v2['Metadata']['appName'] == 'psiphon4')
+    assert(v2['Feedback']['email'] == 'user@example.com')
+    assert(v2['Feedback']['Message']['text'] == 'hello')
+    assert('metadata' not in v2 and 'feedback' not in v2)
+    assert('message' not in v2['Feedback'])
 
-    assert(normalized['system']['device']['model'] == 'iPhone16,2')
-    assert(normalized['app']['sponsorId'] == 'FFFFFFFFFFFFFFFF')
-    assert(normalized['logs'][0]['category'] == 'tunnel-core')
-    assert(normalized['diagnostics']['crashHistory'] == ['boom'])
+    assert(v2['system']['device']['model'] == 'iPhone16,2')
+    assert(v2['app']['sponsorId'] == 'FFFFFFFFFFFFFFFF')
+    assert(v2['logs'][0]['category'] == 'tunnel-core')
+    assert(v2['diagnostics']['crashHistory'] == ['boom'])
 
     # Running it again must not disturb the result.
-    normalize_lowercase_envelope(normalized)
-    assert(normalized['Metadata']['appName'] == 'psiphon4')
-    assert(normalized['Feedback']['Message']['text'] == 'hello')
+    normalize_lowercase_envelope(v2)
+    assert(v2['Metadata']['appName'] == 'psiphon4')
+    assert(v2['Feedback']['Message']['text'] == 'hello')
 
     # A diagnostics-only report has a message object with no text.
     no_text = {'metadata': {'id': 'A1B2C3D4E5F60718'}, 'feedback': {'message': {}}}
@@ -318,6 +322,21 @@ def normalize_lowercase_envelope_test():
     normalize_lowercase_envelope(odd_message)
     assert(odd_message['Feedback']['message'] == 'nonsense')
     assert('Message' not in odd_message['Feedback'])
+
+    # Both spellings present: neither is overwritten by the other.
+    both_feedback = {'metadata': {'id': 'A1B2C3D4E5F60718'},
+                     'Feedback': {'Message': {'text': 'pascal'}},
+                     'feedback': {'message': {'text': 'lower'}}}
+    normalize_lowercase_envelope(both_feedback)
+    assert(both_feedback['Feedback']['Message']['text'] == 'pascal')
+    assert(both_feedback['feedback']['message']['text'] == 'lower')
+
+    both_message = {'metadata': {'id': 'A1B2C3D4E5F60718'},
+                    'feedback': {'Message': {'text': 'pascal'},
+                                 'message': {'text': 'lower'}}}
+    normalize_lowercase_envelope(both_message)
+    assert(both_message['Feedback']['Message']['text'] == 'pascal')
+    assert(both_message['Feedback']['message']['text'] == 'lower')
 
     print('normalize_lowercase_envelope test okay')
 
