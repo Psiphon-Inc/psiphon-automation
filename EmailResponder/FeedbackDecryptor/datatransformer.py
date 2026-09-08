@@ -28,7 +28,10 @@ _country_dialing_codes = json.load(open('country_dialing_codes.json'))
 
 
 def _translate_feedback(data):
-    if data.get('Feedback', {}).get('Message'):
+    # Gate on the text, not on the Message object: a message carrying any other
+    # key would raise KeyError below, and an empty or null text is a wasted
+    # Translate call that stores [TRANSLATION_FAIL] against the report.
+    if data.get('Feedback', {}).get('Message', {}).get('text'):
         trans = translation.translate(config.googleApiServers,
                                       config.googleApiKey,
                                       data['Feedback']['Message']['text'])

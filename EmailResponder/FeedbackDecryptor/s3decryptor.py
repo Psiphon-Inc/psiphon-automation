@@ -198,7 +198,12 @@ def _process_work_items(work_queue):
             # requires the normalized envelope.
             utils.normalize_lowercase_envelope(diagnostic_info)
 
-            logger.log('feedback id: {0}; size: {1:.1f} MB'.format(diagnostic_info.get('Metadata', {}).get('id'), len(encrypted_info_json)/1e6))
+            # coalesce rather than chained .get, because the payload is only
+            # known to be non-empty at this point; a decrypted body that parses
+            # to a list or a string would raise on .get and take the worker down.
+            logger.log('feedback id: {0}; size: {1:.1f} MB'.format(
+                utils.coalesce(diagnostic_info, ('Metadata', 'id')),
+                len(encrypted_info_json)/1e6))
 
             if not utils.is_diagnostic_info_sane(diagnostic_info):
                 # Something is wrong. Skip and continue.
