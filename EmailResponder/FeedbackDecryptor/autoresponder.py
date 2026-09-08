@@ -428,6 +428,42 @@ def _get_response_content(response_id, diagnostic_info):
     }
 
 
+# Apps we know have no autoresponse copy. Suppressing one of these is routine.
+# Anything else means the allow-list caught a name nobody anticipated, which is
+# worth surfacing rather than burying at debug level.
+_KNOWN_UNSUPPORTED_APPS = ('psiphon4', 'ryve', 'conduit')
+
+
+def _app_name(diagnostic_info):
+    '''
+    The app name the suppression decision is made on. Read through one helper
+    so the value that gets logged is always the value that was judged.
+    '''
+
+    return utils.coalesce(diagnostic_info,
+                          ('Metadata', 'appName'),
+                          required_types=str)
+
+
+def _suppress_response(diagnostic_info) -> bool:
+    '''
+    Returns True for every app but Psiphon 3. The copy in `responses/` is
+    Psiphon 3's, and the only response an uploaded report from one of those apps
+    can select is `download_new_version_links`, which points at Psiphon 3
+    downloads.
+    An allow-list rather than a deny-list, so that an app added later cannot
+    inherit copy that was never written for it. It fails closed: a name that is
+    absent, not a string, or spelled unexpectedly is suppressed rather than
+    assumed to be Psiphon 3. Only the last two reach here in practice, because
+    `upgrade_diagnostic_info` stamps a missing name as 'psiphon' before storage
+    -- which Psiphon 3 relies on, since it sends no appName of its own.
+    Checked ahead of `_check_and_add_address_blacklist` so that a suppressed
+    report does not spend the address's daily response slot.
+    '''
+
+    return _app_name(diagnostic_info) != 'psiphon'
+
+
 def _analyze_diagnostic_info(diagnostic_info, reply_info):
     '''
     Determines what response should be sent based on `diagnostic_info` content.
@@ -480,6 +516,41 @@ def _analyze_diagnostic_info(diagnostic_info, reply_info):
     return responses
 
 
+def _suppress_response_test():
+    assert(_suppress_response({'Metadata': {'appName': 'psiphon'}}) is False)
+    assert(_suppress_response({'Metadata': {'appName': 'psiphon4'}}) is True)
+    assert(_suppress_response({'Metadata': {'appName': 'ryve'}}) is True)
+    assert(_suppress_response({'Metadata': {'appName': 'conduit'}}) is True)
+
+    # appName is required by the v2 schema, and upgrade_diagnostic_info stamps
+    # a missing one as 'psiphon' before storage, so the cases below describe
+    # this function's contract rather than paths the pipeline delivers. The two
+    # that do survive that backfill are a truthy non-string and an unexpected
+    # spelling; those are what go()'s unrecognised-appName log line is for.
+    assert(_suppress_response(None) is True)
+    assert(_suppress_response({}) is True)
+    assert(_suppress_response({'Metadata': {}}) is True)
+    assert(_suppress_response({'Metadata': {'appName': 1}}) is True)
+    assert(_suppress_response({'Metadata': {'appName': 'Psiphon'}}) is True)
+
+    print('_suppress_response test okay')
+
+_suppress_response.test = _suppress_response_test
+
+
+# TODO: proper unit test framework
+def test():
+    logger.disable()
+
+    for name_in_module in dir(sys.modules[__name__]):
+        testee = getattr(sys.modules[__name__], name_in_module)
+
+        if not hasattr(testee, 'test') or not hasattr(testee.test, '__call__'):
+            continue
+
+        testee.test()
+
+
 def go():
     logger.debug_log('go: enter')
 
@@ -491,6 +562,25 @@ def go():
         email_info = autoresponder_info.get('email_info')
 
         logger.debug_log('go: got autoresponder record')
+
+        if diagnostic_info is None:
+            # The autoresponder collection has no TTL but diagnostic_info
+            # expires after 26 weeks, so a backlogged record can outlive the
+            # document it points at. Nothing to judge and nothing to reply to.
+            if not email_info:
+                logger.debug_log('go: diagnostic_info not found; skipping')
+                continue
+        elif _suppress_response(diagnostic_info):
+            app_name = _app_name(diagnostic_info)
+            if app_name in _KNOWN_UNSUPPORTED_APPS:
+                logger.debug_log('go: response suppressed for appName=%s' % app_name)
+            else:
+                # debug_log does not emit unless DEBUG is set, and log only
+                # reaches syslog. error also records to the datastore, which is
+                # what surfaces in the daily stats email.
+                logger.error('go: response suppressed for unrecognised appName=%s'
+                             % app_name)
+            continue
 
         # For now we don't do any interesting processing/analysis and we just
         # respond to every feedback with an exhortation to upgrade.
