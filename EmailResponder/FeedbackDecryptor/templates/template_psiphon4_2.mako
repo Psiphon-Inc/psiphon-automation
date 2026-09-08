@@ -45,6 +45,19 @@
       parts.append(str(value))
     return ' '.join(parts)
 
+  def qualified(value, detail):
+    ## Space-joining two numbers reads as one value: a version and build number
+    ## become "2.5.3 47", and an Android OS version and SDK level "17 37".
+    if value and detail:
+      return '%s (%s)' % (value, detail)
+    return value or detail or ''
+
+  ## os.name is iOS only. The schema leaves it out on Android because
+  ## metadata.platform already carries it, so fall back to that.
+  os_name = os_info.get('name') or str(metadata.get('platform', '')).capitalize()
+  os_summary = ' '.join(str(part) for part in (os_name, os_info.get('version')) if part)
+  os_sdk = 'SDK %s' % os_info['sdkInt'] if os_info.get('sdkInt') else None
+
   ## A date _postprocess_yaml could not parse keeps its original key and stays
   ## a string, same as the log timestamps.
   date = metadata.get('date') or metadata.get('date!!timestamp')
@@ -54,7 +67,7 @@
     ('Date', utils.timestamp_display(date) if hasattr(date, 'year') else date),
     ('Platform', metadata.get('platform')),
     ('App ID', app.get('appId')),
-    ('Version', join_present(app, ('version', 'buildNumber'))),
+    ('Version', qualified(app.get('version'), app.get('buildNumber'))),
     ('Build mode', app.get('buildMode')),
     ('Internal test', app.get('internalTest')),
     ('Git describe', app.get('gitDescribe')),
@@ -63,7 +76,7 @@
     ('App locale', app.get('locale')),
     ('Device locale', system.get('locale')),
     ('Device', join_present(device, ('manufacturer', 'brand', 'model'))),
-    ('OS', join_present(os_info, ('name', 'version', 'sdkInt'))),
+    ('OS', qualified(os_summary, os_sdk)),
     ('Network', system.get('networkType')),
     ## Root and jailbreak detection are deliberately not one shared key: they
     ## are different mechanisms. A platform sends its own flag and not the

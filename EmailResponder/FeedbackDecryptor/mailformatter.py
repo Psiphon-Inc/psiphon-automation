@@ -242,9 +242,11 @@ def format_test():
     assert('panic: example' in rendered)
     assert('Root detected' in rendered)
     assert('Jailbreak detected' not in rendered)
-    # brand and manufacturer differ only in case on Pixel hardware.
+    # brand and manufacturer differ only in case on Pixel hardware. The first
+    # assertion catches a dedupe failure, which would read "Google google
+    # Pixel 9"; the second catches brand winning over the better-cased
+    # manufacturer.
     assert('Google Pixel 9' in rendered)
-    assert('google Google' not in rendered)
     assert('google Pixel 9' not in rendered)
 
     # A timestamp _postprocess_yaml cannot parse stays a string under its
