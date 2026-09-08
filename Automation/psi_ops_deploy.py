@@ -505,6 +505,9 @@ def make_psiphond_config(host, server, own_encoded_server_entries, server_entry_
         config['DSLRelayHostCertificateFilename'] = '/opt/psiphon/psiphond/tls/client-cert.pem'
         config['DSLRelayHostKeyFilename'] = '/opt/psiphon/psiphond/tls/client-key.pem'
 
+    config['ProxyProtocolHeaderCustomTLVs'] = TCS_psiphond_config_values.get('ProxyProtocolHeaderCustomTLVs', None)
+    config['ProxyProtocolHeaderMACKeys'] = TCS_psiphond_config_values.get('ProxyProtocolHeaderMACKeys', None)
+
     return json.dumps(config)
 
 
