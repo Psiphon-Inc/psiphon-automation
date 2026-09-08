@@ -18,6 +18,7 @@
 import json
 import datetime
 import sys
+import logger
 import translation
 import utils
 from config import config
@@ -28,10 +29,11 @@ _country_dialing_codes = json.load(open('country_dialing_codes.json'))
 
 
 def _translate_feedback(data):
-    # Gate on the text, not on the Message object: a message carrying any other
-    # key would raise KeyError below, and an empty or null text is a wasted
-    # Translate call that stores [TRANSLATION_FAIL] against the report.
-    if data.get('Feedback', {}).get('Message', {}).get('text'):
+    # Read the whole path tolerantly. A legacy report can carry a null or
+    # non-dict Feedback or Message, and chained .get raises on those; gating on
+    # the Message object instead lets a message without a text key raise below.
+    # Either way the worker exits and takes its in-flight reports with it.
+    if utils.coalesce(data, ('Feedback', 'Message', 'text')):
         trans = translation.translate(config.googleApiServers,
                                       config.googleApiKey,
                                       data['Feedback']['Message']['text'])
@@ -182,6 +184,58 @@ def _ensure_field_is_type(targettype, data, fieldpath):
     prev_val = utils.coalesce(data, fieldpath)
     if prev_val is not None:
         utils.assign_value_to_obj_at_path(data, fieldpath, targettype(prev_val))
+
+
+def _translate_feedback_test():
+    calls = []
+    real_translate = translation.translate
+    translation.translate = lambda servers, key, text: (
+        calls.append(text) or ('en', 'English', text))
+
+    try:
+        # Only a truthy text reaches the translator. Every other shape is
+        # skipped rather than raising: this gate runs on legacy PascalCase
+        # reports too, and an exception here exits the s3decryptor worker,
+        # losing whatever it had already taken off S3.
+        translated = {'Feedback': {'Message': {'text': 'hello'}}}
+        skipped = [
+            {'Feedback': {'Message': {'text': None}}},
+            {'Feedback': {'Message': {'text': ''}}},
+            {'Feedback': {'Message': {'notes': 'no text key'}}},
+            {'Feedback': {'Message': {}}},
+            {'Feedback': {'Message': None}},
+            {'Feedback': {'Message': 'not a dict'}},
+            {'Feedback': None},
+            {},
+        ]
+
+        _translate_feedback(translated)
+        assert(calls == ['hello'])
+        assert(translated['Feedback']['Message']['text_lang_code'] == 'en')
+        assert(translated['Feedback']['Message']['text_translated'] == 'hello')
+
+        for data in skipped:
+            _translate_feedback(data)
+        assert(calls == ['hello'])
+    finally:
+        translation.translate = real_translate
+
+    print('_translate_feedback test okay')
+
+_translate_feedback.test = _translate_feedback_test
+
+
+# TODO: proper unit test framework
+def test():
+    logger.disable()
+
+    for name_in_module in dir(sys.modules[__name__]):
+        testee = getattr(sys.modules[__name__], name_in_module)
+
+        if not hasattr(testee, 'test') or not hasattr(testee.test, '__call__'):
+            continue
+
+        testee.test()
 
 
 def transform(data):
