@@ -1,100 +1,201 @@
-from __future__ import absolute_import
+from __future__ import annotations
 
+import copy
 import string
 import sys
+import warnings
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from os import urandom
 from random import randint
+from typing import Any, Dict, List, Optional, Union
+from urllib import parse
 
 from linode_api4.common import load_and_validate_keys
 from linode_api4.errors import UnexpectedResponseError
-from linode_api4.objects import Base, DerivedBase, Image, Property, Region
-from linode_api4.objects.base import MappedObject
+from linode_api4.objects.base import (
+    Base,
+    MappedObject,
+    Property,
+    _flatten_request_body_recursive,
+)
+from linode_api4.objects.dbase import DerivedBase
 from linode_api4.objects.filtering import FilterableAttribute
-from linode_api4.objects.networking import IPAddress, IPv6Pool
+from linode_api4.objects.image import Image
+from linode_api4.objects.linode_interfaces import (
+    LinodeInterface,
+    LinodeInterfaceDefaultRouteOptions,
+    LinodeInterfacePublicOptions,
+    LinodeInterfacesSettings,
+    LinodeInterfaceVLANOptions,
+    LinodeInterfaceVPCOptions,
+)
+from linode_api4.objects.networking import (
+    Firewall,
+    IPAddress,
+    IPv6Range,
+    VPCIPAddress,
+)
+from linode_api4.objects.nodebalancer import NodeBalancer
+from linode_api4.objects.region import Region
+from linode_api4.objects.serializable import JSONObject, StrEnum
+from linode_api4.objects.vpc import VPC, VPCSubnet
 from linode_api4.paginated_list import PaginatedList
+from linode_api4.util import (
+    drop_null_keys,
+    generate_device_suffixes,
+    normalize_as_list,
+)
 
 PASSWORD_CHARS = string.ascii_letters + string.digits + string.punctuation
+MIN_DEVICE_LIMIT = 8
+MB_PER_GB = 1024
+MAX_DEVICE_LIMIT = 64
+
+
+class InstanceDiskEncryptionType(StrEnum):
+    """
+    InstanceDiskEncryptionType defines valid values for the
+    Instance(...).disk_encryption field.
+
+    API Documentation: TODO
+    """
+
+    enabled = "enabled"
+    disabled = "disabled"
 
 
 class Backup(DerivedBase):
-    api_endpoint = '/linode/instances/{linode_id}/backups/{id}'
-    derived_url_path = 'backups'
-    parent_id_name='linode_id'
+    """
+    A Backup of a Linode Instance.
+
+    API Documentation: https://techdocs.akamai.com/linode-api/reference/get-backup
+    """
+
+    api_endpoint = "/linode/instances/{linode_id}/backups/{id}"
+    derived_url_path = "backups"
+    parent_id_name = "linode_id"
 
     properties = {
-        'id': Property(identifier=True),
-        'created': Property(is_datetime=True),
-        'duration': Property(),
-        'updated': Property(is_datetime=True),
-        'finished': Property(is_datetime=True),
-        'message': Property(),
-        'status': Property(volatile=True),
-        'type': Property(),
-        'linode_id': Property(identifier=True),
-        'label': Property(),
-        'configs': Property(),
-        'disks': Property(),
-        'region': Property(slug_relationship=Region),
+        "id": Property(identifier=True),
+        "created": Property(is_datetime=True),
+        "duration": Property(),
+        "updated": Property(is_datetime=True),
+        "finished": Property(is_datetime=True),
+        "message": Property(),
+        "status": Property(volatile=True),
+        "type": Property(),
+        "linode_id": Property(identifier=True),
+        "label": Property(),
+        "configs": Property(),
+        "disks": Property(),
+        "region": Property(slug_relationship=Region),
+        "available": Property(),
     }
 
     def restore_to(self, linode, **kwargs):
+        """
+        Restores a Linode’s Backup to the specified Linode.
+
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/post-restore-backup
+
+        :param linode: The id of the Instance or the Instance to share the IPAddresses with.
+                       This Instance will be able to bring up the given addresses.
+        :type: linode: int or Instance
+
+        :param kwargs: A dict containing the The ID of the Linode to restore a Backup to and
+                       a boolean that, if True, deletes all Disks and Configs on
+                       the target Linode before restoring.
+        :type: kwargs: dict
+
+        Example usage:
+           kwargs = {
+                "linode_id": 123,
+                "overwrite": true
+            }
+
+        :returns: Returns true if the operation was successful
+        :rtype: bool
+        """
+
         d = {
-            "linode_id": linode.id if issubclass(type(linode), Base) else linode,
+            "linode_id": linode,
         }
         d.update(kwargs)
 
-        self._client.post("{}/restore".format(Backup.api_endpoint), model=self,
-            data=d)
+        self._client.post(
+            "{}/restore".format(Backup.api_endpoint),
+            model=self,
+            data=_flatten_request_body_recursive(d),
+        )
         return True
 
 
 class Disk(DerivedBase):
-    api_endpoint = '/linode/instances/{linode_id}/disks/{id}'
-    derived_url_path = 'disks'
-    parent_id_name='linode_id'
+    """
+    A Disk for the storage space on a Compute Instance.
+
+    API Documentation: https://techdocs.akamai.com/linode-api/reference/get-linode-disk
+    """
+
+    api_endpoint = "/linode/instances/{linode_id}/disks/{id}"
+    derived_url_path = "disks"
+    parent_id_name = "linode_id"
 
     properties = {
-        'id': Property(identifier=True),
-        'created': Property(is_datetime=True),
-        'label': Property(mutable=True, filterable=True),
-        'size': Property(filterable=True),
-        'status': Property(filterable=True, volatile=True),
-        'filesystem': Property(),
-        'updated': Property(is_datetime=True),
-        'linode_id': Property(identifier=True),
+        "id": Property(identifier=True),
+        "created": Property(is_datetime=True),
+        "label": Property(mutable=True),
+        "size": Property(),
+        "status": Property(volatile=True),
+        "filesystem": Property(),
+        "updated": Property(is_datetime=True),
+        "linode_id": Property(identifier=True),
+        "disk_encryption": Property(),
     }
 
-
     def duplicate(self):
-        result = self._client.post(Disk.api_endpoint, model=self, data={})
+        """
+        Copies a disk, byte-for-byte, into a new Disk belonging to the same Linode. The Linode must have enough
+        storage space available to accept a new Disk of the same size as this one or this operation will fail.
 
-        if not 'id' in result:
-            raise UnexpectedResponseError('Unexpected response duplicating disk!', json=result)
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/post-clone-linode-disk
 
-        d = Disk(self._client, result['id'], self.linode_id, result)
-        return d
+        :returns: A Disk object representing the cloned Disk
+        :rtype: Disk
+        """
 
+        d = self._client.post("{}/clone".format(Disk.api_endpoint), model=self)
+
+        if not "id" in d:
+            raise UnexpectedResponseError(
+                "Unexpected response duplicating disk!", json=d
+            )
+
+        return Disk(self._client, d["id"], self.linode_id)
 
     def reset_root_password(self, root_password=None):
+        """
+        Resets the password of a Disk you have permission to read_write.
+
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/post-reset-disk-password
+
+        :param root_password: The new root password for the OS installed on this Disk. The password must meet the complexity
+                              strength validation requirements for a strong password.
+        :type: root_password: str
+        """
         rpass = root_password
         if not rpass:
             rpass = Instance.generate_root_password()
 
         params = {
-            'password': rpass,
+            "password": rpass,
         }
 
-        result = self._client.post(Disk.api_endpoint, model=self, data=params)
-
-        if not 'id' in result:
-            raise UnexpectedResponseError('Unexpected response duplicating disk!', json=result)
-
-        self._populate(result)
-        if not root_password:
-            return True, rpass
-        return True
+        self._client.post(
+            "{}/password".format(Disk.api_endpoint), model=self, data=params
+        )
 
     def resize(self, new_size):
         """
@@ -106,45 +207,102 @@ class Disk(DerivedBase):
         fit on the new disk size.  You may need to resize the filesystem on the
         disk first before performing this action.
 
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/post-resize-disk
+
         :param new_size: The intended new size of the disk, in MB
         :type new_size: int
 
         :returns: True if the resize was initiated successfully.
         :rtype: bool
         """
-        self._client.post('{}/resize'.format(Disk.api_endpoint), model=self, data={"size": new_size})
+        self._client.post(
+            "{}/resize".format(Disk.api_endpoint),
+            model=self,
+            data={"size": new_size},
+        )
 
         return True
 
 
 class Kernel(Base):
-    api_endpoint="/linode/kernels/{id}"
+    """
+    The primary component of every Linux system. The kernel interfaces
+    with the system’s hardware, and it controls the operating system’s core functionality.
+
+    Your Compute Instance is capable of running one of three kinds of kernels:
+
+        - Upstream kernel (or distribution-supplied kernel): This kernel is maintained
+          and provided by your Linux distribution. A major benefit of this kernel is that the
+          distribution was designed with this kernel in mind and all updates are managed through
+          the distributions package management system. It also may support features not present
+          in the Linode kernel (for example, SELinux).
+
+        - Linode kernel: Linode also maintains kernels that can be used on a Compute Instance.
+          If selected, these kernels are provided to your Compute Instance at boot
+          (not directly installed on your system). The Current Kernels page displays a
+          list of all the available Linode kernels.
+
+        - Custom-compiled kernel: A kernel that you compile from source. Compiling a kernel
+          can let you use features not available in the upstream or Linode kernels, but it takes longer
+          to compile the kernel from source than to download it from your package manager. For more
+          information on custom compiled kernels, review our guides for Debian, Ubuntu, and CentOS.
+
+    .. note::
+        The ``xen`` property is deprecated and is no longer returned by the API.
+        It is maintained for backward compatibility only.
+
+    API Documentation: https://techdocs.akamai.com/linode-api/reference/get-kernel
+    """
+
+    api_endpoint = "/linode/kernels/{id}"
     properties = {
         "created": Property(is_datetime=True),
-        "deprecated": Property(filterable=True),
+        "deprecated": Property(),
         "description": Property(),
         "id": Property(identifier=True),
-        "kvm": Property(filterable=True),
-        "label": Property(filterable=True),
+        "kvm": Property(),
+        "label": Property(),
         "updates": Property(),
-        "version": Property(filterable=True),
-        "architecture": Property(filterable=True),
-        "xen": Property(filterable=True),
+        "version": Property(),
+        "architecture": Property(),
+        "xen": Property(),
+        "built": Property(),
+        "pvops": Property(),
     }
+
+    def __getattribute__(self, name: str) -> object:
+        if name == "xen":
+            warnings.warn(
+                "The 'xen' property of Kernel is deprecated and is no longer "
+                "returned by the API. It is maintained for backward compatibility only.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        return super().__getattribute__(name)
 
 
 class Type(Base):
+    """
+    Linode Plan type to specify the resources available to a Linode Instance.
+
+    API Documentation: https://techdocs.akamai.com/linode-api/reference/get-linode-type
+    """
+
     api_endpoint = "/linode/types/{id}"
     properties = {
-        'disk': Property(filterable=True),
-        'id': Property(identifier=True),
-        'label': Property(filterable=True),
-        'network_out': Property(filterable=True),
-        'price': Property(),
-        'addons': Property(),
-        'memory': Property(filterable=True),
-        'transfer': Property(filterable=True),
-        'vcpus': Property(filterable=True),
+        "disk": Property(),
+        "id": Property(identifier=True),
+        "label": Property(),
+        "network_out": Property(),
+        "price": Property(),
+        "region_prices": Property(),
+        "addons": Property(),
+        "memory": Property(),
+        "transfer": Property(),
+        "vcpus": Property(),
+        "gpus": Property(),
+        "successor": Property(),
+        "accelerated_devices": Property(),
         # type_class is populated from the 'class' attribute of the returned JSON
     }
 
@@ -152,87 +310,522 @@ class Type(Base):
         """
         Allows changing the name "class" in JSON to "type_class" in python
         """
-        super(Type, self)._populate(json)
 
-        if 'class' in json:
-            setattr(self, 'type_class', json['class'])
+        super()._populate(json)
+
+        if json is not None and "class" in json:
+            setattr(self, "type_class", json["class"])
         else:
-            setattr(self, 'type_class', None)
+            setattr(self, "type_class", None)
 
     # allow filtering on this converted type
-    type_class = FilterableAttribute('class')
+    type_class = FilterableAttribute("class")
+
+
+@dataclass
+class ConfigInterfaceIPv4(JSONObject):
+    """
+    ConfigInterfaceIPv4 represents the IPv4 configuration of a VPC interface.
+    """
+
+    vpc: str = ""
+    nat_1_1: str = ""
+
+
+@dataclass
+class ConfigInterfaceIPv6SLAACOptions(JSONObject):
+    """
+    ConfigInterfaceIPv6SLAACOptions is used to set a single IPv6 SLAAC configuration of a VPC interface.
+    """
+
+    range: str = ""
+
+
+@dataclass
+class ConfigInterfaceIPv6RangeOptions(JSONObject):
+    """
+    ConfigInterfaceIPv6RangeOptions is used to set a single IPv6 range configuration of a VPC interface.
+    """
+
+    range: str = ""
+
+
+@dataclass
+class ConfigInterfaceIPv6Options(JSONObject):
+    """
+    ConfigInterfaceIPv6Options is used to set the IPv6 configuration of a VPC interface.
+    """
+
+    slaac: List[ConfigInterfaceIPv6SLAACOptions] = field(
+        default_factory=lambda: []
+    )
+    ranges: List[ConfigInterfaceIPv6RangeOptions] = field(
+        default_factory=lambda: []
+    )
+    is_public: bool = False
+
+
+@dataclass
+class ConfigInterfaceIPv6SLAAC(JSONObject):
+    """
+    ConfigInterfaceIPv6SLAAC represents a single SLAAC address under a VPC interface's IPv6 configuration.
+    """
+
+    put_class = ConfigInterfaceIPv6SLAACOptions
+
+    range: str = ""
+    address: str = ""
+
+
+@dataclass
+class ConfigInterfaceIPv6Range(JSONObject):
+    """
+    ConfigInterfaceIPv6Range represents a single IPv6 address under a VPC interface's IPv6 configuration.
+    """
+
+    put_class = ConfigInterfaceIPv6RangeOptions
+
+    range: str = ""
+
+
+@dataclass
+class ConfigInterfaceIPv6(JSONObject):
+    """
+    ConfigInterfaceIPv6 represents the IPv6 configuration of a VPC interface.
+    """
+
+    put_class = ConfigInterfaceIPv6Options
+
+    slaac: List[ConfigInterfaceIPv6SLAAC] = field(default_factory=lambda: [])
+    ranges: List[ConfigInterfaceIPv6Range] = field(default_factory=lambda: [])
+    is_public: bool = False
+
+
+class NetworkInterface(DerivedBase):
+    """
+    This class represents a Configuration Profile's network interface object.
+    NOTE: This class cannot be used for the `interfaces` attribute on Config
+    POST and PUT requests.
+
+    API Documentation: https://techdocs.akamai.com/linode-api/reference/get-linode-config-interface
+    """
+
+    api_endpoint = (
+        "/linode/instances/{instance_id}/configs/{config_id}/interfaces/{id}"
+    )
+    derived_url_path = "interfaces"
+    parent_id_name = "config_id"
+
+    properties = {
+        "id": Property(identifier=True),
+        "purpose": Property(),
+        "label": Property(),
+        "ipam_address": Property(),
+        "primary": Property(mutable=True),
+        "active": Property(),
+        "vpc_id": Property(id_relationship=VPC),
+        "subnet_id": Property(),
+        "ipv4": Property(mutable=True, json_object=ConfigInterfaceIPv4),
+        "ipv6": Property(mutable=True, json_object=ConfigInterfaceIPv6),
+        "ip_ranges": Property(mutable=True),
+    }
+
+    def __init__(self, client, id, parent_id, instance_id=None, json=None):
+        """
+        We need a special constructor here because this object's parent
+        has a parent itself.
+        """
+        if not instance_id and not isinstance(parent_id, tuple):
+            raise ValueError(
+                "ConfigInterface must either be created with a instance_id or a tuple of "
+                "(config_id, instance_id) for parent_id!"
+            )
+
+        if isinstance(parent_id, tuple):
+            instance_id = parent_id[1]
+            parent_id = parent_id[0]
+
+        DerivedBase.__init__(self, client, id, parent_id, json=json)
+
+        self._set("instance_id", instance_id)
+
+    def __repr__(self):
+        return f"Interface: {self.purpose} {self.id}"
+
+    @property
+    def subnet(self) -> VPCSubnet:
+        """
+        Get the subnet this VPC is referencing.
+
+        :returns: The VPCSubnet associated with this interface.
+        :rtype: VPCSubnet
+        """
+        return VPCSubnet(self._client, self.subnet_id, self.vpc_id)
+
+
+@dataclass
+class InstancePlacementGroupAssignment(JSONObject):
+    """
+    Represents an assignment between an instance and a Placement Group.
+    This is intended to be used when creating, cloning, and migrating
+    instances.
+    """
+
+    id: int
+    compliant_only: bool = False
+
+
+@dataclass
+class ConfigInterface(JSONObject):
+    """
+    Represents a single interface in a Configuration Profile.
+    This class only contains data about a config interface.
+    If you would like to access a config interface directly,
+    consider using :any:`NetworkInterface`.
+
+    API Documentation: https://techdocs.akamai.com/linode-api/reference/get-linode-config-interface
+    """
+
+    purpose: str = "public"
+
+    # Public/VPC-specific
+    primary: Optional[bool] = None
+
+    # VLAN-specific
+    label: Optional[str] = None
+    ipam_address: Optional[str] = None
+
+    # VPC-specific
+    vpc_id: Optional[int] = None
+    subnet_id: Optional[int] = None
+
+    ipv4: Optional[Union[ConfigInterfaceIPv4, Dict[str, Any]]] = None
+    ipv6: Optional[Union[ConfigInterfaceIPv6, Dict[str, Any]]] = None
+
+    ip_ranges: Optional[List[str]] = None
+
+    # Computed
+    id: int = 0
+
+    def __repr__(self):
+        return f"Interface: {self.purpose}"
+
+    def _serialize(self, is_put: bool = False):
+        purpose_formats = {
+            "public": {"purpose": "public", "primary": self.primary},
+            "vlan": {
+                "purpose": "vlan",
+                "label": self.label,
+                "ipam_address": self.ipam_address,
+            },
+            "vpc": {
+                "purpose": "vpc",
+                "primary": self.primary,
+                "subnet_id": self.subnet_id,
+                "ipv4": self.ipv4,
+                "ipv6": self.ipv6,
+                "ip_ranges": self.ip_ranges,
+            },
+        }
+
+        if self.purpose not in purpose_formats:
+            raise ValueError(
+                f"Unknown interface purpose: {self.purpose}",
+            )
+
+        return _flatten_request_body_recursive(
+            {
+                k: v
+                for k, v in purpose_formats[self.purpose].items()
+                if v is not None
+            },
+            is_put=is_put,
+        )
 
 
 class Config(DerivedBase):
-    api_endpoint="/linode/instances/{linode_id}/configs/{id}"
-    derived_url_path="configs"
-    parent_id_name="linode_id"
+    """
+    A Configuration Profile for a Linode Instance.
+
+    API Documentation: https://techdocs.akamai.com/linode-api/reference/get-linode-config
+    """
+
+    api_endpoint = "/linode/instances/{linode_id}/configs/{id}"
+    derived_url_path = "configs"
+    parent_id_name = "linode_id"
 
     properties = {
         "id": Property(identifier=True),
         "linode_id": Property(identifier=True),
-        "helpers": Property(),#TODO: mutable=True),
+        "helpers": Property(mutable=True),
         "created": Property(is_datetime=True),
         "root_device": Property(mutable=True),
-        "kernel": Property(relationship=Kernel, mutable=True, filterable=True),
-        "devices": Property(filterable=True),#TODO: mutable=True),
+        "kernel": Property(relationship=Kernel, mutable=True),
+        "devices": Property(),  # TODO: mutable=True),
         "initrd": Property(relationship=Disk),
         "updated": Property(),
-        "comments": Property(mutable=True, filterable=True),
-        "label": Property(mutable=True, filterable=True),
-        "run_level": Property(mutable=True, filterable=True),
-        "virt_mode": Property(mutable=True, filterable=True),
-        "memory_limit": Property(mutable=True, filterable=True),
+        "comments": Property(mutable=True),
+        "label": Property(mutable=True),
+        "run_level": Property(mutable=True),
+        "virt_mode": Property(mutable=True),
+        "memory_limit": Property(mutable=True),
+        "interfaces": Property(mutable=True, json_object=ConfigInterface),
     }
+
+    @property
+    def network_interfaces(self):
+        """
+        Returns the Network Interfaces for this Configuration Profile.
+        This differs from the `interfaces` field as each NetworkInterface
+        object is treated as its own API object.
+
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/get-linode-config-interfaces
+        """
+
+        return [
+            NetworkInterface(
+                self._client, v.id, self.id, instance_id=self.linode_id
+            )
+            for v in self.interfaces
+        ]
 
     def _populate(self, json):
         """
         Map devices more nicely while populating.
         """
+        if json is None or len(json) < 1:
+            return
+
         # needed here to avoid circular imports
-        from .volume import Volume # pylint: disable=import-outside-toplevel
+        from .volume import Volume  # pylint: disable=import-outside-toplevel
 
         DerivedBase._populate(self, json)
 
         devices = {}
-        for device_index, device in json['devices'].items():
+        for device_index, device in json["devices"].items():
             if not device:
                 devices[device_index] = None
                 continue
 
             dev = None
-            if 'disk_id' in device and device['disk_id']: # this is a disk
-                dev = Disk.make_instance(device['disk_id'], self._client,
-                        parent_id=self.linode_id)
+            if "disk_id" in device and device["disk_id"]:  # this is a disk
+                dev = Disk.make_instance(
+                    device["disk_id"], self._client, parent_id=self.linode_id
+                )
             else:
-                dev = Volume.make_instance(device['volume_id'], self._client,
-                        parent_id=self.linode_id)
+                dev = Volume.make_instance(
+                    device["volume_id"], self._client, parent_id=self.linode_id
+                )
             devices[device_index] = dev
 
-        self._set('devices', MappedObject(**devices))
+        self._set("devices", MappedObject(**devices))
+
+    def _serialize(self, is_put: bool = False):
+        """
+        Overrides _serialize to transform interfaces into json
+        """
+        partial = DerivedBase._serialize(self, is_put=is_put)
+        interfaces = []
+
+        for c in self.interfaces:
+            if isinstance(c, ConfigInterface):
+                interfaces.append(c._serialize(is_put=is_put))
+            else:
+                interfaces.append(c)
+
+        partial["interfaces"] = interfaces
+        return partial
+
+    def interface_create_public(self, primary=False) -> NetworkInterface:
+        """
+        Creates a public interface for this Configuration Profile.
+
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/post-linode-config-interface
+
+        :param primary: Whether this interface is a primary interface.
+        :type primary: bool
+
+        :returns: The newly created NetworkInterface.
+        :rtype: NetworkInterface
+
+        """
+        return self._interface_create({"purpose": "public", "primary": primary})
+
+    def interface_create_vlan(
+        self, label: str, ipam_address=None
+    ) -> NetworkInterface:
+        """
+        Creates a VLAN interface for this Configuration Profile.
+
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/post-linode-config-interface
+
+        :param label: The label of the VLAN to associate this interface with.
+        :type label: str
+        :param ipam_address: The IPAM address of this interface for the associated VLAN.
+        :type ipam_address: str
+
+        :returns: The newly created NetworkInterface.
+        :rtype: NetworkInterface
+        """
+        params = {
+            "purpose": "vlan",
+            "label": label,
+        }
+        if ipam_address is not None:
+            params["ipam_address"] = ipam_address
+
+        return self._interface_create(params)
+
+    def interface_create_vpc(
+        self,
+        subnet: Union[int, VPCSubnet],
+        primary=False,
+        ipv4: Union[Dict[str, Any], ConfigInterfaceIPv4] = None,
+        ipv6: Union[Dict[str, Any], ConfigInterfaceIPv6Options] = None,
+        ip_ranges: Optional[List[str]] = None,
+    ) -> NetworkInterface:
+        """
+        Creates a VPC interface for this Configuration Profile.
+
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/post-linode-config-interface
+
+        :param subnet: The VPC subnet to associate this interface with.
+        :type subnet: int or VPCSubnet
+        :param primary: Whether this is a primary interface.
+        :type primary: bool
+        :param ipv4: The IPv4 configuration of the interface for the associated subnet.
+        :type ipv4: Dict or ConfigInterfaceIPv4
+        :param ipv6: The IPv6 configuration of the interface for the associated subnet.
+        :type ipv6: Dict or ConfigInterfaceIPv6Options
+        :param ip_ranges: A list of IPs or IP ranges in the VPC subnet.
+                          Packets to these CIDRs are routed through the
+                          VPC network interface.
+        :type ip_ranges: List of str
+
+        :returns: The newly created NetworkInterface.
+        :rtype: NetworkInterface
+        """
+        params = {
+            "purpose": "vpc",
+            "subnet_id": subnet,
+            "primary": primary,
+            "ipv4": ipv4,
+            "ipv6": ipv6,
+            "ip_ranges": ip_ranges,
+        }
+
+        return self._interface_create(
+            drop_null_keys(_flatten_request_body_recursive(params))
+        )
+
+    def interface_reorder(self, interfaces: List[Union[int, NetworkInterface]]):
+        """
+        Change the order of the interfaces for this Configuration Profile.
+
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/post-linode-config-interfaces
+
+        :param interfaces: A list of interfaces in the desired order.
+        :type interfaces: List of str or NetworkInterface
+        """
+        ids = [
+            v.id if isinstance(v, NetworkInterface) else v for v in interfaces
+        ]
+
+        self._client.post(
+            "{}/interfaces/order".format(Config.api_endpoint),
+            model=self,
+            data={"ids": ids},
+        )
+        self.invalidate()
+
+    def _interface_create(self, body: Dict[str, Any]) -> NetworkInterface:
+        """
+        The underlying ConfigInterface creation API call.
+        """
+        result = self._client.post(
+            "{}/interfaces".format(Config.api_endpoint), model=self, data=body
+        )
+        self.invalidate()
+
+        if not "id" in result:
+            raise UnexpectedResponseError(
+                "Unexpected response creating Interface", json=result
+            )
+
+        i = NetworkInterface(
+            self._client, result["id"], self.id, self.linode_id, result
+        )
+        return i
+
+
+class MigrationType:
+    COLD = "cold"
+    WARM = "warm"
+
+
+class InterfaceGeneration(StrEnum):
+    """
+    A string enum representing which interface generation a Linode is using.
+    """
+
+    LEGACY_CONFIG = "legacy_config"
+    LINODE = "linode"
+
+
+@dataclass
+class UpgradeInterfacesResult(JSONObject):
+    """
+    Contains information about an Linode Interface upgrade operation.
+
+    NOTE: If dry_run is True, each returned interface will be of type Dict[str, Any].
+          Otherwise, each returned interface will be of type LinodeInterface.
+
+    API Documentation: https://techdocs.akamai.com/linode-api/reference/post-upgrade-linode-interfaces
+    """
+
+    dry_run: bool = False
+    config_id: int = 0
+    interfaces: List[Union[Dict[str, Any], LinodeInterface]] = field(
+        default_factory=list
+    )
 
 
 class Instance(Base):
-    api_endpoint = '/linode/instances/{id}'
+    """
+    A Linode Instance.
+
+    API Documentation: https://techdocs.akamai.com/linode-api/reference/get-linode-instance
+    """
+
+    api_endpoint = "/linode/instances/{id}"
     properties = {
-        'id': Property(identifier=True, filterable=True),
-        'label': Property(mutable=True, filterable=True),
-        'group': Property(mutable=True, filterable=True),
-        'status': Property(volatile=True),
-        'created': Property(is_datetime=True),
-        'updated': Property(volatile=True, is_datetime=True),
-        'region': Property(slug_relationship=Region, filterable=True),
-        'alerts': Property(),
-        'image': Property(slug_relationship=Image, filterable=True),
-        'disks': Property(derived_class=Disk),
-        'configs': Property(derived_class=Config),
-        'type': Property(slug_relationship=Type),
-        'backups': Property(),
-        'ipv4': Property(),
-        'ipv6': Property(),
-        'hypervisor': Property(),
-        'specs': Property(),
-        'tags': Property(mutable=True),
+        "id": Property(identifier=True),
+        "label": Property(mutable=True),
+        "group": Property(mutable=True),
+        "status": Property(volatile=True),
+        "created": Property(is_datetime=True),
+        "updated": Property(volatile=True, is_datetime=True),
+        "region": Property(slug_relationship=Region),
+        "alerts": Property(mutable=True),
+        "image": Property(slug_relationship=Image),
+        "disks": Property(derived_class=Disk),
+        "configs": Property(derived_class=Config),
+        "type": Property(slug_relationship=Type),
+        "backups": Property(mutable=True),
+        "ipv4": Property(unordered=True),
+        "ipv6": Property(),
+        "hypervisor": Property(),
+        "specs": Property(),
+        "tags": Property(mutable=True, unordered=True),
+        "host_uuid": Property(),
+        "watchdog_enabled": Property(mutable=True),
+        "has_user_data": Property(),
+        "disk_encryption": Property(),
+        "lke_cluster_id": Property(),
+        "capabilities": Property(unordered=True),
+        "interface_generation": Property(),
+        "maintenance_policy": Property(mutable=True),
+        "locks": Property(unordered=True),
     }
 
     @property
@@ -240,51 +833,80 @@ class Instance(Base):
         """
         The ips related collection is not normalized like the others, so we have to
         make an ad-hoc object to return for its response
+
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/get-linode-ips
+
+        :returns: Information about the IP addresses assigned to this instance.
+        :rtype: MappedObject
         """
-        if not hasattr(self, '_ips'):
-            result = self._client.get("{}/ips".format(Instance.api_endpoint), model=self)
+        if not hasattr(self, "_ips"):
+            result = self._client.get(
+                "{}/ips".format(Instance.api_endpoint), model=self
+            )
 
             if not "ipv4" in result:
-                raise UnexpectedResponseError('Unexpected response loading IPs', json=result)
+                raise UnexpectedResponseError(
+                    "Unexpected response loading IPs", json=result
+                )
 
             v4pub = []
-            for c in result['ipv4']['public']:
-                i = IPAddress(self._client, c['address'], c)
+            for c in result["ipv4"]["public"]:
+                i = IPAddress(self._client, c["address"], c)
                 v4pub.append(i)
 
             v4pri = []
-            for c in result['ipv4']['private']:
-                i = IPAddress(self._client, c['address'], c)
+            for c in result["ipv4"]["private"]:
+                i = IPAddress(self._client, c["address"], c)
                 v4pri.append(i)
 
             shared_ips = []
-            for c in result['ipv4']['shared']:
-                i = IPAddress(self._client, c['address'], c)
+            for c in result["ipv4"]["shared"]:
+                i = IPAddress(self._client, c["address"], c)
                 shared_ips.append(i)
 
-            slaac = IPAddress(self._client, result['ipv6']['slaac']['address'],
-                              result['ipv6']['slaac'])
-            link_local = IPAddress(self._client, result['ipv6']['link_local']['address'],
-                                   result['ipv6']['link_local'])
+            reserved = []
+            for c in result["ipv4"]["reserved"]:
+                i = IPAddress(self._client, c["address"], c)
+                reserved.append(i)
 
-            pools = []
-            for p in result['ipv6']['global']:
-                pools.append(IPv6Pool(self._client, p['range']))
+            vpc = [
+                VPCIPAddress.from_json(v) for v in result["ipv4"].get("vpc", [])
+            ]
 
-            ips = MappedObject(**{
-                "ipv4": {
-                    "public": v4pub,
-                    "private": v4pri,
-                    "shared": shared_ips,
-                },
-                "ipv6": {
-                    "slaac": slaac,
-                    "link_local": link_local,
-                    "pools": pools,
-                },
-            })
+            slaac = IPAddress(
+                self._client,
+                result["ipv6"]["slaac"]["address"],
+                result["ipv6"]["slaac"],
+            )
+            link_local = IPAddress(
+                self._client,
+                result["ipv6"]["link_local"]["address"],
+                result["ipv6"]["link_local"],
+            )
 
-            self._set('_ips', ips)
+            ranges = [
+                IPv6Range(self._client, r["range"])
+                for r in result["ipv6"]["global"]
+            ]
+
+            ips = MappedObject(
+                **{
+                    "ipv4": {
+                        "public": v4pub,
+                        "private": v4pri,
+                        "shared": shared_ips,
+                        "reserved": reserved,
+                        "vpc": vpc,
+                    },
+                    "ipv6": {
+                        "slaac": slaac,
+                        "link_local": link_local,
+                        "ranges": ranges,
+                    },
+                }
+            )
+
+            self._set("_ips", ips)
 
         return self._ips
 
@@ -292,103 +914,318 @@ class Instance(Base):
     def available_backups(self):
         """
         The backups response contains what backups are available to be restored.
-        """
-        if not hasattr(self, '_avail_backups'):
-            result = self._client.get("{}/backups".format(Instance.api_endpoint), model=self)
 
-            if not 'automatic' in result:
-                raise UnexpectedResponseError('Unexpected response loading available backups!', json=result)
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/get-backups
+
+        :returns: A List of the available backups for the Linode Instance.
+        :rtype: List[Backup]
+        """
+        if not hasattr(self, "_avail_backups"):
+            result = self._client.get(
+                "{}/backups".format(Instance.api_endpoint), model=self
+            )
+
+            if not "automatic" in result:
+                raise UnexpectedResponseError(
+                    "Unexpected response loading available backups!",
+                    json=result,
+                )
 
             automatic = []
-            for a in result['automatic']:
-                cur = Backup(self._client, a['id'], self.id, a)
+            for a in result["automatic"]:
+                cur = Backup(self._client, a["id"], self.id, a)
                 automatic.append(cur)
 
             snap = None
-            if result['snapshot']['current']:
-                snap = Backup(self._client, result['snapshot']['current']['id'], self.id,
-                        result['snapshot']['current'])
+            if result["snapshot"]["current"]:
+                snap = Backup(
+                    self._client,
+                    result["snapshot"]["current"]["id"],
+                    self.id,
+                    result["snapshot"]["current"],
+                )
 
             psnap = None
-            if result['snapshot']['in_progress']:
-                psnap = Backup(self._client, result['snapshot']['in_progress']['id'], self.id,
-                        result['snapshot']['in_progress'])
+            if result["snapshot"]["in_progress"]:
+                psnap = Backup(
+                    self._client,
+                    result["snapshot"]["in_progress"]["id"],
+                    self.id,
+                    result["snapshot"]["in_progress"],
+                )
 
-            self._set('_avail_backups', MappedObject(**{
-                "automatic": automatic,
-                "snapshot": {
-                    "current": snap,
-                    "in_progress": psnap,
-                }
-            }))
+            self._set(
+                "_avail_backups",
+                MappedObject(
+                    **{
+                        "automatic": automatic,
+                        "snapshot": {
+                            "current": snap,
+                            "in_progress": psnap,
+                        },
+                    }
+                ),
+            )
 
         return self._avail_backups
+
+    def reset_instance_root_password(self, root_password=None):
+        """
+        Resets the root password for this Linode.
+
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/post-reset-linode-password
+
+        :param root_password: The root user’s password on this Linode. Linode passwords must
+                              meet a password strength score requirement that is calculated internally
+                              by the API. If the strength requirement is not met, you will receive a
+                              Password does not meet strength requirement error.
+        :type: root_password: str
+        """
+        rpass = root_password
+        if not rpass:
+            rpass = Instance.generate_root_password()
+
+        params = {
+            "root_pass": rpass,
+        }
+
+        self._client.post(
+            "{}/password".format(Instance.api_endpoint), model=self, data=params
+        )
+
+    def transfer_year_month(self, year, month):
+        """
+        Get per-linode transfer for specified month
+
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/get-linode-transfer-by-year-month
+
+        :param year: Numeric value representing the year to look up.
+        :type: year: int
+
+        :param month: Numeric value representing the month to look up.
+        :type: month: int
+
+        :returns: The network transfer statistics for the specified month.
+        :rtype: MappedObject
+        """
+
+        result = self._client.get(
+            "{}/transfer/{}/{}".format(
+                Instance.api_endpoint,
+                parse.quote(str(year)),
+                parse.quote(str(month)),
+            ),
+            model=self,
+        )
+
+        return MappedObject(**result)
 
     @property
     def transfer(self):
         """
         Get per-linode transfer
-        """
-        if not hasattr(self, '_transfer'):
-            result = self._client.get("{}/transfer".format(Instance.api_endpoint), model=self)
 
-            if not 'used' in result:
-                raise UnexpectedResponseError('Unexpected response when getting Transfer Pool!')
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/get-linode-transfer
+
+        :returns: The network transfer statistics for the current month.
+        :rtype: MappedObject
+        """
+        if not hasattr(self, "_transfer"):
+            result = self._client.get(
+                "{}/transfer".format(Instance.api_endpoint), model=self
+            )
+
+            if not "used" in result:
+                raise UnexpectedResponseError(
+                    "Unexpected response when getting Transfer Pool!"
+                )
 
             mapped = MappedObject(**result)
 
-            setattr(self, '_transfer', mapped)
+            setattr(self, "_transfer", mapped)
 
         return self._transfer
+
+    @property
+    def placement_group(self) -> Optional["PlacementGroup"]:
+        """
+        Returns the PlacementGroup object for the Instance.
+
+        :returns: The Placement Group this instance is under.
+        :rtype: Optional[PlacementGroup]
+        """
+        # Workaround to avoid circular import
+        from linode_api4.objects.placement import (  # pylint: disable=import-outside-toplevel
+            PlacementGroup,
+        )
+
+        if not hasattr(self, "_placement_group"):
+            # Refresh the instance if necessary
+            if not self._populated:
+                self._api_get()
+
+            pg_data = self._raw_json.get("placement_group", None)
+
+            if pg_data is None:
+                return None
+
+            setattr(
+                self,
+                "_placement_group",
+                PlacementGroup(self._client, pg_data.get("id"), json=pg_data),
+            )
+
+        return self._placement_group
 
     def _populate(self, json):
         if json is not None:
             # fixes ipv4 and ipv6 attribute of json to make base._populate work
-            if 'ipv4' in json and 'address' in json['ipv4']:
-                json['ipv4']['id'] = json['ipv4']['address']
-            if 'ipv6' in json and isinstance(json['ipv6'], list):
-                for j in json['ipv6']:
-                    j['id'] = j['range']
+            if "ipv4" in json and "address" in json["ipv4"]:
+                json["ipv4"]["id"] = json["ipv4"]["address"]
+            if "ipv6" in json and isinstance(json["ipv6"], list):
+                for j in json["ipv6"]:
+                    j["id"] = j["range"]
 
         Base._populate(self, json)
 
     def invalidate(self):
-        """ Clear out cached properties """
-        if hasattr(self, '_avail_backups'):
+        """Clear out cached properties"""
+        if hasattr(self, "_avail_backups"):
             del self._avail_backups
-        if hasattr(self, '_ips'):
+
+        if hasattr(self, "_ips"):
             del self._ips
-        if hasattr(self, '_transfer'):
+
+        if hasattr(self, "_transfer"):
             del self._transfer
+
+        if hasattr(self, "_placement_group"):
+            del self._placement_group
+
+        if hasattr(self, "_interfaces"):
+            del self._interfaces
 
         Base.invalidate(self)
 
     def boot(self, config=None):
-        resp = self._client.post("{}/boot".format(Instance.api_endpoint), model=self, data={'config_id': config.id} if config else None)
+        """
+        Boots a Linode you have permission to modify. If no parameters are given, a Config
+        profile will be chosen for this boot based on the following criteria:
 
-        if 'error' in resp:
+            - If there is only one Config profile for this Linode, it will be used.
+            - If there is more than one Config profile, the last booted config will be used.
+            - If there is more than one Config profile and none were the last to be booted
+              (because the Linode was never booted or the last booted config was deleted)
+              an error will be returned.
+
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/post-boot-linode-instance
+
+        :param config: The Linode Config ID to boot into.
+        :type: config: int
+
+        :returns: True if the operation was successful.
+        :rtype: bool
+        """
+
+        resp = self._client.post(
+            "{}/boot".format(Instance.api_endpoint),
+            model=self,
+            data={"config_id": config.id} if config else None,
+        )
+
+        if "error" in resp:
             return False
         return True
 
     def shutdown(self):
-        resp = self._client.post("{}/shutdown".format(Instance.api_endpoint), model=self)
+        """
+        Shuts down a Linode you have permission to modify. If any actions
+        are currently running or queued, those actions must be completed
+        first before you can initiate a shutdown.
 
-        if 'error' in resp:
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/post-shutdown-linode-instance
+
+        :returns: True if the operation was successful.
+        :rtype: bool
+        """
+
+        resp = self._client.post(
+            "{}/shutdown".format(Instance.api_endpoint), model=self
+        )
+
+        if "error" in resp:
             return False
         return True
 
     def reboot(self):
-        resp = self._client.post("{}/reboot".format(Instance.api_endpoint), model=self)
+        """
+        Reboots a Linode you have permission to modify. If any actions are currently running
+        or queued, those actions must be completed first before you can initiate a reboot.
 
-        if 'error' in resp:
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/post-reboot-linode-instance
+
+        :returns: True if the operation was successful.
+        :rtype: bool
+        """
+
+        resp = self._client.post(
+            "{}/reboot".format(Instance.api_endpoint), model=self
+        )
+
+        if "error" in resp:
             return False
         return True
 
-    def resize(self, new_type):
-        new_type = new_type.id if issubclass(type(new_type), Base) else new_type
-        resp = self._client.post("{}/resize".format(Instance.api_endpoint), model=self, data={"type": new_type})
+    def resize(
+        self,
+        new_type,
+        allow_auto_disk_resize=True,
+        migration_type: MigrationType = MigrationType.COLD,
+        **kwargs,
+    ):
+        """
+        Resizes a Linode you have the read_write permission to a different Type. If any
+        actions are currently running or queued, those actions must be completed first
+        before you can initiate a resize. Additionally, the following criteria must be
+        met in order to resize a Linode:
 
-        if 'error' in resp:
+            - The Linode must not have a pending migration.
+            - Your Account cannot have an outstanding balance.
+            - The Linode must not have more disk allocation than the new Type allows.
+                - In that situation, you must first delete or resize the disk to be smaller.
+
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/post-resize-linode-instance
+
+        :param new_type: The Linode Type or the id representing it.
+        :type: new_type: Type or int
+
+        :param allow_auto_disk_resize: Automatically resize disks when resizing a Linode.
+                                       When resizing down to a smaller plan your Linode’s
+                                       data must fit within the smaller disk size. Defaults to true.
+        :type: allow_auto_disk_resize: bool
+
+        :param migration_type: Type of migration to be used when resizing a Linode.
+                               Customers can choose between warm and cold, the default type is cold.
+        :type: migration_type: str
+
+        :returns: True if the operation was successful.
+        :rtype: bool
+        """
+
+        params = {
+            "type": new_type,
+            "allow_auto_disk_resize": allow_auto_disk_resize,
+            "migration_type": migration_type,
+        }
+        params.update(kwargs)
+
+        resp = self._client.post(
+            "{}/resize".format(Instance.api_endpoint),
+            model=self,
+            data=_flatten_request_body_recursive(params),
+        )
+
+        if "error" in resp:
             return False
         return True
 
@@ -396,13 +1233,15 @@ class Instance(Base):
     def generate_root_password():
         def _func(value):
             if sys.version_info[0] < 3:
-                value = int(value.encode('hex'), 16)
+                value = int(value.encode("hex"), 16)
             return value
 
-        password = ''.join([
-            PASSWORD_CHARS[_func(c) % len(PASSWORD_CHARS)]
-            for c in urandom(randint(50, 110))
-        ])
+        password = "".join(
+            [
+                PASSWORD_CHARS[_func(c) % len(PASSWORD_CHARS)]
+                for c in urandom(randint(50, 110))
+            ]
+        )
 
         # ensure the generated password is not too long
         if len(password) > 110:
@@ -411,94 +1250,223 @@ class Instance(Base):
         return password
 
     # create derived objects
-    def config_create(self, kernel=None, label=None, devices=[], disks=[],
-            volumes=[], **kwargs):
+    def config_create(
+        self,
+        kernel: Kernel | str | None = None,
+        label: str | None = None,
+        devices: "Disk | Volume | dict[str, Any] | list[Disk | Volume | dict[str, Any]] | None" = None,
+        disks: Disk | int | list[Disk | int] | None = None,
+        volumes: "Volume | int | list[Volume | int] | None" = None,
+        interfaces: list[ConfigInterface | dict[str, Any]] | None = None,
+        **kwargs,
+    ) -> Config:
         """
         Creates a Linode Config with the given attributes.
+
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/post-add-linode-config
 
         :param kernel: The kernel to boot with.
         :param label: The config label
         :param disks: The list of disks, starting at sda, to map to this config.
         :param volumes: The volumes, starting after the last disk, to map to this
-            config
+                        config.
         :param devices: A list of devices to assign to this config, in device
-            index order.  Values must be of type Disk or Volume. If this is
-            given, you may not include disks or volumes.
+                        index order, a raw device mapping dict to pass directly to the API
+                        (e.g. ``{"sda": {"disk_id": 123}, "sdb": Volume(...)}``), or
+                        a single Disk or Volume.
+                        If this is given, you may not include disks or volumes.
+        :param interfaces: A list of ConfigInterface objects or dicts to assign to this config.
         :param **kwargs: Any other arguments accepted by the api.
 
         :returns: A new Linode Config
         """
         # needed here to avoid circular imports
-        from .volume import Volume # pylint: disable=import-outside-toplevel
+        from .volume import Volume  # pylint: disable=import-outside-toplevel
 
-        hypervisor_prefix = 'sd' if self.hypervisor == 'kvm' else 'xvd'
-        device_names = [hypervisor_prefix + string.ascii_lowercase[i] for i in range(0, 8)]
-        device_map = {device_names[i]: None for i in range(0, len(device_names))}
+        interfaces = [] if interfaces is None else interfaces
 
+        hypervisor_prefix = "sd" if self.hypervisor == "kvm" else "xvd"
+
+        device_limit = int(
+            max(
+                MIN_DEVICE_LIMIT,
+                min(self.specs.memory // MB_PER_GB, MAX_DEVICE_LIMIT),
+            )
+        )
+
+        device_names = [
+            hypervisor_prefix + suffix
+            for suffix in generate_device_suffixes(device_limit)
+        ]
+
+        def _flatten_device(device: Disk | Volume | dict | None):
+            if device is None:
+                return None
+            elif isinstance(device, Disk):
+                return {"disk_id": device.id}
+            elif isinstance(device, Volume):
+                return {"volume_id": device.id}
+            elif isinstance(device, dict):
+                return device
+
+            raise TypeError("Disk, Volume, or dict expected!")
+
+        def _device_entry(device: Disk | Volume | int, key: str):
+            if isinstance(device, (Disk, Volume)):
+                return _flatten_device(device)
+
+            try:
+                device_id = int(device)
+            except (TypeError, ValueError):
+                raise TypeError(
+                    "Disk, Volume, or integer ID expected!"
+                ) from None
+
+            return {key: device_id}
+
+        def _build_devices():
+            # Devices is a dict, flatten and pass through
+            if isinstance(devices, dict):
+                return {
+                    k: (
+                        _flatten_device(v)
+                        if isinstance(v, (Disk, Volume))
+                        else v
+                    )
+                    for k, v in devices.items()
+                }
+
+            device_list = []
+
+            if devices:
+                device_list += [
+                    _flatten_device(device)
+                    for device in normalize_as_list(devices)
+                ]
+
+            if disks:
+                device_list += [
+                    _device_entry(disk, "disk_id") if disk is not None else None
+                    for disk in normalize_as_list(disks)
+                ]
+
+            if volumes:
+                device_list += [
+                    (
+                        _device_entry(volume, "volume_id")
+                        if volume is not None
+                        else None
+                    )
+                    for volume in normalize_as_list(volumes)
+                ]
+
+            return {
+                device_names[i]: device for i, device in enumerate(device_list)
+            }
+
+        # This validation is enforced for backwards compatibility but isn't
+        # technically needed anymore
         if devices and (disks or volumes):
-            raise ValueError('You may not call config_create with "devices" and '
-                    'either of "disks" or "volumes" specified!')
+            raise ValueError(
+                'You may not call config_create with "devices" and '
+                'either of "disks" or "volumes" specified!'
+            )
 
-        if not devices:
-            if not isinstance(disks, list):
-                disks = [disks]
-            if not isinstance(volumes, list):
-                volumes = [volumes]
+        device_map = _build_devices()
 
-            devices = []
+        if len(device_map) < 1:
+            raise ValueError("Must include at least one disk or volume!")
 
-            for d in disks:
-                if d is None:
-                    devices.append(None)
-                elif isinstance(d, Disk):
-                    devices.append(d)
-                else:
-                    devices.append(Disk(self._client, int(d), self.id))
-
-            for v in volumes:
-                if v is None:
-                    devices.append(None)
-                elif isinstance(v, Volume):
-                    devices.append(v)
-                else:
-                    devices.append(Volume(self._client, int(v)))
-
-        if not devices:
-            raise ValueError('Must include at least one disk or volume!')
-
-        for i, d in enumerate(devices):
-            if d is None:
-                pass
-            elif isinstance(d, Disk):
-                device_map[device_names[i]] = {'disk_id': d.id }
-            elif isinstance(d, Volume):
-                device_map[device_names[i]] = {'volume_id': d.id }
-            else:
-                raise TypeError('Disk or Volume expected!')
+        param_interfaces = []
+        for interface in interfaces:
+            if isinstance(interface, ConfigInterface):
+                interface = interface._serialize()
+            param_interfaces.append(interface)
 
         params = {
-            'kernel': kernel.id if issubclass(type(kernel), Base) else kernel,
-            'label': label if label else "{}_config_{}".format(self.label, len(self.configs)),
-            'devices': device_map,
+            "kernel": kernel,
+            "label": (
+                label
+                if label
+                else "{}_config_{}".format(self.label, len(self.configs))
+            ),
+            "devices": device_map,
+            "interfaces": param_interfaces,
         }
         params.update(kwargs)
 
-        result = self._client.post("{}/configs".format(Instance.api_endpoint), model=self, data=params)
+        result = self._client.post(
+            "{}/configs".format(Instance.api_endpoint),
+            model=self,
+            data=_flatten_request_body_recursive(params),
+        )
         self.invalidate()
 
-        if not 'id' in result:
-            raise UnexpectedResponseError('Unexpected response creating config!', json=result)
+        if not "id" in result:
+            raise UnexpectedResponseError(
+                "Unexpected response creating config!", json=result
+            )
 
-        c = Config(self._client, result['id'], self.id, result)
+        c = Config(self._client, result["id"], self.id, result)
         return c
 
-    def disk_create(self, size, label=None, filesystem=None, read_only=False, image=None,
-            root_pass=None, authorized_keys=None, stackscript=None, **stackscript_args):
+    def disk_create(
+        self,
+        size,
+        label=None,
+        filesystem=None,
+        read_only=False,
+        image=None,
+        root_pass=None,
+        authorized_keys=None,
+        authorized_users=None,
+        disk_encryption: Optional[
+            Union[InstanceDiskEncryptionType, str]
+        ] = None,
+        stackscript=None,
+        **stackscript_args,
+    ):
+        """
+        Creates a new Disk for this Instance.
 
-        gen_pass = None
-        if image and not root_pass:
-            gen_pass  = Instance.generate_root_password()
-            root_pass = gen_pass
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/post-add-linode-disk
+
+        :param size: The size of the disk, in MB
+        :param label: The label of the disk.  If not given, a default label will be generated.
+        :param filesystem: The filesystem type for the disk.  If not given, the default
+                           for the image deployed the disk will be used.  Required
+                           if creating a disk without an image.
+        :param read_only: If True, creates a read-only disk
+        :param image: The Image to deploy to the disk.  If provided, at least one of
+                      root_pass, authorized_users or authorized_keys must also be given.
+        :param root_pass: The password to configure for the root user when deploying an
+                          image to this disk.  Not used if image is not given.
+        :param authorized_keys: A list of SSH keys to install as trusted for the root user.
+        :param authorized_users: A list of usernames whose keys should be installed
+                                 as trusted for the root user.  These user's keys
+                                 should already be set up, see :any:`ProfileGroup.ssh_keys`
+                                 for details.
+        :param disk_encryption: The disk encryption policy for this Linode.
+        :type disk_encryption: InstanceDiskEncryptionType or str
+        :param stackscript: A StackScript object, or the ID of one, to deploy to this
+                            disk.  Requires deploying a compatible image.
+        :param **stackscript_args: Any arguments to pass to the StackScript, as defined
+                                   by its User Defined Fields.
+
+        :returns: A new Disk object.
+        :rtype: Disk
+        """
+
+        if (
+            image
+            and not root_pass
+            and not authorized_keys
+            and not authorized_users
+        ):
+            raise ValueError(
+                "When creating a Disk from an Image, at least one of "
+                "root_pass, authorized_users, or authorized_keys must be provided."
+            )
 
         authorized_keys = load_and_validate_keys(authorized_keys)
 
@@ -506,46 +1474,62 @@ class Instance(Base):
             label = "My {} Disk".format(image.label)
 
         params = {
-            'size': size,
-            'label': label if label else "{}_disk_{}".format(self.label, len(self.disks)),
-            'read_only': read_only,
-            'filesystem': filesystem if filesystem else 'raw',
-            'authorized_keys': authorized_keys,
+            "size": size,
+            "label": (
+                label
+                if label
+                else "{}_disk_{}".format(self.label, len(self.disks))
+            ),
+            "read_only": read_only,
+            "filesystem": filesystem,
+            "authorized_keys": authorized_keys,
+            "authorized_users": authorized_users,
+            "stackscript_id": stackscript,
         }
 
+        if disk_encryption is not None:
+            params["disk_encryption"] = str(disk_encryption)
+
         if image:
-            params.update({
-                'image': image.id if issubclass(type(image), Base) else image,
-                'root_pass': root_pass,
-            })
+            params.update(
+                {
+                    "image": image,
+                    "root_pass": root_pass,
+                }
+            )
 
-        if stackscript:
-            params['stackscript_id'] = stackscript.id
-            if stackscript_args:
-                params['stackscript_data'] = stackscript_args
+        if stackscript_args:
+            params["stackscript_data"] = stackscript_args
 
-        result = self._client.post("{}/disks".format(Instance.api_endpoint), model=self, data=params)
+        result = self._client.post(
+            "{}/disks".format(Instance.api_endpoint),
+            model=self,
+            data=_flatten_request_body_recursive(drop_null_keys(params)),
+        )
         self.invalidate()
 
-        if not 'id' in result:
-            raise UnexpectedResponseError('Unexpected response creating disk!', json=result)
+        if not "id" in result:
+            raise UnexpectedResponseError(
+                "Unexpected response creating disk!", json=result
+            )
 
-        d = Disk(self._client, result['id'], self.id, result)
-
-        if gen_pass:
-            return d, gen_pass
-        return d
+        return Disk(self._client, result["id"], self.id, result)
 
     def enable_backups(self):
         """
         Enable Backups for this Instance.  When enabled, we will automatically
         backup your Instance's data so that it can be restored at a later date.
         For more information on Instance's Backups service and pricing, see our
-        `Backups Page`_
+        Backups Page: https://www.linode.com/backups
 
-        .. _Backups Page: https://www.linode.com/backups
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/post-enable-backups
+
+        :returns: True if the operation was successful.
+        :rtype: bool
         """
-        self._client.post("{}/backups/enable".format(Instance.api_endpoint), model=self)
+        self._client.post(
+            "{}/backups/enable".format(Instance.api_endpoint), model=self
+        )
         self.invalidate()
         return True
 
@@ -554,188 +1538,737 @@ class Instance(Base):
         Cancels Backups for this Instance.  All existing Backups will be lost,
         including any snapshots that have been taken.  This cannot be undone,
         but Backups can be re-enabled at a later date.
+
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/post-cancel-backups
+
+        :returns: True if the operation was successful.
+        :rtype: bool
         """
-        self._client.post("{}/backups/cancel".format(Instance.api_endpoint), model=self)
+        self._client.post(
+            "{}/backups/cancel".format(Instance.api_endpoint), model=self
+        )
         self.invalidate()
         return True
 
     def snapshot(self, label=None):
-        result = self._client.post("{}/backups".format(Instance.api_endpoint), model=self,
-                                   data={ "label": label })
+        """
+        Creates a snapshot Backup of a Linode.
 
-        if not 'id' in result:
-            raise UnexpectedResponseError('Unexpected response taking snapshot!', json=result)
+        Important: If you already have a snapshot of this Linode, this
+        is a destructive action. The previous snapshot will be deleted.
+
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/post-snapshot
+
+        :param label: The label for the new snapshot.
+        :type: label: str
+
+        :returns: The snapshot Backup created.
+        :rtype: Backup
+        """
+
+        result = self._client.post(
+            "{}/backups".format(Instance.api_endpoint),
+            model=self,
+            data={"label": label},
+        )
+
+        if not "id" in result:
+            raise UnexpectedResponseError(
+                "Unexpected response taking snapshot!", json=result
+            )
 
         # so the changes show up the next time they're accessed
-        if hasattr(self, '_avail_backups'):
+        if hasattr(self, "_avail_backups"):
             del self._avail_backups
 
-        b = Backup(self._client, result['id'], self.id, result)
+        b = Backup(self._client, result["id"], self.id, result)
         return b
 
-    def ip_allocate(self, public=False):
+    def ip_allocate(self, public=False, address=None):
         """
         Allocates a new :any:`IPAddress` for this Instance.  Additional public
         IPs require justification, and you may need to open a :any:`SupportTicket`
         before you can add one.  You may only have, at most, one private IP per
         Instance.
 
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/post-add-linode-ip
+
         :param public: If the new IP should be public or private.  Defaults to
                        private.
         :type public: bool
+        :param address: A reserved IPv4 address to assign to this Instance instead
+                        of allocating a new ephemeral IP.  The address must be an
+                        unassigned reserved IP owned by this account.
+                        NOTE: Reserved IP feature may not currently be available to all users.
+        :type address: str
 
         :returns: The new IPAddress
         :rtype: IPAddress
         """
+        data = {
+            "type": "ipv4",
+            "public": public,
+        }
+        if address is not None:
+            data["address"] = address
+
         result = self._client.post(
             "{}/ips".format(Instance.api_endpoint),
             model=self,
-            data={
-                "type": "ipv4",
-                "public": public,
-            })
+            data=data,
+        )
 
-        if not 'address' in result:
-            raise UnexpectedResponseError('Unexpected response allocating IP!',
-                                          json=result)
+        if not "address" in result:
+            raise UnexpectedResponseError(
+                "Unexpected response allocating IP!", json=result
+            )
 
-        i = IPAddress(self._client, result['address'], result)
+        i = IPAddress(self._client, result["address"], result)
         return i
 
-    def rebuild(self, image, root_pass=None, authorized_keys=None, **kwargs):
+    def rebuild(
+        self,
+        image,
+        root_pass=None,
+        authorized_keys=None,
+        disk_encryption: Optional[
+            Union[InstanceDiskEncryptionType, str]
+        ] = None,
+        authorized_users: Optional[List[str]] = None,
+        **kwargs,
+    ):
         """
         Rebuilding an Instance deletes all existing Disks and Configs and deploys
         a new :any:`Image` to it.  This can be used to reset an existing
         Instance or to install an Image on an empty Instance.
 
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/post-rebuild-linode-instance
+
         :param image: The Image to deploy to this Instance
         :type image: str or Image
-        :param root_pass: The root password for the newly rebuilt Instance.  If
-                          omitted, a password will be generated and returned.
+        :param root_pass: The root password for the newly rebuilt Instance.  At least
+                          one of root_pass, authorized_users, or authorized_keys must be provided.
         :type root_pass: str
         :param authorized_keys: The ssh public keys to install in the linode's
                                 /root/.ssh/authorized_keys file.  Each entry may
                                 be a single key, or a path to a file containing
                                 the key.
         :type authorized_keys: list or str
+        :param authorized_users: A list of usernames whose keys should be installed
+                                 as trusted for the root user.  These user's keys
+                                 should already be set up, see :any:`ProfileGroup.ssh_keys`
+                                 for details.
+        :type authorized_users: list[str]
+        :param disk_encryption: The disk encryption policy for this Linode.
+        :type disk_encryption: InstanceDiskEncryptionType or str
 
-        :returns: The newly generated password, if one was not provided
-                  (otherwise True)
-        :rtype: str or bool
+        :returns: True.
+        :rtype: bool
         """
-        ret_pass = None
-        if not root_pass:
-            ret_pass = Instance.generate_root_password()
-            root_pass = ret_pass
+        if not root_pass and not authorized_keys and not authorized_users:
+            raise ValueError(
+                "When rebuilding an Instance, at least one of "
+                "root_pass, authorized_users, or authorized_keys must be provided."
+            )
 
         authorized_keys = load_and_validate_keys(authorized_keys)
 
         params = {
-             'image': image.id if issubclass(type(image), Base) else image,
-             'root_pass': root_pass,
-             'authorized_keys': authorized_keys,
-         }
+            "image": image,
+            "root_pass": root_pass,
+            "authorized_keys": authorized_keys,
+            "disk_encryption": (
+                str(disk_encryption) if disk_encryption else None
+            ),
+            "authorized_users": authorized_users,
+        }
+
         params.update(kwargs)
 
-        result = self._client.post('{}/rebuild'.format(Instance.api_endpoint), model=self, data=params)
+        result = self._client.post(
+            "{}/rebuild".format(Instance.api_endpoint),
+            model=self,
+            data=_flatten_request_body_recursive(drop_null_keys(params)),
+        )
 
-        if not 'id' in result:
-            raise UnexpectedResponseError('Unexpected response issuing rebuild!', json=result)
+        if not "id" in result:
+            raise UnexpectedResponseError(
+                "Unexpected response issuing rebuild!", json=result
+            )
 
         # update ourself with the newly-returned information
         self._populate(result)
 
-        if not ret_pass:
-            return True
-        else:
-            return ret_pass
+        return True
 
     def rescue(self, *disks):
-        if disks:
-            disks = { x: { 'disk_id': y } for x,y in zip(('sda','sdb','sdc','sdd','sde','sdf','sdg'), disks) }
-        else:
-            disks=None
+        """
+        Rescue Mode is a safe environment for performing many system recovery and disk management
+        tasks. Rescue Mode is based on the Finnix recovery distribution, a self-contained and bootable
+        Linux distribution. You can also use Rescue Mode for tasks other than disaster recovery,
+        such as formatting disks to use different filesystems, copying data between disks, and
+        downloading files from a disk via SSH and SFTP.
 
-        result = self._client.post('{}/rescue'.format(Instance.api_endpoint), model=self,
-                                   data={ "devices": disks })
+        Note that “sdh” is reserved and unavailable during rescue.
+
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/post-rescue-linode-instance
+
+        :param disks: Devices that are either Disks or Volumes
+        :type: disks: dict
+
+        Example usage:
+            disks = {
+                "sda": {
+                    "disk_id": 124458,
+                    "volume_id": null
+                },
+                "sdb": {
+                    "disk_id": null,
+                    "volume_id": null
+                }
+            }
+        """
+
+        if disks:
+            disks = {
+                x: {"disk_id": y}
+                for x, y in zip(
+                    ("sda", "sdb", "sdc", "sdd", "sde", "sdf", "sdg"), disks
+                )
+            }
+        else:
+            disks = None
+
+        result = self._client.post(
+            "{}/rescue".format(Instance.api_endpoint),
+            model=self,
+            data={"devices": disks},
+        )
 
         return result
 
-    def kvmify(self):
-        """
-        Converts this linode to KVM from Xen
-        """
-        self._client.post('{}/kvmify'.format(Instance.api_endpoint), model=self)
-
-        return True
-
-    def mutate(self):
+    def mutate(self, allow_auto_disk_resize=True):
         """
         Upgrades this Instance to the latest generation type
+
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/post-mutate-linode-instance
+
+        :param allow_auto_disk_resize: Automatically resize disks when resizing a Linode.
+                                       When resizing down to a smaller plan your Linode’s
+                                       data must fit within the smaller disk size. Defaults to true.
+        :type: allow_auto_disk_resize: bool
+
+        :returns: True if the operation was successful.
+        :rtype: bool
         """
-        self._client.post('{}/mutate'.format(Instance.api_endpoint), model=self)
+
+        params = {"allow_auto_disk_resize": allow_auto_disk_resize}
+
+        self._client.post(
+            "{}/mutate".format(Instance.api_endpoint), model=self, data=params
+        )
 
         return True
 
-    def initiate_migration(self):
+    def initiate_migration(
+        self,
+        region=None,
+        upgrade=None,
+        migration_type: MigrationType = MigrationType.COLD,
+        placement_group: Union[
+            InstancePlacementGroupAssignment, Dict[str, Any], int
+        ] = None,
+    ):
         """
         Initiates a pending migration that is already scheduled for this Linode
         Instance
+
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/post-migrate-linode-instance
+
+        :param region: The region to which the Linode will be migrated. Must be a valid region slug.
+                       A list of regions can be viewed by using the GET /regions endpoint. A cross data
+                       center migration will cancel a pending migration that has not yet been initiated.
+                       A cross data center migration will initiate a linode_migrate_datacenter_create event.
+        :type: region: str
+
+        :param upgrade: When initiating a cross DC migration, setting this value to true will also ensure
+                        that the Linode is upgraded to the latest generation of hardware that corresponds to
+                        your Linode’s Type, if any free upgrades are available for it. If no free upgrades
+                        are available, and this value is set to true, then the endpoint will return a 400
+                        error code and the migration will not be performed. If the data center set in the
+                        region field does not allow upgrades, then the endpoint will return a 400 error
+                        code and the migration will not be performed.
+        :type: upgrade: bool
+
+        :param migration_type: The type of migration that will be used for this Linode migration.
+                               Customers can only use this param when activating a support-created migration.
+                               Customers can choose between a cold and warm migration, cold is the default type.
+        :type: migration_type: str
+
+        :param placement_group: Information about the placement group to create this instance under.
+        :type placement_group: Union[InstancePlacementGroupAssignment, Dict[str, Any], int]
         """
-        self._client.post('{}/migrate'.format(Instance.api_endpoint), model=self)
 
-    def clone(self, to_linode=None, region=None, service=None, configs=[], disks=[],
-            label=None, group=None, with_backups=None):
-        """ Clones this linode into a new linode or into a new linode in the given region """
+        params = {
+            "region": region,
+            "upgrade": upgrade,
+            "type": migration_type,
+            "placement_group": _expand_placement_group_assignment(
+                placement_group
+            ),
+        }
+
+        self._client.post(
+            "{}/migrate".format(Instance.api_endpoint),
+            model=self,
+            data=_flatten_request_body_recursive(drop_null_keys(params)),
+        )
+
+    def firewalls(self):
+        """
+        View Firewall information for Firewalls associated with this Linode.
+
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/get-linode-firewalls
+
+        :returns: A List of Firewalls of the Linode Instance.
+        :rtype: List[Firewall]
+        """
+
+        result = self._client.get(
+            "{}/firewalls".format(Instance.api_endpoint), model=self
+        )
+
+        return [
+            Firewall(self._client, firewall["id"])
+            for firewall in result["data"]
+        ]
+
+    def apply_firewalls(self):
+        """
+        Reapply assigned firewalls to a Linode in case they were not applied successfully.
+
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/post-apply-firewalls
+
+        :returns: Returns True if the operation was successful
+        :rtype: bool
+        """
+
+        self._client.post(
+            "{}/firewalls/apply".format(Instance.api_endpoint), model=self
+        )
+
+        return True
+
+    def nodebalancers(self):
+        """
+        View a list of NodeBalancers that are assigned to this Linode and readable by the requesting User.
+
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/get-linode-node-balancers
+
+        :returns: A List of Nodebalancers of the Linode Instance.
+        :rtype: List[Nodebalancer]
+        """
+
+        result = self._client.get(
+            "{}/nodebalancers".format(Instance.api_endpoint), model=self
+        )
+
+        return [
+            NodeBalancer(self._client, nodebalancer["id"])
+            for nodebalancer in result["data"]
+        ]
+
+    def volumes(self):
+        """
+        View Block Storage Volumes attached to this Linode.
+
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/get-linode-volumes
+
+        :returns: A List of Volumes of the Linode Instance.
+        :rtype: List[Volume]
+        """
+        from linode_api4.objects import (  # pylint: disable=import-outside-toplevel
+            Volume,
+        )
+
+        result = self._client.get(
+            "{}/volumes".format(Instance.api_endpoint), model=self
+        )
+
+        return [Volume(self._client, volume["id"]) for volume in result["data"]]
+
+    def clone(
+        self,
+        to_linode=None,
+        region=None,
+        instance_type=None,
+        configs=None,
+        disks=None,
+        label=None,
+        group=None,
+        with_backups=None,
+        placement_group: Union[
+            InstancePlacementGroupAssignment,
+            "PlacementGroup",
+            Dict[str, Any],
+            int,
+        ] = None,
+    ):
+        """
+        Clones this linode into a new linode or into a new linode in the given region
+
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/post-clone-linode-instance
+
+        :param to_linode: If an existing Linode is the target for the clone, the ID of that
+                          Linode. The existing Linode must have enough resources to accept the clone.
+        :type: to_linode: int
+
+        :param region: This is the Region where the Linode will be deployed. Region can only be
+                       provided and is required when cloning to a new Linode.
+        :type: region: str
+
+        :param instance_type: A Linode’s Type determines what resources are available to it, including disk space,
+                              memory, and virtual cpus. The amounts available to a specific Linode are
+                              returned as specs on the Linode object.
+        :type: instance_type: str
+
+        :param configs: An array of configuration profile IDs.
+        :type: configs: List of int
+
+        :param disks: An array of disk IDs.
+        :type: disks: List of int
+
+        :param label: The label to assign this Linode when cloning to a new Linode.
+        :type: label: str
+
+        :param group: A label used to group Linodes for display. Linodes are not required to have a group.
+        :type: group: str
+
+        :param with_backups: If this field is set to true, the created Linode will automatically be
+                             enrolled in the Linode Backup service. This will incur an additional charge.
+        :type: with_backups: bool
+
+        :param placement_group: Information about the placement group to create this instance under.
+        :type placement_group: Union[InstancePlacementGroupAssignment, PlacementGroup, Dict[str, Any], int]
+
+        :returns: The cloned Instance.
+        :rtype: Instance
+        """
         if to_linode and region:
-            raise ValueError('You may only specify one of "to_linode" and "region"')
+            raise ValueError(
+                'You may only specify one of "to_linode" and "region"'
+            )
 
-        if region and not service:
+        configs = [] if configs is None else configs
+        disks = [] if disks is None else disks
+
+        if region and not instance_type:
             raise ValueError('Specifying a region requires a "service" as well')
 
-        if not isinstance(configs, list) and not isinstance(configs, PaginatedList):
+        if not isinstance(configs, list) and not isinstance(
+            configs, PaginatedList
+        ):
             configs = [configs]
         if not isinstance(disks, list) and not isinstance(disks, PaginatedList):
             disks = [disks]
 
-        cids = [ c.id if issubclass(type(c), Base) else c for c in configs ]
-        dids = [ d.id if issubclass(type(d), Base) else d for d in disks ]
-
         params = {
-            "linode_id": to_linode.id if issubclass(type(to_linode), Base) else to_linode,
-            "region": region.id if issubclass(type(region), Base) else region,
-            "type": service.id if issubclass(type(service), Base) else service,
-            "configs": cids if cids else None,
-            "disks": dids if dids else None,
+            "linode_id": to_linode,
+            "region": region,
+            "type": instance_type,
+            "configs": configs,
+            "disks": disks,
             "label": label,
             "group": group,
             "with_backups": with_backups,
+            "placement_group": _expand_placement_group_assignment(
+                placement_group
+            ),
         }
 
-        result = self._client.post('{}/clone'.format(Instance.api_endpoint), model=self, data=params)
+        result = self._client.post(
+            "{}/clone".format(Instance.api_endpoint),
+            model=self,
+            data=_flatten_request_body_recursive(drop_null_keys(params)),
+        )
 
-        if not 'id' in result:
-            raise UnexpectedResponseError('Unexpected response cloning Instance!', json=result)
+        if not "id" in result:
+            raise UnexpectedResponseError(
+                "Unexpected response cloning Instance!", json=result
+            )
 
-        l = Instance(self._client, result['id'], result)
+        l = Instance(self._client, result["id"], result)
         return l
 
     @property
     def stats(self):
         """
         Returns the JSON stats for this Instance
+
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/get-linode-stats
+
+        :returns: The JSON stats for this Instance
+        :rtype: dict
         """
         # TODO - this would be nicer if we formatted the stats
-        return self._client.get('{}/stats'.format(Instance.api_endpoint), model=self)
+        return self._client.get(
+            "{}/stats".format(Instance.api_endpoint), model=self
+        )
+
+    @property
+    def lke_cluster(self) -> Optional["LKECluster"]:
+        """
+        Returns the LKE Cluster this Instance is a node of.
+
+        :returns: The LKE Cluster this Instance is a node of.
+        :rtype: Optional[LKECluster]
+        """
+
+        # Local import to prevent circular dependency
+        from linode_api4.objects.lke import (  # pylint: disable=import-outside-toplevel
+            LKECluster,
+        )
+
+        return LKECluster(self._client, self.lke_cluster_id)
 
     def stats_for(self, dt):
         """
         Returns stats for the month containing the given datetime
+
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/get-linode-stats-by-year-month
+
+        :param dt: A Datetime for which to return statistics
+        :type: dt: Datetime
+
+        :returns: The JSON stats for this Instance at the specified Datetime
+        :rtype: dict
         """
         # TODO - this would be nicer if we formatted the stats
         if not isinstance(dt, datetime):
-            raise TypeError('stats_for requires a datetime object!')
-        return self._client.get('{}/stats/'.format(dt.strftime('%Y/%m')))
+            raise TypeError("stats_for requires a datetime object!")
+        return self._client.get(
+            "{}/stats/{}".format(
+                Instance.api_endpoint, parse.quote(dt.strftime("%Y/%m"))
+            ),
+            model=self,
+        )
+
+    def interface_create(
+        self,
+        firewall: Optional[Union[Firewall, int]] = None,
+        default_route: Optional[
+            Union[Dict[str, Any], LinodeInterfaceDefaultRouteOptions]
+        ] = None,
+        public: Optional[
+            Union[Dict[str, Any], LinodeInterfacePublicOptions]
+        ] = None,
+        vlan: Optional[
+            Union[Dict[str, Any], LinodeInterfaceVLANOptions]
+        ] = None,
+        vpc: Optional[Union[Dict[str, Any], LinodeInterfaceVPCOptions]] = None,
+        **kwargs,
+    ) -> LinodeInterface:
+        """
+        Creates a new interface under this Linode.
+        Linode interfaces are not interchangeable with Config interfaces.
+
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/post-linode-interface
+
+        Example: Creating a simple public interface for this Linode::
+
+            interface = instance.interface_create(
+                default_route=LinodeInterfaceDefaultRouteOptions(
+                    ipv4=True,
+                    ipv6=True
+                ),
+                public=LinodeInterfacePublicOptions()
+            )
+
+        Example: Creating a simple VPC interface for this Linode::
+
+            interface = instance.interface_create(
+                default_route=LinodeInterfaceDefaultRouteOptions(
+                    ipv4=True
+                ),
+                vpc=LinodeInterfaceVPCOptions(
+                    subnet_id=12345
+                )
+            )
+
+        Example: Creating a simple VLAN interface for this Linode::
+
+            interface = instance.interface_create(
+                default_route=LinodeInterfaceDefaultRouteOptions(
+                    ipv4=True
+                ),
+                vlan=LinodeInterfaceVLANOptions(
+                    vlan_label="my-vlan"
+                )
+            )
+
+        :param firewall: The firewall this interface should be assigned to.
+        :param default_route: The desired default route configuration of the new interface.
+        :param public: The public-specific configuration of the new interface.
+                    If set, the new instance will be a public interface.
+        :param vlan: The VLAN-specific configuration of the new interface.
+                  If set, the new instance will be a VLAN interface.
+        :param vpc: The VPC-specific configuration of the new interface.
+                    If set, the new instance will be a VPC interface.
+
+        .. note::
+           RDMA VPC interfaces (``rdma_vpc``) cannot be added via this
+           endpoint. They may only be specified at instance creation time via
+           :func:`linode_api4.LinodeGroup.instance_create`.
+
+        :returns: The newly created Linode Interface.
+        :rtype: LinodeInterface
+        """
+
+        if kwargs.get("rdma_vpc") is not None:
+            raise ValueError(
+                "RDMA VPC interfaces (rdma_vpc) cannot be added via "
+                "interface_create(). They may only be specified at instance "
+                "creation time via LinodeGroup.instance_create()."
+            )
+
+        params = {
+            "firewall_id": firewall,
+            "default_route": default_route,
+            "public": public,
+            "vlan": vlan,
+            "vpc": vpc,
+        }
+
+        params.update(kwargs)
+
+        result = self._client.post(
+            "{}/interfaces".format(Instance.api_endpoint),
+            model=self,
+            data=drop_null_keys(_flatten_request_body_recursive(params)),
+        )
+
+        if "id" not in result:
+            raise UnexpectedResponseError(
+                "Unexpected response creating interface!", json=result
+            )
+
+        return LinodeInterface(self._client, result["id"], self.id, json=result)
+
+    @property
+    def interfaces_settings(self) -> LinodeInterfacesSettings:
+        """
+        The settings for all interfaces under this Linode.
+
+        :returns: The settings for instance-level interface settings for this Linode.
+        :rtype: LinodeInterfacesSettings
+        """
+
+        # NOTE: We do not implement this as a Property because Property does
+        # not currently have a mechanism for 1:1 sub-entities.
+
+        if not hasattr(self, "_interfaces_settings"):
+            self._set(
+                "_interfaces_settings",
+                # We don't use lazy loading here because it can trigger a known issue
+                # where setting fields for updates before the entity has been lazy loaded
+                # causes the user's value to be discarded.
+                self._client.load(LinodeInterfacesSettings, self.id),
+            )
+
+        return self._interfaces_settings
+
+    @property
+    def linode_interfaces(self) -> Optional[list[LinodeInterface]]:
+        """
+        All interfaces for this Linode.
+
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/get-linode-interface
+
+        :returns: An ordered list of linode interfaces under this Linode. If the linode is with legacy config interfaces, returns None.
+        :rtype: Optional[list[LinodeInterface]]
+        """
+
+        if self.interface_generation != InterfaceGeneration.LINODE:
+            return None
+
+        if not hasattr(self, "_interfaces"):
+            result = self._client.get(
+                "{}/interfaces".format(Instance.api_endpoint),
+                model=self,
+            )
+            if "interfaces" not in result:
+                raise UnexpectedResponseError(
+                    "Got unexpected response when retrieving Linode interfaces",
+                    json=result,
+                )
+
+            self._set(
+                "_interfaces",
+                [
+                    LinodeInterface(
+                        self._client, iface["id"], self.id, json=iface
+                    )
+                    for iface in result["interfaces"]
+                ],
+            )
+
+        return self._interfaces
+
+    def upgrade_interfaces(
+        self,
+        config: Optional[Union[Config, int]] = None,
+        dry_run: bool = False,
+        **kwargs,
+    ) -> UpgradeInterfacesResult:
+        """
+        Automatically upgrades all legacy config interfaces of a
+        single configuration profile to Linode interfaces.
+
+        NOTE: If dry_run is True, interfaces in the result will be
+              of type MappedObject rather than LinodeInterface.
+
+        API Documentation: https://techdocs.akamai.com/linode-api/reference/post-upgrade-linode-interfaces
+
+        :param config: The configuration profile the legacy interfaces to
+                       upgrade are under.
+        :type config: Config or int
+        :param dry_run: Whether this operation should be a dry run,
+                        which will return the interfaces that would be
+                        created if the operation were completed.
+        :type dry_run: bool
+
+        :returns: Information about the newly upgraded interfaces.
+        :rtype: UpgradeInterfacesResult
+        """
+        params = {"config_id": config, "dry_run": dry_run}
+
+        params.update(kwargs)
+
+        result = self._client.post(
+            "{}/upgrade-interfaces".format(Instance.api_endpoint),
+            model=self,
+            data=_flatten_request_body_recursive(drop_null_keys(params)),
+        )
+
+        # This resolves an edge case where `result["interfaces"]` persists across
+        # multiple calls, which can cause parsing errors when expanding them below.
+        result = copy.deepcopy(result)
+
+        self.invalidate()
+
+        # We don't convert interface dicts to LinodeInterface objects on dry runs
+        # actual API entities aren't created.
+        if dry_run:
+            result["interfaces"] = [
+                MappedObject(**iface) for iface in result["interfaces"]
+            ]
+        else:
+            result["interfaces"] = [
+                LinodeInterface(self._client, iface["id"], self.id, iface)
+                for iface in result["interfaces"]
+            ]
+
+        return UpgradeInterfacesResult.from_json(result)
 
 
 class UserDefinedFieldType(Enum):
@@ -743,7 +2276,8 @@ class UserDefinedFieldType(Enum):
     select_one = 2
     select_many = 3
 
-class UserDefinedField():
+
+class UserDefinedField:
     def __init__(self, name, label, example, field_type, choices=None):
         self.name = name
         self.label = label
@@ -752,24 +2286,37 @@ class UserDefinedField():
         self.choices = choices
 
     def __repr__(self):
-        return "{}({}): {}".format(self.label, self.field_type.name, self.example)
+        return "{}({}): {}".format(
+            self.label, self.field_type.name, self.example
+        )
+
 
 class StackScript(Base):
-    api_endpoint = '/linode/stackscripts/{id}'
+    """
+    A script allowing users to reproduce specific software configurations
+    when deploying Compute Instances, with more user control than static system images.
+
+    API Documentation: https://techdocs.akamai.com/linode-api/reference/get-stack-script
+    """
+
+    api_endpoint = "/linode/stackscripts/{id}"
     properties = {
         "user_defined_fields": Property(),
-        "label": Property(mutable=True, filterable=True),
+        "label": Property(mutable=True),
         "rev_note": Property(mutable=True),
-        "username": Property(filterable=True),
+        "username": Property(),
         "user_gravatar_id": Property(),
-        "is_public": Property(mutable=True, filterable=True),
+        "is_public": Property(mutable=True),
         "created": Property(is_datetime=True),
         "deployments_active": Property(),
         "script": Property(mutable=True),
-        "images": Property(mutable=True, filterable=True), # TODO make slug_relationship
+        "images": Property(
+            mutable=True, unordered=True
+        ),  # TODO make slug_relationship
         "deployments_total": Property(),
-        "description": Property(mutable=True, filterable=True),
+        "description": Property(mutable=True),
         "updated": Property(is_datetime=True),
+        "mine": Property(),
     }
 
     def _populate(self, json):
@@ -783,23 +2330,65 @@ class StackScript(Base):
         for udf in self.user_defined_fields:
             t = UserDefinedFieldType.text
             choices = None
-            if hasattr(udf, 'oneof'):
+            if hasattr(udf, "oneof"):
                 t = UserDefinedFieldType.select_one
-                choices = udf.oneof.split(',')
-            elif hasattr(udf, 'manyof'):
+                choices = udf.oneof.split(",")
+            elif hasattr(udf, "manyof"):
                 t = UserDefinedFieldType.select_many
-                choices = udf.manyof.split(',')
+                choices = udf.manyof.split(",")
 
-            mapped_udfs.append(UserDefinedField(udf.name,
-                    udf.label if hasattr(udf, 'label') else None,
-                    udf.example if hasattr(udf, 'example') else None,
-                    t, choices=choices))
+            mapped_udfs.append(
+                UserDefinedField(
+                    udf.name,
+                    udf.label if hasattr(udf, "label") else None,
+                    udf.example if hasattr(udf, "example") else None,
+                    t,
+                    choices=choices,
+                )
+            )
 
-        self._set('user_defined_fields', mapped_udfs)
-        ndist = [ Image(self._client, d) for d in self.images ]
-        self._set('images', ndist)
+        self._set("user_defined_fields", mapped_udfs)
+        ndist = [Image(self._client, d) for d in self.images]
+        self._set("images", ndist)
 
-    def _serialize(self):
-        dct = Base._serialize(self)
-        dct['images'] = [ d.id for d in self.images ]
+    def _serialize(self, is_put: bool = False):
+        dct = Base._serialize(self, is_put=is_put)
+        dct["images"] = [d.id for d in self.images]
         return dct
+
+
+def _expand_placement_group_assignment(
+    pg: Union[
+        InstancePlacementGroupAssignment, "PlacementGroup", Dict[str, Any], int
+    ],
+) -> Optional[Dict[str, Any]]:
+    """
+    Expands the placement group argument into a dict for use in an API request body.
+
+    :param pg: The placement group argument to be expanded.
+    :type pg: Union[InstancePlacementGroupAssignment, PlacementGroup, Dict[str, Any], int]
+
+    :returns: The expanded placement group.
+    :rtype: Optional[Dict[str, Any]]
+    """
+    # Workaround to avoid circular import
+    from linode_api4.objects.placement import (  # pylint: disable=import-outside-toplevel
+        PlacementGroup,
+    )
+
+    if pg is None:
+        return None
+
+    if isinstance(pg, dict):
+        return pg
+
+    if isinstance(pg, InstancePlacementGroupAssignment):
+        return pg.dict
+
+    if isinstance(pg, PlacementGroup):
+        return {"id": pg.id}
+
+    if isinstance(pg, int):
+        return {"id": pg}
+
+    raise TypeError(f"Invalid type for Placement Group: {type(pg)}")
