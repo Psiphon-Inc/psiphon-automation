@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
-from importlib.metadata import version
+from importlib.metadata import version, PackageNotFoundError
 from typing import BinaryIO, List, Optional, Tuple
 from urllib import parse
 
@@ -40,7 +40,10 @@ from linode_api4.objects import Image, and_
 from .groups.placement import PlacementAPIGroup
 from .paginated_list import PaginatedList
 
-package_version = version("linode_api4")
+try:
+    package_version = version("linode_api4")
+except PackageNotFoundError:
+    package_version = "5.46.1"
 
 logger = logging.getLogger(__name__)
 
