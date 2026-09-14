@@ -1,10 +1,11 @@
 import time
 from datetime import datetime, timedelta
+from functools import cached_property
+from typing import Any, Dict, Optional
 
-from future.utils import with_metaclass
+from linode_api4.objects.serializable import JSONObject
 
 from .filtering import FilterableMetaclass
-
 
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
 
@@ -12,26 +13,66 @@ DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
 # The interval to reload volatile properties
 volatile_refresh_timeout = timedelta(seconds=15)
 
+
+class ExplicitNullValue:
+    """
+    An explicitly null value to set a property to.
+    Instances of `NullValue` differ from None as they will be explicitly
+    included in the resource PUT requests.
+    """
+
+
 class Property:
-    def __init__(self, mutable=False, identifier=False, volatile=False, relationship=None,
-            derived_class=None, is_datetime=False, filterable=False, id_relationship=False,
-            slug_relationship=False):
+    def __init__(
+        self,
+        mutable=False,
+        identifier=False,
+        volatile=False,
+        relationship=None,
+        derived_class=None,
+        is_datetime=False,
+        id_relationship=False,
+        slug_relationship=False,
+        nullable=False,
+        unordered=False,
+        json_object=None,
+        alias_of: Optional[str] = None,
+    ):
         """
         A Property is an attribute returned from the API, and defines metadata
-        about that value.  These are expected to be used as the values of a
+        about that value. These are expected to be used as the values of a
         class-level dict named 'properties' in subclasses of Base.
 
-        mutable - This Property should be sent in a call to save()
-        identifier - This Property identifies the object in the API
-        volatile - Re-query for this Property if the local value is older than the
-            volatile refresh timeout
-        relationship - The API Object this Property represents
-        derived_class - The sub-collection type this Property represents
-        is_datetime - True if this Property should be parsed as a datetime.datetime
-        filterable - True if the API allows filtering on this property
-        id_relationship - This Property should create a relationship with this key as the ID
-            (This should be used on fields ending with '_id' only)
-        slug_relationship - This property is a slug related for a given type.
+        :param mutable: This Property should be sent in a call to save()
+        :type mutable: bool
+        :param identifier: This Property identifies the object in the API
+        :type identifier: bool
+        :param volatile: Re-query for this Property if the local value is older than the
+                         volatile refresh timeout
+        :type volatile: bool
+        :param relationship: The API Object this Property represents
+        :type relationship: type or None
+        :param derived_class: The sub-collection type this Property represents
+        :type derived_class: type or None
+        :param is_datetime: True if this Property should be parsed as a datetime.datetime
+        :type is_datetime: bool
+        :param id_relationship: This Property should create a relationship with this key as the ID
+                                (This should be used on fields ending with '_id' only)
+        :type id_relationship: type or None
+        :param slug_relationship: This property is a slug related for a given type
+        :type slug_relationship: type or None
+        :param nullable: This property can be explicitly null on PUT requests
+        :type nullable: bool
+        :param unordered: The order of this property is not significant.
+                          NOTE: This field is currently only for annotations purposes
+                          and does not influence any update or decoding/encoding logic.
+        :type unordered: bool
+        :param json_object: The JSONObject class this property should be decoded into
+        :type json_object: type or None
+        :param alias_of: The original API attribute name when the property key is aliased.
+                         This is useful when the API attribute name is a Python reserved word,
+                         allowing you to use a different key while preserving the original name.
+        :type alias_of: str or None
         """
         self.mutable = mutable
         self.identifier = identifier
@@ -39,9 +80,13 @@ class Property:
         self.relationship = relationship
         self.derived_class = derived_class
         self.is_datetime = is_datetime
-        self.filterable = filterable
         self.id_relationship = id_relationship
         self.slug_relationship = slug_relationship
+        self.nullable = nullable
+        self.unordered = unordered
+        self.json_class = json_object
+        self.alias_of = alias_of
+
 
 class MappedObject:
     """
@@ -55,6 +100,7 @@ class MappedObject:
 
     object.this # "that"
     """
+
     def __init__(self, **vals):
         self._expand_vals(self.__dict__, **vals)
 
@@ -64,35 +110,86 @@ class MappedObject:
                 vals[v] = MappedObject(**vals[v])
             elif type(vals[v]) is list:
                 # oh mama
-                vals[v] = [ MappedObject(**i) if type(i) is dict else i for i in vals[v] ]
+                vals[v] = [
+                    MappedObject(**i) if type(i) is dict else i for i in vals[v]
+                ]
         target.update(vals)
 
     def __repr__(self):
         return "Mapping containing {}".format(vars(self).keys())
 
-class Base(object, with_metaclass(FilterableMetaclass)):
+    @staticmethod
+    def _flatten_base_subclass(obj: "Base") -> Optional[Dict[str, Any]]:
+        if obj is None:
+            return None
+
+        # If the object hasn't already been lazy-loaded,
+        # manually refresh it
+        if not getattr(obj, "_populated", False):
+            obj._api_get()
+
+        return obj._raw_json
+
+    @property
+    def dict(self):
+        return self._serialize()
+
+    def _serialize(self, is_put: bool = False) -> Dict[str, Any]:
+        result = vars(self).copy()
+        cls = type(self)
+
+        for k, v in result.items():
+            if isinstance(v, cls):
+                result[k] = v.dict
+            elif isinstance(v, list):
+                result[k] = [
+                    (
+                        item._serialize(is_put=is_put)
+                        if isinstance(item, (cls, JSONObject))
+                        else (
+                            self._flatten_base_subclass(item)
+                            if isinstance(item, Base)
+                            else item
+                        )
+                    )
+                    for item in v
+                ]
+            elif isinstance(v, Base):
+                result[k] = self._flatten_base_subclass(v)
+            elif isinstance(v, JSONObject):
+                result[k] = v._serialize(is_put=is_put)
+
+        return result
+
+
+class Base(object, metaclass=FilterableMetaclass):
     """
     The Base class knows how to look up api properties of a model, and lazy-load them.
     """
+
     properties = {}
 
-    def __init__(self, client, id, json={}):
-        self._set('_populated', False)
-        self._set('_last_updated', datetime.min)
-        self._set('_client', client)
+    def __init__(self, client: object, id: object, json: object = {}) -> object:
+        self._set("_populated", False)
+        self._set("_last_updated", datetime.min)
+        self._set("_client", client)
+        self._set("_changed", False)
 
         #: self._raw_json is a copy of the json received from the API on population,
         #: and cannot be relied upon to be current.  Local changes to mutable fields
         #: that have not been saved will not be present, and volatile fields will not
         #: be updated on access.
-        self._set('_raw_json', None)
+        self._set("_raw_json", None)
 
-        for prop in type(self).properties:
-            self._set(prop, None)
+        for k, v in type(self).properties.items():
+            if v.identifier:
+                continue
 
-        self._set('id', id)
-        if hasattr(type(self), 'id_attribute'):
-            self._set(getattr(type(self), 'id_attribute'), id)
+            self._set(k, None)
+
+        self._set("id", id)
+        if hasattr(type(self), "id_attribute"):
+            self._set(getattr(type(self), "id_attribute"), id)
 
         self._populate(json)
 
@@ -104,30 +201,48 @@ class Base(object, with_metaclass(FilterableMetaclass)):
         if name in type(self).properties.keys():
             # We are accessing a Property
             if type(self).properties[name].identifier:
-                pass # don't load identifiers from the server, we have those
-            elif (object.__getattribute__(self, name) is None and not self._populated \
-                    or type(self).properties[name].derived_class) \
-                    or (type(self).properties[name].volatile \
-                    and object.__getattribute__(self, '_last_updated')
-                    + volatile_refresh_timeout < datetime.now()):
+                pass  # don't load identifiers from the server, we have those
+            elif (
+                object.__getattribute__(self, name) is None
+                and not self._populated
+                or type(self).properties[name].derived_class
+            ) or (
+                type(self).properties[name].volatile
+                and object.__getattribute__(self, "_last_updated")
+                + volatile_refresh_timeout
+                < datetime.now()
+            ):
                 # needs to be loaded from the server
                 if type(self).properties[name].derived_class:
-                    #load derived object(s)
-                    self._set(name, type(self).properties[name].derived_class
-                            ._api_get_derived(self, getattr(self, '_client')))
+                    # load derived object(s)
+                    self._set(
+                        name,
+                        type(self)
+                        .properties[name]
+                        .derived_class._api_get_derived(
+                            self, getattr(self, "_client")
+                        ),
+                    )
                 else:
                     self._api_get()
         elif "{}_id".format(name) in type(self).properties.keys():
             # possible id-based relationship
-            related_type = type(self).properties['{}_id'.format(name)].id_relationship
+            related_type = (
+                type(self).properties["{}_id".format(name)].id_relationship
+            )
             if related_type:
                 # no id, no related object
                 if not getattr(self, "{}_id".format(name)):
                     return None
                 # it is a relationship
-                relcache_name = '_{}_relcache'.format(name)
+                relcache_name = "_{}_relcache".format(name)
                 if not hasattr(self, relcache_name):
-                    self._set(relcache_name, related_type(self._client, getattr(self, '{}_id'.format(name))))
+                    self._set(
+                        relcache_name,
+                        related_type(
+                            self._client, getattr(self, "{}_id".format(name))
+                        ),
+                    )
                 return object.__getattribute__(self, relcache_name)
 
         return object.__getattribute__(self, name)
@@ -142,20 +257,75 @@ class Base(object, with_metaclass(FilterableMetaclass)):
         """
         Enforces allowing editing of only Properties defined as mutable
         """
-        if name in type(self).properties.keys() and not type(self).properties[name].mutable:
-            raise AttributeError("'{}' is not a mutable field of '{}'"
-                .format(name, type(self).__name__))
+
+        if name in type(self).properties.keys():
+            if not type(self).properties[name].mutable:
+                raise AttributeError(
+                    "'{}' is not a mutable field of '{}'".format(
+                        name, type(self).__name__
+                    )
+                )
+
+            self._changed = True
+
         self._set(name, value)
 
-    def save(self):
+    @cached_property
+    def properties_with_alias(self) -> dict[str, tuple[str, Property]]:
         """
-        Send this object's mutable values to the server in a PUT request
-        """
-        resp = self._client.put(type(self).api_endpoint, model=self,
-            data=self._serialize())
+        Gets a dictionary of aliased properties for this object.
 
-        if 'error' in resp:
+        :returns: A dict mapping original API attribute names to their alias names and
+                  corresponding Property instances.
+        :rtype: dict[str, tuple[str, Property]]
+        """
+        return {
+            prop.alias_of: (alias, prop)
+            for alias, prop in type(self).properties.items()
+            if prop.alias_of
+        }
+
+    def save(self, force=True) -> bool:
+        """
+        Send this object's mutable values to the server in a PUT request.
+
+        :param force: If true, this method will always send a PUT request regardless of
+                      whether the field has been explicitly updated. For optimization
+                      purposes, this field should be set to false for typical update
+                      operations. (Defaults to True)
+        :type force: bool
+        """
+        if not force and not self._changed:
             return False
+
+        data = None
+        if not self._populated:
+            data = {
+                a: object.__getattribute__(self, a)
+                for a in type(self).properties
+                if type(self).properties[a].mutable
+                and object.__getattribute__(self, a) is not None
+            }
+
+            for key, value in data.items():
+                if (
+                    isinstance(value, ExplicitNullValue)
+                    or value == ExplicitNullValue
+                ):
+                    data[key] = None
+
+            # Ensure we serialize any values that may not be already serialized
+            data = _flatten_request_body_recursive(data, is_put=True)
+        else:
+            data = self._serialize(is_put=True)
+
+        resp = self._client.put(type(self).api_endpoint, model=self, data=data)
+
+        if "error" in resp:
+            return False
+
+        self._set("_changed", False)
+
         return True
 
     def delete(self):
@@ -164,7 +334,7 @@ class Base(object, with_metaclass(FilterableMetaclass)):
         """
         resp = self._client.delete(type(self).api_endpoint, model=self)
 
-        if 'error' in resp:
+        if "error" in resp:
             return False
         self.invalidate()
         return True
@@ -174,23 +344,46 @@ class Base(object, with_metaclass(FilterableMetaclass)):
         Invalidates all non-identifier Properties this object has locally,
         causing the next access to re-fetch them from the server
         """
-        for key in [k for k in type(self).properties.keys()
-                if not type(self).properties[k].identifier]:
+        for key in [
+            k
+            for k in type(self).properties.keys()
+            if not type(self).properties[k].identifier
+        ]:
             self._set(key, None)
 
-        self._set('_populated', False)
+        self._set("_populated", False)
 
-    def _serialize(self):
+    def _serialize(self, is_put: bool = False):
         """
         A helper method to build a dict of all mutable Properties of
         this object
         """
-        result = { a: getattr(self, a) for a in type(self).properties
-            if type(self).properties[a].mutable }
 
+        result = {}
+
+        # Aggregate mutable values into a dict
+        for k, v in type(self).properties.items():
+            if not v.mutable:
+                continue
+
+            value = getattr(self, k)
+
+            if not v.nullable and (value is None or value == ""):
+                continue
+
+            # Let's allow explicit null values as both classes and instances
+            if (
+                isinstance(value, ExplicitNullValue)
+                or value == ExplicitNullValue
+            ):
+                value = None
+
+            api_key = k if not v.alias_of else v.alias_of
+            result[api_key] = value
+
+        # Resolve the underlying IDs of results
         for k, v in result.items():
-            if isinstance(v, Base):
-                result[k] = v.id
+            result[k] = _flatten_request_body_recursive(v, is_put=is_put)
 
         return result
 
@@ -211,58 +404,92 @@ class Base(object, with_metaclass(FilterableMetaclass)):
             return
 
         # hide the raw JSON away in case someone needs it
-        self._set('_raw_json', json)
+        self._set("_raw_json", json)
+        self._set("_updated", False)
 
-        for key in json:
-            if key in (k for k in type(self).properties.keys()
-                    if not type(self).properties[k].identifier):
-                if type(self).properties[key].relationship \
-                    and not json[key] is None:
-                    if isinstance(json[key], list):
+        valid_keys = set(
+            k
+            for k, v in type(self).properties.items()
+            if (not v.identifier) and (not v.alias_of)
+        ) | set(self.properties_with_alias.keys())
+
+        for api_key in json:
+            if api_key in valid_keys:
+                prop = type(self).properties.get(api_key)
+                prop_key = api_key
+
+                if prop is None:
+                    prop_key, prop = self.properties_with_alias[api_key]
+
+                if prop.relationship and json[api_key] is not None:
+                    if isinstance(json[api_key], list):
                         objs = []
-                        for d in json[key]:
-                            if not 'id' in d:
+                        for d in json[api_key]:
+                            if not "id" in d:
                                 continue
-                            new_class = type(self).properties[key].relationship
-                            obj = new_class.make_instance(d['id'],
-                                    getattr(self,'_client'))
+                            new_class = prop.relationship
+                            obj = new_class.make_instance(
+                                d["id"], getattr(self, "_client")
+                            )
                             if obj:
                                 obj._populate(d)
                             objs.append(obj)
-                        self._set(key, objs)
+                        self._set(prop_key, objs)
                     else:
-                        if isinstance(json[key], dict):
-                            related_id = json[key]['id']
+                        if isinstance(json[api_key], dict):
+                            related_id = json[api_key]["id"]
                         else:
-                            related_id = json[key]
-                        new_class = type(self).properties[key].relationship
-                        obj = new_class.make_instance(related_id, getattr(self,'_client'))
-                        if obj and isinstance(json[key], dict):
-                            obj._populate(json[key])
-                        self._set(key, obj)
-                elif  type(self).properties[key].slug_relationship \
-                        and not json[key] is None:
+                            related_id = json[api_key]
+                        new_class = prop.relationship
+                        obj = new_class.make_instance(
+                            related_id, getattr(self, "_client")
+                        )
+                        if obj and isinstance(json[api_key], dict):
+                            obj._populate(json[api_key])
+                        self._set(prop_key, obj)
+                elif prop.slug_relationship and json[api_key] is not None:
                     # create an object of the expected type with the given slug
-                    self._set(key, type(self).properties[key].slug_relationship(self._client, json[key]))
-                elif type(json[key]) is dict:
-                    self._set(key, MappedObject(**json[key]))
-                elif type(json[key]) is list:
+                    self._set(
+                        prop_key,
+                        prop.slug_relationship(self._client, json[api_key]),
+                    )
+                elif prop.json_class:
+                    json_class = prop.json_class
+                    json_value = json[api_key]
+
+                    # build JSON object
+                    if isinstance(json_value, list):
+                        # We need special handling for list responses
+                        value = [json_class.from_json(v) for v in json_value]
+                    else:
+                        value = json_class.from_json(json_value)
+
+                    self._set(prop_key, value)
+                elif type(json[api_key]) is dict:
+                    self._set(prop_key, MappedObject(**json[api_key]))
+                elif type(json[api_key]) is list:
                     # we're going to use MappedObject's behavior with lists to
                     # expand these, then grab the resulting value to set
-                    mapping = MappedObject(_list=json[key])
-                    self._set(key, mapping._list) # pylint: disable=no-member
-                elif type(self).properties[key].is_datetime:
+                    mapping = MappedObject(_list=json[api_key])
+                    self._set(
+                        prop_key, mapping._list
+                    )  # pylint: disable=no-member
+                elif prop.is_datetime:
                     try:
-                        t = time.strptime(json[key], DATE_FORMAT)
-                        self._set(key, datetime.fromtimestamp(time.mktime(t)))
+                        t = time.strptime(json[api_key], DATE_FORMAT)
+                        self._set(
+                            prop_key, datetime.fromtimestamp(time.mktime(t))
+                        )
                     except:
-                        #TODO - handle this better (or log it?)
-                        self._set(key, json[key])
+                        # if this came back, there's probably an issue with the
+                        # python library; a field was marked as a datetime but
+                        # wasn't in the expected format.
+                        self._set(prop_key, json[api_key])
                 else:
-                    self._set(key, json[key])
+                    self._set(prop_key, json[api_key])
 
-        self._set('_populated', True)
-        self._set('_last_updated', datetime.now())
+        self._set("_populated", True)
+        self._set("_last_updated", datetime.now())
 
     def _set(self, name, value):
         """
@@ -277,7 +504,7 @@ class Base(object, with_metaclass(FilterableMetaclass)):
         Returns a URL that will produce a list of JSON objects
         of this class' type
         """
-        return '/'.join(cls.api_endpoint.split('/')[:-1])
+        return "/".join(cls.api_endpoint.split("/")[:-1])
 
     @staticmethod
     def make(id, client, cls, parent_id=None, json=None):
@@ -292,7 +519,7 @@ class Base(object, with_metaclass(FilterableMetaclass)):
 
         :returns: An instance of cls with the given id
         """
-        from .dbase import DerivedBase # pylint: disable-all
+        from .dbase import DerivedBase  # pylint: disable-all
 
         if issubclass(cls, DerivedBase):
             return cls(client, id, parent_id, json)
@@ -316,3 +543,35 @@ class Base(object, with_metaclass(FilterableMetaclass)):
         :returns: A new instance of this type, populated with json
         """
         return Base.make(id, client, cls, parent_id=parent_id, json=json)
+
+
+def _flatten_request_body_recursive(data: Any, is_put: bool = False) -> Any:
+    """
+    This is a helper recursively flatten the given data for use in an API request body.
+
+    NOTE: This helper does NOT raise an error if an attribute is
+    not known to be JSON serializable.
+
+    :param data: Arbitrary data to flatten.
+    :return: The serialized data.
+    """
+
+    if isinstance(data, dict):
+        return {
+            k: _flatten_request_body_recursive(v, is_put=is_put)
+            for k, v in data.items()
+        }
+
+    if isinstance(data, list):
+        return [_flatten_request_body_recursive(v, is_put=is_put) for v in data]
+
+    if isinstance(data, Base):
+        return data.id
+
+    if isinstance(data, ExplicitNullValue) or data == ExplicitNullValue:
+        return None
+
+    if isinstance(data, MappedObject) or issubclass(type(data), JSONObject):
+        return data._serialize(is_put=is_put)
+
+    return data

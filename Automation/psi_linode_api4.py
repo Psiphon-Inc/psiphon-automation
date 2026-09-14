@@ -161,7 +161,13 @@ class PsiLinode:
                          'create a linode')
         assert(self.linode_list(linode.id).status == 'offline')
 
-        # linode_api.linode_update(LinodeID=new_node_id, Alert_bwquota_enabled=0, Alert_bwout_enabled=0, Alert_bwin_enabled=0) Update to disable the alert
+        # Disable all alerts notifications
+        linode.alerts.cpu = 0
+        linode.alerts.network_in = 0
+        linode.alerts.network_out = 0
+        linode.alerts.transfer_quota = 0
+        linode.alerts.io = 0
+        linode.save()
         return linode, datacenter_name, self.get_region(choice_region)
 
     def pubip_allocate(self, linode):
