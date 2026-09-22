@@ -214,7 +214,8 @@ except ImportError as error:
     print(error)
 
 
-WEBSITE_GENERATION_DIR = './website-out'
+import local_repos_config
+WEBSITE_PREBUILT_DIR = local_repos_config.WEBSITE_PREBUILT_ROOT
 
 
 EMAIL_RESPONDER_CONFIG_BUCKET_KEY = 'EmailResponder/conf.json'
@@ -3686,9 +3687,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         # it. Rather than setting flags in all of the creation
                         # methods, we'll use the above creation as the chokepoint.
                         # After this we just have to worry about website updates.
-                        # Note that this generates the site. It's not very efficient
-                        # to do that here, but it happens infrequently enough to be okay.
-                        self.update_static_site_content(sponsor, campaign, True)
+                        self.update_static_site_content(sponsor, campaign)
 
                     # Remote server list: for clients to get new servers via S3,
                     # we embed the bucket URL in the build. The remote server
@@ -3832,9 +3831,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Website
         #
         if len(self.__deploy_website_required_for_sponsors) > 0:
-            # Generate the static website from source
-            website_generator.generate(WEBSITE_GENERATION_DIR)
-
             # Iterate through a copy so that we can remove as we go
             for sponsor_id in self.__deploy_website_required_for_sponsors.copy():
                 sponsor = self.__sponsors[sponsor_id]
@@ -4028,13 +4024,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         return propagation_channel_ids, osl_ids
 
-    def update_static_site_content(self, sponsor, campaign, do_generate=False):
+    def update_static_site_content(self, sponsor, campaign):
         assert(self.is_locked)
-
-        if do_generate:
-            # Generate the static website from source
-            website_generator.generate(WEBSITE_GENERATION_DIR)
-
         assert(self.__default_email_autoresponder_account)
         get_new_version_email = self.__default_email_autoresponder_account.email_address
         if type(campaign.account) == EmailPropagationAccount:
@@ -4050,7 +4041,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         self.__aws_account,
                         [campaign.s3_bucket_name, campaign.alternate_s3_bucket_name],
                         campaign.custom_download_site,
-                        WEBSITE_GENERATION_DIR,
+                        WEBSITE_PREBUILT_DIR,
                         sponsor_website_banner,
                         sponsor_website_banner_link,
                         get_new_version_email)
