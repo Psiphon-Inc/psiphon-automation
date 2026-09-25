@@ -51,6 +51,7 @@ from builtins import input
 import psi_utils
 import psi_ops_cms
 import psi_ops_discovery
+import psi_ops_mtls_tools
 
 # Import library based on version
 try:
@@ -286,7 +287,7 @@ Host = psi_utils.recordtype(
     'inproxy_broker_session_private_key, inproxy_broker_public_key, inproxy_broker_obfuscation_root_secret, ' +
     'inproxy_server_session_private_key, inproxy_server_public_key, inproxy_server_obfuscation_root_secret, ' +
     'is_inproxy, inproxy_proxy_session_private_key, inproxy_proxy_public_key, ' +
-    'run_packet_manipulator',
+    'run_packet_manipulator, mtls_client_key, mtls_client_cert',
     default=None)
 
 Server = psi_utils.recordtype(
@@ -469,6 +470,10 @@ RoutesSigningKeyPair = psi_utils.recordtype(
     'RoutesSigningKeyPair',
     'pem_key_pair, password')
 
+MtlsCaKeyPair = psi_utils.recordtype(
+    'MtlsCaKeyPair',
+    'key, cert')
+
 
 CLIENT_PLATFORM_WINDOWS = 'Windows'
 CLIENT_PLATFORM_ANDROID = 'Android'
@@ -553,6 +558,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # and store as a tuple (<public-key>, <private-key>)
         self.__server_entry_signing_key_pair = None
 
+        # Generate mtls ca using psi_ops_mtls_tools
+        # and store as an MtlsCaKeyPair
+        self.__mtls_ca_key_pair = None
+
         self.__exchange_obfuscation_key = base64.b64encode(os.urandom(32)).decode()
 
         self.__ssh_ip_address_whitelist = []
@@ -569,7 +578,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.84'
+    class_version = '0.85'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -1051,6 +1060,12 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for server in list(self.__servers.values()) + list(self.__deleted_servers.values()):
                 server.capabilities['INPROXY-WEBRTC-FRONTED-MEEK-OSSH'] = False
             self.version = '0.84'
+        if cmp(parse_version(self.version), parse_version('0.85')) < 0:
+            self.__mtls_ca_key_pair = None
+            for host in list(self.__hosts.values()) + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
+                host.mtls_client_key = None
+                host.mtls_client_cert = None
+            self.version = '0.85'
 
 
     def initialize_plugins(self):
@@ -1795,7 +1810,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         inproxy_broker_session_private_key, inproxy_broker_public_key, inproxy_broker_obfuscation_root_secret,
                         inproxy_server_session_private_key, inproxy_server_public_key, inproxy_server_obfuscation_root_secret,
                         is_inproxy, inproxy_proxy_session_private_key, inproxy_proxy_public_key,
-                        run_packet_manipulator):
+                        run_packet_manipulator, mtls_client_key, mtls_client_cert):
         return Host(id,
                     is_TCS,
                     TCS_type,
@@ -1839,7 +1854,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     is_inproxy,
                     inproxy_proxy_session_private_key,
                     inproxy_proxy_public_key,
-                    run_packet_manipulator
+                    run_packet_manipulator,
+                    mtls_client_key,
+                    mtls_client_cert
                     )
 
     def get_server_object(self, id, host_id, ip_address, egress_ip_address, internal_ip_address, propagation_channel_id,
@@ -1936,7 +1953,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.is_inproxy,
                         host.inproxy_proxy_session_private_key,
                         host.inproxy_proxy_public_key,
-                        host.run_packet_manipulator)
+                        host.run_packet_manipulator,
+                        host.mtls_client_key,
+                        host.mtls_client_cert)
             for server in servers:
                 exp_server = (server.id,
                                 server.host_id,
@@ -2873,7 +2892,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.is_inproxy,
                         host.inproxy_proxy_session_private_key,
                         host.inproxy_proxy_public_key,
-                        host.run_packet_manipulator)
+                        host.run_packet_manipulator,
+                        host.mtls_client_key,
+                        host.mtls_client_cert)
         self.__hosts_to_remove_from_providers.add(host_copy)
 
         # Mark host and its servers as deleted in the database. We keep the
@@ -3284,6 +3305,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if rank_accum > rand:
                 break
         return choice
+
+    def __get_mtls_ca_key_pair(self):
+        if not self.__mtls_ca_key_pair:
+            assert(self.is_locked)
+            key, cert = psi_ops_mtls_tools.generate_ca()
+            self.__mtls_ca_key_pair = MtlsCaKeyPair(key, cert)
+
+        return self.__mtls_ca_key_pair
 
     def __get_remote_server_list_signing_key_pair(self):
         if not self.__remote_server_list_signing_key_pair:
@@ -4940,7 +4969,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         None, # Omit: host.is_inproxy
                                         None, # Omit: host.inproxy_proxy_session_private_key
                                         None, # Omit: host.inproxy_proxy_public_key
-                                        None # Omit: run_packet_manipulator isn't needed
+                                        None, # Omit: run_packet_manipulator isn't needed
+                                        None, # Omit: mtls_client_key isn't needed
+                                        None  # Omit: mtls_client_cert isn't needed
                                         )
 
         for server in self.__servers.values():
@@ -5208,7 +5239,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.is_inproxy,
                                             None, # Omit: host.inproxy_proxy_session_private_key
                                             None, # Omit: host.inproxy_proxy_public_key
-                                            host.run_packet_manipulator
+                                            host.run_packet_manipulator,
+                                            None, # Omit: host.mtls_client_key
+                                            None  # Omit: host.mtls_client_cert
                                             )
             copy.__hosts[host.id].logs = host.logs
 
@@ -5350,7 +5383,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.is_inproxy,
                                             None, # Omit: host.inproxy_proxy_session_private_key
                                             None, # Omit: host.inproxy_proxy_public_key
-                                            host.run_packet_manipulator
+                                            host.run_packet_manipulator,
+                                            None, # Omit: host.mtls_client_key
+                                            None  # Omit: host.mtls_client_cert
                                             )
             copy.__hosts[host.id].logs = host.logs
 
