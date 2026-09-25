@@ -24,6 +24,5 @@ git pull
 
 # Restart services to use the new code and psinet
 sudo systemctl restart s3decryptor.service
-sudo systemctl restart mailsender.service
 sudo systemctl restart autoresponder.service
 sudo systemctl restart statschecker.service

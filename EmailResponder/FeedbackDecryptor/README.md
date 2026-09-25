@@ -1,17 +1,17 @@
 # Diagnostic Feedback Decryptor
 
-This is a collection of services that monitor email and an S3 bucket for
-encrypted diagnostic feedback. They then decrypt and store that data, and then
-send an email with the data.
+This is a collection of services that monitor an S3 bucket for encrypted diagnostic feedback, then decrypt and store that data. Decrypted feedback is not emailed.
 
 
 ## How it works
 
-There are 4 services:
+There are 3 active services:
 * `s3decryptor`: Reads encrypted feedback packages from S3, parses and processes them, and stores the data in mongodb.
 * `autoresponder`: Reads mongodb to check for new feedback where the user should be send an email response.
-* `mailsender`: Reads mongodb to check for new feedback that should be formatted and emailed to the Psiphon team.
 * `statschecker`: Utility service that periodically sends feedback stats in an email to the Psiphon team.
+
+And 2 that no longer run:
+* `mailsender`: _Disabled_ in September 2026. It used to email decrypted feedback to the Psiphon team. It is no longer installed or run, and `s3decryptor` no longer queues feedback for it.
 * `maildecryptor`: _Defunct_. Feedback used to also come via email attachments, but this method is no longer used.
 
 
@@ -150,7 +150,6 @@ Use the systemd utilities. For example:
 
 ```shell
 sudo systemctl restart s3decryptor
-sudo systemctl restart mailsender
 sudo systemctl restart statschecker
 ```
 
