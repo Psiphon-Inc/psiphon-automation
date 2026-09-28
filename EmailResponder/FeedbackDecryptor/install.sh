@@ -49,12 +49,10 @@ sudo /opt/psiphon/venv/bin/pip install -r requirements.txt
 sudo mysql -u root --socket=/var/run/mysqld/mysqld.sock < sql_diagnostic_feedback_schema.sql
 
 sed "s|fill-in-with-path-to-source|`pwd`|" s3decryptor.service > s3decryptor.service.configured
-sed "s|fill-in-with-path-to-source|`pwd`|" mailsender.service > mailsender.service.configured
 sed "s|fill-in-with-path-to-source|`pwd`|" statschecker.service > statschecker.service.configured
 sed "s|fill-in-with-path-to-source|`pwd`|" autoresponder.service > autoresponder.service.configured
 
 sudo cp s3decryptor.service.configured /etc/systemd/system/s3decryptor.service
-sudo cp mailsender.service.configured /etc/systemd/system/mailsender.service
 sudo cp statschecker.service.configured /etc/systemd/system/statschecker.service
 sudo cp autoresponder.service.configured /etc/systemd/system/autoresponder.service
 rm *.service.configured
@@ -67,12 +65,10 @@ chmod 400 ../../Automation/psi_ops_stats_credentials.py
 sudo cp FeedbackDecryptorCron /etc/cron.d
 
 sudo systemctl stop s3decryptor
-sudo systemctl stop mailsender
 sudo systemctl stop statschecker
 sudo systemctl stop autoresponder
 sudo systemctl daemon-reload
 sudo systemctl enable s3decryptor
-sudo systemctl enable mailsender
 sudo systemctl enable statschecker
 sudo systemctl enable autoresponder
 
@@ -80,7 +76,6 @@ echo "Done."
 echo ""
 echo "To start the feedback processing daemons execute:"
 echo " > sudo systemctl start s3decryptor"
-echo " > sudo systemctl start mailsender"
 echo " > sudo systemctl start statschecker"
 echo " > sudo systemctl start autoresponder"
 echo ""

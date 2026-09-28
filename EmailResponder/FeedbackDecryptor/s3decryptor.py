@@ -87,19 +87,6 @@ def _bucket_iterator(bucket: 'boto3.S3.Bucket') -> str:
     logger.debug_log('_bucket_iterator end') # unreachable
 
 
-def _should_email_data(diagnostic_info) -> bool:
-    '''
-    Determine if this diagnostic info should be emailed. Not all diagnostic
-    info bundles have useful information that needs to be immediately seen by
-    a human. Additionally, trying to email too many feedbacks can produce a backlog.
-    '''
-    if diagnostic_info.get('Metadata', {}).get('appName') in ('ryve', 'conduit', 'psiphon4'):
-        return True
-    elif diagnostic_info.get('Feedback', {}).get('Message', {}).get('text') and diagnostic_info.get('Feedback', {}).get('email'):
-        return True
-    return False
-
-
 def go():
     '''
     Spawns the worker subprocesses and sends data to them.
@@ -229,11 +216,6 @@ def _process_work_items(work_queue):
                 # An error occurred or diagnostic info was a duplicate.
                 continue
 
-            if _should_email_data(diagnostic_info):
-                logger.debug_log('_process_work_items: should email')
-                # Record in the DB that the diagnostic info should be emailed
-                datastore.insert_email_diagnostic_info(record_id, None, None)
-
             # Store an autoresponder entry for this diagnostic info
             datastore.insert_autoresponder_entry(None, record_id)
 
@@ -244,10 +226,11 @@ def _process_work_items(work_queue):
             logger.error(str(e))
             try:
                 # Something bad happened while decrypting. Report it via email.
+                # The feedback package is not included, in encrypted or decrypted form.
                 sender.send_email(config.decryptedEmailRecipient,
                                   config.responseEmailAddress,
                                   'S3Decryptor: bad object',
-                                  encrypted_info_json,
+                                  '%s\nencrypted_size=%d bytes' % (e, len(encrypted_info_json)),
                                   None)  # no html body
             except Exception as e:
                 logger.exception()
@@ -277,10 +260,11 @@ def _process_work_items(work_queue):
             logger.error(str(e))
             try:
                 import traceback
+                # The feedback content is not included; only its ID.
                 sender.send_email(config.decryptedEmailRecipient,
                                   config.responseEmailAddress,
                                   'S3Decryptor: unhandled exception',
-                                  str(traceback.format_exception(type(e), e, e.__traceback__)) + '\n---\n' + str(diagnostic_info),
+                                  str(traceback.format_exception(type(e), e, e.__traceback__)) + '\n---\nfeedback id: %s' % utils.coalesce(diagnostic_info, ('Metadata', 'id')),
                                   None)  # no html body
             except Exception as e:
                 logger.exception()
