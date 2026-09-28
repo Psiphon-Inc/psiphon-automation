@@ -561,6 +561,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Generate mtls ca using psi_ops_mtls_tools
         # and store as an MtlsCaKeyPair
         self.__mtls_ca_key_pair = None
+        self.__dsl_server_ca_cert = None
 
         self.__exchange_obfuscation_key = base64.b64encode(os.urandom(32)).decode()
 
@@ -1062,6 +1063,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.version = '0.84'
         if cmp(parse_version(self.version), parse_version('0.85')) < 0:
             self.__mtls_ca_key_pair = None
+            self.__dsl_server_ca_cert = None
             for host in list(self.__hosts.values()) + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
                 host.mtls_client_key = None
                 host.mtls_client_cert = None
@@ -3312,7 +3314,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             key, cert = psi_ops_mtls_tools.generate_ca()
             self.__mtls_ca_key_pair = MtlsCaKeyPair(key, cert)
 
-        return self.__mtls_ca_key_pair
+        return self.__mtls_ca_key_pair.key, self.__mtls_ca_key_pair.cert
 
     def __get_remote_server_list_signing_key_pair(self):
         if not self.__remote_server_list_signing_key_pair:
