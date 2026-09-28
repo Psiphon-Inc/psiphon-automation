@@ -87,6 +87,10 @@ TCS_PSINET_FILE_NAME = '/opt/psiphon/psiphond/data/psinet.json'
 TCS_GEOIP_CITY_DATABASE_FILE_NAME = '/usr/local/share/GeoIP/GeoIP2-City.mmdb'
 TCS_GEOIP_ISP_DATABASE_FILE_NAME = '/usr/local/share/GeoIP/GeoIP2-ISP.mmdb'
 TCS_BLOCKLIST_CSV_FILE_NAME = '/opt/psiphon/psiphond/data/blocklist.csv'
+TCS_TLS_DIRECTORY_NAME = '/opt/psiphon/psiphond/tls/'
+TCS_TLS_CA_PEM_FILE_NAME = TCS_TLS_DIRECTORY_NAME + 'ca.pem'
+TCS_TLS_KEY_PEM_FILE_NAME = TCS_TLS_DIRECTORY_NAME + 'client-key.pem'
+TCS_TLS_CERT_PEM_FILE_NAME = TCS_TLS_DIRECTORY_NAME + 'client-cert.pem'
 
 TCS_DOCKER_WEB_SERVER_PORT = 1025
 TCS_SSH_DOCKER_PORT = 1026
@@ -140,7 +144,7 @@ def run_in_parallel(thread_pool_size, function, arguments):
             raise result
 
 
-def deploy_implementation(host, servers, own_encoded_server_entries, server_entry_signature_public_key, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
+def deploy_implementation(host, servers, own_encoded_server_entries, server_entry_signature_public_key, discovery_strategy_value_hmac_key, dsl_server_ca_cert, plugins, TCS_psiphond_config_values):
 
     print('deploy implementation to host %s%s...' % (host.id, " (TCS) " if host.is_TCS else "", ))
 
@@ -150,7 +154,7 @@ def deploy_implementation(host, servers, own_encoded_server_entries, server_entr
                     host.ssh_host_key)
 
     if host.is_TCS:
-        deploy_TCS_implementation(ssh, host, servers, own_encoded_server_entries, server_entry_signature_public_key, plugins, TCS_psiphond_config_values)
+        deploy_TCS_implementation(ssh, host, servers, own_encoded_server_entries, server_entry_signature_public_key, dsl_server_ca_cert, plugins, TCS_psiphond_config_values)
     else:
         deploy_legacy_implementation(ssh, host, discovery_strategy_value_hmac_key, plugins)
 
@@ -246,11 +250,19 @@ def deploy_legacy_implementation(ssh, host, discovery_strategy_value_hmac_key, p
             plugin.deploy_implementation(ssh)
 
 
-def deploy_TCS_implementation(ssh, host, servers, own_encoded_server_entries, server_entry_signature_public_key, plugins, TCS_psiphond_config_values):
+def deploy_TCS_implementation(ssh, host, servers, own_encoded_server_entries, server_entry_signature_public_key, dsl_server_ca_cert, plugins, TCS_psiphond_config_values):
 
     # Limitation: only one server per host currently implemented
     # Multiple IP addresses (and servers) can be supported by port forwarding to the host IP address
     server = [server for server in servers if server.ip_address == host.ip_address][0]
+
+    # Upload mtls/DSL server keys
+    ssh.exec_command(f'mkdir -p {TCS_TLS_DIRECTORY_NAME}')
+    ssh.exec_command(f'chown psiphond:psiphond {TCS_TLS_DIRECTORY_NAME}')
+    put_file_with_content(ssh, dsl_server_ca_cert, TCS_TLS_CA_PEM_FILE_NAME)
+    put_file_with_content(ssh, host.mtls_client_key, TCS_TLS_KEY_PEM_FILE_NAME)
+    put_file_with_content(ssh, host.mtls_client_cert, TCS_TLS_CERT_PEM_FILE_NAME)
+    ssh.exec_command(f'chown psiphond:psiphond {TCS_TLS_DIRECTORY_NAME + "*"} && chmod 600 {TCS_TLS_DIRECTORY_NAME + "*"}')
 
     # Query host memory
     try:
@@ -501,9 +513,9 @@ def make_psiphond_config(host, server, own_encoded_server_entries, server_entry_
     dsl_relay_service_address = TCS_psiphond_config_values.get('DSLRelayServiceAddress', None)
     if dsl_relay_service_address:
         config['DSLRelayServiceAddress'] = dsl_relay_service_address
-        config['DSLRelayCACertificatesFilename'] = '/opt/psiphon/psiphond/tls/ca.pem'
-        config['DSLRelayHostCertificateFilename'] = '/opt/psiphon/psiphond/tls/client-cert.pem'
-        config['DSLRelayHostKeyFilename'] = '/opt/psiphon/psiphond/tls/client-key.pem'
+        config['DSLRelayCACertificatesFilename'] = TCS_TLS_CA_PEM_FILE_NAME
+        config['DSLRelayHostCertificateFilename'] = TCS_TLS_CERT_PEM_FILE_NAME
+        config['DSLRelayHostKeyFilename'] = TCS_TLS_KEY_PEM_FILE_NAME
 
     config['ProxyProtocolHeaderCustomTLVs'] = TCS_psiphond_config_values.get('ProxyProtocolHeaderCustomTLVs', None)
     config['ProxyProtocolHeaderMACKeys'] = TCS_psiphond_config_values.get('ProxyProtocolHeaderMACKeys', None)
@@ -628,7 +640,7 @@ def tunnel_protocol_supports_passthrough(protocol):
 
 
 # hosts_and_servers is a list of tuples: [(host, [server, ...]), ...]
-def deploy_implementation_to_hosts(hosts_and_servers, own_encoded_server_entries_generator, server_entry_signature_public_key, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values):
+def deploy_implementation_to_hosts(hosts_and_servers, own_encoded_server_entries_generator, server_entry_signature_public_key, discovery_strategy_value_hmac_key, dsl_server_ca_cert, plugins, TCS_psiphond_config_values):
 
     @retry_decorator_returning_exception
     def do_deploy_implementation(host_and_servers):
@@ -636,7 +648,7 @@ def deploy_implementation_to_hosts(hosts_and_servers, own_encoded_server_entries
             host = host_and_servers[0]
             servers = host_and_servers[1]
             own_encoded_server_entries = own_encoded_server_entries_generator(host.id)
-            deploy_implementation(host, servers, own_encoded_server_entries, server_entry_signature_public_key, discovery_strategy_value_hmac_key, plugins, TCS_psiphond_config_values)
+            deploy_implementation(host, servers, own_encoded_server_entries, server_entry_signature_public_key, discovery_strategy_value_hmac_key, dsl_server_ca_cert, plugins, TCS_psiphond_config_values)
         except:
             print('Error deploying implementation to host %s' % (host.id,))
             raise
