@@ -2428,6 +2428,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             self.__get_own_encoded_server_entries_for_host(host.id),
                             self.__server_entry_signing_key_pair[0],
                             self.__discovery_strategy_value_hmac_key,
+                            self.__dsl_server_ca_cert,
                             plugins,
                             self.__TCS_psiphond_config_values)
         psi_ops_deploy.deploy_data(
@@ -2475,6 +2476,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             self.__get_own_encoded_server_entries_for_host(host.id),
                             self.__server_entry_signing_key_pair[0],
                             self.__discovery_strategy_value_hmac_key,
+                            self.__dsl_server_ca_cert,
                             plugins,
                             self.__TCS_psiphond_config_values)
         psi_ops_deploy.deploy_geoip_database_autoupdates(host)
@@ -2598,6 +2600,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 continue
 
             self.add_server_entry_provider_id_to_host(host)
+            host.mtls_client_key, host.mtls_client_cert = psi_ops_mtls_tools.generate_host_client_credentials(
+                *self.__get_mtls_ca_key_pair(), host.id)
 
             # NOTE: jsonpickle will serialize references to discovery_date_range, which can't be
             # resolved when unpickling, if discovery_date_range is used directly.
@@ -3090,6 +3094,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             self.__get_own_encoded_server_entries_for_host(host.id),
                             self.__server_entry_signing_key_pair[0],
                             self.__discovery_strategy_value_hmac_key,
+                            self.__dsl_server_ca_cert,
                             plugins,
                             self.__TCS_psiphond_config_values)
         psi_ops_deploy.deploy_geoip_database_autoupdates(host)
@@ -3664,6 +3669,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__get_own_encoded_server_entries_for_host,
             self.__server_entry_signing_key_pair[0],
             self.__discovery_strategy_value_hmac_key,
+            self.__dsl_server_ca_cert,
             plugins,
             self.__TCS_psiphond_config_values)
 
@@ -4329,6 +4335,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__get_own_encoded_server_entries_for_host(host.id),
             self.__server_entry_signing_key_pair[0],
             self.__discovery_strategy_value_hmac_key,
+            self.__dsl_server_ca_cert,
             plugins,
             self.__TCS_psiphond_config_values)
         psi_ops_deploy.deploy_data(

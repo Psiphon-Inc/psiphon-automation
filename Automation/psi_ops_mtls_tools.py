@@ -40,7 +40,7 @@ alongside the rest of a host's provisioning data.
 Algorithms / parameters:
 
 - CA key:   RSA 4096-bit, self-signed, 10-year validity, key-cert-sign usage.
-- Host key: RSA 2048-bit, 2-year validity, digital-signature +
+- Host key: RSA 2048-bit, 10-year validity, digital-signature +
             key-encipherment usage, client-auth extended key usage.
 - Signature hash: SHA-256.
 
