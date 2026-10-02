@@ -26,8 +26,15 @@ if [ "$?" -ne "1" ]; then
     exit 1
 fi
 
-# We're installing poetry as root, globally so that all users have access to it
-sudo pip install --upgrade poetry
+# We're installing poetry as root, globally so that all users have access to it.
+# It is pinned and only installed if missing, never upgraded: this script runs unattended
+# after every code update, every incoming email is processed via "poetry run" (see forward),
+# and poetry shares the global packages with our dependencies (see below). Poetry 2.x
+# requires urllib3 2, which the botocore in poetry.lock cannot import.
+# The check goes through sudo because cron's PATH lacks /usr/local/bin and sudo's doesn't.
+if ! sudo poetry --version > /dev/null 2>&1; then
+    sudo pip install 'poetry==1.8.3'
+fi
 
 # Our poetry.toml has the virtualenvs.create directive set to false, which makes it
 # install packages globally using pip rather than in a venv. This allows it to be used by
