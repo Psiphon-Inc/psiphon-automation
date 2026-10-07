@@ -357,7 +357,7 @@ def is_diagnostic_info_sane(obj):
 
     exemplar = {
                 'Metadata': {
-                             'platform': lambda val: val in ['android', 'ios', 'ios-browser', 'ios-vpn', 'ios-vpn-on-mac', 'ios-app-on-mac', 'macos', 'windows'],
+                             'platform': lambda val: val in ['android', 'ios', 'ios-browser', 'ios-vpn', 'ios-vpn-on-mac', 'ios-app-on-mac', 'windows', 'macos', 'linux'],
                              'version': lambda val: val in range(1, 5),
                              'id': lambda val: re.match(r'^[a-fA-F0-9]{16}', str(val)) is not None
                              },
@@ -403,6 +403,7 @@ def is_diagnostic_info_sane_test():
     assert(not is_diagnostic_info_sane({'Metadata': {'platform': 'badplatform', 'version': 1, 'id': 'AAAAAAAAAAAAAAAA'}}))
     assert(is_diagnostic_info_sane({'Metadata': {'_id': 1, 'platform': 'windows', 'version': 1, 'id': 'AAAAAAAAAAAAAAAA'}}))
     assert(is_diagnostic_info_sane({'Metadata': {'platform': 'macos', 'version': 2, 'id': 'A1B2C3D4E5F60718'}}))
+    assert(is_diagnostic_info_sane({'Metadata': {'platform': 'linux', 'version': 2, 'id': 'A1B2C3D4E5F60718'}}))
 
     # A Psiphon 4 v2 report is only sane once its envelope has been normalized.
     v2 = {'metadata': {'appName': 'psiphon4', 'platform': 'ios', 'version': 2, 'id': 'A1B2C3D4E5F60718'}}
