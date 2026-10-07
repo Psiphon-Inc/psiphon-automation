@@ -201,9 +201,12 @@ def get_datacenter_region(region):
         blr1 Bangalore 1
         fra1 Frankfurt 1
         lon1 London 1
+        mem1 Memphis 1
+        mkc1 Kansas City 1
         nyc1 New York 1
         nyc2 New York 2
         nyc3 New York 3
+        ric1 Richmond 1
         sfo1 San Francisco 1
         sfo2 San Francisco 2
         sfo3 San Francisco 3
@@ -216,6 +219,12 @@ def get_datacenter_region(region):
     if 'sfo' in region:
         return 'US'
     if 'atl' in region:
+        return 'US'
+    if 'mem' in region:
+        return 'US'
+    if 'mkc' in region:
+        return 'US'
+    if 'ric' in region:
         return 'US'
     if 'ams' in region:
         return 'NL'

@@ -51,6 +51,7 @@ from builtins import input
 import psi_utils
 import psi_ops_cms
 import psi_ops_discovery
+import psi_ops_mtls_tools
 
 # Import library based on version
 try:
@@ -214,7 +215,8 @@ except ImportError as error:
     print(error)
 
 
-WEBSITE_GENERATION_DIR = './website-out'
+import local_repos_config
+WEBSITE_PREBUILT_DIR = local_repos_config.WEBSITE_PREBUILT_ROOT
 
 
 EMAIL_RESPONDER_CONFIG_BUCKET_KEY = 'EmailResponder/conf.json'
@@ -243,6 +245,7 @@ EmailPropagationAccount = psi_utils.recordtype(
 
 # website_banner and website_banner_link are separately optional (although it
 # makes no sense to have the latter without the former).
+# NOTE: page_view_regexes and https_request_regexes are obsolete
 Sponsor = psi_utils.recordtype(
     'Sponsor',
     'id, name, banner, website_banner, website_banner_link, home_pages, mobile_home_pages, ' +
@@ -284,7 +287,7 @@ Host = psi_utils.recordtype(
     'inproxy_broker_session_private_key, inproxy_broker_public_key, inproxy_broker_obfuscation_root_secret, ' +
     'inproxy_server_session_private_key, inproxy_server_public_key, inproxy_server_obfuscation_root_secret, ' +
     'is_inproxy, inproxy_proxy_session_private_key, inproxy_proxy_public_key, ' +
-    'run_packet_manipulator',
+    'run_packet_manipulator, mtls_client_key, mtls_client_cert',
     default=None)
 
 Server = psi_utils.recordtype(
@@ -467,6 +470,10 @@ RoutesSigningKeyPair = psi_utils.recordtype(
     'RoutesSigningKeyPair',
     'pem_key_pair, password')
 
+MtlsCaKeyPair = psi_utils.recordtype(
+    'MtlsCaKeyPair',
+    'key, cert')
+
 
 CLIENT_PLATFORM_WINDOWS = 'Windows'
 CLIENT_PLATFORM_ANDROID = 'Android'
@@ -551,6 +558,11 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # and store as a tuple (<public-key>, <private-key>)
         self.__server_entry_signing_key_pair = None
 
+        # Generate mtls ca using psi_ops_mtls_tools
+        # and store as an MtlsCaKeyPair
+        self.__mtls_ca_key_pair = None
+        self.__dsl_server_ca_cert = None
+
         self.__exchange_obfuscation_key = base64.b64encode(os.urandom(32)).decode()
 
         self.__ssh_ip_address_whitelist = []
@@ -567,7 +579,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if initialize_plugins:
             self.initialize_plugins()
 
-    class_version = '0.84'
+    class_version = '0.85'
 
     def upgrade(self):
         if cmp(parse_version(self.version), parse_version('0.1')) < 0:
@@ -1049,6 +1061,13 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             for server in list(self.__servers.values()) + list(self.__deleted_servers.values()):
                 server.capabilities['INPROXY-WEBRTC-FRONTED-MEEK-OSSH'] = False
             self.version = '0.84'
+        if cmp(parse_version(self.version), parse_version('0.85')) < 0:
+            self.__mtls_ca_key_pair = None
+            self.__dsl_server_ca_cert = None
+            for host in list(self.__hosts.values()) + list(self.__deleted_hosts) + list(self.__hosts_to_remove_from_providers):
+                host.mtls_client_key = None
+                host.mtls_client_cert = None
+            self.version = '0.85'
 
 
     def initialize_plugins(self):
@@ -1235,8 +1254,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             Name:                    %(name)s
             Home Pages:              %(home_pages)s
             Mobile Home Pages:       %(mobile_home_pages)s
-            Page View Regexes:       %(page_view_regexes)s
-            HTTPS Request Regexes:   %(https_request_regexes)s
             Campaigns:               %(campaigns)s
             ''') % {
                     'id': s.id,
@@ -1247,10 +1264,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     'mobile_home_pages': '\n                         '.join(['%s: %s' % (region.ljust(5) if region else 'All',
                                                          '\n                                '.join([h.url for h in mobile_home_pages]))
                                                          for region, mobile_home_pages in sorted(s.mobile_home_pages.items())]),
-                    'page_view_regexes': '\n                         '.join(['%s -> %s' % (page_view_regex.regex, page_view_regex.replace)
-                                                                             for page_view_regex in s.page_view_regexes]),
-                    'https_request_regexes': '\n                         '.join(['%s -> %s' % (https_request_regex.regex, https_request_regex.replace)
-                                                                                 for https_request_regex in s.https_request_regexes]),
                     'campaigns': '\n                         '.join(['%s %s %s %s' % (
                                                              self.__propagation_channels[c.propagation_channel_id].name,
                                                              c.propagation_mechanism_type,
@@ -1728,64 +1741,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__deploy_data_required_for_all = True
             sponsor.log('marked all hosts for data deployment')
 
-    def set_sponsor_page_view_regex(self, sponsor_name, regex, replace):
-        assert(self.is_locked)
-        sponsor = self.get_sponsor_by_name(sponsor_name)
-        if not [rx for rx in sponsor.page_view_regexes if rx.regex == regex]:
-            sponsor.page_view_regexes.append(SponsorRegex(regex, replace))
-            sponsor.log('set page view regex %s; replace %s' % (regex, replace))
-            self.__deploy_data_required_for_all = True
-            sponsor.log('marked all hosts for data deployment')
-
-    def remove_sponsor_page_view_regex(self, sponsor_name, regex):
-        '''
-        Note that the regex part of the regex+replace pair is unique, so only
-        it has to be passed in when removing.
-        '''
-        assert(self.is_locked)
-        sponsor = self.get_sponsor_by_name(sponsor_name)
-        match = [sponsor.page_view_regexes.pop(idx)
-                 for (idx, rx)
-                 in enumerate(sponsor.page_view_regexes)
-                 if rx.regex == regex]
-        if match:
-            sponsor.page_view_regexes.remove(regex)
-            sponsor.log('deleted page view regex %s' % regex)
-            self.__deploy_data_required_for_all = True
-            sponsor.log('marked all hosts for data deployment')
-
-    def set_global_https_request_regex(self, regex, replace):
-        assert(self.is_locked)
-        if not [rx for rx in self.__global_https_request_regexes if rx.regex == regex]:
-            self.__global_https_request_regexes.append(SponsorRegex(regex, replace))
-            self.__deploy_data_required_for_all = True
-
-    def set_sponsor_https_request_regex(self, sponsor_name, regex, replace):
-        assert(self.is_locked)
-        sponsor = self.get_sponsor_by_name(sponsor_name)
-        if not [rx for rx in sponsor.https_request_regexes if rx.regex == regex]:
-            sponsor.https_request_regexes.append(SponsorRegex(regex, replace))
-            sponsor.log('set https request regex %s; replace %s' % (regex, replace))
-            self.__deploy_data_required_for_all = True
-            sponsor.log('marked all hosts for data deployment')
-
-    def remove_sponsor_https_request_regex(self, sponsor_name, regex):
-        '''
-        Note that the regex part of the regex+replace pair is unique, so only
-        it has to be passed in when removing.
-        '''
-        assert(self.is_locked)
-        sponsor = self.get_sponsor_by_name(sponsor_name)
-        match = [sponsor.https_request_regexes.pop(idx)
-                 for (idx, rx)
-                 in enumerate(sponsor.https_request_regexes)
-                 if rx.regex == regex]
-        if match:
-            sponsor.https_request_regexes.remove(regex)
-            sponsor.log('deleted https request regex %s' % regex)
-            self.__deploy_data_required_for_all = True
-            sponsor.log('marked all hosts for data deployment')
-
     def set_sponsor_name(self, sponsor_name, new_sponsor_name):
         assert(self.is_locked)
         assert(not list(filter(lambda x: x.name == new_sponsor_name, self.__sponsors.values())))
@@ -1857,7 +1812,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         inproxy_broker_session_private_key, inproxy_broker_public_key, inproxy_broker_obfuscation_root_secret,
                         inproxy_server_session_private_key, inproxy_server_public_key, inproxy_server_obfuscation_root_secret,
                         is_inproxy, inproxy_proxy_session_private_key, inproxy_proxy_public_key,
-                        run_packet_manipulator):
+                        run_packet_manipulator, mtls_client_key, mtls_client_cert):
         return Host(id,
                     is_TCS,
                     TCS_type,
@@ -1901,7 +1856,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     is_inproxy,
                     inproxy_proxy_session_private_key,
                     inproxy_proxy_public_key,
-                    run_packet_manipulator
+                    run_packet_manipulator,
+                    mtls_client_key,
+                    mtls_client_cert
                     )
 
     def get_server_object(self, id, host_id, ip_address, egress_ip_address, internal_ip_address, propagation_channel_id,
@@ -1998,7 +1955,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.is_inproxy,
                         host.inproxy_proxy_session_private_key,
                         host.inproxy_proxy_public_key,
-                        host.run_packet_manipulator)
+                        host.run_packet_manipulator,
+                        host.mtls_client_key,
+                        host.mtls_client_cert)
             for server in servers:
                 exp_server = (server.id,
                                 server.host_id,
@@ -2469,6 +2428,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             self.__get_own_encoded_server_entries_for_host(host.id),
                             self.__server_entry_signing_key_pair[0],
                             self.__discovery_strategy_value_hmac_key,
+                            self.__dsl_server_ca_cert,
                             plugins,
                             self.__TCS_psiphond_config_values)
         psi_ops_deploy.deploy_data(
@@ -2516,6 +2476,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             self.__get_own_encoded_server_entries_for_host(host.id),
                             self.__server_entry_signing_key_pair[0],
                             self.__discovery_strategy_value_hmac_key,
+                            self.__dsl_server_ca_cert,
                             plugins,
                             self.__TCS_psiphond_config_values)
         psi_ops_deploy.deploy_geoip_database_autoupdates(host)
@@ -2639,6 +2600,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 continue
 
             self.add_server_entry_provider_id_to_host(host)
+            host.mtls_client_key, host.mtls_client_cert = psi_ops_mtls_tools.generate_host_client_credentials(
+                *self.__get_mtls_ca_key_pair(), host.id)
 
             # NOTE: jsonpickle will serialize references to discovery_date_range, which can't be
             # resolved when unpickling, if discovery_date_range is used directly.
@@ -2935,7 +2898,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         host.is_inproxy,
                         host.inproxy_proxy_session_private_key,
                         host.inproxy_proxy_public_key,
-                        host.run_packet_manipulator)
+                        host.run_packet_manipulator,
+                        host.mtls_client_key,
+                        host.mtls_client_cert)
         self.__hosts_to_remove_from_providers.add(host_copy)
 
         # Mark host and its servers as deleted in the database. We keep the
@@ -3129,6 +3094,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                             self.__get_own_encoded_server_entries_for_host(host.id),
                             self.__server_entry_signing_key_pair[0],
                             self.__discovery_strategy_value_hmac_key,
+                            self.__dsl_server_ca_cert,
                             plugins,
                             self.__TCS_psiphond_config_values)
         psi_ops_deploy.deploy_geoip_database_autoupdates(host)
@@ -3346,6 +3312,14 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if rank_accum > rand:
                 break
         return choice
+
+    def __get_mtls_ca_key_pair(self):
+        if not self.__mtls_ca_key_pair:
+            assert(self.is_locked)
+            key, cert = psi_ops_mtls_tools.generate_ca()
+            self.__mtls_ca_key_pair = MtlsCaKeyPair(key, cert)
+
+        return self.__mtls_ca_key_pair.key, self.__mtls_ca_key_pair.cert
 
     def __get_remote_server_list_signing_key_pair(self):
         if not self.__remote_server_list_signing_key_pair:
@@ -3695,6 +3669,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__get_own_encoded_server_entries_for_host,
             self.__server_entry_signing_key_pair[0],
             self.__discovery_strategy_value_hmac_key,
+            self.__dsl_server_ca_cert,
             plugins,
             self.__TCS_psiphond_config_values)
 
@@ -3749,9 +3724,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         # it. Rather than setting flags in all of the creation
                         # methods, we'll use the above creation as the chokepoint.
                         # After this we just have to worry about website updates.
-                        # Note that this generates the site. It's not very efficient
-                        # to do that here, but it happens infrequently enough to be okay.
-                        self.update_static_site_content(sponsor, campaign, True)
+                        self.update_static_site_content(sponsor, campaign)
 
                     # Remote server list: for clients to get new servers via S3,
                     # we embed the bucket URL in the build. The remote server
@@ -3806,8 +3779,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     privacy_policy_url = psi_ops_s3.get_s3_bucket_privacy_policy_url(campaign.s3_bucket_name)
 
                     builds = None
-                    if platform == CLIENT_PLATFORM_ANDROID and propagation_channel.propagator_managed_upgrades:
-                        # For Android Google Play campaigns, apks must not be published for side-loading
+                    if platform == CLIENT_PLATFORM_ANDROID:
+                        # apks are now published by another process
                         pass
                     elif campaign.platforms != None and not platform in campaign.platforms:
                         # Skip this build
@@ -3895,9 +3868,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         # Website
         #
         if len(self.__deploy_website_required_for_sponsors) > 0:
-            # Generate the static website from source
-            website_generator.generate(WEBSITE_GENERATION_DIR)
-
             # Iterate through a copy so that we can remove as we go
             for sponsor_id in self.__deploy_website_required_for_sponsors.copy():
                 sponsor = self.__sponsors[sponsor_id]
@@ -4091,13 +4061,8 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         return propagation_channel_ids, osl_ids
 
-    def update_static_site_content(self, sponsor, campaign, do_generate=False):
+    def update_static_site_content(self, sponsor, campaign):
         assert(self.is_locked)
-
-        if do_generate:
-            # Generate the static website from source
-            website_generator.generate(WEBSITE_GENERATION_DIR)
-
         assert(self.__default_email_autoresponder_account)
         get_new_version_email = self.__default_email_autoresponder_account.email_address
         if type(campaign.account) == EmailPropagationAccount:
@@ -4113,7 +4078,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                         self.__aws_account,
                         [campaign.s3_bucket_name, campaign.alternate_s3_bucket_name],
                         campaign.custom_download_site,
-                        WEBSITE_GENERATION_DIR,
+                        WEBSITE_PREBUILT_DIR,
                         sponsor_website_banner,
                         sponsor_website_banner_link,
                         get_new_version_email)
@@ -4370,6 +4335,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__get_own_encoded_server_entries_for_host(host.id),
             self.__server_entry_signing_key_pair[0],
             self.__discovery_strategy_value_hmac_key,
+            self.__dsl_server_ca_cert,
             plugins,
             self.__TCS_psiphond_config_values)
         psi_ops_deploy.deploy_data(
@@ -4826,20 +4792,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                 for sponsor_home_page in sponsor_home_pages]
         return sponsor_home_pages
 
-    def _get_sponsor_page_view_regexes(self, sponsor_id):
-        # Web server support function: fails gracefully
-        if sponsor_id not in self.__sponsors:
-            return []
-        sponsor = self.__sponsors[sponsor_id]
-        return sponsor.page_view_regexes
-
-    def _get_sponsor_https_request_regexes(self, sponsor_id):
-        # Web server support function: fails gracefully
-        if sponsor_id not in self.__sponsors:
-            return []
-        sponsor = self.__sponsors[sponsor_id]
-        return sponsor.https_request_regexes
-
     def __check_upgrade(self, platform, client_version):
         # check last version number against client version number
         # assumes versions list is in ascending version order
@@ -4913,21 +4865,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         if server.alternate_ssh_obfuscated_ports and not (server.capabilities['FRONTED-MEEK'] or server.capabilities['UNFRONTED-MEEK']):
             config['ssh_obfuscated_port'] = int(server.alternate_ssh_obfuscated_ports[-1])
             config['ssh_obfuscated_key'] = server.ssh_obfuscated_key
-
-        # Give client a set of regexes indicating which pages should have individual stats
-        config['page_view_regexes'] = []
-        for sponsor_regex in self._get_sponsor_page_view_regexes(sponsor_id):
-            config['page_view_regexes'].append({
-                                                'regex': sponsor_regex.regex,
-                                                'replace': sponsor_regex.replace
-                                                })
-
-        config['https_request_regexes'] = []
-        for sponsor_regex in self._get_sponsor_https_request_regexes(sponsor_id):
-            config['https_request_regexes'].append({
-                                                'regex': sponsor_regex.regex,
-                                                'replace': sponsor_regex.replace
-                                                })
 
         # If there are speed test URLs, select one at random and return it
         if self.__speed_test_urls:
@@ -5041,7 +4978,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                         None, # Omit: host.is_inproxy
                                         None, # Omit: host.inproxy_proxy_session_private_key
                                         None, # Omit: host.inproxy_proxy_public_key
-                                        None # Omit: run_packet_manipulator isn't needed
+                                        None, # Omit: run_packet_manipulator isn't needed
+                                        None, # Omit: mtls_client_key isn't needed
+                                        None  # Omit: mtls_client_cert isn't needed
                                         )
 
         for server in self.__servers.values():
@@ -5113,15 +5052,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                     copy_sponsor.mobile_home_pages[region].append(SponsorHomePage(
                                                              mobile_home_page.region,
                                                              mobile_home_page.url))
-            for page_view_regex in sponsor_data.page_view_regexes:
-                copy_sponsor.page_view_regexes.append(SponsorRegex(
-                                                             page_view_regex.regex,
-                                                             page_view_regex.replace))
-            # global_https_request_regexes have top priority
-            for https_request_regex in self.__global_https_request_regexes + sponsor_data.https_request_regexes:
-                copy_sponsor.https_request_regexes.append(SponsorRegex(
-                                                             https_request_regex.regex,
-                                                             https_request_regex.replace))
             copy.__sponsors[copy_sponsor.id] = copy_sponsor
 
         for platform in self.__client_versions:
@@ -5231,15 +5161,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                 copy_sponsor.alert_action_urls[alert_reason] = []
                 for alert_action_url in alert_action_urls:
                     copy_sponsor.alert_action_urls[alert_reason].append(alert_action_url)
-            for page_view_regex in sponsor_data.page_view_regexes:
-                copy_sponsor.page_view_regexes.append(SponsorRegex(
-                                                             page_view_regex.regex,
-                                                             page_view_regex.replace))
-            # global_https_request_regexes have top priority
-            for https_request_regex in self.__global_https_request_regexes + sponsor_data.https_request_regexes:
-                copy_sponsor.https_request_regexes.append(SponsorRegex(
-                                                             https_request_regex.regex,
-                                                             https_request_regex.replace))
             copy.__sponsors[copy_sponsor.id] = copy_sponsor.todict()
 
         for platform in self.__client_versions:
@@ -5327,7 +5248,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.is_inproxy,
                                             None, # Omit: host.inproxy_proxy_session_private_key
                                             None, # Omit: host.inproxy_proxy_public_key
-                                            host.run_packet_manipulator
+                                            host.run_packet_manipulator,
+                                            None, # Omit: host.mtls_client_key
+                                            None  # Omit: host.mtls_client_cert
                                             )
             copy.__hosts[host.id].logs = host.logs
 
@@ -5469,7 +5392,9 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
                                             host.is_inproxy,
                                             None, # Omit: host.inproxy_proxy_session_private_key
                                             None, # Omit: host.inproxy_proxy_public_key
-                                            host.run_packet_manipulator
+                                            host.run_packet_manipulator,
+                                            None, # Omit: host.mtls_client_key
+                                            None  # Omit: host.mtls_client_cert
                                             )
             copy.__hosts[host.id].logs = host.logs
 
@@ -5814,12 +5739,6 @@ def unit_test():
     psinet.add_sponsor('sponsor1')
     psinet.set_sponsor_home_page('sponsor1', 'CA', 'http://psiphon.ca')
     psinet.add_sponsor_email_campaign('sponsor1', 'email-channel', 'get@psiphon.ca')
-    psinet.set_sponsor_page_view_regex('sponsor1', r'^http://psiphon\.ca', r'$&')
-    psinet.set_sponsor_page_view_regex('sponsor1', r'^http://psiphon\.ca/', r'$&')
-    psinet.remove_sponsor_page_view_regex('sponsor1', r'^http://psiphon\.ca/')
-    psinet.set_sponsor_https_request_regex('sponsor1', r'^http://psiphon\.ca', r'$&')
-    psinet.set_sponsor_https_request_regex('sponsor1', r'^http://psiphon\.ca/', r'$&')
-    psinet.remove_sponsor_https_request_regex('sponsor1', r'^http://psiphon\.ca/')
     psinet.show_status(verbose=True)
 
 

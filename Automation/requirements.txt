@@ -5,7 +5,8 @@ cryptography==3.3.2
 future==0.18.2 
 hcloud==1.35.0
 jsonpickle==3.0.2
-linode_api4==2.2.1
+polling==0.3.2
+linode_api4==5.46.1
 oci==2.100.0
 paramiko==2.11.0
 pillow==9.5.0
