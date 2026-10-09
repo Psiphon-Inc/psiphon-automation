@@ -996,6 +996,9 @@ def install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, ssh_ip
     accept_with_fronted_limit_rate_template = textwrap.dedent('''
         -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m limit --limit 1000/sec -j ACCEPT''')
 
+    accept_with_fronted_broker_limit_rate_template = textwrap.dedent('''
+        -A PSI_RATE_LIMITING -p tcp -m state --state NEW -m tcp --dport {port} -m limit --limit 10000/sec --limit-burst 10000 -j ACCEPT''')
+
     accept_with_recent_rate_template = textwrap.dedent('''
         -A PSI_RATE_LIMITING -p {proto} -m state --state NEW -m {proto} --dport {port} -m recent --set --name LIMIT-{proto}-{port}
         -A PSI_RATE_LIMITING -p {proto} -m state --state NEW -m {proto} --dport {port} -m recent --update --name LIMIT-{proto}-{port} {accept_recent_rate_limit} -j DROP
@@ -1048,8 +1051,12 @@ def install_TCS_firewall_rules(host, servers, TCS_psiphond_config_values, ssh_ip
                 accept_unfronted_rate_limit=accept_unfronted_rate_limit,
                 port=str(port))
         elif 'MEEK' in protocol:
-            protocol_port_rule = accept_with_fronted_limit_rate_template.format(
-                port=str(port))
+            if protocol == 'FRONTED-MEEK-OSSH' and server.capabilities['FRONTED-MEEK-BROKER']:
+                protocol_port_rule = accept_with_fronted_broker_limit_rate_template.format(
+                    port=str(port))
+            else:
+                protocol_port_rule = accept_with_fronted_limit_rate_template.format(
+                    port=str(port))
         elif 'QUIC' in protocol:
             protocol_port_rule = accept_with_recent_rate_template.format(
                 accept_recent_rate_limit=accept_recent_rate_limit,
