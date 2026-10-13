@@ -506,7 +506,7 @@ def make_psiphond_config(host, server, own_encoded_server_entries, server_entry_
         config['TacticsRequestPrivateKey'] = host.tactics_request_private_key
         config['TacticsRequestObfuscatedKey'] = host.tactics_request_obfuscated_key
 
-    config['LogFormat'] = 'both'
+    config['LogFormat'] = 'protobuf'
     config['MetricSocketPath'] = TCS_psiphond_config_values['MetricSocketPath']
     config['LogDestinationPrefix'] = TCS_psiphond_config_values['LogDestinationPrefix']
 
