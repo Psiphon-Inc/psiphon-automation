@@ -774,8 +774,8 @@ def deploy_data_to_hosts(hosts, data_generator, TCS_traffic_rules_set, TCS_OSL_c
         host_data = TCS_data if host.is_TCS and TCS_data else host_and_data_generator[1](host.id, host.is_TCS)
         try:
             deploy_data(host, host_data, TCS_traffic_rules_set, TCS_OSL_config, TCS_tactics_config_template, TCS_blocklist_csv)
-        except:
-            print('Error deploying data to host %s' % (host.id,))
+        except Exception as e:
+            sys.stderr.write('Error deploying data to host %s: %s\n' % (host.id, str(e)))
             raise
 
     run_in_parallel(60, do_deploy_data, [(host, data_generator) for host in hosts])
