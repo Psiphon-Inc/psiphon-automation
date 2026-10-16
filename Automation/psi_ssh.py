@@ -92,7 +92,9 @@ class SSH(object):
             ssh_pkey = ssh.RSAKey.from_private_key(StringIO(ssh_pkey))
 
         try:
-            self.ssh.connect(ip_address, ssh_port, ssh_username, ssh_password, pkey=ssh_pkey, timeout=30, banner_timeout=45, auth_timeout=45)
+            self.ssh.connect(ip_address, ssh_port, ssh_username, ssh_password,
+                             pkey=ssh_pkey, timeout=30, banner_timeout=45,
+                             auth_timeout=45, compress=True)
         except Exception:
             self.close()
             raise
