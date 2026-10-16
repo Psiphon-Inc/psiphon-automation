@@ -778,7 +778,7 @@ def deploy_data_to_hosts(hosts, data_generator, TCS_traffic_rules_set, TCS_OSL_c
             sys.stderr.write('Error deploying data to host %s: %s\n' % (host.id, str(e)))
             raise
 
-    run_in_parallel(60, do_deploy_data, [(host, data_generator) for host in hosts])
+    run_in_parallel(100, do_deploy_data, [(host, data_generator) for host in hosts])
 
 
 def deploy_build(host, build_filename):
