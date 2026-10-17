@@ -2145,7 +2145,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             except:
                 hosts_failed.add(host_id)
 
-        pool = ThreadPool(30)
+        pool = ThreadPool(100)
         pool.map(_prune_host, [server.host_id for server in servers])
 
         number_removed = 0
