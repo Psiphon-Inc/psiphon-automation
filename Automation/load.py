@@ -38,8 +38,12 @@ import psi_ops
 def check_load_on_host(host):
     try:
         log_diagnostics('checking host: %s' % (host.id))
-        # TEMP: json logging is off now, so this doesn't work any more
-        users = 0 #g_psinet._PsiphonNetwork__count_users_on_host(host.id)
+        
+        broker_host_ids = [server.host_id for server in g_psinet.get_servers() if server.capabilities['FRONTED-MEEK-BROKER']]
+        if host.is_inproxy or host.id in broker_host_ids:
+            users = 0
+        else:
+            users = g_psinet._PsiphonNetwork__count_users_on_host(host.id)
 
         load_commands = ['uptime | cut -d , -f 4 | cut -d : -f 2',
                          'grep "model name" /proc/cpuinfo | wc -l',
