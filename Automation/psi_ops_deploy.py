@@ -17,7 +17,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import hashlib
 import re
+import shlex
 import tempfile
 import os
 import posixpath
@@ -721,20 +723,34 @@ def deploy_legacy_data(ssh, host, host_data):
 
 def deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set, TCS_OSL_config, TCS_tactics_config_template, TCS_blocklist_csv):
 
+    # Fetch all remote checksums in a single round-trip,
+    # then skip any uploads whose content is unchanged.
+    remote_checksums = get_remote_md5sums(ssh, [
+        TCS_PSINET_FILE_NAME,
+        TCS_TRAFFIC_RULES_FILE_NAME,
+        TCS_OSL_CONFIG_FILE_NAME,
+        TCS_TACTICS_CONFIG_FILE_NAME,
+        TCS_BLOCKLIST_CSV_FILE_NAME])
+
     # Upload psinet file
     # We upload a compartmentalized version of the master file
 
-    put_file_with_content(ssh, host_data, TCS_PSINET_FILE_NAME)
+    put_file_with_content(ssh, host_data, TCS_PSINET_FILE_NAME,
+            skip_if_unchanged=True, remote_checksum=remote_checksums.get(TCS_PSINET_FILE_NAME))
 
     # Upload auxillary config files
 
-    put_file_with_content(ssh, TCS_traffic_rules_set, TCS_TRAFFIC_RULES_FILE_NAME)
+    put_file_with_content(ssh, TCS_traffic_rules_set, TCS_TRAFFIC_RULES_FILE_NAME,
+            skip_if_unchanged=True, remote_checksum=remote_checksums.get(TCS_TRAFFIC_RULES_FILE_NAME))
 
-    put_file_with_content(ssh, TCS_OSL_config, TCS_OSL_CONFIG_FILE_NAME)
+    put_file_with_content(ssh, TCS_OSL_config, TCS_OSL_CONFIG_FILE_NAME,
+            skip_if_unchanged=True, remote_checksum=remote_checksums.get(TCS_OSL_CONFIG_FILE_NAME))
 
-    put_file_with_content(ssh, TCS_tactics_config_template, TCS_TACTICS_CONFIG_FILE_NAME)
+    put_file_with_content(ssh, TCS_tactics_config_template, TCS_TACTICS_CONFIG_FILE_NAME,
+            skip_if_unchanged=True, remote_checksum=remote_checksums.get(TCS_TACTICS_CONFIG_FILE_NAME))
 
-    put_file_with_content(ssh, TCS_blocklist_csv, TCS_BLOCKLIST_CSV_FILE_NAME)
+    put_file_with_content(ssh, TCS_blocklist_csv, TCS_BLOCKLIST_CSV_FILE_NAME,
+            skip_if_unchanged=True, remote_checksum=remote_checksums.get(TCS_BLOCKLIST_CSV_FILE_NAME))
 
     ssh.exec_command(TCS_PSIPHOND_HOT_RELOAD_SIGNAL_COMMAND)
 
@@ -747,10 +763,59 @@ def deploy_TCS_data(ssh, host, host_data, TCS_traffic_rules_set, TCS_OSL_config,
     ssh.exec_command(TCS_PSIPHOND_START_COMMAND)
 
 
-def put_file_with_content(ssh, content, destination_path):
+# Sentinel distinguishing "no precomputed remote checksum supplied" (fall back
+# to a per-file md5sum) from "checksum known to be absent" (remote file missing
+# -> must upload).
+_REMOTE_CHECKSUM_UNKNOWN = object()
+
+
+def get_remote_md5sums(ssh, destination_paths):
+
+    # Compute md5 checksums for several remote files in a single round-trip, to
+    # avoid a per-file exec when deploying to a large number of hosts. Returns
+    # {path: md5hex} for files that exist and are readable; missing/unreadable
+    # files are simply absent from the map (md5sum writes those errors to
+    # stderr, which exec_command discards). Callers treat an absent path as
+    # "unknown" and upload as normal. Assumes 'md5sum' is available on the host.
+    if not destination_paths:
+        return {}
+
+    quoted_paths = ' '.join(shlex.quote(path) for path in destination_paths)
+    output = ssh.exec_command('md5sum %s 2>/dev/null' % (quoted_paths,), muted=True)
+
+    checksums = {}
+    for line in output.splitlines():
+        fields = line.split(None, 1)
+        if len(fields) != 2:
+            continue
+        checksum, path = fields[0], fields[1]
+        # md5sum separates the checksum from the filename with a space plus a
+        # mode indicator (' ' text, '*' binary); strip a leading binary marker.
+        if path.startswith('*'):
+            path = path[1:]
+        checksums[path] = checksum
+    return checksums
+
+
+def put_file_with_content(ssh, content, destination_path, skip_if_unchanged=False, remote_checksum=_REMOTE_CHECKSUM_UNKNOWN):
 
     # TODO-TCS: more robust to write to remote temp file and
     # rename only after successfully uploaded?
+
+    # Optionally skip the upload when the remote file already has identical
+    # content, to save transfer time/bandwidth when deploying unchanged data
+    # to a large number of hosts. Assumes 'md5sum' is available on the host.
+    # The remote checksum may be supplied by the caller (e.g. batched via
+    # get_remote_md5sums); otherwise it is fetched here for this one file. A
+    # missing/unreadable remote file yields no checksum, so we upload as normal.
+    if skip_if_unchanged:
+        local_checksum = hashlib.md5(content.encode()).hexdigest()
+        if remote_checksum is _REMOTE_CHECKSUM_UNKNOWN:
+            remote_fields = ssh.exec_command(
+                'md5sum %s 2>/dev/null' % (shlex.quote(destination_path),), muted=True).split()
+            remote_checksum = remote_fields[0] if remote_fields else None
+        if remote_checksum is not None and remote_checksum == local_checksum:
+            return
 
     file = tempfile.NamedTemporaryFile(delete=False)
     try:
