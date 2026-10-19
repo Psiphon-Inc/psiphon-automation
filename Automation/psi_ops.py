@@ -2467,7 +2467,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             if host.is_TCS:
                 server.capabilities['ssh-api-requests'] = True
 
-    def setup_server_deploy(self, host, servers):
+    def setup_server_deploy(self, host, servers, TCS_data):
         # Deploy will upload web server source database data and client builds
         # (Only deploying for the new host, not broadcasting info yet...)
         psi_ops_deploy.deploy_implementation(
@@ -2482,7 +2482,7 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
         psi_ops_deploy.deploy_geoip_database_autoupdates(host)
         psi_ops_deploy.deploy_data(
                             host,
-                            self.__compartmentalize_data_for_host(host.id, host.is_TCS),
+                            TCS_data if host.is_TCS else self.__compartmentalize_data_for_host(host.id, host.is_TCS),
                             self.__TCS_traffic_rules_set,
                             self.__TCS_OSL_config,
                             self.__TCS_tactics_config_template,
@@ -2780,9 +2780,10 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
 
         successfully_deployed = set()
         failed_to_deploy = set()
+        TCS_data = self.__compartmentalize_data_for_tcs()
         def _setup_server_deploy(params):
             try:
-                self.setup_server_deploy(params[0], [params[1]])
+                self.setup_server_deploy(params[0], [params[1]], TCS_data)
                 successfully_deployed.add(params)
             except Exception as ex:
                 failed_to_deploy.add(params)
