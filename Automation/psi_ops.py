@@ -3861,10 +3861,6 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
             self.__deploy_email_config_required = False
             self.save()
 
-        # Remove hosts from providers that are marked for removal
-
-        self.remove_hosts_from_providers()
-
         #
         # Website
         #
@@ -5794,6 +5790,9 @@ def prune_all_propagation_channels():
     psinet = PsiphonNetwork.load(lock=True)
     psinet.show_status()
     try:
+        # First remove hosts from providers that were marked for removal in previous prune
+        psinet.remove_hosts_from_providers()
+
         propagation_channels = psinet._PsiphonNetwork__propagation_channels.values()
         for propagation_channel in propagation_channels:
             number_removed, number_disabled = psinet.prune_propagation_channel_servers(propagation_channel.name)
