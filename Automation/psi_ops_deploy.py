@@ -306,10 +306,10 @@ def deploy_TCS_implementation(ssh, host, servers, own_encoded_server_entries, se
             caps += ",CAP_NET_RAW"
         ssh.exec_command('setcap %s=+eip %s' % (caps, TCS_NATIVE_PSIPHOND_BINARY_FILE_NAME))
 
-        # Set disablethp environment variable for psiphond
+        # Set environment variables for psiphond
         ssh.exec_command('mkdir -p /etc/systemd/system/psiphond.service.d')
         godebug_env_content = '''[Service]
-Environment=\"GODEBUG=disablethp=1\"
+Environment=\"GODEBUG=disablethp=1,multipathtcp=0\"
 '''
         put_file_with_content(ssh, godebug_env_content, '/etc/systemd/system/psiphond.service.d/01-env-godebug.conf')
         ssh.exec_command('systemctl daemon-reload')
