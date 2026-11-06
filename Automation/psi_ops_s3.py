@@ -427,6 +427,7 @@ def update_website(aws_account, bucket_id: str, custom_site: any, website_dir: s
 
     try:
         for root, dirs, files in os.walk(website_dir):
+            dirs[:] = [d for d in dirs if d != '.git']
             for name in files:
                 if name in _IGNORE_FILENAMES:
                     continue
