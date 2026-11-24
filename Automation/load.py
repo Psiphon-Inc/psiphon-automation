@@ -198,7 +198,7 @@ def log_diagnostics(line):
 def send_mail(record):
     # Truncate results to limit email length
     start_time, end_time, (total_users, total_hosts, unreachable_hosts, hosts) = record
-    max_hosts = len(hosts) // 2
+    max_hosts = 20000
     truncated_hosts = hosts[:max_hosts]
     truncated_record = (start_time, end_time, (total_users, total_hosts, unreachable_hosts, truncated_hosts))
 
