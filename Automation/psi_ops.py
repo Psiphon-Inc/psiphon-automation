@@ -2131,22 +2131,51 @@ class PsiphonNetwork(psi_ops_cms.PersistentObject):
     def __prune_servers(self, servers):
         removal_threshold = 10
         disable_threshold = 35
-        hosts_to_remove = set()
+        # Safety limit: disable at most this percent of the hosts passed in.
+        # Hosts over the limit stay candidates and are considered next run.
+        # Removals are not limited.
+        max_disable_percent = 4
+        users_on_hosts = {}
         hosts_disabled = set()
         hosts_failed = set()
-        def _prune_host(host_id):
+
+        # Step 1: count users on each candidate host, in parallel. Nothing is
+        # changed yet. A host can have more than one server, so de-dupe.
+        host_ids = list(set(server.host_id for server in servers))
+
+        def _count_users(host_id):
             try:
-                users_on_host = self.__count_users_on_host(host_id)
-                if users_on_host <= removal_threshold:
-                    hosts_to_remove.add(host_id)
-                elif users_on_host < disable_threshold:
-                    self.__disable_host(host_id)
-                    hosts_disabled.add(host_id)
+                users_on_hosts[host_id] = self.__count_users_on_host(host_id)
             except:
                 hosts_failed.add(host_id)
 
         pool = ThreadPool(100)
-        pool.map(_prune_host, [server.host_id for server in servers])
+        pool.map(_count_users, host_ids)
+
+        hosts_to_remove = [host_id for host_id, users in users_on_hosts.items()
+                           if users <= removal_threshold]
+        hosts_to_disable = [host_id for host_id, users in users_on_hosts.items()
+                            if removal_threshold < users < disable_threshold]
+
+        # Step 2: apply the limit, disabling the least-used hosts first.
+        # Round up, so short lists can still disable at least one host.
+        max_to_disable = (len(host_ids) * max_disable_percent + 99) // 100
+        if len(hosts_to_disable) > max_to_disable:
+            hosts_to_disable.sort(key=lambda host_id: users_on_hosts[host_id])
+            sys.stderr.write('Prune disable limit reached: disabling %d of %d candidate hosts (%d%% of %d)\n' %
+                             (max_to_disable, len(hosts_to_disable), max_disable_percent, len(host_ids)))
+            hosts_to_disable = hosts_to_disable[:max_to_disable]
+
+        def _disable_host(host_id):
+            try:
+                self.__disable_host(host_id)
+                hosts_disabled.add(host_id)
+            except:
+                hosts_failed.add(host_id)
+
+        pool.map(_disable_host, hosts_to_disable)
+        pool.close()
+        pool.join()
 
         number_removed = 0
         for host_id in hosts_to_remove:
